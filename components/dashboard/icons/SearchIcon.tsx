@@ -1,0 +1,34 @@
+"use client";
+
+import type { SxProps, Theme } from "@mui/material/styles";
+
+interface SearchIconProps {
+  sx?: SxProps<Theme>;
+  width?: number;
+  height?: number;
+}
+
+export function SearchIcon({ sx, width = 24, height = 24 }: SearchIconProps) {
+  return (
+    <svg
+      width={width}
+      height={height}
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      sx={sx}
+    >
+      <path
+        d="M10.5 19C15.1945 19 19 15.1945 19 10.5C19 5.8055 15.1945 2 10.5 2C5.8055 2 2 5.8055 2 10.5C2 15.1945 5.8055 19 10.5 19Z"
+        stroke="#D2CCCC"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M13.3284 7.1715C12.9573 6.79963 12.5164 6.50471 12.031 6.30367C11.5456 6.10264 11.0253 5.99944 10.4999 6C9.97451 5.99944 9.4542 6.10264 8.96881 6.30367C8.48342 6.50471 8.04251 6.79963 7.67139 7.1715M16.6109 16.611L20.8534 20.8535"
+        stroke="#D2CCCC"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
