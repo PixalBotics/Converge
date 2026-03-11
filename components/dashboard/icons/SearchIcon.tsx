@@ -1,6 +1,7 @@
 "use client";
 
 import type { SxProps, Theme } from "@mui/material/styles";
+import { Box } from "@mui/material";
 
 interface SearchIconProps {
   sx?: SxProps<Theme>;
@@ -10,7 +11,8 @@ interface SearchIconProps {
 
 export function SearchIcon({ sx, width = 24, height = 24 }: SearchIconProps) {
   return (
-    <svg
+    <Box
+      component="svg"
       width={width}
       height={height}
       viewBox="0 0 24 24"
@@ -29,6 +31,6 @@ export function SearchIcon({ sx, width = 24, height = 24 }: SearchIconProps) {
         strokeLinecap="round"
         strokeLinejoin="round"
       />
-    </svg>
+    </Box>
   );
 }

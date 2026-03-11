@@ -22,7 +22,6 @@ import {
   chatAnalyticsBarChartTooltipItem,
   chatAnalyticsBarChartTooltipLabel,
   chatAnalyticsBarChartCursor,
-  chatAnalyticsBarChartBar,
   chatAnalyticsBarChartGradientFirst,
   chatAnalyticsBarChartGradientSecond,
 } from "./ChatAnalyticsBarChart.styles";

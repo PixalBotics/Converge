@@ -6,7 +6,6 @@ import TableCell from "@mui/material/TableCell";
 import TableContainer from "@mui/material/TableContainer";
 import TableHead from "@mui/material/TableHead";
 import TableRow from "@mui/material/TableRow";
-import type { SxProps, Theme } from "@mui/material/styles";
 import type { DataTableProps } from "./DataTable.types";
 import {
   dataTableRoot,

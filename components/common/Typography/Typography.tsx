@@ -1,6 +1,7 @@
 "use client";
 
 import MuiTypography from "@mui/material/Typography";
+import type { TypographyProps as MuiTypographyComponentProps } from "@mui/material/Typography";
 import type { TypographyProps } from "./Typography.types";
 import { typographyVariants, type TypographyVariantKey } from "./typography.styles";
 
@@ -12,7 +13,8 @@ export function Typography(props: TypographyProps) {
   const variantSx = isCustomVariant
     ? typographyVariants[variant as TypographyVariantKey]
     : undefined;
-  const muiVariant = isCustomVariant ? undefined : (variant as TypographyProps["variant"]);
+  const muiVariant: MuiTypographyComponentProps["variant"] | undefined =
+    isCustomVariant ? undefined : (variant as MuiTypographyComponentProps["variant"]);
   return (
     <MuiTypography
       variant={muiVariant}

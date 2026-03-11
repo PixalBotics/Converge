@@ -37,7 +37,7 @@ export function DepartmentPieChart({
             outerRadius={outerR}
             paddingAngle={paddingAngle}
             dataKey="value"
-            label={({ name, value }) => labelFormatter(name, value)}
+            label={({ name, value }) => labelFormatter(name ?? "", Number(value ?? 0))}
           >
             {data.map((entry, index) => (
               <Cell key={`cell-${index}`} fill={entry.color} stroke="transparent" />

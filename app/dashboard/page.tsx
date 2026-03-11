@@ -35,7 +35,6 @@ import {
   grid4,
   cardPadding,
   cardPaddingAutoHeight,
-  chartTitle,
   revenueHeaderRow,
   revenueTitleRow,
   revenueIconBox,

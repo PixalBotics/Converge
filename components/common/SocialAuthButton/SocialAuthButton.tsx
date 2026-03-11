@@ -5,7 +5,6 @@ import { useTheme } from "@mui/material/styles";
 import type { SocialAuthButtonProps } from "./SocialAuthButton.types";
 
 export function SocialAuthButton({
-  provider,
   icon,
   onClick,
   "aria-label": ariaLabel,

@@ -89,7 +89,15 @@ export function RevenueLineChart({
             labelStyle={revenueLineChartTooltipLabel}
             itemStyle={revenueLineChartTooltipItem}
             formatter={(value: unknown) => [tooltipFormatter(Number(value)), "Revenue"]}
-            labelFormatter={tooltipLabelFormatter}
+            labelFormatter={(label) => {
+              const safeLabel =
+                label !== undefined && label !== null
+                  ? typeof label === "number"
+                    ? label
+                    : String(label)
+                  : "";
+              return tooltipLabelFormatter(safeLabel);
+            }}
             cursor={revenueLineChartCursor}
           />
           <Area type="monotone" dataKey="value" fill={`url(#${gradientId})`} stroke="none" />

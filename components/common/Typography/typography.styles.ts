@@ -1,5 +1,3 @@
-import type { SxProps, Theme } from "@mui/material/styles";
-
 export const typographyVariants = {
   medium: {
     fontFamily: '"Manrope", sans-serif',

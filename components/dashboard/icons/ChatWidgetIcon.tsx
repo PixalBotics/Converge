@@ -1,6 +1,7 @@
 "use client";
 
 import type { SxProps, Theme } from "@mui/material/styles";
+import { Box } from "@mui/material";
 
 interface ChatWidgetIconProps {
   sx?: SxProps<Theme>;
@@ -10,7 +11,8 @@ interface ChatWidgetIconProps {
 
 export function ChatWidgetIcon({ sx, width = 24, height = 24 }: ChatWidgetIconProps) {
   return (
-    <svg
+    <Box
+      component="svg"
       width={width}
       height={height}
       viewBox="0 0 24 24"
@@ -23,6 +25,6 @@ export function ChatWidgetIcon({ sx, width = 24, height = 24 }: ChatWidgetIconPr
         stroke="#6769E9"
         strokeWidth="1.5"
       />
-    </svg>
+    </Box>
   );
 }

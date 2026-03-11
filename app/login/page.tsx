@@ -65,7 +65,7 @@ export default function LoginPage() {
     control,
     handleSubmit,
     setError,
-    formState: { errors, isSubmitting },
+    formState: { isSubmitting },
   } = useForm<LoginFormValues>({
     defaultValues,
     mode: "onBlur",

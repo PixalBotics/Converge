@@ -1,6 +1,7 @@
 "use client";
 
 import type { SxProps, Theme } from "@mui/material/styles";
+import { Box } from "@mui/material";
 
 interface WebsiteAssignIconProps {
   sx?: SxProps<Theme>;
@@ -11,7 +12,8 @@ interface WebsiteAssignIconProps {
 export function WebsiteAssignIcon({ sx, width = 24, height = 24 }: WebsiteAssignIconProps) {
   const clipId = "clip0_website_assign";
   return (
-    <svg
+    <Box
+      component="svg"
       width={width}
       height={height}
       viewBox="0 0 24 24"
@@ -45,6 +47,6 @@ export function WebsiteAssignIcon({ sx, width = 24, height = 24 }: WebsiteAssign
           <rect width="24" height="24" fill="white" />
         </clipPath>
       </defs>
-    </svg>
+    </Box>
   );
 }

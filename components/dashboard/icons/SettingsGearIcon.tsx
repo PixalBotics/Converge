@@ -1,6 +1,7 @@
 "use client";
 
 import type { SxProps, Theme } from "@mui/material/styles";
+import { Box } from "@mui/material";
 
 interface SettingsGearIconProps {
   sx?: SxProps<Theme>;
@@ -10,7 +11,8 @@ interface SettingsGearIconProps {
 
 export function SettingsGearIcon({ sx, width = 24, height = 24 }: SettingsGearIconProps) {
   return (
-    <svg
+    <Box
+      component="svg"
       width={width}
       height={height}
       viewBox="0 0 24 24"
@@ -36,6 +38,6 @@ export function SettingsGearIcon({ sx, width = 24, height = 24 }: SettingsGearIc
         strokeLinecap="round"
         strokeLinejoin="round"
       />
-    </svg>
+    </Box>
   );
 }

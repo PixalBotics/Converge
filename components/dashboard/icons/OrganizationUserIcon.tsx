@@ -1,6 +1,7 @@
 "use client";
 
 import type { SxProps, Theme } from "@mui/material/styles";
+import { Box } from "@mui/material";
 
 interface OrganizationUserIconProps {
   sx?: SxProps<Theme>;
@@ -10,7 +11,8 @@ interface OrganizationUserIconProps {
 
 export function OrganizationUserIcon({ sx, width = 24, height = 24 }: OrganizationUserIconProps) {
   return (
-    <svg
+    <Box
+      component="svg"
       width={width}
       height={height}
       viewBox="0 0 24 24"
@@ -25,6 +27,6 @@ export function OrganizationUserIcon({ sx, width = 24, height = 24 }: Organizati
         strokeLinecap="round"
         strokeLinejoin="round"
       />
-    </svg>
+    </Box>
   );
 }
