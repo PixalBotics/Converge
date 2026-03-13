@@ -9,6 +9,8 @@ export interface MetricCardProps {
   subtitle?: string;
   icon: React.ReactNode;
   iconBgColor: string;
+  /** Value text color (e.g. card-specific accent). Default: #6769E9 */
+  valueColor?: string;
   /** Subtitle color (e.g. "#EF4444" for alert). Default: grey */
   subtitleColor?: string;
   /** Show green trend arrow before subtitle. Default: true */
@@ -45,6 +47,7 @@ export default function MetricCard({
   subtitle,
   icon,
   iconBgColor,
+  valueColor = "#6769E9",
   subtitleColor,
   showTrendArrow = true,
 }: MetricCardProps) {
@@ -74,7 +77,7 @@ export default function MetricCard({
       <Typography
         variant="h4"
         fontWeight={700}
-        sx={{ color: "#6769E9", lineHeight: 1.2, mb: subtitle ? 0.5 : 0 }}
+        sx={{ color: valueColor, lineHeight: 1.2, mb: subtitle ? 0.5 : 0 }}
       >
         {value}
       </Typography>

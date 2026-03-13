@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Box from "@mui/material/Box";
+import { LoadingScreen } from "@/components/common";
 import { useAuth } from "@/lib/auth";
 import { DashboardSidebar, DashboardHeader } from "@/components/dashboard";
 import { dashboardText } from "./dashboard.styles";
@@ -21,8 +22,13 @@ export default function DashboardLayout({
     if (!isAuthenticated) router.replace("/login");
   }, [isAuthenticated, isLoading, router]);
 
-  if (isLoading) return null;
-  if (!isAuthenticated) return null;
+  if (isLoading) {
+    return <LoadingScreen message="Loading..." />;
+  }
+
+  if (!isAuthenticated) {
+    return <LoadingScreen message="Redirecting to login..." />;
+  }
 
   return (
     <Box

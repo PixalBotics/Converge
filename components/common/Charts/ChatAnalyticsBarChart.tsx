@@ -30,8 +30,8 @@ const DEFAULT_HEIGHT = 260;
 const GRADIENT_FIRST_ID = "chatAnalyticsBarFirst";
 const GRADIENT_SECOND_ID = "chatAnalyticsBarSecond";
 
-const MARGIN_DESKTOP = { top: 24, right: 16, left: 8, bottom: 8 };
-const MARGIN_MOBILE = { top: 16, right: 8, left: 4, bottom: 4 };
+const MARGIN_DESKTOP = { top: 20, right: 16, left: 8, bottom: 2 };
+const MARGIN_MOBILE = { top: 16, right: 8, left: 4, bottom: 2 };
 
 export function ChatAnalyticsBarChart({
   data,

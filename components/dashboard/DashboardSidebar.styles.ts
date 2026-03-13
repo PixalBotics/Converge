@@ -11,7 +11,7 @@ export const navTextProps = {
 export const sectionLabelSx: SxProps<Theme> = {
   px: 2,
   py: 1,
-  typography: "caption",
+  typography: typographyVariants.medium16,
   fontWeight: 700,
   letterSpacing: 1.2,
   color: "#B6A0EA",
@@ -22,6 +22,7 @@ export const navItemSx: SxProps<Theme> = {
   my: 2.25,
   borderRadius: 1.5,
   boxSizing: "border-box",
+  whiteSpace: "nowrap",
 
   "&.Mui-selected": {
     width: 210,

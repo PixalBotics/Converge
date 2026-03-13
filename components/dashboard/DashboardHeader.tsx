@@ -109,13 +109,14 @@ export default function DashboardHeader({ onMenuClick }: { onMenuClick?: () => v
           Dashboard
         </Typography>
         <Typography variant="boldLarge" color="white" sx={{ fontSize: { xs: 14, sm: 16, md: 18 }, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-          Welcome back, {displayName.split(" ")[0]} 👋
+          Welcome back, {displayName.split(" ")[0]} 
+          {/* 👋 */}
         </Typography>
       </Box>
 
       <Box sx={{ display: "flex", alignItems: "center", gap: { xs: 0.25, sm: 1.5 }, flex: 1, minWidth: 0, justifyContent: "flex-end" }}>
       {!isMobile && (
-        <Box sx={{ width: 400, flexShrink: 0 }}>
+        <Box sx={{ width: { md: 230, lg: 400 }, flexShrink: 0 }}>
           <Box sx={{ width: "100%" }}>{searchBarContent}</Box>
         </Box>
       )}
@@ -164,7 +165,7 @@ export default function DashboardHeader({ onMenuClick }: { onMenuClick?: () => v
               <Typography variant="body2" fontWeight={600} color="white">
                 {displayName.toUpperCase()}
               </Typography>
-              <Typography variant="caption" color="rgba(255,255,255,0.6)">
+              <Typography variant="medium" color="rgba(255,255,255,0.6)">
                 {user?.role === "admin" ? "Admin" : "User"}
               </Typography>
             </Box>

@@ -17,7 +17,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={manrope.className}>
+      <body
+        className={manrope.className}
+        style={{ background: "radial-gradient(50% 50% at 50% 50%, #09013F 0%, #00011A 100%)", minHeight: "100vh" }}
+      >
         <ThemeRegistry>
           <AuthProvider>{children}</AuthProvider>
         </ThemeRegistry>

@@ -3,21 +3,21 @@ import type { User, LoginCredentials } from "./types";
 const MOCK_USERS: User[] = [
   {
     id: "usr-demo-001",
-    email: "demo@interchanges.com",
+    email: "demo@gmail.com",
     displayName: "Demo User",
     role: "user",
   },
   {
     id: "usr-admin-001",
-    email: "admin@interchanges.com",
+    email: "admin@gmail.com",
     displayName: "Admin",
     role: "admin",
   },
 ];
 
 const MOCK_CREDENTIALS: Record<string, { password: string; licenseKey?: string }> = {
-  "demo@interchanges.com": { password: "Demo123!" },
-  "admin@interchanges.com": { password: "Admin123!", licenseKey: "INTERCHANGES-DEMO-2024" },
+  "demo@gmail.com": { password: "Demo123" },
+  "admin@gmail.com": { password: "Admin123", licenseKey: "1234" },
 };
 
 const SESSION_DURATION_MS = 24 * 60 * 60 * 1000;
@@ -46,7 +46,7 @@ export function isSessionValid(expiresAt: number): boolean {
 }
 
 export const MOCK_LOGIN_HINT = {
-  email: "demo@interchanges.com",
-  password: "Demo123!",
+  email: "demo@gmail.com",
+  password: "Demo123",
   licenseKey: "Optional for demo user",
 };

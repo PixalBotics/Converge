@@ -76,9 +76,10 @@ export const revenueCardsColumn: SxProps<Theme> = {
 
 export const grid2Lg: SxProps<Theme> = {
   display: "grid",
-  gridTemplateColumns: { xs: "1fr", lg: "1.2fr 1fr" },
+  gridTemplateColumns: { xs: "1fr", md: "1.2fr 1fr", lg: "1.2fr 1fr" },
   gap: { xs: 1.5, sm: 2 },
   mb: 2,
+  "& > *": { minWidth: 0 },
 };
 
 export const grid4: SxProps<Theme> = {
@@ -195,6 +196,18 @@ export const chatAnalyticsIconBox: SxProps<Theme> = {
   color: "white",
 };
 
+/** Chat Volume card: purple circular icon (#6B46C1) per screenshot */
+export const chatVolumeIconBox: SxProps<Theme> = {
+  width: 40,
+  height: 40,
+  borderRadius: "50%",
+  background: "#6B46C1",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  color: "white",
+};
+
 /** Chat Analytics: pill toggle — container #16123F, active tab #2B254D, inactive rgba(255,255,255,0.5) */
 export const chatAnalyticsToggleGroup: SxProps<Theme> = {
   display: "inline-flex",
@@ -238,12 +251,19 @@ export const chartBox220: SxProps<Theme> = {
 
 export const chartBox260: SxProps<Theme> = {
   height: "100%",
+  minHeight: 260,
   outline: "none",
   "&:focus": { outline: "none", boxShadow: "none" },
   "&:focus-visible": { outline: "none", boxShadow: "none" },
   "& *": { outline: "none" },
   "& *:focus": { outline: "none", boxShadow: "none" },
   "& *:focus-visible": { outline: "none", boxShadow: "none" },
+};
+
+/** Department Performance: taller chart, less empty space at bottom */
+export const chartBoxDepartmentPerformance: SxProps<Theme> = {
+  ...chartBox260,
+  minHeight: 320,
 };
 
 export const chartBox280: SxProps<Theme> = {
@@ -304,4 +324,248 @@ export const tableActionButton: SxProps<Theme> = {
 
 export const iconSize22: SxProps<Theme> = {
   fontSize: 22,
+};
+
+/** Chat Volume: summary sub-panel below chart — rounded box, two metrics; responsive: row on sm+, column on xs */
+export const chatVolumeSummaryPanel: SxProps<Theme> = {
+  display: "flex",
+  flexDirection: { xs: "column", sm: "row" },
+  alignItems: "stretch",
+  borderRadius: 2,
+  overflow: "hidden",
+  border: "none",
+  background: "rgba(255,255,255,0.06)",
+  padding: "10px 0px",
+};
+
+export const chatVolumeSummaryItem: SxProps<Theme> = {
+  flex: 1,
+  py: 1.5,
+  px: 2,
+  display: "flex",
+  flexDirection: "column",
+  alignItems: "center",
+  justifyContent: "center",
+};
+
+export const chatVolumeSummaryDivider: SxProps<Theme> = {
+  width: { xs: "100%", sm: "2px" },
+  height: { xs: "2px", sm: "40px" },
+  minWidth: { xs: "auto", sm: "2px" },
+  minHeight: { xs: "2px", sm: "auto" },
+  background: { xs: "linear-gradient(90deg, transparent 0%, #7C6DE6 50%, transparent 100%)", sm: "linear-gradient(180deg, #7C6DE6 0%, #164DE2 47.12%, #050130 100%)" },
+  alignSelf: "center",
+};
+
+/** Live Overview — screenshot match: header with $ icon on purple, waiting card, active list */
+export const liveOverviewHeaderIconBox: SxProps<Theme> = {
+  width: 40,
+  height: 40,
+  borderRadius: "12px",
+  background: "radial-gradient(100% 100% at 50% 0%, #A78BFA 0%, #5B21B6 100%)",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  color: "#E9D5FF",
+  boxShadow: "0 6px 20px rgba(91, 33, 182, 0.4)",
+};
+
+export const liveOverviewWaitingCard: SxProps<Theme> = {
+  borderRadius: 2,
+  border: "none",
+  background: "rgba(255,255,255,0.06)",
+  backdropFilter: "blur(8px)",
+  p: 2,
+  mb: 2.5,
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  height: "auto",
+};
+
+export const liveOverviewSectionTitle: SxProps<Theme> = {
+  fontWeight: 700,
+  fontSize: "1rem",
+  color: "rgba(255,255,255,0.95)",
+  mb: 1.5,
+};
+
+export const liveOverviewChatRow: SxProps<Theme> = {
+  display: "flex",
+  alignItems: "flex-start",
+  gap: { xs: 1, sm: 1.5 },
+  py: { xs: 1.25, sm: 1.5 },
+  borderBottom: "1px solid rgba(255,255,255,0.06)",
+  "&:last-of-type": { borderBottom: "none" },
+};
+
+export const overviewHeaderDropdownWrap: SxProps<Theme> = {
+  alignSelf: { xs: "flex-end" },
+};
+
+export const chartLoadingBox: SxProps<Theme> = {
+  minHeight: 220,
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+};
+
+export const chartLoadingBox260: SxProps<Theme> = {
+  minHeight: 260,
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+};
+
+export const chartLoadingBox280: SxProps<Theme> = {
+  minHeight: 280,
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+};
+
+export const tableUserCellBox: SxProps<Theme> = {
+  display: "flex",
+  alignItems: "center",
+  gap: 1.5,
+};
+
+export const tableAvatar: SxProps<Theme> = {
+  width: 32,
+  height: 32,
+  bgcolor: "#3B82F6",
+  color: "white",
+  "& .MuiSvgIcon-root": { fontSize: 18 },
+};
+
+export const tableAvatarIcon: SxProps<Theme> = {
+  fontSize: 18,
+};
+
+export const activeChatsPill: SxProps<Theme> = {
+  px: 1.25,
+  py: 0.25,
+  borderRadius: "9999px",
+  bgcolor: "rgba(59, 130, 246, 0.2)",
+  color: "#93C5FD",
+  fontSize: "0.75rem",
+  fontWeight: 500,
+};
+
+export const avgRatingBox: SxProps<Theme> = {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 0.5,
+};
+
+export const starIconYellow: SxProps<Theme> = {
+  fontSize: 16,
+  color: "#EAB308",
+};
+
+export const chatVolumeSummaryWrapper: SxProps<Theme> = {
+  ...cardPadding,
+  pt: 0,
+};
+
+export const chatVolumeSummaryLabel: SxProps<Theme> = {
+  mb: 1,
+};
+
+export const chatVolumeResolvedColor: SxProps<Theme> = {
+  color: "#5A67D8",
+};
+
+export const gridAgentLiveOverview: SxProps<Theme> = {
+  ...grid2Lg,
+  gridTemplateColumns: { xs: "1fr", md: "1.5fr 1fr" },
+};
+
+export const cardAgentPerformance: SxProps<Theme> = {
+  ...cardPaddingAutoHeight,
+  minWidth: 0,
+  overflow: "hidden",
+};
+
+export const cardLiveOverview: SxProps<Theme> = {
+  ...cardPadding,
+  minWidth: 0,
+};
+
+export const liveOverviewIconSize: SxProps<Theme> = {
+  fontSize: 20,
+};
+
+export const waitingQueueLabel: SxProps<Theme> = {
+  mb: 0.5,
+};
+
+export const waitingQueueCountRow: SxProps<Theme> = {
+  display: "flex",
+  alignItems: "baseline",
+  gap: 0.5,
+  color: "#3B1FF5"
+};
+
+export const waitingQueueCountNumber: SxProps<Theme> = {
+  color: "#3B82F6",
+};
+
+export const liveOverviewRefreshButton: SxProps<Theme> = {
+  color: "#F472B6",
+  p: 0.75,
+};
+
+export const liveOverviewChatList: SxProps<Theme> = {
+  display: "flex",
+  flexDirection: "column",
+  minWidth: 0,
+};
+
+export const liveOverviewAvatar: SxProps<Theme> = {
+  width: { xs: 36, sm: 40 },
+  height: { xs: 36, sm: 40 },
+  bgcolor: "#3B82F6",
+  color: "white",
+  flexShrink: 0,
+};
+
+export const liveOverviewAvatarIcon: SxProps<Theme> = {
+  fontSize: { xs: 18, sm: 20 },
+};
+
+export const liveOverviewChatContent: SxProps<Theme> = {
+  flex: 1,
+  minWidth: 0,
+  overflow: "hidden",
+};
+
+export const liveOverviewChatName: SxProps<Theme> = {
+  mb: 0.25,
+  overflow: "hidden",
+  textOverflow: "ellipsis",
+  whiteSpace: "nowrap",
+};
+
+export const liveOverviewChatMessage: SxProps<Theme> = {
+  display: "block",
+  fontSize: "0.8125rem",
+  overflow: "hidden",
+  textOverflow: "ellipsis",
+  whiteSpace: "nowrap",
+};
+
+export const liveOverviewChatTime: SxProps<Theme> = {
+  flexShrink: 0,
+  fontSize: "0.8125rem",
+};
+
+export const revenueTitleRowMb2: SxProps<Theme> = {
+  ...revenueTitleRow,
+  mb: 2,
+};
+
+export const revenueIconSmall: SxProps<Theme> = {
+  fontSize: 18,
+  color: "#E5E7EB",
 };

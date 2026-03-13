@@ -13,3 +13,9 @@ export type {
   DepartmentPieChartProps,
   DepartmentPieChartDataPoint,
 } from "./DepartmentPieChart.types";
+
+export { ChatVolumeChart } from "./ChatVolumeChart";
+export type {
+  ChatVolumeChartProps,
+  ChatVolumeChartDataPoint,
+} from "./ChatVolumeChart.types";
