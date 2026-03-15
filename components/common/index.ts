@@ -25,3 +25,5 @@ export { FilterButton } from "./FilterButton/FilterButton";
 export { TablePagination } from "./TablePagination/TablePagination";
 export { FormModal } from "./FormModal/FormModal";
 export { StatusRadioGroup } from "./StatusRadioGroup/StatusRadioGroup";
+export { Divider } from "./Divider";
+export type { DividerProps } from "./Divider";

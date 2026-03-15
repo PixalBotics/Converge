@@ -4,6 +4,8 @@ import Box from "@mui/material/Box";
 import Radio from "@mui/material/Radio";
 import RadioGroup from "@mui/material/RadioGroup";
 import FormControlLabel from "@mui/material/FormControlLabel";
+import { useTheme } from "@mui/material/styles";
+import type { AppTheme } from "@/theme/theme";
 import { Typography } from "@/components/common";
 
 export interface StatusRadioGroupProps {
@@ -12,6 +14,10 @@ export interface StatusRadioGroupProps {
 }
 
 export function StatusRadioGroup({ value, onChange }: StatusRadioGroupProps) {
+  const theme = useTheme() as AppTheme;
+  const activeColor = theme.app.dashboard.accentGreen;
+  const mutedColor = theme.app.dashboard.textMuted;
+
   return (
     <RadioGroup
       row
@@ -40,7 +46,7 @@ export function StatusRadioGroup({ value, onChange }: StatusRadioGroupProps) {
                   width: 16,
                   height: 16,
                   borderRadius: "9999px",
-                  bgcolor: "#22C55E",
+                  bgcolor: activeColor,
                   boxShadow: "0 0 0 4px rgba(34,197,94,0.35)",
                 }}
               />
@@ -49,7 +55,7 @@ export function StatusRadioGroup({ value, onChange }: StatusRadioGroupProps) {
           />
         }
         label={
-          <Typography variant="medium" color="white">
+          <Typography variant="medium" sx={{ color: value === "Active" ? activeColor : mutedColor }}>
             Active
           </Typography>
         }
@@ -77,7 +83,7 @@ export function StatusRadioGroup({ value, onChange }: StatusRadioGroupProps) {
                   width: 16,
                   height: 16,
                   borderRadius: "9999px",
-                  bgcolor: "#22C55E",
+                  bgcolor: activeColor,
                   boxShadow: "0 0 0 4px rgba(34,197,94,0.35)",
                 }}
               />
@@ -86,10 +92,7 @@ export function StatusRadioGroup({ value, onChange }: StatusRadioGroupProps) {
           />
         }
         label={
-          <Typography
-            variant="medium"
-            color={value === "Inactive" ? "white" : "rgba(148,163,184,0.9)"}
-          >
+          <Typography variant="medium" sx={{ color: value === "Inactive" ? activeColor : mutedColor }}>
             InActive
           </Typography>
         }

@@ -2,9 +2,13 @@
 
 import Box from "@mui/material/Box";
 import IconButton from "@mui/material/IconButton";
+import { useTheme } from "@mui/material/styles";
 import type { SxProps, Theme } from "@mui/material/styles";
 import { Close as CloseIcon } from "@mui/icons-material";
-import { DashboardCard, Typography, Button, InputField } from "@/components/common";
+import { DashboardCard, Typography, Button } from "@/components/common";
+
+const defaultModalBackground =
+  "radial-gradient(50% 50% at 50% 50%, #09013F 0%, #00011A 100%)";
 
 export interface FormModalFieldConfig {
   id: string;
@@ -16,6 +20,7 @@ export interface FormModalFieldConfig {
 export interface FormModalProps {
   open: boolean;
   title: string;
+  description?: string;
   onClose: () => void;
   onSave: () => void;
   primaryButtonLabel?: string;
@@ -27,6 +32,7 @@ export interface FormModalProps {
 export function FormModal({
   open,
   title,
+  description,
   onClose,
   onSave,
   primaryButtonLabel = "Save",
@@ -34,6 +40,10 @@ export function FormModal({
   children,
   sx,
 }: FormModalProps) {
+  const theme = useTheme();
+  const modalBackground =
+    (theme as Theme & { appBackground?: string }).appBackground ?? defaultModalBackground;
+
   if (!open) return null;
 
   return (
@@ -54,26 +64,39 @@ export function FormModal({
           position: "relative",
           width: "100%",
           maxWidth: 540,
-          height: "auto",
           maxHeight: "90vh",
-          overflowY: "auto",
+          height: "auto",
+          display: "flex",
+          flexDirection: "column",
+          overflow: "hidden",
           p: 3,
-          background: "#020617",
+          background: modalBackground,
           borderRadius: 3,
           ...((sx as object) ?? {}),
         }}
       >
         <Box
           sx={{
+            flexShrink: 0,
             display: "flex",
-            alignItems: "center",
+            alignItems: "flex-start",
             justifyContent: "space-between",
             mb: 2.5,
           }}
         >
-          <Typography variant="mediumLarge" fontWeight={600} color="white">
-            {title}
-          </Typography>
+          <Box>
+            <Typography variant="mediumLarge" fontWeight={600} color="white">
+              {title}
+            </Typography>
+            {description && (
+              <Typography
+                variant="body2"
+                sx={{ mt: 0.5, color: "rgba(148,163,184,0.9)", fontSize: 14 }}
+              >
+                {description}
+              </Typography>
+            )}
+          </Box>
           <IconButton
             onClick={onClose}
             size="small"
@@ -90,12 +113,27 @@ export function FormModal({
           </IconButton>
         </Box>
 
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5, mb: 3 }}>
+        <Box
+          sx={{
+            flex: 1,
+            minHeight: 0,
+            overflowY: "auto",
+            overflowX: "hidden",
+            display: "flex",
+            flexDirection: "column",
+            gap: 2.5,
+            mb: 3,
+            scrollbarWidth: "none",
+            msOverflowStyle: "none",
+            "&::-webkit-scrollbar": { display: "none" },
+          }}
+        >
           {children}
         </Box>
 
         <Box
           sx={{
+            flexShrink: 0,
             display: "flex",
             justifyContent: "flex-end",
             gap: 1.5,

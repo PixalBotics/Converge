@@ -9,6 +9,7 @@ import TableRow from "@mui/material/TableRow";
 import type { DataTableProps } from "./DataTable.types";
 import {
   dataTableRoot,
+  dataTableContainer,
   dataTableHeaderCell,
   dataTableCellDefault,
   dataTableCellMuted,
@@ -32,11 +33,7 @@ export function DataTable<T extends Record<string, unknown>>({
 
   return (
     <TableContainer
-      sx={{
-        overflowX: "auto",
-        WebkitOverflowScrolling: "touch",
-        ...containerSx,
-      }}
+      sx={[dataTableContainer, ...(containerSx ? (Array.isArray(containerSx) ? containerSx : [containerSx]) : [])]}
     >
       <Table
         size={size}

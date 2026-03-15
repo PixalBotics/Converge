@@ -4,6 +4,8 @@ import { useState, useMemo } from "react";
 import dynamic from "next/dynamic";
 import Box from "@mui/material/Box";
 import Avatar from "@mui/material/Avatar";
+import { useTheme } from "@mui/material/styles";
+import type { AppTheme } from "@/theme/theme";
 import { Typography } from "@/components/common";
 import IconButton from "@mui/material/IconButton";
 import {
@@ -87,6 +89,7 @@ import {
   revenueTitleRowMb2,
   revenueIconSmall,
 } from "./dashboard.styles";
+import HrAdminOverview from "./HrAdminOverview";
 
 const RevenueLineChart = dynamic(
   () => import("@/components/common/Charts").then((m) => ({ default: m.RevenueLineChart })),
@@ -220,6 +223,7 @@ interface AgentPerformanceRow extends Record<string, unknown> {
 const DATE_RANGE_OPTIONS = ["Last 7 Days", "Last 30 Days", "Last 90 Days"];
 
 export default function DashboardPage() {
+  const theme = useTheme() as AppTheme;
   const [dateRangeValue, setDateRangeValue] = useState("Last 30 Days");
   const [activityPage, setActivityPage] = useState(1);
   const activityPageCount = 2;
@@ -297,7 +301,12 @@ export default function DashboardPage() {
     []
   );
 
+  const isHrAdmin = user?.role === "hr-admin";
   const isEmployee = user?.role === "user";
+
+  if (isHrAdmin) {
+    return <HrAdminOverview />;
+  }
 
   if (isEmployee) {
     return (
@@ -324,8 +333,8 @@ export default function DashboardPage() {
             value="23,0989"
             subtitle="Across 8 child companies"
             icon={<BarChartIcon sx={iconSize22} />}
-            iconBgColor="#3B82F6"
-            valueColor="#3B82F6"
+            iconBgColor={theme.app.dashboard.accentBlue}
+            valueColor={theme.app.dashboard.accentBlue}
             showTrendArrow={false}
           />
           <MetricCard
@@ -333,24 +342,24 @@ export default function DashboardPage() {
             value="89"
             subtitle="Peak time currently"
             icon={<BarChartIcon sx={iconSize22} />}
-            iconBgColor="#F97316"
-            valueColor="#F97316"
+            iconBgColor={theme.app.dashboard.accentOrange}
+            valueColor={theme.app.dashboard.accentOrange}
           />
           <MetricCard
             title="Avg Response Time"
             value="1m 24s"
             subtitle="Improved from last week"
             icon={<BarChartIcon sx={iconSize22} />}
-            iconBgColor="#A855F7"
-            valueColor="#A855F7"
+            iconBgColor={theme.app.dashboard.accentPurple}
+            valueColor={theme.app.dashboard.accentPurple}
           />
           <MetricCard
             title="QA Average Rating"
             value="4.8/5.0"
             subtitle="52% increase from last month"
             icon={<BarChartIcon sx={iconSize22} />}
-            iconBgColor="#EC4899"
-            valueColor="#EC4899"
+            iconBgColor={theme.app.dashboard.accentPink}
+            valueColor={theme.app.dashboard.accentPink}
           />
         </Box>
 
@@ -407,7 +416,7 @@ export default function DashboardPage() {
             <Box sx={chatVolumeSummaryWrapper}>
               <DashboardCard sx={chatVolumeSummaryPanel}>
                 <Box sx={chatVolumeSummaryItem}>
-                  <Typography variant="medium16" color="rgba(255,255,255,0.7)" sx={chatVolumeSummaryLabel}>
+                  <Typography variant="medium16" sx={{ color: theme.app.dashboard.white7, ...chatVolumeSummaryLabel } as object}>
                     Total Chats
                   </Typography>
                   <Typography variant="medium16" color="white">
@@ -416,7 +425,7 @@ export default function DashboardPage() {
                 </Box>
                 <Box sx={chatVolumeSummaryDivider} />
                 <Box sx={chatVolumeSummaryItem}>
-                  <Typography variant="medium16" color="rgba(255,255,255,0.7)" sx={chatVolumeSummaryLabel}>
+                  <Typography variant="medium16" sx={{ color: theme.app.dashboard.white7, ...chatVolumeSummaryLabel } as object}>
                     Resolved
                   </Typography>
                   <Typography variant="medium16" sx={chatVolumeResolvedColor}>
@@ -451,13 +460,13 @@ export default function DashboardPage() {
               <Box sx={liveOverviewHeaderIconBox}>
                 <AttachMoneyIcon sx={liveOverviewIconSize} />
               </Box>
-              <Typography variant="subtitle1" fontWeight={700} color="rgba(255,255,255,0.95)">
+              <Typography variant="subtitle1" fontWeight={700} sx={{ color: theme.app.dashboard.white95 }}>
                 Live Overview
               </Typography>
             </Box>
             <DashboardCard sx={liveOverviewWaitingCard}>
               <Box>
-                <Typography variant="body2" color="rgba(255,255,255,0.65)" sx={waitingQueueLabel}>
+                <Typography variant="body2" sx={{ color: theme.app.dashboard.white65, ...waitingQueueLabel } as object}>
                   Waiting Queue
                 </Typography>
                 <Box sx={waitingQueueCountRow}>
@@ -483,14 +492,14 @@ export default function DashboardPage() {
                     <PersonIcon sx={liveOverviewAvatarIcon} />
                   </Avatar>
                   <Box sx={liveOverviewChatContent}>
-                    <Typography variant="body2" fontWeight={600} color="rgba(255,255,255,0.95)" sx={liveOverviewChatName}>
+                    <Typography variant="body2" fontWeight={600} sx={{ color: theme.app.dashboard.white95, ...liveOverviewChatName } as object}>
                       {chat.name}
                     </Typography>
-                    <Typography variant="body2" color="rgba(255,255,255,0.6)" sx={liveOverviewChatMessage}>
+                    <Typography variant="body2" sx={{ color: theme.app.dashboard.white60, ...liveOverviewChatMessage } as object}>
                       {chat.message}
                     </Typography>
                   </Box>
-                  <Typography variant="body2" color="rgba(255,255,255,0.55)" sx={liveOverviewChatTime}>
+                  <Typography variant="body2" sx={{ color: theme.app.dashboard.white60, ...liveOverviewChatTime } as object}>
                     {chat.time}
                   </Typography>
                 </Box>
@@ -526,21 +535,21 @@ export default function DashboardPage() {
           value="0989"
           subtitle="10% increase from last month"
           icon={<ChatIcon sx={iconSize22} />}
-          iconBgColor="#3B82F6"
+          iconBgColor={theme.app.dashboard.accentBlue}
         />
         <MetricCard
           title="Total Companies"
           value="123"
           subtitle="10% increase from last month"
           icon={<BusinessIcon sx={iconSize22} />}
-          iconBgColor="#F97316"
+          iconBgColor={theme.app.dashboard.accentOrange}
         />
         <MetricCard
           title="Total Active Websites"
           value="32"
           subtitle="10% increase from last month"
           icon={<PublicIcon sx={iconSize22} />}
-          iconBgColor="#3B82F6"
+          iconBgColor={theme.app.dashboard.accentBlue}
         />
       </Box>
 
@@ -557,14 +566,14 @@ export default function DashboardPage() {
           value="122"
           subtitle="10% increase from last month"
           icon={<HeadsetIcon sx={iconSize22} />}
-          iconBgColor="#EC4899"
+          iconBgColor={theme.app.dashboard.accentPink}
         />
         <MetricCard
           title="Today Total Chats"
           value="1234"
           subtitle="10% increase from last month"
           icon={<ChatIcon sx={iconSize22} />}
-          iconBgColor="#3B82F6"
+          iconBgColor={theme.app.dashboard.accentBlue}
         />
       </Box>
 
@@ -575,14 +584,14 @@ export default function DashboardPage() {
             value="$34,008,327"
             subtitle="10% increase from last month"
             icon={<AttachMoneyIcon sx={iconSize22} />}
-            iconBgColor="#EC4899"
+            iconBgColor={theme.app.dashboard.accentPink}
           />
           <MetricCard
             title="Today Revenue"
             value="$323,971.32"
             subtitle="10% increase from last month"
             icon={<AttachMoneyIcon sx={iconSize22} />}
-            iconBgColor="#3B82F6"
+            iconBgColor={theme.app.dashboard.accentBlue}
           />
         </Box>
         <DashboardCard sx={cardPadding}>
@@ -656,15 +665,15 @@ export default function DashboardPage() {
           value="123/870"
           subtitle="10% increase from last month"
           icon={<PersonIcon sx={iconSize22} />}
-          iconBgColor="#3B82F6"
+          iconBgColor={theme.app.dashboard.accentBlue}
         />
         <MetricCard
           title="License Expiring"
           value="07"
           subtitle="License Expired"
           icon={<WarningIcon sx={iconSize22} />}
-          iconBgColor="#EF4444"
-          subtitleColor="#EF4444"
+          iconBgColor={theme.app.dashboard.accentRed}
+          subtitleColor={theme.app.dashboard.accentRed}
           showTrendArrow={false}
         />
         <MetricCard
@@ -672,14 +681,14 @@ export default function DashboardPage() {
           value="$323,971.32"
           subtitle="10% increase from last month"
           icon={<AttachMoneyIcon sx={iconSize22} />}
-          iconBgColor="#3B82F6"
+          iconBgColor={theme.app.dashboard.accentBlue}
         />
         <MetricCard
           title="System Status"
           value="Operational"
           subtitle="No Issues"
           icon={<CheckCircleIcon sx={iconSize22} />}
-          iconBgColor="#3B82F6"
+          iconBgColor={theme.app.dashboard.accentBlue}
         />
       </Box>
 

@@ -1,5 +1,15 @@
 import type { SxProps, Theme } from "@mui/material/styles";
 
+/** TableContainer: scroll enabled, scrollbar hidden (webkit + Firefox/IE) */
+export const dataTableContainer: SxProps<Theme> = {
+  overflowX: "auto",
+  overflowY: "auto",
+  WebkitOverflowScrolling: "touch",
+  scrollbarWidth: "none",
+  msOverflowStyle: "none",
+  "&::-webkit-scrollbar": { display: "none" },
+};
+
 export const dataTableRoot: SxProps<Theme> = {
   "& .MuiTableCell-root": {
     borderColor: "rgba(255,255,255,0.08)",

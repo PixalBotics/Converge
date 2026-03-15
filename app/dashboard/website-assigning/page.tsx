@@ -4,6 +4,8 @@ import { useMemo, useState } from "react";
 import Box from "@mui/material/Box";
 import Avatar from "@mui/material/Avatar";
 import IconButton from "@mui/material/IconButton";
+import { useTheme } from "@mui/material/styles";
+import type { AppTheme } from "@/theme/theme";
 import { Add as AddIcon, MoreHoriz as MoreHorizIcon } from "@mui/icons-material";
 import { Typography, DashboardCard, DataTable, dataTableActionButton, Button, SearchBar, FilterButton, TablePagination, FormModal, InputField, StatusRadioGroup, SelectField } from "@/components/common";
 import type { DataTableColumn } from "@/components/common";
@@ -91,6 +93,7 @@ const DEPARTMENTS: DepartmentRow[] = [
 ];
 
 export default function WebsiteAssigningPage() {
+  const theme = useTheme() as AppTheme;
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const pageCount = 2;
@@ -122,8 +125,8 @@ export default function WebsiteAssigningPage() {
               sx={{
                 width: 32,
                 height: 32,
-                bgcolor: "#4F46E5",
-                color: "white",
+                bgcolor: theme.app.dashboard.buttonIndigo,
+                color: theme.app.text.primary,
                 fontSize: 14,
               }}
             >
@@ -147,8 +150,8 @@ export default function WebsiteAssigningPage() {
               borderRadius: "9999px",
               fontSize: "0.75rem",
               fontWeight: 500,
-              bgcolor: String(value) === "Internal" ? "rgba(59,130,246,0.16)" : "rgba(244,114,182,0.16)",
-              color: String(value) === "Internal" ? "#93C5FD" : "#F9A8D4",
+              bgcolor: String(value) === "Internal" ? theme.app.dashboard.blueTintBg : theme.app.dashboard.pinkTintBg,
+              color: String(value) === "Internal" ? theme.app.dashboard.blueTint : theme.app.dashboard.accentPinkLight,
             }}
           >
             {String(value ?? "—")}
@@ -172,8 +175,8 @@ export default function WebsiteAssigningPage() {
                 px: 1.5,
                 py: 0.5,
                 borderRadius: "9999px",
-                bgcolor: isActive ? "rgba(22,163,74,0.12)" : "rgba(239,68,68,0.12)",
-                color: isActive ? "#4ADE80" : "#FCA5A5",
+                bgcolor: isActive ? theme.app.dashboard.successTintBg : theme.app.dashboard.errorTintBg,
+                color: isActive ? theme.app.dashboard.accentGreenLight : theme.app.dashboard.accentRedLight,
                 fontSize: "0.75rem",
                 fontWeight: 500,
               }}
@@ -183,7 +186,7 @@ export default function WebsiteAssigningPage() {
                   width: 8,
                   height: 8,
                   borderRadius: "9999px",
-                  bgcolor: isActive ? "#22C55E" : "#F97316",
+                  bgcolor: isActive ? theme.app.dashboard.accentGreen : theme.app.dashboard.accentOrange,
                 }}
               />
               {String(value ?? "—")}
@@ -192,7 +195,7 @@ export default function WebsiteAssigningPage() {
         },
       },
     ],
-    []
+    [theme]
   );
 
   return (
@@ -221,7 +224,7 @@ export default function WebsiteAssigningPage() {
             <Box
               sx={departmentsIconBox}
             >
-              <SearchIcon sx={{ fontSize: 20, color: "#E5E7EB" }} width={20} height={20} />
+              <SearchIcon sx={{ fontSize: 20, color: theme.app.dashboard.iconMuted }} width={20} height={20} />
             </Box>
             <Typography variant="mediumLarge" color="white">
               Departments
@@ -255,7 +258,7 @@ export default function WebsiteAssigningPage() {
         />
 
         <Box sx={departmentsFooterRow}>
-          <Typography variant="medium" color="rgba(148,163,184,0.9)">
+          <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted }}>
             Showing data 1–{filteredRows.length} of 25K entries
           </Typography>
           <Box sx={departmentsPaginationWrapper}>
@@ -267,6 +270,7 @@ export default function WebsiteAssigningPage() {
       <FormModal
         open={isAddOpen}
         title="Add Department"
+        description="Create a new user account with appropriate access levels."
         onClose={() => setIsAddOpen(false)}
         onSave={() => setIsAddOpen(false)}
       >
@@ -280,7 +284,7 @@ export default function WebsiteAssigningPage() {
             { label: "External", value: "External" },
           ]}
         />
-        <Box sx={{ mt: 0.5 }}>
+        <Box sx={{ mt: 0.5, marginLeft: "13px" }}>
           <Typography variant="medium" color="white" sx={{ mb: 1 }}>
             Status
           </Typography>
