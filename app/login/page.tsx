@@ -83,8 +83,26 @@ export default function LoginPage() {
       licenseKey: values.licenseKey.trim() || undefined,
       rememberMe: values.rememberMe,
     });
+
     if (!result.success) {
-      setError("licenseKey", { message: result.error });
+      if (result.fieldErrors) {
+        const { email, password, licenseKey } = result.fieldErrors;
+
+        if (email) {
+          setError("email", { type: "manual", message: email });
+        }
+        if (password) {
+          setError("password", { type: "manual", message: password });
+        }
+        if (licenseKey) {
+          setError("licenseKey", { type: "manual", message: licenseKey });
+        }
+      } else if (result.error) {
+        setError("password", {
+          type: "manual",
+          message: result.error,
+        });
+      }
     }
   };
 

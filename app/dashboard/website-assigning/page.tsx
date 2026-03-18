@@ -284,6 +284,14 @@ export default function WebsiteAssigningPage() {
             { label: "External", value: "External" },
           ]}
         />
+        {departmentType === "External" && (
+          <>
+            <InputField label="Client of / Reseller" placeholder="Client of / Reseller" />
+            <InputField label="Parent Company" placeholder="Parent Company" />
+            <InputField label="Child Company" placeholder="Child Company" />
+            <InputField label="Website" placeholder="Website" />
+          </>
+        )}
         <Box sx={{ mt: 0.5, marginLeft: "13px" }}>
           <Typography variant="medium" color="white" sx={{ mb: 1 }}>
             Status

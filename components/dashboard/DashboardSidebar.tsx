@@ -80,6 +80,18 @@ export default function DashboardSidebar({ open = false, onClose }: { open?: boo
         </ListItemButton>
         <ListItemButton
           component={Link}
+          href="/dashboard/overview"
+          selected={pathname === "/dashboard/overview"}
+          sx={navItemSx}
+          onClick={() => !isDesktop && onClose?.()}
+        >
+          <ListItemIcon sx={pathname === "/dashboard/overview" ? listIconSelectedSx : listIconDefaultSx}>
+            <OrganizationUserIcon />
+          </ListItemIcon>
+          <ListItemText primary="Overview" primaryTypographyProps={navTextProps} />
+        </ListItemButton>
+        <ListItemButton
+          component={Link}
           href="/dashboard/account-setup"
           selected={pathname === "/dashboard/account-setup"}
           sx={navItemSx}

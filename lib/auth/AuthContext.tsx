@@ -12,7 +12,7 @@ import {
 import { useRouter } from "next/navigation";
 import type { User, LoginCredentials, AuthSession } from "./types";
 import {
-  validateCredentials,
+  validateCredentialsDetailed,
   createSession,
   isSessionValid,
 } from "./mockAuth";
@@ -40,11 +40,23 @@ function setStoredSession(session: AuthSession | null): void {
   }
 }
 
+type LoginFieldErrors = {
+  email?: string;
+  password?: string;
+  licenseKey?: string;
+};
+
+interface LoginResult {
+  success: boolean;
+  error?: string;
+  fieldErrors?: LoginFieldErrors;
+}
+
 interface AuthContextValue {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (credentials: LoginCredentials) => { success: boolean; error?: string };
+  login: (credentials: LoginCredentials) => LoginResult;
   logout: () => void;
 }
 
@@ -62,18 +74,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = useCallback(
-    (credentials: LoginCredentials): { success: boolean; error?: string } => {
-      const matchedUser = validateCredentials(credentials);
+    (credentials: LoginCredentials): LoginResult => {
+      const { user: matchedUser, fieldErrors } =
+        validateCredentialsDetailed(credentials);
+
       if (!matchedUser) {
-        return { success: false, error: "Invalid email, license key, or password." };
+        return {
+          success: false,
+          error: "Invalid email, license key, or password.",
+          fieldErrors,
+        };
       }
+
       const session = createSession(matchedUser);
       setStoredSession(session);
       setUser(matchedUser);
       router.push("/dashboard");
+
       return { success: true };
     },
-    [router]
+    [router],
   );
 
   const logout = useCallback(() => {
@@ -90,14 +110,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       login,
       logout,
     }),
-    [user, isLoading, login, logout]
+    [user, isLoading, login, logout],
   );
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+  );
 }
 
 export function useAuth(): AuthContextValue {
   const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error("useAuth must be used within AuthProvider");
+  if (!ctx) {
+    throw new Error("useAuth must be used within AuthProvider");
+  }
   return ctx;
 }

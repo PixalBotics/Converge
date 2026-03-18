@@ -172,7 +172,7 @@ export default function RolesPage() {
     <Box sx={rolesPageWrapper}>
       <Box sx={rolesHeader}>
         <Typography variant="regularLarge" fontWeight={700} color="white">
-          ROLES
+          Roles
         </Typography>
         <Box sx={rolesAddButtonWrapper}>
           <Button variant="primary" sx={rolesAddButton} onClick={() => setIsAddRoleOpen(true)}>
