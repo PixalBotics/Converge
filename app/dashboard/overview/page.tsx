@@ -9,7 +9,8 @@ import MenuItem from "@mui/material/MenuItem";
 import Radio from "@mui/material/Radio";
 import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
-import { Add as AddIcon, MoreHoriz as MoreHorizIcon, AttachMoney as AttachMoneyIcon } from "@mui/icons-material";
+import { MoreHoriz as MoreHorizIcon, AttachMoney as AttachMoneyIcon } from "@mui/icons-material";
+import { AddCircleIcon } from "@/components/dashboard/icons/AddCircleIcon";
 import {
   Typography,
   DashboardCard,
@@ -264,7 +265,7 @@ export default function OverviewPage() {
             sx={overviewAddButton}
             onClick={() => setIsAddOpen(true)}
           >
-            <AddIcon sx={{ fontSize: 18 }} />
+            <AddCircleIcon width={16} height={16} />
             <Typography component="span" variant="medium" color="white">
               Add New User
             </Typography>

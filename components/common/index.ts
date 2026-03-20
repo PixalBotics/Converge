@@ -1,6 +1,8 @@
 export { AppCard } from "./AppCard";
 export { DashboardCard } from "./DashboardCard";
 export { Button } from "./Button";
+export { ButtonOutline } from "./ButtonOutline";
+export type { ButtonOutlineProps } from "./ButtonOutline";
 export { Checkbox } from "./Checkbox";
 export { InputField } from "./InputField";
 export { SelectField } from "./SelectField/SelectField";

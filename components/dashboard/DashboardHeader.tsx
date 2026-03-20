@@ -69,6 +69,18 @@ export default function DashboardHeader({ onMenuClick }: { onMenuClick?: () => v
         .slice(0, 2),
     [displayName]
   );
+  const roleLabel =
+    user?.role === "admin"
+      ? "Admin"
+      : user?.role === "hr-admin"
+        ? "HR Admin"
+        : user?.role === "network-admin"
+          ? "Network Admin"
+          : user?.role === "manager"
+            ? "Manager"
+            : user?.role === "system-admin"
+              ? "System Admin"
+          : "User";
 
   const searchBarContent = useMemo(
     () => (
@@ -166,7 +178,7 @@ export default function DashboardHeader({ onMenuClick }: { onMenuClick?: () => v
                 {displayName.toUpperCase()}
               </Typography>
               <Typography variant="medium" color="rgba(255,255,255,0.6)">
-                {user?.role === "admin" ? "Admin" : "User"}
+                {roleLabel}
               </Typography>
             </Box>
             <KeyboardArrowDownIcon sx={{ color: "rgba(255,255,255,0.6)", fontSize: 20 }} />

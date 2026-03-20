@@ -4,8 +4,8 @@ import Box from "@mui/material/Box";
 import IconButton from "@mui/material/IconButton";
 import { useTheme } from "@mui/material/styles";
 import type { SxProps, Theme } from "@mui/material/styles";
-import { Close as CloseIcon } from "@mui/icons-material";
 import { DashboardCard, Typography, Button } from "@/components/common";
+import { CloseCircleIcon } from "@/components/dashboard/icons/CloseCircleIcon";
 
 const defaultModalBackground =
   "radial-gradient(50% 50% at 50% 50%, #09013F 0%, #00011A 100%)";
@@ -101,15 +101,12 @@ export function FormModal({
             onClick={onClose}
             size="small"
             sx={{
-              width: 32,
-              height: 32,
-              borderRadius: "9999px",
-              border: "1px solid rgba(248,113,113,0.35)",
-              bgcolor: "rgba(15,23,42,0.8)",
-              color: "#F87171",
+              width: 43,
+              height: 43,
+              p: 0,
             }}
           >
-            <CloseIcon sx={{ fontSize: 18 }} />
+            <CloseCircleIcon width={43} height={43} />
           </IconButton>
         </Box>
 

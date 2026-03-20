@@ -77,7 +77,6 @@ import {
   liveOverviewIconSize,
   waitingQueueLabel,
   waitingQueueCountRow,
-  waitingQueueCountNumber,
   liveOverviewRefreshButton,
   liveOverviewChatList,
   liveOverviewAvatar,
@@ -90,6 +89,9 @@ import {
   revenueIconSmall,
 } from "./dashboard.styles";
 import HrAdminOverview from "./HrAdminOverview";
+import NetworkAdminOverview from "./NetworkAdminOverview";
+import ManagerOverview from "./ManagerOverview";
+import SystemAdminOverview from "./SystemAdminOverview";
 
 const RevenueLineChart = dynamic(
   () => import("@/components/common/Charts").then((m) => ({ default: m.RevenueLineChart })),
@@ -302,10 +304,25 @@ export default function DashboardPage() {
   );
 
   const isHrAdmin = user?.role === "hr-admin";
+  const isNetworkAdmin = user?.role === "network-admin";
+  const isManager = user?.role === "manager";
+  const isSystemAdmin = user?.role === "system-admin";
   const isEmployee = user?.role === "user";
 
   if (isHrAdmin) {
     return <HrAdminOverview />;
+  }
+
+  if (isNetworkAdmin) {
+    return <NetworkAdminOverview />;
+  }
+
+  if (isManager) {
+    return <ManagerOverview />;
+  }
+
+  if (isSystemAdmin) {
+    return <SystemAdminOverview />;
   }
 
   if (isEmployee) {

@@ -6,7 +6,8 @@ import Avatar from "@mui/material/Avatar";
 import IconButton from "@mui/material/IconButton";
 import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
-import { Add as AddIcon, MoreHoriz as MoreHorizIcon } from "@mui/icons-material";
+import { MoreHoriz as MoreHorizIcon } from "@mui/icons-material";
+import { AddCircleIcon } from "@/components/dashboard/icons/AddCircleIcon";
 import { Typography, DashboardCard, DataTable, dataTableActionButton, Button, SearchBar, FilterButton, TablePagination, FormModal, InputField, StatusRadioGroup, SelectField } from "@/components/common";
 import type { DataTableColumn } from "@/components/common";
 import { SearchIcon } from "@/components/dashboard/icons/SearchIcon";
@@ -210,7 +211,7 @@ export default function WebsiteAssigningPage() {
             sx={departmentsAddButton}
             onClick={() => setIsAddOpen(true)}
           >
-            <AddIcon sx={{ fontSize: 18 }} />
+            <AddCircleIcon width={16} height={16} />
             <Typography component="span" variant="medium" color="white">
               Add Department
             </Typography>

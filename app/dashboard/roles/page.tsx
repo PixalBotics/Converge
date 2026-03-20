@@ -5,7 +5,8 @@ import Box from "@mui/material/Box";
 import IconButton from "@mui/material/IconButton";
 import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
-import { Add as AddIcon, MoreHoriz as MoreHorizIcon, Person as PersonIcon } from "@mui/icons-material";
+import { MoreHoriz as MoreHorizIcon, Person as PersonIcon } from "@mui/icons-material";
+import { AddCircleIcon } from "@/components/dashboard/icons/AddCircleIcon";
 import {
   Typography,
   DashboardCard,
@@ -162,7 +163,7 @@ export default function RolesPage() {
       { id: "linkedDepartment", label: "Linked Department", cellVariant: "muted" },
       { id: "totalUsers", label: "Total Users", cellVariant: "muted" },
     ],
-    []
+    [theme]
   );
 
   const start = (page - 1) * 8 + 1;
@@ -176,7 +177,7 @@ export default function RolesPage() {
         </Typography>
         <Box sx={rolesAddButtonWrapper}>
           <Button variant="primary" sx={rolesAddButton} onClick={() => setIsAddRoleOpen(true)}>
-            <AddIcon sx={{ fontSize: 18 }} />
+            <AddCircleIcon width={16} height={16} />
             <Typography component="span" variant="medium" color="white">
               Add New Role
             </Typography>

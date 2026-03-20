@@ -21,7 +21,6 @@ import {
   tableUserCellBox,
   tableAvatar,
   tableAvatarIcon,
-  liveOverviewHeaderIconBox,
   starIconYellow,
   gridAgentLiveOverviewHr,
   cardAgentPerformance,
