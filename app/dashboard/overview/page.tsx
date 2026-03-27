@@ -496,11 +496,11 @@ export default function OverviewPage() {
                 sx={{ p: 0.25 }}
               />
               <Box>
-                <Typography variant="mediumLarge" color="white" sx={{ mb: 0.25 }}>
+                <Typography variant="medium" color="white" sx={{ mb: 0.25 }}>
                   Internal User
                 </Typography>
                 <Typography
-                  variant="medium"
+                  variant="small"
                   sx={{ color: theme.app.dashboard.textMuted }}
                 >
                   Team member with company email
@@ -552,11 +552,11 @@ export default function OverviewPage() {
                 sx={{ p: 0.25 }}
               />
               <Box>
-                <Typography variant="mediumLarge" color="white" sx={{ mb: 0.25 }}>
+                <Typography variant="medium" color="white" sx={{ mb: 0.25 }}>
                   External User
                 </Typography>
                 <Typography
-                  variant="medium"
+                  variant="small"
                   sx={{ color: theme.app.dashboard.textMuted }}
                 >
                   Team member with company email
