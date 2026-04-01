@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Box from "@mui/material/Box";
 import Stack from "@mui/material/Stack";
+import { useTheme } from "@mui/material/styles";
 import type { SxProps, Theme } from "@mui/material/styles";
 import { AppCard, Button, InputField, TextLink } from "@/components/common";
 import { loginSvg, logoSvg } from "@/assets";
@@ -27,6 +28,7 @@ import {
 } from "./forgot-password.styles";
 
 export default function ForgotPasswordPage() {
+  const theme = useTheme();
   const router = useRouter();
   const { isAuthenticated, isLoading } = useAuth();
 
@@ -53,7 +55,7 @@ export default function ForgotPasswordPage() {
         </Box>
 
         <Box sx={formWrapperStyles}>
-          <AppCard sx={formCardStyles}>
+          <AppCard sx={formCardStyles(theme) as SxProps<Theme>}>
             <Box component="form" noValidate sx={formInnerStyles}>
               <Stack spacing={2.5} sx={formStackStyles}>
                 <Box sx={logoWrapperStyles}>

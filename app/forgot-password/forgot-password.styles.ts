@@ -18,8 +18,8 @@ export { contentWrapperStyles, illustrationWrapperStyles, illustrationImgStyles 
 export { formWrapperStyles, formStackStyles, logoImgStyles };
 export { signInButtonStyles, signUpLinkStyles };
 
-export const formCardStyles: SxProps<Theme> = {
-  ...loginFormCardStyles,
+export const formCardStyles = (theme: Theme): SystemStyleObject<Theme> => ({
+  ...loginFormCardStyles(theme),
   display: "flex",
   flexDirection: "column",
   minHeight: { xs: 600, sm: 620 },
@@ -30,7 +30,7 @@ export const formCardStyles: SxProps<Theme> = {
     flex: 1,
     minHeight: 0,
   },
-};
+});
 
 export const logoWrapperStyles: SxProps<Theme> = {
   textAlign: "left",
