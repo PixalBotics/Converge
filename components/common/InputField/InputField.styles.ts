@@ -24,10 +24,12 @@ export const textFieldStyles = (theme: Theme) =>
       },
       "&.Mui-focused fieldset": {
         borderColor: theme.app.border.inputFocus,
-        borderWidth: "1px",
+        borderWidth: "2px",
         boxShadow: `0 0 14px ${theme.app.shadow.inputFocus}`,
+        // boxShadow: "none",
       },
       backgroundColor: "transparent",
+      // boxShadow: "none",
       boxShadow: `0px 0px 3px 0px ${theme.app.grey.inputShadowLight} inset, 0px 0px 3px 0px ${theme.app.grey.inputShadowWhite80} inset, -1px -1px 0.5px -1px ${theme.app.grey.inputShadowWhite} inset, 1px 1px 0.5px -1px ${theme.app.grey.inputShadowWhite} inset, -1px -1px 0px -0.5px ${theme.app.grey.inputShadowDark} inset, 1px 1px 0px -0.5px ${theme.app.grey.inputShadowDarker} inset`,
       "& input::placeholder": {
         color: theme.app.text.placeholder,

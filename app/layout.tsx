@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
-import { Manrope } from "next/font/google";
+import { Inter, Manrope } from "next/font/google";
 import { ThemeRegistry } from "@/components/theme-registry";
 import { AuthProvider } from "@/lib/auth";
+import { mainBackgroundGradient } from "@/theme/theme";
 
+const inter = Inter({ subsets: ["latin"], display: "swap" });
 const manrope = Manrope({ subsets: ["latin"], display: "swap" });
 
 export const metadata: Metadata = {
@@ -18,8 +20,11 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={manrope.className}
-        style={{ background: "radial-gradient(50% 50% at 50% 50%, #09013F 0%, #00011A 100%)", minHeight: "100vh" }}
+        style={{
+          fontFamily: `${inter.style.fontFamily}, ${manrope.style.fontFamily}, sans-serif`,
+          background: mainBackgroundGradient,
+          minHeight: "100vh",
+        }}
       >
         <ThemeRegistry>
           <AuthProvider>{children}</AuthProvider>

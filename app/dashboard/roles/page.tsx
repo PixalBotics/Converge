@@ -172,13 +172,21 @@ export default function RolesPage() {
   return (
     <Box sx={rolesPageWrapper}>
       <Box sx={rolesHeader}>
-        <Typography variant="regularLarge" fontWeight={700} color="white">
+        <Typography
+          variant="regularLarge"
+          fontWeight={700}
+          sx={{ color: theme.app.text.primary }}
+        >
           Roles
         </Typography>
         <Box sx={rolesAddButtonWrapper}>
           <Button variant="primary" sx={rolesAddButton} onClick={() => setIsAddRoleOpen(true)}>
             <AddCircleIcon width={16} height={16} />
-            <Typography component="span" variant="medium" color="white">
+            <Typography
+              component="span"
+              variant="medium"
+              sx={{ color: theme.app.text.primary }}
+            >
               Add New Role
             </Typography>
           </Button>
@@ -191,7 +199,11 @@ export default function RolesPage() {
             <Box sx={rolesIconBox}>
               <PersonIcon sx={{ fontSize: 20, color: theme.app.dashboard.iconMuted }} />
             </Box>
-            <Typography variant="mediumLarge" fontWeight={600} color="white">
+            <Typography
+              variant="mediumLarge"
+              fontWeight={600}
+              sx={{ color: theme.app.text.primary }}
+            >
               Departments
             </Typography>
           </Box>
@@ -275,7 +287,11 @@ export default function RolesPage() {
               mb: 1.5,
             }}
           >
-            <Typography variant="medium" fontWeight={600} color="white">
+            <Typography
+              variant="medium"
+              fontWeight={600}
+              sx={{ color: theme.app.text.primary }}
+            >
               Permissions
             </Typography>
             <Box
@@ -290,7 +306,7 @@ export default function RolesPage() {
                 textDecoration: "underline",
                 fontSize: 14,
                 fontFamily: "inherit",
-                "&:hover": { color: "white" },
+                "&:hover": { color: theme.app.text.primary },
               }}
             >
               Select All
@@ -310,15 +326,16 @@ export default function RolesPage() {
                 sx={{
                   p: 1.5,
                   borderRadius: 1.5,
-                  bgcolor: theme.app.dashboard.modalOverlay,
-                  border: `1px solid ${theme.app.dashboard.overlayMedium}`,
+                  background: theme.app.dashboard.glassGradient,
+                  backdropFilter: "blur(10px)",
+                  WebkitBackdropFilter: "blur(10px)",
+                  boxShadow: theme.app.dashboard.glassShadow,
                 }}
               >
                 <Typography
                   variant="body2"
                   fontWeight={600}
-                  color="white"
-                  sx={{ mb: 1, fontSize: 13 }}
+                  sx={{ color: theme.app.text.primary, mb: 1, fontSize: 13 }}
                 >
                   {category.title}
                 </Typography>
@@ -342,7 +359,10 @@ export default function RolesPage() {
                           "&.Mui-checked": { color: theme.app.dashboard.accentGreen },
                         }}
                       />
-                      <Typography variant="body2" color="white" sx={{ fontSize: 13 }}>
+                      <Typography
+                        variant="body2"
+                        sx={{ color: theme.app.text.primary, fontSize: 13 }}
+                      >
                         {perm.label}
                       </Typography>
                     </Box>

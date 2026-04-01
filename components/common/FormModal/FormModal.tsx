@@ -4,11 +4,9 @@ import Box from "@mui/material/Box";
 import IconButton from "@mui/material/IconButton";
 import { useTheme } from "@mui/material/styles";
 import type { SxProps, Theme } from "@mui/material/styles";
+import type { AppTheme } from "@/theme/theme";
 import { DashboardCard, Typography, Button } from "@/components/common";
 import { CloseCircleIcon } from "@/components/dashboard/icons/CloseCircleIcon";
-
-const defaultModalBackground =
-  "radial-gradient(50% 50% at 50% 50%, #09013F 0%, #00011A 100%)";
 
 export interface FormModalFieldConfig {
   id: string;
@@ -40,9 +38,7 @@ export function FormModal({
   children,
   sx,
 }: FormModalProps) {
-  const theme = useTheme();
-  const modalBackground =
-    (theme as Theme & { appBackground?: string }).appBackground ?? defaultModalBackground;
+  const theme = useTheme() as AppTheme;
 
   if (!open) return null;
 
@@ -55,7 +51,7 @@ export function FormModal({
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        bgcolor: "rgba(0,0,0,0.55)",
+        bgcolor: theme.app.dashboard.backdropDark,
         p: 2,
       }}
     >
@@ -70,7 +66,7 @@ export function FormModal({
           flexDirection: "column",
           overflow: "hidden",
           p: 3,
-          background: modalBackground,
+          background: theme.appBackground,
           borderRadius: 3,
           ...((sx as object) ?? {}),
         }}
@@ -85,13 +81,17 @@ export function FormModal({
           }}
         >
           <Box>
-            <Typography variant="mediumLarge" fontWeight={600} color="white">
+            <Typography
+              variant="mediumLarge"
+              fontWeight={600}
+              sx={{ color: theme.app.text.primary }}
+            >
               {title}
             </Typography>
             {description && (
               <Typography
                 variant="body2"
-                sx={{ mt: 0.5, color: "rgba(148,163,184,0.9)", fontSize: 14 }}
+                sx={{ mt: 0.5, color: theme.app.dashboard.textMuted, fontSize: 14 }}
               >
                 {description}
               </Typography>
@@ -101,8 +101,8 @@ export function FormModal({
             onClick={onClose}
             size="small"
             sx={{
-              width: 43,
-              height: 43,
+              width: 35,
+              height: 35,
               p: 0,
             }}
           >
@@ -143,7 +143,7 @@ export function FormModal({
               minWidth: 120,
               borderRadius: "9999px",
               px: 3,
-              bgcolor: "rgba(15,23,42,0.9)",
+              bgcolor: theme.app.dashboard.surfaceDark,
             }}
           >
             {cancelButtonLabel}

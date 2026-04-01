@@ -17,6 +17,9 @@ export function StatusRadioGroup({ value, onChange }: StatusRadioGroupProps) {
   const theme = useTheme() as AppTheme;
   const activeColor = theme.app.dashboard.accentGreen;
   const mutedColor = theme.app.dashboard.textMuted;
+  const activeBorder = theme.app.dashboard.radioActiveBorder;
+  const inactiveBorder = theme.app.dashboard.radioInactiveBorder;
+  const activeRing = theme.app.dashboard.radioActiveRing;
 
   return (
     <RadioGroup
@@ -35,7 +38,7 @@ export function StatusRadioGroup({ value, onChange }: StatusRadioGroupProps) {
                   width: 16,
                   height: 16,
                   borderRadius: "9999px",
-                  border: "2px solid rgba(34,197,94,0.6)",
+                  border: `2px solid ${activeBorder}`,
                   bgcolor: "transparent",
                 }}
               />
@@ -47,7 +50,7 @@ export function StatusRadioGroup({ value, onChange }: StatusRadioGroupProps) {
                   height: 16,
                   borderRadius: "9999px",
                   bgcolor: activeColor,
-                  boxShadow: "0 0 0 4px rgba(34,197,94,0.35)",
+                  boxShadow: `0 0 0 4px ${activeRing}`,
                 }}
               />
             }
@@ -59,7 +62,7 @@ export function StatusRadioGroup({ value, onChange }: StatusRadioGroupProps) {
             Active
           </Typography>
         }
-        sx={{ mr: 4 }}
+        sx={{ mr: 4, gap: 0.75, borderRadius: "10px" }}
       />
       <FormControlLabel
         value="Inactive"
@@ -72,7 +75,7 @@ export function StatusRadioGroup({ value, onChange }: StatusRadioGroupProps) {
                   width: 16,
                   height: 16,
                   borderRadius: "9999px",
-                  border: "2px solid rgba(148,163,184,0.6)",
+                  border: `2px solid ${inactiveBorder}`,
                   bgcolor: "transparent",
                 }}
               />
@@ -84,7 +87,7 @@ export function StatusRadioGroup({ value, onChange }: StatusRadioGroupProps) {
                   height: 16,
                   borderRadius: "9999px",
                   bgcolor: activeColor,
-                  boxShadow: "0 0 0 4px rgba(34,197,94,0.35)",
+                  boxShadow: `0 0 0 4px ${activeRing}`,
                 }}
               />
             }
@@ -96,6 +99,7 @@ export function StatusRadioGroup({ value, onChange }: StatusRadioGroupProps) {
             InActive
           </Typography>
         }
+        sx={{ gap: 0.75, borderRadius: "10px" }}
       />
     </RadioGroup>
   );

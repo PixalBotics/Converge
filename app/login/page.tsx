@@ -6,8 +6,8 @@ import { useRouter } from "next/navigation";
 import Box from "@mui/material/Box";
 import { Typography } from "@/components/common";
 import FormControlLabel from "@mui/material/FormControlLabel";
-import Divider from "@mui/material/Divider";
 import Stack from "@mui/material/Stack";
+import { useTheme } from "@mui/material/styles";
 import type { SxProps, Theme } from "@mui/material/styles";
 import {
   AppCard,
@@ -16,13 +16,7 @@ import {
   InputField,
   Label,
   TextLink,
-  SocialAuthButton,
 } from "@/components/common";
-import {
-  GoogleIcon,
-  GitHubIcon,
-  FacebookIcon,
-} from "@/components/common/SocialAuthButton/social-icons";
 import { loginSvg, logoSvg } from "@/assets";
 import { useAuth } from "@/lib/auth";
 import {
@@ -39,8 +33,6 @@ import {
   formControlLabelStyles,
   checkboxStyles,
   signInButtonStyles,
-  dividerStyles,
-  orTextStyles,
   forgotPasswordLabelStyles,
 } from "./login.styles";
 
@@ -59,6 +51,7 @@ const defaultValues: LoginFormValues = {
 };
 
 export default function LoginPage() {
+  const theme = useTheme();
   const router = useRouter();
   const { login, isAuthenticated, isLoading } = useAuth();
   const {
@@ -124,7 +117,7 @@ export default function LoginPage() {
         </Box>
 
         <Box sx={formWrapperStyles}>
-          <AppCard sx={formCardStyles}>
+          <AppCard sx={formCardStyles(theme) as SxProps<Theme>}>
             <Box
               component="form"
               noValidate
@@ -237,36 +230,10 @@ export default function LoginPage() {
                   Sign In
                 </Button>
 
-                <Divider sx={dividerStyles as SxProps<Theme>}>
-                  <Typography component="span" variant="body2" sx={orTextStyles as SxProps<Theme>}>
-                    OR
-                  </Typography>
-                </Divider>
-
-                <Stack
-                  direction="row"
-                  spacing={{ xs: 1, sm: 2 }}
-                  justifyContent="center"
-                  alignItems="center"
+                <Typography
+                  variant="body2"
+                  sx={{ textAlign: "center", color: theme.app.text.secondary, pt: 0.5 }}
                 >
-                  <SocialAuthButton
-                    provider="google"
-                    icon={<GoogleIcon />}
-                    aria-label="Sign in with Google"
-                  />
-                  <SocialAuthButton
-                    provider="github"
-                    icon={<GitHubIcon />}
-                    aria-label="Sign in with GitHub"
-                  />
-                  <SocialAuthButton
-                    provider="facebook"
-                    icon={<FacebookIcon />}
-                    aria-label="Sign in with Facebook"
-                  />
-                </Stack>
-
-                <Typography variant="body2" sx={{ textAlign: "center", color: "rgba(203, 213, 225, 0.8)", pt: 0.5 }}>
                   Don&apos;t have an account?{" "}
                   <TextLink href="/signup" sx={{ color: "primary.main" }}>Sign Up</TextLink>
                 </Typography>

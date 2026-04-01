@@ -25,7 +25,6 @@ import {
   gridAgentLiveOverviewHr,
   cardAgentPerformance,
   cardLiveOverview,
-  getAgentTableSx,
   getViewAllAgentLink,
   viewAllAgentWrap,
   agentLiveHeaderRow,
@@ -224,7 +223,6 @@ export default function HrAdminOverview() {
             columns={agentColumns}
             rows={AGENT_ROWS}
             size="small"
-            tableSx={getAgentTableSx(theme)}
           />
           <Box sx={viewAllAgentWrap}>
             <Box component="a" href="#" sx={getViewAllAgentLink(theme)}>

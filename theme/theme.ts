@@ -66,10 +66,19 @@ const appColors = {
     overlayMedium: "rgba(255, 255, 255, 0.08)",
     overlayBorder: "rgba(255, 255, 255, 0.2)",
     modalOverlay: "rgba(33, 33, 33, 0.8)",
+    backdropDark: "rgba(0, 0, 0, 0.55)",
     white60: "rgba(255, 255, 255, 0.6)",
     white65: "rgba(255, 255, 255, 0.65)",
     white7: "rgba(255, 255, 255, 0.7)",
     white95: "rgba(255, 255, 255, 0.95)",
+    surfaceDark: "rgba(15, 23, 42, 0.9)",
+    closeIconDanger: "#C22E2E",
+    radioActiveBorder: "rgba(34, 197, 94, 0.6)",
+    radioInactiveBorder: "rgba(148, 163, 184, 0.6)",
+    radioActiveRing: "rgba(34, 197, 94, 0.35)",
+    glassGradient: "linear-gradient(140deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02))",
+    glassShadow:
+      "0 8px 18px rgba(2, 8, 30, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.08)",
     liveChat: {
       cardBg: "#1B1938",
       messageBg: "#282548",
@@ -100,7 +109,7 @@ declare module "@mui/material/styles" {
 
 export const theme = createTheme({
   typography: {
-    fontFamily: '"Manrope", sans-serif',
+    fontFamily: '"Inter", "Manrope", sans-serif',
   },
   palette: {
     mode: "light",

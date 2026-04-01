@@ -1,11 +1,6 @@
 "use client";
 
-import Table from "@mui/material/Table";
-import TableBody from "@mui/material/TableBody";
-import TableCell from "@mui/material/TableCell";
-import TableContainer from "@mui/material/TableContainer";
-import TableHead from "@mui/material/TableHead";
-import TableRow from "@mui/material/TableRow";
+import Box from "@mui/material/Box";
 import type { DataTableProps } from "./DataTable.types";
 import {
   dataTableRoot,
@@ -25,6 +20,8 @@ export function DataTable<T extends Record<string, unknown>>({
   tableSx,
   containerSx,
 }: DataTableProps<T>) {
+  const sizeCellSx = size === "medium" ? { py: 1.5 } : { py: 1 };
+
   const getCellValue = (row: T, columnId: string): React.ReactNode => {
     const value = row[columnId];
     if (value === undefined || value === null) return "—";
@@ -32,53 +29,66 @@ export function DataTable<T extends Record<string, unknown>>({
   };
 
   return (
-    <TableContainer
+    <Box
       sx={[dataTableContainer, ...(containerSx ? (Array.isArray(containerSx) ? containerSx : [containerSx]) : [])]}
     >
-      <Table
-        size={size}
+      <Box
+        component="table"
         sx={[
           dataTableRoot,
           { minWidth },
           ...(tableSx ? (Array.isArray(tableSx) ? tableSx : [tableSx]) : []),
         ]}
       >
-        <TableHead>
-          <TableRow>
+        <Box component="thead">
+          <Box component="tr">
             {columns.map((col) => (
-              <TableCell key={col.id} sx={dataTableHeaderCell}>
+              <Box
+                key={col.id}
+                component="th"
+                sx={{ ...(dataTableHeaderCell as object), ...sizeCellSx }}
+              >
                 {col.label}
-              </TableCell>
+              </Box>
             ))}
             {actionColumn && (
-              <TableCell sx={dataTableHeaderCell}>{actionColumn.label}</TableCell>
+              <Box
+                component="th"
+                sx={{ ...(dataTableHeaderCell as object), ...sizeCellSx }}
+              >
+                {actionColumn.label}
+              </Box>
             )}
-          </TableRow>
-        </TableHead>
-        <TableBody>
+          </Box>
+        </Box>
+        <Box component="tbody">
           {rows.map((row, idx) => (
-            <TableRow key={String(getRowId(row, idx))}>
+            <Box component="tr" key={String(getRowId(row, idx))}>
               {columns.map((col) => (
-                <TableCell
+                <Box
                   key={col.id}
-                  sx={
-                    col.cellVariant === "muted"
+                  component="td"
+                  sx={{
+                    ...((col.cellVariant === "muted"
                       ? dataTableCellMuted
-                      : dataTableCellDefault
-                  }
+                      : dataTableCellDefault) as object),
+                    ...sizeCellSx,
+                  }}
                 >
                   {col.render
                     ? col.render(row[col.id], row, idx)
                     : getCellValue(row, col.id)}
-                </TableCell>
+                </Box>
               ))}
               {actionColumn && (
-                <TableCell>{actionColumn.render(row, idx)}</TableCell>
+                <Box component="td" sx={sizeCellSx}>
+                  {actionColumn.render(row, idx)}
+                </Box>
               )}
-            </TableRow>
+            </Box>
           ))}
-        </TableBody>
-      </Table>
-    </TableContainer>
+        </Box>
+      </Box>
+    </Box>
   );
 }

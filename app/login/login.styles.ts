@@ -45,14 +45,18 @@ export const formWrapperStyles: SxProps<Theme> = {
   minWidth: 0,
 };
 
-export const formCardStyles: SxProps<Theme> = {
+export const formCardStyles = (theme: Theme): SystemStyleObject<Theme> => ({
   width: "100%",
   maxWidth: { xs: "100%", sm: 440 },
+  background: theme.app.dashboard.glassGradient,
+  backdropFilter: "blur(10px)",
+  WebkitBackdropFilter: "blur(10px)",
+  boxShadow: theme.app.dashboard.glassShadow,
   "& .MuiCardContent-root": {
     p: { xs: 2, sm: 3 },
-    color: "rgba(203, 213, 225, 0.9)",
+    color: theme.app.text.link,
   },
-};
+});
 
 export const formStackStyles: SxProps<Theme> = {
   alignItems: "stretch",
@@ -117,14 +121,14 @@ export const dividerStyles = (theme: Theme): SystemStyleObject<Theme> => ({
   "&::before, &::after": { borderColor: theme.app.border.divider },
 });
 
-export const orTextStyles: SxProps<Theme> = {
-  color: "rgba(148, 163, 184, 0.8)",
+export const orTextStyles = (theme: Theme): SystemStyleObject<Theme> => ({
+  color: theme.app.text.or,
   px: 1,
-};
+});
 
 export const signUpTextStyles = (theme: Theme): SystemStyleObject<Theme> => ({
   textAlign: "center",
-  color: (theme as Theme & { app?: { text?: { secondary?: string } } }).app?.text?.secondary ?? "rgba(203, 213, 225, 0.8)",
+  color: theme.app.text.secondary,
   pt: 0.5,
 });
 

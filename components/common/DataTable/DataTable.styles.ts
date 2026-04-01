@@ -11,14 +11,21 @@ export const dataTableContainer: SxProps<Theme> = {
 };
 
 export const dataTableRoot: SxProps<Theme> = {
-  "& .MuiTableCell-root": {
+  width: "100%",
+  borderCollapse: "collapse",
+  "& th, & td": {
     borderColor: "rgba(255,255,255,0.08)",
+    borderBottom: "1px solid rgba(255,255,255,0.08)",
+    textAlign: "left",
+    padding: "10px 16px",
+    whiteSpace: "nowrap",
   },
 };
 
 export const dataTableHeaderCell: SxProps<Theme> = {
   color: "rgba(255,255,255,0.8)",
   fontWeight: 600,
+  fontSize: 18,
 };
 
 export const dataTableCellDefault: SxProps<Theme> = {
