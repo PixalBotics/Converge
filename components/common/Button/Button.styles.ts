@@ -1,7 +1,8 @@
 import type { SxProps, Theme } from "@mui/material";
+import { alpha } from "@mui/material/styles";
 
 export const baseButtonStyles: SxProps<Theme> = {
-  borderRadius: 2,
+  borderRadius: "10px",
   py: 1.5,
   fontWeight: 600,
   textTransform: "none",
@@ -9,28 +10,41 @@ export const baseButtonStyles: SxProps<Theme> = {
 
 export const primaryButtonStyles = (theme: Theme): SxProps<Theme> => ({
   backgroundColor: theme.palette.primary.main,
-  color: theme.app.text.primary,
+  color: theme.palette.primary.contrastText,
   "&:hover": {
     backgroundColor: theme.palette.primary.dark,
   },
 });
 
-export const secondaryButtonStyles = (theme: Theme): SxProps<Theme> => ({
-  backgroundColor: "grey.700",
-  color: theme.app.text.primary,
-  "&:hover": {
-    backgroundColor: "grey.800",
-  },
-});
+function isDark(theme: Theme) {
+  return theme.palette.mode === "dark";
+}
 
-export const outlinedButtonStyles = (theme: Theme): SxProps<Theme> => ({
-  borderColor: "grey.500",
-  color: "grey.200",
-  "&:hover": {
-    borderColor: "grey.400",
-    backgroundColor: theme.app.shadow.buttonHoverBg,
-  },
-});
+/** Neutral secondary — follows surface text, not fixed grey */
+export const secondaryButtonStyles = (theme: Theme): SxProps<Theme> => {
+  const ink = theme.palette.text.primary;
+  return {
+    backgroundColor: alpha(ink, isDark(theme) ? 0.12 : 0.08),
+    color: ink,
+    border: `1px solid ${alpha(ink, isDark(theme) ? 0.18 : 0.14)}`,
+    "&:hover": {
+      backgroundColor: alpha(ink, isDark(theme) ? 0.18 : 0.12),
+      borderColor: alpha(theme.palette.primary.main, 0.35),
+    },
+  };
+};
+
+export const outlinedButtonStyles = (theme: Theme): SxProps<Theme> => {
+  const ink = theme.palette.text.primary;
+  return {
+    borderColor: alpha(ink, isDark(theme) ? 0.22 : 0.2),
+    color: ink,
+    "&:hover": {
+      borderColor: alpha(theme.palette.primary.main, 0.45),
+      backgroundColor: alpha(theme.palette.primary.main, isDark(theme) ? 0.1 : 0.06),
+    },
+  };
+};
 
 export const variantStyles = {
   primary: primaryButtonStyles,

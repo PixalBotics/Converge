@@ -87,14 +87,8 @@ interface RoleRow extends Record<string, unknown> {
 }
 
 const ROLES_DATA: RoleRow[] = [
-  { departmentsName: "Super Admin", roleType: "Platform", linkedDepartment: "-", totalUsers: "3 User" },
-  { departmentsName: "Support Manager", roleType: "Department", linkedDepartment: "Customer Support", totalUsers: "3 User" },
-  { departmentsName: "Chat Agent", roleType: "Department", linkedDepartment: "-", totalUsers: "3 User" },
-  { departmentsName: "QA Analyst", roleType: "Platform", linkedDepartment: "-", totalUsers: "3 User" },
-  { departmentsName: "Super Admin", roleType: "Platform", linkedDepartment: "-", totalUsers: "3 User" },
-  { departmentsName: "Support Manager", roleType: "Department", linkedDepartment: "Customer Support", totalUsers: "3 User" },
-  { departmentsName: "Chat Agent", roleType: "Department", linkedDepartment: "-", totalUsers: "3 User" },
-  { departmentsName: "QA Analyst", roleType: "Platform", linkedDepartment: "-", totalUsers: "3 User" },
+  { departmentsName: "Admin", roleType: "Platform", linkedDepartment: "-", totalUsers: "1 User" },
+  { departmentsName: "User", roleType: "Department", linkedDepartment: "-", totalUsers: "1 User" },
 ];
 
 const initialPermissions: Record<string, boolean> = Object.fromEntries(
@@ -105,7 +99,7 @@ export default function RolesPage() {
   const theme = useTheme() as AppTheme;
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
-  const pageCount = 3;
+  const pageCount = 1;
   const totalEntries = "256K";
   const [isAddRoleOpen, setIsAddRoleOpen] = useState(false);
   const [roleName, setRoleName] = useState("");

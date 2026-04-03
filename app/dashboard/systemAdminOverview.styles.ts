@@ -131,7 +131,7 @@ export const stepperNumberCircleInactive: SxProps<Theme> = {
 };
 
 export const stepperLabelResellerDone: SxProps<Theme> = {
-  color: "rgba(255,255,255,0.95)",
+  color: "text.primary",
   fontSize: 14,
   fontWeight: 500,
   lineHeight: 1.2,
@@ -147,7 +147,7 @@ export const stepperLabelResellerActive: SxProps<Theme> = {
 };
 
 export const stepperLabelChildDone: SxProps<Theme> = {
-  color: "rgba(255,255,255,0.95)",
+  color: "text.primary",
   fontSize: 14,
   fontWeight: 500,
   lineHeight: 1.2,
@@ -215,11 +215,11 @@ export const addAnotherButton: SxProps<Theme> = {
 };
 
 export const addAnotherIcon: SxProps<Theme> = {
-  color: "rgba(255,255,255,0.8)",
+  color: "text.secondary",
 };
 
 export const addAnotherLabel: SxProps<Theme> = {
-  color: "rgba(255,255,255,0.8)",
+  color: "text.secondary",
 };
 
 export const websiteTwoColGrid: SxProps<Theme> = {

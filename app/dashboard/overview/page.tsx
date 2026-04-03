@@ -72,7 +72,7 @@ const USERS: UserRow[] = [
     email: "raja12@.com",
     type: "Internal",
     department: "Human Resources",
-    role: "Manager",
+    role: "Admin",
     company: "-",
     website: "-",
     supervisor: "Sarah Wilson",
@@ -82,7 +82,7 @@ const USERS: UserRow[] = [
     email: "raja12@.com",
     type: "External",
     department: "Sales",
-    role: "Account Manager",
+    role: "User",
     company: "-",
     website: "techcorp.com",
     supervisor: "Wilson",
@@ -92,7 +92,7 @@ const USERS: UserRow[] = [
     email: "raja12@.com",
     type: "Internal",
     department: "Customer Support",
-    role: "Manager",
+    role: "User",
     company: "techcorp.com",
     website: "-",
     supervisor: "Sarah Wilson",
@@ -102,7 +102,7 @@ const USERS: UserRow[] = [
     email: "raja12@.com",
     type: "Internal",
     department: "Customer Support",
-    role: "Manager",
+    role: "User",
     company: "-",
     website: "-",
     supervisor: "Sarah Wilson",
@@ -112,7 +112,7 @@ const USERS: UserRow[] = [
     email: "raja12@.com",
     type: "External",
     department: "Sales",
-    role: "Account Manager",
+    role: "Admin",
     company: "-",
     website: "techcorp.com",
     supervisor: "Wilson",
@@ -122,7 +122,7 @@ const USERS: UserRow[] = [
     email: "raja12@.com",
     type: "Internal",
     department: "Customer Support",
-    role: "Manager",
+    role: "Admin",
     company: "techcorp.com",
     website: "-",
     supervisor: "Sarah Wilson",
@@ -132,7 +132,7 @@ const USERS: UserRow[] = [
     email: "raja12@.com",
     type: "Internal",
     department: "Customer Support",
-    role: "Manager",
+    role: "User",
     company: "-",
     website: "-",
     supervisor: "Sarah Wilson",
@@ -142,7 +142,7 @@ const USERS: UserRow[] = [
     email: "raja12@.com",
     type: "External",
     department: "Sales",
-    role: "Account Manager",
+    role: "User",
     company: "-",
     website: "techcorp.com",
     supervisor: "Wilson",
@@ -161,11 +161,11 @@ export default function OverviewPage() {
   const pageCount = 2;
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [userType, setUserType] = useState<"Internal" | "External">("Internal");
-  const [parentCompany, setParentCompany] = useState("Support Manager");
+  const [parentCompany, setParentCompany] = useState("TechCorp");
   const [pocType, setPocType] = useState("Sales");
   const [childCompany, setChildCompany] = useState("John Wick");
   const [websiteValue, setWebsiteValue] = useState("John Wick");
-  const [roleValue, setRoleValue] = useState("Support Manager");
+  const [roleValue, setRoleValue] = useState("User");
   const [departmentValue, setDepartmentValue] = useState("Sales");
 
   const filteredRows = useMemo(() => {
@@ -211,7 +211,7 @@ export default function OverviewPage() {
             >
               {(String(row.user ?? "").charAt(0) || "U").toUpperCase()}
             </Avatar>
-            <Typography component="span" variant="body2" color="white" fontWeight={500}>
+            <Typography component="span" variant="body2" color="textPrimary" fontWeight={500}>
               {String(value ?? "—")}
             </Typography>
           </Box>
@@ -256,7 +256,7 @@ export default function OverviewPage() {
   return (
     <Box sx={overviewPageWrapper}>
       <Box sx={overviewHeader}>
-        <Typography variant="regularLarge" fontWeight={700} color="white">
+        <Typography variant="regularLarge" fontWeight={700} color="textPrimary">
           Overview
         </Typography>
         <Box sx={overviewAddButtonWrapper}>
@@ -266,7 +266,7 @@ export default function OverviewPage() {
             onClick={() => setIsAddOpen(true)}
           >
             <AddCircleIcon width={16} height={16} />
-            <Typography component="span" variant="medium" color="white">
+            <Typography component="span" variant="medium" color="textPrimary">
               Add New User
             </Typography>
           </Button>
@@ -275,7 +275,7 @@ export default function OverviewPage() {
 
       <Box sx={overviewCardsRow}>
         <DashboardCard sx={overviewCard}>
-          <Typography variant="mediumLarge" color="white" fontWeight={500}>
+          <Typography variant="mediumLarge" color="textPrimary" fontWeight={500}>
             Department Filter
           </Typography>
           <TextField
@@ -321,7 +321,7 @@ export default function OverviewPage() {
         </DashboardCard>
 
         <DashboardCard sx={overviewCard}>
-          <Typography variant="mediumLarge" color="white" fontWeight={500}>
+          <Typography variant="mediumLarge" color="textPrimary" fontWeight={500}>
             Internal Users
           </Typography>
           <Box sx={overviewStatValue}>
@@ -339,7 +339,7 @@ export default function OverviewPage() {
         </DashboardCard>
 
         <DashboardCard sx={overviewCard}>
-          <Typography variant="mediumLarge" color="white" fontWeight={500}>
+          <Typography variant="mediumLarge" color="textPrimary" fontWeight={500}>
             External Users
           </Typography>
           <Box sx={overviewStatValue}>
@@ -363,7 +363,7 @@ export default function OverviewPage() {
             <Box sx={overviewIconBox}>
               <AttachMoneyIcon sx={{ fontSize: 20, color: "white" }} />
             </Box>
-            <Typography variant="mediumLarge" color="white">
+            <Typography variant="mediumLarge" color="textPrimary">
               Your Heading Here
             </Typography>
           </Box>
@@ -432,7 +432,7 @@ export default function OverviewPage() {
             alignItems: "center",
           }}
         >
-          <Typography variant="mediumLarge" color="white">
+          <Typography variant="mediumLarge" color="textPrimary">
             User Type & Access
           </Typography>
           <Typography
@@ -496,7 +496,7 @@ export default function OverviewPage() {
                 sx={{ p: 0.25 }}
               />
               <Box>
-                <Typography variant="medium" color="white" sx={{ mb: 0.25 }}>
+                <Typography variant="medium" color="textPrimary" sx={{ mb: 0.25 }}>
                   Internal User
                 </Typography>
                 <Typography
@@ -552,7 +552,7 @@ export default function OverviewPage() {
                 sx={{ p: 0.25 }}
               />
               <Box>
-                <Typography variant="medium" color="white" sx={{ mb: 0.25 }}>
+                <Typography variant="medium" color="textPrimary" sx={{ mb: 0.25 }}>
                   External User
                 </Typography>
                 <Typography
@@ -581,8 +581,8 @@ export default function OverviewPage() {
                 value={parentCompany}
                 onChange={setParentCompany}
                 options={[
-                  { label: "Support Manager", value: "Support Manager" },
                   { label: "TechCorp", value: "TechCorp" },
+                  { label: "Acme Corp", value: "Acme Corp" },
                 ]}
               />
               <SelectField
@@ -639,8 +639,8 @@ export default function OverviewPage() {
             value={roleValue}
             onChange={setRoleValue}
             options={[
-              { label: "Support Manager", value: "Support Manager" },
-              { label: "Agent", value: "Agent" },
+              { label: "Admin", value: "Admin" },
+              { label: "User", value: "User" },
             ]}
           />
           <SelectField

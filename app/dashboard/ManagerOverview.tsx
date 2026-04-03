@@ -75,7 +75,7 @@ export default function ManagerOverview() {
         render: (_, row) => (
           <Box sx={{ display: "flex", alignItems: "center", gap: 1.2 }}>
             <Avatar src={userIconPath} sx={{ width: 24, height: 24, bgcolor: theme.app.dashboard.buttonIndigo }} />
-            <Typography variant="body2" color="white" fontWeight={500}>
+            <Typography variant="body2" color="textPrimary" fontWeight={500}>
               {row.agent}
             </Typography>
           </Box>
@@ -107,8 +107,8 @@ export default function ManagerOverview() {
         label: "Duration",
         render: (_, row) => (
           <Box sx={{ display: "inline-flex", alignItems: "center", gap: 0.6 }}>
-            <AccessTimeIcon sx={{ fontSize: 14, color: "rgba(255,255,255,0.7)" }} />
-            <Typography variant="body2" color="rgba(255,255,255,0.85)">
+            <AccessTimeIcon sx={{ fontSize: 14, color: "text.secondary" }} />
+            <Typography variant="body2" sx={{ color: "text.secondary" }}>
               {row.duration}
             </Typography>
           </Box>
@@ -142,7 +142,7 @@ export default function ManagerOverview() {
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 2.2 }}>
       <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
-        <Typography variant="regularLarge" fontWeight={700} color="white">
+        <Typography variant="regularLarge" fontWeight={700} color="textPrimary">
           Overview
         </Typography>
         <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
@@ -186,7 +186,7 @@ export default function ManagerOverview() {
 
       <DashboardCard sx={{ p: 2 }}>
         <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1.5, flexWrap: "wrap", mb: 1.5 }}>
-          <Typography variant="mediumLarge" color="white" fontWeight={600}>
+          <Typography variant="mediumLarge" color="textPrimary" fontWeight={600}>
             Pending Review Queue
           </Typography>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1, width: { xs: "100%", md: "auto" } }}>

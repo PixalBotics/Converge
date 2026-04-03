@@ -18,9 +18,14 @@ import {
   ChevronRight as ChevronRightIcon,
   Close as CloseIcon,
   Logout as LogoutIcon,
+  Hub as HubIcon,
+  ManageAccounts as ManageAccountsIcon,
+  People as PeopleIcon,
+  Storage as StorageIcon,
 } from "@mui/icons-material";
 import { useAuth } from "@/lib/auth";
 import { useDashboardAppearance } from "@/lib/dashboard-appearance/context";
+import type { AppTheme } from "@/theme/theme";
 import { resolveDashboardAppearance } from "@/lib/dashboard-appearance/resolve";
 import { SIDEBAR_WIDTH_BY_PRESET, SIDEBAR_WIDTH_STANDARD } from "@/lib/dashboard-appearance/sidebarLayout";
 import { glassChromeLayerSx } from "@/lib/dashboard-appearance/shellStyles";
@@ -29,7 +34,8 @@ import {
   SIDEBAR_WIDTH_COLLAPSED,
   navTextProps,
   sectionLabelSx,
-  navItemSx,
+  navItemLayoutSx,
+  sidebarNavItemInteractiveSx,
   navItemCollapsedSx,
   sidebarInnerBaseSx,
   logoImgSx,
@@ -59,6 +65,14 @@ const SIDEBAR_COLLAPSED_KEY = "interchanges.sidebarCollapsed.v1";
 
 type NavDef = { href: string; label: string; Icon: ElementType };
 
+/** Shown only when the signed-in user is an admin (former per-role dashboard UIs). */
+const ADMIN_ROLE_DASHBOARD_NAV: NavDef[] = [
+  { href: "/dashboard/hr-admin", label: "HR Admin", Icon: PeopleIcon },
+  { href: "/dashboard/network-admin", label: "Network Admin", Icon: HubIcon },
+  { href: "/dashboard/manager", label: "Manager", Icon: ManageAccountsIcon },
+  { href: "/dashboard/system-admin", label: "System Admin", Icon: StorageIcon },
+];
+
 const MAIN_NAV: NavDef[] = [
   { href: "/dashboard", label: "Dashboard", Icon: DashboardGridIcon },
   { href: "/dashboard/overview", label: "Overview", Icon: OrganizationUserIcon },
@@ -77,13 +91,24 @@ const MAIN_NAV: NavDef[] = [
 ];
 
 export default function DashboardSidebar({ open = false, onClose }: { open?: boolean; onClose?: () => void }) {
-  const theme = useTheme();
+  const theme = useTheme() as AppTheme;
   const isDesktop = useMediaQuery(theme.breakpoints.up("md"));
   const pathname = usePathname();
   const { appearance } = useDashboardAppearance();
   const shellAppearance = useMemo(() => resolveDashboardAppearance(appearance), [appearance]);
   const sidebarContentWidth = SIDEBAR_WIDTH_BY_PRESET[appearance.sidebarWidth];
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
+
+  const mainNavItems = useMemo((): NavDef[] => {
+    if (user?.role !== "admin") {
+      return MAIN_NAV;
+    }
+    return [
+      ...MAIN_NAV.slice(0, 2),
+      ...ADMIN_ROLE_DASHBOARD_NAV,
+      ...MAIN_NAV.slice(2),
+    ];
+  }, [user?.role]);
 
   const [railCollapsed, setRailCollapsed] = useState(false);
   const [railReady, setRailReady] = useState(false);
@@ -110,7 +135,8 @@ export default function DashboardSidebar({ open = false, onClose }: { open?: boo
   };
 
   const navItemSxLive = {
-    ...navItemSx,
+    ...navItemLayoutSx,
+    ...sidebarNavItemInteractiveSx(theme),
     ...(collapsed ? navItemCollapsedSx : {}),
     "&.Mui-selected .MuiListItemIcon-root": {
       color: shellAppearance.accents.navActiveIconHex,
@@ -132,7 +158,8 @@ export default function DashboardSidebar({ open = false, onClose }: { open?: boo
   );
 
   const logoutRowSx = {
-    ...navItemSx,
+    ...navItemLayoutSx,
+    ...sidebarNavItemInteractiveSx(theme),
     ...(collapsed ? navItemCollapsedSx : {}),
   } as SxProps<Theme>;
 
@@ -141,7 +168,7 @@ export default function DashboardSidebar({ open = false, onClose }: { open?: boo
     onClose?.();
   }, [logout, onClose]);
 
-  const subtleLine = "1px solid rgba(255,255,255,0.08)";
+  const subtleLine = `1px solid ${alpha(theme.palette.text.primary, 0.1)}`;
 
   const sidebarGlassSx = {
     ...sidebarInnerBaseSx,
@@ -189,16 +216,33 @@ export default function DashboardSidebar({ open = false, onClose }: { open?: boo
           )}
         </Box>
         {!isDesktop && onClose && (
-          <IconButton onClick={onClose} sx={closeButtonSx} aria-label="Close menu" size="small">
+          <IconButton
+            onClick={onClose}
+            sx={{ ...closeButtonSx, color: "text.secondary" }}
+            aria-label="Close menu"
+            size="small"
+          >
             <CloseIcon />
           </IconButton>
         )}
       </Box>
 
       <List dense sx={listSx} component="nav">
-        {!collapsed && <Typography sx={{ ...sectionLabelSx, px: 2, pt: 1.5, pb: 0.5 }}>Menu</Typography>}
+        {!collapsed && (
+          <Typography
+            sx={{
+              ...sectionLabelSx,
+              px: 2,
+              pt: 1.5,
+              pb: 0.5,
+              color: alpha(shellAppearance.accents.navLabelHex, 0.78),
+            }}
+          >
+            Menu
+          </Typography>
+        )}
 
-        {MAIN_NAV.map(({ href, label, Icon }) => (
+        {mainNavItems.map(({ href, label, Icon }) => (
           <ListItemButton
             key={href}
             component={Link}
@@ -264,10 +308,10 @@ export default function DashboardSidebar({ open = false, onClose }: { open?: boo
               mx: 1,
               mt: 0.5,
               borderRadius: 0.5,
-              color: alpha("#fff", 0.55),
-              border: "1px solid rgba(255,255,255,0.1)",
-              background: "rgba(255,255,255,0.04)",
-              "&:hover": { background: "rgba(255,255,255,0.08)" },
+              color: "text.secondary",
+              border: `1px solid ${alpha(theme.palette.text.primary, 0.12)}`,
+              background: alpha(theme.palette.text.primary, 0.04),
+              "&:hover": { background: alpha(theme.palette.text.primary, 0.08) },
             }}
           >
             {collapsed ? <ChevronRightIcon /> : <ChevronLeftIcon />}

@@ -100,7 +100,7 @@ export const overviewFooterRow: SxProps<Theme> = {
   alignItems: { xs: "flex-start", sm: "center" },
   justifyContent: "space-between",
   gap: 1.5,
-  color: "rgba(148,163,184,0.9)",
+  color: "text.secondary",
   fontSize: 13,
 };
 

@@ -53,24 +53,26 @@ function ColorStop({
   const pickerShell = {
     "& .react-colorful": {
       width: "100%",
-      height: 176,
-      borderRadius: "12px",
+      height: 188,
+      borderRadius: "14px",
       overflow: "hidden",
-      boxShadow: `0 6px 28px ${alpha("#000", shellDark ? 0.4 : 0.1)}`,
+      boxShadow: shellDark
+        ? `0 8px 40px ${alpha("#000", 0.45)}, inset 0 1px 0 ${alpha("#fff", 0.06)}`
+        : `0 8px 32px ${alpha("#000", 0.08)}, inset 0 1px 0 ${alpha("#fff", 0.9)}`,
       border: `1px solid ${fieldOutline}`,
     },
-    "& .react-colorful__saturation": { borderRadius: "11px 11px 0 0" },
+    "& .react-colorful__saturation": { borderRadius: "13px 13px 0 0" },
     "& .react-colorful__hue": {
-      height: 14,
-      borderRadius: "0 0 11px 11px",
+      height: 16,
+      borderRadius: "0 0 13px 13px",
       margin: 0,
     },
     "& .react-colorful__pointer": {
-      width: 20,
-      height: 20,
+      width: 22,
+      height: 22,
       borderWidth: 3,
       borderColor: "#fff",
-      boxShadow: "0 2px 8px rgba(0,0,0,0.35)",
+      boxShadow: "0 3px 12px rgba(0,0,0,0.4)",
     },
   } as const;
 
@@ -131,23 +133,36 @@ export function BackgroundGradientPicker({
 
   const sliderSx = {
     color: th.app.text.primary,
-    "& .MuiSlider-track": { bgcolor: alpha(th.palette.primary.main, 0.85) },
+    height: 8,
+    padding: "10px 0",
+    "& .MuiSlider-track": { bgcolor: alpha(th.palette.primary.main, 0.88), borderRadius: 4, border: "none" },
+    "& .MuiSlider-rail": { opacity: shellDark ? 0.2 : 0.16, bgcolor: alpha(th.app.text.primary, 0.16), borderRadius: 4 },
+    "& .MuiSlider-thumb": {
+      width: 18,
+      height: 18,
+      border: `2px solid ${alpha("#fff", 0.95)}`,
+      boxShadow: `0 2px 10px ${alpha("#000", 0.3)}`,
+    },
   } as const;
 
   return (
     <Box
       sx={{
-        mb: 2.5,
-        p: 2,
-        borderRadius: 3,
-        bgcolor: alpha(th.app.text.primary, shellDark ? 0.06 : 0.04),
-        border: `1px solid ${alpha(th.app.text.primary, 0.1)}`,
+        mb: 3,
+        p: { xs: 2.25, sm: 2.75 },
+        borderRadius: "16px",
+        bgcolor: alpha(th.app.text.primary, shellDark ? 0.05 : 0.035),
+        border: `1px solid ${alpha(th.app.text.primary, shellDark ? 0.1 : 0.09)}`,
+        backgroundImage: shellDark
+          ? `linear-gradient(165deg, ${alpha("#fff", 0.04)} 0%, transparent 55%)`
+          : `linear-gradient(165deg, ${alpha(th.palette.primary.main, 0.05)} 0%, transparent 50%)`,
+        boxShadow: shellDark ? "inset 0 1px 0 rgba(255,255,255,0.05)" : "inset 0 1px 0 rgba(255,255,255,0.85)",
       }}
     >
-      <Typography variant="subtitle2" fontWeight={800} sx={{ mb: 0.5, color: th.app.text.primary }}>
+      <Typography variant="subtitle2" fontWeight={800} sx={{ mb: 0.65, color: th.app.text.primary, letterSpacing: -0.01 }}>
         Visual background builder
       </Typography>
-      <Typography variant="body2" sx={{ mb: 2, color: th.app.text.secondary, lineHeight: 1.65 }}>
+      <Typography variant="body2" sx={{ mb: 2.25, color: th.app.text.secondary, lineHeight: 1.7, maxWidth: 640 }}>
         Pick colours and angles here, then apply — the CSS field below updates so you can still fine-tune or paste advanced layers.
       </Typography>
 
@@ -156,7 +171,7 @@ export function BackgroundGradientPicker({
         size="small"
         value={mode}
         onChange={(_, v: BackgroundPickerMode | null) => v != null && setMode(v)}
-        sx={{ ...toggleSlotSx, mb: 2 }}
+        sx={{ ...toggleSlotSx, mb: 2.25, flexWrap: "wrap", gap: 0.75 }}
       >
         <ToggleButton value="solid">Solid</ToggleButton>
         <ToggleButton value="linear">Linear gradient</ToggleButton>
@@ -165,12 +180,14 @@ export function BackgroundGradientPicker({
 
       <Box
         sx={{
-          height: 72,
-          borderRadius: 2,
-          mb: 2,
+          height: { xs: 80, sm: 88 },
+          borderRadius: "14px",
+          mb: 2.25,
           background: builtCss,
           border: `1px solid ${fieldOutline}`,
-          boxShadow: shellDark ? "inset 0 0 0 1px rgba(255,255,255,0.06)" : "inset 0 0 0 1px rgba(255,255,255,0.65)",
+          boxShadow: shellDark
+            ? "inset 0 0 0 1px rgba(255,255,255,0.07), 0 12px 40px rgba(0,0,0,0.25)"
+            : "inset 0 0 0 1px rgba(255,255,255,0.7), 0 8px 28px rgba(15,23,42,0.08)",
         }}
       />
 
@@ -267,11 +284,23 @@ export function BackgroundGradientPicker({
         </Stack>
       )}
 
-      <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} sx={{ mt: 2.5 }} alignItems={{ sm: "center" }}>
-        <Button variant="contained" onClick={() => onApply(builtCss)} sx={{ fontWeight: 800, textTransform: "none", borderRadius: 2 }}>
+      <Stack direction={{ xs: "column", sm: "row" }} spacing={1.75} sx={{ mt: 3 }} alignItems={{ sm: "center" }}>
+        <Button
+          variant="contained"
+          onClick={() => onApply(builtCss)}
+          sx={{
+            fontWeight: 800,
+            textTransform: "none",
+            borderRadius: "12px",
+            px: 2.5,
+            py: 1.1,
+            boxShadow: `0 8px 24px ${alpha(th.palette.primary.main, shellDark ? 0.35 : 0.25)}`,
+            "&:hover": { boxShadow: `0 10px 28px ${alpha(th.palette.primary.main, shellDark ? 0.45 : 0.3)}` },
+          }}
+        >
           Apply to page background
         </Button>
-        <Typography variant="caption" sx={{ color: th.app.text.secondary, fontWeight: 600 }}>
+        <Typography variant="caption" sx={{ color: th.app.text.secondary, fontWeight: 600, lineHeight: 1.5 }}>
           You can edit the generated CSS string after applying.
         </Typography>
       </Stack>

@@ -88,11 +88,6 @@ import {
   revenueTitleRowMb2,
   revenueIconSmall,
 } from "./dashboard.styles";
-import HrAdminOverview from "./HrAdminOverview";
-import NetworkAdminOverview from "./NetworkAdminOverview";
-import ManagerOverview from "./ManagerOverview";
-import SystemAdminOverview from "./SystemAdminOverview";
-
 const RevenueLineChart = dynamic(
   () => import("@/components/common/Charts").then((m) => ({ default: m.RevenueLineChart })),
   { ssr: false, loading: () => <Box sx={chartLoadingBox} /> }
@@ -246,7 +241,7 @@ export default function DashboardPage() {
               <Avatar src={hasImage ? userImage : userIconPath} sx={tableAvatar}>
                 {!hasImage && <PersonIcon sx={tableAvatarIcon} />}
               </Avatar>
-              <Typography component="span" variant="body2" color="white" fontWeight={500}>
+              <Typography component="span" variant="body2" color="textPrimary" fontWeight={500}>
                 {name}
               </Typography>
             </Box>
@@ -270,7 +265,7 @@ export default function DashboardPage() {
             <Avatar src={userIconPath} sx={tableAvatar}>
               <PersonIcon sx={tableAvatarIcon} />
             </Avatar>
-            <Typography component="span" variant="body2" color="white" fontWeight={500}>
+            <Typography component="span" variant="body2" color="textPrimary" fontWeight={500}>
               {row.agentName}
             </Typography>
           </Box>
@@ -292,7 +287,7 @@ export default function DashboardPage() {
         render: (_, row) => (
           <Box sx={avgRatingBox}>
             <StarIcon sx={starIconYellow} />
-            <Typography component="span" variant="body2" color="white">
+            <Typography component="span" variant="body2" color="textPrimary">
               {row.avgRating}
             </Typography>
           </Box>
@@ -303,33 +298,13 @@ export default function DashboardPage() {
     []
   );
 
-  const isHrAdmin = user?.role === "hr-admin";
-  const isNetworkAdmin = user?.role === "network-admin";
-  const isManager = user?.role === "manager";
-  const isSystemAdmin = user?.role === "system-admin";
   const isEmployee = user?.role === "user";
-
-  if (isHrAdmin) {
-    return <HrAdminOverview />;
-  }
-
-  if (isNetworkAdmin) {
-    return <NetworkAdminOverview />;
-  }
-
-  if (isManager) {
-    return <ManagerOverview />;
-  }
-
-  if (isSystemAdmin) {
-    return <SystemAdminOverview />;
-  }
 
   if (isEmployee) {
     return (
       <Box sx={pageWrapper}>
         <Box sx={overviewHeader}>
-          <Typography variant="regularLarge" fontWeight={700} color="white">
+          <Typography variant="regularLarge" fontWeight={700} color="textPrimary">
             Overview
           </Typography>
           <Box sx={overviewHeaderDropdownWrap}>
@@ -387,7 +362,7 @@ export default function DashboardPage() {
                 <Box sx={chatAnalyticsIconBox}>
                   <PersonIcon sx={iconSize22} />
                 </Box>
-                <Typography variant="subtitle1" fontWeight={600} color="white">
+                <Typography variant="subtitle1" fontWeight={600} color="textPrimary">
                   Department Performance
                 </Typography>
               </Box>
@@ -417,7 +392,7 @@ export default function DashboardPage() {
                 <Box sx={chatVolumeIconBox}>
                   <ChatIcon sx={iconSize22} />
                 </Box>
-                <Typography variant="subtitle1" fontWeight={600} color="white">
+                <Typography variant="subtitle1" fontWeight={600} color="textPrimary">
                   Chat Volume
                 </Typography>
               </Box>
@@ -436,7 +411,7 @@ export default function DashboardPage() {
                   <Typography variant="medium16" sx={{ color: theme.app.dashboard.white7, ...chatVolumeSummaryLabel } as object}>
                     Total Chats
                   </Typography>
-                  <Typography variant="medium16" color="white">
+                  <Typography variant="medium16" color="textPrimary">
                     23,545
                   </Typography>
                 </Box>
@@ -461,7 +436,7 @@ export default function DashboardPage() {
               <Box sx={chatAnalyticsIconBox}>
                 <PersonIcon sx={iconSize22} />
               </Box>
-              <Typography variant="subtitle1" fontWeight={600} color="white">
+              <Typography variant="subtitle1" fontWeight={600} color="textPrimary">
                 Agent Performance
               </Typography>
             </Box>
@@ -531,7 +506,7 @@ export default function DashboardPage() {
   return (
     <Box sx={pageWrapper}>
       <Box sx={overviewHeader}>
-        <Typography variant="regularLarge" fontWeight={700} color="white">
+        <Typography variant="regularLarge" fontWeight={700} color="textPrimary">
           Overview
         </Typography>
         <Box sx={overviewHeaderDropdownWrap}>
@@ -617,7 +592,7 @@ export default function DashboardPage() {
               <Box sx={revenueIconBox}>
                 <AttachMoneyIcon sx={revenueIconSmall} />
               </Box>
-              <Typography variant="subtitle1" fontWeight={600} color="white">
+              <Typography variant="subtitle1" fontWeight={600} color="textPrimary">
                 Revenue Overview
               </Typography>
             </Box>
@@ -645,7 +620,7 @@ export default function DashboardPage() {
               <Box sx={chatAnalyticsIconBox}>
                 <ChatIcon sx={iconSize22} />
               </Box>
-              <Typography variant="subtitle1" fontWeight={600} color="white">
+              <Typography variant="subtitle1" fontWeight={600} color="textPrimary">
                 Chat Analytics
               </Typography>
             </Box>
@@ -666,7 +641,7 @@ export default function DashboardPage() {
         <DashboardCard sx={cardPadding}>
           <Box sx={revenueTitleRowMb2}>
             <ChatsByDepartmentIcon />
-            <Typography variant="subtitle1" fontWeight={600} color="white">
+            <Typography variant="subtitle1" fontWeight={600} color="textPrimary">
               Chats by Department
             </Typography>
           </Box>
@@ -714,7 +689,7 @@ export default function DashboardPage() {
           <Box sx={chatAnalyticsIconBox}>
             <ListIcon sx={iconSize22} />
           </Box>
-          <Typography variant="subtitle1" fontWeight={600} color="white">
+          <Typography variant="subtitle1" fontWeight={600} color="textPrimary">
             Recent Activity Log
           </Typography>
         </Box>

@@ -45,6 +45,7 @@ export default function DashboardHeader({ onMenuClick }: { onMenuClick?: () => v
   const headerSxLive: SxProps<Theme> = {
     ...headerBaseSx,
     ...glassChromeLayerSx(appearance.headerChrome, { borderBottom: true }),
+    width: "100%",
   };
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const { user, logout } = useAuth();
@@ -71,18 +72,7 @@ export default function DashboardHeader({ onMenuClick }: { onMenuClick?: () => v
         .slice(0, 2),
     [displayName]
   );
-  const roleLabel =
-    user?.role === "admin"
-      ? "Admin"
-      : user?.role === "hr-admin"
-        ? "HR Admin"
-        : user?.role === "network-admin"
-          ? "Network Admin"
-          : user?.role === "manager"
-            ? "Manager"
-            : user?.role === "system-admin"
-              ? "System Admin"
-              : "User";
+  const roleLabel = user?.role === "admin" ? "Admin" : "User";
 
   const searchBarContent = useMemo(
     () => (
@@ -130,28 +120,29 @@ export default function DashboardHeader({ onMenuClick }: { onMenuClick?: () => v
               <MenuIcon sx={{ fontSize: 22 }} />
             </IconButton>
           )}
-          <Box sx={{ display: "flex", gap: 1.25, minWidth: 0, alignItems: "center" }}>
+          <Box sx={{ display: "flex", gap: 1.5, minWidth: 0, alignItems: "center" }}>
             <Box
               aria-hidden
               sx={{
-                width: 3,
-                height: 28,
-                borderRadius: "2px",
+                width: 4,
+                height: 32,
+                borderRadius: "4px",
                 flexShrink: 0,
                 display: { xs: "none", sm: "block" },
-                bgcolor: "rgba(99, 102, 241, 0.9)",
+                background: `linear-gradient(180deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+                boxShadow: `0 0 20px ${theme.palette.primary.main}40`,
               }}
             />
-            <Box sx={{ display: "flex", flexDirection: "column", gap: 0.125, minWidth: 0 }}>
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 0.2, minWidth: 0 }}>
               <Typography
                 variant="medium"
                 sx={{
                   color: theme.app.text.secondary,
                   fontSize: { xs: 10, md: 11 },
-                  letterSpacing: "0.06em",
+                  letterSpacing: "0.12em",
                   textTransform: "uppercase",
-                  fontWeight: 600,
-                  opacity: 0.92,
+                  fontWeight: 700,
+                  opacity: 0.88,
                 }}
               >
                 Dashboard
@@ -159,10 +150,10 @@ export default function DashboardHeader({ onMenuClick }: { onMenuClick?: () => v
               <Typography
                 variant="boldLarge"
                 sx={{
-                  fontSize: { xs: 15, sm: 16, md: 16 },
-                  fontWeight: 600,
-                  letterSpacing: -0.025,
-                  lineHeight: 1.3,
+                  fontSize: { xs: 15, sm: 16, md: 17 },
+                  fontWeight: 700,
+                  letterSpacing: -0.03,
+                  lineHeight: 1.25,
                   overflow: "hidden",
                   textOverflow: "ellipsis",
                   whiteSpace: "nowrap",
@@ -175,22 +166,28 @@ export default function DashboardHeader({ onMenuClick }: { onMenuClick?: () => v
           </Box>
         </Box>
 
+        {!isMobile ? (
+          <Box
+            sx={{
+              flex: 1,
+              minWidth: 0,
+              display: "flex",
+              justifyContent: "center",
+              px: { md: 1.5, lg: 2.5 },
+            }}
+          >
+            <Box sx={{ width: "100%", maxWidth: { md: 380, lg: 460, xl: 520 } }}>{searchBarContent}</Box>
+          </Box>
+        ) : null}
+
         <Box
           sx={{
             display: "flex",
             alignItems: "center",
             gap: { xs: 0.75, sm: 1.25, md: 1.5 },
-            flex: 1,
-            minWidth: 0,
-            justifyContent: "flex-end",
+            flexShrink: 0,
           }}
         >
-          {!isMobile && (
-            <Box sx={{ width: { md: 240, lg: 360, xl: 420 }, flexShrink: 1, maxWidth: "100%" }}>{searchBarContent}</Box>
-          )}
-
-          <Divider orientation="vertical" flexItem sx={headerDividerSx} />
-
           {isMobile && (
             <IconButton
               onClick={() => setMobileSearchOpen(true)}
@@ -200,6 +197,8 @@ export default function DashboardHeader({ onMenuClick }: { onMenuClick?: () => v
               <SearchIcon sx={{ fontSize: 21 }} />
             </IconButton>
           )}
+
+          <Divider orientation="vertical" flexItem sx={headerDividerSx} />
 
           <Box sx={{ display: "flex", alignItems: "center", gap: { xs: 0.5, sm: 0.75 } }}>
             <IconButton
@@ -226,8 +225,8 @@ export default function DashboardHeader({ onMenuClick }: { onMenuClick?: () => v
               ml: { xs: 0, sm: 0.25 },
               outline: "none",
               "&:focus-visible": {
-                outline: `2px solid rgba(${PRIMARY_FOCUS_RGB},0.5)`,
-                outlineOffset: 2,
+                outline: `2px solid rgba(${PRIMARY_FOCUS_RGB},0.55)`,
+                outlineOffset: 3,
               },
             }}
             aria-expanded={open}
@@ -235,13 +234,14 @@ export default function DashboardHeader({ onMenuClick }: { onMenuClick?: () => v
           >
             <Avatar
               sx={{
-                width: { xs: 36, md: 40 },
-                height: { xs: 36, md: 40 },
-                bgcolor: "rgba(99, 102, 241, 0.45)",
-                border: "1px solid rgba(255,255,255,0.16)",
-                fontSize: "0.85rem",
+                width: { xs: 36, md: 42 },
+                height: { xs: 36, md: 42 },
+                fontSize: { xs: "0.8rem", md: "0.875rem" },
                 fontWeight: 700,
                 color: theme.app.text.primary,
+                border: "2px solid rgba(255,255,255,0.2)",
+                background: `linear-gradient(145deg, #818CF8 0%, ${theme.palette.primary.main} 42%, ${theme.palette.secondary.main} 100%)`,
+                boxShadow: `0 4px 16px rgba(99, 102, 241, 0.45)`,
               }}
             >
               {initials}
@@ -253,16 +253,24 @@ export default function DashboardHeader({ onMenuClick }: { onMenuClick?: () => v
                   fontWeight: 700,
                   color: theme.app.text.primary,
                   lineHeight: 1.2,
-                  letterSpacing: "0.02em",
+                  letterSpacing: "-0.01em",
                   overflow: "hidden",
                   textOverflow: "ellipsis",
                   whiteSpace: "nowrap",
-                  maxWidth: { sm: 120, md: 160 },
+                  maxWidth: { sm: 120, md: 168 },
                 }}
               >
                 {displayName}
               </Typography>
-              <Typography sx={{ fontSize: "0.7rem", color: theme.app.text.secondary, fontWeight: 500, mt: 0.125 }}>
+              <Typography
+                sx={{
+                  fontSize: "0.6875rem",
+                  color: theme.app.text.secondary,
+                  fontWeight: 600,
+                  mt: 0.15,
+                  letterSpacing: "0.02em",
+                }}
+              >
                 {roleLabel}
               </Typography>
             </Box>
@@ -272,6 +280,7 @@ export default function DashboardHeader({ onMenuClick }: { onMenuClick?: () => v
                 fontSize: 22,
                 display: { xs: "none", sm: "block" },
                 flexShrink: 0,
+                opacity: 0.85,
               }}
             />
           </Box>
@@ -304,8 +313,8 @@ export default function DashboardHeader({ onMenuClick }: { onMenuClick?: () => v
               display: mobileSearchOpen ? "flex" : "none",
               alignItems: "center",
               gap: 1,
-              borderBottomLeftRadius: 8,
-              borderBottomRightRadius: 8,
+              borderBottomLeftRadius: 16,
+              borderBottomRightRadius: 16,
               ...glassChromeLayerSx(
                 { ...appearance.headerChrome, fillOpacity: Math.min(0.72, appearance.headerChrome.fillOpacity + 0.16) },
                 { borderBottom: true }
@@ -330,15 +339,16 @@ export default function DashboardHeader({ onMenuClick }: { onMenuClick?: () => v
         slotProps={{
           paper: {
             sx: {
-              bgcolor: "rgba(15, 23, 42, 0.92)",
-              backdropFilter: "blur(20px) saturate(160%)",
-              WebkitBackdropFilter: "blur(20px) saturate(160%)",
-              border: "1px solid rgba(255,255,255,0.12)",
-              borderRadius: "8px",
               mt: 1.25,
-              minWidth: 200,
-              boxShadow: "0 20px 48px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.08)",
+              minWidth: 212,
               overflow: "hidden",
+              borderRadius: "14px",
+              bgcolor: theme.app.dashboard.cardBg,
+              border: `1px solid ${theme.app.dashboard.cardBorder}`,
+              boxShadow:
+                theme.palette.mode === "dark"
+                  ? "0 24px 56px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.08)"
+                  : "0 20px 48px rgba(15,23,42,0.12), inset 0 1px 0 rgba(255,255,255,0.9)",
             },
           },
         }}
@@ -347,16 +357,16 @@ export default function DashboardHeader({ onMenuClick }: { onMenuClick?: () => v
           component={Link}
           href="/dashboard/settings"
           onClick={handleClose}
-          sx={{ color: theme.app.text.primary, py: 1.25, gap: 1 }}
+          sx={{ py: 1.25, gap: 1 }}
         >
           <ListItemIcon sx={{ minWidth: 36 }}>
-            <SettingsMenuIcon fontSize="small" sx={{ color: theme.app.text.secondary }} />
+            <SettingsMenuIcon fontSize="small" sx={{ color: "text.secondary" }} />
           </ListItemIcon>
           Settings
         </MenuItem>
-        <MenuItem onClick={handleLogout} sx={{ color: theme.app.text.primary, py: 1.25, gap: 1 }}>
+        <MenuItem onClick={handleLogout} sx={{ py: 1.25, gap: 1 }}>
           <ListItemIcon sx={{ minWidth: 36 }}>
-            <LogoutIcon fontSize="small" sx={{ color: theme.app.text.secondary }} />
+            <LogoutIcon fontSize="small" sx={{ color: "text.secondary" }} />
           </ListItemIcon>
           Sign out
         </MenuItem>

@@ -14,19 +14,13 @@ function normalizeOptions(options: string[] | DropdownOption[]): DropdownOption[
   );
 }
 
+/** Spacing only — `MuiMenu` theme override supplies glass + borders from dashboard tokens */
 function defaultPaperSx(theme: AppTheme) {
   return {
     mt: 1.5,
-    minWidth: 160,
-    bgcolor: theme.app.dashboard.surfaceDark,
-    border: `1px solid ${theme.app.dashboard.cardBorder}`,
-    borderRadius: 2,
+    minWidth: 168,
     "& .MuiMenuItem-root": {
-      color: theme.palette.text.primary,
       fontSize: 14,
-    },
-    "& .MuiMenuItem-root:hover": {
-      bgcolor: theme.app.dashboard.navItemHover,
     },
   };
 }

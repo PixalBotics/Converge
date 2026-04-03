@@ -133,7 +133,7 @@ export default function WebsiteAssigningPage() {
             >
               {(String(row.departmentName ?? "").charAt(0) || "D").toUpperCase()}
             </Avatar>
-            <Typography component="span" variant="body2" color="white" fontWeight={500}>
+            <Typography component="span" variant="body2" color="textPrimary" fontWeight={500}>
               {String(value ?? "—")}
             </Typography>
           </Box>
@@ -202,7 +202,7 @@ export default function WebsiteAssigningPage() {
   return (
     <Box sx={departmentsPageWrapper}>
       <Box sx={departmentsHeader}>
-        <Typography variant="regularLarge" fontWeight={700} color="white">
+        <Typography variant="regularLarge" fontWeight={700} color="textPrimary">
           Departments
         </Typography>
         <Box sx={departmentsAddButtonWrapper}>
@@ -212,7 +212,7 @@ export default function WebsiteAssigningPage() {
             onClick={() => setIsAddOpen(true)}
           >
             <AddCircleIcon width={16} height={16} />
-            <Typography component="span" variant="medium" color="white">
+            <Typography component="span" variant="medium" color="textPrimary">
               Add Department
             </Typography>
           </Button>
@@ -227,7 +227,7 @@ export default function WebsiteAssigningPage() {
             >
               <SearchIcon sx={{ fontSize: 20, color: theme.app.dashboard.iconMuted }} width={20} height={20} />
             </Box>
-            <Typography variant="mediumLarge" color="white">
+            <Typography variant="mediumLarge" color="textPrimary">
               Departments
             </Typography>
           </Box>
@@ -294,7 +294,7 @@ export default function WebsiteAssigningPage() {
           </>
         )}
         <Box sx={{ mt: 0.5, marginLeft: "13px" }}>
-          <Typography variant="medium" color="white" sx={{ mb: 1 }}>
+          <Typography variant="medium" color="textPrimary" sx={{ mb: 1 }}>
             Status
           </Typography>
           <StatusRadioGroup value={status} onChange={setStatus} />

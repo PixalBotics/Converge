@@ -90,7 +90,7 @@ function ActiveChatBars({ count, theme }: { count: number; theme: AppTheme }) {
   const total = 5;
   return (
     <Box sx={activeChatBarsRoot}>
-      <Typography variant="body2" color="white" sx={activeChatBarsLabel}>
+      <Typography variant="body2" color="textPrimary" sx={activeChatBarsLabel}>
         {String(count).padStart(2, "0")}
       </Typography>
       {Array.from({ length: total }).map((_, i) => (
@@ -122,7 +122,7 @@ export default function HrAdminOverview() {
             <Avatar src={userIconPath} sx={tableAvatar}>
               <PersonIcon sx={tableAvatarIcon} />
             </Avatar>
-            <Typography variant="body2" fontWeight={500} color="white">
+            <Typography variant="body2" fontWeight={500} color="textPrimary">
               {row.name}
             </Typography>
           </Box>
@@ -134,7 +134,7 @@ export default function HrAdminOverview() {
         render: (_, row) => (
           <Box sx={statusCell}>
             <Box sx={{ width: 8, height: 8, borderRadius: "50%", bgcolor: row.statusColor }} />
-            <Typography variant="body2" color="white">{row.status}</Typography>
+            <Typography variant="body2" color="textPrimary">{row.status}</Typography>
           </Box>
         ),
       },
@@ -151,7 +151,7 @@ export default function HrAdminOverview() {
   return (
     <Box sx={pageWrapper}>
       <Box sx={overviewHeader}>
-        <Typography variant="regularLarge" fontWeight={700} color="white">
+        <Typography variant="regularLarge" fontWeight={700} color="textPrimary">
           Overview
         </Typography>
         <Box sx={overviewHeaderDropdownWrap}>
@@ -213,7 +213,7 @@ export default function HrAdminOverview() {
               <Box sx={qaHeaderIconCircle}>
                 <AttachMoneyIcon sx={{ fontSize: 20 }} />
               </Box>
-              <Typography variant="subtitle1" fontWeight={600} color="white">
+              <Typography variant="subtitle1" fontWeight={600} color="textPrimary">
                 Agent Live Status
               </Typography>
             </Box>
@@ -238,7 +238,7 @@ export default function HrAdminOverview() {
               <Box sx={qaHeaderIconCircle}>
                 <AttachMoneyIcon sx={{ fontSize: 20 }} />
               </Box>
-              <Typography variant="subtitle1" fontWeight={600} color="white">
+              <Typography variant="subtitle1" fontWeight={600} color="textPrimary">
                 QA Snapshot
               </Typography>
             </Box>
@@ -246,14 +246,14 @@ export default function HrAdminOverview() {
           <DashboardCard sx={departmentRatingCard}>
             <Box sx={departmentRatingRow}>
               <Box>
-                <Typography variant="body2" color="white" fontWeight={500} sx={{ mb: 0.5 }}>
+                <Typography variant="body2" color="textPrimary" fontWeight={500} sx={{ mb: 0.5 }}>
                   Department Rating
                 </Typography>
                 <Box sx={trendRow}>
                   <Box component="span" sx={trendArrowBox}>
                     <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 9V3M6 3L3 6M6 3L9 6" stroke="#22C55E" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
                   </Box>
-                  <Typography variant="caption" color="rgba(255,255,255,0.6)">
+                  <Typography variant="caption" color="textSecondary">
                     Last 24 Hours
                   </Typography>
                 </Box>
@@ -269,7 +269,7 @@ export default function HrAdminOverview() {
           <Box sx={excellentPoorGrid}>
             <DashboardCard sx={excellentPoorCard}>
               <StarIcon sx={starExcellent} />
-              <Typography variant="body2" fontWeight={600} color="white">
+              <Typography variant="body2" fontWeight={600} color="textPrimary">
                 Excellent
               </Typography>
               <Typography variant="h5" fontWeight={700} sx={getRatingNumberBlue(theme)}>
@@ -279,14 +279,14 @@ export default function HrAdminOverview() {
                 <Box component="span" sx={{ display: "inline-flex", alignItems: "center" }}>
                   <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 9V3M6 3L3 6M6 3L9 6" stroke="#22C55E" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
                 </Box>
-                <Typography variant="caption" color="rgba(255,255,255,0.6)">
+                <Typography variant="caption" color="textSecondary">
                   5-star Ratings
                 </Typography>
               </Box>
             </DashboardCard>
             <DashboardCard sx={excellentPoorCard}>
               <StarIcon sx={getStarPoor(theme)} />
-              <Typography variant="body2" fontWeight={600} color="white">
+              <Typography variant="body2" fontWeight={600} color="textPrimary">
                 Poor
               </Typography>
               <Typography variant="h5" fontWeight={700} sx={getRatingNumberBlue(theme)}>
@@ -296,7 +296,7 @@ export default function HrAdminOverview() {
                 <Box component="span" sx={{ display: "inline-flex", alignItems: "center" }}>
                   <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 3V9M6 9L3 6M6 9L9 6" stroke="#EF4444" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
                 </Box>
-                <Typography variant="caption" color="rgba(255,255,255,0.6)">
+                <Typography variant="caption" color="textSecondary">
                   1-star Ratings
                 </Typography>
               </Box>
@@ -322,7 +322,7 @@ export default function HrAdminOverview() {
             <Box sx={qaHeaderIconCircle}>
               <AttachMoneyIcon sx={{ fontSize: 20 }} />
             </Box>
-            <Typography variant="subtitle1" fontWeight={600} color="white">
+            <Typography variant="subtitle1" fontWeight={600} color="textPrimary">
               Live Chat Monitor
             </Typography>
           </Box>
@@ -339,7 +339,7 @@ export default function HrAdminOverview() {
                     <PersonIcon sx={{ fontSize: 22 }} />
                   </Avatar>
                   <Box sx={{ minWidth: 0 }}>
-                    <Typography variant="body1" fontWeight={600} color="white" sx={liveChatCustomerName}>
+                    <Typography variant="body1" fontWeight={600} color="textPrimary" sx={liveChatCustomerName}>
                       {chat.customer}
                     </Typography>
                     <Typography variant="caption" sx={{ color: theme.app.dashboard.white60 }}>
@@ -353,7 +353,7 @@ export default function HrAdminOverview() {
                     <PersonIcon sx={{ fontSize: 22 }} />
                   </Avatar>
                   <Box sx={{ minWidth: 0 }}>
-                    <Typography variant="caption" color="white" fontWeight={500}>
+                    <Typography variant="caption" color="textPrimary" fontWeight={500}>
                       Assigned to
                     </Typography>
                     <Typography variant="body2" sx={{ color: theme.app.dashboard.white7 }}>
@@ -371,19 +371,19 @@ export default function HrAdminOverview() {
                 <Box sx={liveChatStatusGroup}>
                   <Box sx={liveChatStatusItem}>
                     <ChatBubbleIcon sx={{ fontSize: 16, color: "white" }} />
-                    <Typography variant="caption" color="white">
+                    <Typography variant="caption" color="textPrimary">
                       {chat.messages} Msgs
                     </Typography>
                   </Box>
                   <Box sx={liveChatStatusItem}>
                     <AccessTimeIcon sx={{ fontSize: 16, color: "white" }} />
-                    <Typography variant="caption" color="white">
+                    <Typography variant="caption" color="textPrimary">
                       {chat.duration}
                     </Typography>
                   </Box>
                   <Box sx={liveChatStatusItem}>
                     <Box sx={{ ...liveChatStatusDot, bgcolor: chat.statusColor }} />
-                    <Typography variant="caption" color="white">
+                    <Typography variant="caption" color="textPrimary">
                       {chat.status}
                     </Typography>
                   </Box>

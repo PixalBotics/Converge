@@ -1,7 +1,7 @@
 "use client";
 
 import Box from "@mui/material/Box";
-import { useTheme } from "@mui/material/styles";
+import { alpha, useTheme } from "@mui/material/styles";
 import type { SxProps, Theme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import type { DashboardCardProps } from "./DashboardCard.types";
@@ -16,7 +16,7 @@ export function DashboardCard({ children, sx = {}, ...rest }: DashboardCardProps
     position: "relative",
     height: "100%",
     border: `1px solid ${th.app.dashboard.cardBorder}`,
-    boxShadow: "inset 0 1px 0 rgba(255,255,255,0.05)",
+    boxShadow: `inset 0 1px 0 ${alpha(th.palette.text.primary, 0.08)}`,
   };
 
   return (

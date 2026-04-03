@@ -13,30 +13,6 @@ const MOCK_USERS: User[] = [
     displayName: "Admin",
     role: "admin",
   },
-  {
-    id: "usr-hr-admin-001",
-    email: "hr-admin@gmail.com",
-    displayName: "HR Admin",
-    role: "hr-admin",
-  },
-  {
-    id: "usr-network-admin-001",
-    email: "networkadmin@gmail.com",
-    displayName: "Network Admin",
-    role: "network-admin",
-  },
-  {
-    id: "usr-manager-001",
-    email: "manager@gmail.com",
-    displayName: "Manager",
-    role: "manager",
-  },
-  {
-    id: "usr-system-admin-001",
-    email: "systemadmin@gmail.com",
-    displayName: "System Admin",
-    role: "system-admin",
-  },
 ];
 
 type MockCredentialConfig = {
@@ -47,10 +23,6 @@ type MockCredentialConfig = {
 const MOCK_CREDENTIALS: Record<string, MockCredentialConfig> = {
   "demo@gmail.com": { password: "Demo123" },
   "admin@gmail.com": { password: "Admin123", licenseKey: "1234" },
-  "hr-admin@gmail.com": { password: "HrAdmin123" },
-  "networkadmin@gmail.com": { password: "NetworkAdmin123" },
-  "manager@gmail.com": { password: "Manager123" },
-  "systemadmin@gmail.com": { password: "SystemAdmin123" },
 };
 
 const SESSION_DURATION_MS = 24 * 60 * 60 * 1000;

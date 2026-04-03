@@ -1,8 +1,12 @@
-import { createTheme, type ThemeOptions } from "@mui/material/styles";
+import { createTheme, type Theme, type ThemeOptions } from "@mui/material/styles";
 import { parseHexToRgb } from "@/lib/theme/shellChrome";
-import { deriveReadableTextHexesFromBackground } from "@/lib/theme/backgroundTextContrast";
+import {
+  deriveReadableTextHexesFromBackground,
+  isDarkAppearanceBackground,
+} from "@/lib/theme/backgroundTextContrast";
 import { deriveDashboardUiTokens } from "@/lib/theme/dashboardUiTokens";
 import type { DashboardContentUi } from "@/lib/dashboard-appearance/types";
+import { buildMuiComponentOverrides } from "./muiComponentOverrides";
 
 function buildAppColorsWithText(primaryHex: string, secondaryHex: string) {
   const p = parseHexToRgb(primaryHex);
@@ -243,12 +247,15 @@ export function createAppTheme(
     app = appColors;
   }
 
+  const darkCanvas = isDarkAppearanceBackground(appBackground);
+
   return createTheme({
     ...baseThemeOptions,
     appBackground,
     app: app as unknown as typeof appColors,
     palette: {
       ...baseThemeOptions.palette,
+      mode: darkCanvas ? "dark" : "light",
       ...(primaryHex != null && secondaryHex != null
         ? {
             text: {
@@ -260,6 +267,30 @@ export function createAppTheme(
     },
     components: {
       ...baseThemeOptions.components,
+      ...buildMuiComponentOverrides(),
+      MuiCssBaseline: {
+        styleOverrides: {
+          html: {
+            scrollbarWidth: "none",
+            msOverflowStyle: "none",
+            "&::-webkit-scrollbar": { display: "none" },
+          },
+          body: ({ theme }: { theme: Theme }) => ({
+            scrollbarWidth: "none",
+            msOverflowStyle: "none",
+            "&::-webkit-scrollbar": { display: "none" },
+            color: theme.palette.text.primary,
+            /** Global hooks for raw SVG / portals that do not receive MUI theme */
+            "--app-text-primary": theme.palette.text.primary,
+            "--app-text-secondary": theme.palette.text.secondary,
+            "--app-icon-muted": theme.app.text.iconMuted,
+            "--app-chart-grid": theme.app.dashboard.chartGridStroke,
+            "--app-chart-axis": theme.app.dashboard.chartAxisStroke,
+            "--app-chart-tick": theme.app.dashboard.chartTickFill,
+            "--app-chart-tooltip-label": theme.app.dashboard.chartTooltipLabel,
+          }),
+        },
+      },
       MuiTypography: {
         styleOverrides: {
           root: ({ theme }) => ({
@@ -269,9 +300,8 @@ export function createAppTheme(
       },
       MuiSvgIcon: {
         styleOverrides: {
-          root: ({ theme }) => ({
-            color: theme.app.text.iconMuted,
-          }),
+          /** Inherit from parent (main area, IconButton, ListItemIcon) so theme text colours control icons */
+          root: { color: "inherit" },
         },
       },
     },

@@ -1,5 +1,7 @@
 import type { SxProps, Theme } from "@mui/material/styles";
+import { alpha } from "@mui/material/styles";
 import { typographyVariants } from "@/components/common/Typography/typography.styles";
+import type { AppTheme } from "@/theme/theme";
 
 /** Expanded rail content width */
 export const SIDEBAR_WIDTH = 260;
@@ -7,7 +9,6 @@ export const SIDEBAR_WIDTH = 260;
 export const SIDEBAR_WIDTH_COLLAPSED = 76;
 
 export const navTextProps = {
-  color: "#B6A0EA" as const,
   ...typographyVariants.medium16,
 };
 
@@ -19,10 +20,9 @@ export const sectionLabelSx: SxProps<Theme> = {
   letterSpacing: "0.12em",
   textTransform: "uppercase",
   fontSize: 11,
-  color: "rgba(255,255,255,0.45)",
 };
 
-export const navItemSx: SxProps<Theme> = {
+export const navItemLayoutSx: SxProps<Theme> = {
   mx: 1.25,
   my: 0.35,
   py: 1,
@@ -30,24 +30,27 @@ export const navItemSx: SxProps<Theme> = {
   boxSizing: "border-box",
   whiteSpace: "nowrap",
   transition: "background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, justify-content 0.25s ease",
-
-  "&:hover": {
-    background: "rgba(255,255,255,0.06)",
-  },
-
-  /** Reference: light frosted pill on active item */
-  "&.Mui-selected": {
-    background: "rgba(255,255,255,0.14)",
-    backdropFilter: "blur(14px) saturate(140%)",
-    WebkitBackdropFilter: "blur(14px) saturate(140%)",
-    border: "1px solid rgba(255,255,255,0.12)",
-    boxShadow: "inset 0 1px 0 rgba(255,255,255,0.14)",
-
-    "& .MuiListItemText-primary": {
-      fontWeight: 600,
-    },
-  },
 };
+
+/** Hover + selected states follow dashboard text colour (works on light or dark wallpapers). */
+export function sidebarNavItemInteractiveSx(theme: AppTheme): SxProps<Theme> {
+  const ink = theme.palette.text.primary;
+  return {
+    "&:hover": {
+      background: alpha(ink, 0.06),
+    },
+    "&.Mui-selected": {
+      background: alpha(ink, 0.12),
+      backdropFilter: "blur(14px) saturate(140%)",
+      WebkitBackdropFilter: "blur(14px) saturate(140%)",
+      border: `1px solid ${alpha(ink, 0.14)}`,
+      boxShadow: `inset 0 1px 0 ${alpha(ink, 0.14)}`,
+      "& .MuiListItemText-primary": {
+        fontWeight: 600,
+      },
+    },
+  };
+}
 
 /** Collapsed: icon-centered rows */
 export const navItemCollapsedSx: SxProps<Theme> = {
@@ -75,9 +78,7 @@ export const logoImgSx: SxProps<Theme> = {
   flexShrink: 0,
 };
 
-export const closeButtonSx: SxProps<Theme> = {
-  color: "rgba(255,255,255,0.8)",
-};
+export const closeButtonSx: SxProps<Theme> = {};
 
 export const listSx: SxProps<Theme> = {
   px: 0,
@@ -91,12 +92,10 @@ export const listSx: SxProps<Theme> = {
 
 export const listIconSelectedSx: SxProps<Theme> = {
   minWidth: 40,
-  color: "rgba(255,255,255,0.95)",
 };
 
 export const listIconDefaultSx: SxProps<Theme> = {
   minWidth: 40,
-  color: "rgba(255,255,255,0.65)",
 };
 
 export const listIconCollapsedSx: SxProps<Theme> = {

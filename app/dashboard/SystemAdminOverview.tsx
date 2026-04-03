@@ -175,7 +175,7 @@ export default function SystemAdminOverview() {
   return (
     <Box sx={pageWrapper}>
       <Box sx={pageHeaderRow}>
-        <Typography variant="regularLarge" fontWeight={700} color="white">
+        <Typography variant="regularLarge" fontWeight={700} color="textPrimary">
           All Companies
         </Typography>
         <Button variant="primary" sx={departmentsAddButton} onClick={handleOpenModal}>
@@ -192,7 +192,7 @@ export default function SystemAdminOverview() {
             <Box sx={cardTitleIconBox}>
               <AttachMoneyIcon sx={attachMoneyIconSx(theme)} />
             </Box>
-            <Typography variant="mediumLarge" color="white" fontWeight={600}>
+            <Typography variant="mediumLarge" color="textPrimary" fontWeight={600}>
               Add Reseller / Company
             </Typography>
           </Box>
@@ -319,7 +319,7 @@ export default function SystemAdminOverview() {
             {Array.from({ length: childCompanySectionCount }).map((_, index) => (
               <Box key={`child-company-section-${index}`} sx={sectionStack}>
                 <Box sx={sectionHeaderRow}>
-                  <Typography variant="mediumLarge" color="white">
+                  <Typography variant="mediumLarge" color="textPrimary">
                     {`Child Company ${index + 1}`}
                   </Typography>
                   <IconButton size="small" sx={deleteIconButton}>
@@ -347,7 +347,7 @@ export default function SystemAdminOverview() {
             {Array.from({ length: websiteSectionCount }).map((_, index) => (
               <Box key={`website-section-${index}`} sx={sectionStack}>
                 <Box sx={index === 0 ? sectionHeaderRowWebsiteFirst : sectionHeaderRowWebsiteRest}>
-                  <Typography variant="mediumLarge" color="white">
+                  <Typography variant="mediumLarge" color="textPrimary">
                     {index === 0 ? "Associated Website" : `Associated Website ${index + 1}`}
                   </Typography>
                   <IconButton size="small" sx={deleteIconButton}>

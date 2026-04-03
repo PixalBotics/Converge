@@ -11,7 +11,7 @@ export function DataNotFoundPlaceholder() {
         alignItems: "center",
         justifyContent: "center",
         minHeight: "60vh",
-        color: "rgba(255,255,255,0.6)",
+        color: "text.secondary",
       }}
     >
       <Typography variant="h6" color="inherit">

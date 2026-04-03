@@ -110,7 +110,7 @@ export function RevenueLineChart({
             dot={false}
             activeDot={{
               r: activeDotR,
-              fill: theme.app.dashboard.surfaceDark,
+              fill: d.cardBg,
               stroke: d.chartLinePrimary,
               strokeWidth: 2,
             }}
@@ -123,7 +123,7 @@ export function RevenueLineChart({
             dot={false}
             activeDot={{
               r: activeDotR,
-              fill: theme.app.dashboard.surfaceDark,
+              fill: d.cardBg,
               stroke: d.chartLineSecondary,
               strokeWidth: 2,
             }}
