@@ -1,0 +1,366 @@
+"use client";
+
+import { useState, useMemo } from "react";
+import Link from "next/link";
+import Box from "@mui/material/Box";
+import Divider from "@mui/material/Divider";
+import useMediaQuery from "@mui/material/useMediaQuery";
+import { useTheme } from "@mui/material/styles";
+import { Typography } from "@/components/common";
+import type { AppTheme } from "@/theme/theme";
+import { useDashboardAppearance } from "@/lib/dashboard-appearance/context";
+import { glassChromeLayerSx } from "@/lib/dashboard-appearance/shellStyles";
+import {
+  headerBaseSx,
+  headerDividerSx,
+  searchShellSx,
+  toolbarIconSx,
+  userCapsuleSx,
+} from "./DashboardHeader.styles";
+import InputBase from "@mui/material/InputBase";
+import IconButton from "@mui/material/IconButton";
+import Avatar from "@mui/material/Avatar";
+import Menu from "@mui/material/Menu";
+import MenuItem from "@mui/material/MenuItem";
+import ListItemIcon from "@mui/material/ListItemIcon";
+import {
+  Menu as MenuIcon,
+  KeyboardArrowDown as KeyboardArrowDownIcon,
+  Logout as LogoutIcon,
+  Close as CloseIcon,
+  Settings as SettingsMenuIcon,
+} from "@mui/icons-material";
+import { useAuth } from "@/lib/auth";
+import { SearchIcon } from "./icons/SearchIcon";
+import { BellIcon } from "./icons/BellIcon";
+import { HeaderSettingsIcon } from "./icons/HeaderSettingsIcon";
+import type { SxProps, Theme } from "@mui/material/styles";
+
+/** RGB for focus ring (matches default indigo primary) */
+const PRIMARY_FOCUS_RGB = "99, 102, 241";
+
+export default function DashboardHeader({ onMenuClick }: { onMenuClick?: () => void }) {
+  const theme = useTheme() as AppTheme;
+  const { appearance } = useDashboardAppearance();
+  const headerSxLive: SxProps<Theme> = {
+    ...headerBaseSx,
+    ...glassChromeLayerSx(appearance.headerChrome, { borderBottom: true }),
+  };
+  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
+  const { user, logout } = useAuth();
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
+  const open = Boolean(anchorEl);
+  const b = appearance.accents.searchBorderOpacity;
+
+  const handleClick = (event: React.MouseEvent<HTMLElement>) => setAnchorEl(event.currentTarget);
+  const handleClose = () => setAnchorEl(null);
+  const handleLogout = () => {
+    handleClose();
+    logout();
+  };
+
+  const displayName = user?.displayName ?? "User";
+  const initials = useMemo(
+    () =>
+      displayName
+        .split(" ")
+        .map((n) => n[0])
+        .join("")
+        .toUpperCase()
+        .slice(0, 2),
+    [displayName]
+  );
+  const roleLabel =
+    user?.role === "admin"
+      ? "Admin"
+      : user?.role === "hr-admin"
+        ? "HR Admin"
+        : user?.role === "network-admin"
+          ? "Network Admin"
+          : user?.role === "manager"
+            ? "Manager"
+            : user?.role === "system-admin"
+              ? "System Admin"
+              : "User";
+
+  const searchBarContent = useMemo(
+    () => (
+      <Box
+        sx={searchShellSx(
+          appearance.accents.searchFillOpacity,
+          appearance.accents.searchBorderOpacity,
+          PRIMARY_FOCUS_RGB
+        )}
+      >
+        <SearchIcon sx={{ fontSize: 20, color: theme.app.text.iconMuted, flexShrink: 0 }} />
+        <InputBase
+          placeholder="Search anything…"
+          sx={{
+            flex: 1,
+            minWidth: 0,
+            color: theme.app.text.primary,
+            fontSize: "0.9375rem",
+            "& input": { py: 0.25, letterSpacing: "0.01em" },
+            "& input::placeholder": { color: theme.app.text.placeholder, opacity: 1 },
+          }}
+          fullWidth
+        />
+      </Box>
+    ),
+    [
+      appearance.accents.searchBorderOpacity,
+      appearance.accents.searchFillOpacity,
+      theme.app.text.iconMuted,
+      theme.app.text.placeholder,
+      theme.app.text.primary,
+    ]
+  );
+
+  return (
+    <>
+      <Box component="header" sx={headerSxLive}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: { xs: 1, md: 1.75 }, minWidth: 0, flexShrink: 0 }}>
+          {isMobile && onMenuClick && (
+            <IconButton
+              onClick={onMenuClick}
+              sx={toolbarIconSx(theme, b)}
+              aria-label="Open menu"
+            >
+              <MenuIcon sx={{ fontSize: 22 }} />
+            </IconButton>
+          )}
+          <Box sx={{ display: "flex", gap: 1.25, minWidth: 0, alignItems: "center" }}>
+            <Box
+              aria-hidden
+              sx={{
+                width: 3,
+                height: 28,
+                borderRadius: "2px",
+                flexShrink: 0,
+                display: { xs: "none", sm: "block" },
+                bgcolor: "rgba(99, 102, 241, 0.9)",
+              }}
+            />
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 0.125, minWidth: 0 }}>
+              <Typography
+                variant="medium"
+                sx={{
+                  color: theme.app.text.secondary,
+                  fontSize: { xs: 10, md: 11 },
+                  letterSpacing: "0.06em",
+                  textTransform: "uppercase",
+                  fontWeight: 600,
+                  opacity: 0.92,
+                }}
+              >
+                Dashboard
+              </Typography>
+              <Typography
+                variant="boldLarge"
+                sx={{
+                  fontSize: { xs: 15, sm: 16, md: 16 },
+                  fontWeight: 600,
+                  letterSpacing: -0.025,
+                  lineHeight: 1.3,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                  color: theme.app.text.primary,
+                }}
+              >
+                Welcome back, {displayName.split(" ")[0]}
+              </Typography>
+            </Box>
+          </Box>
+        </Box>
+
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            gap: { xs: 0.75, sm: 1.25, md: 1.5 },
+            flex: 1,
+            minWidth: 0,
+            justifyContent: "flex-end",
+          }}
+        >
+          {!isMobile && (
+            <Box sx={{ width: { md: 240, lg: 360, xl: 420 }, flexShrink: 1, maxWidth: "100%" }}>{searchBarContent}</Box>
+          )}
+
+          <Divider orientation="vertical" flexItem sx={headerDividerSx} />
+
+          {isMobile && (
+            <IconButton
+              onClick={() => setMobileSearchOpen(true)}
+              sx={toolbarIconSx(theme, b)}
+              aria-label="Open search"
+            >
+              <SearchIcon sx={{ fontSize: 21 }} />
+            </IconButton>
+          )}
+
+          <Box sx={{ display: "flex", alignItems: "center", gap: { xs: 0.5, sm: 0.75 } }}>
+            <IconButton
+              component={Link}
+              href="/dashboard/settings"
+              sx={toolbarIconSx(theme, b, { hideBelow: "md" })}
+              aria-label="Theme & settings"
+            >
+              <HeaderSettingsIcon />
+            </IconButton>
+            <IconButton sx={toolbarIconSx(theme, b)} aria-label="Notifications">
+              <BellIcon />
+            </IconButton>
+          </Box>
+
+          <Box
+            component="button"
+            type="button"
+            onClick={handleClick}
+            sx={{
+              ...userCapsuleSx(theme, b),
+              cursor: "pointer",
+              font: "inherit",
+              ml: { xs: 0, sm: 0.25 },
+              outline: "none",
+              "&:focus-visible": {
+                outline: `2px solid rgba(${PRIMARY_FOCUS_RGB},0.5)`,
+                outlineOffset: 2,
+              },
+            }}
+            aria-expanded={open}
+            aria-haspopup="true"
+          >
+            <Avatar
+              sx={{
+                width: { xs: 36, md: 40 },
+                height: { xs: 36, md: 40 },
+                bgcolor: "rgba(99, 102, 241, 0.45)",
+                border: "1px solid rgba(255,255,255,0.16)",
+                fontSize: "0.85rem",
+                fontWeight: 700,
+                color: theme.app.text.primary,
+              }}
+            >
+              {initials}
+            </Avatar>
+            <Box sx={{ display: { xs: "none", sm: "block" }, textAlign: "left", minWidth: 0, pr: 0.25 }}>
+              <Typography
+                sx={{
+                  fontSize: "0.8125rem",
+                  fontWeight: 700,
+                  color: theme.app.text.primary,
+                  lineHeight: 1.2,
+                  letterSpacing: "0.02em",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                  maxWidth: { sm: 120, md: 160 },
+                }}
+              >
+                {displayName}
+              </Typography>
+              <Typography sx={{ fontSize: "0.7rem", color: theme.app.text.secondary, fontWeight: 500, mt: 0.125 }}>
+                {roleLabel}
+              </Typography>
+            </Box>
+            <KeyboardArrowDownIcon
+              sx={{
+                color: theme.app.text.secondary,
+                fontSize: 22,
+                display: { xs: "none", sm: "block" },
+                flexShrink: 0,
+              }}
+            />
+          </Box>
+        </Box>
+      </Box>
+
+      {isMobile && (
+        <>
+          <Box
+            onClick={() => setMobileSearchOpen(false)}
+            sx={{
+              display: mobileSearchOpen ? "block" : "none",
+              position: "fixed",
+              inset: 0,
+              zIndex: 1300,
+              bgcolor: "rgba(0,0,0,0.45)",
+              backdropFilter: "blur(4px)",
+            }}
+            aria-hidden
+          />
+          <Box
+            sx={{
+              position: "fixed",
+              top: 0,
+              left: 0,
+              right: 0,
+              zIndex: 1301,
+              p: 2,
+              pt: 2.5,
+              display: mobileSearchOpen ? "flex" : "none",
+              alignItems: "center",
+              gap: 1,
+              borderBottomLeftRadius: 8,
+              borderBottomRightRadius: 8,
+              ...glassChromeLayerSx(
+                { ...appearance.headerChrome, fillOpacity: Math.min(0.72, appearance.headerChrome.fillOpacity + 0.16) },
+                { borderBottom: true }
+              ),
+              boxShadow: "0 20px 48px rgba(0,0,0,0.4)",
+            }}
+          >
+            <Box sx={{ flex: 1, minWidth: 0 }}>{searchBarContent}</Box>
+            <IconButton onClick={() => setMobileSearchOpen(false)} sx={toolbarIconSx(theme, b)} aria-label="Close search">
+              <CloseIcon />
+            </IconButton>
+          </Box>
+        </>
+      )}
+
+      <Menu
+        anchorEl={anchorEl}
+        open={open}
+        onClose={handleClose}
+        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+        transformOrigin={{ vertical: "top", horizontal: "right" }}
+        slotProps={{
+          paper: {
+            sx: {
+              bgcolor: "rgba(15, 23, 42, 0.92)",
+              backdropFilter: "blur(20px) saturate(160%)",
+              WebkitBackdropFilter: "blur(20px) saturate(160%)",
+              border: "1px solid rgba(255,255,255,0.12)",
+              borderRadius: "8px",
+              mt: 1.25,
+              minWidth: 200,
+              boxShadow: "0 20px 48px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.08)",
+              overflow: "hidden",
+            },
+          },
+        }}
+      >
+        <MenuItem
+          component={Link}
+          href="/dashboard/settings"
+          onClick={handleClose}
+          sx={{ color: theme.app.text.primary, py: 1.25, gap: 1 }}
+        >
+          <ListItemIcon sx={{ minWidth: 36 }}>
+            <SettingsMenuIcon fontSize="small" sx={{ color: theme.app.text.secondary }} />
+          </ListItemIcon>
+          Settings
+        </MenuItem>
+        <MenuItem onClick={handleLogout} sx={{ color: theme.app.text.primary, py: 1.25, gap: 1 }}>
+          <ListItemIcon sx={{ minWidth: 36 }}>
+            <LogoutIcon fontSize="small" sx={{ color: theme.app.text.secondary }} />
+          </ListItemIcon>
+          Sign out
+        </MenuItem>
+      </Menu>
+    </>
+  );
+}
