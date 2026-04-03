@@ -1,7 +1,9 @@
 "use client";
 
 import Box from "@mui/material/Box";
+import { useTheme } from "@mui/material/styles";
 import { Typography, DashboardCard } from "@/components/common";
+import type { AppTheme } from "@/theme/theme";
 
 export interface MetricCardProps {
   title: string;
@@ -9,7 +11,7 @@ export interface MetricCardProps {
   subtitle?: string;
   icon: React.ReactNode;
   iconBgColor: string;
-  /** Value text color (e.g. card-specific accent). Default: #6769E9 */
+  /** Value text colour. Default: theme `dashboard.metricValueDefault` (aligned with chart accent). */
   valueColor?: string;
   /** Subtitle color (e.g. "#EF4444" for alert). Default: grey */
   subtitleColor?: string;
@@ -47,10 +49,15 @@ export default function MetricCard({
   subtitle,
   icon,
   iconBgColor,
-  valueColor = "#6769E9",
+  valueColor,
   subtitleColor,
   showTrendArrow = true,
 }: MetricCardProps) {
+  const th = useTheme() as AppTheme;
+  const resolvedValueColor = valueColor ?? th.app.dashboard.metricValueDefault;
+  const titleColor = th.app.text.secondary;
+  const subtitleResolved = subtitleColor ?? th.app.text.or;
+
   return (
     <DashboardCard sx={{ p: 2.5 }}>
       {/* Icon top-left */}
@@ -63,31 +70,35 @@ export default function MetricCard({
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          color: "white",
+          color: th.app.text.primary,
           mb: 1.5,
         }}
       >
         {icon}
       </Box>
       {/* Title */}
-      <Typography variant="body2" color="rgba(255,255,255,0.9)" fontWeight={500} sx={{ mb: 0.75 }}>
+      <Typography variant="body2" fontWeight={500} sx={{ mb: 0.75, color: titleColor }}>
         {title}
       </Typography>
-      {/* Value - large, accent color */}
-      <Typography
-        variant="h4"
-        fontWeight={700}
-        sx={{ color: valueColor, lineHeight: 1.2, mb: subtitle ? 0.5 : 0 }}
+      {/* Value — Box avoids MUI h4 / palette.primary overriding sx color */}
+      <Box
+        sx={(t) => ({
+          ...t.typography.h4,
+          fontWeight: 700,
+          color: resolvedValueColor,
+          lineHeight: 1.2,
+          mb: subtitle ? 0.5 : 0,
+        })}
       >
         {value}
-      </Typography>
+      </Box>
       {/* Subtitle with optional trend arrow */}
       {subtitle && (
         <Typography
           variant="caption"
           component="span"
           sx={{
-            color: subtitleColor ?? "rgba(255,255,255,0.55)",
+            color: subtitleResolved,
             display: "inline-flex",
             alignItems: "center",
             fontSize: "0.75rem",

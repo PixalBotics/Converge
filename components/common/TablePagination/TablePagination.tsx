@@ -3,6 +3,7 @@
 import Box from "@mui/material/Box";
 import IconButton from "@mui/material/IconButton";
 import { ChevronLeft, ChevronRight } from "@mui/icons-material";
+import { alpha, useTheme } from "@mui/material/styles";
 import type { SxProps, Theme } from "@mui/material/styles";
 
 export interface TablePaginationProps {
@@ -13,6 +14,11 @@ export interface TablePaginationProps {
 }
 
 export function TablePagination({ page, pageCount, onPageChange, sx }: TablePaginationProps) {
+  const theme = useTheme();
+  const borderColor = alpha(theme.palette.text.secondary, 0.45);
+  const idleColor = theme.palette.text.secondary;
+  const disabledBorder = alpha(theme.palette.text.secondary, 0.35);
+
   const handleChange = (nextPage: number) => {
     if (!onPageChange) return;
     if (nextPage < 1 || nextPage > pageCount) return;
@@ -39,12 +45,12 @@ export function TablePagination({ page, pageCount, onPageChange, sx }: TablePagi
           width: 32,
           height: 32,
           borderRadius: "9999px",
-          border: "1px solid rgba(148,163,184,0.5)",
-          color: "rgba(148,163,184,0.9)",
+          border: `1px solid ${borderColor}`,
+          color: idleColor,
           bgcolor: "transparent",
           "&.Mui-disabled": {
             opacity: 0.4,
-            color: "rgba(148,163,184,0.6)",
+            color: disabledBorder,
           },
         }}
       >
@@ -61,9 +67,9 @@ export function TablePagination({ page, pageCount, onPageChange, sx }: TablePagi
             width: 32,
             height: 32,
             borderRadius: "9999px",
-            border: "1px solid rgba(148,163,184,0.5)",
-            bgcolor: p === page ? "rgba(79,70,229,0.9)" : "transparent",
-            color: p === page ? "white" : "rgba(148,163,184,0.9)",
+            border: `1px solid ${borderColor}`,
+            bgcolor: p === page ? theme.palette.primary.main : "transparent",
+            color: p === page ? theme.palette.primary.contrastText : idleColor,
             fontSize: 13,
             "&.Mui-disabled": {
               opacity: p === page ? 1 : 0.9,
@@ -83,12 +89,12 @@ export function TablePagination({ page, pageCount, onPageChange, sx }: TablePagi
           width: 32,
           height: 32,
           borderRadius: "9999px",
-          border: "1px solid rgba(148,163,184,0.5)",
-          color: "rgba(148,163,184,0.9)",
+          border: `1px solid ${borderColor}`,
+          color: idleColor,
           bgcolor: "transparent",
           "&.Mui-disabled": {
             opacity: 0.4,
-            color: "rgba(148,163,184,0.6)",
+            color: disabledBorder,
           },
         }}
       >

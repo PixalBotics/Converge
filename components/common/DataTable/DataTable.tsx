@@ -1,6 +1,7 @@
 "use client";
 
 import Box from "@mui/material/Box";
+import { useTheme } from "@mui/material/styles";
 import type { DataTableProps } from "./DataTable.types";
 import {
   dataTableRoot,
@@ -20,7 +21,10 @@ export function DataTable<T extends Record<string, unknown>>({
   tableSx,
   containerSx,
 }: DataTableProps<T>) {
+  const theme = useTheme();
   const sizeCellSx = size === "medium" ? { py: 1.5 } : { py: 1 };
+  const resolve = (sx: typeof dataTableHeaderCell) =>
+    typeof sx === "function" ? sx(theme) : sx;
 
   const getCellValue = (row: T, columnId: string): React.ReactNode => {
     const value = row[columnId];
@@ -46,16 +50,13 @@ export function DataTable<T extends Record<string, unknown>>({
               <Box
                 key={col.id}
                 component="th"
-                sx={{ ...(dataTableHeaderCell as object), ...sizeCellSx }}
+                sx={{ ...resolve(dataTableHeaderCell), ...sizeCellSx }}
               >
                 {col.label}
               </Box>
             ))}
             {actionColumn && (
-              <Box
-                component="th"
-                sx={{ ...(dataTableHeaderCell as object), ...sizeCellSx }}
-              >
+              <Box component="th" sx={{ ...resolve(dataTableHeaderCell), ...sizeCellSx }}>
                 {actionColumn.label}
               </Box>
             )}
@@ -69,9 +70,9 @@ export function DataTable<T extends Record<string, unknown>>({
                   key={col.id}
                   component="td"
                   sx={{
-                    ...((col.cellVariant === "muted"
-                      ? dataTableCellMuted
-                      : dataTableCellDefault) as object),
+                    ...resolve(
+                      col.cellVariant === "muted" ? dataTableCellMuted : dataTableCellDefault
+                    ),
                     ...sizeCellSx,
                   }}
                 >

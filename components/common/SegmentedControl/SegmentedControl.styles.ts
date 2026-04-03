@@ -1,61 +1,53 @@
 import type { SxProps, Theme } from "@mui/material/styles";
+import { alpha } from "@mui/material/styles";
 
-const baseGroup: SxProps<Theme> = {
+/** Default variant: blue selected (Revenue Overview style) */
+export const segmentedControlDefaultSx: SxProps<Theme> = (theme) => ({
   display: "inline-flex",
   alignItems: "center",
   borderRadius: "53.51px",
   p: 0.5,
-  background: "#16123F",
-  border: "0.51px solid #FFFFFF0F",
+  background: theme.app.dashboard.pillBg,
+  border: `0.51px solid ${alpha(theme.palette.text.primary, 0.06)}`,
   "& .MuiToggleButtonGroup-grouped": {
     border: "none",
     borderRadius: "53.51px",
     textTransform: "none",
     padding: "6px 18px",
     fontSize: 13,
-    "&:not(:first-of-type)": {
-      marginLeft: 2,
-    },
-  },
-};
-
-/** Default variant: blue selected (Revenue Overview style) */
-export const segmentedControlDefaultSx: SxProps<Theme> = {
-  ...baseGroup,
-  "& .MuiToggleButtonGroup-grouped": {
-    border: "none",
-    borderRadius: "53.51px",
-    textTransform: "none",
-    padding: "6px 18px",
-    fontSize: 13,
-    color: "rgba(148, 163, 184, 0.85)",
+    color: theme.palette.text.secondary,
     "&:not(:first-of-type)": { marginLeft: 2 },
     "&.Mui-selected": {
-      bgcolor: "#0048B70A",
-      color: "#FFFFFF",
-      border: "0.51px solid #D9D9D90F",
+      bgcolor: theme.app.dashboard.primaryTint,
+      color: theme.palette.text.primary,
+      border: `0.51px solid ${alpha(theme.palette.text.primary, 0.06)}`,
       boxShadow: "0 6px 18px rgba(15, 23, 42, 0.8)",
-      "&:hover": { bgcolor: "#0048B70A" },
+      "&:hover": { bgcolor: theme.app.dashboard.primaryTint },
     },
   },
-};
+});
 
 /** Secondary variant: purple selected (Chat Analytics style) */
-export const segmentedControlSecondarySx: SxProps<Theme> = {
-  ...baseGroup,
+export const segmentedControlSecondarySx: SxProps<Theme> = (theme) => ({
+  display: "inline-flex",
+  alignItems: "center",
+  borderRadius: "53.51px",
+  p: 0.5,
+  background: theme.app.dashboard.pillBg,
+  border: `0.51px solid ${alpha(theme.palette.text.primary, 0.06)}`,
   "& .MuiToggleButtonGroup-grouped": {
     border: "none",
     borderRadius: "53.51px",
     textTransform: "none",
     padding: "6px 18px",
     fontSize: 13,
-    color: "rgba(255, 255, 255, 0.5)",
+    color: alpha(theme.palette.text.primary, 0.55),
     "&:not(:first-of-type)": { marginLeft: 2 },
     "&.Mui-selected": {
-      bgcolor: "#2B254D",
-      color: "#FFFFFF",
-      border: "0.51px solid #D9D9D90F",
-      "&:hover": { bgcolor: "#2B254D" },
+      bgcolor: theme.app.dashboard.pillActive,
+      color: theme.palette.text.primary,
+      border: `0.51px solid ${alpha(theme.palette.text.primary, 0.06)}`,
+      "&:hover": { bgcolor: theme.app.dashboard.pillActive },
     },
   },
-};
+});

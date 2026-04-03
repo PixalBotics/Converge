@@ -25,6 +25,7 @@ export default function RootLayout({
           background: mainBackgroundGradient,
           minHeight: "100vh",
         }}
+        suppressHydrationWarning
       >
         <ThemeRegistry>
           <AuthProvider>{children}</AuthProvider>

@@ -30,7 +30,7 @@ export function DeleteCircleIcon({
         width="42.14"
         height="42.14"
         rx="21.07"
-        stroke="white"
+        stroke="currentColor"
         strokeWidth="0.86"
       />
       <path

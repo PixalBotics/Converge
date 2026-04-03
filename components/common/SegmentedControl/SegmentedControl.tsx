@@ -34,7 +34,7 @@ export function SegmentedControl({
       onChange={(_e, newValue) => {
         if (newValue != null) onChange(newValue);
       }}
-      sx={([groupSx, sx].filter(Boolean) as SxProps<Theme>)}
+      sx={[groupSx, sx] as SxProps<Theme>}
       aria-label="Segment selection"
     >
       {items.map((opt) => (

@@ -5,14 +5,12 @@ node_modules/
 .next/
 out/
 
-# Production / build
-build/
+# Build / TypeScript
 dist/
-
-# TypeScript incremental
+build/
 *.tsbuildinfo
 
-# Environment (keep .env.example committed if you add one)
+# Environment
 .env
 .env.*
 !.env.example
@@ -23,12 +21,8 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# Vercel
-.vercel
-
-# Testing
+# Testing / coverage
 coverage/
-.nyc_output/
 
 # IDE / OS
 .idea/
@@ -37,9 +31,10 @@ coverage/
 !.vscode/settings.json
 .DS_Store
 Thumbs.db
-*.swp
-*.swo
 
-# Turbo / misc caches
+# Vercel
+.vercel
+
+# Misc
+*.pem
 .turbo
-.cache/

@@ -1,7 +1,7 @@
 "use client";
 
-import { DataNotFoundPlaceholder } from "@/components/dashboard";
+import DashboardAppearanceSettings from "@/components/features/dashboard-settings/DashboardAppearanceSettings";
 
 export default function SettingsPage() {
-  return <DataNotFoundPlaceholder />;
+  return <DashboardAppearanceSettings />;
 }

@@ -1,9 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Button from "@mui/material/Button";
 import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
+import { useTheme } from "@mui/material/styles";
+import type { AppTheme } from "@/theme/theme";
 import type { DropdownProps, DropdownOption } from "./Dropdown.types";
 
 function normalizeOptions(options: string[] | DropdownOption[]): DropdownOption[] {
@@ -12,20 +14,22 @@ function normalizeOptions(options: string[] | DropdownOption[]): DropdownOption[
   );
 }
 
-const defaultPaperSx = {
-  mt: 1.5,
-  minWidth: 160,
-  bgcolor: "#1a1a2e",
-  border: "1px solid rgba(255,255,255,0.1)",
-  borderRadius: 2,
-  "& .MuiMenuItem-root": {
-    color: "rgba(255,255,255,0.9)",
-    fontSize: 14,
-  },
-  "& .MuiMenuItem-root:hover": {
-    bgcolor: "rgba(255,255,255,0.08)",
-  },
-};
+function defaultPaperSx(theme: AppTheme) {
+  return {
+    mt: 1.5,
+    minWidth: 160,
+    bgcolor: theme.app.dashboard.surfaceDark,
+    border: `1px solid ${theme.app.dashboard.cardBorder}`,
+    borderRadius: 2,
+    "& .MuiMenuItem-root": {
+      color: theme.palette.text.primary,
+      fontSize: 14,
+    },
+    "& .MuiMenuItem-root:hover": {
+      bgcolor: theme.app.dashboard.navItemHover,
+    },
+  };
+}
 
 export function Dropdown({
   options,
@@ -39,11 +43,19 @@ export function Dropdown({
   variant = "outlined",
   id = "dropdown-menu",
 }: DropdownProps) {
+  const theme = useTheme<AppTheme>();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const items = normalizeOptions(options);
   const selected = items.find((o) => o.value === value);
   const label = triggerLabel ?? selected?.label ?? value;
   const open = Boolean(anchorEl);
+
+  const paperSx = useMemo(() => {
+    const base = defaultPaperSx(theme);
+    if (!menuPaperSx) return base;
+    const extra = typeof menuPaperSx === "object" && menuPaperSx !== null ? menuPaperSx : {};
+    return { ...base, ...extra };
+  }, [theme, menuPaperSx]);
 
   const handleOpen = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
@@ -57,10 +69,6 @@ export function Dropdown({
     onChange(optionValue);
     handleClose();
   };
-
-  const paperSx = menuPaperSx
-    ? { ...defaultPaperSx, ...(typeof menuPaperSx === "object" && menuPaperSx !== null ? menuPaperSx : {}) }
-    : defaultPaperSx;
 
   return (
     <>

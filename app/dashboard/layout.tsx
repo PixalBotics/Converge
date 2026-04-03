@@ -6,7 +6,7 @@ import Box from "@mui/material/Box";
 import { LoadingScreen } from "@/components/common";
 import { useAuth } from "@/lib/auth";
 import { DashboardSidebar, DashboardHeader } from "@/components/dashboard";
-import { dashboardText } from "./dashboard.styles";
+import type { AppTheme } from "@/theme/theme";
 
 export default function DashboardLayout({
   children,
@@ -42,7 +42,22 @@ export default function DashboardLayout({
       <DashboardSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <Box sx={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
         <DashboardHeader onMenuClick={() => setSidebarOpen(true)} />
-        <Box component="main" sx={{ flex: 1, p: { xs: 2, sm: 3 }, overflow: "auto", ...dashboardText }}>
+        <Box
+          component="main"
+          sx={(t) => {
+            const th = t as AppTheme;
+            return {
+              flex: 1,
+              p: { xs: 2, sm: 3 },
+              overflow: "auto",
+              fontFamily: '"Manrope", sans-serif',
+              fontWeight: 400,
+              fontStyle: "normal",
+              fontSize: 14,
+              color: th.palette.text.primary,
+            };
+          }}
+        >
           {children}
         </Box>
       </Box>

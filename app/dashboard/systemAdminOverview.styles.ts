@@ -196,11 +196,12 @@ export const sectionHeaderRowWebsiteRest: SxProps<Theme> = {
   mb: -1,
 };
 
-export const deleteIconButton: SxProps<Theme> = {
+export const deleteIconButton: SxProps<Theme> = (theme) => ({
   width: 43,
   height: 43,
   p: 0,
-};
+  color: theme.palette.text.primary,
+});
 
 export const addAnotherButton: SxProps<Theme> = {
   display: "inline-flex",
