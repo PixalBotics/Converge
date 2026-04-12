@@ -1,4 +1,5 @@
 import type { SxProps, Theme } from "@mui/material/styles";
+import type { AppTheme } from "@/theme/theme";
 
 /** TableContainer: scroll enabled, scrollbar hidden (webkit + Firefox/IE) */
 export const dataTableContainer: SxProps<Theme> = {
@@ -11,13 +12,14 @@ export const dataTableContainer: SxProps<Theme> = {
 };
 
 export const dataTableRoot: SxProps<Theme> = (theme) => {
-  const line = theme.app.dashboard.cardBorder;
+  const app = (theme as AppTheme).app;
+  const b = app.dashboard.cardBorder;
   return {
     width: "100%",
     borderCollapse: "collapse",
     "& th, & td": {
-      borderColor: line,
-      borderBottom: `1px solid ${line}`,
+      borderColor: b,
+      borderBottom: `1px solid ${b}`,
       textAlign: "left",
       padding: "10px 16px",
       whiteSpace: "nowrap",
@@ -26,19 +28,19 @@ export const dataTableRoot: SxProps<Theme> = (theme) => {
 };
 
 export const dataTableHeaderCell: SxProps<Theme> = (theme) => ({
-  color: theme.palette.text.secondary,
+  color: (theme as AppTheme).app.dashboard.white80,
   fontWeight: 600,
   fontSize: 18,
 });
 
 export const dataTableCellDefault: SxProps<Theme> = (theme) => ({
-  color: theme.palette.text.primary,
+  color: (theme as AppTheme).app.text.primary,
 });
 
 export const dataTableCellMuted: SxProps<Theme> = (theme) => ({
-  color: theme.app.dashboard.textMuted,
+  color: (theme as AppTheme).app.dashboard.white7,
 });
 
 export const dataTableActionButton: SxProps<Theme> = (theme) => ({
-  color: theme.app.text.iconMuted,
+  color: (theme as AppTheme).app.dashboard.white60,
 });

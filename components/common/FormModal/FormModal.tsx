@@ -1,11 +1,14 @@
 "use client";
 
+import type { ReactNode } from "react";
+import Close from "@mui/icons-material/Close";
 import Box from "@mui/material/Box";
 import IconButton from "@mui/material/IconButton";
 import { useTheme } from "@mui/material/styles";
 import type { SxProps, Theme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import { DashboardCard, Typography, Button } from "@/components/common";
+import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
 import { CloseCircleIcon } from "@/components/dashboard/icons/CloseCircleIcon";
 
 export interface FormModalFieldConfig {
@@ -23,6 +26,17 @@ export interface FormModalProps {
   onSave: () => void;
   primaryButtonLabel?: string;
   cancelButtonLabel?: string;
+  /** Primary action icon (e.g. sparkle) — uses shared gradient primary button. */
+  primaryStartIcon?: ReactNode;
+  /** Modal card max width (default 540). */
+  maxWidth?: number | string;
+  /** Close control: outline ring (default) or solid red circle with white ✕ (e.g. Edit IP Block). */
+  closeButtonVariant?: "outline" | "filled";
+  /**
+   * When true, body height follows content (no flex stretch); scrolls only if content exceeds viewport.
+   * Use for tall dynamic forms (e.g. Add Social Media) so the card does not leave empty vertical space.
+   */
+  fitContent?: boolean;
   children?: React.ReactNode;
   sx?: SxProps<Theme>;
 }
@@ -35,6 +49,10 @@ export function FormModal({
   onSave,
   primaryButtonLabel = "Save",
   cancelButtonLabel = "Cancel",
+  primaryStartIcon,
+  maxWidth = 540,
+  fitContent = false,
+  closeButtonVariant = "outline",
   children,
   sx,
 }: FormModalProps) {
@@ -59,7 +77,7 @@ export function FormModal({
         sx={{
           position: "relative",
           width: "100%",
-          maxWidth: 540,
+          maxWidth,
           maxHeight: "90vh",
           height: "auto",
           display: "flex",
@@ -100,26 +118,63 @@ export function FormModal({
           <IconButton
             onClick={onClose}
             size="small"
-            sx={{
-              width: 35,
-              height: 35,
-              p: 0,
-            }}
+            aria-label="Close dialog"
+            sx={
+              closeButtonVariant === "filled"
+                ? {
+                    width: 35,
+                    height: 35,
+                    p: 0,
+                    flexShrink: 0,
+                    border: "none",
+                    borderRadius: "50%",
+                    bgcolor: theme.palette.error.main,
+                    color: theme.palette.common.white,
+                    "&:hover": {
+                      bgcolor: theme.palette.error.dark,
+                    },
+                  }
+                : {
+                    width: 35,
+                    height: 35,
+                    p: 0,
+                    flexShrink: 0,
+                    border: `1px solid ${theme.palette.error.main}`,
+                    borderRadius: "50%",
+                    color: theme.palette.error.main,
+                    "&:hover": {
+                      bgcolor: theme.palette.action.hover,
+                      borderColor: theme.palette.error.main,
+                    },
+                  }
+            }
           >
-            <CloseCircleIcon width={43} height={43} />
+            {closeButtonVariant === "filled" ? (
+              <Close sx={{ fontSize: 18 }} />
+            ) : (
+              <CloseCircleIcon width={18} height={18} />
+            )}
           </IconButton>
         </Box>
 
         <Box
           sx={{
-            flex: 1,
-            minHeight: 0,
-            overflowY: "auto",
-            overflowX: "hidden",
             display: "flex",
             flexDirection: "column",
             gap: 2.5,
             mb: 3,
+            overflowX: "hidden",
+            ...(fitContent
+              ? {
+                  flex: "none",
+                  maxHeight: "calc(90vh - 220px)",
+                  overflowY: "auto",
+                }
+              : {
+                  flex: 1,
+                  minHeight: 0,
+                  overflowY: "auto",
+                }),
             scrollbarWidth: "none",
             msOverflowStyle: "none",
             "&::-webkit-scrollbar": { display: "none" },
@@ -136,26 +191,14 @@ export function FormModal({
             gap: 1.5,
           }}
         >
-          <Button
-            variant="outlined"
-            onClick={onClose}
-            sx={{
-              minWidth: 120,
-              borderRadius: "9999px",
-              px: 3,
-              bgcolor: theme.app.dashboard.surfaceDark,
-            }}
-          >
+          <Button variant="secondary" onClick={onClose}>
             {cancelButtonLabel}
           </Button>
           <Button
             variant="primary"
             onClick={onSave}
-            sx={{
-              minWidth: 140,
-              borderRadius: "9999px",
-              px: 3.25,
-            }}
+            sx={gradientPrimaryButtonSx}
+            startIcon={primaryStartIcon}
           >
             {primaryButtonLabel}
           </Button>

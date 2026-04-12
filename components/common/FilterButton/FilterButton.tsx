@@ -1,13 +1,17 @@
 "use client";
 
 import Box from "@mui/material/Box";
+import { useTheme } from "@mui/material/styles";
 import { Button } from "@/components/common/Button";
 import type { SxProps, Theme } from "@mui/material/styles";
+import type { AppTheme } from "@/theme/theme";
 import { Typography } from "@/components/common";
+import { resolveSx } from "@/utils/resolveSx";
+import { filterChromeButtonSx } from "./filter-button.styles";
 
 function FilterIcon({ sx }: { sx?: SxProps<Theme> }) {
   return (
-    <Box component="span" sx={{ display: "inline-flex", lineHeight: 0, ...sx }}>
+    <Box component="span" sx={{ display: "inline-flex", lineHeight: 0, color: "inherit", ...sx }}>
       <svg
         width="20"
         height="20"
@@ -32,25 +36,17 @@ interface FilterButtonProps {
 }
 
 export function FilterButton({ sx }: FilterButtonProps) {
+  const theme = useTheme() as AppTheme;
+
   return (
     <Button
       variant="outlined"
-      sx={{
-        borderRadius: "9999px",
-        px: 2.5,
-        py: 1.5,
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 1,
-        borderColor: "#FFFFFF0F",
-        color: "#E5E7EB",
-        backgroundColor: "#16123F",
-        "&:hover": {
-          backgroundColor: "#16123F",
-          borderColor: "#FFFFFF33",
-        },
-        ...((sx as object) ?? {}),
-      }}
+      sx={
+        {
+          ...(resolveSx(filterChromeButtonSx, theme) as Record<string, unknown>),
+          ...(resolveSx(sx, theme) as Record<string, unknown>),
+        } as SxProps<Theme>
+      }
     >
       <FilterIcon sx={{ "& svg": { width: 18, height: 18 } }} />
       <Typography component="span" variant="medium" color="inherit">
@@ -59,4 +55,3 @@ export function FilterButton({ sx }: FilterButtonProps) {
     </Button>
   );
 }
-

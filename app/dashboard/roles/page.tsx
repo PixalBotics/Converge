@@ -87,8 +87,14 @@ interface RoleRow extends Record<string, unknown> {
 }
 
 const ROLES_DATA: RoleRow[] = [
-  { departmentsName: "Admin", roleType: "Platform", linkedDepartment: "-", totalUsers: "1 User" },
-  { departmentsName: "User", roleType: "Department", linkedDepartment: "-", totalUsers: "1 User" },
+  { departmentsName: "Super Admin", roleType: "Platform", linkedDepartment: "-", totalUsers: "3 User" },
+  { departmentsName: "Support Manager", roleType: "Department", linkedDepartment: "Customer Support", totalUsers: "3 User" },
+  { departmentsName: "Chat Agent", roleType: "Department", linkedDepartment: "-", totalUsers: "3 User" },
+  { departmentsName: "QA Analyst", roleType: "Platform", linkedDepartment: "-", totalUsers: "3 User" },
+  { departmentsName: "Super Admin", roleType: "Platform", linkedDepartment: "-", totalUsers: "3 User" },
+  { departmentsName: "Support Manager", roleType: "Department", linkedDepartment: "Customer Support", totalUsers: "3 User" },
+  { departmentsName: "Chat Agent", roleType: "Department", linkedDepartment: "-", totalUsers: "3 User" },
+  { departmentsName: "QA Analyst", roleType: "Platform", linkedDepartment: "-", totalUsers: "3 User" },
 ];
 
 const initialPermissions: Record<string, boolean> = Object.fromEntries(
@@ -99,7 +105,7 @@ export default function RolesPage() {
   const theme = useTheme() as AppTheme;
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
-  const pageCount = 1;
+  const pageCount = 3;
   const totalEntries = "256K";
   const [isAddRoleOpen, setIsAddRoleOpen] = useState(false);
   const [roleName, setRoleName] = useState("");
@@ -176,11 +182,7 @@ export default function RolesPage() {
         <Box sx={rolesAddButtonWrapper}>
           <Button variant="primary" sx={rolesAddButton} onClick={() => setIsAddRoleOpen(true)}>
             <AddCircleIcon width={16} height={16} />
-            <Typography
-              component="span"
-              variant="medium"
-              sx={{ color: theme.app.text.primary }}
-            >
+            <Typography component="span" variant="medium" sx={{ color: "inherit" }}>
               Add New Role
             </Typography>
           </Button>
@@ -348,10 +350,6 @@ export default function RolesPage() {
                         onChange={(_, checked) =>
                           setPermissions((p) => ({ ...p, [perm.id]: checked }))
                         }
-                        sx={{
-                          color: theme.app.dashboard.white7,
-                          "&.Mui-checked": { color: theme.app.dashboard.accentGreen },
-                        }}
                       />
                       <Typography
                         variant="body2"

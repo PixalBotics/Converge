@@ -1,10 +1,13 @@
 "use client";
 
+import { useMemo } from "react";
 import ToggleButton from "@mui/material/ToggleButton";
 import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
+import { useTheme } from "@mui/material/styles";
 import type { SxProps, Theme } from "@mui/material/styles";
+import type { AppTheme } from "@/theme/theme";
 import type { SegmentedControlProps, SegmentedControlOption } from "./SegmentedControl.types";
-import { segmentedControlDefaultSx, segmentedControlSecondarySx } from "./SegmentedControl.styles";
+import { getSegmentedControlDefaultSx, getSegmentedControlSecondarySx } from "./SegmentedControl.styles";
 
 function normalizeOptions(
   options: string[] | SegmentedControlOption[]
@@ -22,9 +25,15 @@ export function SegmentedControl({
   size = "small",
   sx = {},
 }: SegmentedControlProps) {
+  const muiTheme = useTheme() as AppTheme;
   const items = normalizeOptions(options);
-  const groupSx =
-    variant === "secondary" ? segmentedControlSecondarySx : segmentedControlDefaultSx;
+  const groupSx = useMemo(
+    () =>
+      variant === "secondary"
+        ? getSegmentedControlSecondarySx(muiTheme.app)
+        : getSegmentedControlDefaultSx(muiTheme.app),
+    [variant, muiTheme.app]
+  );
 
   return (
     <ToggleButtonGroup
@@ -34,7 +43,7 @@ export function SegmentedControl({
       onChange={(_e, newValue) => {
         if (newValue != null) onChange(newValue);
       }}
-      sx={[groupSx, sx] as SxProps<Theme>}
+      sx={([groupSx, sx].filter(Boolean) as SxProps<Theme>)}
       aria-label="Segment selection"
     >
       {items.map((opt) => (

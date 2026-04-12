@@ -1,305 +1,224 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Assignment from "@mui/icons-material/Assignment";
+import FilterList from "@mui/icons-material/FilterList";
+import IosShare from "@mui/icons-material/IosShare";
 import Box from "@mui/material/Box";
-import Avatar from "@mui/material/Avatar";
-import IconButton from "@mui/material/IconButton";
+import Link from "@mui/material/Link";
+import NextLink from "next/link";
 import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
-import { MoreHoriz as MoreHorizIcon } from "@mui/icons-material";
-import { AddCircleIcon } from "@/components/dashboard/icons/AddCircleIcon";
-import { Typography, DashboardCard, DataTable, dataTableActionButton, Button, SearchBar, FilterButton, TablePagination, FormModal, InputField, StatusRadioGroup, SelectField } from "@/components/common";
-import type { DataTableColumn } from "@/components/common";
-import { SearchIcon } from "@/components/dashboard/icons/SearchIcon";
-import { userIconPath } from "@/assets";
+import { filterChromeButtonSx } from "@/components/common/FilterButton/filter-button.styles";
+import { resolveSx } from "@/utils/resolveSx";
 import {
-  departmentsPageWrapper,
-  departmentsHeader,
-  departmentsAddButtonWrapper,
-  departmentsAddButton,
-  departmentsCard,
-  departmentsCardHeader,
-  departmentsIconBox,
-  departmentsSearchRow,
-  departmentsSearchFieldWrapper,
-  departmentsFooterRow,
-  departmentsPaginationWrapper,
+  AssignWebsiteModal,
+  Button,
+  DashboardCard,
+  DataTable,
+  FilterButton,
+  SearchBar,
+  SelectField,
+  TablePagination,
+  Typography,
+} from "@/components/common";
+import type { DataTableColumn } from "@/components/common";
+import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
+import { SearchIcon } from "@/components/dashboard/icons/SearchIcon";
+import {
+  ASSIGNED_TOTAL,
+  ASSIGNED_USERS,
+  formatEntries,
+  PAGE_COUNT,
+  TOTAL_ENTRIES,
+  type AssignedUserRow,
+} from "./website-assignment-mock";
+import {
+  websiteAssignmentFilterCard,
+  websiteAssignmentFilterGrid,
+  websiteAssignmentFilterIconBox,
+  websiteAssignmentFilterTitleRow,
+  websiteAssignmentFooterRow,
+  websiteAssignmentHeaderActions,
+  websiteAssignmentPageHeader,
+  websiteAssignmentPageWrapper,
+  websiteAssignmentPaginationWrapper,
+  websiteAssignmentSearchFieldWrapper,
+  websiteAssignmentSearchRow,
+  websiteAssignmentTableCard,
+  websiteAssignmentTableIconBox,
+  websiteAssignmentTableToolbar,
 } from "./website-assigning.styles";
 
-interface DepartmentRow extends Record<string, unknown> {
-  departmentName: string;
-  type: "Internal" | "External";
-  linkedReseller: string;
-  linkedCompany: string;
-  status: "Active" | "Inactive";
-}
-
-const DEPARTMENTS: DepartmentRow[] = [
-  {
-    departmentName: "Engineering",
-    type: "Internal",
-    linkedReseller: "-",
-    linkedCompany: "-",
-    status: "Active",
-  },
-  {
-    departmentName: "The Walt Disney Company",
-    type: "Internal",
-    linkedReseller: "Global Tech Resellers",
-    linkedCompany: "-",
-    status: "Active",
-  },
-  {
-    departmentName: "MasterCard",
-    type: "Internal",
-    linkedReseller: "-",
-    linkedCompany: "TechCorp Inc.",
-    status: "Active",
-  },
-  {
-    departmentName: "eBay",
-    type: "External",
-    linkedReseller: "-",
-    linkedCompany: "Global Tech Resellers",
-    status: "Active",
-  },
-  {
-    departmentName: "McDonald's",
-    type: "External",
-    linkedReseller: "-",
-    linkedCompany: "-",
-    status: "Active",
-  },
-  {
-    departmentName: "Starbucks",
-    type: "Internal",
-    linkedReseller: "-",
-    linkedCompany: "-",
-    status: "Inactive",
-  },
-  {
-    departmentName: "Apple",
-    type: "Internal",
-    linkedReseller: "-",
-    linkedCompany: "-",
-    status: "Active",
-  },
-  {
-    departmentName: "Louis Vuitton",
-    type: "External",
-    linkedReseller: "-",
-    linkedCompany: "-",
-    status: "Active",
-  },
+const WEBSITE_OPTIONS = [
+  { label: "www.marketplace.io", value: "marketplace" },
+  { label: "www.enterprise.app", value: "enterprise" },
+  { label: "www.support.io", value: "support" },
 ];
 
 export default function WebsiteAssigningPage() {
   const theme = useTheme() as AppTheme;
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
-  const pageCount = 2;
-  const [isAddOpen, setIsAddOpen] = useState(false);
-  const [status, setStatus] = useState<"Active" | "Inactive">("Active");
-  const [departmentType, setDepartmentType] = useState("Internal");
+  const [websiteFilter, setWebsiteFilter] = useState("marketplace");
+  const [isAssignOpen, setIsAssignOpen] = useState(false);
 
   const filteredRows = useMemo(() => {
-    const query = search.trim().toLowerCase();
-    if (!query) return DEPARTMENTS;
-    return DEPARTMENTS.filter((row) =>
-      row.departmentName.toLowerCase().includes(query) ||
-      row.type.toLowerCase().includes(query) ||
-      row.linkedReseller.toLowerCase().includes(query) ||
-      row.linkedCompany.toLowerCase().includes(query) ||
-      row.status.toLowerCase().includes(query)
+    const q = search.trim().toLowerCase();
+    if (!q) return ASSIGNED_USERS;
+    return ASSIGNED_USERS.filter(
+      (row) =>
+        row.username.toLowerCase().includes(q) ||
+        row.email.toLowerCase().includes(q) ||
+        row.department.toLowerCase().includes(q) ||
+        String(row.chatCount).includes(q)
     );
   }, [search]);
 
-  const columns = useMemo<DataTableColumn<DepartmentRow>[]>(
+  const columns = useMemo<DataTableColumn<AssignedUserRow>[]>(
     () => [
+      { id: "username", label: "Username" },
+      { id: "email", label: "Email", cellVariant: "muted" },
+      { id: "department", label: "Department" },
       {
-        id: "departmentName",
-        label: "Department Name",
+        id: "chatCount",
+        label: "Chat Count",
         render: (value, row) => (
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-            <Avatar
-              src={userIconPath}
+          <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, flexWrap: "wrap" }}>
+            <Typography component="span" variant="body2" color="white" fontWeight={500}>
+              {String(value ?? "—")}
+            </Typography>
+            <Typography
+              component="span"
+              variant="body2"
               sx={{
-                width: 32,
-                height: 32,
-                bgcolor: theme.app.dashboard.buttonIndigo,
-                color: theme.app.text.primary,
-                fontSize: 14,
+                color: theme.app.dashboard.accentGreen,
+                fontWeight: 600,
+                fontSize: "0.8125rem",
               }}
             >
-              {(String(row.departmentName ?? "").charAt(0) || "D").toUpperCase()}
-            </Avatar>
-            <Typography component="span" variant="body2" color="textPrimary" fontWeight={500}>
-              {String(value ?? "—")}
+              {row.chatDeltaPct}
             </Typography>
           </Box>
         ),
-      },
-      {
-        id: "type",
-        label: "Type",
-        render: (value) => (
-          <Box
-            component="span"
-            sx={{
-              px: 1.5,
-              py: 0.5,
-              borderRadius: "9999px",
-              fontSize: "0.75rem",
-              fontWeight: 500,
-              bgcolor: String(value) === "Internal" ? theme.app.dashboard.blueTintBg : theme.app.dashboard.pinkTintBg,
-              color: String(value) === "Internal" ? theme.app.dashboard.blueTint : theme.app.dashboard.accentPinkLight,
-            }}
-          >
-            {String(value ?? "—")}
-          </Box>
-        ),
-      },
-      { id: "linkedReseller", label: "Linked Reseller", cellVariant: "muted" },
-      { id: "linkedCompany", label: "Linked Company", cellVariant: "muted" },
-      {
-        id: "status",
-        label: "Status",
-        render: (value) => {
-          const isActive = String(value) === "Active";
-          return (
-            <Box
-              component="span"
-              sx={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 0.75,
-                px: 1.5,
-                py: 0.5,
-                borderRadius: "9999px",
-                bgcolor: isActive ? theme.app.dashboard.successTintBg : theme.app.dashboard.errorTintBg,
-                color: isActive ? theme.app.dashboard.accentGreenLight : theme.app.dashboard.accentRedLight,
-                fontSize: "0.75rem",
-                fontWeight: 500,
-              }}
-            >
-              <Box
-                sx={{
-                  width: 8,
-                  height: 8,
-                  borderRadius: "9999px",
-                  bgcolor: isActive ? theme.app.dashboard.accentGreen : theme.app.dashboard.accentOrange,
-                }}
-              />
-              {String(value ?? "—")}
-            </Box>
-          );
-        },
       },
     ],
     [theme]
   );
 
   return (
-    <Box sx={departmentsPageWrapper}>
-      <Box sx={departmentsHeader}>
-        <Typography variant="regularLarge" fontWeight={700} color="textPrimary">
-          Departments
-        </Typography>
-        <Box sx={departmentsAddButtonWrapper}>
+    <Box sx={websiteAssignmentPageWrapper}>
+      <Box sx={websiteAssignmentPageHeader}>
+        <Box>
+          <Typography variant="regularLarge" color="white" sx={{ mb: 0.5 }}>
+            Website Assignment
+          </Typography>
+          <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted, maxWidth: 520 }}>
+            Manage user assignments across different websites
+          </Typography>
+        </Box>
+        <Box sx={websiteAssignmentHeaderActions}>
+          <Button type="button" variant="outlined" startIcon={<IosShare sx={{ fontSize: 18 }} />} sx={filterChromeButtonSx}>
+            Export Data
+          </Button>
           <Button
+            type="button"
             variant="primary"
-            sx={departmentsAddButton}
-            onClick={() => setIsAddOpen(true)}
+            sx={gradientPrimaryButtonSx}
+            startIcon={<Assignment sx={{ fontSize: 18 }} />}
+            onClick={() => setIsAssignOpen(true)}
           >
-            <AddCircleIcon width={16} height={16} />
-            <Typography component="span" variant="medium" color="textPrimary">
-              Add Department
-            </Typography>
+            Assign Website
           </Button>
         </Box>
       </Box>
 
-      <DashboardCard sx={departmentsCard}>
-        <Box sx={departmentsCardHeader}>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-            <Box
-              sx={departmentsIconBox}
-            >
-              <SearchIcon sx={{ fontSize: 20, color: theme.app.dashboard.iconMuted }} width={20} height={20} />
-            </Box>
-            <Typography variant="mediumLarge" color="textPrimary">
-              Departments
-            </Typography>
+      <DashboardCard sx={websiteAssignmentFilterCard}>
+        <Box sx={websiteAssignmentFilterTitleRow}>
+          <Box sx={websiteAssignmentFilterIconBox}>
+            <FilterList sx={{ fontSize: 20 }} />
           </Box>
-          <Box sx={departmentsSearchRow}>
-            <Box sx={departmentsSearchFieldWrapper}>
-              <SearchBar
-                value={search}
-                onChange={setSearch}
-                sx={{ minWidth: "100%" }}
-              />
-            </Box>
-            <FilterButton sx={{ whiteSpace: "nowrap" }} />
-          </Box>
-        </Box>
-
-        <DataTable<DepartmentRow>
-          columns={columns}
-          rows={filteredRows}
-          getRowId={(row, idx) => `${row.departmentName}-${idx}`}
-          minWidth={960}
-          actionColumn={{
-            label: "Action",
-            render: () => (
-              <IconButton size="small" sx={dataTableActionButton}>
-                <MoreHorizIcon fontSize="small" />
-              </IconButton>
-            ),
-          }}
-        />
-
-        <Box sx={departmentsFooterRow}>
-          <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted }}>
-            Showing data 1–{filteredRows.length} of 25K entries
+          <Typography variant="mediumLarge" color="white" fontWeight={600}>
+            Select Filter
           </Typography>
-          <Box sx={departmentsPaginationWrapper}>
-            <TablePagination page={page} pageCount={pageCount} onPageChange={setPage} />
+        </Box>
+        <Box sx={websiteAssignmentFilterGrid}>
+          <SelectField
+            label="Website"
+            value={websiteFilter}
+            onChange={setWebsiteFilter}
+            options={WEBSITE_OPTIONS}
+          />
+          <Box sx={{ display: "flex", justifyContent: { xs: "stretch", lg: "flex-end" } }}>
+            <Button
+              type="button"
+              variant="outlined"
+              sx={{
+                ...resolveSx(filterChromeButtonSx, theme),
+                width: { xs: "100%", lg: "auto" },
+              }}
+            >
+              Apply Filter
+            </Button>
           </Box>
         </Box>
       </DashboardCard>
 
-      <FormModal
-        open={isAddOpen}
-        title="Add Department"
-        description="Create a new user account with appropriate access levels."
-        onClose={() => setIsAddOpen(false)}
-        onSave={() => setIsAddOpen(false)}
-      >
-        <InputField label="Department Name" placeholder="Department Name" />
-        <SelectField
-          label="Department Type"
-          value={departmentType}
-          onChange={setDepartmentType}
-          options={[
-            { label: "Internal", value: "Internal" },
-            { label: "External", value: "External" },
-          ]}
-        />
-        {departmentType === "External" && (
-          <>
-            <InputField label="Client of / Reseller" placeholder="Client of / Reseller" />
-            <InputField label="Parent Company" placeholder="Parent Company" />
-            <InputField label="Child Company" placeholder="Child Company" />
-            <InputField label="Website" placeholder="Website" />
-          </>
-        )}
-        <Box sx={{ mt: 0.5, marginLeft: "13px" }}>
-          <Typography variant="medium" color="textPrimary" sx={{ mb: 1 }}>
-            Status
-          </Typography>
-          <StatusRadioGroup value={status} onChange={setStatus} />
+      <DashboardCard sx={websiteAssignmentTableCard}>
+        <Box sx={websiteAssignmentTableToolbar}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+            <Box sx={websiteAssignmentTableIconBox}>
+              <SearchIcon sx={{ fontSize: 20, color: theme.app.dashboard.iconMuted }} width={20} height={20} />
+            </Box>
+            <Typography variant="mediumLarge" color="white" fontWeight={600}>
+              Assigned Users ({ASSIGNED_TOTAL})
+            </Typography>
+          </Box>
+          <Box sx={websiteAssignmentSearchRow}>
+            <Box sx={websiteAssignmentSearchFieldWrapper}>
+              <SearchBar value={search} onChange={setSearch} placeholder="Search anything.." sx={{ minWidth: "100%" }} />
+            </Box>
+            <FilterButton sx={{ whiteSpace: "nowrap", alignSelf: { xs: "stretch", sm: "center" } }} />
+          </Box>
         </Box>
-      </FormModal>
+
+        <DataTable<AssignedUserRow>
+          columns={columns}
+          rows={filteredRows}
+          getRowId={(row) => row.id}
+          minWidth={800}
+          actionColumn={{
+            label: "Action",
+            render: (row) => (
+              <Link
+                component={NextLink}
+                href={`/dashboard/website-assigning/${encodeURIComponent(row.id)}`}
+                sx={{
+                  color: theme.palette.primary.main,
+                  textDecoration: "none",
+                  cursor: "pointer",
+                  fontSize: 14,
+                  fontWeight: 500,
+                  "&:hover": { textDecoration: "underline" },
+                }}
+              >
+                View Detail
+              </Link>
+            ),
+          }}
+        />
+
+        <Box sx={websiteAssignmentFooterRow}>
+          <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted }}>
+            Showing data 1 to {filteredRows.length} of {formatEntries(TOTAL_ENTRIES)} entries
+          </Typography>
+          <Box sx={websiteAssignmentPaginationWrapper}>
+            <TablePagination page={page} pageCount={PAGE_COUNT} onPageChange={setPage} />
+          </Box>
+        </Box>
+      </DashboardCard>
+
+      <AssignWebsiteModal open={isAssignOpen} onClose={() => setIsAssignOpen(false)} />
     </Box>
   );
 }

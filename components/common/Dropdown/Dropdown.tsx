@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import Button from "@mui/material/Button";
 import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
@@ -12,17 +12,6 @@ function normalizeOptions(options: string[] | DropdownOption[]): DropdownOption[
   return options.map((opt) =>
     typeof opt === "string" ? { label: opt, value: opt } : opt
   );
-}
-
-/** Spacing only — `MuiMenu` theme override supplies glass + borders from dashboard tokens */
-function defaultPaperSx(theme: AppTheme) {
-  return {
-    mt: 1.5,
-    minWidth: 168,
-    "& .MuiMenuItem-root": {
-      fontSize: 14,
-    },
-  };
 }
 
 export function Dropdown({
@@ -37,19 +26,28 @@ export function Dropdown({
   variant = "outlined",
   id = "dropdown-menu",
 }: DropdownProps) {
-  const theme = useTheme<AppTheme>();
+  const theme = useTheme() as AppTheme;
+  const app = theme.app;
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const items = normalizeOptions(options);
   const selected = items.find((o) => o.value === value);
   const label = triggerLabel ?? selected?.label ?? value;
   const open = Boolean(anchorEl);
 
-  const paperSx = useMemo(() => {
-    const base = defaultPaperSx(theme);
-    if (!menuPaperSx) return base;
-    const extra = typeof menuPaperSx === "object" && menuPaperSx !== null ? menuPaperSx : {};
-    return { ...base, ...extra };
-  }, [theme, menuPaperSx]);
+  const defaultPaperSx = {
+    mt: 1.5,
+    minWidth: 160,
+    bgcolor: app.dashboard.menuSurfaceBg,
+    border: `1px solid ${app.dashboard.cardBorder}`,
+    borderRadius: 2,
+    "& .MuiMenuItem-root": {
+      color: app.text.primary,
+      fontSize: 14,
+    },
+    "& .MuiMenuItem-root:hover": {
+      bgcolor: app.dashboard.overlayMedium,
+    },
+  };
 
   const handleOpen = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
@@ -63,6 +61,10 @@ export function Dropdown({
     onChange(optionValue);
     handleClose();
   };
+
+  const paperSx = menuPaperSx
+    ? { ...defaultPaperSx, ...(typeof menuPaperSx === "object" && menuPaperSx !== null ? menuPaperSx : {}) }
+    : defaultPaperSx;
 
   return (
     <>

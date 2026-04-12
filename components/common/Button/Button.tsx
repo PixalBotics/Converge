@@ -25,6 +25,7 @@ export function Button({
   const mergedSx = {
     ...baseButtonStyles,
     ...variantStyles[variant](theme),
+    ...(fullWidth ? { minWidth: 0 } : {}),
     ...resolveSx(sx, theme),
   } as SxProps<Theme>;
   return (

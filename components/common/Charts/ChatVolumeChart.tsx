@@ -12,9 +12,9 @@ import {
   CartesianGrid,
   Tooltip,
 } from "recharts";
-import type { AppTheme } from "@/theme/theme";
 import type { ChatVolumeChartProps } from "./ChatVolumeChart.types";
 import { chatVolumeChartRoot } from "./ChatVolumeChart.styles";
+import { useAppChartStyles } from "./useAppChartStyles";
 
 const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const DEFAULT_HEIGHT = 220;
@@ -30,21 +30,12 @@ export function ChatVolumeChart({
   tooltipFormatter = (v) => String(v),
   tooltipLabelFormatter = (day) => DAY_LABELS[Number(day) - 1] ?? String(day),
 }: ChatVolumeChartProps) {
-  const theme = useTheme() as AppTheme;
+  const theme = useTheme();
+  const chart = useAppChartStyles().chatVolume;
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
-  const d = theme.app.dashboard;
   const margin = isMobile ? MARGIN_MOBILE : MARGIN_DESKTOP;
   const tickFontSize = isMobile ? 10 : 12;
   const gradientId = "chatVolumeGradient";
-
-  const gradientStops = [
-    { offset: "0%", stopColor: d.chartAreaStopTop, stopOpacity: 1 },
-    { offset: "55%", stopColor: d.chartAreaStopMid, stopOpacity: 1 },
-    { offset: "100%", stopColor: d.chartAreaStopBottom, stopOpacity: 0 },
-  ];
-
-  const lineStroke = d.chartLinePrimary;
-  const dotFill = d.cardBg;
 
   return (
     <div style={chatVolumeChartRoot(height)}>
@@ -52,7 +43,7 @@ export function ChatVolumeChart({
         <LineChart data={data} margin={margin}>
           <defs>
             <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-              {gradientStops.map((stop, i) => (
+              {chart.gradientStops.map((stop, i) => (
                 <stop
                   key={i}
                   offset={stop.offset}
@@ -62,34 +53,38 @@ export function ChatVolumeChart({
               ))}
             </linearGradient>
           </defs>
-          <CartesianGrid stroke={d.chartGridStroke} vertical={false} />
+          <CartesianGrid
+            stroke={chart.grid.stroke}
+            strokeOpacity={chart.grid.strokeOpacity}
+            strokeDasharray="0"
+            vertical={chart.grid.vertical}
+          />
           <XAxis
             dataKey="day"
-            stroke={d.chartAxisStroke}
-            tickLine={false}
-            axisLine={{ stroke: d.chartAxisStroke }}
-            tick={{ fill: d.chartTickFill, fontSize: tickFontSize }}
+            axisLine={chart.xAxis.axisLine}
+            tickLine={chart.xAxis.tickLine}
+            tick={{
+              ...chart.xAxis.tick,
+              fontSize: tickFontSize,
+            }}
             ticks={X_TICKS}
             tickFormatter={(day) => DAY_LABELS[Number(day) - 1] ?? String(day)}
           />
           <YAxis
             domain={yDomain}
-            stroke={d.chartAxisStroke}
-            tickLine={false}
-            axisLine={{ stroke: d.chartAxisStroke }}
-            tick={{ fill: d.chartTickFill, fontSize: tickFontSize }}
+            axisLine={chart.yAxis.axisLine}
+            tickLine={chart.yAxis.tickLine}
+            tick={{
+              ...chart.yAxis.tick,
+              fontSize: tickFontSize,
+            }}
             tickFormatter={yTickFormatter}
             width={isMobile ? 28 : 36}
           />
           <Tooltip
-            contentStyle={{
-              background: d.chartTooltipBg,
-              border: `1px solid ${d.chartTooltipBorder}`,
-              borderRadius: 12,
-              boxShadow: "0px 2.55px 12.74px 0px rgba(0,0,0,0.12)",
-            }}
-            labelStyle={{ color: d.chartTooltipLabel, fontWeight: 600 }}
-            itemStyle={{ color: d.chartTooltipLabel }}
+            contentStyle={chart.tooltipContent}
+            labelStyle={chart.tooltipLabel}
+            itemStyle={chart.tooltipItem}
             formatter={(value: unknown) => [tooltipFormatter(Number(value)), "Chats"]}
             labelFormatter={(label) => {
               const safe =
@@ -100,26 +95,21 @@ export function ChatVolumeChart({
                   : "";
               return tooltipLabelFormatter(safe);
             }}
-            cursor={{ stroke: d.chartCursor, strokeDasharray: "4 4" }}
+            cursor={chart.cursor}
           />
-          <Area type="monotone" dataKey="value" fill={`url(#${gradientId})`} stroke="none" />
+          <Area
+            type="monotone"
+            dataKey="value"
+            fill={`url(#${gradientId})`}
+            stroke="none"
+          />
           <Line
             type="monotone"
             dataKey="value"
-            stroke={lineStroke}
-            strokeWidth={2.5}
-            dot={{
-              r: 4,
-              fill: dotFill,
-              stroke: lineStroke,
-              strokeWidth: 2,
-            }}
-            activeDot={{
-              r: 6,
-              fill: dotFill,
-              stroke: lineStroke,
-              strokeWidth: 2,
-            }}
+            stroke={chart.line.stroke}
+            strokeWidth={chart.line.strokeWidth}
+            dot={chart.line.dot}
+            activeDot={chart.line.activeDot}
           />
         </LineChart>
       </ResponsiveContainer>

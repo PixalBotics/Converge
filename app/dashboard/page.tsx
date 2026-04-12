@@ -72,7 +72,10 @@ import {
   chatVolumeSummaryLabel,
   chatVolumeResolvedColor,
   gridAgentLiveOverview,
+  chartFlexFill,
+  dashboardChartRowCard,
   cardAgentPerformance,
+  agentPerformanceTableWrap,
   cardLiveOverview,
   liveOverviewIconSize,
   waitingQueueLabel,
@@ -88,6 +91,11 @@ import {
   revenueTitleRowMb2,
   revenueIconSmall,
 } from "./dashboard.styles";
+import HrAdminOverview from "./HrAdminOverview";
+import NetworkAdminOverview from "./NetworkAdminOverview";
+import ManagerOverview from "./ManagerOverview";
+import SystemAdminOverview from "./SystemAdminOverview";
+
 const RevenueLineChart = dynamic(
   () => import("@/components/common/Charts").then((m) => ({ default: m.RevenueLineChart })),
   { ssr: false, loading: () => <Box sx={chartLoadingBox} /> }
@@ -241,7 +249,7 @@ export default function DashboardPage() {
               <Avatar src={hasImage ? userImage : userIconPath} sx={tableAvatar}>
                 {!hasImage && <PersonIcon sx={tableAvatarIcon} />}
               </Avatar>
-              <Typography component="span" variant="body2" color="textPrimary" fontWeight={500}>
+              <Typography component="span" variant="body2" color="white" fontWeight={500}>
                 {name}
               </Typography>
             </Box>
@@ -265,7 +273,7 @@ export default function DashboardPage() {
             <Avatar src={userIconPath} sx={tableAvatar}>
               <PersonIcon sx={tableAvatarIcon} />
             </Avatar>
-            <Typography component="span" variant="body2" color="textPrimary" fontWeight={500}>
+            <Typography component="span" variant="body2" color="white" fontWeight={500}>
               {row.agentName}
             </Typography>
           </Box>
@@ -287,7 +295,7 @@ export default function DashboardPage() {
         render: (_, row) => (
           <Box sx={avgRatingBox}>
             <StarIcon sx={starIconYellow} />
-            <Typography component="span" variant="body2" color="textPrimary">
+            <Typography component="span" variant="body2" color="white">
               {row.avgRating}
             </Typography>
           </Box>
@@ -298,13 +306,33 @@ export default function DashboardPage() {
     []
   );
 
+  const isHrAdmin = user?.role === "hr-admin";
+  const isNetworkAdmin = user?.role === "network-admin";
+  const isManager = user?.role === "manager";
+  const isSystemAdmin = user?.role === "system-admin";
   const isEmployee = user?.role === "user";
+
+  if (isHrAdmin) {
+    return <HrAdminOverview />;
+  }
+
+  if (isNetworkAdmin) {
+    return <NetworkAdminOverview />;
+  }
+
+  if (isManager) {
+    return <ManagerOverview />;
+  }
+
+  if (isSystemAdmin) {
+    return <SystemAdminOverview />;
+  }
 
   if (isEmployee) {
     return (
       <Box sx={pageWrapper}>
         <Box sx={overviewHeader}>
-          <Typography variant="regularLarge" fontWeight={700} color="textPrimary">
+          <Typography variant="regularLarge" fontWeight={700} color="white">
             Overview
           </Typography>
           <Box sx={overviewHeaderDropdownWrap}>
@@ -356,13 +384,13 @@ export default function DashboardPage() {
         </Box>
 
         <Box sx={grid2Lg}>
-          <DashboardCard sx={cardPadding}>
+          <DashboardCard sx={dashboardChartRowCard}>
             <Box sx={revenueHeaderRow}>
               <Box sx={revenueTitleRow}>
                 <Box sx={chatAnalyticsIconBox}>
                   <PersonIcon sx={iconSize22} />
                 </Box>
-                <Typography variant="subtitle1" fontWeight={600} color="textPrimary">
+                <Typography variant="subtitle1" fontWeight={600} color="white">
                   Department Performance
                 </Typography>
               </Box>
@@ -376,56 +404,60 @@ export default function DashboardPage() {
                 variant="default"
               />
             </Box>
-            <Box sx={chartBoxDepartmentPerformance}>
-              <ChatAnalyticsBarChart
-                data={departmentPerformanceBarData}
-                height={320}
-                yDomain={[0, 80]}
-                yTickFormatter={(v) => String(v)}
-                tooltipFormatter={(v) => String(v)}
-              />
+            <Box sx={chartFlexFill}>
+              <Box sx={chartBoxDepartmentPerformance}>
+                <ChatAnalyticsBarChart
+                  data={departmentPerformanceBarData}
+                  height={320}
+                  yDomain={[0, 80]}
+                  yTickFormatter={(v) => String(v)}
+                  tooltipFormatter={(v) => String(v)}
+                />
+              </Box>
             </Box>
           </DashboardCard>
-          <DashboardCard sx={cardPadding}>
+          <DashboardCard sx={dashboardChartRowCard}>
             <Box sx={revenueHeaderRow}>
               <Box sx={revenueTitleRow}>
                 <Box sx={chatVolumeIconBox}>
                   <ChatIcon sx={iconSize22} />
                 </Box>
-                <Typography variant="subtitle1" fontWeight={600} color="textPrimary">
+                <Typography variant="subtitle1" fontWeight={600} color="white">
                   Chat Volume
                 </Typography>
               </Box>
             </Box>
-            <Box sx={chartBox220}>
-              <ChatVolumeChart
-                data={chatVolumeLineData}
-                height={220}
-                yDomain={[50, 200]}
-                yTickFormatter={(v) => String(v)}
-                tooltipFormatter={(v) => String(v)}
-              />
-            <Box sx={chatVolumeSummaryWrapper}>
-              <DashboardCard sx={chatVolumeSummaryPanel}>
-                <Box sx={chatVolumeSummaryItem}>
-                  <Typography variant="medium16" sx={{ color: theme.app.dashboard.white7, ...chatVolumeSummaryLabel } as object}>
-                    Total Chats
-                  </Typography>
-                  <Typography variant="medium16" color="textPrimary">
-                    23,545
-                  </Typography>
-                </Box>
-                <Box sx={chatVolumeSummaryDivider} />
-                <Box sx={chatVolumeSummaryItem}>
-                  <Typography variant="medium16" sx={{ color: theme.app.dashboard.white7, ...chatVolumeSummaryLabel } as object}>
-                    Resolved
-                  </Typography>
-                  <Typography variant="medium16" sx={chatVolumeResolvedColor}>
-                    2,401
-                  </Typography>
-                </Box>
-              </DashboardCard>
-            </Box>
+            <Box sx={chartFlexFill}>
+              <Box sx={chartBox220}>
+                <ChatVolumeChart
+                  data={chatVolumeLineData}
+                  height={220}
+                  yDomain={[50, 200]}
+                  yTickFormatter={(v) => String(v)}
+                  tooltipFormatter={(v) => String(v)}
+                />
+              </Box>
+              <Box sx={chatVolumeSummaryWrapper}>
+                <DashboardCard sx={chatVolumeSummaryPanel}>
+                  <Box sx={chatVolumeSummaryItem}>
+                    <Typography variant="medium16" sx={{ color: theme.app.dashboard.white7, ...chatVolumeSummaryLabel } as object}>
+                      Total Chats
+                    </Typography>
+                    <Typography variant="medium16" color="white">
+                      23,545
+                    </Typography>
+                  </Box>
+                  <Box sx={chatVolumeSummaryDivider} />
+                  <Box sx={chatVolumeSummaryItem}>
+                    <Typography variant="medium16" sx={{ color: theme.app.dashboard.white7, ...chatVolumeSummaryLabel } as object}>
+                      Resolved
+                    </Typography>
+                    <Typography variant="medium16" sx={chatVolumeResolvedColor}>
+                      2,401
+                    </Typography>
+                  </Box>
+                </DashboardCard>
+              </Box>
             </Box>
           </DashboardCard>
         </Box>
@@ -436,16 +468,18 @@ export default function DashboardPage() {
               <Box sx={chatAnalyticsIconBox}>
                 <PersonIcon sx={iconSize22} />
               </Box>
-              <Typography variant="subtitle1" fontWeight={600} color="textPrimary">
+              <Typography variant="subtitle1" fontWeight={600} color="white">
                 Agent Performance
               </Typography>
             </Box>
-            <DataTable<AgentPerformanceRow>
-              columns={agentPerformanceColumns}
-              rows={agentPerformanceRows}
-              getRowId={(row, idx) => `agent-${row.agentName}-${idx}`}
-              minWidth={560}
-            />
+            <Box sx={agentPerformanceTableWrap}>
+              <DataTable<AgentPerformanceRow>
+                columns={agentPerformanceColumns}
+                rows={agentPerformanceRows}
+                getRowId={(row, idx) => `agent-${row.agentName}-${idx}`}
+                minWidth={560}
+              />
+            </Box>
           </DashboardCard>
           <DashboardCard sx={cardLiveOverview}>
             <Box sx={revenueTitleRowMb2}>
@@ -506,7 +540,7 @@ export default function DashboardPage() {
   return (
     <Box sx={pageWrapper}>
       <Box sx={overviewHeader}>
-        <Typography variant="regularLarge" fontWeight={700} color="textPrimary">
+        <Typography variant="regularLarge" fontWeight={700} color="white">
           Overview
         </Typography>
         <Box sx={overviewHeaderDropdownWrap}>
@@ -592,7 +626,7 @@ export default function DashboardPage() {
               <Box sx={revenueIconBox}>
                 <AttachMoneyIcon sx={revenueIconSmall} />
               </Box>
-              <Typography variant="subtitle1" fontWeight={600} color="textPrimary">
+              <Typography variant="subtitle1" fontWeight={600} color="white">
                 Revenue Overview
               </Typography>
             </Box>
@@ -614,13 +648,13 @@ export default function DashboardPage() {
       </Box>
 
       <Box sx={grid2Lg}>
-        <DashboardCard sx={cardPadding}>
+        <DashboardCard sx={dashboardChartRowCard}>
           <Box sx={revenueHeaderRow}>
             <Box sx={revenueTitleRow}>
               <Box sx={chatAnalyticsIconBox}>
                 <ChatIcon sx={iconSize22} />
               </Box>
-              <Typography variant="subtitle1" fontWeight={600} color="textPrimary">
+              <Typography variant="subtitle1" fontWeight={600} color="white">
                 Chat Analytics
               </Typography>
             </Box>
@@ -634,19 +668,23 @@ export default function DashboardPage() {
               variant="default"
             />
           </Box>
-          <Box sx={chartBox260}>
-            <ChatAnalyticsBarChart data={chatAnalyticsData} />
+          <Box sx={chartFlexFill}>
+            <Box sx={chartBox260}>
+              <ChatAnalyticsBarChart data={chatAnalyticsData} />
+            </Box>
           </Box>
         </DashboardCard>
-        <DashboardCard sx={cardPadding}>
+        <DashboardCard sx={dashboardChartRowCard}>
           <Box sx={revenueTitleRowMb2}>
             <ChatsByDepartmentIcon />
-            <Typography variant="subtitle1" fontWeight={600} color="textPrimary">
+            <Typography variant="subtitle1" fontWeight={600} color="white">
               Chats by Department
             </Typography>
           </Box>
-          <Box sx={chartBox280}>
-            <DepartmentPieChart data={departmentData} />
+          <Box sx={chartFlexFill}>
+            <Box sx={chartBox280}>
+              <DepartmentPieChart data={departmentData} />
+            </Box>
           </Box>
         </DashboardCard>
       </Box>
@@ -689,7 +727,7 @@ export default function DashboardPage() {
           <Box sx={chatAnalyticsIconBox}>
             <ListIcon sx={iconSize22} />
           </Box>
-          <Typography variant="subtitle1" fontWeight={600} color="textPrimary">
+          <Typography variant="subtitle1" fontWeight={600} color="white">
             Recent Activity Log
           </Typography>
         </Box>

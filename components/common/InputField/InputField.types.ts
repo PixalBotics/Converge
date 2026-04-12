@@ -1,4 +1,5 @@
 import type { InputHTMLAttributes } from "react";
+import type { SxProps, Theme } from "@mui/material/styles";
 
 export interface InputFieldProps
   extends Omit<
@@ -14,4 +15,6 @@ export interface InputFieldProps
   helperText?: string;
   fullWidth?: boolean;
   inputProps?: object;
+  /** Merged after default TextField styles; use for page-specific input chrome. */
+  sx?: SxProps<Theme>;
 }

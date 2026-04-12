@@ -1,73 +1,111 @@
 import type { SxProps, Theme } from "@mui/material/styles";
-import { alpha } from "@mui/material/styles";
-import { typographyVariants } from "@/components/common/Typography/typography.styles";
 import type { AppTheme } from "@/theme/theme";
+import { typographyVariants } from "@/components/common/Typography/typography.styles";
+import { mainBackgroundGradient } from "@/theme/theme";
 
-/** Expanded rail content width */
 export const SIDEBAR_WIDTH = 260;
-/** Icon-only rail */
-export const SIDEBAR_WIDTH_COLLAPSED = 76;
 
-export const navTextProps = {
-  ...typographyVariants.medium16,
-};
+export const navTypographyBase = typographyVariants.medium16;
 
-export const sectionLabelSx: SxProps<Theme> = {
-  px: 2,
-  py: 0.75,
-  typography: typographyVariants.medium16,
-  fontWeight: 700,
-  letterSpacing: "0.12em",
-  textTransform: "uppercase",
-  fontSize: 11,
-};
-
-export const navItemLayoutSx: SxProps<Theme> = {
-  mx: 1.25,
-  my: 0.35,
-  py: 1,
-  borderRadius: 0,
-  boxSizing: "border-box",
-  whiteSpace: "nowrap",
-  transition: "background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, justify-content 0.25s ease",
-};
-
-/** Hover + selected states follow dashboard text colour (works on light or dark wallpapers). */
-export function sidebarNavItemInteractiveSx(theme: AppTheme): SxProps<Theme> {
-  const ink = theme.palette.text.primary;
+export const sectionLabelSx: SxProps<Theme> = (theme) => {
+  const app = (theme as AppTheme).app;
   return {
-    "&:hover": {
-      background: alpha(ink, 0.06),
-    },
+    pl: "16px",
+    pr: "16px",
+    pt: "1px",
+    pb: "4px",
+    ml: "8px",
+    mr: "8px",
+    mt: "10px",
+    mb: "18px",
+    boxSizing: "border-box",
+    typography: typographyVariants.medium16,
+    fontWeight: 700,
+    letterSpacing: 1.2,
+    color: app.text.primary,
+  };
+};
+
+export const navItemSx: SxProps<Theme> = (theme) => {
+  const app = (theme as AppTheme).app;
+  return {
+    mx: 1,
+    my: 2.25,
+    borderRadius: "6px",
+    boxSizing: "border-box",
+    whiteSpace: "nowrap",
+
     "&.Mui-selected": {
-      background: alpha(ink, 0.12),
-      backdropFilter: "blur(14px) saturate(140%)",
-      WebkitBackdropFilter: "blur(14px) saturate(140%)",
-      border: `1px solid ${alpha(ink, 0.14)}`,
-      boxShadow: `inset 0 1px 0 ${alpha(ink, 0.14)}`,
+      width: 210,
+      height: 48,
+      borderRadius: "6px",
+      border: `1px solid ${app.dashboard.shellBorder}`,
+      background: app.dashboard.navItemSelectedBg,
+      backdropFilter: "blur(6px)",
+      WebkitBackdropFilter: "blur(6px)",
+      boxShadow: app.dashboard.navSelectedInsetShadow,
+
+      "& .MuiListItemIcon-root": {
+        color: app.text.primary,
+      },
+
       "& .MuiListItemText-primary": {
         fontWeight: 600,
+        color: app.text.primary,
       },
     },
   };
-}
-
-/** Collapsed: icon-centered rows */
-export const navItemCollapsedSx: SxProps<Theme> = {
-  justifyContent: "center",
-  mx: 1,
-  px: 0.5,
 };
 
-export const sidebarInnerBaseSx: SxProps<Theme> = {
+export const getSidebarBackground = (theme: Theme) =>
+  (theme as Theme & { appBackground?: string }).appBackground ?? mainBackgroundGradient;
+
+export const sidebarInnerSx: SxProps<Theme> = {
+  width: SIDEBAR_WIDTH,
   height: "100%",
-  minHeight: 0,
-  minWidth: 0,
+  background: (t) => {
+    const app = (t as AppTheme).app;
+    const blur = app.dashboard.sidebarBackdropBlur;
+    if (blur && blur !== "none") {
+      return app.dashboard.sidebarBg;
+    }
+    return getSidebarBackground(t as Theme);
+  },
+  backdropFilter: (t) => {
+    const b = (t as AppTheme).app.dashboard.sidebarBackdropBlur;
+    return !b || b === "none" ? undefined : b;
+  },
+  WebkitBackdropFilter: (t) => {
+    const b = (t as AppTheme).app.dashboard.sidebarBackdropBlur;
+    return !b || b === "none" ? undefined : b;
+  },
   display: "flex",
   flexDirection: "column",
   overflow: "hidden",
-  isolation: "isolate",
-  transition: "width 0.28s cubic-bezier(0.4, 0, 0.2, 1)",
+};
+
+export const headerBoxSx: SxProps<Theme> = (theme) => {
+  const app = (theme as AppTheme).app;
+  return {
+    width: "100%",
+    height: 104,
+    p: 2,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 1.5,
+    position: "relative",
+    boxSizing: "border-box",
+    "&::after": {
+      content: '""',
+      position: "absolute",
+      left: 0,
+      right: 0,
+      bottom: 0,
+      height: "1px",
+      backgroundColor: app.dashboard.shellBorder,
+    },
+  };
 };
 
 export const logoImgSx: SxProps<Theme> = {
@@ -75,10 +113,11 @@ export const logoImgSx: SxProps<Theme> = {
   height: 36,
   width: "auto",
   maxWidth: "100%",
-  flexShrink: 0,
 };
 
-export const closeButtonSx: SxProps<Theme> = {};
+export const closeButtonSx: SxProps<Theme> = (theme) => ({
+  color: (theme as AppTheme).app.dashboard.white80,
+});
 
 export const listSx: SxProps<Theme> = {
   px: 0,
@@ -90,54 +129,85 @@ export const listSx: SxProps<Theme> = {
   "&::-webkit-scrollbar": { display: "none" },
 };
 
-export const listIconSelectedSx: SxProps<Theme> = {
-  minWidth: 40,
-};
-
-export const listIconDefaultSx: SxProps<Theme> = {
-  minWidth: 40,
-};
-
-export const listIconCollapsedSx: SxProps<Theme> = {
-  minWidth: "0 !important",
-  margin: "auto",
-  justifyContent: "center",
-};
-
-/** Outer rail: inset floating glass panel */
-export function railOuterSx(contentWidth: number): SxProps<Theme> {
+/** Pinned bottom block (Theme / Log out) — same idea as fixed header, does not scroll with nav. */
+export const sidebarFooterSx: SxProps<Theme> = (theme) => {
+  const app = (theme as AppTheme).app;
   return {
-    position: "sticky",
-    top: 0,
-    alignSelf: "flex-start",
-    height: "100vh",
     flexShrink: 0,
-    py: 2,
-    pl: 2,
-    pr: 0.5,
-    boxSizing: "border-box",
-    display: "flex",
-    flexDirection: "column",
-    width: { xs: "auto", md: `calc(${contentWidth}px + 20px)` },
-    minWidth: { md: `calc(${contentWidth}px + 20px)` },
-    transition: "min-width 0.28s cubic-bezier(0.4, 0, 0.2, 1), width 0.28s cubic-bezier(0.4, 0, 0.2, 1)",
+    position: "relative",
+    pt: 1.25,
+    pb: 1.5,
+    "&::before": {
+      content: '""',
+      position: "absolute",
+      left: 0,
+      right: 0,
+      top: 0,
+      height: "1px",
+      backgroundColor: app.dashboard.shellBorder,
+    },
   };
-}
+};
 
-export const backdropSx: SxProps<Theme> = {
+export const sidebarFooterListSx: SxProps<Theme> = {
+  py: 0,
+  px: 0,
+  width: "100%",
+};
+
+export const listIconSelectedSx: SxProps<Theme> = (theme) => ({
+  minWidth: 40,
+  color: (theme as AppTheme).app.text.primary,
+});
+
+export const listIconDefaultSx: SxProps<Theme> = (theme) => ({
+  minWidth: 40,
+  color: (theme as AppTheme).app.text.primary,
+});
+
+export const desktopWrapperSx: SxProps<Theme> = (theme) => {
+  const app = (theme as AppTheme).app;
+  return {
+    width: SIDEBAR_WIDTH,
+    height: { xs: "100vh", md: "calc(100vh - 32px)" },
+    position: "sticky",
+    top: { xs: 0, md: 16 },
+    flexShrink: 0,
+    alignSelf: { xs: "stretch", md: "flex-start" },
+    borderRadius: { xs: 0, md: app.dashboard.shellRadius },
+    border: { xs: "none", md: `1px solid ${app.dashboard.shellBorder}` },
+    overflow: "hidden",
+    boxSizing: "border-box",
+    boxShadow: {
+      md: "0 8px 32px rgba(0, 0, 0, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.06)",
+    },
+  };
+};
+
+export const backdropSx: SxProps<Theme> = (theme) => ({
   display: "block",
   position: "fixed",
   inset: 0,
-  bgcolor: "rgba(0,0,0,0.5)",
+  bgcolor: (theme as AppTheme).app.dashboard.backdropDark,
   zIndex: 1200,
   transition: "opacity 0.2s ease",
-};
+});
 
-export const mobileDrawerSx: SxProps<Theme> = {
-  position: "fixed",
-  left: 0,
-  top: 0,
-  height: "100vh",
-  zIndex: 1300,
-  transition: "transform 0.25s ease-out",
+export const mobileDrawerSx: SxProps<Theme> = (theme) => {
+  const app = (theme as AppTheme).app;
+  return {
+    position: "fixed",
+    left: 0,
+    top: 0,
+    height: "100vh",
+    width: SIDEBAR_WIDTH,
+    zIndex: 1300,
+    transition: "transform 0.25s ease-out",
+    borderRadius: `0 ${app.dashboard.shellRadius} ${app.dashboard.shellRadius} 0`,
+    border: `1px solid ${app.dashboard.shellBorder}`,
+    borderLeft: "none",
+    overflow: "hidden",
+    boxSizing: "border-box",
+    boxShadow: "8px 0 32px rgba(0, 0, 0, 0.25)",
+  };
 };

@@ -3,8 +3,10 @@
 import Box from "@mui/material/Box";
 import IconButton from "@mui/material/IconButton";
 import { ChevronLeft, ChevronRight } from "@mui/icons-material";
-import { alpha, useTheme } from "@mui/material/styles";
+import { useTheme } from "@mui/material/styles";
 import type { SxProps, Theme } from "@mui/material/styles";
+import type { AppTheme } from "@/theme/theme";
+import { resolveSx } from "@/utils/resolveSx";
 
 export interface TablePaginationProps {
   page: number;
@@ -14,10 +16,8 @@ export interface TablePaginationProps {
 }
 
 export function TablePagination({ page, pageCount, onPageChange, sx }: TablePaginationProps) {
-  const theme = useTheme();
-  const borderColor = alpha(theme.palette.text.secondary, 0.45);
-  const idleColor = theme.palette.text.secondary;
-  const disabledBorder = alpha(theme.palette.text.secondary, 0.35);
+  const theme = useTheme() as AppTheme;
+  const app = theme.app;
 
   const handleChange = (nextPage: number) => {
     if (!onPageChange) return;
@@ -28,79 +28,74 @@ export function TablePagination({ page, pageCount, onPageChange, sx }: TablePagi
 
   const pages = Array.from({ length: pageCount }, (_, idx) => idx + 1);
 
+  const edgeBtnSx = {
+    width: 32,
+    height: 32,
+    borderRadius: "9999px",
+    border: `1px solid ${app.dashboard.cardBorder}`,
+    color: app.dashboard.textMuted,
+    bgcolor: "transparent",
+    "&.Mui-disabled": {
+      opacity: 0.4,
+      color: app.dashboard.textMuted,
+    },
+  } as const;
+
   return (
     <Box
-      sx={{
-        display: "flex",
-        alignItems: "center",
-        gap: 0.75,
-        ...((sx as object) ?? {}),
-      }}
+      sx={[
+        {
+          display: "flex",
+          alignItems: "center",
+          gap: 0.75,
+        },
+        resolveSx(sx, theme),
+      ] as SxProps<Theme>}
     >
       <IconButton
         size="small"
         onClick={() => handleChange(page - 1)}
         disabled={page <= 1 || !onPageChange}
-        sx={{
-          width: 32,
-          height: 32,
-          borderRadius: "9999px",
-          border: `1px solid ${borderColor}`,
-          color: idleColor,
-          bgcolor: "transparent",
-          "&.Mui-disabled": {
-            opacity: 0.4,
-            color: disabledBorder,
-          },
-        }}
+        sx={edgeBtnSx}
       >
-        <ChevronLeft fontSize="small" />
+        <ChevronLeft fontSize="small" sx={{ color: "inherit" }} />
       </IconButton>
 
-      {pages.map((p) => (
-        <IconButton
-          key={p}
-          size="small"
-          onClick={() => handleChange(p)}
-          disabled={!onPageChange}
-          sx={{
-            width: 32,
-            height: 32,
-            borderRadius: "9999px",
-            border: `1px solid ${borderColor}`,
-            bgcolor: p === page ? theme.palette.primary.main : "transparent",
-            color: p === page ? theme.palette.primary.contrastText : idleColor,
-            fontSize: 13,
-            "&.Mui-disabled": {
-              opacity: p === page ? 1 : 0.9,
-              cursor: "default",
-            },
-          }}
-        >
-          {p}
-        </IconButton>
-      ))}
+      {pages.map((p) => {
+        const active = p === page;
+        return (
+          <IconButton
+            key={p}
+            size="small"
+            onClick={() => handleChange(p)}
+            disabled={!onPageChange}
+            sx={{
+              width: 32,
+              height: 32,
+              borderRadius: "9999px",
+              border: `1px solid ${active ? app.dashboard.accentBlue : app.dashboard.cardBorder}`,
+              bgcolor: active ? app.dashboard.navActiveBg : "transparent",
+              color: active ? app.text.primary : app.dashboard.textMuted,
+              fontSize: 13,
+              "&.Mui-disabled": {
+                opacity: active ? 1 : 0.9,
+                cursor: "default",
+              },
+            }}
+          >
+            {p}
+          </IconButton>
+        );
+      })}
 
       <IconButton
         size="small"
         onClick={() => handleChange(page + 1)}
         disabled={page >= pageCount || !onPageChange}
-        sx={{
-          width: 32,
-          height: 32,
-          borderRadius: "9999px",
-          border: `1px solid ${borderColor}`,
-          color: idleColor,
-          bgcolor: "transparent",
-          "&.Mui-disabled": {
-            opacity: 0.4,
-            color: disabledBorder,
-          },
-        }}
+        sx={edgeBtnSx}
       >
-        <ChevronRight fontSize="small" />
+        <ChevronRight fontSize="small" sx={{ color: "inherit" }} />
       </IconButton>
     </Box>
   );
 }
-

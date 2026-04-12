@@ -1,4 +1,5 @@
 import type { SxProps, Theme } from "@mui/material/styles";
+import type { AppTheme } from "@/theme/theme";
 
 export const overviewPageWrapper: SxProps<Theme> = {
   maxWidth: 1600,
@@ -21,18 +22,26 @@ export const overviewAddButtonWrapper: SxProps<Theme> = {
   width: { xs: "100%", sm: "auto" },
 };
 
-export const overviewAddButton: SxProps<Theme> = {
-  borderRadius: "9999px",
-  px: 3,
-  py: 1.25,
-  display: "inline-flex",
-  alignItems: "center",
-  gap: 1,
-  width: { xs: "100%", sm: "auto" },
-  justifyContent: "center",
-  background: "linear-gradient(135deg, #1F2937 0%, #020617 100%)",
-  boxShadow: "0 10px 25px rgba(15,23,42,0.7)",
-  border: "1px solid rgba(148,163,184,0.5)",
+export const overviewAddButton: SxProps<Theme> = (theme) => {
+  const app = (theme as AppTheme).app;
+  return {
+    borderRadius: "9999px",
+    px: 3,
+    py: 1.25,
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 1,
+    width: { xs: "100%", sm: "auto" },
+    justifyContent: "center",
+    background: app.dashboard.gradientButton,
+    color: app.dashboard.gradientButtonText,
+    boxShadow: "0 10px 25px rgba(0,0,0,0.28)",
+    border: `1px solid ${app.dashboard.overlayBorder}`,
+    "&:hover": {
+      background: app.dashboard.gradientButton,
+      color: app.dashboard.gradientButtonText,
+    },
+  };
 };
 
 export const overviewCardsRow: SxProps<Theme> = {
@@ -100,7 +109,7 @@ export const overviewFooterRow: SxProps<Theme> = {
   alignItems: { xs: "flex-start", sm: "center" },
   justifyContent: "space-between",
   gap: 1.5,
-  color: "text.secondary",
+  color: "rgba(148,163,184,0.9)",
   fontSize: 13,
 };
 

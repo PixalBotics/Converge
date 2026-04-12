@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import Box from "@mui/material/Box";
 import Avatar from "@mui/material/Avatar";
 import IconButton from "@mui/material/IconButton";
-import { alpha, useTheme } from "@mui/material/styles";
+import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import {
   Typography,
@@ -50,7 +50,6 @@ const RECENT_CHATS: RecentChatRow[] = [
 ];
 
 function RatingStars({ value }: { value: number }) {
-  const theme = useTheme() as AppTheme;
   return (
     <Box sx={{ display: "inline-flex", alignItems: "center", gap: 0.15 }}>
       {Array.from({ length: 5 }).map((_, idx) => (
@@ -58,7 +57,7 @@ function RatingStars({ value }: { value: number }) {
           key={idx}
           sx={{
             fontSize: 17,
-            color: idx < value ? "#FACC15" : alpha(theme.palette.text.primary, 0.35),
+            color: idx < value ? "#FACC15" : "rgba(255,255,255,0.35)",
           }}
         />
       ))}
@@ -95,7 +94,7 @@ export default function NetworkAdminOverview() {
             <Avatar src={userIconPath} sx={{ width: 30, height: 30, bgcolor: theme.app.dashboard.buttonIndigo }}>
               A
             </Avatar>
-            <Typography variant="body2" color="textPrimary" fontWeight={500}>
+            <Typography variant="body2" color="white" fontWeight={500}>
               {row.customer}
             </Typography>
           </Box>
@@ -140,7 +139,7 @@ export default function NetworkAdminOverview() {
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 2.2 }}>
       <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
-        <Typography variant="regularLarge" fontWeight={700} color="textPrimary">
+        <Typography variant="regularLarge" fontWeight={700} color="white">
           Overview
         </Typography>
         <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
@@ -193,7 +192,7 @@ export default function NetworkAdminOverview() {
 
       <DashboardCard sx={{ p: 2 }}>
         <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1.5, flexWrap: "wrap", mb: 1.5 }}>
-          <Typography variant="mediumLarge" color="textPrimary" fontWeight={600}>
+          <Typography variant="mediumLarge" color="white" fontWeight={600}>
             My Recent Chats
           </Typography>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1, width: { xs: "100%", md: "auto" } }}>

@@ -1,47 +1,49 @@
 import type { SxProps, Theme } from "@mui/material";
-import { alpha } from "@mui/material/styles";
+import type { AppTheme } from "@/theme/theme";
 
+/** Shared chrome for all `Button` variants — pill, padding, min width, flex + gap. */
 export const baseButtonStyles: SxProps<Theme> = {
-  borderRadius: "10px",
-  py: 1.5,
+  borderRadius: "9999px",
+  py: "10px",
+  px: "26px",
   fontWeight: 600,
   textTransform: "none",
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: "8px",
+  minWidth: 140,
 };
 
 export const primaryButtonStyles = (theme: Theme): SxProps<Theme> => ({
   backgroundColor: theme.palette.primary.main,
-  color: theme.palette.primary.contrastText,
+  color: theme.app.text.primary,
   "&:hover": {
     backgroundColor: theme.palette.primary.dark,
   },
 });
 
-function isDark(theme: Theme) {
-  return theme.palette.mode === "dark";
-}
-
-/** Neutral secondary — follows surface text, not fixed grey */
 export const secondaryButtonStyles = (theme: Theme): SxProps<Theme> => {
-  const ink = theme.palette.text.primary;
+  const app = (theme as AppTheme).app;
   return {
-    backgroundColor: alpha(ink, isDark(theme) ? 0.12 : 0.08),
-    color: ink,
-    border: `1px solid ${alpha(ink, isDark(theme) ? 0.18 : 0.14)}`,
+    backgroundColor: app.dashboard.pillBg,
+    color: app.text.primary,
+    border: `1px solid ${app.dashboard.cardBorder}`,
     "&:hover": {
-      backgroundColor: alpha(ink, isDark(theme) ? 0.18 : 0.12),
-      borderColor: alpha(theme.palette.primary.main, 0.35),
+      backgroundColor: app.dashboard.pillActive,
+      borderColor: app.dashboard.overlayBorder,
     },
   };
 };
 
 export const outlinedButtonStyles = (theme: Theme): SxProps<Theme> => {
-  const ink = theme.palette.text.primary;
+  const app = (theme as AppTheme).app;
   return {
-    borderColor: alpha(ink, isDark(theme) ? 0.22 : 0.2),
-    color: ink,
+    borderColor: app.dashboard.cardBorder,
+    color: app.text.primary,
     "&:hover": {
-      borderColor: alpha(theme.palette.primary.main, 0.45),
-      backgroundColor: alpha(theme.palette.primary.main, isDark(theme) ? 0.1 : 0.06),
+      borderColor: app.dashboard.overlayBorder,
+      backgroundColor: app.shadow.buttonHoverBg,
     },
   };
 };
@@ -51,3 +53,18 @@ export const variantStyles = {
   secondary: secondaryButtonStyles,
   outlined: outlinedButtonStyles,
 } as const;
+
+/** Gradient fill on top of `baseButtonStyles` — use via `sx` where Add/Save needs accent gradient. */
+export const gradientPrimaryButtonSx: SxProps<Theme> = (theme) => {
+  const app = (theme as AppTheme).app;
+  return {
+    background: app.dashboard.gradientButton,
+    color: app.dashboard.gradientButtonText,
+    boxShadow: "0 10px 25px rgba(0,0,0,0.28)",
+    border: `1px solid ${app.dashboard.overlayBorder}`,
+    "&:hover": {
+      background: app.dashboard.gradientButton,
+      color: app.dashboard.gradientButtonText,
+    },
+  };
+};

@@ -1,40 +1,72 @@
-# Dependencies
-node_modules/
+# dependencies
+node_modules
+.pnp
+.pnp.js
 
 # Next.js
 .next/
 out/
 
-# Build / TypeScript
-dist/
-build/
-*.tsbuildinfo
+# production
+build
+dist
 
-# Environment
-.env
-.env.*
-!.env.example
+# misc
+.DS_Store
+Thumbs.db
+*.pem
+README.md
+README.txt
+READMEone.md
+cursor.ai
 
-# Debug / logs
+# debug & logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-.pnpm-debug.log*
+*.log
+pnpm-debug.log*
 
-# Testing / coverage
-coverage/
+# env
+.env
+.env*.local
+.env.development.local
+.env.test.local
+.env.production.local
 
-# IDE / OS
-.idea/
-.vscode/*
-!.vscode/extensions.json
-!.vscode/settings.json
-.DS_Store
-Thumbs.db
+# TypeScript
+next-env.d.ts
+*.tsbuildinfo
+
+# IDE & editors
+.idea
+.vscode
+*.swp
+*.swo
+*~
+Untitled
+Untitled-*
+
+# Cache
+.eslintcache
+.prettiercache
+.turbo
+.cache
 
 # Vercel
 .vercel
 
-# Misc
-*.pem
-.turbo
+# Build outputs (matches next.config.ts distDir: .next-dev / .next-release)
+.next-build/
+.next-dev/
+.next-release/
+
+# Large files
+allfiles.tx
+
+# Testing
+coverage/
+.nyc_output/
+
+# OS
+Desktop.ini

@@ -3,10 +3,12 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Box from "@mui/material/Box";
+import type { SxProps, Theme } from "@mui/material/styles";
 import { LoadingScreen } from "@/components/common";
 import { useAuth } from "@/lib/auth";
 import { DashboardSidebar, DashboardHeader } from "@/components/dashboard";
-import type { AppTheme } from "@/theme/theme";
+import { dashboardMainGlassSx, dashboardMainTextSx } from "./dashboard.styles";
+import { mainBackgroundGradient } from "@/theme/theme";
 
 export default function DashboardLayout({
   children,
@@ -35,8 +37,12 @@ export default function DashboardLayout({
       sx={{
         display: "flex",
         minHeight: "100vh",
+        boxSizing: "border-box",
         bgcolor: "transparent",
-        background: (theme) => (theme as { appBackground?: string }).appBackground ?? "radial-gradient(50% 50% at 50% 50%, #09013F 0%, #00011A 100%)",
+        background: (theme) =>
+          (theme as { appBackground?: string }).appBackground ?? mainBackgroundGradient,
+        p: { xs: 0, md: 2 },
+        gap: { xs: 0, md: 2 },
       }}
     >
       <DashboardSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
@@ -44,19 +50,18 @@ export default function DashboardLayout({
         <DashboardHeader onMenuClick={() => setSidebarOpen(true)} />
         <Box
           component="main"
-          sx={(t) => {
-            const th = t as AppTheme;
-            return {
-              flex: 1,
-              p: { xs: 2, sm: 3 },
-              overflow: "auto",
-              fontFamily: '"Manrope", sans-serif',
-              fontWeight: 400,
-              fontStyle: "normal",
-              fontSize: 14,
-              color: th.palette.text.primary,
-            };
-          }}
+          sx={
+            [
+              {
+                flex: 1,
+                py: { xs: 2, sm: 3 },
+                px: 0,
+                overflow: "auto",
+              },
+              dashboardMainTextSx,
+              dashboardMainGlassSx,
+            ] as SxProps<Theme>
+          }
         >
           {children}
         </Box>

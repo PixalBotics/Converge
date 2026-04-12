@@ -12,9 +12,9 @@ import {
   CartesianGrid,
   Tooltip,
 } from "recharts";
-import type { AppTheme } from "@/theme/theme";
 import type { RevenueLineChartProps } from "./RevenueLineChart.types";
 import { revenueLineChartRoot } from "./RevenueLineChart.styles";
+import { useAppChartStyles } from "./useAppChartStyles";
 
 const DEFAULT_HEIGHT = 280;
 const MARGIN_DESKTOP = { top: 10, right: 10, left: 0, bottom: 0 };
@@ -31,20 +31,14 @@ export function RevenueLineChart({
     `$${Number(value).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} M`,
   tooltipLabelFormatter = (day) => `${Number(day)} April, 2026`,
 }: RevenueLineChartProps) {
-  const theme = useTheme() as AppTheme;
+  const theme = useTheme();
+  const chart = useAppChartStyles().revenue;
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
-  const d = theme.app.dashboard;
   const gradientId = "revenueGlow";
   const margin = isMobile ? MARGIN_MOBILE : MARGIN_DESKTOP;
   const tickFontSize = isMobile ? 10 : 12;
   const xTicks = isMobile ? X_TICKS_MOBILE : X_TICKS_DESKTOP;
   const activeDotR = isMobile ? 4 : 6;
-
-  const gradientStops = [
-    { offset: "0%", stopColor: d.chartAreaStopTop, stopOpacity: 1 },
-    { offset: "50%", stopColor: d.chartAreaStopMid, stopOpacity: 1 },
-    { offset: "100%", stopColor: d.chartAreaStopBottom, stopOpacity: 0 },
-  ];
 
   return (
     <div style={revenueLineChartRoot(height)}>
@@ -52,7 +46,7 @@ export function RevenueLineChart({
         <LineChart data={data} margin={margin}>
           <defs>
             <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-              {gradientStops.map((stop, i) => (
+              {chart.gradientStops.map((stop, i) => (
                 <stop
                   key={i}
                   offset={stop.offset}
@@ -62,33 +56,28 @@ export function RevenueLineChart({
               ))}
             </linearGradient>
           </defs>
-          <CartesianGrid stroke={d.chartGridStroke} vertical={false} />
+          <CartesianGrid stroke={chart.gridStroke} vertical={false} />
           <XAxis
             dataKey="day"
-            stroke={d.chartAxisStroke}
-            tick={{ fill: d.chartTickFill, fontSize: tickFontSize }}
-            tickLine={false}
-            axisLine={{ stroke: d.chartAxisStroke }}
+            stroke={chart.xAxis.stroke}
+            tick={{ ...chart.xAxis.tick, fontSize: tickFontSize }}
+            tickLine={chart.xAxis.tickLine}
+            axisLine={chart.xAxis.axisLine}
             ticks={xTicks}
           />
           <YAxis
-            stroke={d.chartAxisStroke}
-            tick={{ fill: d.chartTickFill, fontSize: tickFontSize }}
-            tickLine={false}
-            axisLine={{ stroke: d.chartAxisStroke }}
+            stroke={chart.yAxis.stroke}
+            tick={{ ...chart.yAxis.tick, fontSize: tickFontSize }}
+            tickLine={chart.yAxis.tickLine}
+            axisLine={chart.yAxis.axisLine}
             domain={yDomain}
             tickFormatter={yTickFormatter}
             width={isMobile ? 32 : 40}
           />
           <Tooltip
-            contentStyle={{
-              background: d.chartTooltipBg,
-              border: `1px solid ${d.chartTooltipBorder}`,
-              borderRadius: 12,
-              boxShadow: "0px 2.55px 12.74px 0px rgba(0,0,0,0.12)",
-            }}
-            labelStyle={{ color: d.chartTooltipLabel, fontWeight: 600 }}
-            itemStyle={{ color: d.chartTooltipLabel }}
+            contentStyle={chart.tooltipContent}
+            labelStyle={chart.tooltipLabel}
+            itemStyle={chart.tooltipItem}
             formatter={(value: unknown) => [tooltipFormatter(Number(value)), "Revenue"]}
             labelFormatter={(label) => {
               const safeLabel =
@@ -99,34 +88,24 @@ export function RevenueLineChart({
                   : "";
               return tooltipLabelFormatter(safeLabel);
             }}
-            cursor={{ stroke: d.chartCursor, strokeDasharray: "4 4" }}
+            cursor={chart.cursor}
           />
           <Area type="monotone" dataKey="value" fill={`url(#${gradientId})`} stroke="none" />
           <Line
             type="monotone"
             dataKey="value"
-            stroke={d.chartLinePrimary}
-            strokeWidth={2}
-            dot={false}
-            activeDot={{
-              r: activeDotR,
-              fill: d.cardBg,
-              stroke: d.chartLinePrimary,
-              strokeWidth: 2,
-            }}
+            stroke={chart.line1.stroke}
+            strokeWidth={chart.line1.strokeWidth}
+            dot={chart.line1.dot}
+            activeDot={{ ...chart.line1.activeDot, r: activeDotR }}
           />
           <Line
             type="monotone"
             dataKey="value2"
-            stroke={d.chartLineSecondary}
-            strokeWidth={2}
-            dot={false}
-            activeDot={{
-              r: activeDotR,
-              fill: d.cardBg,
-              stroke: d.chartLineSecondary,
-              strokeWidth: 2,
-            }}
+            stroke={chart.line2.stroke}
+            strokeWidth={chart.line2.strokeWidth}
+            dot={chart.line2.dot}
+            activeDot={{ ...chart.line2.activeDot, r: activeDotR }}
           />
         </LineChart>
       </ResponsiveContainer>

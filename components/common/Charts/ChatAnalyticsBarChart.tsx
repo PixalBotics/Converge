@@ -15,16 +15,10 @@ import {
 import type { ChatAnalyticsBarChartProps } from "./ChatAnalyticsBarChart.types";
 import {
   chatAnalyticsBarChartRoot,
-  chatAnalyticsBarChartGrid,
-  chatAnalyticsBarChartXAxis,
-  chatAnalyticsBarChartYAxis,
-  chatAnalyticsBarChartTooltipContent,
-  chatAnalyticsBarChartTooltipItem,
-  chatAnalyticsBarChartTooltipLabel,
   chatAnalyticsBarChartCursor,
-  chatAnalyticsBarChartGradientFirst,
-  chatAnalyticsBarChartGradientSecond,
+  chatAnalyticsBarChartTooltipLabel,
 } from "./ChatAnalyticsBarChart.styles";
+import { useAppChartStyles } from "./useAppChartStyles";
 
 const DEFAULT_HEIGHT = 260;
 const GRADIENT_FIRST_ID = "chatAnalyticsBarFirst";
@@ -41,6 +35,7 @@ export function ChatAnalyticsBarChart({
   tooltipFormatter = (value) => `$${(value / 1000).toFixed(0)}k`,
 }: ChatAnalyticsBarChartProps) {
   const theme = useTheme();
+  const chart = useAppChartStyles().chatBar;
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const margin = isMobile ? MARGIN_MOBILE : MARGIN_DESKTOP;
   const tickFontSize = isMobile ? 10 : 12;
@@ -60,8 +55,8 @@ export function ChatAnalyticsBarChart({
               y2="1"
               gradientUnits="objectBoundingBox"
             >
-              <stop offset="0%" stopColor={chatAnalyticsBarChartGradientFirst.topColor} />
-              <stop offset={chatAnalyticsBarChartGradientFirst.bottomOffset} stopColor={chatAnalyticsBarChartGradientFirst.bottomColor} />
+              <stop offset="0%" stopColor={chart.gradientFirst.topColor} />
+              <stop offset={chart.gradientFirst.bottomOffset} stopColor={chart.gradientFirst.bottomColor} />
             </linearGradient>
             <linearGradient
               id={GRADIENT_SECOND_ID}
@@ -71,36 +66,36 @@ export function ChatAnalyticsBarChart({
               y2="1"
               gradientUnits="objectBoundingBox"
             >
-              <stop offset="0%" stopColor={chatAnalyticsBarChartGradientSecond.topColor} />
-              <stop offset={chatAnalyticsBarChartGradientSecond.bottomOffset} stopColor={chatAnalyticsBarChartGradientSecond.bottomColor} />
+              <stop offset="0%" stopColor={chart.gradientSecond.topColor} />
+              <stop offset={chart.gradientSecond.bottomOffset} stopColor={chart.gradientSecond.bottomColor} />
             </linearGradient>
           </defs>
           <CartesianGrid
-            stroke={chatAnalyticsBarChartGrid.stroke}
-            strokeOpacity={chatAnalyticsBarChartGrid.strokeOpacity}
-            strokeDasharray={chatAnalyticsBarChartGrid.strokeDasharray}
-            vertical={chatAnalyticsBarChartGrid.vertical}
+            stroke={chart.grid.stroke}
+            strokeOpacity={chart.grid.strokeOpacity}
+            strokeDasharray={chart.grid.strokeDasharray}
+            vertical={chart.grid.vertical}
           />
           <XAxis
             dataKey="name"
-            axisLine={chatAnalyticsBarChartXAxis.axisLine}
-            tickLine={chatAnalyticsBarChartXAxis.tickLine}
-            tick={{ ...chatAnalyticsBarChartXAxis.tick, fontSize: tickFontSize }}
+            axisLine={chart.xAxis.axisLine}
+            tickLine={chart.xAxis.tickLine}
+            tick={{ ...chart.xAxis.tick, fontSize: tickFontSize }}
             interval={0}
           />
           <YAxis
             domain={yDomain}
-            axisLine={chatAnalyticsBarChartYAxis.axisLine}
-            tickLine={chatAnalyticsBarChartYAxis.tickLine}
-            tick={{ ...chatAnalyticsBarChartYAxis.tick, fontSize: tickFontSize }}
+            axisLine={chart.yAxis.axisLine}
+            tickLine={chart.yAxis.tickLine}
+            tick={{ ...chart.yAxis.tick, fontSize: tickFontSize }}
             tickFormatter={yTickFormatter}
             width={isMobile ? 28 : 36}
           />
           <Tooltip
-            contentStyle={chatAnalyticsBarChartTooltipContent}
+            contentStyle={chart.tooltipContent}
             cursor={chatAnalyticsBarChartCursor}
             formatter={(value: unknown) => [tooltipFormatter(Number(value)), ""]}
-            itemStyle={chatAnalyticsBarChartTooltipItem}
+            itemStyle={chart.tooltipItem}
             labelStyle={chatAnalyticsBarChartTooltipLabel}
           />
           <Bar dataKey="value" radius={radius} maxBarSize={maxBarSize}>

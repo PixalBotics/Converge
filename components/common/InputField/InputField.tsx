@@ -1,14 +1,21 @@
 "use client";
 
 import { useState } from "react";
+import type { MouseEvent } from "react";
 import Box from "@mui/material/Box";
 import TextField from "@mui/material/TextField";
 import IconButton from "@mui/material/IconButton";
 import InputAdornment from "@mui/material/InputAdornment";
 import { useTheme } from "@mui/material/styles";
 import { Label } from "@/components/common/Label";
+import {
+  applyOutlineFieldCursorPosition,
+  resetOutlineFieldCursorPosition,
+} from "./outlineFieldCursor";
 import { textFieldStyles } from "./InputField.styles";
+import type { SxProps, Theme } from "@mui/material/styles";
 import type { InputFieldProps } from "./InputField.types";
+import { resolveSx } from "@/utils/resolveSx";
 import { eyeSvg, hideEyeSvg } from "@/assets";
 
 export function InputField({
@@ -21,6 +28,7 @@ export function InputField({
   helperText,
   fullWidth = true,
   inputProps,
+  sx,
   ...rest
 }: InputFieldProps) {
   const theme = useTheme();
@@ -28,6 +36,17 @@ export function InputField({
   const isPasswordField = type === "password";
   const [showPassword, setShowPassword] = useState(false);
   const inputType = isPasswordField && showPassword ? "text" : type;
+  const { onMouseMove, onMouseLeave, ...textFieldRest } = rest;
+
+  const handleMouseMove = (event: MouseEvent<HTMLDivElement>) => {
+    applyOutlineFieldCursorPosition(event);
+    onMouseMove?.(event as unknown as MouseEvent<HTMLInputElement>);
+  };
+
+  const handleMouseLeave = (event: MouseEvent<HTMLDivElement>) => {
+    resetOutlineFieldCursorPosition(event);
+    onMouseLeave?.(event as unknown as MouseEvent<HTMLInputElement>);
+  };
 
   return (
     <Box sx={{ width: fullWidth ? "100%" : "auto" }}>
@@ -48,7 +67,14 @@ export function InputField({
         helperText={helperText}
         fullWidth={fullWidth}
         variant="outlined"
-        sx={textFieldStyles(theme)}
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
+        sx={
+          [
+            textFieldStyles(theme),
+            ...(sx ? [resolveSx(sx, theme)] : []),
+          ] as SxProps<Theme>
+        }
         InputProps={
           isPasswordField
             ? {
@@ -73,7 +99,7 @@ export function InputField({
               }
             : undefined
         }
-        {...rest}
+        {...textFieldRest}
       />
     </Box>
   );

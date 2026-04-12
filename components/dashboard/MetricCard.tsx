@@ -1,9 +1,9 @@
 "use client";
 
 import Box from "@mui/material/Box";
-import { useTheme } from "@mui/material/styles";
-import { Typography, DashboardCard } from "@/components/common";
+import { getLuminance, lighten, useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
+import { Typography, DashboardCard } from "@/components/common";
 
 export interface MetricCardProps {
   title: string;
@@ -11,15 +11,27 @@ export interface MetricCardProps {
   subtitle?: string;
   icon: React.ReactNode;
   iconBgColor: string;
-  /** Value text colour. Default: theme `dashboard.metricValueDefault` (aligned with chart accent). */
+  /** Value text color (e.g. card-specific accent). Default: theme primary (accent). */
   valueColor?: string;
-  /** Subtitle color (e.g. "#EF4444" for alert). Default: grey */
+  /** Subtitle color (e.g. error for alert). Default: theme `dashboard.white60`. */
   subtitleColor?: string;
   /** Show green trend arrow before subtitle. Default: true */
   showTrendArrow?: boolean;
 }
 
-function TrendArrowUp() {
+/** Dark cards: custom/dark accents (e.g. forest green) must not match near-black text. */
+function readableMetricValueColor(theme: AppTheme, color: string): string {
+  if (theme.palette.mode !== "dark") return color;
+  try {
+    const lum = getLuminance(color);
+    if (lum < 0.45) return lighten(color, 0.42);
+  } catch {
+    /* invalid color string */
+  }
+  return color;
+}
+
+function TrendArrowUp({ strokeColor }: { strokeColor: string }) {
   return (
     <Box
       component="span"
@@ -33,7 +45,7 @@ function TrendArrowUp() {
       <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
         <path
           d="M6 9V3M6 3L3 6M6 3L9 6"
-          stroke="#22C55E"
+          stroke={strokeColor}
           strokeWidth="1.5"
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -53,10 +65,11 @@ export default function MetricCard({
   subtitleColor,
   showTrendArrow = true,
 }: MetricCardProps) {
-  const th = useTheme() as AppTheme;
-  const resolvedValueColor = valueColor ?? th.app.dashboard.metricValueDefault;
-  const titleColor = th.app.text.secondary;
-  const subtitleResolved = subtitleColor ?? th.app.text.or;
+  const theme = useTheme() as AppTheme;
+  const app = theme.app;
+  const rawValueColor = valueColor ?? theme.palette.primary.main;
+  const resolvedValueColor = readableMetricValueColor(theme, rawValueColor);
+  const resolvedSubtitleColor = subtitleColor ?? app.dashboard.white60;
 
   return (
     <DashboardCard sx={{ p: 2.5 }}>
@@ -70,41 +83,37 @@ export default function MetricCard({
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          color: th.app.text.primary,
+          color: app.dashboard.gradientButtonText,
           mb: 1.5,
         }}
       >
         {icon}
       </Box>
       {/* Title */}
-      <Typography variant="body2" fontWeight={500} sx={{ mb: 0.75, color: titleColor }}>
+      <Typography variant="body2" fontWeight={500} sx={{ mb: 0.75, color: app.dashboard.white90 }}>
         {title}
       </Typography>
-      {/* Value — Box avoids MUI h4 / palette.primary overriding sx color */}
-      <Box
-        sx={(t) => ({
-          ...t.typography.h4,
-          fontWeight: 700,
-          color: resolvedValueColor,
-          lineHeight: 1.2,
-          mb: subtitle ? 0.5 : 0,
-        })}
+      {/* Value - large, accent color */}
+      <Typography
+        variant="h4"
+        fontWeight={700}
+        sx={{ color: resolvedValueColor, lineHeight: 1.2, mb: subtitle ? 0.5 : 0 }}
       >
         {value}
-      </Box>
+      </Typography>
       {/* Subtitle with optional trend arrow */}
       {subtitle && (
         <Typography
           variant="caption"
           component="span"
           sx={{
-            color: subtitleResolved,
+            color: resolvedSubtitleColor,
             display: "inline-flex",
             alignItems: "center",
             fontSize: "0.75rem",
           }}
         >
-          {showTrendArrow && <TrendArrowUp />}
+          {showTrendArrow && <TrendArrowUp strokeColor={app.dashboard.accentGreen} />}
           {subtitle}
         </Typography>
       )}

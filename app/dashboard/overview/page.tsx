@@ -26,8 +26,13 @@ import {
   Divider,
 } from "@/components/common";
 import type { DataTableColumn } from "@/components/common";
+import { outlineFieldCursorEventProps } from "@/components/common/InputField/outlineFieldCursor";
 import { textFieldStyles } from "@/components/common/InputField/InputField.styles";
-import { selectFieldStyles } from "@/components/common/SelectField/SelectField.styles";
+import {
+  selectFieldStyles,
+  selectMenuItemSx,
+  selectMenuPaperSx,
+} from "@/components/common/SelectField/SelectField.styles";
 import { userIconPath } from "@/assets";
 import {
   overviewPageWrapper,
@@ -72,7 +77,7 @@ const USERS: UserRow[] = [
     email: "raja12@.com",
     type: "Internal",
     department: "Human Resources",
-    role: "Admin",
+    role: "Manager",
     company: "-",
     website: "-",
     supervisor: "Sarah Wilson",
@@ -82,7 +87,7 @@ const USERS: UserRow[] = [
     email: "raja12@.com",
     type: "External",
     department: "Sales",
-    role: "User",
+    role: "Account Manager",
     company: "-",
     website: "techcorp.com",
     supervisor: "Wilson",
@@ -92,7 +97,7 @@ const USERS: UserRow[] = [
     email: "raja12@.com",
     type: "Internal",
     department: "Customer Support",
-    role: "User",
+    role: "Manager",
     company: "techcorp.com",
     website: "-",
     supervisor: "Sarah Wilson",
@@ -102,7 +107,7 @@ const USERS: UserRow[] = [
     email: "raja12@.com",
     type: "Internal",
     department: "Customer Support",
-    role: "User",
+    role: "Manager",
     company: "-",
     website: "-",
     supervisor: "Sarah Wilson",
@@ -112,7 +117,7 @@ const USERS: UserRow[] = [
     email: "raja12@.com",
     type: "External",
     department: "Sales",
-    role: "Admin",
+    role: "Account Manager",
     company: "-",
     website: "techcorp.com",
     supervisor: "Wilson",
@@ -122,7 +127,7 @@ const USERS: UserRow[] = [
     email: "raja12@.com",
     type: "Internal",
     department: "Customer Support",
-    role: "Admin",
+    role: "Manager",
     company: "techcorp.com",
     website: "-",
     supervisor: "Sarah Wilson",
@@ -132,7 +137,7 @@ const USERS: UserRow[] = [
     email: "raja12@.com",
     type: "Internal",
     department: "Customer Support",
-    role: "User",
+    role: "Manager",
     company: "-",
     website: "-",
     supervisor: "Sarah Wilson",
@@ -142,7 +147,7 @@ const USERS: UserRow[] = [
     email: "raja12@.com",
     type: "External",
     department: "Sales",
-    role: "User",
+    role: "Account Manager",
     company: "-",
     website: "techcorp.com",
     supervisor: "Wilson",
@@ -161,11 +166,11 @@ export default function OverviewPage() {
   const pageCount = 2;
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [userType, setUserType] = useState<"Internal" | "External">("Internal");
-  const [parentCompany, setParentCompany] = useState("TechCorp");
+  const [parentCompany, setParentCompany] = useState("Support Manager");
   const [pocType, setPocType] = useState("Sales");
   const [childCompany, setChildCompany] = useState("John Wick");
   const [websiteValue, setWebsiteValue] = useState("John Wick");
-  const [roleValue, setRoleValue] = useState("User");
+  const [roleValue, setRoleValue] = useState("Support Manager");
   const [departmentValue, setDepartmentValue] = useState("Sales");
 
   const filteredRows = useMemo(() => {
@@ -211,7 +216,7 @@ export default function OverviewPage() {
             >
               {(String(row.user ?? "").charAt(0) || "U").toUpperCase()}
             </Avatar>
-            <Typography component="span" variant="body2" color="textPrimary" fontWeight={500}>
+            <Typography component="span" variant="body2" color="white" fontWeight={500}>
               {String(value ?? "—")}
             </Typography>
           </Box>
@@ -256,7 +261,7 @@ export default function OverviewPage() {
   return (
     <Box sx={overviewPageWrapper}>
       <Box sx={overviewHeader}>
-        <Typography variant="regularLarge" fontWeight={700} color="textPrimary">
+        <Typography variant="regularLarge" fontWeight={700} color="white">
           Overview
         </Typography>
         <Box sx={overviewAddButtonWrapper}>
@@ -266,7 +271,7 @@ export default function OverviewPage() {
             onClick={() => setIsAddOpen(true)}
           >
             <AddCircleIcon width={16} height={16} />
-            <Typography component="span" variant="medium" color="textPrimary">
+            <Typography component="span" variant="medium" sx={{ color: "inherit" }}>
               Add New User
             </Typography>
           </Button>
@@ -275,7 +280,7 @@ export default function OverviewPage() {
 
       <Box sx={overviewCardsRow}>
         <DashboardCard sx={overviewCard}>
-          <Typography variant="mediumLarge" color="textPrimary" fontWeight={500}>
+          <Typography variant="mediumLarge" color="white" fontWeight={500}>
             Department Filter
           </Typography>
           <TextField
@@ -284,6 +289,7 @@ export default function OverviewPage() {
             value={department}
             onChange={(e) => setDepartment(e.target.value)}
             variant="outlined"
+            {...outlineFieldCursorEventProps}
             sx={[textFieldStyles(theme), ...selectFieldStyles(theme)]}
             SelectProps={{
               MenuProps: {
@@ -291,13 +297,7 @@ export default function OverviewPage() {
                   zIndex: 1600,
                 },
                 PaperProps: {
-                  sx: {
-                    bgcolor: "#020617",
-                    borderRadius: 2,
-                    mt: 1,
-                    border: "1px solid rgba(148,163,184,0.3)",
-                    boxShadow: "0 18px 45px rgba(15,23,42,0.85)",
-                  },
+                  sx: selectMenuPaperSx(theme),
                 },
               },
             }}
@@ -306,13 +306,7 @@ export default function OverviewPage() {
               <MenuItem
                 key={opt}
                 value={opt}
-                sx={{
-                  fontFamily: "Manrope",
-                  fontSize: 14,
-                  color: "rgba(249,250,251,0.9)",
-                  "&.Mui-selected": { bgcolor: "rgba(59,130,246,0.18)" },
-                  "&.Mui-selected:hover": { bgcolor: "rgba(59,130,246,0.24)" },
-                }}
+                sx={selectMenuItemSx(theme)}
               >
                 {opt}
               </MenuItem>
@@ -321,7 +315,7 @@ export default function OverviewPage() {
         </DashboardCard>
 
         <DashboardCard sx={overviewCard}>
-          <Typography variant="mediumLarge" color="textPrimary" fontWeight={500}>
+          <Typography variant="mediumLarge" color="white" fontWeight={500}>
             Internal Users
           </Typography>
           <Box sx={overviewStatValue}>
@@ -339,7 +333,7 @@ export default function OverviewPage() {
         </DashboardCard>
 
         <DashboardCard sx={overviewCard}>
-          <Typography variant="mediumLarge" color="textPrimary" fontWeight={500}>
+          <Typography variant="mediumLarge" color="white" fontWeight={500}>
             External Users
           </Typography>
           <Box sx={overviewStatValue}>
@@ -363,7 +357,7 @@ export default function OverviewPage() {
             <Box sx={overviewIconBox}>
               <AttachMoneyIcon sx={{ fontSize: 20, color: "white" }} />
             </Box>
-            <Typography variant="mediumLarge" color="textPrimary">
+            <Typography variant="mediumLarge" color="white">
               Your Heading Here
             </Typography>
           </Box>
@@ -432,7 +426,7 @@ export default function OverviewPage() {
             alignItems: "center",
           }}
         >
-          <Typography variant="mediumLarge" color="textPrimary">
+          <Typography variant="mediumLarge" color="white">
             User Type & Access
           </Typography>
           <Typography
@@ -496,7 +490,7 @@ export default function OverviewPage() {
                 sx={{ p: 0.25 }}
               />
               <Box>
-                <Typography variant="medium" color="textPrimary" sx={{ mb: 0.25 }}>
+                <Typography variant="medium" color="white" sx={{ mb: 0.25 }}>
                   Internal User
                 </Typography>
                 <Typography
@@ -552,7 +546,7 @@ export default function OverviewPage() {
                 sx={{ p: 0.25 }}
               />
               <Box>
-                <Typography variant="medium" color="textPrimary" sx={{ mb: 0.25 }}>
+                <Typography variant="medium" color="white" sx={{ mb: 0.25 }}>
                   External User
                 </Typography>
                 <Typography
@@ -581,8 +575,8 @@ export default function OverviewPage() {
                 value={parentCompany}
                 onChange={setParentCompany}
                 options={[
+                  { label: "Support Manager", value: "Support Manager" },
                   { label: "TechCorp", value: "TechCorp" },
-                  { label: "Acme Corp", value: "Acme Corp" },
                 ]}
               />
               <SelectField
@@ -639,8 +633,8 @@ export default function OverviewPage() {
             value={roleValue}
             onChange={setRoleValue}
             options={[
-              { label: "Admin", value: "Admin" },
-              { label: "User", value: "User" },
+              { label: "Support Manager", value: "Support Manager" },
+              { label: "Agent", value: "Agent" },
             ]}
           />
           <SelectField

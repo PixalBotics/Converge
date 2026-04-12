@@ -47,7 +47,7 @@ export const getAgentTableSx = (theme: AppTheme): SxProps<Theme> => ({
   "& .MuiTableCell-root": { borderColor: theme.app.dashboard.cardBorder },
   "& thead .MuiTableCell-root": {
     borderBottom: `0.5px solid ${theme.app.dashboard.tableDivider}`,
-    color: theme.palette.text.secondary,
+    color: theme.app.dashboard.white7,
     fontSize: 13,
   },
 });

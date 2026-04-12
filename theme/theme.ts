@@ -1,43 +1,8 @@
-import { createTheme, type Theme, type ThemeOptions } from "@mui/material/styles";
-import { parseHexToRgb } from "@/lib/theme/shellChrome";
-import {
-  deriveReadableTextHexesFromBackground,
-  isDarkAppearanceBackground,
-} from "@/lib/theme/backgroundTextContrast";
-import { deriveDashboardUiTokens } from "@/lib/theme/dashboardUiTokens";
-import type { DashboardContentUi } from "@/lib/dashboard-appearance/types";
-import { buildMuiComponentOverrides } from "./muiComponentOverrides";
+import { createTheme, darken } from "@mui/material/styles";
 
-function buildAppColorsWithText(primaryHex: string, secondaryHex: string) {
-  const p = parseHexToRgb(primaryHex);
-  const s = parseHexToRgb(secondaryHex);
-  return {
-    ...appColors,
-    text: {
-      ...appColors.text,
-      primary: primaryHex,
-      secondary: `rgba(${s.r},${s.g},${s.b},0.9)`,
-      link: `rgba(${s.r},${s.g},${s.b},0.95)`,
-      or: `rgba(${s.r},${s.g},${s.b},0.78)`,
-      placeholder: `rgba(${s.r},${s.g},${s.b},0.68)`,
-      iconMuted: `rgba(${p.r},${p.g},${p.b},0.72)`,
-    },
-    dashboard: {
-      ...appColors.dashboard,
-      /** Keep neutral: body `text.primary` gets a cool tint from auto-contrast; chart + metric values stay #fff. */
-      textMuted: `rgba(${s.r},${s.g},${s.b},0.92)`,
-      textMuted95: `rgba(${s.r},${s.g},${s.b},0.96)`,
-      iconMuted: `rgba(${p.r},${p.g},${p.b},0.88)`,
-    },
-  };
-}
-
-/**
- * Default canvas: layered meshes + deep base — reads as modern AI / SaaS without busy noise.
- * Safe to replace via Settings (stored CSS `background` value: color or gradients).
- */
+/** App-wide background gradient (Discord-style midnight + Nitro-adjacent presets). */
 export const mainBackgroundGradient =
-  "radial-gradient(ellipse 118% 88% at 82% -18%, rgba(99, 102, 241, 0.42) 0%, transparent 54%), radial-gradient(ellipse 92% 72% at 6% 102%, rgba(168, 85, 247, 0.2) 0%, transparent 50%), radial-gradient(ellipse 76% 58% at 48% 108%, rgba(34, 211, 238, 0.12) 0%, transparent 46%), linear-gradient(172deg, #06060e 0%, #0b0916 40%, #070712 100%)";
+  "linear-gradient(180deg, #050508 0%, #0a0a2c 100%)";
 
 /** Design tokens: app palette. Single source of truth; access via theme.app. */
 const appColors = {
@@ -68,13 +33,49 @@ const appColors = {
     socialButtonDark: "#333331",
   },
   dashboard: {
-    sidebarBg: "#0F0E24",
-    headerBg: "#16142A",
-    contentBg: "linear-gradient(180deg, #100E26 0%, #0D0B1E 100%)",
-    cardBg: "rgba(22, 20, 42, 0.8)",
+    /** Bottom border under dashboard header / sidebar header */
+    headerBorderGradient: "linear-gradient(90deg, #202225 0%, #5865f2 100%)",
+    /** 1px outline on floating sidebar / header panels (glass UI) */
+    shellBorder: "rgba(255, 255, 255, 0.1)",
+    /** Large corner radius for sidebar + header shells */
+    shellRadius: "28px",
+    /** Selected nav row background */
+    navItemSelectedBg: "rgba(88, 101, 242, 0.22)",
+    /** Inset glass shadow on selected nav (matches grey.* chip colors) */
+    navSelectedInsetShadow: `
+      0px 0px 6px 0px #F2F2F2 inset,
+      0px 0px 3px 0px #FFFFFF80 inset,
+      -1px -1px 0.5px -1px #FFFFFF inset,
+      1px 1px 0.5px -1px #FFFFFF inset,
+      -1px -1px 0px -0.5px #262626 inset,
+      1px 1px 0px -0.5px #333333 inset
+    `,
+    /** Search field + icon button outline on dark chrome */
+    searchChromeBorder: "#181818",
+    /** Secondary line (e.g. “Dashboard” label) */
+    textSubtleMuted: "rgba(255, 255, 255, 0.5)",
+    /** Account / overflow menus */
+    menuSurfaceBg: "#1e1f22",
+    mobileSearchBarBg: "rgba(43, 45, 49, 0.96)",
+    mobileSearchBackdrop: "rgba(0, 0, 0, 0.4)",
+    white80: "rgba(255, 255, 255, 0.8)",
+    white90: "rgba(255, 255, 255, 0.9)",
+    mobileSearchBarShadow:
+      "0 8px 32px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.06)",
+    sidebarBg: "#2b2d31",
+    headerBg: "#1e1f22",
+    contentBg: "linear-gradient(180deg, #1e1f22 0%, #2b2d31 100%)",
+    cardBg: "rgba(47, 49, 54, 0.88)",
+    /** DashboardCard frosted layer */
+    cardBackdropBlur: "blur(116.45703125px)",
+    /** `none` = full painted sidebar (uses page background). Else translucent + blur. */
+    sidebarBackdropBlur: "none",
+    headerBackdropBlur: "none",
+    /** Main column frosted overlay; `none` = transparent (page bg shows through). */
+    mainBackdropBlur: "none",
     cardBorder: "rgba(255, 255, 255, 0.08)",
-    navActiveBg: "rgba(99, 102, 241, 0.22)",
-    accentBlue: "#3B82F6",
+    navActiveBg: "rgba(88, 101, 242, 0.24)",
+    accentBlue: "#5865F2",
     accentOrange: "#F97316",
     accentPink: "#EC4899",
     accentPurple: "#A855F7",
@@ -111,47 +112,30 @@ const appColors = {
     radioActiveBorder: "rgba(34, 197, 94, 0.6)",
     radioInactiveBorder: "rgba(148, 163, 184, 0.6)",
     radioActiveRing: "rgba(34, 197, 94, 0.35)",
-    glassGradient: "linear-gradient(145deg, rgba(255, 255, 255, 0.09) 0%, rgba(255, 255, 255, 0.02) 100%)",
+    glassGradient: "linear-gradient(140deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02))",
     glassShadow:
-      "0 12px 40px rgba(2, 6, 23, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.06) inset, inset 0 1px 0 rgba(255, 255, 255, 0.12)",
-    /** Shell: sidebar / header frosted layer */
-    glassChromeBg:
-      "linear-gradient(180deg, rgba(15, 23, 42, 0.52) 0%, rgba(15, 23, 42, 0.36) 100%)",
-    glassChromeBlur: "blur(22px) saturate(160%)",
-    glassChromeBorder: "rgba(255, 255, 255, 0.1)",
-    glassChromeHighlight: "rgba(255, 255, 255, 0.14)",
-    navLabel: "rgba(165, 180, 252, 0.92)",
-    navItemHover: "rgba(255, 255, 255, 0.06)",
+      "0 8px 18px rgba(2, 8, 30, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.08)",
     liveChat: {
-      cardBg: "#1B1938",
-      messageBg: "#282548",
-      avatarBg: "#5B4F8B",
+      cardBg: "#2b2d31",
+      messageBg: "#313338",
+      avatarBg: "#5865F2",
       messageText: "#D0D0D0",
       cardGlass: "#F4F4F403",
     },
     chartPurple: "#3A3258",
     chartViolet: "#6B46C1",
-    pillBg: "#16123F",
-    pillActive: "#2B254D",
+    pillBg: "#2b2d31",
+    pillActive: "#1e1f22",
     primaryTint: "#0048B70A",
     gradientButton: "linear-gradient(135deg, #1F2937 0%, #020617 100%)",
+    /** Label/icon on `gradientButton` (not `text.primary`, which is for page body in light themes). */
+    gradientButtonText: "rgba(248, 250, 252, 0.98)",
     gradientIcon: "radial-gradient(100% 100% at 50% 0%, #A855F7 0%, #312E81 100%)",
-    /** Filled from `deriveDashboardUiTokens` when theme is built from appearance */
-    chartGridStroke: "#FFFFFF",
-    chartAxisStroke: "rgba(255,255,255,0.25)",
-    chartTickFill: "rgba(255,255,255,0.7)",
-    chartCursor: "rgba(255,255,255,0.45)",
-    chartLinePrimary: "#FFFFFF",
-    chartLineSecondary: "#0048B7",
-    chartAreaStopTop: "rgba(255,255,255,0.18)",
-    chartAreaStopMid: "rgba(168, 85, 247, 0.08)",
-    chartAreaStopBottom: "rgba(168, 85, 247, 0)",
-    chartTooltipBg: "rgba(15, 23, 42, 0.92)",
-    chartTooltipBorder: "rgba(148, 163, 184, 0.25)",
-    chartTooltipLabel: "#FFFFFF",
-    metricValueDefault: "#818CF8",
   },
 } as const;
+
+/** Exported for appearance presets / dynamic theme merge. */
+export const defaultAppColors = appColors;
 
 declare module "@mui/material/styles" {
   interface Theme {
@@ -164,152 +148,67 @@ declare module "@mui/material/styles" {
   }
 }
 
-const baseThemeOptions: ThemeOptions = {
-  typography: {
-    fontFamily: '"Inter", "Manrope", sans-serif',
-  },
-  palette: {
-    mode: "light",
-    primary: {
-      main: "#6366F1",
-      dark: "#4F46E5",
-    },
-    secondary: {
-      main: "#A855F7",
-    },
-  },
-  app: appColors,
-  components: {
-    MuiCssBaseline: {
-      styleOverrides: {
-        html: {
-          scrollbarWidth: "none",
-          msOverflowStyle: "none",
-          "&::-webkit-scrollbar": {
-            display: "none",
-          },
-        },
-        body: {
-          scrollbarWidth: "none",
-          msOverflowStyle: "none",
-          "&::-webkit-scrollbar": {
-            display: "none",
-          },
-        },
-      },
-    },
-  },
-};
+/** Static default; runtime theme may be overridden by `ThemeRegistry`. */
+export const theme = createAppMuiTheme(appColors, mainBackgroundGradient, "dark");
 
-export type AppThemeTextOptions =
-  | { autoFromBackground: true }
-  | { primaryHex: string; secondaryHex: string; autoFromBackground?: false };
+/** Theme type including app palette. Use for useTheme() and SxProps<AppTheme>. */
+export type AppTheme = typeof theme;
 
-export function createAppTheme(
-  appBackground: string = mainBackgroundGradient,
-  text?: AppThemeTextOptions,
-  contentUi?: DashboardContentUi
+/** Pill CTA (Add Department / Role / User, etc.): tints from accent so it matches preset & custom color. */
+function accentCtaGradient(accent: string) {
+  return `linear-gradient(135deg, ${darken(accent, 0.32)} 0%, ${darken(accent, 0.58)} 100%)`;
+}
+
+export function createAppMuiTheme(
+  app: typeof appColors,
+  appBackground: string,
+  paletteMode: "light" | "dark"
 ) {
-  let primaryHex = text && "primaryHex" in text ? text.primaryHex : undefined;
-  let secondaryHex = text && "secondaryHex" in text ? text.secondaryHex : undefined;
-  if (text?.autoFromBackground) {
-    const d = deriveReadableTextHexesFromBackground(appBackground);
-    primaryHex = d.primaryHex;
-    secondaryHex = d.secondaryHex;
-  }
-
-  let app: typeof appColors;
-  if (primaryHex != null && secondaryHex != null) {
-    const built = buildAppColorsWithText(primaryHex, secondaryHex);
-    const ui = deriveDashboardUiTokens(appBackground, primaryHex, secondaryHex, contentUi);
-    app = {
-      ...built,
-      dashboard: {
-        ...built.dashboard,
-        cardBg: ui.cardBg,
-        cardBorder: ui.cardBorder,
-        chartGridStroke: ui.chartGrid,
-        chartAxisStroke: ui.chartAxis,
-        chartTickFill: ui.chartTick,
-        chartCursor: ui.chartCursor,
-        chartLinePrimary: ui.chartLine1,
-        chartLineSecondary: ui.chartLine2,
-        chartAreaStopTop: ui.chartAreaStopTop,
-        chartAreaStopMid: ui.chartAreaStopMid,
-        chartAreaStopBottom: ui.chartAreaStopBottom,
-        chartTooltipBg: ui.chartTooltipBg,
-        chartTooltipBorder: ui.chartTooltipBorder,
-        chartTooltipLabel: ui.chartTooltipLabel,
-        metricValueDefault: ui.metricValue,
-      },
-    } as typeof appColors;
-  } else {
-    app = appColors;
-  }
-
-  const darkCanvas = isDarkAppearanceBackground(appBackground);
+  const accent = app.dashboard.accentBlue;
+  const appResolved = {
+    ...app,
+    dashboard: {
+      ...app.dashboard,
+      gradientButton: accentCtaGradient(accent),
+    },
+  } as typeof appColors;
 
   return createTheme({
-    ...baseThemeOptions,
-    appBackground,
-    app: app as unknown as typeof appColors,
-    palette: {
-      ...baseThemeOptions.palette,
-      mode: darkCanvas ? "dark" : "light",
-      ...(primaryHex != null && secondaryHex != null
-        ? {
-            text: {
-              primary: primaryHex,
-              secondary: app.text.secondary,
-            },
-          }
-        : {}),
+    typography: {
+      fontFamily: '"Inter", "Manrope", sans-serif',
     },
+    palette: {
+      mode: paletteMode,
+      primary: {
+        main: accent,
+        dark: darken(accent, 0.15),
+      },
+      secondary: {
+        main: "#9c27b0",
+      },
+    },
+    appBackground,
+    app: appResolved,
     components: {
-      ...baseThemeOptions.components,
-      ...buildMuiComponentOverrides(),
       MuiCssBaseline: {
         styleOverrides: {
           html: {
             scrollbarWidth: "none",
             msOverflowStyle: "none",
-            "&::-webkit-scrollbar": { display: "none" },
+            "&::-webkit-scrollbar": {
+              display: "none",
+            },
           },
-          body: ({ theme }: { theme: Theme }) => ({
+          body: {
             scrollbarWidth: "none",
             msOverflowStyle: "none",
-            "&::-webkit-scrollbar": { display: "none" },
-            color: theme.palette.text.primary,
-            /** Global hooks for raw SVG / portals that do not receive MUI theme */
-            "--app-text-primary": theme.palette.text.primary,
-            "--app-text-secondary": theme.palette.text.secondary,
-            "--app-icon-muted": theme.app.text.iconMuted,
-            "--app-chart-grid": theme.app.dashboard.chartGridStroke,
-            "--app-chart-axis": theme.app.dashboard.chartAxisStroke,
-            "--app-chart-tick": theme.app.dashboard.chartTickFill,
-            "--app-chart-tooltip-label": theme.app.dashboard.chartTooltipLabel,
-          }),
-        },
-      },
-      MuiTypography: {
-        styleOverrides: {
-          root: ({ theme }) => ({
-            color: theme.palette.text.primary,
-          }),
-        },
-      },
-      MuiSvgIcon: {
-        styleOverrides: {
-          /** Inherit from parent (main area, IconButton, ListItemIcon) so theme text colours control icons */
-          root: { color: "inherit" },
+            "&::-webkit-scrollbar": {
+              display: "none",
+            },
+          },
         },
       },
     },
   });
 }
 
-/** Static default theme (SSR and tests). Prefer ThemeRegistry for interactive app. */
-export const theme = createAppTheme();
-
-/** Theme type including app palette. Use for useTheme() and SxProps<AppTheme>. */
-export type AppTheme = ReturnType<typeof createAppTheme>;

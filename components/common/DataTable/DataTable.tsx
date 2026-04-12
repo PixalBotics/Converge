@@ -1,7 +1,7 @@
 "use client";
 
 import Box from "@mui/material/Box";
-import { useTheme } from "@mui/material/styles";
+import type { SxProps, Theme } from "@mui/material/styles";
 import type { DataTableProps } from "./DataTable.types";
 import {
   dataTableRoot,
@@ -21,10 +21,7 @@ export function DataTable<T extends Record<string, unknown>>({
   tableSx,
   containerSx,
 }: DataTableProps<T>) {
-  const theme = useTheme();
   const sizeCellSx = size === "medium" ? { py: 1.5 } : { py: 1 };
-  const resolve = (sx: typeof dataTableHeaderCell) =>
-    typeof sx === "function" ? sx(theme) : sx;
 
   const getCellValue = (row: T, columnId: string): React.ReactNode => {
     const value = row[columnId];
@@ -50,13 +47,16 @@ export function DataTable<T extends Record<string, unknown>>({
               <Box
                 key={col.id}
                 component="th"
-                sx={{ ...resolve(dataTableHeaderCell), ...sizeCellSx }}
+                sx={[dataTableHeaderCell, sizeCellSx] as SxProps<Theme>}
               >
-                {col.label}
+                {col.headerRender ? col.headerRender() : col.label}
               </Box>
             ))}
             {actionColumn && (
-              <Box component="th" sx={{ ...resolve(dataTableHeaderCell), ...sizeCellSx }}>
+              <Box
+                component="th"
+                sx={[dataTableHeaderCell, sizeCellSx] as SxProps<Theme>}
+              >
                 {actionColumn.label}
               </Box>
             )}
@@ -69,12 +69,12 @@ export function DataTable<T extends Record<string, unknown>>({
                 <Box
                   key={col.id}
                   component="td"
-                  sx={{
-                    ...resolve(
-                      col.cellVariant === "muted" ? dataTableCellMuted : dataTableCellDefault
-                    ),
-                    ...sizeCellSx,
-                  }}
+                  sx={
+                    [
+                      col.cellVariant === "muted" ? dataTableCellMuted : dataTableCellDefault,
+                      sizeCellSx,
+                    ] as SxProps<Theme>
+                  }
                 >
                   {col.render
                     ? col.render(row[col.id], row, idx)

@@ -1,10 +1,13 @@
+import type { ReactNode } from "react";
 import type { SxProps, Theme } from "@mui/material/styles";
 
 export interface DataTableColumn<T = Record<string, unknown>> {
   /** Unique key matching row data */
   id: string;
-  /** Header label */
+  /** Header label (ignored when `headerRender` is set) */
   label: string;
+  /** Optional custom header cell (e.g. select-all checkbox) */
+  headerRender?: () => ReactNode;
   /** Cell text style: default (white) or muted (gray) */
   cellVariant?: "default" | "muted";
   /** Optional custom cell render: (value, row, index) => ReactNode */

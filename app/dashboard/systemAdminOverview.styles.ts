@@ -1,3 +1,4 @@
+import { alpha } from "@mui/material/styles";
 import type { SxProps, Theme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 
@@ -69,16 +70,19 @@ export const footerMutedText = (theme: AppTheme): SxProps<Theme> => ({
 });
 
 /** Modal stepper outer (chevron clip) */
-export const stepperOuter: SxProps<Theme> = {
-  position: "relative",
-  width: "100%",
-  minHeight: "71.5px",
-  clipPath: STEPPER_CLIP,
-  background: "rgba(0,0,0,0.45)",
-  display: "flex",
-  alignItems: "stretch",
-  boxSizing: "border-box",
-  filter: "drop-shadow(0 0 0.5px #CFD6DC)",
+export const stepperOuter: SxProps<Theme> = (theme) => {
+  const app = (theme as AppTheme).app;
+  return {
+    position: "relative",
+    width: "100%",
+    minHeight: "71.5px",
+    clipPath: STEPPER_CLIP,
+    background: alpha(app.dashboard.pillBg, 0.92),
+    display: "flex",
+    alignItems: "stretch",
+    boxSizing: "border-box",
+    filter: `drop-shadow(0 0 0.5px ${app.dashboard.cardBorder})`,
+  };
 };
 
 export const stepperSegment: SxProps<Theme> = {
@@ -92,75 +96,82 @@ export const stepperSegment: SxProps<Theme> = {
   px: 1,
 };
 
-export const stepperDivider: SxProps<Theme> = {
+export const stepperDivider: SxProps<Theme> = (theme) => ({
   width: "1px",
   flexShrink: 0,
   alignSelf: "stretch",
-  bgcolor: "#CFD6DC",
-};
+  bgcolor: (theme as AppTheme).app.dashboard.cardBorder,
+});
 
-export const stepperCheckIcon: SxProps<Theme> = {
+export const stepperCheckIcon: SxProps<Theme> = (theme) => ({
   fontSize: 28,
-  color: "#2563EB",
+  color: (theme as AppTheme).app.dashboard.accentBlue,
+});
+
+export const stepperNumberCircleActive: SxProps<Theme> = (theme) => {
+  const accent = (theme as AppTheme).app.dashboard.accentBlue;
+  return {
+    width: 28,
+    height: 28,
+    borderRadius: "50%",
+    border: `2px solid ${accent}`,
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    color: accent,
+    fontSize: 12,
+    fontWeight: 700,
+  };
 };
 
-export const stepperNumberCircleActive: SxProps<Theme> = {
-  width: 28,
-  height: 28,
-  borderRadius: "50%",
-  border: "2px solid #2563EB",
-  display: "inline-flex",
-  alignItems: "center",
-  justifyContent: "center",
-  color: "#2563EB",
-  fontSize: 12,
-  fontWeight: 700,
+export const stepperNumberCircleInactive: SxProps<Theme> = (theme) => {
+  const app = (theme as AppTheme).app;
+  const muted = app.dashboard.textMuted;
+  return {
+    width: 28,
+    height: 28,
+    borderRadius: "50%",
+    border: `2px solid ${alpha(muted, 0.75)}`,
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    color: muted,
+    fontSize: 12,
+    fontWeight: 700,
+  };
 };
 
-export const stepperNumberCircleInactive: SxProps<Theme> = {
-  width: 28,
-  height: 28,
-  borderRadius: "50%",
-  border: "2px solid rgba(207,214,220,0.7)",
-  display: "inline-flex",
-  alignItems: "center",
-  justifyContent: "center",
-  color: "rgba(207,214,220,0.9)",
-  fontSize: 12,
-  fontWeight: 700,
-};
-
-export const stepperLabelResellerDone: SxProps<Theme> = {
-  color: "text.primary",
+export const stepperLabelResellerDone: SxProps<Theme> = (theme) => ({
+  color: (theme as AppTheme).app.dashboard.white95,
   fontSize: 14,
   fontWeight: 500,
   lineHeight: 1.2,
   textAlign: "center",
-};
+});
 
-export const stepperLabelResellerActive: SxProps<Theme> = {
-  color: "#2563EB",
+export const stepperLabelResellerActive: SxProps<Theme> = (theme) => ({
+  color: (theme as AppTheme).app.dashboard.accentBlue,
   fontSize: 14,
   fontWeight: 500,
   lineHeight: 1.2,
   textAlign: "center",
-};
+});
 
-export const stepperLabelChildDone: SxProps<Theme> = {
-  color: "text.primary",
+export const stepperLabelChildDone: SxProps<Theme> = (theme) => ({
+  color: (theme as AppTheme).app.dashboard.white95,
   fontSize: 14,
   fontWeight: 500,
   lineHeight: 1.2,
   textAlign: "center",
-};
+});
 
-export const stepperLabelChildInactive: SxProps<Theme> = {
-  color: "rgba(207,214,220,0.85)",
+export const stepperLabelChildInactive: SxProps<Theme> = (theme) => ({
+  color: (theme as AppTheme).app.dashboard.textMuted,
   fontSize: 14,
   fontWeight: 500,
   lineHeight: 1.2,
   textAlign: "center",
-};
+});
 
 export const stepOneIncompleteHint: SxProps<Theme> = {
   color: "rgba(248,113,113,0.95)",
@@ -196,12 +207,11 @@ export const sectionHeaderRowWebsiteRest: SxProps<Theme> = {
   mb: -1,
 };
 
-export const deleteIconButton: SxProps<Theme> = (theme) => ({
+export const deleteIconButton: SxProps<Theme> = {
   width: 43,
   height: 43,
   p: 0,
-  color: theme.palette.text.primary,
-});
+};
 
 export const addAnotherButton: SxProps<Theme> = {
   display: "inline-flex",
@@ -215,11 +225,11 @@ export const addAnotherButton: SxProps<Theme> = {
 };
 
 export const addAnotherIcon: SxProps<Theme> = {
-  color: "text.secondary",
+  color: "rgba(255,255,255,0.8)",
 };
 
 export const addAnotherLabel: SxProps<Theme> = {
-  color: "text.secondary",
+  color: "rgba(255,255,255,0.8)",
 };
 
 export const websiteTwoColGrid: SxProps<Theme> = {

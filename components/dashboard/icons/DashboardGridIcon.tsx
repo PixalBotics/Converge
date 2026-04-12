@@ -11,7 +11,11 @@ interface DashboardGridIconProps {
 
 export function DashboardGridIcon({ sx, width = 20, height = 20 }: DashboardGridIconProps) {
   return (
-    <Box sx={sx} component="span" display="inline-flex">
+    <Box
+      component="span"
+      display="inline-flex"
+      sx={[{ color: "inherit" }, ...(sx ? (Array.isArray(sx) ? sx : [sx]) : [])] as SxProps<Theme>}
+    >
       <svg
         width={width}
         height={height}
