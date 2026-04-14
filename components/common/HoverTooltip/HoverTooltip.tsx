@@ -5,7 +5,6 @@ import Box from "@mui/material/Box";
 
 /** Discord-style panel (matches theme swatch chrome) */
 const TOOLTIP_BG = "#36393f";
-const ARROW_SIZE = 6;
 
 export type HoverTooltipProps = {
   /** e.g. preset label — shown in the tooltip */
@@ -16,7 +15,7 @@ export type HoverTooltipProps = {
 };
 
 /**
- * Hover-only label above the child; dark bubble + downward arrow (theme picker style).
+ * Hover-only label above the child; dark bubble without arrow.
  */
 export function HoverTooltip({ label, children, fullWidth = true }: HoverTooltipProps) {
   const [open, setOpen] = useState(false);
@@ -43,7 +42,7 @@ export function HoverTooltip({ label, children, fullWidth = true }: HoverTooltip
             left: "50%",
             bottom: "100%",
             transform: "translateX(-50%)",
-            mb: `${ARROW_SIZE}px`,
+            mb: "6px",
             zIndex: 20,
             pointerEvents: "none",
           }}
@@ -62,18 +61,6 @@ export function HoverTooltip({ label, children, fullWidth = true }: HoverTooltip
               fontFamily: '"Inter", "Manrope", sans-serif',
               whiteSpace: "nowrap",
               boxShadow: "0 4px 12px rgba(0, 0, 0, 0.35)",
-              "&::after": {
-                content: '""',
-                position: "absolute",
-                left: "50%",
-                bottom: -ARROW_SIZE,
-                transform: "translateX(-50%)",
-                width: 0,
-                height: 0,
-                borderLeft: `${ARROW_SIZE}px solid transparent`,
-                borderRight: `${ARROW_SIZE}px solid transparent`,
-                borderTop: `${ARROW_SIZE}px solid ${TOOLTIP_BG}`,
-              },
             }}
           >
             {label}

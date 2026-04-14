@@ -91,6 +91,18 @@ export default function DashboardSidebar({ open = false, onClose }: { open?: boo
         </ListItemButton>
         <ListItemButton
           component={Link}
+          href="/dashboard/hrms"
+          selected={pathname === "/dashboard/hrms"}
+          sx={navItemSx}
+          onClick={() => !isDesktop && onClose?.()}
+        >
+          <ListItemIcon sx={pathname === "/dashboard/hrms" ? listIconSelectedSx : listIconDefaultSx}>
+            <DashboardGridIcon />
+          </ListItemIcon>
+          <ListItemText primary="HRMS" primaryTypographyProps={navTextProps} />
+        </ListItemButton>
+        <ListItemButton
+          component={Link}
           href="/dashboard/overview"
           selected={pathname === "/dashboard/overview"}
           sx={navItemSx}

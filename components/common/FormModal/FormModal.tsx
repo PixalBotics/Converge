@@ -111,7 +111,14 @@ export function FormModal({
             {description && (
               <Typography
                 variant="body2"
-                sx={{ mt: 0.5, color: theme.app.dashboard.textMuted, fontSize: 14 }}
+                sx={{
+                  mt: 0.5,
+                  color:
+                    theme.palette.mode === "light"
+                      ? theme.app.text.secondary
+                      : theme.app.dashboard.white80,
+                  fontSize: 14,
+                }}
               >
                 {description}
               </Typography>
@@ -141,12 +148,13 @@ export function FormModal({
                     height: 35,
                     p: 0,
                     flexShrink: 0,
-                    border: `1px solid ${theme.palette.error.main}`,
+                    border: `1px solid ${theme.app.dashboard.textMuted}`,
                     borderRadius: "50%",
-                    color: theme.palette.error.main,
+                    color: theme.app.dashboard.textMuted95,
                     "&:hover": {
                       bgcolor: theme.palette.action.hover,
-                      borderColor: theme.palette.error.main,
+                      borderColor: theme.app.text.primary,
+                      color: theme.app.text.primary,
                     },
                   }
             }

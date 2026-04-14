@@ -461,15 +461,18 @@ export const tableAvatarIcon: SxProps<Theme> = {
   fontSize: 18,
 };
 
-export const activeChatsPill: SxProps<Theme> = {
+export const activeChatsPill: SxProps<Theme> = (theme) => ({
   px: 1.25,
   py: 0.25,
   borderRadius: "9999px",
-  bgcolor: "rgba(59, 130, 246, 0.2)",
-  color: "#93C5FD",
+  bgcolor:
+    theme.palette.mode === "light"
+      ? "rgba(59, 130, 246, 0.18)"
+      : "rgba(59, 130, 246, 0.2)",
+  color: theme.palette.mode === "light" ? "#1D4ED8" : "#FFFFFF",
   fontSize: "0.75rem",
   fontWeight: 500,
-};
+});
 
 export const avgRatingBox: SxProps<Theme> = {
   display: "inline-flex",

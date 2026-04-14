@@ -222,7 +222,7 @@ export default function OverviewPage() {
           </Box>
         ),
       },
-      { id: "email", label: "Email", cellVariant: "muted" },
+      { id: "email", label: "Email", cellVariant: "default" },
       {
         id: "type",
         label: "Type",
@@ -237,12 +237,20 @@ export default function OverviewPage() {
               fontWeight: 500,
               bgcolor:
                 String(value) === "Internal"
-                  ? theme.app.dashboard.blueTintBg
-                  : theme.app.dashboard.pinkTintBg,
+                  ? theme.palette.mode === "light"
+                    ? theme.app.dashboard.blueTintBg
+                    : "rgba(59, 130, 246, 0.28)"
+                  : theme.palette.mode === "light"
+                    ? theme.app.dashboard.pinkTintBg
+                    : "rgba(236, 72, 153, 0.24)",
               color:
                 String(value) === "Internal"
-                  ? theme.app.dashboard.blueTint
-                  : theme.app.dashboard.accentPinkLight,
+                  ? theme.palette.mode === "light"
+                    ? "#111827"
+                    : "#FFFFFF"
+                  : theme.palette.mode === "light"
+                    ? "#111827"
+                    : "#FFFFFF",
             }}
           >
             {String(value ?? "—")}
@@ -250,10 +258,10 @@ export default function OverviewPage() {
         ),
       },
       { id: "department", label: "Department", cellVariant: "default" },
-      { id: "role", label: "Role", cellVariant: "muted" },
-      { id: "company", label: "Company", cellVariant: "muted" },
-      { id: "website", label: "Website", cellVariant: "muted" },
-      { id: "supervisor", label: "Supervisor", cellVariant: "muted" },
+      { id: "role", label: "Role", cellVariant: "default" },
+      { id: "company", label: "Company", cellVariant: "default" },
+      { id: "website", label: "Website", cellVariant: "default" },
+      { id: "supervisor", label: "Supervisor", cellVariant: "default" },
     ],
     [theme]
   );

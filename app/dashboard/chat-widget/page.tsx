@@ -111,8 +111,8 @@ export default function ChatWidgetPage() {
               px: 1.1,
               py: 0.45,
               borderRadius: "9999px",
-              bgcolor: alpha(theme.palette.success.main, 0.12),
-              border: `1px solid ${alpha(theme.palette.success.main, 0.28)}`,
+              bgcolor: alpha(theme.palette.success.main, theme.palette.mode === "light" ? 0.16 : 0.12),
+              border: `1px solid ${alpha(theme.palette.success.main, theme.palette.mode === "light" ? 0.3 : 0.28)}`,
               lineHeight: 1,
             }}
           >
@@ -126,7 +126,15 @@ export default function ChatWidgetPage() {
                 flexShrink: 0,
               }}
             />
-            <Typography component="span" variant="body2" sx={{ color: theme.palette.success.light, fontWeight: 600, fontSize: "0.75rem" }}>
+            <Typography
+              component="span"
+              variant="body2"
+              sx={{
+                color: theme.palette.mode === "light" ? "#166534" : theme.palette.success.light,
+                fontWeight: 600,
+                fontSize: "0.75rem",
+              }}
+            >
               {row.status}
             </Typography>
           </Box>

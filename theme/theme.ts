@@ -174,13 +174,23 @@ export function createAppMuiTheme(
   paletteMode: "light" | "dark"
 ) {
   const accent = app.dashboard.accentBlue;
+  const normalizedTextMuted =
+    paletteMode === "light"
+      ? "rgba(15, 23, 42, 0.82)"
+      : "rgba(226, 232, 240, 0.88)";
+  const normalizedTextMuted95 =
+    paletteMode === "light"
+      ? "rgba(15, 23, 42, 0.92)"
+      : "rgba(226, 232, 240, 0.95)";
   const appResolved = {
     ...app,
     dashboard: {
       ...app.dashboard,
       gradientButton: accentCtaGradient(accent),
+      textMuted: normalizedTextMuted,
+      textMuted95: normalizedTextMuted95,
     },
-  } as typeof appColors;
+  } as unknown as typeof appColors;
 
   return createTheme({
     typography: {

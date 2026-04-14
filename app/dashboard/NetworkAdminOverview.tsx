@@ -115,9 +115,15 @@ export default function NetworkAdminOverview() {
               px: 1.2,
               py: 0.45,
               borderRadius: "9999px",
-              bgcolor: "rgba(34,197,94,0.16)",
-              color: "#22C55E",
-              border: "1px solid rgba(34,197,94,0.35)",
+              bgcolor:
+                theme.palette.mode === "light"
+                  ? "rgba(34,197,94,0.16)"
+                  : "rgba(34,197,94,0.12)",
+              color: theme.palette.mode === "light" ? "#166534" : "#86EFAC",
+              border:
+                theme.palette.mode === "light"
+                  ? "1px solid rgba(34,197,94,0.3)"
+                  : "1px solid rgba(34,197,94,0.35)",
               fontSize: "0.75rem",
               fontWeight: 600,
             }}

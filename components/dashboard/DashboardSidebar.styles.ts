@@ -2,7 +2,6 @@ import { alpha, getLuminance, lighten } from "@mui/material/styles";
 import type { SxProps, Theme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import { typographyVariants } from "@/components/common/Typography/typography.styles";
-import { mainBackgroundGradient } from "@/theme/theme";
 
 export const SIDEBAR_WIDTH = 260;
 
@@ -119,27 +118,30 @@ export const navItemSx: SxProps<Theme> = (theme) => {
   };
 };
 
-export const getSidebarBackground = (theme: Theme) =>
-  (theme as Theme & { appBackground?: string }).appBackground ?? mainBackgroundGradient;
-
 export const sidebarInnerSx: SxProps<Theme> = {
   width: SIDEBAR_WIDTH,
   height: "100%",
-  background: (t) => {
+  backgroundColor: (t) => {
+    const isLight = t.palette.mode === "light";
+    return isLight ? "rgba(255, 255, 255, 0.3)" : "rgba(8, 12, 22, 0.34)";
+  },
+  backgroundImage: (t) => {
     const app = (t as AppTheme).app;
-    const blur = app.dashboard.sidebarBackdropBlur;
-    if (blur && blur !== "none") {
-      return app.dashboard.sidebarBg;
-    }
-    return getSidebarBackground(t as Theme);
+    return `linear-gradient(180deg, ${alpha("#ffffff", 0.12)} 0%, ${alpha("#ffffff", 0.02)} 100%), ${app.dashboard.sidebarBg}`;
   },
   backdropFilter: (t) => {
+    const isLight = t.palette.mode === "light";
     const b = (t as AppTheme).app.dashboard.sidebarBackdropBlur;
-    return !b || b === "none" ? undefined : b;
+    return !b || b === "none"
+      ? (isLight ? "blur(18px) saturate(165%)" : "blur(24px) saturate(180%)")
+      : b;
   },
   WebkitBackdropFilter: (t) => {
+    const isLight = t.palette.mode === "light";
     const b = (t as AppTheme).app.dashboard.sidebarBackdropBlur;
-    return !b || b === "none" ? undefined : b;
+    return !b || b === "none"
+      ? (isLight ? "blur(18px) saturate(165%)" : "blur(24px) saturate(180%)")
+      : b;
   },
   display: "flex",
   flexDirection: "column",

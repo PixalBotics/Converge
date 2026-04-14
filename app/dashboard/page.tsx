@@ -355,6 +355,7 @@ export default function DashboardPage() {
             icon={<BarChartIcon sx={iconSize22} />}
             iconBgColor={theme.app.dashboard.accentBlue}
             valueColor={theme.app.dashboard.accentBlue}
+            subtitleColor={theme.app.dashboard.white95}
             showTrendArrow={false}
           />
           <MetricCard
@@ -364,6 +365,7 @@ export default function DashboardPage() {
             icon={<BarChartIcon sx={iconSize22} />}
             iconBgColor={theme.app.dashboard.accentOrange}
             valueColor={theme.app.dashboard.accentOrange}
+            subtitleColor={theme.app.dashboard.white95}
           />
           <MetricCard
             title="Avg Response Time"
@@ -372,6 +374,7 @@ export default function DashboardPage() {
             icon={<BarChartIcon sx={iconSize22} />}
             iconBgColor={theme.app.dashboard.accentPurple}
             valueColor={theme.app.dashboard.accentPurple}
+            subtitleColor={theme.app.dashboard.white95}
           />
           <MetricCard
             title="QA Average Rating"
@@ -380,6 +383,7 @@ export default function DashboardPage() {
             icon={<BarChartIcon sx={iconSize22} />}
             iconBgColor={theme.app.dashboard.accentPink}
             valueColor={theme.app.dashboard.accentPink}
+            subtitleColor={theme.app.dashboard.white95}
           />
         </Box>
 

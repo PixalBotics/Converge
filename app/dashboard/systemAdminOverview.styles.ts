@@ -42,16 +42,20 @@ export const attachMoneyIconSx = (theme: AppTheme): SxProps<Theme> => ({
   color: theme.app.dashboard.white95,
 });
 
-export const tableStatusPill: SxProps<Theme> = {
+export const tableStatusPill: SxProps<Theme> = (theme) => ({
   display: "inline-flex",
   alignItems: "center",
   gap: 0.7,
   px: 1.3,
   py: 0.45,
   borderRadius: "9999px",
-  bgcolor: "rgba(163, 230, 53, 0.12)",
-  border: "1px solid rgba(163, 230, 53, 0.26)",
-};
+  bgcolor:
+    theme.palette.mode === "light" ? "rgba(34, 197, 94, 0.16)" : "rgba(163, 230, 53, 0.12)",
+  border:
+    theme.palette.mode === "light"
+      ? "1px solid rgba(34, 197, 94, 0.3)"
+      : "1px solid rgba(163, 230, 53, 0.26)",
+});
 
 export const tableStatusDot: SxProps<Theme> = {
   width: 7,
@@ -60,10 +64,10 @@ export const tableStatusDot: SxProps<Theme> = {
   bgcolor: "#84CC16",
 };
 
-export const tableStatusCaption: SxProps<Theme> = {
-  color: "#D9F99D",
+export const tableStatusCaption: SxProps<Theme> = (theme) => ({
+  color: theme.palette.mode === "light" ? "#166534" : "#D9F99D",
   fontWeight: 500,
-};
+});
 
 export const footerMutedText = (theme: AppTheme): SxProps<Theme> => ({
   color: theme.app.dashboard.textMuted,

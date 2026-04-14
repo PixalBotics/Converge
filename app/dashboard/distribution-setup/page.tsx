@@ -107,8 +107,8 @@ export default function DistributionSetupPage() {
               px: 1.25,
               py: 0.5,
               borderRadius: "9999px",
-              bgcolor: alpha(theme.palette.success.main, 0.12),
-              border: `1px solid ${alpha(theme.palette.success.main, 0.28)}`,
+              bgcolor: alpha(theme.palette.success.main, theme.palette.mode === "light" ? 0.16 : 0.12),
+              border: `1px solid ${alpha(theme.palette.success.main, theme.palette.mode === "light" ? 0.3 : 0.28)}`,
             }}
           >
             <Box
@@ -125,7 +125,7 @@ export default function DistributionSetupPage() {
               component="span"
               variant="body2"
               sx={{
-                color: theme.palette.success.light,
+                color: theme.palette.mode === "light" ? "#166534" : theme.palette.success.light,
                 fontWeight: 600,
                 fontSize: "0.8125rem",
               }}

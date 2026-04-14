@@ -38,7 +38,10 @@ export const dataTableRoot: SxProps<Theme> = (theme) => {
 };
 
 export const dataTableHeaderCell: SxProps<Theme> = (theme) => ({
-  color: (theme as AppTheme).app.dashboard.white80,
+  color:
+    theme.palette.mode === "light"
+      ? (theme as AppTheme).app.text.primary
+      : (theme as AppTheme).app.dashboard.white80,
   fontWeight: 600,
   fontSize: 18,
 });
@@ -48,9 +51,15 @@ export const dataTableCellDefault: SxProps<Theme> = (theme) => ({
 });
 
 export const dataTableCellMuted: SxProps<Theme> = (theme) => ({
-  color: (theme as AppTheme).app.dashboard.white7,
+  color:
+    theme.palette.mode === "light"
+      ? (theme as AppTheme).app.text.primary
+      : (theme as AppTheme).app.text.primary,
 });
 
 export const dataTableActionButton: SxProps<Theme> = (theme) => ({
-  color: (theme as AppTheme).app.dashboard.white60,
+  color:
+    theme.palette.mode === "light"
+      ? (theme as AppTheme).app.text.primary
+      : (theme as AppTheme).app.dashboard.white60,
 });
