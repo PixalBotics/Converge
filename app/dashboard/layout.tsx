@@ -55,7 +55,7 @@ export default function DashboardLayout({
               {
                 flex: 1,
                 py: { xs: 2, sm: 3 },
-                px: 0,
+                px: { xs: 1.5, sm: 2, md: 0 },
                 overflow: "auto",
               },
               dashboardMainTextSx,

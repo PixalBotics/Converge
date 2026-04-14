@@ -5,7 +5,7 @@ import Box from "@mui/material/Box";
 import TextField from "@mui/material/TextField";
 import { useTheme } from "@mui/material/styles";
 import { Colorize } from "@mui/icons-material";
-import { Typography } from "@/components/common";
+import { HoverTooltip, Typography } from "@/components/common";
 import { useAppearance } from "@/lib/theme/appearance-context";
 import { DEFAULT_THEME_GROUP_IDS, PICK_COLOR_PRESET_ID } from "@/lib/theme/appearance-presets";
 import { getCustomAccentTheme } from "@/lib/theme/custom-accent-theme";
@@ -69,7 +69,7 @@ export default function ThemeCustomizeClient() {
       </Typography>
 
       {defaultThemePresets.length > 0 && (
-        <Box sx={{ mb: 3 }}>
+        <Box sx={{ mb: 3, ml: 1 }}>
           <Typography
             variant="medium16"
             sx={{
@@ -85,23 +85,23 @@ export default function ThemeCustomizeClient() {
           </Typography>
           <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1.25, alignItems: "flex-start" }}>
             {defaultThemePresets.map((p) => (
-              <SwatchButton
-                key={p.id}
-                compact
-                selected={presetId === p.id}
-                onClick={() => setPresetId(p.id)}
-                ariaLabel={p.label}
-                title={p.label}
-              >
-                <Box
-                  sx={{
-                    width: "100%",
-                    height: "100%",
-                    borderRadius: DISCORD_SWATCH_RADIUS,
-                    ...renderSwatchFill(p),
-                  }}
-                />
-              </SwatchButton>
+              <HoverTooltip key={p.id} label={p.label} fullWidth={false}>
+                <SwatchButton
+                  compact
+                  selected={presetId === p.id}
+                  onClick={() => setPresetId(p.id)}
+                  ariaLabel={p.label}
+                >
+                  <Box
+                    sx={{
+                      width: "100%",
+                      height: "100%",
+                      borderRadius: DISCORD_SWATCH_RADIUS,
+                      ...renderSwatchFill(p),
+                    }}
+                  />
+                </SwatchButton>
+              </HoverTooltip>
             ))}
           </Box>
         </Box>
@@ -147,13 +147,12 @@ export default function ThemeCustomizeClient() {
             const isPick = p.id === PICK_COLOR_PRESET_ID;
 
             return (
-              <SwatchButton
-                key={p.id}
-                selected={selected}
-                onClick={() => setPresetId(p.id)}
-                ariaLabel={p.label}
-                title={p.label}
-              >
+              <HoverTooltip key={p.id} label={p.label}>
+                <SwatchButton
+                  selected={selected}
+                  onClick={() => setPresetId(p.id)}
+                  ariaLabel={p.label}
+                >
                 {isPick ? (
                   <Box
                     sx={{
@@ -200,7 +199,8 @@ export default function ThemeCustomizeClient() {
                     }}
                   />
                 )}
-              </SwatchButton>
+                </SwatchButton>
+              </HoverTooltip>
             );
           })}
         </Box>
@@ -294,7 +294,6 @@ function SwatchButton({
   selected,
   onClick,
   ariaLabel,
-  title,
   /** Fixed size (Default theme row) — avoids full-width tall square */
   compact,
 }: {
@@ -302,14 +301,12 @@ function SwatchButton({
   selected: boolean;
   onClick: () => void;
   ariaLabel: string;
-  title?: string;
   compact?: boolean;
 }) {
   return (
     <Box
       component="button"
       type="button"
-      title={title}
       aria-label={ariaLabel}
       aria-pressed={selected}
       onClick={onClick}

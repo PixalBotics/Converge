@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { Inter, Manrope } from "next/font/google";
 import { ThemeRegistry } from "@/components/theme-registry";
 import { AuthProvider } from "@/lib/auth";
-import { QueryProvider } from "@/lib/hooks/query";
 import { mainBackgroundGradient } from "@/theme/theme";
 
 const inter = Inter({ subsets: ["latin"], display: "swap" });
@@ -28,9 +27,7 @@ export default function RootLayout({
         }}
       >
         <ThemeRegistry>
-          <QueryProvider>
-            <AuthProvider>{children}</AuthProvider>
-          </QueryProvider>
+          <AuthProvider>{children}</AuthProvider>
         </ThemeRegistry>
       </body>
     </html>

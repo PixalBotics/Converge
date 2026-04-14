@@ -3,6 +3,7 @@
 import { useLayoutEffect, useRef } from "react";
 import { ThemeProvider } from "@mui/material/styles";
 import { defaultAppearanceMuiTheme } from "@/lib/theme/default-appearance-theme";
+import { FULL_PAGE_LOADER_BACKGROUND_GRADIENT } from "@/lib/theme/full-page-loader-background";
 
 /**
  * Login always uses the built-in Default appearance, not the user’s dashboard theme / pick color.
@@ -12,7 +13,7 @@ export default function LoginLayout({ children }: { children: React.ReactNode })
 
   useLayoutEffect(() => {
     prevBodyBg.current = document.body.style.background;
-    document.body.style.background = defaultAppearanceMuiTheme.appBackground;
+    document.body.style.background = FULL_PAGE_LOADER_BACKGROUND_GRADIENT;
     return () => {
       document.body.style.background = prevBodyBg.current ?? "";
     };

@@ -11,6 +11,16 @@ export const dataTableContainer: SxProps<Theme> = {
   "&::-webkit-scrollbar": { display: "none" },
 };
 
+/** No vertical scroll region — parent (e.g. `FormModal` with `fitContent`) scrolls; wide tables still pan horizontally. */
+export const dataTableContainerHorizontalOnly: SxProps<Theme> = {
+  overflowX: "auto",
+  overflowY: "visible",
+  WebkitOverflowScrolling: "touch",
+  scrollbarWidth: "none",
+  msOverflowStyle: "none",
+  "&::-webkit-scrollbar": { display: "none" },
+};
+
 export const dataTableRoot: SxProps<Theme> = (theme) => {
   const app = (theme as AppTheme).app;
   const b = app.dashboard.cardBorder;

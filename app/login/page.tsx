@@ -102,7 +102,7 @@ export default function LoginPage() {
   if (isLoading || isAuthenticated) return null;
 
   return (
-    <Box sx={pageWrapperStyles as SxProps<Theme>}>
+    <Box sx={pageWrapperStyles}>
       <Box sx={contentWrapperStyles}>
         <Box sx={illustrationWrapperStyles}>
           <Box

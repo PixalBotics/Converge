@@ -20,8 +20,10 @@ export const APPEARANCE_PRESETS: AppearancePreset[] = [
         sidebarBg: "#2b2d31",
         headerBg: "#1e1f22",
         contentBg: "linear-gradient(180deg, #1e1f22 0%, #2b2d31 100%)",
-        cardBg: "rgba(47, 49, 54, 0.88)",
-        cardBorder: "rgba(255, 255, 255, 0.1)",
+        cardBg:
+          "linear-gradient(165deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.04) 38%, rgba(255,255,255,0) 52%), linear-gradient(210deg, rgba(255,255,255,0.05) 0%, transparent 55%), rgba(26, 28, 36, 0.36)",
+        cardBackdropBlur: "blur(28px) saturate(170%)",
+        cardBorder: "rgba(255, 255, 255, 0.22)",
         navItemSelectedBg: "rgba(88, 101, 242, 0.22)",
         navActiveBg: "rgba(88, 101, 242, 0.24)",
         accentBlue: "#5865f2",

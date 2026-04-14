@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { useBodyScrollLock } from "@/lib/ui/useBodyScrollLock";
 import Box from "@mui/material/Box";
 import IconButton from "@mui/material/IconButton";
 import { useTheme } from "@mui/material/styles";
@@ -80,6 +81,7 @@ function ChatBubble({ children }: { children: ReactNode }) {
 
 export function VisitorInformationPreviewModal({ open, onClose }: VisitorInformationPreviewModalProps) {
   const theme = useTheme() as AppTheme;
+  useBodyScrollLock(open);
 
   if (!open) return null;
 

@@ -34,4 +34,9 @@ export interface DataTableProps<T = Record<string, unknown>> {
   tableSx?: SxProps<Theme>;
   /** Optional sx for TableContainer */
   containerSx?: SxProps<Theme>;
+  /**
+   * When false, table wrapper does not use a vertical scroll container — parent (e.g. modal) scrolls.
+   * Horizontal overflow for wide tables stays on (`overflow-x: auto`).
+   */
+  scrollY?: boolean;
 }

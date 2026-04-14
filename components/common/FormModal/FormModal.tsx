@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { useBodyScrollLock } from "@/lib/ui/useBodyScrollLock";
 import Close from "@mui/icons-material/Close";
 import Box from "@mui/material/Box";
 import IconButton from "@mui/material/IconButton";
@@ -57,6 +58,7 @@ export function FormModal({
   sx,
 }: FormModalProps) {
   const theme = useTheme() as AppTheme;
+  useBodyScrollLock(open);
 
   if (!open) return null;
 

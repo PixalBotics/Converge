@@ -1,3 +1,4 @@
+import { alpha, getLuminance, lighten } from "@mui/material/styles";
 import type { SxProps, Theme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import { typographyVariants } from "@/components/common/Typography/typography.styles";
@@ -26,33 +27,94 @@ export const sectionLabelSx: SxProps<Theme> = (theme) => {
   };
 };
 
+/** When accent is ~black, `alpha(primary, …)` is invisible on dark chrome — use a light veil instead. */
+const PRIMARY_LUM_THRESHOLD = 0.15;
+
 export const navItemSx: SxProps<Theme> = (theme) => {
   const app = (theme as AppTheme).app;
+  const primary = theme.palette.primary.main;
+  const edge = theme.spacing(1);
+  const mode = theme.palette.mode;
+  const textPrimary = theme.palette.text.primary;
+  const primaryTooDarkForTint = getLuminance(primary) < PRIMARY_LUM_THRESHOLD;
+
+  const selectedBg = primaryTooDarkForTint
+    ? alpha(textPrimary, mode === "dark" ? 0.14 : 0.1)
+    : alpha(primary, mode === "dark" ? 0.22 : 0.14);
+
+  const selectedBgHover = primaryTooDarkForTint
+    ? alpha(textPrimary, mode === "dark" ? 0.2 : 0.14)
+    : alpha(primary, mode === "dark" ? 0.28 : 0.2);
+
+  const hoverBg = primaryTooDarkForTint
+    ? alpha(textPrimary, mode === "dark" ? 0.06 : 0.05)
+    : alpha(primary, 0.08);
+
+  const defaultNavIcon =
+    mode === "light"
+      ? (theme.palette.text.secondary ?? alpha(textPrimary, 0.58))
+      : app.dashboard.sidebarNavIconMuted;
+
+  const selectedIcon = primaryTooDarkForTint
+    ? mode === "dark"
+      ? app.dashboard.iconMuted
+      : (theme.palette.text.primary ?? alpha("#0f172a", 0.88))
+    : mode === "dark"
+      ? lighten(primary, 0.14)
+      : primary;
+
   return {
-    mx: 1,
+    ml: 0,
+    mr: 1.25,
     my: 2.25,
-    borderRadius: "6px",
+    pl: `calc(${edge} + ${theme.spacing(2)})`,
+    pr: 3,
+    py: 1.5,
+    borderRadius: "10px",
     boxSizing: "border-box",
     whiteSpace: "nowrap",
+    transition: "background-color 0.15s ease, color 0.15s ease",
+    /** Next `Link` as root can inherit anchor color; lock to theme text. */
+    textDecoration: "none",
+    color: textPrimary,
+    "&:visited": {
+      color: textPrimary,
+    },
+
+    "& .MuiListItemIcon-root": {
+      color: defaultNavIcon,
+    },
+    "& .MuiListItemText-primary": {
+      color: alpha(textPrimary, mode === "dark" ? 0.9 : 0.87),
+    },
+
+    "&:hover:not(.Mui-selected)": {
+      backgroundColor: hoverBg,
+    },
 
     "&.Mui-selected": {
-      width: 210,
-      height: 48,
-      borderRadius: "6px",
-      border: `1px solid ${app.dashboard.shellBorder}`,
-      background: app.dashboard.navItemSelectedBg,
-      backdropFilter: "blur(6px)",
-      WebkitBackdropFilter: "blur(6px)",
-      boxShadow: app.dashboard.navSelectedInsetShadow,
+      borderRadius: "0 9999px 9999px 0",
+      border: "none",
+      backgroundColor: selectedBg,
+      backdropFilter: "none",
+      WebkitBackdropFilter: "none",
+      boxShadow: primaryTooDarkForTint
+        ? `inset 0 0 0 1px ${alpha(textPrimary, mode === "dark" ? 0.12 : 0.08)}`
+        : "none",
+      color: textPrimary,
 
       "& .MuiListItemIcon-root": {
-        color: app.text.primary,
+        color: selectedIcon,
       },
 
       "& .MuiListItemText-primary": {
         fontWeight: 600,
-        color: app.text.primary,
+        color: textPrimary,
       },
+    },
+
+    "&.Mui-selected:hover": {
+      backgroundColor: selectedBgHover,
     },
   };
 };
@@ -155,15 +217,14 @@ export const sidebarFooterListSx: SxProps<Theme> = {
   width: "100%",
 };
 
-export const listIconSelectedSx: SxProps<Theme> = (theme) => ({
+/** Icon color comes from `navItemSx` (theme primary); keep layout only here. */
+export const listIconSelectedSx: SxProps<Theme> = {
   minWidth: 40,
-  color: (theme as AppTheme).app.text.primary,
-});
+};
 
-export const listIconDefaultSx: SxProps<Theme> = (theme) => ({
+export const listIconDefaultSx: SxProps<Theme> = {
   minWidth: 40,
-  color: (theme as AppTheme).app.text.primary,
-});
+};
 
 export const desktopWrapperSx: SxProps<Theme> = (theme) => {
   const app = (theme as AppTheme).app;
@@ -184,30 +245,23 @@ export const desktopWrapperSx: SxProps<Theme> = (theme) => {
   };
 };
 
-export const backdropSx: SxProps<Theme> = (theme) => ({
-  display: "block",
-  position: "fixed",
-  inset: 0,
+/** Backdrop tint when the mobile nav uses MUI `Drawer` (Modal portal — not `position: fixed` in layout tree). */
+export const mobileDrawerBackdropSx: SxProps<Theme> = (theme) => ({
   bgcolor: (theme as AppTheme).app.dashboard.backdropDark,
-  zIndex: 1200,
-  transition: "opacity 0.2s ease",
 });
 
-export const mobileDrawerSx: SxProps<Theme> = (theme) => {
+/** `Drawer` paper only (root Modal supplies portal + stacking; avoids broken `fixed` inside transformed ancestors). */
+export const mobileDrawerPaperSx: SxProps<Theme> = (theme) => {
   const app = (theme as AppTheme).app;
   return {
-    position: "fixed",
-    left: 0,
-    top: 0,
-    height: "100vh",
     width: SIDEBAR_WIDTH,
-    zIndex: 1300,
-    transition: "transform 0.25s ease-out",
+    maxWidth: "min(100vw - 16px, 100%)",
+    boxSizing: "border-box",
+    overflow: "hidden",
     borderRadius: `0 ${app.dashboard.shellRadius} ${app.dashboard.shellRadius} 0`,
     border: `1px solid ${app.dashboard.shellBorder}`,
     borderLeft: "none",
-    overflow: "hidden",
-    boxSizing: "border-box",
     boxShadow: "8px 0 32px rgba(0, 0, 0, 0.25)",
+    bgcolor: "transparent",
   };
 };

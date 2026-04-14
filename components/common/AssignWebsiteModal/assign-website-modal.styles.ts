@@ -15,6 +15,8 @@ export const assignWebsiteUserListCardSx: SxProps<Theme> = (theme) => {
     display: "flex",
     flexDirection: "column",
     gap: 2,
+    height: "auto",
+    overflow: "visible",
     bgcolor: alpha(t.app.dashboard.pillBg, 0.55),
     border: `1px solid ${t.app.dashboard.cardBorder}`,
     borderRadius: "12px",

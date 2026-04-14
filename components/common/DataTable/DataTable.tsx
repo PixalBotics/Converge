@@ -6,6 +6,7 @@ import type { DataTableProps } from "./DataTable.types";
 import {
   dataTableRoot,
   dataTableContainer,
+  dataTableContainerHorizontalOnly,
   dataTableHeaderCell,
   dataTableCellDefault,
   dataTableCellMuted,
@@ -20,6 +21,7 @@ export function DataTable<T extends Record<string, unknown>>({
   size = "small",
   tableSx,
   containerSx,
+  scrollY = true,
 }: DataTableProps<T>) {
   const sizeCellSx = size === "medium" ? { py: 1.5 } : { py: 1 };
 
@@ -31,7 +33,10 @@ export function DataTable<T extends Record<string, unknown>>({
 
   return (
     <Box
-      sx={[dataTableContainer, ...(containerSx ? (Array.isArray(containerSx) ? containerSx : [containerSx]) : [])]}
+      sx={[
+        scrollY ? dataTableContainer : dataTableContainerHorizontalOnly,
+        ...(containerSx ? (Array.isArray(containerSx) ? containerSx : [containerSx]) : []),
+      ]}
     >
       <Box
         component="table"

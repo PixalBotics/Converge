@@ -1,5 +1,6 @@
 "use client";
 
+import { useBodyScrollLock } from "@/lib/ui/useBodyScrollLock";
 import AutoAwesome from "@mui/icons-material/AutoAwesome";
 import Check from "@mui/icons-material/Check";
 import Settings from "@mui/icons-material/Settings";
@@ -24,6 +25,7 @@ export interface DisconnectConfirmModalProps {
 
 export function DisconnectConfirmModal({ open, onDismiss, onConfirm }: DisconnectConfirmModalProps) {
   const theme = useTheme() as AppTheme;
+  useBodyScrollLock(open);
 
   if (!open) return null;
 

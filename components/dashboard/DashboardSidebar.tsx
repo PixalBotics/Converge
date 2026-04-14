@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Box from "@mui/material/Box";
+import Drawer from "@mui/material/Drawer";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import { useTheme } from "@mui/material/styles";
 import List from "@mui/material/List";
@@ -33,8 +34,8 @@ import {
   listIconSelectedSx,
   listIconDefaultSx,
   desktopWrapperSx,
-  backdropSx,
-  mobileDrawerSx,
+  mobileDrawerBackdropSx,
+  mobileDrawerPaperSx,
 } from "./DashboardSidebar.styles";
 import type { AppTheme } from "@/theme/theme";
 import { AIManagementIcon } from "./icons/AIManagementIcon";
@@ -56,7 +57,6 @@ export default function DashboardSidebar({ open = false, onClose }: { open?: boo
   const { logout } = useAuth();
   const navTextProps = {
     ...navTypographyBase,
-    sx: { color: theme.app.text.primary },
   };
 
   const sidebarContent = (
@@ -275,22 +275,27 @@ export default function DashboardSidebar({ open = false, onClose }: { open?: boo
   }
 
   return (
-    <>
-      <Box
-        onClick={onClose}
-        sx={{ ...backdropSx, display: open ? "block" : "none" }}
-        aria-hidden
-      />
-      <Box
-        sx={{
-          ...mobileDrawerSx,
-          transform: open ? "translateX(0)" : "translateX(-100%)",
-          boxShadow: open ? "4px 0 24px rgba(0,0,0,0.3)" : "none",
-        }}
-      >
-        {sidebarContent}
-      </Box>
-    </>
+    <Drawer
+      anchor="left"
+      variant="temporary"
+      open={open}
+      onClose={() => onClose?.()}
+      elevation={0}
+      slotProps={{
+        paper: {
+          elevation: 0,
+          sx: mobileDrawerPaperSx,
+        },
+        backdrop: {
+          sx: mobileDrawerBackdropSx,
+        },
+      }}
+      ModalProps={{
+        keepMounted: true,
+      }}
+    >
+      {sidebarContent}
+    </Drawer>
   );
 }
 

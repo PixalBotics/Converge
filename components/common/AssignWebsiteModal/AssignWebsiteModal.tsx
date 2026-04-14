@@ -210,6 +210,7 @@ export function AssignWebsiteModal({ open, onClose, onAssign }: AssignWebsiteMod
     <>
     <FormModal
       open={open}
+      fitContent
       title="Assign Website"
       description="Create a new user account with appropriate access levels."
       maxWidth={920}
@@ -266,6 +267,7 @@ export function AssignWebsiteModal({ open, onClose, onAssign }: AssignWebsiteMod
           getRowId={(row) => row.id}
           minWidth={560}
           size="medium"
+          scrollY={false}
         />
       </DashboardCard>
     </FormModal>

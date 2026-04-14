@@ -40,3 +40,5 @@ export { DisconnectConfirmModal } from "./DisconnectConfirmModal/DisconnectConfi
 export { StatusRadioGroup } from "./StatusRadioGroup/StatusRadioGroup";
 export { Divider } from "./Divider";
 export type { DividerProps } from "./Divider";
+export { HoverTooltip } from "./HoverTooltip";
+export type { HoverTooltipProps } from "./HoverTooltip";

@@ -1,15 +1,16 @@
 import type { SxProps, Theme } from "@mui/material/styles";
 import type { SystemStyleObject } from "@mui/system";
+import { FULL_PAGE_LOADER_BACKGROUND_GRADIENT } from "@/lib/theme/full-page-loader-background";
 
-export const pageWrapperStyles = (theme: Theme): SystemStyleObject<Theme> => ({
+export const pageWrapperStyles: SxProps<Theme> = {
   minHeight: "100vh",
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
-  background: theme.appBackground,
+  background: FULL_PAGE_LOADER_BACKGROUND_GRADIENT,
   p: { xs: 1.5, sm: 2 },
   boxSizing: "border-box",
-});
+};
 
 export const contentWrapperStyles: SxProps<Theme> = {
   display: "flex",

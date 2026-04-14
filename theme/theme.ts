@@ -65,16 +65,22 @@ const appColors = {
     sidebarBg: "#2b2d31",
     headerBg: "#1e1f22",
     contentBg: "linear-gradient(180deg, #1e1f22 0%, #2b2d31 100%)",
-    cardBg: "rgba(47, 49, 54, 0.88)",
-    /** DashboardCard frosted layer */
-    cardBackdropBlur: "blur(116.45703125px)",
+    /**
+     * DashboardCard glass stack: light top sheen + soft base tint (backdrop blur shows through).
+     */
+    cardBg:
+      "linear-gradient(165deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.04) 38%, rgba(255,255,255,0) 52%), linear-gradient(210deg, rgba(255,255,255,0.05) 0%, transparent 55%), rgba(26, 28, 36, 0.36)",
+    /** Frost + saturation (reads closer to iOS / frosted UI glass). */
+    cardBackdropBlur: "blur(28px) saturate(170%)",
     /** `none` = full painted sidebar (uses page background). Else translucent + blur. */
     sidebarBackdropBlur: "none",
     headerBackdropBlur: "none",
     /** Main column frosted overlay; `none` = transparent (page bg shows through). */
     mainBackdropBlur: "none",
-    cardBorder: "rgba(255, 255, 255, 0.08)",
+    cardBorder: "rgba(255, 255, 255, 0.22)",
     navActiveBg: "rgba(88, 101, 242, 0.24)",
+    /** Sidebar nav default icon on **dark** chrome only (`navItemSx` uses `text.secondary` in light mode). */
+    sidebarNavIconMuted: "rgba(255, 255, 255, 0.72)",
     accentBlue: "#5865F2",
     accentOrange: "#F97316",
     accentPink: "#EC4899",
@@ -115,6 +121,9 @@ const appColors = {
     glassGradient: "linear-gradient(140deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02))",
     glassShadow:
       "0 8px 18px rgba(2, 8, 30, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.08)",
+    /** DashboardCard only — deeper float + inner glass edge. */
+    cardGlassShadow:
+      "0 14px 48px rgba(0, 0, 0, 0.38), 0 0 0 1px rgba(255, 255, 255, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.16), inset 0 -1px 0 rgba(0, 0, 0, 0.15)",
     liveChat: {
       cardBg: "#2b2d31",
       messageBg: "#313338",

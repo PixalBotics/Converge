@@ -2,6 +2,7 @@
 
 import Box from "@mui/material/Box";
 import { Typography } from "@/components/common";
+import { FULL_PAGE_LOADER_BACKGROUND_GRADIENT } from "@/lib/theme/full-page-loader-background";
 import type { LoadingScreenProps } from "./LoadingScreen.types";
 import styles from "./LoadingScreen.module.css";
 
@@ -11,7 +12,7 @@ const fullPageDark = {
   flexDirection: "column" as const,
   alignItems: "center",
   justifyContent: "center",
-  background: "radial-gradient(50% 50% at 50% 50%, #09013F 0%, #00011A 100%)",
+  background: FULL_PAGE_LOADER_BACKGROUND_GRADIENT,
   gap: 2,
 };
 
