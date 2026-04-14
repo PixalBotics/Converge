@@ -112,7 +112,7 @@ export const rejectButtonSx: SxProps<Theme> = (theme) => {
   return {
     borderRadius: "999px",
     py: 0.8,
-    background: app.dashboard.overlayDarkStrong,
+    background: app.dashboard.overlayMedium,
     color: app.text.primary,
     border: `1px solid ${app.dashboard.overlayBorder}`,
     "&:hover": {

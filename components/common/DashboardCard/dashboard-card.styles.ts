@@ -8,11 +8,7 @@ export const dashboardCardStyles: SxProps<Theme> = (theme) => {
   const border = app.dashboard.cardBorder;
   const edgeMid = app.dashboard.overlayLight;
   const rimHighlight = isLight ? "rgba(255, 255, 255, 0.8)" : "rgba(255, 255, 255, 0.32)";
-  const fallbackBlur = isLight ? "blur(24px) saturate(185%)" : "blur(32px) saturate(200%)";
-  const resolvedBlur =
-    !app.dashboard.cardBackdropBlur || app.dashboard.cardBackdropBlur === "none"
-      ? fallbackBlur
-      : app.dashboard.cardBackdropBlur;
+  const resolvedBlur = app.dashboard.cardBackdropBlur;
   const glassFill = isLight ? "rgba(255, 255, 255, 0.16)" : "rgba(8, 12, 22, 0.18)";
   const cardShadow = isLight
     ? "0 2px 8px rgba(15, 23, 42, 0.05), 0 1px 2px rgba(15, 23, 42, 0.03)"
