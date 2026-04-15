@@ -5,10 +5,13 @@ import {
   setTokenPair,
 } from "../storage/auth-cookies";
 import type {
+  ApiEnvelope,
   AuthMeResponse,
   AuthTokenPair,
   HealthResponse,
   LoginRequestBody,
+  LoginResponseEnvelope,
+  LoginSuccessData,
   LogoutRequestBody,
   RefreshRequestBody,
   VerifyAccessBodyRequest,
@@ -19,10 +22,13 @@ export async function getHealth(): Promise<HealthResponse> {
   return data;
 }
 
-export async function login(body: LoginRequestBody): Promise<AuthTokenPair> {
-  const { data } = await apiClient.post<AuthTokenPair>("/auth/login", body);
-  setTokenPair(data);
-  return data;
+export async function login(body: LoginRequestBody): Promise<LoginSuccessData> {
+  const { data } = await apiClient.post<LoginResponseEnvelope>("/auth/login", body);
+  setTokenPair({
+    accessToken: data.data.accessToken,
+    refreshToken: data.data.refreshToken,
+  });
+  return data.data;
 }
 
 export async function verifyBearer(): Promise<void> {
@@ -50,9 +56,12 @@ export async function getMe(options?: {
 export async function refresh(
   body: RefreshRequestBody,
 ): Promise<AuthTokenPair> {
-  const { data } = await apiClient.post<AuthTokenPair>("/auth/refresh", body);
-  setTokenPair(data);
-  return data;
+  const { data } = await apiClient.post<
+    AuthTokenPair | ApiEnvelope<AuthTokenPair>
+  >("/auth/refresh", body);
+  const tokenPair = "data" in data ? data.data : data;
+  setTokenPair(tokenPair);
+  return tokenPair;
 }
 
 export async function logoutRemote(body: LogoutRequestBody): Promise<void> {

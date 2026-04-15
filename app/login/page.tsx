@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { useRouter } from "next/navigation";
 import Box from "@mui/material/Box";
-import { Typography } from "@/components/common";
+import { LoadingScreen, Typography } from "@/components/common";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Stack from "@mui/material/Stack";
 import { useTheme } from "@mui/material/styles";
@@ -19,6 +19,7 @@ import {
 } from "@/components/common";
 import { loginSvg, logoSvg } from "@/assets";
 import { useAuth } from "@/lib/auth";
+import { LoginParticles } from "./LoginParticles";
 import {
   pageWrapperStyles,
   contentWrapperStyles,
@@ -69,8 +70,8 @@ export default function LoginPage() {
     if (isAuthenticated) router.replace("/dashboard");
   }, [isAuthenticated, isLoading, router]);
 
-  const onSubmit = (values: LoginFormValues) => {
-    const result = login({
+  const onSubmit = async (values: LoginFormValues) => {
+    const result = await login({
       email: values.email.trim(),
       password: values.password,
       licenseKey: values.licenseKey.trim() || undefined,
@@ -99,10 +100,13 @@ export default function LoginPage() {
     }
   };
 
-  if (isLoading || isAuthenticated) return null;
+  if (isLoading || isAuthenticated) {
+    return <LoadingScreen message="Redirecting..." />;
+  }
 
   return (
     <Box sx={pageWrapperStyles}>
+      <LoginParticles />
       <Box sx={contentWrapperStyles}>
         <Box sx={illustrationWrapperStyles}>
           <Box
@@ -117,7 +121,7 @@ export default function LoginPage() {
         </Box>
 
         <Box sx={formWrapperStyles}>
-          <AppCard sx={formCardStyles(theme) as SxProps<Theme>}>
+          <AppCard elevation={0} sx={formCardStyles(theme) as SxProps<Theme>}>
             <Box
               component="form"
               noValidate
@@ -157,11 +161,14 @@ export default function LoginPage() {
                 <Controller
                   name="licenseKey"
                   control={control}
+                  rules={{
+                    required: "License key is required",
+                  }}
                   render={({ field, fieldState }) => (
                     <InputField
                       label="License Key"
                       type="text"
-                      placeholder="License key (optional for demo)"
+                      placeholder="Enter your license key"
                       {...field}
                       error={!!fieldState.error}
                       helperText={fieldState.error?.message}

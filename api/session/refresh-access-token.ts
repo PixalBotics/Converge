@@ -2,7 +2,7 @@ import axios from "axios";
 import { getApiBaseUrl } from "../config";
 import { joinUrl } from "../http/http-path";
 import { getRefreshToken, setTokenPair } from "../storage/auth-cookies";
-import type { AuthTokenPair } from "../types/auth.types";
+import type { ApiEnvelope, AuthTokenPair } from "../types/auth.types";
 
 let refreshInFlight: Promise<AuthTokenPair> | null = null;
 
@@ -18,13 +18,17 @@ export function refreshSessionWithStoredRefresh(): Promise<AuthTokenPair> {
       if (!refreshToken) {
         throw new Error("Missing refresh token");
       }
-      const { data } = await axios.post<AuthTokenPair>(
+      const { data } = await axios.post<AuthTokenPair | ApiEnvelope<AuthTokenPair>>(
         joinUrl(baseURL, "/auth/refresh"),
         { refreshToken },
         { headers: { "Content-Type": "application/json" } },
       );
-      setTokenPair(data);
-      return data;
+      const tokenPair = "data" in data ? data.data : data;
+      if (!tokenPair?.accessToken || !tokenPair?.refreshToken) {
+        throw new Error("Invalid refresh response payload");
+      }
+      setTokenPair(tokenPair);
+      return tokenPair;
     })().finally(() => {
       refreshInFlight = null;
     });

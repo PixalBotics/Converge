@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, Manrope } from "next/font/google";
 import { ThemeRegistry } from "@/components/theme-registry";
+import { QueryProvider } from "@/lib/hooks";
 import { AuthProvider } from "@/lib/auth";
 import { mainBackgroundGradient } from "@/theme/theme";
 
@@ -27,7 +28,9 @@ export default function RootLayout({
         }}
       >
         <ThemeRegistry>
-          <AuthProvider>{children}</AuthProvider>
+          <QueryProvider>
+            <AuthProvider>{children}</AuthProvider>
+          </QueryProvider>
         </ThemeRegistry>
       </body>
     </html>

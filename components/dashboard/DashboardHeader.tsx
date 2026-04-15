@@ -103,7 +103,8 @@ export default function DashboardHeader({ onMenuClick }: { onMenuClick?: () => v
     [displayName]
   );
   const roleLabel =
-    user?.role === "admin"
+    user?.roleLabel ??
+    (user?.role === "admin"
       ? "Admin"
       : user?.role === "hr-admin"
         ? "HR Admin"
@@ -111,9 +112,13 @@ export default function DashboardHeader({ onMenuClick }: { onMenuClick?: () => v
           ? "Network Admin"
           : user?.role === "manager"
             ? "Manager"
+<<<<<<< Updated upstream
             : user?.role === "system-admin"
               ? "System Admin"
           : "User";
+=======
+            : "User");
+>>>>>>> Stashed changes
 
   const searchBarContent = useMemo(
     () => (

@@ -3,6 +3,8 @@ import type { SystemStyleObject } from "@mui/system";
 import { FULL_PAGE_LOADER_BACKGROUND_GRADIENT } from "@/lib/theme/full-page-loader-background";
 
 export const pageWrapperStyles: SxProps<Theme> = {
+  position: "relative",
+  overflow: "hidden",
   minHeight: "100vh",
   display: "flex",
   alignItems: "center",
@@ -13,6 +15,8 @@ export const pageWrapperStyles: SxProps<Theme> = {
 };
 
 export const contentWrapperStyles: SxProps<Theme> = {
+  position: "relative",
+  zIndex: 1,
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
@@ -33,7 +37,8 @@ export const illustrationWrapperStyles: SxProps<Theme> = {
 };
 
 export const illustrationImgStyles: SxProps<Theme> = {
-  maxWidth: "100%",
+  width: "100%",
+  maxWidth: "430px",
   height: "auto",
   objectFit: "contain",
 };
@@ -46,16 +51,48 @@ export const formWrapperStyles: SxProps<Theme> = {
   minWidth: 0,
 };
 
+/** Glassmorphism login panel — matches reference glass-card (frosted + edge highlights). */
 export const formCardStyles = (theme: Theme): SystemStyleObject<Theme> => ({
   width: "100%",
   maxWidth: { xs: "100%", sm: 440 },
-  background: theme.app.dashboard.glassGradient,
-  backdropFilter: "blur(10px)",
-  WebkitBackdropFilter: "blur(10px)",
-  boxShadow: theme.app.dashboard.glassShadow,
+  position: "relative",
+  overflow: "hidden",
+  background: "rgba(255, 255, 255, 0.1)",
+  backdropFilter: "blur(5px)",
+  WebkitBackdropFilter: "blur(5px)",
+  borderRadius: "20px",
+  border: "1px solid rgba(255, 255, 255, 0.3)",
+  boxShadow:
+    "0 8px 32px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.5), inset 0 -1px 0 rgba(255, 255, 255, 0.1), inset 0 0 0px 0px rgba(255, 255, 255, 0)",
   "& .MuiCardContent-root": {
+    position: "relative",
+    zIndex: 1,
     p: { xs: 2, sm: 3 },
     color: theme.app.text.link,
+  },
+  "&::before": {
+    content: '""',
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: "1px",
+    zIndex: 0,
+    pointerEvents: "none",
+    background:
+      "linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.8), transparent)",
+  },
+  "&::after": {
+    content: '""',
+    position: "absolute",
+    top: 0,
+    left: 0,
+    width: "1px",
+    height: "100%",
+    zIndex: 0,
+    pointerEvents: "none",
+    background:
+      "linear-gradient(180deg, rgba(255, 255, 255, 0.8), transparent, rgba(255, 255, 255, 0.3))",
   },
 });
 

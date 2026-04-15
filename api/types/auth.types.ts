@@ -3,6 +3,43 @@ export interface AuthTokenPair {
   refreshToken: string;
 }
 
+export interface AuthApiRole {
+  id: string;
+  name: string;
+}
+
+export interface AuthApiTheme {
+  backgroundColor: string | null;
+  themeJson: unknown | null;
+}
+
+export interface AuthApiUser {
+  id: string;
+  firstName: string;
+  middleName: string | null;
+  lastName: string;
+  email: string;
+  role: AuthApiRole;
+  theme: AuthApiTheme;
+}
+
+export interface LoginSuccessData extends AuthTokenPair {
+  tokenType: string;
+  expiresIn?: string;
+  refreshExpiresIn?: string;
+  user: AuthApiUser;
+  permissionsByType?: Record<string, string[]>;
+  context?: Record<string, unknown>;
+}
+
+export interface ApiEnvelope<TData> {
+  success: boolean;
+  data: TData;
+  message?: string;
+}
+
+export type LoginResponseEnvelope = ApiEnvelope<LoginSuccessData>;
+
 export interface LoginRequestBody {
   email: string;
   password: string;
