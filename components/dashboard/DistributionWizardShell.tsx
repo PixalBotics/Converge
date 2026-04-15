@@ -16,7 +16,7 @@ import {
   stepperLabelChildInactive,
   stepperLabelResellerActive,
   stepperLabelResellerDone,
-} from "@/app/dashboard/systemAdminOverview.styles";
+} from "@/app/dashboard/all-companies/allCompaniesOverview.styles";
 import { DashboardCard, Typography } from "@/components/common";
 import {
   distributionSetupSectionIconBox,

@@ -111,8 +111,6 @@ export default function DashboardHeader({ onMenuClick }: { onMenuClick?: () => v
           ? "Network Admin"
           : user?.role === "manager"
             ? "Manager"
-            : user?.role === "system-admin"
-              ? "System Admin"
           : "User";
 
   const searchBarContent = useMemo(

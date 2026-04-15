@@ -54,7 +54,8 @@ export default function DashboardSidebar({ open = false, onClose }: { open?: boo
   const theme = useTheme() as AppTheme;
   const isDesktop = useMediaQuery(theme.breakpoints.up("md"));
   const pathname = usePathname();
-  const { logout } = useAuth();
+  const { user, logout } = useAuth();
+  const isDemoUser = user?.email?.trim().toLowerCase() === "demo@gmail.com";
   const navTextProps = {
     ...navTypographyBase,
   };
@@ -87,7 +88,7 @@ export default function DashboardSidebar({ open = false, onClose }: { open?: boo
           <ListItemIcon sx={pathname === "/dashboard" ? listIconSelectedSx : listIconDefaultSx}>
             <DashboardGridIcon />
           </ListItemIcon>
-          <ListItemText primary="Dashboard" primaryTypographyProps={navTextProps} />
+          <ListItemText primary="dashboard" primaryTypographyProps={navTextProps} />
         </ListItemButton>
         <ListItemButton
           component={Link}
@@ -99,20 +100,84 @@ export default function DashboardSidebar({ open = false, onClose }: { open?: boo
           <ListItemIcon sx={pathname === "/dashboard/hrms" ? listIconSelectedSx : listIconDefaultSx}>
             <DashboardGridIcon />
           </ListItemIcon>
-          <ListItemText primary="HRMS" primaryTypographyProps={navTextProps} />
+          <ListItemText primary="hrms" primaryTypographyProps={navTextProps} />
         </ListItemButton>
         <ListItemButton
           component={Link}
-          href="/dashboard/overview"
-          selected={pathname === "/dashboard/overview"}
+          href="/dashboard/all-companies"
+          selected={pathname === "/dashboard/all-companies"}
           sx={navItemSx}
           onClick={() => !isDesktop && onClose?.()}
         >
-          <ListItemIcon sx={pathname === "/dashboard/overview" ? listIconSelectedSx : listIconDefaultSx}>
+          <ListItemIcon sx={pathname === "/dashboard/all-companies" ? listIconSelectedSx : listIconDefaultSx}>
             <OrganizationUserIcon />
           </ListItemIcon>
-          <ListItemText primary="Overview" primaryTypographyProps={navTextProps} />
+          <ListItemText primary="all-companies" primaryTypographyProps={navTextProps} />
         </ListItemButton>
+        <ListItemButton
+          component={Link}
+          href="/dashboard/user-page"
+          selected={pathname === "/dashboard/user-page"}
+          sx={navItemSx}
+          onClick={() => !isDesktop && onClose?.()}
+        >
+          <ListItemIcon sx={pathname === "/dashboard/user-page" ? listIconSelectedSx : listIconDefaultSx}>
+            <OrganizationUserIcon />
+          </ListItemIcon>
+          <ListItemText primary="user-page" primaryTypographyProps={navTextProps} />
+        </ListItemButton>
+        {isDemoUser && (
+          <>
+            <ListItemButton
+              component={Link}
+              href="/dashboard/agent-dashboard"
+              selected={pathname === "/dashboard/agent-dashboard"}
+              sx={navItemSx}
+              onClick={() => !isDesktop && onClose?.()}
+            >
+              <ListItemIcon sx={pathname === "/dashboard/agent-dashboard" ? listIconSelectedSx : listIconDefaultSx}>
+                <DashboardGridIcon />
+              </ListItemIcon>
+              <ListItemText primary="agent-dashboard" primaryTypographyProps={navTextProps} />
+            </ListItemButton>
+            <ListItemButton
+              component={Link}
+              href="/dashboard/qa-dashboard"
+              selected={pathname === "/dashboard/qa-dashboard"}
+              sx={navItemSx}
+              onClick={() => !isDesktop && onClose?.()}
+            >
+              <ListItemIcon sx={pathname === "/dashboard/qa-dashboard" ? listIconSelectedSx : listIconDefaultSx}>
+                <DashboardGridIcon />
+              </ListItemIcon>
+              <ListItemText primary="qa-dashboard" primaryTypographyProps={navTextProps} />
+            </ListItemButton>
+            <ListItemButton
+              component={Link}
+              href="/dashboard/supervisor-dashboard"
+              selected={pathname === "/dashboard/supervisor-dashboard"}
+              sx={navItemSx}
+              onClick={() => !isDesktop && onClose?.()}
+            >
+              <ListItemIcon sx={pathname === "/dashboard/supervisor-dashboard" ? listIconSelectedSx : listIconDefaultSx}>
+                <SupervisorIcon />
+              </ListItemIcon>
+              <ListItemText primary="supervisor-dashboard" primaryTypographyProps={navTextProps} />
+            </ListItemButton>
+            <ListItemButton
+              component={Link}
+              href="/dashboard/supper-dashboard"
+              selected={pathname === "/dashboard/supper-dashboard"}
+              sx={navItemSx}
+              onClick={() => !isDesktop && onClose?.()}
+            >
+              <ListItemIcon sx={pathname === "/dashboard/supper-dashboard" ? listIconSelectedSx : listIconDefaultSx}>
+                <DashboardGridIcon />
+              </ListItemIcon>
+              <ListItemText primary="supper-dashboard" primaryTypographyProps={navTextProps} />
+            </ListItemButton>
+          </>
+        )}
         <ListItemButton
           component={Link}
           href="/dashboard/account-setup"
@@ -123,7 +188,7 @@ export default function DashboardSidebar({ open = false, onClose }: { open?: boo
           <ListItemIcon sx={pathname === "/dashboard/account-setup" ? listIconSelectedSx : listIconDefaultSx}>
             <SettingsGearIcon />
           </ListItemIcon>
-          <ListItemText primary="Account Setup" primaryTypographyProps={navTextProps} />
+          <ListItemText primary="account-setup" primaryTypographyProps={navTextProps} />
         </ListItemButton>
         <ListItemButton
           component={Link}
@@ -135,7 +200,7 @@ export default function DashboardSidebar({ open = false, onClose }: { open?: boo
           <ListItemIcon sx={pathname === "/dashboard/website-assigning" ? listIconSelectedSx : listIconDefaultSx}>
             <WebsiteAssignIcon />
           </ListItemIcon>
-          <ListItemText primary="Website assigning" primaryTypographyProps={navTextProps} />
+          <ListItemText primary="website-assigning" primaryTypographyProps={navTextProps} />
         </ListItemButton>
         <ListItemButton
           component={Link}
@@ -147,7 +212,7 @@ export default function DashboardSidebar({ open = false, onClose }: { open?: boo
           <ListItemIcon sx={pathname === "/dashboard/roles" ? listIconSelectedSx : listIconDefaultSx}>
             <OrganizationUserIcon />
           </ListItemIcon>
-          <ListItemText primary="Roles" primaryTypographyProps={navTextProps} />
+          <ListItemText primary="roles" primaryTypographyProps={navTextProps} />
         </ListItemButton>
         <ListItemButton
           component={Link}
@@ -159,7 +224,7 @@ export default function DashboardSidebar({ open = false, onClose }: { open?: boo
           <ListItemIcon sx={pathname === "/dashboard/organization-user" ? listIconSelectedSx : listIconDefaultSx}>
             <OrganizationUserIcon />
           </ListItemIcon>
-          <ListItemText primary="Organization user" primaryTypographyProps={navTextProps} />
+          <ListItemText primary="organization-user" primaryTypographyProps={navTextProps} />
         </ListItemButton>
         <ListItemButton
           component={Link}
@@ -171,7 +236,7 @@ export default function DashboardSidebar({ open = false, onClose }: { open?: boo
           <ListItemIcon sx={pathname === "/dashboard/supervisor" ? listIconSelectedSx : listIconDefaultSx}>
             <SupervisorIcon />
           </ListItemIcon>
-          <ListItemText primary="Supervisor" primaryTypographyProps={navTextProps} />
+          <ListItemText primary="supervisor" primaryTypographyProps={navTextProps} />
         </ListItemButton>
         <ListItemButton
           component={Link}
@@ -183,7 +248,7 @@ export default function DashboardSidebar({ open = false, onClose }: { open?: boo
           <ListItemIcon sx={pathname === "/dashboard/chat-operations" ? listIconSelectedSx : listIconDefaultSx}>
             <ChatOperationsIcon />
           </ListItemIcon>
-          <ListItemText primary="Chat Operations" primaryTypographyProps={navTextProps} />
+          <ListItemText primary="chat-operations" primaryTypographyProps={navTextProps} />
         </ListItemButton>
 
         <ListItemButton
@@ -196,7 +261,7 @@ export default function DashboardSidebar({ open = false, onClose }: { open?: boo
           <ListItemIcon sx={pathname === "/dashboard/ai-management" ? listIconSelectedSx : listIconDefaultSx}>
             <AIManagementIcon />
           </ListItemIcon>
-          <ListItemText primary="AI Management" primaryTypographyProps={navTextProps} />
+          <ListItemText primary="ai-management" primaryTypographyProps={navTextProps} />
         </ListItemButton>
         <ListItemButton
           component={Link}
@@ -208,7 +273,7 @@ export default function DashboardSidebar({ open = false, onClose }: { open?: boo
           <ListItemIcon sx={pathname === "/dashboard/reports" ? listIconSelectedSx : listIconDefaultSx}>
             <ReportsIcon />
           </ListItemIcon>
-          <ListItemText primary="Reports" primaryTypographyProps={navTextProps} />
+          <ListItemText primary="reports" primaryTypographyProps={navTextProps} />
         </ListItemButton>
 
         <ListItemButton
@@ -221,7 +286,7 @@ export default function DashboardSidebar({ open = false, onClose }: { open?: boo
           <ListItemIcon sx={pathname === "/dashboard/billing" ? listIconSelectedSx : listIconDefaultSx}>
             <BillingIcon />
           </ListItemIcon>
-          <ListItemText primary="Billing" primaryTypographyProps={navTextProps} />
+          <ListItemText primary="billing" primaryTypographyProps={navTextProps} />
         </ListItemButton>
         <ListItemButton
           component={Link}
@@ -233,7 +298,7 @@ export default function DashboardSidebar({ open = false, onClose }: { open?: boo
           <ListItemIcon sx={pathname === "/dashboard/security" ? listIconSelectedSx : listIconDefaultSx}>
             <SecurityIcon />
           </ListItemIcon>
-          <ListItemText primary="Security" primaryTypographyProps={navTextProps} />
+          <ListItemText primary="security" primaryTypographyProps={navTextProps} />
         </ListItemButton>
         <ListItemButton
           component={Link}
@@ -245,7 +310,7 @@ export default function DashboardSidebar({ open = false, onClose }: { open?: boo
           <ListItemIcon sx={pathname === "/dashboard/settings" ? listIconSelectedSx : listIconDefaultSx}>
             <SettingsIcon />
           </ListItemIcon>
-          <ListItemText primary="Settings" primaryTypographyProps={navTextProps} />
+          <ListItemText primary="settings" primaryTypographyProps={navTextProps} />
         </ListItemButton>
       </List>
 
@@ -261,7 +326,7 @@ export default function DashboardSidebar({ open = false, onClose }: { open?: boo
             <ListItemIcon sx={pathname === "/dashboard/theme" ? listIconSelectedSx : listIconDefaultSx}>
               <PaletteIcon sx={{ color: "inherit" }} />
             </ListItemIcon>
-            <ListItemText primary="Theme" primaryTypographyProps={navTextProps} />
+            <ListItemText primary="theme" primaryTypographyProps={navTextProps} />
           </ListItemButton>
           <ListItemButton
             component="button"

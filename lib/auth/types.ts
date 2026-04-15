@@ -2,7 +2,7 @@ export interface User {
   id: string;
   email: string;
   displayName: string;
-  role: "admin" | "user" | "hr-admin" | "network-admin" | "manager" | "system-admin";
+  role: "admin" | "user" | "hr-admin" | "network-admin" | "manager";
 }
 
 export interface LoginCredentials {
