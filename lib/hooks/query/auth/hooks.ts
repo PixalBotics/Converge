@@ -1,0 +1,40 @@
+"use client";
+
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { getMe, login, logout } from "@/api";
+import type { LoginRequestBody } from "@/api";
+import { authKeys } from "./keys";
+
+export function useMeQuery(options?: {
+  permissionsBreakdown?: boolean;
+  enabled?: boolean;
+}) {
+  return useQuery({
+    queryKey: authKeys.me(options?.permissionsBreakdown),
+    queryFn: () =>
+      getMe({
+        permissionsBreakdown: options?.permissionsBreakdown,
+      }),
+    enabled: options?.enabled ?? true,
+  });
+}
+
+export function useLoginMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: LoginRequestBody) => login(body),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: authKeys.all });
+    },
+  });
+}
+
+export function useLogoutMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => logout(),
+    onSettled: () => {
+      queryClient.removeQueries({ queryKey: authKeys.all });
+    },
+  });
+}
