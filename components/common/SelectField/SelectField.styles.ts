@@ -6,7 +6,10 @@ import type { AppTheme } from "@/theme/theme";
 export function selectMenuPaperSx(theme: Theme) {
   const app = (theme as AppTheme).app;
   return {
+    // Higher opacity so the table behind doesn't "bleed" through.
     bgcolor: app.dashboard.menuSurfaceBg,
+    backdropFilter: "blur(6px)",
+    WebkitBackdropFilter: "blur(6px)",
     borderRadius: 2,
     mt: 1,
     border: `1px solid ${app.dashboard.cardBorder}`,
@@ -22,11 +25,12 @@ export function selectMenuItemSx(theme: Theme) {
     fontFamily: "Manrope",
     fontSize: 14,
     color: app.text.primary,
+    cursor: "pointer",
     "&.Mui-selected": {
-      bgcolor: alpha(accent, 0.18),
+      bgcolor: alpha(accent, 0.32),
     },
     "&.Mui-selected:hover": {
-      bgcolor: alpha(accent, 0.26),
+      bgcolor: alpha(accent, 0.42),
     },
   };
 }
@@ -37,7 +41,10 @@ export const selectFieldStyles = (theme: Theme) =>
     // and extend with select-specific tweaks
     {
       "& .MuiOutlinedInput-root": {
-        borderRadius: 0,
+        borderRadius: "12px",
+        "&::after": {
+          borderRadius: "12px",
+        },
       },
       "& .MuiSelect-select": {
         color: theme.app.text.placeholder,

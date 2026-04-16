@@ -54,7 +54,7 @@ export const formWrapperStyles: SxProps<Theme> = {
 
 const glassFormCardBase = (theme: Theme): SystemStyleObject<Theme> => ({
   width: "100%",
-  maxWidth: { xs: "100%", sm: 440 },
+  maxWidth: { xs: "100%", sm: 420 },
   position: "relative",
   overflow: "hidden",
   background: "rgba(255, 255, 255, 0.1)",
@@ -67,7 +67,7 @@ const glassFormCardBase = (theme: Theme): SystemStyleObject<Theme> => ({
   "& .MuiCardContent-root": {
     position: "relative",
     zIndex: 1,
-    p: { xs: 2, sm: 3 },
+    p: { xs: 1.5, sm: 2.5 },
     color: theme.app.text.link,
   },
   "&::before": {
@@ -104,9 +104,9 @@ export const authShellCardStyles = (theme: Theme): SystemStyleObject<Theme> => (
   ...glassFormCardBase(theme),
   display: "flex",
   flexDirection: "column",
-  minHeight: { xs: 608, sm: 628 },
+  minHeight: { xs: 540, sm: 560 },
   "& .MuiCardContent-root": {
-    p: { xs: 2, sm: 3 },
+    p: { xs: 1.5, sm: 2.5 },
     display: "flex",
     flexDirection: "column",
     flex: 1,
@@ -132,9 +132,9 @@ export const formStackStyles: SxProps<Theme> = {
 /** Shared auth forms: rounded underline field (merged after global `InputField` styles). */
 export const authInputFieldStyles: SxProps<Theme> = {
   "& .MuiOutlinedInput-root": {
-    borderRadius: "14px",
+    borderRadius: "12px",
     "&::after": {
-      borderRadius: "14px",
+      borderRadius: "12px",
     },
   },
 };

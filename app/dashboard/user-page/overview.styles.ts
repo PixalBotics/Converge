@@ -77,6 +77,8 @@ export const overviewTableCardHeader: SxProps<Theme> = {
   alignItems: { xs: "flex-start", md: "center" },
   justifyContent: "space-between",
   gap: 1.5,
+  position: "relative",
+  zIndex: 4,
 };
 
 export const overviewIconBox: SxProps<Theme> = {

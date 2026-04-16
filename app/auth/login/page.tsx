@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import Box from "@mui/material/Box";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Stack from "@mui/material/Stack";
+import CircularProgress from "@mui/material/CircularProgress";
 import { useTheme } from "@mui/material/styles";
 import type { SxProps, Theme } from "@mui/material/styles";
 import {
@@ -15,7 +16,6 @@ import {
   Label,
 } from "@/components/common";
 import { APP_PATHS, getAuthEmailRules, useAuth } from "@/lib/auth";
-import { AuthInlineLoading } from "../_components/AuthInlineLoading";
 import { AuthNavigationLink } from "../_components/AuthNavigationLink";
 import { AUTH_PATHS } from "../constants";
 import { authInputFieldStyles, signInButtonStyles } from "../auth-layout.styles";
@@ -45,6 +45,7 @@ export default function LoginPage() {
   const theme = useTheme();
   const router = useRouter();
   const { login, isAuthenticated, isLoading } = useAuth();
+  const disableForm = isLoading || isAuthenticated;
   const {
     control,
     handleSubmit,
@@ -90,10 +91,6 @@ export default function LoginPage() {
     }
   };
 
-  if (isLoading || isAuthenticated) {
-    return <AuthInlineLoading message="Redirecting…" />;
-  }
-
   return (
     <Box
       component="form"
@@ -112,6 +109,7 @@ export default function LoginPage() {
               type="email"
               placeholder="Enter your email"
               {...field}
+              disabled={disableForm}
               error={!!fieldState.error}
               helperText={fieldState.error?.message}
               sx={authInputFieldStyles}
@@ -130,6 +128,7 @@ export default function LoginPage() {
               type="text"
               placeholder="Enter your license key"
               {...field}
+              disabled={disableForm}
               error={!!fieldState.error}
               helperText={fieldState.error?.message}
               sx={authInputFieldStyles}
@@ -152,6 +151,7 @@ export default function LoginPage() {
               type="password"
               placeholder="Enter your password"
               {...field}
+              disabled={disableForm}
               error={!!fieldState.error}
               helperText={fieldState.error?.message}
               sx={authInputFieldStyles}
@@ -172,6 +172,7 @@ export default function LoginPage() {
                 control={
                   <Checkbox
                     sx={checkboxStyles}
+                    disabled={disableForm}
                     checked={field.value}
                     onChange={(_, v) => field.onChange(v)}
                     onBlur={field.onBlur}
@@ -193,10 +194,17 @@ export default function LoginPage() {
         <Button
           fullWidth
           type="submit"
-          disabled={isSubmitting}
+          disabled={disableForm || isSubmitting}
           sx={signInButtonStyles(theme) as SxProps<Theme>}
         >
-          Sign In
+          {isSubmitting ? (
+            <>
+              <CircularProgress size={20} thickness={5} sx={{ color: "currentColor" }} />
+              Sign In
+            </>
+          ) : (
+            "Sign In"
+          )}
         </Button>
       </Stack>
     </Box>

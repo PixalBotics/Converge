@@ -5,7 +5,6 @@ import Stack from "@mui/material/Stack";
 import { useTheme } from "@mui/material/styles";
 import type { SxProps, Theme } from "@mui/material/styles";
 import { Button, InputField, TextLink } from "@/components/common";
-import { AuthInlineLoading } from "../_components/AuthInlineLoading";
 import { AuthNavigationLink } from "../_components/AuthNavigationLink";
 import { AUTH_PATHS } from "../constants";
 import { useAuthPublicOnlyRoute } from "../use-auth-public-only-route";
@@ -23,10 +22,7 @@ import {
 export default function VerifyCodePage() {
   const theme = useTheme();
   const block = useAuthPublicOnlyRoute();
-
-  if (block) {
-    return <AuthInlineLoading message="Checking session…" />;
-  }
+  const disableForm = block;
 
   return (
     <Box
@@ -34,13 +30,14 @@ export default function VerifyCodePage() {
       noValidate
       sx={authFormColumnSx}
     >
-      <Stack spacing={2.5} sx={formStackStyles}>
+      <Stack spacing={2} sx={formStackStyles}>
         <InputField
           label="Enter Code"
           name="code"
           type="text"
           placeholder="Enter your code"
           sx={authInputFieldStyles}
+          disabled={disableForm}
         />
 
         <Box component="p" sx={resendTextStyles(theme) as SxProps<Theme>}>
@@ -50,7 +47,12 @@ export default function VerifyCodePage() {
           </TextLink>
         </Box>
 
-        <Button fullWidth type="submit" sx={signInButtonStyles(theme) as SxProps<Theme>}>
+        <Button
+          fullWidth
+          type="submit"
+          disabled={disableForm}
+          sx={signInButtonStyles(theme) as SxProps<Theme>}
+        >
           Confirm
         </Button>
       </Stack>

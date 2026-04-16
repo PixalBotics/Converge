@@ -28,6 +28,12 @@ export type { DataTableProps, DataTableColumn } from "./DataTable/DataTable.type
 export { LoadingScreen } from "./LoadingScreen";
 export type { LoadingScreenProps } from "./LoadingScreen";
 export { SearchBar } from "./SearchBar/SearchBar";
+export { FilterableSearchBar } from "./SearchBar/FilterableSearchBar";
+export type {
+  FilterableSearchOption,
+  FilterableSearchSuggestion,
+  FilterableSearchBarProps,
+} from "./SearchBar/FilterableSearchBar.types";
 export { FilterButton } from "./FilterButton/FilterButton";
 export { TablePagination } from "./TablePagination/TablePagination";
 export { FormModal } from "./FormModal/FormModal";

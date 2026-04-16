@@ -7,7 +7,6 @@ import { useTheme } from "@mui/material/styles";
 import type { SxProps, Theme } from "@mui/material/styles";
 import { Button, InputField } from "@/components/common";
 import { getAuthEmailRules, isForgotPasswordOtpApiEnabled } from "@/lib/auth";
-import { AuthInlineLoading } from "../_components/AuthInlineLoading";
 import { AuthNavigationLink } from "../_components/AuthNavigationLink";
 import { AUTH_PATHS } from "../constants";
 import { useAuthPublicOnlyRoute } from "../use-auth-public-only-route";
@@ -41,10 +40,6 @@ export default function ForgotPasswordPage() {
     reValidateMode: "onChange",
   });
 
-  if (block) {
-    return <AuthInlineLoading message="Checking session…" />;
-  }
-
   const onSubmit = async (_values: ForgotFormValues) => {
     if (!apiEnabled) {
       return;
@@ -54,6 +49,8 @@ export default function ForgotPasswordPage() {
 
   /** Valid email shape + OTP API flag (until then button stays disabled). */
   const canSendOtp = isValid && apiEnabled;
+  const disableForm = block;
+  const disableSubmit = disableForm || !canSendOtp || isSubmitting;
 
   return (
     <Box
@@ -62,7 +59,7 @@ export default function ForgotPasswordPage() {
       onSubmit={handleSubmit(onSubmit)}
       sx={authFormColumnSx}
     >
-      <Stack spacing={2.5} sx={formStackStyles}>
+      <Stack spacing={2} sx={formStackStyles}>
         <Controller
           name="email"
           control={control}
@@ -73,6 +70,7 @@ export default function ForgotPasswordPage() {
               type="email"
               placeholder="Enter your email"
               {...field}
+              disabled={disableForm}
               error={!!fieldState.error}
               helperText={fieldState.error?.message}
               sx={authInputFieldStyles}
@@ -83,7 +81,7 @@ export default function ForgotPasswordPage() {
         <Button
           fullWidth
           type="submit"
-          disabled={!canSendOtp || isSubmitting}
+          disabled={disableSubmit}
           sx={signInButtonStyles(theme) as SxProps<Theme>}
         >
           Send OTP

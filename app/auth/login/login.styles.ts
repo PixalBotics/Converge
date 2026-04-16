@@ -4,7 +4,7 @@ import { formStackStyles } from "../auth-layout.styles";
 /** Login field stack: flex `gap` so fields space evenly; spacing={0} on Stack avoids double margins. */
 export const loginFormStackStyles: SxProps<Theme> = {
   ...formStackStyles,
-  gap: { xs: 2, sm: 2.25 },
+  gap: { xs: 1.25, sm: 1.5, md: 1.75 },
   "& > .remember-forgot-row": { marginTop: "0 !important" },
 };
 

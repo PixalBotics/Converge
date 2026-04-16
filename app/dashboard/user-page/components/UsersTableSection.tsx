@@ -136,7 +136,6 @@ export function UsersTableSection(props: Props) {
           </Typography>
         </Box>
         <UserSearchToolbar
-          theme={theme}
           filterKind={filterKind}
           onFilterKindChange={setFilterKind}
           searchInput={searchInput}

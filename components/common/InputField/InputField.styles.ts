@@ -13,7 +13,7 @@ export const labelStyles = (theme: Theme) =>
 export const textFieldStyles = (theme: Theme) =>
   ({
     "& .MuiOutlinedInput-root": {
-      borderRadius: 0,
+      borderRadius: "12px",
       position: "relative",
       overflow: "hidden",
       "& fieldset": {
@@ -34,7 +34,7 @@ export const textFieldStyles = (theme: Theme) =>
         position: "absolute",
         inset: 0,
         padding: "1.5px",
-        borderRadius: 0,
+        borderRadius: "12px",
         opacity: 0,
         transition: "opacity 0.1s ease",
         background: `radial-gradient(180px at var(--input-cursor-x, 50%) var(--input-cursor-y, 50%), ${theme.app.dashboard.accentBlue} 0%, ${theme.app.dashboard.accentBlue} 28%, transparent 82%)`,
@@ -47,6 +47,13 @@ export const textFieldStyles = (theme: Theme) =>
       },
       "&:hover::after, &.Mui-focused::after": {
         opacity: 1,
+      },
+      "&.Mui-error::before": {
+        backgroundColor: theme.palette.error.main,
+      },
+      "&.Mui-error::after": {
+        background: `radial-gradient(180px at var(--input-cursor-x, 50%) var(--input-cursor-y, 50%), ${theme.palette.error.main} 0%, ${theme.palette.error.main} 28%, transparent 82%)`,
+        filter: `drop-shadow(0 0 6px ${theme.palette.error.main})`,
       },
       backgroundColor: "transparent",
       boxShadow: "none",

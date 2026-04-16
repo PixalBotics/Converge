@@ -5,7 +5,6 @@ import Stack from "@mui/material/Stack";
 import { useTheme } from "@mui/material/styles";
 import type { SxProps, Theme } from "@mui/material/styles";
 import { Button, InputField } from "@/components/common";
-import { AuthInlineLoading } from "../_components/AuthInlineLoading";
 import { AuthNavigationLink } from "../_components/AuthNavigationLink";
 import { AUTH_PATHS } from "../constants";
 import { useAuthPublicOnlyRoute } from "../use-auth-public-only-route";
@@ -21,10 +20,7 @@ import {
 export default function SetPasswordPage() {
   const theme = useTheme();
   const block = useAuthPublicOnlyRoute();
-
-  if (block) {
-    return <AuthInlineLoading message="Checking session…" />;
-  }
+  const disableForm = block;
 
   return (
     <Box
@@ -32,13 +28,14 @@ export default function SetPasswordPage() {
       noValidate
       sx={authFormColumnSx}
     >
-      <Stack spacing={2.5} sx={formStackStyles}>
+      <Stack spacing={2} sx={formStackStyles}>
         <InputField
           label="Create Password"
           name="password"
           type="password"
           placeholder="Enter your password"
           sx={authInputFieldStyles}
+          disabled={disableForm}
         />
 
         <InputField
@@ -47,9 +44,15 @@ export default function SetPasswordPage() {
           type="password"
           placeholder="Enter your password"
           sx={authInputFieldStyles}
+          disabled={disableForm}
         />
 
-        <Button fullWidth type="submit" sx={signInButtonStyles(theme) as SxProps<Theme>}>
+        <Button
+          fullWidth
+          type="submit"
+          disabled={disableForm}
+          sx={signInButtonStyles(theme) as SxProps<Theme>}
+        >
           Confirm
         </Button>
       </Stack>
