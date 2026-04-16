@@ -27,6 +27,8 @@ export interface FormModalProps {
   onSave: () => void;
   primaryButtonLabel?: string;
   cancelButtonLabel?: string;
+  /** When false, hides the cancel button entirely. Default: true */
+  showCancelButton?: boolean;
   /** Primary action icon (e.g. sparkle) — uses shared gradient primary button. */
   primaryStartIcon?: ReactNode;
   /** Modal card max width (default 540). */
@@ -50,6 +52,7 @@ export function FormModal({
   onSave,
   primaryButtonLabel = "Save",
   cancelButtonLabel = "Cancel",
+  showCancelButton = true,
   primaryStartIcon,
   maxWidth = 540,
   fitContent = false,
@@ -201,9 +204,11 @@ export function FormModal({
             gap: 1.5,
           }}
         >
-          <Button variant="secondary" onClick={onClose}>
-            {cancelButtonLabel}
-          </Button>
+          {showCancelButton && (
+            <Button variant="secondary" onClick={onClose}>
+              {cancelButtonLabel}
+            </Button>
+          )}
           <Button
             variant="primary"
             onClick={onSave}
