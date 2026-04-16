@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import Box from "@mui/material/Box";
 import IconButton from "@mui/material/IconButton";
 import { useTheme } from "@mui/material/styles";
@@ -23,6 +23,7 @@ import {
   InputField,
   SelectField,
 } from "@/components/common";
+import { useCompaniesListQuery } from "@/lib/hooks/query";
 import { DeleteCircleIcon } from "@/components/dashboard/icons/DeleteCircleIcon";
 import { AddCircleIcon } from "@/components/dashboard/icons/AddCircleIcon";
 import type { DataTableColumn } from "@/components/common";
@@ -41,9 +42,6 @@ import {
   cardTitleRow,
   cardTitleIconBox,
   attachMoneyIconSx,
-  tableStatusPill,
-  tableStatusDot,
-  tableStatusCaption,
   footerMutedText,
   stepperOuter,
   stepperSegment,
@@ -68,29 +66,26 @@ import {
 } from "./allCompaniesOverview.styles";
 
 type CompanyRow = {
-  clientReseller: string;
+  id: string;
+  reseller: string;
   parentCompany: string;
-  childCompaniesCount: string;
-  websitesCount: string;
-  status: "Active";
+  childCompany: string;
+  childCompanies?: UnknownRecord[];
 };
 
-const COMPANY_ROWS: CompanyRow[] = [
-  { clientReseller: "Jacob Jones", parentCompany: "Binford Ltd.", childCompaniesCount: "235", websitesCount: "21,0912", status: "Active" },
-  { clientReseller: "Leslie Alexander", parentCompany: "Abstergo Ltd.", childCompaniesCount: "235", websitesCount: "21,0912", status: "Active" },
-  { clientReseller: "Albert Flores", parentCompany: "Barone LLC.", childCompaniesCount: "345", websitesCount: "21,0912", status: "Active" },
-  { clientReseller: "Cameron Williamson", parentCompany: "Acme Co.", childCompaniesCount: "2424", websitesCount: "21,0912", status: "Active" },
-  { clientReseller: "Eleanor Pena", parentCompany: "Big Kahuna Burger Ltd.", childCompaniesCount: "242", websitesCount: "21,0912", status: "Active" },
-  { clientReseller: "Darrell Steward", parentCompany: "Acme Co.", childCompaniesCount: "756", websitesCount: "21,0912", status: "Active" },
-  { clientReseller: "Bessie Cooper", parentCompany: "Binford Ltd.", childCompaniesCount: "235", websitesCount: "21,0912", status: "Active" },
-  { clientReseller: "Courtney Henry", parentCompany: "Binford Ltd.", childCompaniesCount: "653", websitesCount: "21,0912", status: "Active" },
-];
+type UnknownRecord = Record<string, unknown>;
+
+function asRecord(value: unknown): UnknownRecord | null {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as UnknownRecord)
+    : null;
+}
 
 export default function AllCompaniesPage() {
   const theme = useTheme() as AppTheme;
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
-  const pageCount = 2;
+  const limit = 20;
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [modalStep, setModalStep] = useState<1 | 2>(1);
   const [clientType, setClientType] = useState("External");
@@ -100,6 +95,19 @@ export default function AllCompaniesPage() {
   const [phoneNumber, setPhoneNumber] = useState("");
   const [childCompanySectionCount, setChildCompanySectionCount] = useState(1);
   const [websiteSectionCount, setWebsiteSectionCount] = useState(1);
+  const [isChildListOpen, setIsChildListOpen] = useState(false);
+  const [childListParentName, setChildListParentName] = useState("");
+  const [childListResellerName, setChildListResellerName] = useState("");
+  const [childListCompanies, setChildListCompanies] = useState<UnknownRecord[]>([]);
+
+  const { data: companiesResponse, isLoading: isCompaniesLoading } = useCompaniesListQuery({
+    page,
+    limit,
+    search: search.trim() || undefined,
+  });
+
+  const companiesData = companiesResponse?.data;
+  const pageCount = companiesData?.totalPages ?? 1;
 
   const isStepOneComplete =
     clientType.trim().length > 0 &&
@@ -117,6 +125,21 @@ export default function AllCompaniesPage() {
     setPhoneNumber("");
     setChildCompanySectionCount(1);
     setWebsiteSectionCount(1);
+  };
+
+  const handleOpenChildListModal = useCallback((row: CompanyRow) => {
+    if (!row.childCompanies || row.childCompanies.length <= 1) return;
+    setChildListParentName(row.parentCompany);
+    setChildListResellerName(row.reseller);
+    setChildListCompanies(row.childCompanies);
+    setIsChildListOpen(true);
+  }, []);
+
+  const handleCloseChildListModal = () => {
+    setIsChildListOpen(false);
+    setChildListParentName("");
+    setChildListResellerName("");
+    setChildListCompanies([]);
   };
 
   const handleOpenModal = () => {
@@ -139,37 +162,86 @@ export default function AllCompaniesPage() {
   };
 
   const filteredRows = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return COMPANY_ROWS;
-    return COMPANY_ROWS.filter((row) =>
-      row.clientReseller.toLowerCase().includes(q) ||
-      row.parentCompany.toLowerCase().includes(q) ||
-      row.childCompaniesCount.toLowerCase().includes(q) ||
-      row.websitesCount.toLowerCase().includes(q) ||
-      row.status.toLowerCase().includes(q),
-    );
-  }, [search]);
+    const items = Array.isArray(companiesData?.items) ? companiesData.items : [];
+    const rows: CompanyRow[] = [];
+
+    for (const item of items) {
+      const treeNode = asRecord(item);
+      const resellerObj = asRecord(treeNode?.reseller);
+      const resellerName = String(resellerObj?.name ?? "").trim() || "-";
+      const parentCompanies = Array.isArray(treeNode?.parentCompanies)
+        ? treeNode.parentCompanies
+        : [];
+
+      for (const parent of parentCompanies) {
+        const parentObj = asRecord(parent);
+        const parentName = String(parentObj?.name ?? "").trim() || "-";
+        const childCompanies = Array.isArray(parentObj?.childCompanies)
+          ? parentObj.childCompanies
+          : [];
+
+        if (childCompanies.length === 0) {
+          rows.push({
+            id: String(parentObj?.id ?? `${resellerName}-${parentName}`),
+            reseller: resellerName,
+            parentCompany: parentName,
+            childCompany: "-",
+          });
+          continue;
+        }
+
+        if (childCompanies.length === 1) {
+          const childObj = asRecord(childCompanies[0]);
+          const childName = String(childObj?.name ?? "").trim() || "-";
+          rows.push({
+            id: String(childObj?.id ?? `${resellerName}-${parentName}-${childName}`),
+            reseller: resellerName,
+            parentCompany: parentName,
+            childCompany: childName,
+          });
+        } else {
+          rows.push({
+            id: String(parentObj?.id ?? `${resellerName}-${parentName}-children`),
+            reseller: resellerName,
+            parentCompany: parentName,
+            childCompany: `${childCompanies.length} Child Companies`,
+            childCompanies: childCompanies as UnknownRecord[],
+          });
+        }
+      }
+    }
+
+    return rows;
+  }, [companiesData?.items]);
 
   const columns = useMemo<DataTableColumn<CompanyRow>[]>(
     () => [
-      { id: "clientReseller", label: "Client Of (Reseller)" },
+      { id: "reseller", label: "Client Of (Reseller)" },
       { id: "parentCompany", label: "Parent Company" },
-      { id: "childCompaniesCount", label: "Child Companies Count" },
-      { id: "websitesCount", label: "Websites Count" },
       {
-        id: "status",
-        label: "Status",
-        render: (_, row) => (
-          <Box component="span" sx={tableStatusPill}>
-            <Box sx={tableStatusDot} />
-            <Typography component="span" variant="caption" sx={tableStatusCaption}>
-              {row.status}
-            </Typography>
-          </Box>
-        ),
+        id: "childCompany",
+        label: "Child Company",
+        render: (value, row) =>
+          row.childCompanies && row.childCompanies.length > 1 ? (
+            <Button
+              variant="secondary"
+              size="small"
+              sx={{
+                alignSelf: "flex-start",
+                justifyContent: "flex-start",
+                px: 2,
+                minWidth: "auto",
+              }}
+              onClick={() => handleOpenChildListModal(row)}
+            >
+              {String(value ?? row.childCompany)}
+            </Button>
+          ) : (
+            String(value ?? row.childCompany)
+          ),
       },
     ],
-    [],
+    [handleOpenChildListModal],
   );
 
   return (
@@ -208,7 +280,7 @@ export default function AllCompaniesPage() {
         <DataTable<CompanyRow>
           columns={columns}
           rows={filteredRows}
-          getRowId={(row, idx) => `${row.clientReseller}-${idx}`}
+          getRowId={(row) => row.id}
           minWidth={980}
           actionColumn={{
             label: "Action",
@@ -222,13 +294,69 @@ export default function AllCompaniesPage() {
 
         <Box sx={departmentsFooterRow}>
           <Typography variant="medium" sx={footerMutedText(theme)}>
-            Showing data 1 to {filteredRows.length} of 25K entries
+            {isCompaniesLoading
+              ? "Loading companies..."
+              : `Showing data ${filteredRows.length > 0 ? (page - 1) * limit + 1 : 0} to ${
+                  (page - 1) * limit + filteredRows.length
+                } of ${companiesData?.total ?? 0} entries`}
           </Typography>
           <Box sx={departmentsPaginationWrapper}>
             <TablePagination page={page} pageCount={pageCount} onPageChange={setPage} />
           </Box>
         </Box>
       </DashboardCard>
+
+      <FormModal
+        open={isChildListOpen}
+        title={
+          childListParentName
+            ? `${childListParentName} – Child Companies`
+            : "Child Companies"
+        }
+        description={
+          childListResellerName
+            ? `Reseller: ${childListResellerName}. Showing ${childListCompanies.length} child companies.`
+            : `Showing ${childListCompanies.length} child companies.`
+        }
+        onClose={handleCloseChildListModal}
+        onSave={handleCloseChildListModal}
+        primaryButtonLabel="Close"
+        showCancelButton={false}
+      >
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" },
+            columnGap: 3,
+            rowGap: 2.5,
+          }}
+        >
+          {childListCompanies.map((child, index) => {
+            const childObj = asRecord(child) ?? {};
+            const name = String(childObj.name ?? "").trim() || "-";
+            const email = String(childObj.email ?? "").trim() || "-";
+            const phone = String(childObj.phone ?? "").trim() || "-";
+            const address = String(childObj.address ?? "").trim() || "-";
+
+            return (
+              <Box key={String(childObj.id ?? `${name}-${index}`)}>
+                <Typography variant="mediumLarge" color="white">
+                  {name}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Email: {email}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Phone: {phone}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Address: {address}
+                </Typography>
+              </Box>
+            );
+          })}
+        </Box>
+      </FormModal>
 
       <FormModal
         open={isAddOpen}

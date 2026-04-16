@@ -68,9 +68,13 @@ export function AddUserModal({
   const resellersQuery = useCompaniesSetupResellersQuery({
     enabled: open && userType === "External",
   });
-  const companiesByResellerQuery = useCompaniesByResellerQuery(resellerId, {
-    enabled: open && userType === "External" && resellerId.trim().length > 0,
-  });
+  const companiesByResellerQuery = useCompaniesByResellerQuery(
+    resellerId,
+    { view: "tree", sortBy: "name", sortOrder: "asc" },
+    {
+      enabled: open && userType === "External" && resellerId.trim().length > 0,
+    },
+  );
   const rolesQuery = useRolesListQuery(undefined, { enabled: open });
 
   const parentCompanyOptions = useMemo(
@@ -241,7 +245,15 @@ export function AddUserModal({
     setLastName(String(u.lastName ?? u.last_name ?? "").trim());
     setEmail(String(u.email ?? "").trim());
     setPhone(
-      String(u.phone ?? u.phoneNumber ?? u.mobile ?? u.phone_number ?? "").trim(),
+      String(
+        u.phoneNo
+          ?? u.phone_no
+          ?? u.phone
+          ?? u.phoneNumber
+          ?? u.mobile
+          ?? u.phone_number
+          ?? "",
+      ).trim(),
     );
 
     const typeRaw = u.userType ?? u.user_type;

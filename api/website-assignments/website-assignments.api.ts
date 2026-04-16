@@ -1,10 +1,16 @@
 import { apiClient } from "../http/axios-instance";
 import type { JsonRecord } from "../types/common.types";
+import type { WebsiteAssignmentsWebsitesResponseEnvelope } from "../types/website-assignments.types";
 
-export async function listWebsitesInScope(params?: JsonRecord): Promise<unknown> {
-  const { data } = await apiClient.get("/website-assignments/websites", {
+export async function listWebsitesInScope(
+  params?: JsonRecord,
+): Promise<WebsiteAssignmentsWebsitesResponseEnvelope> {
+  const { data } = await apiClient.get<WebsiteAssignmentsWebsitesResponseEnvelope>(
+    "/website-assignments/websites",
+    {
     params,
-  });
+    },
+  );
   return data;
 }
 

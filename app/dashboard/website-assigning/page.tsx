@@ -22,17 +22,10 @@ import {
   TablePagination,
   Typography,
 } from "@/components/common";
+import { useWebsiteAssignmentsWebsitesQuery } from "@/lib/hooks/query";
 import type { DataTableColumn } from "@/components/common";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
 import { SearchIcon } from "@/components/dashboard/icons/SearchIcon";
-import {
-  ASSIGNED_TOTAL,
-  ASSIGNED_USERS,
-  formatEntries,
-  PAGE_COUNT,
-  TOTAL_ENTRIES,
-  type AssignedUserRow,
-} from "./website-assignment-mock";
 import {
   websiteAssignmentFilterCard,
   websiteAssignmentFilterGrid,
@@ -56,54 +49,58 @@ const WEBSITE_OPTIONS = [
   { label: "www.support.io", value: "support" },
 ];
 
+type WebsiteRow = {
+  id: string;
+  reseller: string;
+  parentCompany: string;
+  childCompany: string;
+  websiteName: string;
+  websiteUrl: string;
+  assignedCount: number;
+};
+
 export default function WebsiteAssigningPage() {
   const theme = useTheme() as AppTheme;
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
+  const limit = 20;
   const [websiteFilter, setWebsiteFilter] = useState("marketplace");
   const [isAssignOpen, setIsAssignOpen] = useState(false);
 
-  const filteredRows = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return ASSIGNED_USERS;
-    return ASSIGNED_USERS.filter(
-      (row) =>
-        row.username.toLowerCase().includes(q) ||
-        row.email.toLowerCase().includes(q) ||
-        row.department.toLowerCase().includes(q) ||
-        String(row.chatCount).includes(q)
-    );
-  }, [search]);
+  const { data: websitesResponse, isLoading: isWebsitesLoading } =
+    useWebsiteAssignmentsWebsitesQuery({
+      page,
+      limit,
+      search: search.trim() || undefined,
+    });
+  const websitesData = websitesResponse?.data;
 
-  const columns = useMemo<DataTableColumn<AssignedUserRow>[]>(
+  const filteredRows = useMemo(() => {
+    const items = websitesData?.items ?? [];
+    return items.map((item) => ({
+      id: item.websiteId,
+      reseller: item.resellerName || "-",
+      parentCompany: item.parentCompanyName || "-",
+      childCompany: item.childCompanyName || "-",
+      websiteName: item.name || "-",
+      websiteUrl: item.url || "-",
+      assignedCount: item.assignedCount ?? 0,
+    }));
+  }, [websitesData?.items]);
+
+  const pageCount = websitesData?.totalPages ?? 1;
+  const totalEntries = websitesData?.total ?? 0;
+
+  const columns = useMemo<DataTableColumn<WebsiteRow>[]>(
     () => [
-      { id: "username", label: "Username" },
-      { id: "email", label: "Email", cellVariant: "muted" },
-      { id: "department", label: "Department" },
-      {
-        id: "chatCount",
-        label: "Chat Count",
-        render: (value, row) => (
-          <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, flexWrap: "wrap" }}>
-            <Typography component="span" variant="body2" color="white" fontWeight={500}>
-              {String(value ?? "—")}
-            </Typography>
-            <Typography
-              component="span"
-              variant="body2"
-              sx={{
-                color: theme.app.dashboard.accentGreen,
-                fontWeight: 600,
-                fontSize: "0.8125rem",
-              }}
-            >
-              {row.chatDeltaPct}
-            </Typography>
-          </Box>
-        ),
-      },
+      { id: "reseller", label: "Reseller" },
+      { id: "parentCompany", label: "Parent Company" },
+      { id: "childCompany", label: "Child Company" },
+      { id: "websiteName", label: "Website Name" },
+      { id: "websiteUrl", label: "Website URL", cellVariant: "muted" },
+      { id: "assignedCount", label: "Assigned Count" },
     ],
-    [theme]
+    []
   );
 
   return (
@@ -171,7 +168,7 @@ export default function WebsiteAssigningPage() {
               <SearchIcon sx={{ fontSize: 20, color: theme.app.dashboard.iconMuted }} width={20} height={20} />
             </Box>
             <Typography variant="mediumLarge" color="white" fontWeight={600}>
-              Assigned Users ({ASSIGNED_TOTAL})
+              Websites ({totalEntries})
             </Typography>
           </Box>
           <Box sx={websiteAssignmentSearchRow}>
@@ -182,11 +179,11 @@ export default function WebsiteAssigningPage() {
           </Box>
         </Box>
 
-        <DataTable<AssignedUserRow>
+        <DataTable<WebsiteRow>
           columns={columns}
           rows={filteredRows}
           getRowId={(row) => row.id}
-          minWidth={800}
+          minWidth={1100}
           actionColumn={{
             label: "Action",
             render: (row) => (
@@ -210,10 +207,14 @@ export default function WebsiteAssigningPage() {
 
         <Box sx={websiteAssignmentFooterRow}>
           <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted }}>
-            Showing data 1 to {filteredRows.length} of {formatEntries(TOTAL_ENTRIES)} entries
+            {isWebsitesLoading
+              ? "Loading websites..."
+              : `Showing data ${filteredRows.length > 0 ? (page - 1) * limit + 1 : 0} to ${
+                  (page - 1) * limit + filteredRows.length
+                } of ${totalEntries} entries`}
           </Typography>
           <Box sx={websiteAssignmentPaginationWrapper}>
-            <TablePagination page={page} pageCount={PAGE_COUNT} onPageChange={setPage} />
+            <TablePagination page={page} pageCount={pageCount} onPageChange={setPage} />
           </Box>
         </Box>
       </DashboardCard>

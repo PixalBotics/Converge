@@ -1,16 +1,22 @@
 import { apiClient } from "../http/axios-instance";
 import type { JsonRecord } from "../types/common.types";
+import type { CompaniesListResponseEnvelope } from "../types/companies.types";
 
-export async function listCompanies(params?: JsonRecord): Promise<unknown> {
-  const { data } = await apiClient.get("/companies", { params });
+export async function listCompanies(
+  params?: JsonRecord,
+): Promise<CompaniesListResponseEnvelope> {
+  const { data } = await apiClient.get<CompaniesListResponseEnvelope>(
+    "/companies",
+    { params },
+  );
   return data;
 }
 
 export async function listCompaniesByReseller(
   resellerId: string,
   params?: JsonRecord,
-): Promise<unknown> {
-  const { data } = await apiClient.get(
+): Promise<CompaniesListResponseEnvelope> {
+  const { data } = await apiClient.get<CompaniesListResponseEnvelope>(
     `/companies/by-reseller/${encodeURIComponent(resellerId)}`,
     { params },
   );

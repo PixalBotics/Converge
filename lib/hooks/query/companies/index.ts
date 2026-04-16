@@ -1,2 +1,7 @@
 export { companiesKeys } from "./keys";
-export { useCompaniesByResellerQuery, useCompaniesSetupResellersQuery } from "./hooks";
+export {
+  useCompaniesByResellerQuery,
+  useCompaniesListQuery,
+  useCompaniesSetupResellersQuery,
+} from "./hooks";
+export type { CompaniesListParams } from "./hooks";
