@@ -12,9 +12,14 @@ import {
 import { isAxiosError } from "axios";
 import { usePathname, useRouter } from "next/navigation";
 import type { User, LoginCredentials } from "./types";
-import { getAccessToken, getMe, synchronizeAuthSession } from "@/api";
+import { getAccessToken, getMe, setTokenPair, synchronizeAuthSession } from "@/api";
 import { useLoginMutation, useLogoutMutation } from "@/lib/hooks";
 import { APP_PATHS, AUTH_PATHS, shouldSkipRemoteAuthHydration } from "./auth-paths";
+import {
+  clearImpersonationSession,
+  getImpersonationSession,
+  isImpersonatingSessionActive,
+} from "./impersonation-session";
 import {
   extractPermissionsByType,
   hasOperationalPermission,
@@ -170,6 +175,8 @@ interface AuthContextValue {
   rbacEnabled: boolean;
   hasPage: (permission: string) => boolean;
   hasOperational: (permission: string) => boolean;
+  isImpersonating: boolean;
+  revertImpersonation: () => Promise<boolean>;
   login: (credentials: LoginCredentials) => Promise<LoginResult>;
   logout: () => Promise<void>;
 }
@@ -184,9 +191,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [permissionsByType, setPermissionsByType] = useState<PermissionsByType | undefined>(undefined);
+  const [isImpersonating, setIsImpersonating] = useState(false);
 
   const applyLocalAuthFromCookies = useCallback(() => {
     setUser(getUserFromAccessToken());
+    setIsImpersonating(isImpersonatingSessionActive());
     setIsLoading(false);
   }, []);
 
@@ -251,6 +260,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return mergePermissionsByType(prev, incoming);
         });
         setUser(mappedMeUser ?? getUserFromAccessToken());
+        setIsImpersonating(isImpersonatingSessionActive());
       } catch {
         if (!mounted) return;
         if (isSkipHydrationPath()) {
@@ -258,6 +268,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return;
         }
         setUser(getUserFromAccessToken());
+        setIsImpersonating(isImpersonatingSessionActive());
       } finally {
         if (!mounted) return;
         if (!isSkipHydrationPath()) {
@@ -305,12 +316,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return mergePermissionsByType(prev, incoming);
         });
         setUser(mappedMeUser ?? getUserFromAccessToken());
+        setIsImpersonating(isImpersonatingSessionActive());
       } catch {
         if (!active) return;
         if (isSkipHydrationPath()) {
           return;
         }
         setUser(getUserFromAccessToken());
+        setIsImpersonating(isImpersonatingSessionActive());
       } finally {
         if (!active) return;
         if (!isSkipHydrationPath()) {
@@ -415,8 +428,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     setUser(null);
     setPermissionsByType(undefined);
+    setIsImpersonating(false);
     router.push(AUTH_PATHS.login);
   }, [logoutMutation, router]);
+
+  const revertImpersonation = useCallback(async (): Promise<boolean> => {
+    const session = getImpersonationSession();
+    if (!session?.originalTokenPair) {
+      setIsImpersonating(false);
+      return false;
+    }
+    try {
+      setTokenPair(session.originalTokenPair);
+      const mePayload = await getMe({ permissionsBreakdown: true });
+      const meUser = extractUserFromMePayload(mePayload);
+      const mappedMeUser = meUser ? mapApiUserToUser(meUser) : null;
+      setPermissionsByType((prev) => {
+        const incoming = extractPermissionsByType(mePayload);
+        if (!incoming) return prev;
+        return mergePermissionsByType(prev, incoming);
+      });
+      setUser(mappedMeUser ?? getUserFromAccessToken());
+      clearImpersonationSession();
+      setIsImpersonating(false);
+      router.replace(APP_PATHS.dashboard);
+      return true;
+    } catch {
+      return false;
+    }
+  }, [router]);
 
   const value = useMemo<AuthContextValue>(
     () => ({
@@ -427,10 +467,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       rbacEnabled,
       hasPage,
       hasOperational,
+      isImpersonating,
+      revertImpersonation,
       login,
       logout,
     }),
-    [user, isLoading, permissionsByType, rbacEnabled, hasPage, hasOperational, login, logout],
+    [user, isLoading, permissionsByType, rbacEnabled, hasPage, hasOperational, isImpersonating, revertImpersonation, login, logout],
   );
 
   return (

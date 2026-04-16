@@ -1,6 +1,6 @@
 export { hrmsAttendanceKeys } from "./attendance";
-export { hrmsDepartmentsKeys } from "./departments";
-export { hrmsDesignationsKeys } from "./designations";
+export { hrmsDepartmentsKeys, useDepartmentsListQuery } from "./departments";
+export { hrmsDesignationsKeys, useDesignationsListQuery } from "./designations";
 export { hrmsDepartmentHeadsKeys } from "./department-heads";
 export { hrmsPoolHeadsKeys } from "./pool-heads";
 export { hrmsDepartmentShiftsKeys } from "./department-shifts";

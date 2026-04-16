@@ -15,6 +15,11 @@ export async function listUsers(params?: JsonRecord): Promise<unknown> {
   return data;
 }
 
+export async function getUser(id: string): Promise<unknown> {
+  const { data } = await apiClient.get(`/users/${encodeURIComponent(id)}`);
+  return data;
+}
+
 export async function createUser(body: JsonRecord): Promise<unknown> {
   const { data } = await apiClient.post("/users", body);
   return data;

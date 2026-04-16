@@ -46,6 +46,11 @@ export interface LoginRequestBody {
   licenseKey: string;
 }
 
+export interface LoginAsRequestBody {
+  targetUserId: string;
+  licenseKey: string;
+}
+
 export interface RefreshRequestBody {
   refreshToken: string;
 }

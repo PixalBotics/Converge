@@ -1,3 +1,9 @@
 export { usersKeys } from "./keys";
-export { useUserFilterSuggestionsQuery, useUsersListQuery } from "./hooks";
+export {
+  useCreateUserMutation,
+  useUpdateUserMutation,
+  useUserFilterSuggestionsQuery,
+  useUserQuery,
+  useUsersListQuery,
+} from "./hooks";
 export type { UsersListParams, UserFilterSuggestionsParams } from "./hooks";

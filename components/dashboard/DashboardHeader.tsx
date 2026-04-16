@@ -18,6 +18,7 @@ import {
   Logout as LogoutIcon,
   Close as CloseIcon,
   PersonOutline as PersonOutlineIcon,
+  Login as LoginIcon,
   PaletteOutlined as PaletteOutlinedIcon,
 } from "@mui/icons-material";
 import { useAuth } from "@/lib/auth";
@@ -82,7 +83,7 @@ export default function DashboardHeader({ onMenuClick }: { onMenuClick?: () => v
     ]
   );
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
-  const { user, logout } = useAuth();
+  const { user, logout, isImpersonating, revertImpersonation } = useAuth();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const open = Boolean(anchorEl);
@@ -92,6 +93,10 @@ export default function DashboardHeader({ onMenuClick }: { onMenuClick?: () => v
   const handleLogout = () => {
     handleClose();
     logout();
+  };
+  const handleLoginAsAdmin = () => {
+    handleClose();
+    void revertImpersonation();
   };
 
   const displayName = user?.displayName ?? "User";
@@ -329,11 +334,15 @@ export default function DashboardHeader({ onMenuClick }: { onMenuClick?: () => v
           </ListItemIcon>
           Theme
         </MenuItem>
-        <MenuItem onClick={handleLogout} sx={{ color: app.text.primary }}>
+        <MenuItem onClick={isImpersonating ? handleLoginAsAdmin : handleLogout} sx={{ color: app.text.primary }}>
           <ListItemIcon>
-            <LogoutIcon fontSize="small" sx={{ color: app.dashboard.white80 }} />
+            {isImpersonating ? (
+              <LoginIcon fontSize="small" sx={{ color: app.dashboard.white80 }} />
+            ) : (
+              <LogoutIcon fontSize="small" sx={{ color: app.dashboard.white80 }} />
+            )}
           </ListItemIcon>
-          Sign Out
+          {isImpersonating ? "Login As Admin" : "Sign Out"}
         </MenuItem>
       </Menu>
     </>

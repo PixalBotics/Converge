@@ -31,6 +31,7 @@ export default function UserPage() {
   const [appliedSearch, setAppliedSearch] = useState("");
   const [page, setPage] = useState(1);
   const [isAddOpen, setIsAddOpen] = useState(false);
+  const [editingUserId, setEditingUserId] = useState<string | undefined>(undefined);
   const [filterKind, setFilterKind] = useState<FilterKind>("user");
   const [selectedSuggestion, setSelectedSuggestion] = useState<{ id: string; label: string } | undefined>(undefined);
   const [appliedFilterIds, setAppliedFilterIds] = useState<{
@@ -125,7 +126,10 @@ export default function UserPage() {
           <Button
             variant="primary"
             sx={overviewAddButton}
-            onClick={() => setIsAddOpen(true)}
+            onClick={() => {
+              setEditingUserId(undefined);
+              setIsAddOpen(true);
+            }}
           >
             <AddCircleIcon width={16} height={16} />
             <Typography component="span" variant="medium" sx={{ color: "inherit" }}>
@@ -158,9 +162,24 @@ export default function UserPage() {
         pageCount={totalPages}
         onPageChange={setPage}
         totalEntries={totalEntries}
+        onEditUser={(id) => {
+          setEditingUserId(id);
+          setIsAddOpen(true);
+        }}
       />
 
-      <AddUserModal open={isAddOpen} onClose={() => setIsAddOpen(false)} theme={theme} />
+      <AddUserModal
+        open={isAddOpen}
+        onClose={() => {
+          setIsAddOpen(false);
+          setEditingUserId(undefined);
+        }}
+        theme={theme}
+        editUserId={editingUserId}
+        onSaved={() => {
+          void usersQuery.refetch();
+        }}
+      />
     </Box>
   );
 }

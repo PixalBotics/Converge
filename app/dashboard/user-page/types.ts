@@ -1,4 +1,6 @@
 export interface UserRow extends Record<string, unknown> {
+  id: string;
+  licenseKey?: string;
   user: string;
   email: string;
   type: "Internal" | "External";

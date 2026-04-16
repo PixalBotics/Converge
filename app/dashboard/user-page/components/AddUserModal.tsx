@@ -1,45 +1,413 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Box from "@mui/material/Box";
+import CircularProgress from "@mui/material/CircularProgress";
 import Radio from "@mui/material/Radio";
-import { Typography, InputField, SelectField, FormModal, Divider, DashboardCard } from "@/components/common";
+import { Typography, InputField, SelectField, FormModal, DashboardCard } from "@/components/common";
+import type { JsonRecord } from "@/api";
 import type { AppTheme } from "@/theme/theme";
-
-const DEPARTMENTS = [
-  "Human Resources",
-  "Engineering",
-  "Sales",
-  "Customer Support",
-  "Marketing",
-  "Finance",
-];
+import {
+  useCompaniesByResellerQuery,
+  useCompaniesSetupResellersQuery,
+  useCreateUserMutation,
+  useDepartmentsListQuery,
+  useDesignationsListQuery,
+  useRolesListQuery,
+  useUpdateUserMutation,
+  useUserQuery,
+} from "@/lib/hooks";
+import {
+  extractParentCompaniesFromByResellerTree,
+  extractUserRecordFromDetailPayload,
+  pickItemsArray,
+  toIdNameOption,
+} from "./add-user-modal.utils";
 
 export function AddUserModal({
   open,
   onClose,
   theme,
+  editUserId,
+  onSaved,
 }: {
   open: boolean;
   onClose: () => void;
   theme: AppTheme;
+  /** When set, modal loads this user and saves with `PATCH /users/:id`. */
+  editUserId?: string;
+  onSaved?: () => void;
 }) {
+  const mode = editUserId?.trim() ? "edit" : "create";
+  const trimmedEditId = editUserId?.trim() ?? "";
+
   const [userType, setUserType] = useState<"Internal" | "External">("Internal");
-  const [parentCompany, setParentCompany] = useState("Support Manager");
-  const [pocType, setPocType] = useState("Sales");
-  const [childCompany, setChildCompany] = useState("John Wick");
-  const [websiteValue, setWebsiteValue] = useState("John Wick");
-  const [roleValue, setRoleValue] = useState("Support Manager");
-  const [departmentValue, setDepartmentValue] = useState("Sales");
+  const [resellerId, setResellerId] = useState("");
+  const [parentCompanyId, setParentCompanyId] = useState("");
+  const [roleValue, setRoleValue] = useState("");
+  const [departmentValue, setDepartmentValue] = useState("");
+  const [designationValue, setDesignationValue] = useState("");
+  const [designationLabelHint, setDesignationLabelHint] = useState("");
+  const [roleLabelHint, setRoleLabelHint] = useState("");
+  const [departmentLabelHint, setDepartmentLabelHint] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [editFormHydrated, setEditFormHydrated] = useState(false);
+  const hydratedEditUserIdRef = useRef<string | null>(null);
+
+  const userDetailQuery = useUserQuery(trimmedEditId, {
+    enabled: open && mode === "edit",
+  });
+  const createMutation = useCreateUserMutation();
+  const updateMutation = useUpdateUserMutation();
+
+  const isEditLoading = mode === "edit" && (userDetailQuery.isLoading || userDetailQuery.isFetching);
+
+  const resellersQuery = useCompaniesSetupResellersQuery({
+    enabled: open && userType === "External",
+  });
+  const companiesByResellerQuery = useCompaniesByResellerQuery(resellerId, {
+    enabled: open && userType === "External" && resellerId.trim().length > 0,
+  });
+  const rolesQuery = useRolesListQuery(undefined, { enabled: open });
+
+  const parentCompanyOptions = useMemo(
+    () => extractParentCompaniesFromByResellerTree(companiesByResellerQuery.data),
+    [companiesByResellerQuery.data],
+  );
+
+  const selectedParentType = useMemo(() => {
+    const found = parentCompanyOptions.find((o) => o.value === parentCompanyId);
+    return found?.type?.trim() ?? "";
+  }, [parentCompanyOptions, parentCompanyId]);
+
+  const departmentQueryParams = useMemo(() => {
+    if (userType === "Internal") {
+      return {};
+    }
+    if (
+      userType === "External" &&
+      resellerId.trim().length > 0 &&
+      parentCompanyId.trim().length > 0
+    ) {
+      const params: Record<string, string> = {
+        resellerId: resellerId.trim(),
+        parentCompanyId: parentCompanyId.trim(),
+      };
+      if (selectedParentType) params.type = selectedParentType;
+      return params;
+    }
+    return {};
+  }, [userType, resellerId, parentCompanyId, selectedParentType]);
+
+  const departmentsEnabledInternal = open && userType === "Internal";
+  const departmentsEnabledExternal =
+    open &&
+    userType === "External" &&
+    resellerId.trim().length > 0 &&
+    parentCompanyId.trim().length > 0;
+
+  const internalDepartmentsQuery = useDepartmentsListQuery(
+    { type: "Internal" },
+    {
+      enabled: departmentsEnabledInternal,
+      scope: "add-user-internal",
+    },
+  );
+  const externalDepartmentsQuery = useDepartmentsListQuery(departmentQueryParams, {
+    enabled: departmentsEnabledExternal,
+    scope: "add-user-external",
+  });
+
+  const departmentsQuery =
+    userType === "Internal" ? internalDepartmentsQuery : externalDepartmentsQuery;
+
+  const designationQueryParams = useMemo(() => {
+    const departmentId = departmentValue.trim();
+    if (!departmentId) return undefined;
+    if (userType === "External" && resellerId.trim()) {
+      return {
+        departmentId,
+        resellerId: resellerId.trim(),
+      };
+    }
+    return { departmentId };
+  }, [departmentValue, userType, resellerId]);
+
+  const designationsQuery = useDesignationsListQuery(
+    designationQueryParams,
+    {
+      enabled:
+        open &&
+        !!designationQueryParams?.departmentId &&
+        (mode === "create" || editFormHydrated),
+      scope: "add-user-modal",
+    },
+  );
+
+  const resellerOptions = useMemo(() => {
+    return pickItemsArray(resellersQuery.data)
+      .map(toIdNameOption)
+      .filter((o): o is { value: string; label: string } => !!o);
+  }, [resellersQuery.data]);
+
+  const roleOptions = useMemo(() => {
+    const base = pickItemsArray(rolesQuery.data)
+      .map(toIdNameOption)
+      .filter((o): o is { value: string; label: string } => !!o);
+    if (mode === "edit" && roleValue.trim() && !base.some((o) => o.value === roleValue.trim())) {
+      const label = roleLabelHint.trim() || roleValue.trim();
+      return [{ value: roleValue.trim(), label }, ...base];
+    }
+    return base;
+  }, [rolesQuery.data, mode, roleValue, roleLabelHint]);
+
+  const departmentOptions = useMemo(() => {
+    const base = pickItemsArray(departmentsQuery.data)
+      .map(toIdNameOption)
+      .filter((o): o is { value: string; label: string } => !!o);
+    if (
+      mode === "edit" &&
+      departmentValue.trim() &&
+      !base.some((o) => o.value === departmentValue.trim())
+    ) {
+      const label = departmentLabelHint.trim() || departmentValue.trim();
+      return [{ value: departmentValue.trim(), label }, ...base];
+    }
+    return base;
+  }, [departmentsQuery.data, mode, departmentValue, departmentLabelHint]);
+
+  const designationOptions = useMemo(() => {
+    const base = pickItemsArray(designationsQuery.data)
+      .map(toIdNameOption)
+      .filter((o): o is { value: string; label: string } => !!o);
+    if (
+      designationValue.trim() &&
+      !base.some((o) => o.value === designationValue.trim())
+    ) {
+      return [
+        {
+          value: designationValue.trim(),
+          label: designationLabelHint.trim() || designationValue.trim(),
+        },
+        ...base,
+      ];
+    }
+    return base;
+  }, [designationsQuery.data, designationValue, designationLabelHint]);
+
+  useEffect(() => {
+    setEditFormHydrated(false);
+    hydratedEditUserIdRef.current = null;
+    setRoleLabelHint("");
+    setDepartmentLabelHint("");
+  }, [trimmedEditId]);
+
+  useEffect(() => {
+    if (open) return;
+    setUserType("Internal");
+    setResellerId("");
+    setParentCompanyId("");
+    setRoleValue("");
+    setDepartmentValue("");
+    setDesignationValue("");
+    setDesignationLabelHint("");
+    setRoleLabelHint("");
+    setDepartmentLabelHint("");
+    setFirstName("");
+    setLastName("");
+    setEmail("");
+    setPhone("");
+    setEditFormHydrated(false);
+    hydratedEditUserIdRef.current = null;
+  }, [open]);
+
+  useEffect(() => {
+    if (!open || mode !== "edit" || !userDetailQuery.isSuccess || !trimmedEditId) return;
+    if (hydratedEditUserIdRef.current === trimmedEditId) return;
+    const u = extractUserRecordFromDetailPayload(userDetailQuery.data);
+    if (!u) return;
+
+    const roleObj = u.role as Record<string, unknown> | undefined;
+    const deptObj = u.department as Record<string, unknown> | undefined;
+    const desObj = u.designation as Record<string, unknown> | undefined;
+    const resellerObj = u.reseller as Record<string, unknown> | undefined;
+    const companyObj = u.company as Record<string, unknown> | undefined;
+    const parentCompanyObj = u.parentCompany as Record<string, unknown> | undefined;
+
+    setFirstName(String(u.firstName ?? u.first_name ?? "").trim());
+    setLastName(String(u.lastName ?? u.last_name ?? "").trim());
+    setEmail(String(u.email ?? "").trim());
+    setPhone(
+      String(u.phone ?? u.phoneNumber ?? u.mobile ?? u.phone_number ?? "").trim(),
+    );
+
+    const typeRaw = u.userType ?? u.user_type;
+    const nextType = String(typeRaw ?? "Internal") === "External" ? "External" : "Internal";
+    setUserType(nextType);
+
+    setResellerId(
+      String(u.resellerId ?? u.reseller_id ?? resellerObj?.id ?? "").trim(),
+    );
+    setParentCompanyId(
+      String(
+        u.companyId
+          ?? u.company_id
+          ?? companyObj?.id
+          ?? u.parentCompanyId
+          ?? u.parent_company_id
+          ?? parentCompanyObj?.id
+          ?? "",
+      ).trim(),
+    );
+
+    const roleId = String(u.roleId ?? u.role_id ?? roleObj?.id ?? "").trim();
+    setRoleValue(roleId);
+    setRoleLabelHint(
+      String(roleObj?.name ?? u.roleName ?? u.role_name ?? "").trim(),
+    );
+
+    const deptId = String(u.departmentId ?? u.department_id ?? deptObj?.id ?? "").trim();
+    setDepartmentValue(deptId);
+    setDepartmentLabelHint(
+      String(deptObj?.name ?? u.departmentName ?? u.department_name ?? "").trim(),
+    );
+
+    const desId = String(u.designationId ?? u.designation_id ?? desObj?.id ?? "").trim();
+    setDesignationValue(desId);
+    setDesignationLabelHint(
+      String(desObj?.name ?? u.designationName ?? u.designation_name ?? "").trim(),
+    );
+    setEditFormHydrated(true);
+    hydratedEditUserIdRef.current = trimmedEditId;
+  }, [open, mode, userDetailQuery.isSuccess, userDetailQuery.data, trimmedEditId]);
+
+  useEffect(() => {
+    if (mode === "edit" && !editFormHydrated) return;
+    if (!roleOptions.length) return;
+    const inList = roleOptions.some((o) => o.value === roleValue);
+    if (!roleValue) {
+      setRoleValue(roleOptions[0].value);
+    } else if (!inList && mode === "create") {
+      setRoleValue(roleOptions[0].value);
+    }
+  }, [roleOptions, roleValue, mode, editFormHydrated]);
+
+  useEffect(() => {
+    if (mode === "edit" && !editFormHydrated) return;
+    if (!departmentOptions.length) return;
+    const inList = departmentOptions.some((o) => o.value === departmentValue);
+    if (!departmentValue) {
+      setDepartmentValue(departmentOptions[0].value);
+    } else if (!inList && mode === "create") {
+      setDepartmentValue(departmentOptions[0].value);
+    }
+  }, [departmentOptions, departmentValue, mode, editFormHydrated]);
+
+  useEffect(() => {
+    if (mode === "edit" && !editFormHydrated) return;
+    if (!designationOptions.length) return;
+    const inList = designationOptions.some((o) => o.value === designationValue);
+    if (!designationValue) {
+      setDesignationValue(designationOptions[0].value);
+    } else if (!inList && mode === "create") {
+      setDesignationValue(designationOptions[0].value);
+    }
+  }, [designationOptions, designationValue, mode, editFormHydrated]);
+
+  const emptySelect = [{ label: "—", value: "" }];
+
+  const isSaving = createMutation.isPending || updateMutation.isPending;
+
+  const handleSave = () => {
+    const fn = firstName.trim();
+    const ln = lastName.trim();
+    const em = email.trim();
+    if (!fn || !ln || !em) {
+      window.alert("Please enter first name, last name, and email.");
+      return;
+    }
+    if (!roleValue.trim() || !departmentValue.trim() || !designationValue.trim()) {
+      window.alert("Please select role, department, and designation.");
+      return;
+    }
+    if (userType === "External") {
+      if (!resellerId.trim() || !parentCompanyId.trim()) {
+        window.alert("Please select reseller and parent company for an external user.");
+        return;
+      }
+    }
+
+    const body: JsonRecord = {
+      firstName: fn,
+      lastName: ln,
+      email: em,
+      userType,
+      roleId: roleValue.trim(),
+      departmentId: departmentValue.trim(),
+      designationId: designationValue.trim(),
+    };
+    if (userType === "External") {
+      body.resellerId = resellerId.trim();
+      body.companyId = parentCompanyId.trim();
+    }
+
+    const onError = () => {
+      window.alert(
+        mode === "create"
+          ? "Could not create user. Check permissions (`user:create`) and required fields."
+          : "Could not update user. Check permissions (`user:update`) and that at least one field is valid.",
+      );
+    };
+
+    if (mode === "create") {
+      createMutation.mutate(body, {
+        onSuccess: () => {
+          onClose();
+          onSaved?.();
+        },
+        onError,
+      });
+    } else {
+      updateMutation.mutate(
+        { id: trimmedEditId, body },
+        {
+          onSuccess: () => {
+            onClose();
+            onSaved?.();
+          },
+          onError,
+        },
+      );
+    }
+  };
 
   return (
     <FormModal
       open={open}
-      title="Add New User"
-      description="Create a new user account with appropriate access levels."
+      title={mode === "edit" ? "Edit User" : "Add New User"}
+      description={
+        mode === "edit"
+          ? "Update this user’s profile and access."
+          : "Create a new user account with appropriate access levels."
+      }
       onClose={onClose}
-      onSave={onClose}
+      onSave={handleSave}
+      primaryButtonLabel={mode === "edit" ? "Save changes" : "Create user"}
+      primaryButtonDisabled={isSaving || (mode === "edit" && isEditLoading)}
+      fitContent
     >
+      {mode === "edit" && isEditLoading && (
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, py: 1 }}>
+          <CircularProgress size={22} />
+          <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted }}>
+            Loading user…
+          </Typography>
+        </Box>
+      )}
+
       <Box
         sx={{
           display: "grid",
@@ -48,38 +416,70 @@ export function AddUserModal({
           mb: 3,
         }}
       >
-        <InputField label="First Name" placeholder="First Name" />
-        <InputField label="Last Name" placeholder="Last Name" />
-        <InputField label="Email Address" placeholder="Email Address" />
-        <InputField label="Phone Number" placeholder="Phone Number" />
+        <InputField
+          label="First Name"
+          placeholder="First Name"
+          value={firstName}
+          onChange={(e) => setFirstName(e.target.value)}
+          disabled={mode === "edit" && isEditLoading}
+        />
+        <InputField
+          label="Last Name"
+          placeholder="Last Name"
+          value={lastName}
+          onChange={(e) => setLastName(e.target.value)}
+          disabled={mode === "edit" && isEditLoading}
+        />
+        <InputField
+          label="Email Address"
+          placeholder="Email Address"
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          disabled={mode === "edit" && isEditLoading}
+        />
+        <InputField
+          label="Phone Number"
+          placeholder="Phone Number"
+          value={phone}
+          onChange={(e) => setPhone(e.target.value)}
+          disabled={mode === "edit" && isEditLoading}
+        />
       </Box>
-
-      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <Typography variant="mediumLarge" color="white">
-          User Type & Access
-        </Typography>
-        <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted, cursor: "pointer" }}>
-          Select All
-        </Typography>
-      </Box>
-
-      <Divider />
 
       <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 2, mb: 3 }}>
         <DashboardCard
           sx={{
             p: 2,
             borderRadius: 2,
-            cursor: "pointer",
+            cursor: mode === "edit" ? "default" : "pointer",
+            opacity: mode === "edit" && isEditLoading ? 0.5 : 1,
+            pointerEvents: mode === "edit" ? "none" : "auto",
             background: userType === "Internal" ? theme.app.dashboard.navActiveBg : theme.app.dashboard.cardBg,
           }}
-          onClick={() => setUserType("Internal")}
+          onClick={() => {
+            if (mode === "edit") return;
+            setUserType("Internal");
+            setResellerId("");
+            setParentCompanyId("");
+            setDepartmentValue("");
+            setDesignationValue("");
+            setDesignationLabelHint("");
+          }}
         >
           <Box sx={{ display: "flex", alignItems: "center", gap: 1.25 }}>
             <Radio
               checked={userType === "Internal"}
-              onChange={() => setUserType("Internal")}
+              onChange={() => {
+                setUserType("Internal");
+                setResellerId("");
+                setParentCompanyId("");
+                setDepartmentValue("");
+                setDesignationValue("");
+                setDesignationLabelHint("");
+              }}
               value="Internal"
+              disabled={mode === "edit"}
               disableRipple
               icon={<Box sx={{ width: 16, height: 16, borderRadius: "9999px", border: "2px solid rgba(148,163,184,0.6)", bgcolor: "transparent" }} />}
               checkedIcon={<Box sx={{ width: 16, height: 16, borderRadius: "9999px", bgcolor: theme.app.dashboard.accentGreen, boxShadow: "0 0 0 4px rgba(34,197,94,0.35)" }} />}
@@ -100,16 +500,30 @@ export function AddUserModal({
           sx={{
             p: 2,
             borderRadius: 2,
-            cursor: "pointer",
+            cursor: mode === "edit" ? "default" : "pointer",
+            opacity: mode === "edit" && isEditLoading ? 0.5 : 1,
+            pointerEvents: mode === "edit" ? "none" : "auto",
             background: userType === "External" ? theme.app.dashboard.navActiveBg : theme.app.dashboard.cardBg,
           }}
-          onClick={() => setUserType("External")}
+          onClick={() => {
+            if (mode === "edit") return;
+            setUserType("External");
+            setDepartmentValue("");
+            setDesignationValue("");
+            setDesignationLabelHint("");
+          }}
         >
           <Box sx={{ display: "flex", alignItems: "center", gap: 1.25 }}>
             <Radio
               checked={userType === "External"}
-              onChange={() => setUserType("External")}
+              onChange={() => {
+                setUserType("External");
+                setDepartmentValue("");
+                setDesignationValue("");
+                setDesignationLabelHint("");
+              }}
               value="External"
+              disabled={mode === "edit"}
               disableRipple
               icon={<Box sx={{ width: 16, height: 16, borderRadius: "9999px", border: "2px solid rgba(148,163,184,0.6)", bgcolor: "transparent" }} />}
               checkedIcon={<Box sx={{ width: 16, height: 16, borderRadius: "9999px", bgcolor: theme.app.dashboard.accentGreen, boxShadow: "0 0 0 4px rgba(34,197,94,0.35)" }} />}
@@ -120,7 +534,7 @@ export function AddUserModal({
                 External User
               </Typography>
               <Typography variant="small" sx={{ color: theme.app.dashboard.textMuted }}>
-                Team member with company email
+                Client-side user under a reseller
               </Typography>
             </Box>
           </Box>
@@ -129,45 +543,34 @@ export function AddUserModal({
 
       {userType === "External" && (
         <>
-          <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 2, mb: 2 }}>
+          <Box sx={{ mb: 2 }}>
             <SelectField
-              label="Parent Company"
-              value={parentCompany}
-              onChange={setParentCompany}
-              options={[
-                { label: "Support Manager", value: "Support Manager" },
-                { label: "TechCorp", value: "TechCorp" },
-              ]}
-            />
-            <SelectField
-              label="POC Type"
-              value={pocType}
-              onChange={setPocType}
-              options={[
-                { label: "Sales", value: "Sales" },
-                { label: "Support", value: "Support" },
-              ]}
+              label="Reseller"
+              value={resellerId}
+              onChange={(v) => {
+                setResellerId(v);
+                setParentCompanyId("");
+                setDepartmentValue("");
+                setDesignationValue("");
+                setDesignationLabelHint("");
+              }}
+              options={resellerOptions.length ? resellerOptions : emptySelect}
+              menuMaxRows={3}
             />
           </Box>
 
-          <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 2, mb: 2 }}>
+          <Box sx={{ mb: 2 }}>
             <SelectField
-              label="Child Companies"
-              value={childCompany}
-              onChange={setChildCompany}
-              options={[
-                { label: "John Wick", value: "John Wick" },
-                { label: "Jane Doe", value: "Jane Doe" },
-              ]}
-            />
-            <SelectField
-              label="Websites"
-              value={websiteValue}
-              onChange={setWebsiteValue}
-              options={[
-                { label: "John Wick", value: "John Wick" },
-                { label: "acme.com", value: "acme.com" },
-              ]}
+              label="Parent Company"
+              value={parentCompanyId}
+              onChange={(v) => {
+                setParentCompanyId(v);
+                setDepartmentValue("");
+                setDesignationValue("");
+                setDesignationLabelHint("");
+              }}
+              options={parentCompanyOptions.length ? parentCompanyOptions : emptySelect}
+              menuMaxRows={3}
             />
           </Box>
         </>
@@ -178,20 +581,31 @@ export function AddUserModal({
           label="Role"
           value={roleValue}
           onChange={setRoleValue}
-          options={[
-            { label: "Support Manager", value: "Support Manager" },
-            { label: "Agent", value: "Agent" },
-          ]}
+          options={roleOptions.length ? roleOptions : emptySelect}
+          menuMaxRows={3}
         />
         <SelectField
           label="Department"
           value={departmentValue}
-          onChange={setDepartmentValue}
-          options={DEPARTMENTS.map((dep) => ({ label: dep, value: dep }))}
+          onChange={(v) => {
+            setDepartmentValue(v);
+            setDesignationValue("");
+            setDesignationLabelHint("");
+          }}
+          options={departmentOptions.length ? departmentOptions : emptySelect}
+          menuMaxRows={3}
         />
       </Box>
 
-      <InputField label="Supervisor" placeholder="John Wick" />
+      <Box sx={{ mb: 0 }}>
+        <SelectField
+          label="Designation"
+          value={designationValue}
+          onChange={setDesignationValue}
+          options={designationOptions.length ? designationOptions : emptySelect}
+          menuMaxRows={3}
+        />
+      </Box>
     </FormModal>
   );
 }

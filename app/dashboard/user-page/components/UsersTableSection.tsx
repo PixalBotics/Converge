@@ -4,11 +4,18 @@ import { useMemo } from "react";
 import Box from "@mui/material/Box";
 import Avatar from "@mui/material/Avatar";
 import IconButton from "@mui/material/IconButton";
-import { MoreHoriz as MoreHorizIcon, AttachMoney as AttachMoneyIcon } from "@mui/icons-material";
+import {
+  AttachMoney as AttachMoneyIcon,
+  Login as LoginIcon,
+  Edit as EditIcon,
+  Delete as DeleteIcon,
+} from "@mui/icons-material";
 import { Typography, DashboardCard, DataTable, dataTableActionButton, TablePagination } from "@/components/common";
 import type { DataTableColumn } from "@/components/common";
 import { userIconPath } from "@/assets";
+import { useAuth } from "@/lib/auth/AuthContext";
 import type { AppTheme } from "@/theme/theme";
+import { useLoginAsMutation } from "@/lib/hooks";
 import type { FilterKind, UserRow, UserSuggestion } from "../types";
 import { EmptyUsersState } from "./EmptyUsersState";
 import { UserSearchToolbar } from "./UserSearchToolbar";
@@ -36,6 +43,7 @@ type Props = {
   pageCount: number;
   onPageChange: (v: number) => void;
   totalEntries: number;
+  onEditUser?: (userId: string) => void;
 };
 
 export function UsersTableSection(props: Props) {
@@ -55,7 +63,11 @@ export function UsersTableSection(props: Props) {
     pageCount,
     onPageChange,
     totalEntries,
+    onEditUser,
   } = props;
+  const { hasOperational } = useAuth();
+  const loginAsMutation = useLoginAsMutation();
+  const canUseLoginAs = hasOperational("user:login-as");
 
   const columns = useMemo<DataTableColumn<UserRow>[]>(
     () => [
@@ -158,11 +170,69 @@ export function UsersTableSection(props: Props) {
           minWidth={1100}
           actionColumn={{
             label: "Action",
-            render: () => (
-              <IconButton size="small" sx={dataTableActionButton}>
-                <MoreHorizIcon fontSize="small" />
-              </IconButton>
-            ),
+            render: (row) => {
+              const canLoginAs = canUseLoginAs && !!row.id && !!row.licenseKey;
+              const isPending = loginAsMutation.isPending
+                && loginAsMutation.variables?.targetUserId === row.id;
+              const licenseKey = row.licenseKey;
+              return (
+                <Box sx={{ display: "flex", alignItems: "center", justifyContent: "flex-start", gap: 1 }}>
+                  <IconButton
+                    size="small"
+                    aria-label="Login As"
+                    disabled={!canLoginAs || isPending}
+                    onClick={() => {
+                      if (!licenseKey) return;
+                      loginAsMutation.mutate({
+                        targetUserId: row.id,
+                        licenseKey,
+                      }, {
+                        onSuccess: () => {
+                          window.location.assign("/dashboard");
+                        },
+                        onError: () => {
+                          window.alert("Login As failed (401/unauthorized). Please verify permission `user:login-as` and license key.");
+                        },
+                      });
+                    }}
+                    sx={{
+                      ...dataTableActionButton,
+                      color: theme.app.dashboard.accentBlue,
+                      opacity: !canLoginAs ? 0.4 : (isPending ? 0.7 : 1),
+                    }}
+                  >
+                    <LoginIcon fontSize="small" />
+                  </IconButton>
+                  <IconButton
+                    size="small"
+                    aria-label="Edit user"
+                    disabled={!row.id || !onEditUser}
+                    onClick={() => {
+                      if (row.id && onEditUser) onEditUser(row.id);
+                    }}
+                    sx={{
+                      ...dataTableActionButton,
+                      color: theme.app.dashboard.white80,
+                    }}
+                  >
+                    <EditIcon fontSize="small" />
+                  </IconButton>
+                  <IconButton
+                    size="small"
+                    aria-label="Delete user"
+                    onClick={() => {
+                      window.alert(`Delete user: ${String(row.user ?? row.email ?? row.id)}`);
+                    }}
+                    sx={{
+                      ...dataTableActionButton,
+                      color: theme.app.dashboard.accentRedLight,
+                    }}
+                  >
+                    <DeleteIcon fontSize="small" />
+                  </IconButton>
+                </Box>
+              );
+            },
           }}
         />
       )}

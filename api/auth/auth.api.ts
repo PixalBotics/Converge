@@ -2,6 +2,7 @@ import { apiClient } from "../http/axios-instance";
 import {
   clearTokens,
   getRefreshToken,
+  getTokenPair,
   setTokenPair,
 } from "../storage/auth-cookies";
 import type {
@@ -9,6 +10,7 @@ import type {
   AuthMeResponse,
   AuthTokenPair,
   HealthResponse,
+  LoginAsRequestBody,
   LoginRequestBody,
   LoginResponseEnvelope,
   LoginSuccessData,
@@ -16,6 +18,11 @@ import type {
   RefreshRequestBody,
   VerifyAccessBodyRequest,
 } from "../types/auth.types";
+import {
+  clearImpersonationSession,
+  isImpersonatingSessionActive,
+  setImpersonationSession,
+} from "@/lib/auth/impersonation-session";
 
 export async function getHealth(): Promise<HealthResponse> {
   const { data } = await apiClient.get<HealthResponse>("/health");
@@ -24,6 +31,24 @@ export async function getHealth(): Promise<HealthResponse> {
 
 export async function login(body: LoginRequestBody): Promise<LoginSuccessData> {
   const { data } = await apiClient.post<LoginResponseEnvelope>("/auth/login", body);
+  setTokenPair({
+    accessToken: data.data.accessToken,
+    refreshToken: data.data.refreshToken,
+  });
+  return data.data;
+}
+
+export async function loginAs(body: LoginAsRequestBody): Promise<LoginSuccessData> {
+  const originalTokenPair = getTokenPair();
+  const { data } = await apiClient.post<LoginResponseEnvelope>("/auth/login-as", body);
+  if (originalTokenPair && !isImpersonatingSessionActive()) {
+    setImpersonationSession({
+      originalTokenPair,
+      impersonatedUserId: body.targetUserId,
+      impersonatedLicenseKey: body.licenseKey,
+      startedAt: new Date().toISOString(),
+    });
+  }
   setTokenPair({
     accessToken: data.data.accessToken,
     refreshToken: data.data.refreshToken,
@@ -75,6 +100,7 @@ export async function logout(): Promise<void> {
       await logoutRemote({ refreshToken });
     }
   } finally {
+    clearImpersonationSession();
     clearTokens();
   }
 }

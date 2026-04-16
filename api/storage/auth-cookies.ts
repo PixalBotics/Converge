@@ -53,6 +53,13 @@ export function getRefreshToken(): string | null {
   return readCookieRaw(REFRESH_NAME);
 }
 
+export function getTokenPair(): AuthTokenPair | null {
+  const accessToken = getAccessToken();
+  const refreshToken = getRefreshToken();
+  if (!accessToken || !refreshToken) return null;
+  return { accessToken, refreshToken };
+}
+
 export function setTokenPair(tokens: AuthTokenPair): void {
   writeCookieRaw(ACCESS_NAME, tokens.accessToken, ACCESS_TOKEN_COOKIE_MAX_AGE_SEC);
   writeCookieRaw(

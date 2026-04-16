@@ -26,6 +26,8 @@ export interface FormModalProps {
   onClose: () => void;
   onSave: () => void;
   primaryButtonLabel?: string;
+  /** When true, the primary action button is non-interactive (e.g. while a mutation runs). */
+  primaryButtonDisabled?: boolean;
   cancelButtonLabel?: string;
   /** Primary action icon (e.g. sparkle) — uses shared gradient primary button. */
   primaryStartIcon?: ReactNode;
@@ -49,6 +51,7 @@ export function FormModal({
   onClose,
   onSave,
   primaryButtonLabel = "Save",
+  primaryButtonDisabled = false,
   cancelButtonLabel = "Cancel",
   primaryStartIcon,
   maxWidth = 540,
@@ -207,6 +210,7 @@ export function FormModal({
           <Button
             variant="primary"
             onClick={onSave}
+            disabled={primaryButtonDisabled}
             sx={gradientPrimaryButtonSx}
             startIcon={primaryStartIcon}
           >

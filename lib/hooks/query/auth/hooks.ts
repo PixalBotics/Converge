@@ -1,8 +1,8 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { getMe, login, logout } from "@/api";
-import type { LoginRequestBody } from "@/api";
+import { getMe, login, loginAs, logout } from "@/api";
+import type { LoginAsRequestBody, LoginRequestBody } from "@/api";
 import { authKeys } from "./keys";
 
 export function useMeQuery(options?: {
@@ -35,6 +35,16 @@ export function useLogoutMutation() {
     mutationFn: () => logout(),
     onSettled: () => {
       queryClient.removeQueries({ queryKey: authKeys.all });
+    },
+  });
+}
+
+export function useLoginAsMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: LoginAsRequestBody) => loginAs(body),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: authKeys.all });
     },
   });
 }

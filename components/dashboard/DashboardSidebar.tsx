@@ -15,6 +15,7 @@ import { Typography } from "@/components/common";
 import {
   Close as CloseIcon,
   Logout as LogoutIcon,
+  Login as LoginIcon,
 } from "@mui/icons-material";
 import { logoSvg } from "@/assets";
 import { useAuth } from "@/lib/auth";
@@ -48,7 +49,7 @@ export default function DashboardSidebar({ open = false, onClose }: { open?: boo
   const theme = useTheme() as AppTheme;
   const isDesktop = useMediaQuery(theme.breakpoints.up("md"));
   const pathname = usePathname();
-  const { user, logout, rbacEnabled, permissionsByType } = useAuth();
+  const { user, logout, isImpersonating, revertImpersonation, rbacEnabled, permissionsByType } = useAuth();
   const isDemoUser = user?.email?.trim().toLowerCase() === "demo@gmail.com";
   const navTextProps = {
     ...navTypographyBase,
@@ -129,15 +130,23 @@ export default function DashboardSidebar({ open = false, onClose }: { open?: boo
             component="button"
             type="button"
             sx={navItemSx}
+            selected={isImpersonating}
             onClick={() => {
               if (!isDesktop) onClose?.();
+              if (isImpersonating) {
+                void revertImpersonation();
+                return;
+              }
               logout();
             }}
           >
             <ListItemIcon sx={listIconDefaultSx}>
-              <LogoutIcon sx={{ color: "inherit" }} />
+              {isImpersonating ? <LoginIcon sx={{ color: "inherit" }} /> : <LogoutIcon sx={{ color: "inherit" }} />}
             </ListItemIcon>
-            <ListItemText primary="Log out" primaryTypographyProps={navTextProps} />
+            <ListItemText
+              primary={isImpersonating ? "Login As Admin" : "Log out"}
+              primaryTypographyProps={navTextProps}
+            />
           </ListItemButton>
         </List>
       </Box>

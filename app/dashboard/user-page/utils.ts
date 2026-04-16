@@ -35,6 +35,7 @@ function toUserRow(value: unknown): UserRow | null {
   const designationObj = asRecord(row.designation);
   const resellerObj = asRecord(row.reseller);
   const parentCompanyObj = asRecord(row.parentCompany);
+  const licenseObj = asRecord(row.license);
 
   const departmentName = String(
     row.departmentName ?? departmentObj?.name ?? designationObj?.departmentName ?? "—",
@@ -42,8 +43,19 @@ function toUserRow(value: unknown): UserRow | null {
   const roleName = String(row.roleName ?? roleObj?.name ?? designationObj?.name ?? "—").trim();
   const resellerName = String(row.companyName ?? resellerObj?.name ?? row.company ?? "-").trim();
   const parentCompanyName = String(parentCompanyObj?.name ?? row.parentCompanyName ?? "-").trim();
+  const id = String(row.id ?? row.userId ?? "").trim();
+  const licenseKey = String(
+    row.licenseKey
+      ?? row.tenantLicenseKey
+      ?? row.companyLicenseKey
+      ?? row.resellerLicenseKey
+      ?? licenseObj?.key
+      ?? row.license,
+  ).trim();
 
   return {
+    id,
+    licenseKey: licenseKey || undefined,
     user: fullName || String(row.name ?? row.fullName ?? row.email ?? "—"),
     email: String(row.email ?? "—"),
     type: String(row.userType ?? "External") === "Internal" ? "Internal" : "External",
