@@ -48,6 +48,11 @@ export function InputField({
     onMouseLeave?.(event as unknown as MouseEvent<HTMLInputElement>);
   };
 
+  /** One-line helper slot so validation text does not shift the field layout. */
+  const hasHelperMessage = Boolean(helperText?.trim());
+  const helperSlot = hasHelperMessage ? helperText : "\u00a0";
+  const hideEmptyHelper = !hasHelperMessage && !error;
+
   return (
     <Box sx={{ width: fullWidth ? "100%" : "auto" }}>
       <Label htmlFor={fieldId} variant="mediumLarge" sx={{ mb: 0.75 }}>
@@ -64,7 +69,19 @@ export function InputField({
         }}
         type={inputType}
         error={error}
-        helperText={helperText}
+        helperText={helperSlot}
+        FormHelperTextProps={{
+          sx: (t) => ({
+            minHeight: "1.25rem",
+            lineHeight: 1.43,
+            display: "block",
+            marginTop: t.spacing(0.75),
+            ...(hideEmptyHelper
+              ? { color: "transparent", userSelect: "none", pointerEvents: "none" as const }
+              : {}),
+          }),
+          ...(hideEmptyHelper ? { "aria-hidden": true } : {}),
+        }}
         fullWidth={fullWidth}
         variant="outlined"
         onMouseMove={handleMouseMove}

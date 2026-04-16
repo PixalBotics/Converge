@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useMemo } from "react";
 import Box from "@mui/material/Box";
 import useMediaQuery from "@mui/material/useMediaQuery";
@@ -16,6 +17,8 @@ import {
   KeyboardArrowDown as KeyboardArrowDownIcon,
   Logout as LogoutIcon,
   Close as CloseIcon,
+  PersonOutline as PersonOutlineIcon,
+  PaletteOutlined as PaletteOutlinedIcon,
 } from "@mui/icons-material";
 import { useAuth } from "@/lib/auth";
 import { SearchIcon } from "./icons/SearchIcon";
@@ -304,6 +307,28 @@ export default function DashboardHeader({ onMenuClick }: { onMenuClick?: () => v
           },
         }}
       >
+        <MenuItem
+          component={Link}
+          href="/dashboard/settings?tab=profile"
+          onClick={handleClose}
+          sx={{ color: app.text.primary }}
+        >
+          <ListItemIcon>
+            <PersonOutlineIcon fontSize="small" sx={{ color: app.dashboard.white80 }} />
+          </ListItemIcon>
+          Profile
+        </MenuItem>
+        <MenuItem
+          component={Link}
+          href="/dashboard/theme"
+          onClick={handleClose}
+          sx={{ color: app.text.primary }}
+        >
+          <ListItemIcon>
+            <PaletteOutlinedIcon fontSize="small" sx={{ color: app.dashboard.white80 }} />
+          </ListItemIcon>
+          Theme
+        </MenuItem>
         <MenuItem onClick={handleLogout} sx={{ color: app.text.primary }}>
           <ListItemIcon>
             <LogoutIcon fontSize="small" sx={{ color: app.dashboard.white80 }} />

@@ -81,6 +81,7 @@ export default function ThemeRegistry({ children }: { children: React.ReactNode 
   }, [preset, customAccentHex]);
 
   useEffect(() => {
+    if (typeof document === "undefined") return;
     const bg =
       preset.id === PICK_COLOR_PRESET_ID
         ? getCustomAccentTheme(customAccentHex).appBackground

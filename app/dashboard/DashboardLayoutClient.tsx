@@ -1,11 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import Box from "@mui/material/Box";
+import Alert from "@mui/material/Alert";
 import type { SxProps, Theme } from "@mui/material/styles";
 import { LoadingScreen } from "@/components/common";
-import { useAuth } from "@/lib/auth";
+import { AUTH_PATHS, useAuth } from "@/lib/auth";
+import { PERMISSION_BUCKET_PAGE } from "@/lib/auth/permissions-model";
+import { canAccessDashboardPath, getFirstAccessibleDashboardPath } from "@/lib/permissions";
 import { DashboardSidebar, DashboardHeader } from "@/components/dashboard";
 import { dashboardMainGlassSx, dashboardMainTextSx } from "./dashboard.styles";
 import { mainBackgroundGradient } from "@/theme/theme";
@@ -15,14 +18,49 @@ export default function DashboardLayoutClient({
 }: {
   children: React.ReactNode;
 }) {
-  const { isAuthenticated, isLoading } = useAuth();
+  const pathname = usePathname();
+  const { isAuthenticated, isLoading, rbacEnabled, permissionsByType, user } = useAuth();
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [routeAccessBlocked, setRouteAccessBlocked] = useState(false);
+  const isDemoUser = user?.email?.trim().toLowerCase() === "demo@gmail.com";
+
+  const pagePermissionSet = useMemo(
+    () => new Set(permissionsByType?.[PERMISSION_BUCKET_PAGE] ?? []),
+    [permissionsByType],
+  );
 
   useEffect(() => {
     if (isLoading) return;
-    if (!isAuthenticated) router.replace("/login");
+    if (!isAuthenticated) router.replace(AUTH_PATHS.login);
   }, [isAuthenticated, isLoading, router]);
+
+  useEffect(() => {
+    if (isLoading || !isAuthenticated || !rbacEnabled) {
+      setRouteAccessBlocked(false);
+      return;
+    }
+    const canAccess = canAccessDashboardPath({
+      pathname,
+      rbacEnabled,
+      pagePermissionSet,
+    });
+    if (canAccess) {
+      setRouteAccessBlocked(false);
+      return;
+    }
+    const fallback = getFirstAccessibleDashboardPath({
+      rbacEnabled,
+      pagePermissionSet,
+      isDemoUser,
+    });
+    if (fallback && fallback !== pathname) {
+      setRouteAccessBlocked(false);
+      router.replace(fallback);
+      return;
+    }
+    setRouteAccessBlocked(true);
+  }, [isLoading, isAuthenticated, rbacEnabled, pathname, pagePermissionSet, isDemoUser, router]);
 
   if (isLoading) {
     return <LoadingScreen message="Loading..." />;
@@ -30,6 +68,26 @@ export default function DashboardLayoutClient({
 
   if (!isAuthenticated) {
     return <LoadingScreen message="Redirecting to login..." />;
+  }
+
+  if (routeAccessBlocked) {
+    return (
+      <Box
+        sx={{
+          display: "flex",
+          minHeight: "100vh",
+          alignItems: "center",
+          justifyContent: "center",
+          p: 2,
+          background: (theme) =>
+            (theme as { appBackground?: string }).appBackground ?? mainBackgroundGradient,
+        }}
+      >
+        <Alert severity="warning" sx={{ maxWidth: 480 }}>
+          You do not have access to this area. Ask an administrator to assign the matching page permission.
+        </Alert>
+      </Box>
+    );
   }
 
   return (

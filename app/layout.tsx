@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Inter, Manrope } from "next/font/google";
+import { AppRouterCacheProvider } from "@mui/material-nextjs/v15-appRouter";
 import { ThemeRegistry } from "@/components/theme-registry";
 import { QueryProvider } from "@/lib/hooks";
 import { AuthProvider } from "@/lib/auth";
@@ -27,11 +28,13 @@ export default function RootLayout({
           minHeight: "100vh",
         }}
       >
-        <ThemeRegistry>
-          <QueryProvider>
-            <AuthProvider>{children}</AuthProvider>
-          </QueryProvider>
-        </ThemeRegistry>
+        <AppRouterCacheProvider options={{ key: "mui" }}>
+          <ThemeRegistry>
+            <QueryProvider>
+              <AuthProvider>{children}</AuthProvider>
+            </QueryProvider>
+          </ThemeRegistry>
+        </AppRouterCacheProvider>
       </body>
     </html>
   );

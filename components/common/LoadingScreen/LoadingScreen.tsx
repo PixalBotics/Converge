@@ -12,7 +12,12 @@ const fullPageDark = {
   flexDirection: "column" as const,
   alignItems: "center",
   justifyContent: "center",
-  background: FULL_PAGE_LOADER_BACKGROUND_GRADIENT,
+  /**
+   * Follow whichever page-level theme is active (auth/dashboard/custom).
+   * If parent/body has no explicit background, keep existing fallback gradient.
+   */
+  background: "inherit",
+  backgroundImage: `var(--dashboard-bg, ${FULL_PAGE_LOADER_BACKGROUND_GRADIENT})`,
   gap: 2,
 };
 

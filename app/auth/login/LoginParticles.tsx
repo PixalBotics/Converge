@@ -104,7 +104,7 @@ export function LoginParticles() {
         },
       }}
     >
-      <Particles id="login-tsparticles" options={options} />
+      <Particles id="auth-tsparticles" options={options} />
     </Box>
   );
 }

@@ -10,10 +10,22 @@ import {
   type ReactNode,
 } from "react";
 import { isAxiosError } from "axios";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import type { User, LoginCredentials } from "./types";
 import { getAccessToken, getMe, synchronizeAuthSession } from "@/api";
 import { useLoginMutation, useLogoutMutation } from "@/lib/hooks";
+import { APP_PATHS, AUTH_PATHS, shouldSkipRemoteAuthHydration } from "./auth-paths";
+import {
+  extractPermissionsByType,
+  hasOperationalPermission,
+  hasPagePermission,
+  isRbacActive,
+  mergePermissionsByType,
+  PERMISSION_BUCKET_OPERATIONAL,
+  PERMISSION_BUCKET_PAGE,
+  toPermissionSet,
+  type PermissionsByType,
+} from "./permissions-model";
 
 type AccessTokenPayload = {
   userId?: string;
@@ -153,6 +165,11 @@ interface AuthContextValue {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  /** Present only when the backend sent at least one permission bucket. */
+  permissionsByType: PermissionsByType | undefined;
+  rbacEnabled: boolean;
+  hasPage: (permission: string) => boolean;
+  hasOperational: (permission: string) => boolean;
   login: (credentials: LoginCredentials) => Promise<LoginResult>;
   logout: () => Promise<void>;
 }
@@ -161,28 +178,91 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
+  const pathname = usePathname();
   const loginMutation = useLoginMutation();
   const logoutMutation = useLogoutMutation();
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [permissionsByType, setPermissionsByType] = useState<PermissionsByType | undefined>(undefined);
+
+  const applyLocalAuthFromCookies = useCallback(() => {
+    setUser(getUserFromAccessToken());
+    setIsLoading(false);
+  }, []);
+
+  const rbacEnabled = useMemo(() => isRbacActive(permissionsByType), [permissionsByType]);
+
+  const pagePermissionSet = useMemo(
+    () => toPermissionSet(permissionsByType?.[PERMISSION_BUCKET_PAGE]),
+    [permissionsByType],
+  );
+
+  const operationalPermissionSet = useMemo(
+    () => toPermissionSet(permissionsByType?.[PERMISSION_BUCKET_OPERATIONAL]),
+    [permissionsByType],
+  );
+
+  const hasPage = useCallback(
+    (permission: string) => {
+      if (!rbacEnabled) return true;
+      return hasPagePermission(pagePermissionSet, permission);
+    },
+    [rbacEnabled, pagePermissionSet],
+  );
+
+  const hasOperational = useCallback(
+    (permission: string) => {
+      if (!rbacEnabled) return true;
+      return hasOperationalPermission(operationalPermissionSet, permission);
+    },
+    [rbacEnabled, operationalPermissionSet],
+  );
+
+  /** Public auth pages: no `/auth/me`, verify, or refresh on load/focus. */
+  const isSkipHydrationPath = useCallback(() => {
+    if (typeof window === "undefined") return false;
+    return shouldSkipRemoteAuthHydration(window.location.pathname);
+  }, []);
 
   useEffect(() => {
     let mounted = true;
 
     const hydrateAuth = async () => {
+      if (isSkipHydrationPath()) {
+        if (!mounted) return;
+        applyLocalAuthFromCookies();
+        return;
+      }
+
       try {
         await synchronizeAuthSession();
-        const mePayload = await getMe();
+        if (!mounted) return;
+        if (isSkipHydrationPath()) {
+          applyLocalAuthFromCookies();
+          return;
+        }
+        const mePayload = await getMe({ permissionsBreakdown: true });
         const meUser = extractUserFromMePayload(mePayload);
         const mappedMeUser = meUser ? mapApiUserToUser(meUser) : null;
         if (!mounted) return;
+        setPermissionsByType((prev) => {
+          const incoming = extractPermissionsByType(mePayload);
+          if (!incoming) return prev;
+          return mergePermissionsByType(prev, incoming);
+        });
         setUser(mappedMeUser ?? getUserFromAccessToken());
       } catch {
         if (!mounted) return;
+        if (isSkipHydrationPath()) {
+          applyLocalAuthFromCookies();
+          return;
+        }
         setUser(getUserFromAccessToken());
       } finally {
         if (!mounted) return;
-        setIsLoading(false);
+        if (!isSkipHydrationPath()) {
+          setIsLoading(false);
+        }
       }
     };
 
@@ -191,7 +271,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [applyLocalAuthFromCookies, isSkipHydrationPath]);
+
+  /** Client navigations to `/auth/login` etc. must not keep dashboard user without re-evaluating cookies. */
+  useEffect(() => {
+    if (!shouldSkipRemoteAuthHydration(pathname)) return;
+    applyLocalAuthFromCookies();
+  }, [pathname, applyLocalAuthFromCookies]);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -200,24 +286,44 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     let active = true;
     const syncFromServer = async () => {
+      if (isSkipHydrationPath()) {
+        return;
+      }
       try {
         await synchronizeAuthSession();
-        const mePayload = await getMe();
+        if (!active) return;
+        if (isSkipHydrationPath()) {
+          return;
+        }
+        const mePayload = await getMe({ permissionsBreakdown: true });
         const meUser = extractUserFromMePayload(mePayload);
         const mappedMeUser = meUser ? mapApiUserToUser(meUser) : null;
         if (!active) return;
+        setPermissionsByType((prev) => {
+          const incoming = extractPermissionsByType(mePayload);
+          if (!incoming) return prev;
+          return mergePermissionsByType(prev, incoming);
+        });
         setUser(mappedMeUser ?? getUserFromAccessToken());
       } catch {
         if (!active) return;
+        if (isSkipHydrationPath()) {
+          return;
+        }
         setUser(getUserFromAccessToken());
       } finally {
         if (!active) return;
-        setIsLoading(false);
+        if (!isSkipHydrationPath()) {
+          setIsLoading(false);
+        }
       }
     };
 
     // Handles browser back/forward restores (bfcache) and tab focus resumes.
     const handleLifecycleSync = () => {
+      if (isSkipHydrationPath()) {
+        return;
+      }
       void syncFromServer();
     };
     window.addEventListener("pageshow", handleLifecycleSync);
@@ -228,7 +334,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       window.removeEventListener("pageshow", handleLifecycleSync);
       window.removeEventListener("focus", handleLifecycleSync);
     };
-  }, []);
+  }, [isSkipHydrationPath]);
 
   const login = useCallback(
     async (credentials: LoginCredentials): Promise<LoginResult> => {
@@ -265,8 +371,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             error: "Login succeeded but user profile payload was invalid.",
           };
         }
+        const loginPerms = extractPermissionsByType(response);
+        setPermissionsByType(loginPerms ?? undefined);
         setUser(mappedUser);
-        router.replace("/dashboard");
+        router.replace(APP_PATHS.dashboard);
         return { success: true };
       } catch (err: unknown) {
         if (isAxiosError(err)) {
@@ -306,7 +414,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Local session should still be cleared if remote logout fails.
     }
     setUser(null);
-    router.push("/login");
+    setPermissionsByType(undefined);
+    router.push(AUTH_PATHS.login);
   }, [logoutMutation, router]);
 
   const value = useMemo<AuthContextValue>(
@@ -314,10 +423,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       user,
       isAuthenticated: !!user,
       isLoading,
+      permissionsByType,
+      rbacEnabled,
+      hasPage,
+      hasOperational,
       login,
       logout,
     }),
-    [user, isLoading, login, logout],
+    [user, isLoading, permissionsByType, rbacEnabled, hasPage, hasOperational, login, logout],
   );
 
   return (

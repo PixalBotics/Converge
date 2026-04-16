@@ -92,14 +92,15 @@ export const overviewIconBox: SxProps<Theme> = {
 
 export const overviewSearchRow: SxProps<Theme> = {
   display: "flex",
-  flexDirection: "row",
-  alignItems: "center",
-  gap: 1,
-  width: { xs: "100%", md: "auto" },
+  flexDirection: { xs: "column", md: "row" },
+  alignItems: { xs: "stretch", md: "center" },
+  gap: 1.25,
+  width: { xs: "100%", md: "min(760px, 100%)" },
 };
 
 export const overviewSearchFieldWrapper: SxProps<Theme> = {
   flex: 1,
+  minWidth: { xs: "100%", md: 360 },
 };
 
 export const overviewFooterRow: SxProps<Theme> = {
