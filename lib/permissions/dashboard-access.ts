@@ -10,14 +10,17 @@ export type DashboardSidebarIconKey =
   | "crmIntegration"
   | "dashboard"
   | "departments"
+  | "designations"
   | "distributionSetup"
   | "hrms"
   | "ipBlocklist"
   | "licenses"
+  | "pools"
   | "reports"
   | "resellers"
   | "roles"
   | "settings"
+  | "shifts"
   | "profile"
   | "theme"
   | "smtpEmail"
@@ -49,14 +52,17 @@ type PagePermission =
   | "page:crm-integration"
   | "page:dashboard"
   | "page:departments"
+  | "page:designations"
   | "page:distribution-setup"
   | "page:hrms"
   | "page:ip-blocklist"
   | "page:licenses"
+  | "page:pools"
   | "page:reports"
   | "page:resellers"
   | "page:roles"
   | "page:settings"
+  | "page:shifts"
   | "page:smtp-email"
   | "page:social-media"
   | "page:users"
@@ -88,7 +94,15 @@ const ROUTE_RULES: readonly RouteRule[] = [
  // { permission: "page:account-setup", href: "/dashboard/account-setup", iconKey: "accountSetup" },
   { permission: "page:website-assignments", href: "/dashboard/website-assigning", iconKey: "websiteAssignments", prefixMatch: true },
   { permission: "page:roles", href: "/dashboard/roles", iconKey: "roles" },
-  { permission: "page:departments", href: "/dashboard/organization-user", iconKey: "departments" },
+  { permission: "page:departments", href: "/dashboard/departments", iconKey: "departments" },
+  {
+    permission: "page:designations",
+    href: "/dashboard/designations",
+    iconKey: "designations",
+    label: "Designations",
+  },
+  { permission: "page:pools", href: "/dashboard/pools", iconKey: "pools", label: "Pools" },
+  { permission: "page:shifts", href: "/dashboard/shifts", iconKey: "shifts", label: "Shifts" },
   { permission: "page:chat", href: "/dashboard/chat-operations", iconKey: "chat" },
   { permission: "page:chat-widget", href: "/dashboard/chat-widget", iconKey: "chatWidget" },
   { permission: "page:crm-integration", href: "/dashboard/crm-integration", iconKey: "crmIntegration", prefixMatch: true },
@@ -125,6 +139,9 @@ const PAGE_PERMISSION_ORDER: readonly PagePermission[] = [
   "page:website-assignments",
   "page:roles",
   "page:departments",
+  "page:designations",
+  "page:pools",
+  "page:shifts",
   "page:chat",
   "page:chat-widget",
   "page:crm-integration",

@@ -17,6 +17,8 @@ import {
   RiBriefcase4Line,
   RiFileList3Line,
   RiPriceTag3Line,
+  RiGroup2Line,
+  RiTimeLine,
 } from "react-icons/ri";
 import { MdOutlineManageAccounts } from "react-icons/md";
 import { FaRegBuilding, FaRegUser, FaMoneyCheckDollar } from "react-icons/fa6";
@@ -35,14 +37,17 @@ const ICON_BY_KEY: Record<DashboardSidebarIconKey, IconType> = {
   hrms: TbUsersGroup,
   dashboard: RiDashboardLine,
   departments: TbHierarchy3,
+  designations: RiPriceTag3Line,
   distributionSetup: LuNetwork,
   ipBlocklist: RiShieldKeyholeLine,
   licenses: RiFileList3Line,
+  pools: RiGroup2Line,
   reports: RiBarChartGroupedLine,
   resellers: RiBriefcase4Line,
   roles: LuFileBadge2,
   profile: RiUser3Line,
   settings: RiSettings5Line,
+  shifts: RiTimeLine,
   theme: RiPaletteLine,
   smtpEmail: RiMailSendLine,
   socialMedia: TbRobot,

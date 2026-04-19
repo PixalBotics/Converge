@@ -14,12 +14,10 @@ dist/
 # Cursor / local AI (optional: remove .cursor/ line if you want to commit rules)
 .cursor/
 
-# Environment  never commit secrets
+# Environment — never commit secrets
 .env
-.env*.local
-.env.development.local
-.env.test.local
-.env.production.local
+.env.*
+!.env.example
 
 # Debug / logs
 npm-debug.log*
