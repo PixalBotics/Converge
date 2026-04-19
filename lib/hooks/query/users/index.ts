@@ -1,6 +1,7 @@
 export { usersKeys } from "./keys";
 export {
   useCreateUserMutation,
+  useSoftDeleteUserMutation,
   useUpdateUserMutation,
   useUserFilterSuggestionsQuery,
   useUserQuery,

@@ -2,11 +2,13 @@
 
 import type { ReactNode } from "react";
 import { useBodyScrollLock } from "@/lib/ui/useBodyScrollLock";
+import { dialogBackdropBackground } from "@/lib/ui/dialogBackdrop";
 import Box from "@mui/material/Box";
 import IconButton from "@mui/material/IconButton";
 import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
-import { Button, DashboardCard, Divider, Typography } from "@/components/common";
+import { Button, Divider, Typography } from "@/components/common";
+import { ModalGlassShell } from "@/components/common/FormModal/ModalGlassShell";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
 import { CloseCircleIcon } from "@/components/dashboard/icons/CloseCircleIcon";
 
@@ -108,23 +110,19 @@ export function VisitorInformationPreviewModal({ open, onClose }: VisitorInforma
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        bgcolor: theme.app.dashboard.backdropDark,
+        background: dialogBackdropBackground(theme),
         p: { xs: 1.5, sm: 2 },
       }}
     >
-      <DashboardCard
+      <ModalGlassShell
         sx={{
-          position: "relative",
           width: "100%",
           maxWidth: 640,
           maxHeight: "92vh",
           display: "flex",
           flexDirection: "column",
-          overflow: "hidden",
           p: { xs: 2, sm: 3 },
-          background: theme.appBackground,
-          borderRadius: 3,
-          border: `1px solid ${theme.app.dashboard.cardBorder}`,
+          borderRadius: "20px",
         }}
       >
         <Box
@@ -252,7 +250,7 @@ export function VisitorInformationPreviewModal({ open, onClose }: VisitorInforma
             &lt;&lt; Close Preview
           </Button>
         </Box>
-      </DashboardCard>
+      </ModalGlassShell>
     </Box>
   );
 }

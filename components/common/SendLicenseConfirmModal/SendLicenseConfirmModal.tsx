@@ -9,7 +9,8 @@ import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import { filterChromeButtonSx } from "@/components/common/FilterButton/filter-button.styles";
 import { resolveSx } from "@/utils/resolveSx";
-import { Button, DashboardCard, Typography } from "@/components/common";
+import { Button, Typography } from "@/components/common";
+import { ModalGlassShell } from "@/components/common/FormModal/ModalGlassShell";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
 import {
   sendLicenseConfirmActionsRowSx,
@@ -40,7 +41,7 @@ export function SendLicenseConfirmModal({ open, onDismiss, onConfirm }: SendLice
       }}
       role="presentation"
     >
-      <DashboardCard
+      <ModalGlassShell
         sx={sendLicenseConfirmCardSx}
         onClick={(e) => e.stopPropagation()}
       >
@@ -111,7 +112,7 @@ export function SendLicenseConfirmModal({ open, onDismiss, onConfirm }: SendLice
             Yes – Send License
           </Button>
         </Box>
-      </DashboardCard>
+      </ModalGlassShell>
     </Box>
   );
 }

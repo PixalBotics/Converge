@@ -5,6 +5,7 @@ export { useLoginAsMutation, useLoginMutation, useLogoutMutation, useMeQuery } f
 export { usersKeys } from "./users";
 export {
   useCreateUserMutation,
+  useSoftDeleteUserMutation,
   useUpdateUserMutation,
   useUserFilterSuggestionsQuery,
   useUserQuery,
@@ -17,6 +18,14 @@ export {
   useCompaniesByResellerQuery,
   useCompaniesListQuery,
   useCompaniesSetupResellersQuery,
+  useCompanySetupDraftByIdQuery,
+  useCompanySetupDraftLatestQuery,
+  useCreateCompanySetupDraftMutation,
+  useParentCompanyQuery,
+  useSubmitCompanySetupDraftMutation,
+  useUpdateCompanyMutation,
+  useUpdateCompanySetupDraftMutation,
+  useUpdateParentCompanyMutation,
 } from "./companies";
 export type { CompaniesListParams } from "./companies";
 export { rolesKeys } from "./roles";
@@ -27,5 +36,5 @@ export {
 } from "./website-assignments";
 export type { WebsiteAssignmentsWebsitesParams } from "./website-assignments";
 export { platformKeys } from "./platform";
-export { platformThemeKeys } from "./platform-theme";
+export { platformThemeKeys, usePlatformThemeMeQuery, useUpdatePlatformThemeMutation } from "./platform-theme";
 export * from "./hrms";

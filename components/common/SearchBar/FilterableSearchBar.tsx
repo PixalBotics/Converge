@@ -11,6 +11,7 @@ import IconButton from "@mui/material/IconButton";
 import { useTheme } from "@mui/material/styles";
 import type { SxProps, Theme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
+import { FORM_MODAL_MUI_OVERLAY_Z_INDEX } from "@/lib/ui/dialogStacking";
 import { Typography } from "@/components/common/Typography";
 import { SearchIcon } from "@/components/dashboard/icons/SearchIcon";
 import { resolveSx } from "@/utils/resolveSx";
@@ -193,9 +194,8 @@ export function FilterableSearchBar({
             }}
             SelectProps={{
               MenuProps: {
-                PaperProps: {
-                  sx: selectMenuPaperSx(theme),
-                },
+                sx: { zIndex: FORM_MODAL_MUI_OVERLAY_Z_INDEX },
+                PaperProps: { sx: selectMenuPaperSx(theme) },
               },
             }}
           >

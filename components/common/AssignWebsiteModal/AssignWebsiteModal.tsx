@@ -7,6 +7,7 @@ import MenuItem from "@mui/material/MenuItem";
 import TextField from "@mui/material/TextField";
 import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
+import { FORM_MODAL_MUI_OVERLAY_Z_INDEX } from "@/lib/ui/dialogStacking";
 import {
   applyOutlineFieldCursorPosition,
   resetOutlineFieldCursorPosition,
@@ -175,7 +176,7 @@ export function AssignWebsiteModal({ open, onClose, onAssign }: AssignWebsiteMod
             sx={rankSelectSx}
             SelectProps={{
               MenuProps: {
-                sx: { zIndex: 1600 },
+                sx: { zIndex: FORM_MODAL_MUI_OVERLAY_Z_INDEX },
                 PaperProps: { sx: selectMenuPaperSx(theme) },
               },
             }}

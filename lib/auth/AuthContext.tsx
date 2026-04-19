@@ -6,6 +6,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -14,6 +15,7 @@ import { usePathname, useRouter } from "next/navigation";
 import type { User, LoginCredentials } from "./types";
 import { getAccessToken, getMe, setTokenPair, synchronizeAuthSession } from "@/api";
 import { useLoginMutation, useLogoutMutation } from "@/lib/hooks";
+import { extractApiErrorMessageForToast } from "@/lib/notify";
 import { APP_PATHS, AUTH_PATHS, shouldSkipRemoteAuthHydration } from "./auth-paths";
 import {
   clearImpersonationSession,
@@ -31,6 +33,7 @@ import {
   toPermissionSet,
   type PermissionsByType,
 } from "./permissions-model";
+import { useAppearance } from "@/lib/theme/appearance-context";
 
 type AccessTokenPayload = {
   userId?: string;
@@ -104,6 +107,15 @@ function extractUserFromMePayload(payload: unknown): ApiUser | null {
     data?: { user?: ApiUser };
   };
   return source.user ?? source.data?.user ?? null;
+}
+
+function extractAccountThemeBackgroundColorFromMePayload(payload: unknown): string | null {
+  const user = extractUserFromMePayload(payload);
+  if (!user || typeof user !== "object") return null;
+  const theme = (user as { theme?: { backgroundColor?: string | null } }).theme;
+  const bg = theme?.backgroundColor;
+  if (bg == null || String(bg).trim() === "") return null;
+  return String(bg).trim();
 }
 
 function getUserFromAccessToken(): User | null {
@@ -188,10 +200,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const loginMutation = useLoginMutation();
   const logoutMutation = useLogoutMutation();
+  const { applyAccountTheme } = useAppearance();
+  const accountThemeFromMeAppliedRef = useRef(false);
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [permissionsByType, setPermissionsByType] = useState<PermissionsByType | undefined>(undefined);
   const [isImpersonating, setIsImpersonating] = useState(false);
+
+  const syncAccountThemeFromMePayload = useCallback(
+    (mePayload: unknown, force = false) => {
+      if (!force && accountThemeFromMeAppliedRef.current) return;
+      if (!extractUserFromMePayload(mePayload)) return;
+      const bg = extractAccountThemeBackgroundColorFromMePayload(mePayload);
+      applyAccountTheme(bg);
+      accountThemeFromMeAppliedRef.current = true;
+    },
+    [applyAccountTheme],
+  );
 
   const applyLocalAuthFromCookies = useCallback(() => {
     setUser(getUserFromAccessToken());
@@ -261,6 +286,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         });
         setUser(mappedMeUser ?? getUserFromAccessToken());
         setIsImpersonating(isImpersonatingSessionActive());
+        syncAccountThemeFromMePayload(mePayload);
       } catch {
         if (!mounted) return;
         if (isSkipHydrationPath()) {
@@ -282,7 +308,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => {
       mounted = false;
     };
-  }, [applyLocalAuthFromCookies, isSkipHydrationPath]);
+  }, [applyLocalAuthFromCookies, isSkipHydrationPath, syncAccountThemeFromMePayload]);
 
   /** Client navigations to `/auth/login` etc. must not keep dashboard user without re-evaluating cookies. */
   useEffect(() => {
@@ -317,6 +343,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         });
         setUser(mappedMeUser ?? getUserFromAccessToken());
         setIsImpersonating(isImpersonatingSessionActive());
+        syncAccountThemeFromMePayload(mePayload);
       } catch {
         if (!active) return;
         if (isSkipHydrationPath()) {
@@ -347,7 +374,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       window.removeEventListener("pageshow", handleLifecycleSync);
       window.removeEventListener("focus", handleLifecycleSync);
     };
-  }, [isSkipHydrationPath]);
+  }, [isSkipHydrationPath, syncAccountThemeFromMePayload]);
 
   const login = useCallback(
     async (credentials: LoginCredentials): Promise<LoginResult> => {
@@ -387,10 +414,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const loginPerms = extractPermissionsByType(response);
         setPermissionsByType(loginPerms ?? undefined);
         setUser(mappedUser);
+        applyAccountTheme(response.user.theme?.backgroundColor ?? null);
+        accountThemeFromMeAppliedRef.current = true;
         router.replace(APP_PATHS.dashboard);
         return { success: true };
       } catch (err: unknown) {
         if (isAxiosError(err)) {
+          const surfacedInToast = extractApiErrorMessageForToast(err);
+          if (surfacedInToast) {
+            /**
+             * `MutationCache` already showed this message in a toast; do not also
+             * map the same failure to red `react-hook-form` fields on the login page.
+             */
+            return { success: false };
+          }
+
           const backendFieldErrors = mapBackendLoginFieldErrors(err.response?.data);
           if (backendFieldErrors) {
             return {
@@ -417,7 +455,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         };
       }
     },
-    [loginMutation, router],
+    [applyAccountTheme, loginMutation, router],
   );
 
   const logout = useCallback(async () => {
@@ -429,6 +467,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
     setPermissionsByType(undefined);
     setIsImpersonating(false);
+    accountThemeFromMeAppliedRef.current = false;
     router.push(AUTH_PATHS.login);
   }, [logoutMutation, router]);
 
@@ -451,12 +490,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(mappedMeUser ?? getUserFromAccessToken());
       clearImpersonationSession();
       setIsImpersonating(false);
+      accountThemeFromMeAppliedRef.current = false;
+      syncAccountThemeFromMePayload(mePayload, true);
       router.replace(APP_PATHS.dashboard);
       return true;
     } catch {
       return false;
     }
-  }, [router]);
+  }, [router, syncAccountThemeFromMePayload]);
 
   const value = useMemo<AuthContextValue>(
     () => ({

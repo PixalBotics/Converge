@@ -17,4 +17,6 @@ export interface InputFieldProps
   inputProps?: object;
   /** Merged after default TextField styles; use for page-specific input chrome. */
   sx?: SxProps<Theme>;
+  /** For scroll-to-error: sets `data-setup-scroll-anchor` (comma-separated paths allowed). */
+  scrollAnchorPath?: string;
 }

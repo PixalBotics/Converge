@@ -8,7 +8,8 @@ import Box from "@mui/material/Box";
 import { useTheme } from "@mui/material/styles";
 import type { SxProps, Theme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
-import { Button, DashboardCard, Typography } from "@/components/common";
+import { Button, Typography } from "@/components/common";
+import { ModalGlassShell } from "@/components/common/FormModal/ModalGlassShell";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
 import {
   sendLicenseConfirmActionsRowSx,
@@ -37,7 +38,7 @@ export function UnblockIpConfirmModal({ open, onDismiss, onConfirm }: UnblockIpC
       }}
       role="presentation"
     >
-      <DashboardCard
+      <ModalGlassShell
         sx={
           [
             sendLicenseConfirmCardSx,
@@ -116,7 +117,7 @@ export function UnblockIpConfirmModal({ open, onDismiss, onConfirm }: UnblockIpC
             Unblock
           </Button>
         </Box>
-      </DashboardCard>
+      </ModalGlassShell>
     </Box>
   );
 }

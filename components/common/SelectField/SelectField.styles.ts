@@ -1,11 +1,13 @@
 import { alpha } from "@mui/material/styles";
 import type { Theme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
+import { FORM_MODAL_MUI_OVERLAY_Z_INDEX } from "@/lib/ui/dialogStacking";
 
 /** MUI Select menu panel — matches header/surface theme (not fixed navy). */
 export function selectMenuPaperSx(theme: Theme) {
   const app = (theme as AppTheme).app;
   return {
+    zIndex: FORM_MODAL_MUI_OVERLAY_Z_INDEX,
     // Higher opacity so the table behind doesn't "bleed" through.
     bgcolor: app.dashboard.menuSurfaceBg,
     backdropFilter: "blur(6px)",

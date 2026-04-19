@@ -1,14 +1,19 @@
 "use client";
 
-import type { ReactNode } from "react";
+import type { ReactNode, RefObject } from "react";
+import { useLayoutEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { useBodyScrollLock } from "@/lib/ui/useBodyScrollLock";
+import { dialogBackdropBackground } from "@/lib/ui/dialogBackdrop";
+import { FORM_MODAL_PORTAL_Z_INDEX } from "@/lib/ui/dialogStacking";
 import Close from "@mui/icons-material/Close";
 import Box from "@mui/material/Box";
 import IconButton from "@mui/material/IconButton";
 import { useTheme } from "@mui/material/styles";
 import type { SxProps, Theme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
-import { DashboardCard, Typography, Button } from "@/components/common";
+import { Typography, Button } from "@/components/common";
+import { ModalGlassShell } from "./ModalGlassShell";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
 import { CloseCircleIcon } from "@/components/dashboard/icons/CloseCircleIcon";
 
@@ -42,6 +47,8 @@ export interface FormModalProps {
    * Use for tall dynamic forms (e.g. Add Social Media) so the card does not leave empty vertical space.
    */
   fitContent?: boolean;
+  /** Attach to the scrollable fields region (for `scrollIntoView` targeting). */
+  fieldsScrollRef?: RefObject<HTMLDivElement | null>;
   children?: React.ReactNode;
   sx?: SxProps<Theme>;
 }
@@ -60,40 +67,45 @@ export function FormModal({
   maxWidth = 540,
   fitContent = false,
   closeButtonVariant = "outline",
+  fieldsScrollRef,
   children,
   sx,
 }: FormModalProps) {
   const theme = useTheme() as AppTheme;
+  const [mounted, setMounted] = useState(false);
   useBodyScrollLock(open);
+
+  useLayoutEffect(() => {
+    setMounted(true);
+  }, []);
 
   if (!open) return null;
 
-  return (
+  const layer = (
     <Box
+      role="dialog"
+      aria-modal="true"
       sx={{
         position: "fixed",
         inset: 0,
-        zIndex: 1400,
+        zIndex: FORM_MODAL_PORTAL_Z_INDEX,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        bgcolor: theme.app.dashboard.backdropDark,
+        /** Tint only here — blur on the same layer weakens inner `ModalGlassShell` backdrop-filter. */
+        background: dialogBackdropBackground(theme),
         p: 2,
       }}
     >
-      <DashboardCard
+      <ModalGlassShell
         sx={{
-          position: "relative",
           width: "100%",
           maxWidth,
           maxHeight: "90vh",
           height: "auto",
           display: "flex",
           flexDirection: "column",
-          overflow: "hidden",
           p: 3,
-          background: theme.appBackground,
-          borderRadius: 3,
           ...((sx as object) ?? {}),
         }}
       >
@@ -174,6 +186,7 @@ export function FormModal({
         </Box>
 
         <Box
+          ref={fieldsScrollRef}
           sx={{
             display: "flex",
             flexDirection: "column",
@@ -222,8 +235,14 @@ export function FormModal({
             {primaryButtonLabel}
           </Button>
         </Box>
-      </DashboardCard>
+      </ModalGlassShell>
     </Box>
   );
+
+  if (typeof document === "undefined" || !mounted) {
+    return null;
+  }
+
+  return createPortal(layer, document.body);
 }
 

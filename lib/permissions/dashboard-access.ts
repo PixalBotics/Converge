@@ -5,6 +5,7 @@ export type DashboardSidebarIconKey =
   | "billing"
   | "chat"
   | "chatWidget"
+  | "clients"
   | "Reseller-Management"
   | "crmIntegration"
   | "dashboard"
@@ -78,9 +79,10 @@ const ROUTE_RULES: readonly RouteRule[] = [
   { permission: "page:hrms", href: "/dashboard/hrms", iconKey: "hrms" },
   {
     permission: "page:account-setup",
-    href: "/dashboard/all-companies",
+    href: "/dashboard/companies",
     iconKey: "resellers",
     label: "Reseller-Management",
+    prefixMatch: true,
   },
   { permission: "page:users", href: "/dashboard/user-page", iconKey: "users" },
  // { permission: "page:account-setup", href: "/dashboard/account-setup", iconKey: "accountSetup" },

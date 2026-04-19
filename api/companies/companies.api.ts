@@ -1,6 +1,9 @@
 import { apiClient } from "../http/axios-instance";
 import type { JsonRecord } from "../types/common.types";
-import type { CompaniesListResponseEnvelope } from "../types/companies.types";
+import type {
+  CompaniesListResponseEnvelope,
+  ParentCompanyDetailEnvelope,
+} from "../types/companies.types";
 
 export async function listCompanies(
   params?: JsonRecord,
@@ -33,6 +36,18 @@ export async function createCompanySetupDraft(body: JsonRecord): Promise<unknown
   return data;
 }
 
+/** GET — latest in-progress draft for the current user (`data: null` if none). */
+export async function getCompanySetupDraftLatest(): Promise<unknown> {
+  const { data } = await apiClient.get("/companies/setup/draft/latest");
+  return data;
+}
+
+/** GET — full run JSON for one draft id (owner only). */
+export async function getCompanySetupDraftById(id: string): Promise<unknown> {
+  const { data } = await apiClient.get(`/companies/setup/draft/${encodeURIComponent(id)}`);
+  return data;
+}
+
 export async function updateCompanySetupDraft(
   id: string,
   body: JsonRecord,
@@ -51,8 +66,8 @@ export async function submitCompanySetupDraft(id: string): Promise<unknown> {
   return data;
 }
 
-export async function getParentCompany(id: string): Promise<unknown> {
-  const { data } = await apiClient.get(
+export async function getParentCompany(id: string): Promise<ParentCompanyDetailEnvelope> {
+  const { data } = await apiClient.get<ParentCompanyDetailEnvelope>(
     `/companies/parent/${encodeURIComponent(id)}`,
   );
   return data;

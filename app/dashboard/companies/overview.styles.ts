@@ -20,6 +20,27 @@ export const pageHeaderRow: SxProps<Theme> = {
   flexWrap: "wrap",
 };
 
+/** Stats row (same grid as user-page overview) */
+export const overviewCardsRow: SxProps<Theme> = {
+  display: "grid",
+  gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", md: "repeat(3, 1fr)" },
+  gap: 2,
+  mb: 0,
+};
+
+export const overviewCard: SxProps<Theme> = {
+  p: { xs: 1.5, sm: 2, md: 2.5 },
+  display: "flex",
+  flexDirection: "column",
+  gap: 1.5,
+};
+
+export const overviewStatValue: SxProps<Theme> = {
+  display: "flex",
+  alignItems: "baseline",
+  gap: 0.5,
+};
+
 export const cardTitleRow: SxProps<Theme> = {
   display: "flex",
   alignItems: "center",

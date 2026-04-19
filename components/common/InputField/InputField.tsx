@@ -29,6 +29,7 @@ export function InputField({
   fullWidth = true,
   inputProps,
   sx,
+  scrollAnchorPath,
   ...rest
 }: InputFieldProps) {
   const theme = useTheme();
@@ -54,8 +55,18 @@ export function InputField({
   const hideEmptyHelper = !hasHelperMessage && !error;
 
   return (
-    <Box sx={{ width: fullWidth ? "100%" : "auto" }}>
-      <Label htmlFor={fieldId} variant="mediumLarge" sx={{ mb: 0.75 }}>
+    <Box
+      sx={{ width: fullWidth ? "100%" : "auto" }}
+      {...(scrollAnchorPath ? { "data-setup-scroll-anchor": scrollAnchorPath } : {})}
+    >
+      <Label
+        htmlFor={fieldId}
+        variant="mediumLarge"
+        sx={{
+          mb: 0.75,
+          ...(error ? { color: theme.palette.error.main } : {}),
+        }}
+      >
         {label}
       </Label>
       <TextField
@@ -76,6 +87,7 @@ export function InputField({
             lineHeight: 1.43,
             display: "block",
             marginTop: t.spacing(0.75),
+            ...(error && hasHelperMessage ? { color: t.palette.error.main } : {}),
             ...(hideEmptyHelper
               ? { color: "transparent", userSelect: "none", pointerEvents: "none" as const }
               : {}),
@@ -89,6 +101,16 @@ export function InputField({
         sx={
           [
             textFieldStyles(theme),
+            error
+              ? {
+                  "& .MuiOutlinedInput-root.Mui-error": {
+                    "&::before": {
+                      backgroundColor: `${theme.palette.error.main} !important`,
+                      height: "3px",
+                    },
+                  },
+                }
+              : {},
             ...(sx ? [resolveSx(sx, theme)] : []),
           ] as SxProps<Theme>
         }

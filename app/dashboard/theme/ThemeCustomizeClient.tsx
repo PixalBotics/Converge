@@ -1,15 +1,34 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Box from "@mui/material/Box";
 import TextField from "@mui/material/TextField";
 import { useTheme } from "@mui/material/styles";
 import { Colorize } from "@mui/icons-material";
-import { HoverTooltip, Typography } from "@/components/common";
+import { Button, HoverTooltip, Typography } from "@/components/common";
 import { useAppearance } from "@/lib/theme/appearance-context";
-import { DEFAULT_THEME_GROUP_IDS, PICK_COLOR_PRESET_ID } from "@/lib/theme/appearance-presets";
-import { getCustomAccentTheme } from "@/lib/theme/custom-accent-theme";
+import {
+  APPEARANCE_PRESET_BY_ID,
+  APPEARANCE_PRESETS,
+  DEFAULT_THEME_GROUP_IDS,
+  PICK_COLOR_PRESET_ID,
+} from "@/lib/theme/appearance-presets";
+import { getCustomAccentTheme, normalizeHex } from "@/lib/theme/custom-accent-theme";
+import { usePlatformThemeMeQuery, useUpdatePlatformThemeMutation } from "@/lib/hooks/query";
 import type { AppTheme } from "@/theme/theme";
+
+function persistBackgroundColorHex(presetId: string, customAccentHex: string): string {
+  if (presetId === PICK_COLOR_PRESET_ID) {
+    return normalizeHex(customAccentHex);
+  }
+  const preset = APPEARANCE_PRESET_BY_ID[presetId];
+  return preset ? normalizeHex(preset.previewBar) : normalizeHex(customAccentHex);
+}
+
+function parseBackgroundColor(raw: unknown): string | null {
+  if (raw == null || String(raw).trim() === "") return null;
+  return normalizeHex(String(raw));
+}
 
 /** Discord Appearance panel (dark charcoal) */
 const DISCORD_PANEL_BG = "#2b2d31";
@@ -22,6 +41,68 @@ export default function ThemeCustomizeClient() {
   const theme = useTheme() as AppTheme;
   const { presetId, setPresetId, presets, customAccentHex, setCustomAccentHex } = useAppearance();
   const [hexDraft, setHexDraft] = useState(customAccentHex);
+
+  const platformThemeQuery = usePlatformThemeMeQuery();
+  const { mutate: savePlatformTheme, isPending: isSavingTheme } = useUpdatePlatformThemeMutation();
+
+  /** Last value synced with server (GET or successful Save). `undefined` = initial load not finished. */
+  const [syncedHex, setSyncedHex] = useState<string | null | undefined>(undefined);
+  const hydratedFromServerRef = useRef(false);
+
+  useEffect(() => {
+    if (!platformThemeQuery.isFetched || hydratedFromServerRef.current) return;
+    hydratedFromServerRef.current = true;
+
+    if (platformThemeQuery.isError || !platformThemeQuery.data?.success) {
+      setSyncedHex(null);
+      return;
+    }
+
+    const bg = parseBackgroundColor(platformThemeQuery.data.data.backgroundColor);
+    setSyncedHex(bg);
+
+    if (bg) {
+      const presetMatch = APPEARANCE_PRESETS.find(
+        (p) => p.previewBar.toLowerCase() === bg.toLowerCase(),
+      );
+      if (presetMatch) {
+        setPresetId(presetMatch.id);
+      } else {
+        setPresetId(PICK_COLOR_PRESET_ID);
+        setCustomAccentHex(bg);
+      }
+    }
+  }, [
+    platformThemeQuery.isFetched,
+    platformThemeQuery.isError,
+    platformThemeQuery.data,
+    setPresetId,
+    setCustomAccentHex,
+  ]);
+
+  const persistHex = useMemo(
+    () => persistBackgroundColorHex(presetId, customAccentHex),
+    [presetId, customAccentHex],
+  );
+
+  const normalizedPersistHex = useMemo(() => normalizeHex(persistHex), [persistHex]);
+
+  const needsSave = useMemo(() => {
+    if (syncedHex === undefined) return false;
+    return (syncedHex ?? "").toLowerCase() !== normalizedPersistHex.toLowerCase();
+  }, [syncedHex, normalizedPersistHex]);
+
+  const handleSaveTheme = useCallback(() => {
+    savePlatformTheme(
+      { backgroundColor: normalizedPersistHex },
+      {
+        onSuccess: (env) => {
+          if (!env.success) return;
+          setSyncedHex(parseBackgroundColor(env.data.backgroundColor));
+        },
+      },
+    );
+  }, [normalizedPersistHex, savePlatformTheme]);
 
   const defaultThemePresets = useMemo(
     () =>
@@ -64,9 +145,47 @@ export default function ThemeCustomizeClient() {
       >
         Customize appearance
       </Typography>
-      <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted, mb: 3 }}>
-        Choose a theme for the dashboard.
+      <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted, mb: 1.5 }}>
+        Choose a theme, then save to sync the accent color to your account (dashboard shell).
       </Typography>
+
+      <Box
+        sx={{
+          display: "flex",
+          flexWrap: "wrap",
+          alignItems: "center",
+          gap: 1.5,
+          mb: 3,
+        }}
+      >
+        <Button
+          type="button"
+          variant="primary"
+          size="small"
+          disabled={syncedHex === undefined || !needsSave || isSavingTheme}
+          loading={isSavingTheme}
+          onClick={handleSaveTheme}
+        >
+          Save to account
+        </Button>
+        {platformThemeQuery.isLoading ? (
+          <Typography variant="small" sx={{ color: theme.app.dashboard.textMuted }}>
+            Loading saved theme…
+          </Typography>
+        ) : platformThemeQuery.isError ? (
+          <Typography variant="small" sx={{ color: theme.app.dashboard.textMuted }}>
+            Could not load saved theme; showing local settings.
+          </Typography>
+        ) : syncedHex !== undefined && needsSave ? (
+          <Typography variant="small" sx={{ color: theme.app.dashboard.textMuted }}>
+            Unsaved changes
+          </Typography>
+        ) : syncedHex !== undefined && !needsSave ? (
+          <Typography variant="small" sx={{ color: theme.app.dashboard.textMuted }}>
+            Saved
+          </Typography>
+        ) : null}
+      </Box>
 
       {defaultThemePresets.length > 0 && (
         <Box sx={{ mb: 3, ml: 1 }}>

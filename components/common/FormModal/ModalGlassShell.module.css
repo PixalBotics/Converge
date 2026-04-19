@@ -1,0 +1,69 @@
+/**
+ * Modal glass panel: readable frosted face + explicit rim (double ring) + depth.
+ * Tokens: `--modal-glass-*` from `ModalGlassShell.tsx`.
+ */
+.root {
+  position: relative;
+  box-sizing: border-box;
+  isolation: isolate;
+  border-radius: 20px;
+  background: var(--modal-glass-face, rgba(255, 255, 255, 0.21));
+  backdrop-filter: var(--modal-glass-blur, blur(24px) saturate(160%));
+  -webkit-backdrop-filter: var(--modal-glass-blur, blur(24px) saturate(160%));
+  /* Outer separation from scrim + inner lit edge (reads clearly on any tint). */
+  border: 1px solid var(--modal-glass-border, rgba(255, 255, 255, 0.34));
+  box-shadow: var(
+    --modal-glass-shadow,
+    0 0 0 1px rgba(0, 0, 0, 0.35),
+    0 24px 64px rgba(0, 0, 0, 0.42),
+    0 8px 24px rgba(0, 0, 0, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.48),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.18),
+    inset 0 0 40px rgba(255, 255, 255, 0.05)
+  );
+  overflow: hidden;
+}
+
+.root > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Top specular line — sits above face, below content chrome */
+.root::before {
+  content: "";
+  position: absolute;
+  z-index: 2;
+  top: 0;
+  left: 8%;
+  right: 8%;
+  height: 1px;
+  border-radius: 1px;
+  pointer-events: none;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--modal-glass-specular, rgba(255, 255, 255, 0.75)),
+    transparent
+  );
+  opacity: 0.95;
+}
+
+/* Left edge catch-light */
+.root::after {
+  content: "";
+  position: absolute;
+  z-index: 2;
+  top: 10%;
+  bottom: 14%;
+  left: 0;
+  width: 1px;
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    var(--modal-glass-specular-soft, rgba(255, 255, 255, 0.55)),
+    transparent,
+    rgba(255, 255, 255, 0.12)
+  );
+  opacity: 0.85;
+}

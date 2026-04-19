@@ -50,6 +50,7 @@ export default function LoginPage() {
     control,
     handleSubmit,
     setError,
+    clearErrors,
     formState: { isSubmitting },
   } = useForm<LoginFormValues>({
     defaultValues,
@@ -71,6 +72,7 @@ export default function LoginPage() {
 
     if (!result.success) {
       if (result.fieldErrors) {
+        clearErrors();
         const { email, password, licenseKey } = result.fieldErrors;
 
         if (email) {
@@ -83,10 +85,14 @@ export default function LoginPage() {
           setError("licenseKey", { type: "manual", message: licenseKey });
         }
       } else if (result.error) {
+        clearErrors();
         setError("password", {
           type: "manual",
           message: result.error,
         });
+      } else {
+        /** API failure was surfaced only via the global toast — clear field error state. */
+        clearErrors();
       }
     }
   };

@@ -10,8 +10,12 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { createAppTheme } from "@/theme/theme";
-import { resolveBodyTextForTheme } from "@/lib/theme/backgroundTextContrast";
+import { createAppMuiTheme, defaultAppColors } from "@/theme/theme";
+import {
+  isDarkAppearanceBackground,
+  resolveBodyTextForTheme,
+} from "@/lib/theme/backgroundTextContrast";
+import { mergeAppColors } from "@/lib/theme/merge-app-colors";
 import { defaultDashboardAppearance } from "./defaults";
 import { loadDashboardAppearanceFromStorage, saveDashboardAppearanceToStorage } from "./persist";
 import { SHELL_GLASS_PRESETS } from "./shellGlassPresets";
@@ -150,7 +154,23 @@ export function useDashboardMuiTheme() {
       appearance.textPrimaryHex,
       appearance.textSecondaryHex
     );
-    return createAppTheme(appearance.backgroundCss, { primaryHex, secondaryHex }, appearance.ui);
+    const paletteMode = isDarkAppearanceBackground(appearance.backgroundCss) ? "dark" : "light";
+    const patch: Record<string, unknown> = {
+      text: {
+        primary: primaryHex,
+        secondary: secondaryHex,
+      },
+    };
+    const ui = appearance.ui;
+    if (ui.mode === "manual") {
+      const dashboard: Record<string, unknown> = {};
+      if (ui.cardBgHex?.trim()) dashboard.cardBg = ui.cardBgHex.trim();
+      if (ui.cardBorderHex?.trim()) dashboard.cardBorder = ui.cardBorderHex.trim();
+      if (ui.dataAccentHex?.trim()) dashboard.accentBlue = ui.dataAccentHex.trim();
+      if (Object.keys(dashboard).length > 0) patch.dashboard = dashboard;
+    }
+    const app = mergeAppColors(defaultAppColors, patch);
+    return createAppMuiTheme(app, appearance.backgroundCss, paletteMode);
   }, [
     appearance.backgroundCss,
     appearance.textMode,

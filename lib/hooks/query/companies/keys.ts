@@ -6,6 +6,7 @@ export const companiesKeys = {
   byReseller: (resellerId: string, params?: Params) =>
     [...companiesKeys.all, "by-reseller", resellerId, params] as const,
   setupResellers: () => [...companiesKeys.all, "setup", "resellers"] as const,
+  setupDraftLatest: () => [...companiesKeys.all, "setup", "draft", "latest"] as const,
   setupDraft: (draftId: string) =>
     [...companiesKeys.all, "setup", "draft", draftId] as const,
   parent: (id: string) => [...companiesKeys.all, "parent", id] as const,

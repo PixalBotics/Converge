@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import Box from "@mui/material/Box";
 import Avatar from "@mui/material/Avatar";
 import IconButton from "@mui/material/IconButton";
@@ -10,12 +10,19 @@ import {
   Edit as EditIcon,
   Delete as DeleteIcon,
 } from "@mui/icons-material";
-import { Typography, DashboardCard, DataTable, dataTableActionButton, TablePagination } from "@/components/common";
+import {
+  Typography,
+  DashboardCard,
+  DataTable,
+  dataTableActionButton,
+  TablePagination,
+  DeleteUserConfirmModal,
+} from "@/components/common";
 import type { DataTableColumn } from "@/components/common";
 import { userIconPath } from "@/assets";
 import { useAuth } from "@/lib/auth/AuthContext";
 import type { AppTheme } from "@/theme/theme";
-import { useLoginAsMutation } from "@/lib/hooks";
+import { useLoginAsMutation, useSoftDeleteUserMutation } from "@/lib/hooks";
 import type { FilterKind, UserRow, UserSuggestion } from "../types";
 import { EmptyUsersState } from "./EmptyUsersState";
 import { UserSearchToolbar } from "./UserSearchToolbar";
@@ -65,9 +72,12 @@ export function UsersTableSection(props: Props) {
     totalEntries,
     onEditUser,
   } = props;
-  const { hasOperational } = useAuth();
+  const { hasOperational, user: authUser } = useAuth();
   const loginAsMutation = useLoginAsMutation();
+  const softDeleteUserMutation = useSoftDeleteUserMutation();
   const canUseLoginAs = hasOperational("user:login-as");
+  const canDeleteUser = hasOperational("user:delete");
+  const [deleteTarget, setDeleteTarget] = useState<UserRow | null>(null);
 
   const columns = useMemo<DataTableColumn<UserRow>[]>(
     () => [
@@ -136,6 +146,21 @@ export function UsersTableSection(props: Props) {
     [theme],
   );
 
+  const handleCloseDeleteModal = () => {
+    if (softDeleteUserMutation.isPending) return;
+    setDeleteTarget(null);
+  };
+
+  const handleConfirmDeleteUser = () => {
+    const id = deleteTarget?.id?.trim();
+    if (!id) return;
+    softDeleteUserMutation.mutate(id, {
+      onSuccess: () => {
+        setDeleteTarget(null);
+      },
+    });
+  };
+
   return (
     <DashboardCard sx={overviewTableCard}>
       <Box sx={overviewTableCardHeader}>
@@ -175,6 +200,9 @@ export function UsersTableSection(props: Props) {
               const isPending = loginAsMutation.isPending
                 && loginAsMutation.variables?.targetUserId === row.id;
               const licenseKey = row.licenseKey;
+              const isSelf = Boolean(authUser?.id && row.id && authUser.id === row.id);
+              const canOpenDelete =
+                canDeleteUser && !!row.id && !isSelf;
               return (
                 <Box sx={{ display: "flex", alignItems: "center", justifyContent: "flex-start", gap: 1 }}>
                   <IconButton
@@ -189,9 +217,6 @@ export function UsersTableSection(props: Props) {
                       }, {
                         onSuccess: () => {
                           window.location.assign("/dashboard");
-                        },
-                        onError: () => {
-                          window.alert("Login As failed (401/unauthorized). Please verify permission `user:login-as` and license key.");
                         },
                       });
                     }}
@@ -219,13 +244,16 @@ export function UsersTableSection(props: Props) {
                   </IconButton>
                   <IconButton
                     size="small"
-                    aria-label="Delete user"
+                    aria-label={canOpenDelete ? "Delete user" : "Delete user (unavailable)"}
+                    disabled={!canOpenDelete}
                     onClick={() => {
-                      window.alert(`Delete user: ${String(row.user ?? row.email ?? row.id)}`);
+                      if (!canOpenDelete) return;
+                      setDeleteTarget(row);
                     }}
                     sx={{
                       ...dataTableActionButton,
                       color: theme.app.dashboard.accentRedLight,
+                      opacity: !canOpenDelete ? 0.35 : 1,
                     }}
                   >
                     <DeleteIcon fontSize="small" />
@@ -245,6 +273,18 @@ export function UsersTableSection(props: Props) {
           <TablePagination page={page} pageCount={pageCount} onPageChange={onPageChange} />
         </Box>
       </Box>
+
+      {deleteTarget ? (
+        <DeleteUserConfirmModal
+          open
+          displayName={String(deleteTarget.user ?? "")}
+          email={String(deleteTarget.email ?? "")}
+          onClose={handleCloseDeleteModal}
+          onConfirm={handleConfirmDeleteUser}
+          isDeleting={softDeleteUserMutation.isPending}
+          theme={theme}
+        />
+      ) : null}
     </DashboardCard>
   );
 }

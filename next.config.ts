@@ -30,6 +30,11 @@ const nextConfig: NextConfig = {
         destination: "/auth/verify-code",
         permanent: true,
       },
+      {
+        source: "/dashboard/all-companies",
+        destination: "/dashboard/companies",
+        permanent: true,
+      },
     ];
   },
   /** tsParticles: transpile so Next can bundle ESM cleanly. */

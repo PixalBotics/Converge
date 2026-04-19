@@ -29,6 +29,7 @@ const ICON_BY_KEY: Record<DashboardSidebarIconKey, IconType> = {
   billing: FaMoneyCheckDollar,
   chat: RiMessage3Line,
   chatWidget: LuLayoutPanelLeft,
+  "Reseller-Management": RiBriefcase4Line,
   clients: FaRegBuilding,
   crmIntegration: RiFlowChart,
   hrms: TbUsersGroup,

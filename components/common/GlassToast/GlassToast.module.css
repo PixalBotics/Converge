@@ -1,0 +1,126 @@
+@keyframes iosToastIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card {
+    animation: none !important;
+  }
+}
+
+/**
+ * Above `FormModal` / dialog portals (`z-index: 16000`) so notifications stay visible
+ * while a modal is open.
+ */
+.anchor {
+  position: fixed;
+  z-index: 20000;
+  top: max(10px, env(safe-area-inset-top));
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: min(340px, calc(100vw - 20px));
+  max-width: calc(100vw - 20px);
+  pointer-events: none;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+.card {
+  pointer-events: auto;
+  position: relative;
+  box-sizing: border-box;
+  width: fit-content;
+  max-width: 100%;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 14px 9px 12px;
+  padding-right: 36px;
+  border-radius: 14px;
+  animation: iosToastIn 0.35s cubic-bezier(0.33, 1, 0.68, 1) both;
+  color: rgba(255, 255, 255, 0.96);
+  background: rgba(36, 36, 40, 0.72);
+  backdrop-filter: blur(24px) saturate(1.35);
+  -webkit-backdrop-filter: blur(24px) saturate(1.35);
+  border: 0.5px solid rgba(255, 255, 255, 0.14);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.1) inset,
+    0 8px 32px rgba(0, 0, 0, 0.35),
+    0 2px 12px rgba(0, 0, 0, 0.2);
+}
+
+.cardSuccess {
+  border-color: rgba(72, 199, 142, 0.35);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.1) inset,
+    0 8px 32px rgba(0, 0, 0, 0.35),
+    0 0 0 0.5px rgba(52, 199, 126, 0.2);
+}
+
+.cardError {
+  border-color: rgba(255, 99, 99, 0.35);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.08) inset,
+    0 8px 32px rgba(0, 0, 0, 0.35),
+    0 0 0 0.5px rgba(255, 99, 99, 0.18);
+}
+
+.leadIcon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 2px;
+}
+
+.iconSuccess {
+  color: #5fe0a3;
+}
+
+.iconError {
+  color: #ff8a8a;
+}
+
+.close {
+  position: absolute !important;
+  top: 50%;
+  right: 4px;
+  transform: translateY(-50%);
+  z-index: 2;
+  padding: 4px !important;
+  min-width: 28px !important;
+  width: 28px !important;
+  height: 28px !important;
+  color: rgba(255, 255, 255, 0.45) !important;
+  background: transparent !important;
+  border-radius: 8px !important;
+}
+
+.close:hover {
+  color: rgba(255, 255, 255, 0.9) !important;
+  background: rgba(255, 255, 255, 0.08) !important;
+}
+
+.message {
+  margin: 0;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  line-height: 1.35;
+  letter-spacing: -0.01em;
+  word-break: break-word;
+  text-align: left;
+  color: rgba(255, 255, 255, 0.95);
+  -webkit-font-smoothing: antialiased;
+}

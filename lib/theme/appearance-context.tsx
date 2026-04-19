@@ -9,6 +9,11 @@ export type AppearanceContextValue = {
   presets: AppearancePreset[];
   customAccentHex: string;
   setCustomAccentHex: (hex: string) => void;
+  /**
+   * Apply saved account color from API (`user.theme.backgroundColor`).
+   * No-op when `backgroundColor` is null/empty/invalid.
+   */
+  applyAccountTheme: (backgroundColor: string | null | undefined) => void;
 };
 
 export const AppearanceContext = createContext<AppearanceContextValue | null>(null);

@@ -1,6 +1,6 @@
 import { alpha } from "@mui/material/styles";
 import type { SxProps, Theme } from "@mui/material/styles";
-import type { AppTheme } from "@/theme/theme";
+import { dialogBackdropBackground } from "@/lib/ui/dialogBackdrop";
 
 export const sendLicenseConfirmBackdropSx: SxProps<Theme> = (theme) => ({
   position: "fixed",
@@ -9,30 +9,26 @@ export const sendLicenseConfirmBackdropSx: SxProps<Theme> = (theme) => ({
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
-  bgcolor: (theme as AppTheme).app.dashboard.backdropDark,
+  background: dialogBackdropBackground(theme),
   p: 2,
 });
 
-export const sendLicenseConfirmCardSx: SxProps<Theme> = (theme) => {
-  const t = theme as AppTheme;
-  return {
-    position: "relative",
-    width: "100%",
-    maxWidth: 440,
-    /** `DashboardCard` defaults to `height: 100%` — that stretches this dialog to the viewport. */
-    height: "auto",
-    minHeight: 0,
-    alignSelf: "center",
-    flexShrink: 0,
-    p: { xs: 2.5, sm: 3.5 },
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    textAlign: "center",
-    background: t.appBackground,
-    borderRadius: "14px",
-    border: `1px solid ${t.app.dashboard.cardBorder}`,
-  };
+/** Layout only — glass surface from `ModalGlassShell`. */
+export const sendLicenseConfirmCardSx: SxProps<Theme> = {
+  position: "relative",
+  width: "100%",
+  maxWidth: 440,
+  /** Avoid stretching to viewport height (legacy `DashboardCard` default). */
+  height: "auto",
+  minHeight: 0,
+  alignSelf: "center",
+  flexShrink: 0,
+  p: { xs: 2.5, sm: 3.5 },
+  display: "flex",
+  flexDirection: "column",
+  alignItems: "center",
+  textAlign: "center",
+  borderRadius: "14px",
 };
 
 /** Large circle behind gear + check — radial highlight in center. */

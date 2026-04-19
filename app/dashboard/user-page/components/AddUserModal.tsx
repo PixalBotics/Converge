@@ -23,6 +23,7 @@ import {
   pickItemsArray,
   toIdNameOption,
 } from "./add-user-modal.utils";
+import { publishAppToast } from "@/lib/notify";
 
 export function AddUserModal({
   open,
@@ -338,16 +339,25 @@ export function AddUserModal({
     const ln = lastName.trim();
     const em = email.trim();
     if (!fn || !ln || !em) {
-      window.alert("Please enter first name, last name, and email.");
+      publishAppToast({
+        variant: "error",
+        message: "Please enter first name, last name, and email.",
+      });
       return;
     }
     if (!roleValue.trim() || !departmentValue.trim() || !designationValue.trim()) {
-      window.alert("Please select role, department, and designation.");
+      publishAppToast({
+        variant: "error",
+        message: "Please select role, department, and designation.",
+      });
       return;
     }
     if (userType === "External") {
       if (!resellerId.trim() || !parentCompanyId.trim()) {
-        window.alert("Please select reseller and parent company for an external user.");
+        publishAppToast({
+          variant: "error",
+          message: "Please select reseller and parent company for an external user.",
+        });
         return;
       }
     }
@@ -366,21 +376,12 @@ export function AddUserModal({
       body.companyId = parentCompanyId.trim();
     }
 
-    const onError = () => {
-      window.alert(
-        mode === "create"
-          ? "Could not create user. Check permissions (`user:create`) and required fields."
-          : "Could not update user. Check permissions (`user:update`) and that at least one field is valid.",
-      );
-    };
-
     if (mode === "create") {
       createMutation.mutate(body, {
         onSuccess: () => {
           onClose();
           onSaved?.();
         },
-        onError,
       });
     } else {
       updateMutation.mutate(
@@ -390,7 +391,6 @@ export function AddUserModal({
             onClose();
             onSaved?.();
           },
-          onError,
         },
       );
     }

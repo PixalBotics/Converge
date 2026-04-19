@@ -33,6 +33,7 @@ export function useLogoutMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: () => logout(),
+    meta: { skipSuccessToast: true },
     onSettled: () => {
       queryClient.removeQueries({ queryKey: authKeys.all });
     },

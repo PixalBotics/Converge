@@ -6,6 +6,7 @@ import {
   getUser,
   getUserFilterSuggestions,
   listUsers,
+  softDeleteUser,
   updateUser,
 } from "@/api";
 import type { JsonRecord } from "@/api";
@@ -84,6 +85,17 @@ export function useUpdateUserMutation() {
     onSuccess: (_data, vars) => {
       void queryClient.invalidateQueries({ queryKey: usersKeys.lists() });
       void queryClient.invalidateQueries({ queryKey: usersKeys.detail(vars.id) });
+    },
+  });
+}
+
+export function useSoftDeleteUserMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => softDeleteUser(id),
+    onSuccess: (_data, id) => {
+      void queryClient.invalidateQueries({ queryKey: usersKeys.lists() });
+      void queryClient.invalidateQueries({ queryKey: usersKeys.detail(id) });
     },
   });
 }

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter, Manrope } from "next/font/google";
 import { AppRouterCacheProvider } from "@mui/material-nextjs/v15-appRouter";
 import { ThemeRegistry } from "@/components/theme-registry";
+import { GlassToastProvider } from "@/components/common";
 import { QueryProvider } from "@/lib/hooks";
 import { AuthProvider } from "@/lib/auth";
 import { mainBackgroundGradient } from "@/theme/theme";
@@ -22,6 +23,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body
+        suppressHydrationWarning
         style={{
           fontFamily: `${inter.style.fontFamily}, ${manrope.style.fontFamily}, sans-serif`,
           background: mainBackgroundGradient,
@@ -30,9 +32,11 @@ export default function RootLayout({
       >
         <AppRouterCacheProvider options={{ key: "mui" }}>
           <ThemeRegistry>
-            <QueryProvider>
-              <AuthProvider>{children}</AuthProvider>
-            </QueryProvider>
+            <GlassToastProvider>
+              <QueryProvider>
+                <AuthProvider>{children}</AuthProvider>
+              </QueryProvider>
+            </GlassToastProvider>
           </ThemeRegistry>
         </AppRouterCacheProvider>
       </body>

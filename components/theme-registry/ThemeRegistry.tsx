@@ -11,6 +11,7 @@ import {
 } from "@/lib/theme/appearance-presets";
 import { AppearanceContext } from "@/lib/theme/appearance-context";
 import { mergeAppColors } from "@/lib/theme/merge-app-colors";
+import { resolveAppearanceFromAccountBackgroundColor } from "@/lib/theme/account-theme";
 import {
   DEFAULT_CUSTOM_ACCENT_HEX,
   getCustomAccentTheme,
@@ -62,6 +63,16 @@ export default function ThemeRegistry({ children }: { children: React.ReactNode 
     }
   }, []);
 
+  const applyAccountTheme = useCallback((backgroundColor: string | null | undefined) => {
+    const resolved = resolveAppearanceFromAccountBackgroundColor(backgroundColor);
+    if (!resolved) return;
+    if (resolved.kind === "custom") {
+      setCustomAccentHex(resolved.hex);
+      return;
+    }
+    setPresetId(resolved.id);
+  }, [setCustomAccentHex, setPresetId]);
+
   const preset = APPEARANCE_PRESET_BY_ID[presetId] ?? APPEARANCE_PRESET_BY_ID[DEFAULT_APPEARANCE_PRESET_ID];
 
   const muiTheme = useMemo(() => {
@@ -96,8 +107,9 @@ export default function ThemeRegistry({ children }: { children: React.ReactNode 
       presets: APPEARANCE_PRESETS,
       customAccentHex,
       setCustomAccentHex,
+      applyAccountTheme,
     }),
-    [presetId, setPresetId, customAccentHex, setCustomAccentHex]
+    [presetId, setPresetId, customAccentHex, setCustomAccentHex, applyAccountTheme]
   );
 
   return (

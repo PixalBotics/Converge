@@ -10,6 +10,7 @@ import {
   applyOutlineFieldCursorPosition,
   resetOutlineFieldCursorPosition,
 } from "@/components/common/InputField/outlineFieldCursor";
+import { FORM_MODAL_MUI_OVERLAY_Z_INDEX } from "@/lib/ui/dialogStacking";
 import { textFieldStyles } from "@/components/common/InputField/InputField.styles";
 import { selectFieldStyles, selectMenuItemSx, selectMenuPaperSx } from "./SelectField.styles";
 
@@ -26,6 +27,8 @@ export interface SelectFieldProps {
   placeholder?: string;
   /** Cap visible menu height to this many rows; extra options scroll inside the panel. */
   menuMaxRows?: number;
+  /** For scroll-to-error: sets `data-setup-scroll-anchor` (comma-separated paths allowed). */
+  scrollAnchorPath?: string;
 }
 
 /** Default MUI `MenuItem` (non-dense) min-height is 48px; small padding for list edges. */
@@ -39,6 +42,7 @@ export function SelectField({
   options,
   placeholder,
   menuMaxRows,
+  scrollAnchorPath,
 }: SelectFieldProps) {
   const theme = useTheme() as AppTheme;
   const fieldId = label.toLowerCase().replace(/\s+/g, "-");
@@ -51,7 +55,10 @@ export function SelectField({
       : undefined;
 
   return (
-    <Box sx={{ width: "100%" }}>
+    <Box
+      sx={{ width: "100%" }}
+      {...(scrollAnchorPath ? { "data-setup-scroll-anchor": scrollAnchorPath } : {})}
+    >
       <Label htmlFor={fieldId} variant="mediumLarge" sx={{ mb: 0.75 }}>
         {label}
       </Label>
@@ -68,9 +75,7 @@ export function SelectField({
         sx={[textFieldStyles(theme), ...selectFieldStyles(theme)]}
         SelectProps={{
           MenuProps: {
-            sx: {
-              zIndex: 1600,
-            },
+            sx: { zIndex: FORM_MODAL_MUI_OVERLAY_Z_INDEX },
             MenuListProps: menuListScrollSx ? { sx: menuListScrollSx } : undefined,
             PaperProps: {
               sx: selectMenuPaperSx(theme),
