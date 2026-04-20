@@ -40,6 +40,7 @@ const ICON_BY_KEY: Record<DashboardSidebarIconKey, IconType> = {
   designations: RiPriceTag3Line,
   distributionSetup: LuNetwork,
   ipBlocklist: RiShieldKeyholeLine,
+  leave: RiBookletLine,
   licenses: RiFileList3Line,
   pools: RiGroup2Line,
   reports: RiBarChartGroupedLine,

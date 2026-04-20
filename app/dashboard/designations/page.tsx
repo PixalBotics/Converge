@@ -167,47 +167,49 @@ export default function DesignationsPage() {
     [],
   );
 
-  const handleDesignationSaved = () => {
+  const resetForm = () => {
+    setDepartmentNameField("");
+    setAssignedDepartment("");
+  };
+
+  const handleCancelForm = () => {
+    resetForm();
+  };
+
+  const handleSaveDesignation = () => {
+    const name = departmentNameField.trim();
+    if (!name) {
+      publishAppToast({ variant: "error", message: "Please enter a department name." });
+      return;
+    }
+    if (!assignedDepartment.trim()) {
+      publishAppToast({ variant: "error", message: "Please assign a department." });
+      return;
+    }
+    publishAppToast({ variant: "success", message: `Designation saved for “${name}”.` });
+    resetForm();
     void queryClient.invalidateQueries({ queryKey: hrmsDesignationsKeys.all });
   };
 
-  const openDesignationFormForAdd = () => {
-    setDesignationToEdit(null);
-    setDesignationFormOpen(true);
-  };
-
-  const closeDesignationForm = () => {
-    setDesignationFormOpen(false);
-    setDesignationToEdit(null);
-  };
-
-  const handleConfirmDeleteDesignation = () => {
-    const id = deleteTarget?.id?.trim();
-    if (!id) return;
-    softDeleteDesignationMutation.mutate(id, {
-      onSuccess: () => {
-        setDeleteTarget(null);
-        handleDesignationSaved();
-      },
-    });
-  };
-
-  const clearFilters = () => {
-    setSearchInput("");
-    setSearch("");
-    setFilterResellerId("");
-    setFilterDepartmentId("");
-  };
-
   return (
-    <Box sx={{ ...(pageWrapper as object), ...(rolesPageWrapper as object) }}>
-      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 1.5, mb: 0.5 }}>
-        <Box>
-          <Typography variant="regularLarge" fontWeight={700} color="white">
-            Designations
-          </Typography>
-          <Typography variant="body2" sx={{ mt: 0.75, color: theme.app.dashboard.textMuted, maxWidth: 720 }}>
-            Manage designation titles and assign them to departments.
+    <Box sx={pageWrapper}>
+      <Box sx={rolesPageWrapper}>
+      <Box sx={{ mb: 0.5 }}>
+        <Typography variant="regularLarge" fontWeight={700} color="white">
+          Designations
+        </Typography>
+        <Typography variant="body2" sx={{ mt: 0.75, color: theme.app.dashboard.textMuted, maxWidth: 720 }}>
+          Generate and distribute licenses to client companies
+        </Typography>
+      </Box>
+
+      <DashboardCard sx={rolesCard}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 2.5 }}>
+          <Box sx={rolesIconBox}>
+            <AttachMoneyIcon sx={{ fontSize: 20, color: theme.app.dashboard.white95 }} />
+          </Box>
+          <Typography variant="mediumLarge" fontWeight={600} color="white">
+            Add New Designation
           </Typography>
         </Box>
         <Button variant="primary" sx={gradientPrimaryButtonSx} onClick={openDesignationFormForAdd}>
@@ -387,6 +389,7 @@ export default function DesignationsPage() {
           </Box>
         </Box>
       </DashboardCard>
+      </Box>
     </Box>
   );
 }
