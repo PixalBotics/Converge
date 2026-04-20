@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import AutoAwesome from "@mui/icons-material/AutoAwesome";
 import FilterList from "@mui/icons-material/FilterList";
 import Send from "@mui/icons-material/Send";
@@ -16,7 +16,6 @@ import {
   DashboardCard,
   DataTable,
   FilterButton,
-  InputField,
   SearchBar,
   SelectField,
   TablePagination,
@@ -24,6 +23,11 @@ import {
 } from "@/components/common";
 import type { DataTableColumn } from "@/components/common";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
+import { GenerateLicenseKeyModal } from "./components/GenerateLicenseKeyModal";
+import { pickItemsArray, toIdNameOption } from "@/app/dashboard/user-page/components/add-user-modal.utils";
+import { useCompaniesSetupResellersQuery, usePlatformLicenseKeysQuery } from "@/lib/hooks";
+import { extractParentCompaniesFromByResellerTree } from "@/app/dashboard/user-page/components/add-user-modal.utils";
+import { useCompaniesByResellerQuery } from "@/lib/hooks";
 import {
   licenseGenerateFilterCard,
   licenseGenerateFilterGrid,
@@ -39,140 +43,106 @@ import {
   licenseGenerateTableCard,
   licenseGenerateTableToolbar,
 } from "./license-generate.styles";
+import {
+  extractPlatformLicenseKeyRows,
+  extractPlatformLicenseKeysLimit,
+  extractPlatformLicenseKeysTotal,
+  extractPlatformLicenseKeysTotalPages,
+  type PlatformLicenseKeyRow,
+} from "./utils";
 
-interface ChildCompanyRow extends Record<string, unknown> {
-  id: string;
-  childCompany: string;
-  website: string;
-  address: string;
-  poc: string;
-  email: string;
-  phone: string;
-}
-
-const TOTAL_ENTRIES = 256_000;
-const CHILD_COUNT = 12;
-
-const TABLE_ROWS: ChildCompanyRow[] = [
-  {
-    id: "1",
-    childCompany: "Mative Group",
-    website: "mative.io",
-    address: "Karachi, PK",
-    poc: "Raja Saif",
-    email: "rajasaifali125@gmail.com",
-    phone: "+92 313 939237",
-  },
-  {
-    id: "2",
-    childCompany: "Northwind Labs",
-    website: "northwind.io",
-    address: "Lahore, PK",
-    poc: "Ali Khan",
-    email: "ali@northwind.io",
-    phone: "+92 300 1112233",
-  },
-  {
-    id: "3",
-    childCompany: "BluePeak Media",
-    website: "bluepeak.com",
-    address: "Islamabad, PK",
-    poc: "Sara Ahmed",
-    email: "sara@bluepeak.com",
-    phone: "+92 321 4445566",
-  },
-  {
-    id: "4",
-    childCompany: "Vertex Systems",
-    website: "vertexsys.net",
-    address: "Dubai, AE",
-    poc: "Omar Hassan",
-    email: "omar@vortex.net",
-    phone: "+971 50 9876543",
-  },
-  {
-    id: "5",
-    childCompany: "CloudForge",
-    website: "cloudforge.dev",
-    address: "Remote",
-    poc: "Emma Lee",
-    email: "emma@cloudforge.dev",
-    phone: "+1 415 555 0199",
-  },
-  {
-    id: "6",
-    childCompany: "DataNest",
-    website: "datanest.ai",
-    address: "Singapore, SG",
-    poc: "Wei Chen",
-    email: "wei@datanest.ai",
-    phone: "+65 9123 4567",
-  },
-  {
-    id: "7",
-    childCompany: "PixelWorks",
-    website: "pixelworks.co",
-    address: "London, UK",
-    poc: "James Cole",
-    email: "james@pixelworks.co",
-    phone: "+44 20 7946 0958",
-  },
-  {
-    id: "8",
-    childCompany: "StreamLine Co",
-    website: "streamline.app",
-    address: "Toronto, CA",
-    poc: "Nina Patel",
-    email: "nina@streamline.app",
-    phone: "+1 647 555 0142",
-  },
-];
-
-const RESELLER_OPTIONS = [
-  { label: "TechDistributors", value: "techdistributors" },
-  { label: "Global Tech Resellers", value: "global" },
-];
-
-const PARENT_OPTIONS = [
-  { label: "ABC Group", value: "abc" },
-  { label: "Enterprise Holdings", value: "enterprise" },
-];
-
-const CHILD_OPTIONS = [
-  { label: "Mative Group", value: "mative" },
-  { label: "Regional Unit A", value: "regional-a" },
-];
-
-function formatEntries(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(0)}M`;
-  if (n >= 1_000) return `${Math.round(n / 1_000)}K`;
-  return String(n);
-}
+const DEFAULT_PAGE_LIMIT = 20;
 
 export default function LicenseGeneratePage() {
   const theme = useTheme() as AppTheme;
+  const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
-  const pageCount = 2;
-  const [reseller, setReseller] = useState("techdistributors");
-  const [parentCompany, setParentCompany] = useState("abc");
-  const [childCompany, setChildCompany] = useState("mative");
-  const [poc, setPoc] = useState("Raja Saif");
+  const [generateModalOpen, setGenerateModalOpen] = useState(false);
+  const [mode, setMode] = useState<"issued" | "missing">("issued");
+  const [filterResellerId, setFilterResellerId] = useState("");
+  const [filterParentCompanyId, setFilterParentCompanyId] = useState("");
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
 
-  const filteredRows = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return TABLE_ROWS;
-    return TABLE_ROWS.filter(
-      (row) =>
-        row.childCompany.toLowerCase().includes(q) ||
-        row.website.toLowerCase().includes(q) ||
-        row.address.toLowerCase().includes(q) ||
-        row.poc.toLowerCase().includes(q) ||
-        row.email.toLowerCase().includes(q) ||
-        row.phone.toLowerCase().includes(q)
-    );
-  }, [search]);
+  const resellersQuery = useCompaniesSetupResellersQuery({ enabled: true });
+  const companiesByResellerQuery = useCompaniesByResellerQuery(
+    filterResellerId,
+    { view: "tree", sortBy: "name", sortOrder: "asc", all: true },
+    { enabled: filterResellerId.trim().length > 0 },
+  );
+  const resellerOptions = useMemo(() => {
+    return pickItemsArray(resellersQuery.data)
+      .map((row) => toIdNameOption(row))
+      .filter((o): o is { value: string; label: string } => o !== null);
+  }, [resellersQuery.data]);
+  const resellerFilterOptions = useMemo(() => {
+    const all = { value: "", label: "All resellers" };
+    if (resellerOptions.length > 0) return [all, ...resellerOptions];
+    return [{ value: "", label: resellersQuery.isLoading ? "Loading resellers…" : "No resellers available" }];
+  }, [resellerOptions, resellersQuery.isLoading]);
+
+  const parentCompanyFilterOptions = useMemo(() => {
+    if (!filterResellerId.trim()) return [{ value: "", label: "All parent companies" }];
+    const extracted = extractParentCompaniesFromByResellerTree(companiesByResellerQuery.data).map((o) => ({
+      value: o.value,
+      label: o.label,
+    }));
+    if (extracted.length > 0) return [{ value: "", label: "All parent companies" }, ...extracted];
+    return [
+      {
+        value: "",
+        label: companiesByResellerQuery.isLoading ? "Loading parent companies…" : "No parent companies available",
+      },
+    ];
+  }, [filterResellerId, companiesByResellerQuery.data, companiesByResellerQuery.isLoading]);
+
+  const listParams = useMemo(() => {
+    const params: Record<string, string | number> = {
+      mode,
+      page,
+      limit: DEFAULT_PAGE_LIMIT,
+    };
+    const q = search.trim();
+    if (q) params.search = q;
+    if (filterResellerId.trim()) params.resellerId = filterResellerId.trim();
+    if (filterParentCompanyId.trim()) params.parentCompanyId = filterParentCompanyId.trim();
+    return params;
+  }, [mode, page, search, filterResellerId, filterParentCompanyId]);
+
+  const licenseKeysQuery = usePlatformLicenseKeysQuery(listParams, { scope: "license-generate-page" });
+
+  const rows = useMemo(() => extractPlatformLicenseKeyRows(licenseKeysQuery.data), [licenseKeysQuery.data]);
+  const totalEntries = useMemo(() => extractPlatformLicenseKeysTotal(licenseKeysQuery.data), [licenseKeysQuery.data]);
+  const pageCount = useMemo(() => extractPlatformLicenseKeysTotalPages(licenseKeysQuery.data), [licenseKeysQuery.data]);
+  const pageLimit = useMemo(
+    () => extractPlatformLicenseKeysLimit(licenseKeysQuery.data) ?? DEFAULT_PAGE_LIMIT,
+    [licenseKeysQuery.data],
+  );
+
+  const start = rows.length > 0 ? (page - 1) * pageLimit + 1 : 0;
+  const end = (page - 1) * pageLimit + rows.length;
+  const isLoading = licenseKeysQuery.isLoading || licenseKeysQuery.isFetching;
+
+  useEffect(() => {
+    // Clear applied search when SearchBar cross is used.
+    if (searchInput.trim().length > 0) return;
+    if (!search.trim()) return;
+    setSearch("");
+    setPage(1);
+  }, [searchInput, search]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [search, filterResellerId, filterParentCompanyId, mode]);
+
+  useEffect(() => {
+    // Changing reseller should reset parent company filter.
+    setFilterParentCompanyId("");
+  }, [filterResellerId]);
+
+  useEffect(() => {
+    setPage((p) => (p > pageCount ? pageCount : p));
+  }, [pageCount]);
 
   const toggleRow = useCallback((id: string) => {
     setSelected((prev) => {
@@ -184,19 +154,19 @@ export default function LicenseGeneratePage() {
   }, []);
 
   const toggleAll = useCallback(() => {
-    const ids = filteredRows.map((r) => r.id);
+    const ids = rows.map((r) => r.id);
     setSelected((prev) => {
       const allOn = ids.length > 0 && ids.every((id) => prev.has(id));
       if (allOn) return new Set();
       return new Set(ids);
     });
-  }, [filteredRows]);
+  }, [rows]);
 
   const allSelected =
-    filteredRows.length > 0 && filteredRows.every((r) => selected.has(r.id));
+    rows.length > 0 && rows.every((r) => selected.has(r.id));
   const someSelected = selected.size > 0 && !allSelected;
 
-  const columns = useMemo<DataTableColumn<ChildCompanyRow>[]>(
+  const columns = useMemo<DataTableColumn<PlatformLicenseKeyRow>[]>(
     () => [
       {
         id: "select",
@@ -213,16 +183,14 @@ export default function LicenseGeneratePage() {
           <Checkbox
             checked={selected.has(row.id)}
             onChange={() => toggleRow(row.id)}
-            inputProps={{ "aria-label": `Select ${row.childCompany}` }}
+            inputProps={{ "aria-label": `Select ${row.parentCompany}` }}
           />
         ),
       },
-      { id: "childCompany", label: "Child Company" },
-      { id: "website", label: "Website", cellVariant: "muted" },
-      { id: "address", label: "Address", cellVariant: "muted" },
-      { id: "poc", label: "POC" },
-      { id: "email", label: "Email", cellVariant: "muted" },
-      { id: "phone", label: "Phone", cellVariant: "muted" },
+      { id: "parentCompany", label: "Parent Company" },
+      { id: "reseller", label: "Reseller", cellVariant: "muted" },
+      { id: "licenseKey", label: "License Key" },
+      { id: "createdAt", label: "Created", cellVariant: "muted" },
     ],
     [allSelected, someSelected, toggleAll, toggleRow, selected]
   );
@@ -242,11 +210,25 @@ export default function LicenseGeneratePage() {
           <Button variant="outlined" type="button" startIcon={<Send sx={{ fontSize: 18 }} />}>
             Send Selected
           </Button>
-          <Button type="button" variant="primary" sx={gradientPrimaryButtonSx} startIcon={<AutoAwesome sx={{ fontSize: 18 }} />}>
+          <Button
+            type="button"
+            variant="primary"
+            sx={gradientPrimaryButtonSx}
+            startIcon={<AutoAwesome sx={{ fontSize: 18 }} />}
+            onClick={() => setGenerateModalOpen(true)}
+          >
             Generate License
           </Button>
         </Box>
       </Box>
+
+      <GenerateLicenseKeyModal
+        open={generateModalOpen}
+        onClose={() => setGenerateModalOpen(false)}
+        onGenerated={() => {
+          // Page is still demo-data driven; modal handles server call + cache invalidation.
+        }}
+      />
 
       <DashboardCard sx={licenseGenerateFilterCard}>
         <Box sx={licenseGenerateFilterTitleRow}>
@@ -259,14 +241,32 @@ export default function LicenseGeneratePage() {
         </Box>
         <Box sx={licenseGenerateFilterGrid}>
           <SelectField
-            label="Client Of (Reseller)"
-            value={reseller}
-            onChange={setReseller}
-            options={RESELLER_OPTIONS}
+            label="Mode"
+            value={mode}
+            onChange={(v) => setMode(v === "missing" ? "missing" : "issued")}
+            options={[
+              { value: "issued", label: "Issued" },
+              { value: "missing", label: "Missing" },
+            ]}
           />
-          <SelectField label="Parent Company" value={parentCompany} onChange={setParentCompany} options={PARENT_OPTIONS} />
-          <SelectField label="Child Company" value={childCompany} onChange={setChildCompany} options={CHILD_OPTIONS} />
-          <InputField label="POC" name="poc" placeholder="POC" value={poc} onChange={(e) => setPoc(e.target.value)} />
+          <SelectField
+            label="Client Of (Reseller)"
+            value={filterResellerId}
+            onChange={(v) => {
+              setFilterResellerId(v);
+              setFilterParentCompanyId("");
+            }}
+            options={resellerFilterOptions}
+            menuMaxRows={6}
+          />
+          <SelectField
+            label="Parent Company"
+            value={filterParentCompanyId}
+            onChange={setFilterParentCompanyId}
+            options={parentCompanyFilterOptions}
+            menuMaxRows={7}
+            disabled={!filterResellerId.trim()}
+          />
           <Box sx={{ display: "flex", justifyContent: { xs: "stretch", lg: "flex-end" } }}>
             <Button
               type="button"
@@ -275,8 +275,16 @@ export default function LicenseGeneratePage() {
                 ...resolveSx(filterChromeButtonSx, theme),
                 width: { xs: "100%", lg: "auto" },
               }}
+              onClick={() => {
+                setMode("issued");
+                setFilterResellerId("");
+                setFilterParentCompanyId("");
+                setSearchInput("");
+                setSearch("");
+                setPage(1);
+              }}
             >
-              Apply Filter
+              Clear filter
             </Button>
           </Box>
         </Box>
@@ -285,21 +293,36 @@ export default function LicenseGeneratePage() {
       <DashboardCard sx={licenseGenerateTableCard}>
         <Box sx={licenseGenerateTableToolbar}>
           <Typography variant="mediumLarge" color="white" fontWeight={600}>
-            Child Companies ({CHILD_COUNT})
+            License Keys
           </Typography>
           <Box sx={licenseGenerateSearchRow}>
             <Box sx={licenseGenerateSearchFieldWrapper}>
-              <SearchBar value={search} onChange={setSearch} placeholder="Search anything.." sx={{ minWidth: "100%" }} />
+              <SearchBar
+                value={searchInput}
+                onChange={setSearchInput}
+                placeholder="Search company or key…"
+                sx={{ minWidth: "100%" }}
+              />
             </Box>
+            <Button
+              type="button"
+              variant="primary"
+              disabled={searchInput.trim() === search.trim()}
+              onClick={() => setSearch(searchInput)}
+              sx={{ minWidth: 132, whiteSpace: "nowrap", alignSelf: { xs: "stretch", sm: "center" } }}
+            >
+              Search
+            </Button>
             <FilterButton sx={{ whiteSpace: "nowrap", alignSelf: { xs: "stretch", sm: "center" } }} />
           </Box>
         </Box>
 
-        <DataTable<ChildCompanyRow>
+        <DataTable<PlatformLicenseKeyRow>
           columns={columns}
-          rows={filteredRows}
+          rows={rows}
+          isLoading={isLoading}
           getRowId={(row) => row.id}
-          minWidth={1100}
+          minWidth={980}
           actionColumn={{
             label: "Action",
             render: () => (
@@ -326,7 +349,11 @@ export default function LicenseGeneratePage() {
 
         <Box sx={licenseGenerateFooterRow}>
           <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted }}>
-            Showing data 1 to {filteredRows.length} of {formatEntries(TOTAL_ENTRIES)} entries
+            {isLoading
+              ? "Loading license keys..."
+              : licenseKeysQuery.isError
+                ? "Could not load license keys."
+                : `Showing data ${start} to ${end} of ${totalEntries} entries`}
           </Typography>
           <Box sx={licenseGeneratePaginationWrapper}>
             <TablePagination page={page} pageCount={pageCount} onPageChange={setPage} />

@@ -71,7 +71,7 @@ export function AddUserModal({
   });
   const companiesByResellerQuery = useCompaniesByResellerQuery(
     resellerId,
-    { view: "tree", sortBy: "name", sortOrder: "asc" },
+    { view: "tree", sortBy: "name", sortOrder: "asc", all: true },
     {
       enabled: open && userType === "External" && resellerId.trim().length > 0,
     },

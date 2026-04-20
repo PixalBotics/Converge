@@ -54,7 +54,8 @@ export const websiteAssignmentFilterGrid: SxProps<Theme> = {
   display: "grid",
   gridTemplateColumns: {
     xs: "1fr",
-    lg: "minmax(0, 1fr) auto",
+    sm: "repeat(2, minmax(0, 1fr))",
+    lg: "220px 1fr 1fr auto",
   },
   gap: 2,
   alignItems: "end",

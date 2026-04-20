@@ -96,7 +96,7 @@ export default function DepartmentsPage() {
   const resellersQuery = useCompaniesSetupResellersQuery({ enabled: true });
   const companiesByResellerQuery = useCompaniesByResellerQuery(
     filterResellerId,
-    { view: "tree", sortBy: "name", sortOrder: "asc" },
+    { view: "tree", sortBy: "name", sortOrder: "asc", all: true },
     { enabled: filterResellerId.trim().length > 0 },
   );
 

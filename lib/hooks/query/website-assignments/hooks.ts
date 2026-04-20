@@ -5,8 +5,16 @@ import { listWebsitesInScope } from "@/api";
 import { websiteAssignmentsKeys } from "./keys";
 
 export type WebsiteAssignmentsWebsitesParams = {
+  /** When true, disables paging and returns up to safe max rows (dropdowns). */
+  all?: boolean;
   page?: number;
   limit?: number;
+  /** Filter by assignment state: true = at least one agent, false = none, omit = all. */
+  assigned?: boolean;
+  resellerId?: string;
+  parentCompanyId?: string;
+  childCompanyId?: string;
+  userId?: string;
   search?: string;
 };
 

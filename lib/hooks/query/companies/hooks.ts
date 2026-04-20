@@ -20,6 +20,8 @@ import { companiesKeys } from "./keys";
 export type CompaniesListParams = {
   page?: number;
   limit?: number;
+  /** When true, backend returns all rows (no pagination). */
+  all?: boolean;
   search?: string;
   view?: "tree" | "flat";
   companyId?: string;

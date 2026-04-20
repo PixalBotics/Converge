@@ -1,7 +1,9 @@
 "use client";
 
 import Box from "@mui/material/Box";
+import Skeleton from "@mui/material/Skeleton";
 import type { SxProps, Theme } from "@mui/material/styles";
+import { alpha } from "@mui/material/styles";
 import type { DataTableProps } from "./DataTable.types";
 import {
   dataTableRoot,
@@ -11,12 +13,15 @@ import {
   dataTableCellDefault,
   dataTableCellMuted,
 } from "./DataTable.styles";
+import type { AppTheme } from "@/theme/theme";
 
 export function DataTable<T extends Record<string, unknown>>({
   columns,
   rows,
   getRowId = (_, index) => index,
   actionColumn,
+  isLoading = false,
+  loadingRowCount = 8,
   minWidth = 560,
   size = "small",
   tableSx,
@@ -29,6 +34,18 @@ export function DataTable<T extends Record<string, unknown>>({
     const value = row[columnId];
     if (value === undefined || value === null) return "—";
     return String(value);
+  };
+
+  const skeletonRows = isLoading ? Array.from({ length: loadingRowCount }) : [];
+  const skeletonBaseSx = (theme: Theme) => {
+    const app = (theme as AppTheme).app;
+    return {
+      bgcolor:
+        theme.palette.mode === "light"
+          ? alpha(app.text.primary, 0.08)
+          : alpha(app.dashboard.white95, 0.08),
+      borderRadius: "10px",
+    };
   };
 
   return (
@@ -68,9 +85,9 @@ export function DataTable<T extends Record<string, unknown>>({
           </Box>
         </Box>
         <Box component="tbody">
-          {rows.map((row, idx) => (
-            <Box component="tr" key={String(getRowId(row, idx))}>
-              {columns.map((col) => (
+          {(isLoading ? skeletonRows : rows).map((row, idx) => (
+            <Box component="tr" key={String(isLoading ? `skeleton-${idx}` : getRowId(row as T, idx))}>
+              {columns.map((col, colIdx) => (
                 <Box
                   key={col.id}
                   component="td"
@@ -81,14 +98,29 @@ export function DataTable<T extends Record<string, unknown>>({
                     ] as SxProps<Theme>
                   }
                 >
-                  {col.render
-                    ? col.render(row[col.id], row, idx)
-                    : getCellValue(row, col.id)}
+                  {isLoading ? (
+                    <Skeleton
+                      variant="text"
+                      sx={skeletonBaseSx}
+                      height={18}
+                      width={`${Math.max(30, 78 - colIdx * 10)}%`}
+                    />
+                  ) : col.render ? (
+                    col.render((row as T)[col.id], row as T, idx)
+                  ) : (
+                    getCellValue(row as T, col.id)
+                  )}
                 </Box>
               ))}
               {actionColumn && (
                 <Box component="td" sx={sizeCellSx}>
-                  {actionColumn.render(row, idx)}
+                  {isLoading ? (
+                    <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+                      <Skeleton variant="rounded" sx={skeletonBaseSx} height={28} width={72} />
+                    </Box>
+                  ) : (
+                    actionColumn.render(row as T, idx)
+                  )}
                 </Box>
               )}
             </Box>

@@ -192,6 +192,7 @@ export default function RolesPage() {
         <DataTable<RoleRow>
           columns={columns}
           rows={rows}
+          isLoading={isLoading}
           getRowId={(row) => row.id}
           minWidth={800}
           tableSx={{

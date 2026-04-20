@@ -67,7 +67,7 @@ export function AddDepartmentModal({
 
   const companiesByResellerQuery = useCompaniesByResellerQuery(
     resellerId,
-    { view: "tree", sortBy: "name", sortOrder: "asc" },
+    { view: "tree", sortBy: "name", sortOrder: "asc", all: true },
     {
       enabled: open && departmentType === "External" && resellerId.trim().length > 0,
     },

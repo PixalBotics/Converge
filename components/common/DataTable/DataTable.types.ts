@@ -19,6 +19,10 @@ export interface DataTableProps<T = Record<string, unknown>> {
   columns: DataTableColumn<T>[];
   /** Row data - each row is an object with keys matching column id */
   rows: T[];
+  /** When true, table body renders skeleton rows instead of data. */
+  isLoading?: boolean;
+  /** Number of skeleton rows to show when `isLoading` is true. */
+  loadingRowCount?: number;
   /** Optional: stable row id for keys. Default: (row, index) => String(index) */
   getRowId?: (row: T, index: number) => string | number;
   /** Optional action column: label and render function for each row */

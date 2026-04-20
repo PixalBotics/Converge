@@ -45,5 +45,6 @@ export {
 } from "./website-assignments";
 export type { WebsiteAssignmentsWebsitesParams } from "./website-assignments";
 export { platformKeys } from "./platform";
+export { useGeneratePlatformLicenseKeyMutation, usePlatformLicenseKeysQuery } from "./platform";
 export { platformThemeKeys, usePlatformThemeMeQuery, useUpdatePlatformThemeMutation } from "./platform-theme";
 export * from "./hrms";

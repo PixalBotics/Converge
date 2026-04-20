@@ -19,7 +19,7 @@ import {
   SelectField,
 } from "@/components/common";
 import type { DataTableColumn } from "@/components/common";
-import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
+import { AddCircleIcon } from "@/components/dashboard/icons/AddCircleIcon";
 import {
   hrmsDesignationsKeys,
   useCompaniesSetupResellersQuery,
@@ -29,6 +29,9 @@ import {
 } from "@/lib/hooks";
 import { pickItemsArray, toIdNameOption } from "@/app/dashboard/user-page/components/add-user-modal.utils";
 import {
+  rolesHeader,
+  rolesAddButtonWrapper,
+  rolesAddButton,
   rolesCard,
   rolesFooterRow,
   rolesIconBox,
@@ -167,54 +170,59 @@ export default function DesignationsPage() {
     [],
   );
 
-  const resetForm = () => {
-    setDepartmentNameField("");
-    setAssignedDepartment("");
+  const openDesignationFormForAdd = () => {
+    setDesignationToEdit(null);
+    setDesignationFormOpen(true);
   };
 
-  const handleCancelForm = () => {
-    resetForm();
+  const closeDesignationForm = () => {
+    setDesignationFormOpen(false);
+    setDesignationToEdit(null);
   };
 
-  const handleSaveDesignation = () => {
-    const name = departmentNameField.trim();
-    if (!name) {
-      publishAppToast({ variant: "error", message: "Please enter a department name." });
-      return;
-    }
-    if (!assignedDepartment.trim()) {
-      publishAppToast({ variant: "error", message: "Please assign a department." });
-      return;
-    }
-    publishAppToast({ variant: "success", message: `Designation saved for “${name}”.` });
-    resetForm();
+  const handleDesignationSaved = () => {
+    setDesignationToEdit(null);
     void queryClient.invalidateQueries({ queryKey: hrmsDesignationsKeys.all });
+  };
+
+  const clearFilters = () => {
+    setSearchInput("");
+    setSearch("");
+    setFilterResellerId("");
+    setFilterDepartmentId("");
+    setPage(1);
+  };
+
+  const handleConfirmDeleteDesignation = () => {
+    const rowId = deleteTarget?.id?.trim() ?? "";
+    if (!rowId || softDeleteDesignationMutation.isPending) return;
+    softDeleteDesignationMutation.mutate(rowId, {
+      onSuccess: () => {
+        setDeleteTarget(null);
+      },
+    });
   };
 
   return (
     <Box sx={pageWrapper}>
-      <Box sx={rolesPageWrapper}>
-      <Box sx={{ mb: 0.5 }}>
-        <Typography variant="regularLarge" fontWeight={700} color="white">
-          Designations
-        </Typography>
-        <Typography variant="body2" sx={{ mt: 0.75, color: theme.app.dashboard.textMuted, maxWidth: 720 }}>
-          Generate and distribute licenses to client companies
-        </Typography>
-      </Box>
-
-      <DashboardCard sx={rolesCard}>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 2.5 }}>
-          <Box sx={rolesIconBox}>
-            <AttachMoneyIcon sx={{ fontSize: 20, color: theme.app.dashboard.white95 }} />
-          </Box>
-          <Typography variant="mediumLarge" fontWeight={600} color="white">
-            Add New Designation
+      <Box sx={rolesPageWrapper} width="100%">
+        <Box sx={rolesHeader} width="100%">
+          <Typography
+            variant="regularLarge"
+            fontWeight={700}
+            sx={{ color: theme.app.text.primary }}
+          >
+            Designations
           </Typography>
+          <Box sx={rolesAddButtonWrapper}>
+            <Button variant="primary" sx={rolesAddButton} onClick={openDesignationFormForAdd}>
+              <AddCircleIcon width={16} height={16} />
+              <Typography component="span" variant="medium" sx={{ color: "inherit" }}>
+                Add New Designation
+              </Typography>
+            </Button>
+          </Box>
         </Box>
-        <Button variant="primary" sx={gradientPrimaryButtonSx} onClick={openDesignationFormForAdd}>
-          Add Designation
-        </Button>
       </Box>
 
       <AddDesignationModal
@@ -238,9 +246,13 @@ export default function DesignationsPage() {
         <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 2 }}>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexShrink: 0 }}>
             <Box sx={rolesIconBox}>
-              <AttachMoneyIcon sx={{ fontSize: 20, color: theme.app.dashboard.white95 }} />
+              <AttachMoneyIcon sx={{ fontSize: 20, color: theme.app.dashboard.iconMuted }} />
             </Box>
-            <Typography variant="mediumLarge" fontWeight={600} color="white">
+            <Typography
+              variant="mediumLarge"
+              fontWeight={600}
+              sx={{ color: theme.app.text.primary }}
+            >
               Designations
             </Typography>
           </Box>
@@ -324,6 +336,7 @@ export default function DesignationsPage() {
         <DataTable<DesignationRow>
           columns={columns}
           rows={tableRows}
+          isLoading={isLoading}
           getRowId={(row) => row.id}
           minWidth={640}
           tableSx={{
@@ -390,6 +403,6 @@ export default function DesignationsPage() {
         </Box>
       </DashboardCard>
       </Box>
-    </Box>
+  
   );
 }
