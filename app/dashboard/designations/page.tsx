@@ -243,7 +243,15 @@ export default function DesignationsPage() {
       />
 
       <DashboardCard sx={rolesCard}>
-        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 2 }}>
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 2,
+            flexWrap: { xs: "wrap", lg: "nowrap" },
+          }}
+        >
           <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexShrink: 0 }}>
             <Box sx={rolesIconBox}>
               <AttachMoneyIcon sx={{ fontSize: 20, color: theme.app.dashboard.iconMuted }} />
@@ -257,80 +265,83 @@ export default function DesignationsPage() {
             </Typography>
           </Box>
 
-          {/* Search + filters toolbar */}
           <Box
             sx={{
-              display: "grid",
-              gridTemplateColumns: { xs: "1fr", lg: "minmax(420px, 1fr) minmax(520px, 1fr)" },
-              gap: { xs: 2, lg: 2.5 },
-              alignItems: "end",
-              width: "100%",
+              display: "flex",
+              gap: 1.25,
+              alignItems: "center",
+              width: { xs: "100%", lg: "auto" },
+              minWidth: 0,
+              justifyContent: { xs: "stretch", lg: "flex-end" },
             }}
           >
-            <Box sx={{ display: "flex", gap: 1.25, alignItems: "center", width: "100%", minWidth: 0 }}>
-              <Box sx={{ flex: 1, minWidth: 0 }}>
-                <SearchBar
-                  value={searchInput}
-                  onChange={setSearchInput}
-                  placeholder="Search designation, department, reseller, or parent company…"
-                  sx={{ width: "100%" }}
-                />
-              </Box>
-              <Button
-                type="button"
-                variant="primary"
-                disabled={searchInput.trim() === search.trim()}
-                onClick={() => setSearch(searchInput)}
-                sx={{ minWidth: 132, whiteSpace: "nowrap" }}
-              >
-                <Box component="span" sx={{ display: "inline-flex", lineHeight: 0 }}>
-                  <SearchIcon width={18} height={18} sx={{ color: "inherit" }} />
-                </Box>
-                Search
-              </Button>
+            <Box sx={{ width: { xs: "100%", lg: 320 } }}>
+              <SearchBar
+                value={searchInput}
+                onChange={setSearchInput}
+                placeholder="Search designation, department, reseller, or parent company…"
+                sx={{ width: "100%" }}
+              />
             </Box>
-
-            <Box
-              sx={{
-                display: "grid",
-                gridTemplateColumns: {
-                  xs: "1fr",
-                  sm: "repeat(2, minmax(0, 1fr))",
-                  lg: "220px 1fr auto",
-                },
-                gap: 1.5,
-                alignItems: "end",
-                width: "100%",
-              }}
+            <Button
+              type="button"
+              variant="primary"
+              disabled={searchInput.trim() === search.trim()}
+              onClick={() => setSearch(searchInput)}
+              sx={{ minWidth: 120, whiteSpace: "nowrap" }}
             >
-              <SelectField
-                label="Reseller"
-                value={filterResellerId}
-                onChange={(v) => {
-                  setFilterResellerId(v);
-                  setFilterDepartmentId("");
-                }}
-                options={resellerFilterOptions}
-                menuMaxRows={6}
-              />
-              <SelectField
-                label="Department"
-                value={filterDepartmentId}
-                onChange={setFilterDepartmentId}
-                options={departmentFilterOptions}
-                menuMaxRows={6}
-              />
-              <Button
-                type="button"
-                variant="secondary"
-                disabled={!hasActiveFilters}
-                onClick={clearFilters}
-                sx={{ minWidth: 140, whiteSpace: "nowrap", width: { xs: "100%", lg: "auto" } }}
-              >
-                Clear filters
-              </Button>
-            </Box>
+              <Box component="span" sx={{ display: "inline-flex", lineHeight: 0 }}>
+                <SearchIcon width={18} height={18} sx={{ color: "inherit" }} />
+              </Box>
+              Search
+            </Button>
           </Box>
+        </Box>
+
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: {
+              xs: "1fr",
+              sm: "repeat(2, minmax(0, 1fr))",
+              lg: "220px 320px auto",
+            },
+            gap: 1.5,
+            alignItems: "end",
+            width: "100%",
+          }}
+        >
+          <SelectField
+            label="Reseller"
+            value={filterResellerId}
+            onChange={(v) => {
+              setFilterResellerId(v);
+              setFilterDepartmentId("");
+            }}
+            options={resellerFilterOptions}
+            menuMaxRows={6}
+          />
+          <SelectField
+            label="Department"
+            value={filterDepartmentId}
+            onChange={setFilterDepartmentId}
+            options={departmentFilterOptions}
+            menuMaxRows={6}
+          />
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={!hasActiveFilters}
+            onClick={clearFilters}
+            sx={{
+              minWidth: 140,
+              whiteSpace: "nowrap",
+              width: "auto",
+              justifySelf: { xs: "stretch", sm: "start" },
+            }}
+          >
+            Clear filters
+          </Button>
         </Box>
 
         <DataTable<DesignationRow>

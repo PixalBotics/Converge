@@ -218,6 +218,29 @@ const SHIFTS_GROUP: DashboardNavItem = {
   ],
 };
 
+const WEBSITE_GROUP: DashboardNavItem = {
+  href: "/dashboard/website-assigning",
+  label: "Website",
+  section: "activity",
+  iconKey: "websiteAssignments",
+  permission: null,
+  permissionsAny: ["page:website-assignments"],
+  children: [
+    {
+      ...toNavItem("page:website-assignments")!,
+      label: "Website Assign",
+      prefixMatch: false,
+    },
+    {
+      href: "/dashboard/website-assigning/user-assign",
+      label: "User Assign",
+      section: "activity",
+      iconKey: "websiteAssignments",
+      permission: "page:website-assignments",
+    },
+  ],
+};
+
 const ATTENDANCE_GROUP: DashboardNavItem = {
   href: "/dashboard/attendance/my-attendance",
   label: "Attendance",
@@ -263,11 +286,19 @@ const LEAVE_GROUP: DashboardNavItem = {
       iconKey: "leave",
       permission: null,
     },
+    {
+      href: "/dashboard/leave/approval-leave",
+      label: "Approval Leave",
+      section: "activity",
+      iconKey: "leave",
+      permission: null,
+    },
   ],
 };
 
 export const DASHBOARD_NAV_ITEMS: readonly DashboardNavItem[] = PAGE_PERMISSION_ORDER.flatMap((permission) => {
   if (permission === "page:departments") return [DEPARTMENTS_AND_DESIGNATIONS_GROUP];
+  if (permission === "page:website-assignments") return [WEBSITE_GROUP];
   if (permission === "page:pools") return [toNavItem("page:pools")!, SHIFTS_GROUP, ATTENDANCE_GROUP, LEAVE_GROUP];
   const item = toNavItem(permission);
   return item ? [item] : [];

@@ -65,8 +65,12 @@ export function SelectField({
         overflowY: "auto",
         overscrollBehavior: "contain",
         py: 0.5,
-        // Smooth scroll styling inside dialogs
-        scrollbarGutter: "stable",
+        // Keep dropdown scroll behavior but hide scrollbar visuals.
+        scrollbarWidth: "none",
+        msOverflowStyle: "none",
+        "&::-webkit-scrollbar": {
+          display: "none",
+        },
       }
     : undefined;
 

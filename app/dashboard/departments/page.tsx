@@ -344,35 +344,42 @@ export default function DepartmentsPage() {
       />
 
       <DashboardCard sx={departmentsCard}>
-        {/* Section title — full width on top */}
-        <Box sx={{ ...cardTitleRow, width: "100%", flexShrink: 0 }}>
-          <Box sx={cardTitleIconBox}>
-            <Apartment sx={{ fontSize: 18, color: theme.app.dashboard.white95 }} />
-          </Box>
-          <Typography variant="mediumLarge" color="white" fontWeight={600}>
-            Departments
-          </Typography>
-        </Box>
-
-        {/* Search + Filters — aligned grid for a clean SaaS toolbar */}
         <Box
           sx={{
-            display: "grid",
-            gridTemplateColumns: { xs: "1fr", lg: "minmax(420px, 1fr) minmax(520px, 1fr)" },
-            gap: { xs: 2, lg: 2.5 },
-            alignItems: "end",
+            ...cardTitleRow,
             width: "100%",
             flexShrink: 0,
+            justifyContent: "space-between",
+            alignItems: "center",
+            gap: 2,
+            flexWrap: { xs: "wrap", lg: "nowrap" },
           }}
         >
-          {/* Search group */}
-          <Box sx={{ display: "flex", gap: 1.25, alignItems: "center", width: "100%", minWidth: 0 }}>
-            <Box >
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.25 }}>
+            <Box sx={cardTitleIconBox}>
+              <Apartment sx={{ fontSize: 18, color: theme.app.dashboard.white95 }} />
+            </Box>
+            <Typography variant="mediumLarge" color="white" fontWeight={600}>
+              Departments
+            </Typography>
+          </Box>
+
+          <Box
+            sx={{
+              display: "flex",
+              gap: 1.25,
+              alignItems: "center",
+              width: { xs: "100%", lg: "auto" },
+              minWidth: 0,
+              justifyContent: { xs: "stretch", lg: "flex-end" },
+            }}
+          >
+            <Box sx={{ width: { xs: "100%", lg: 320 } }}>
               <SearchBar
                 value={searchInput}
                 onChange={setSearchInput}
                 placeholder="Search department, reseller, or parent company…"
-                sx={{ width: "80%" }}
+                sx={{ width: "100%" }}
               />
             </Box>
             <Button
@@ -380,7 +387,7 @@ export default function DepartmentsPage() {
               variant="primary"
               disabled={searchInput.trim() === search.trim()}
               onClick={() => setSearch(searchInput)}
-              // sx={{ minWidth: 132, whiteSpace: "nowrap" }}
+              sx={{ minWidth: 120, whiteSpace: "nowrap" }}
             >
               <Box component="span" sx={{ display: "inline-flex", lineHeight: 0 }}>
                 <SearchIcon width={18} height={18} sx={{ color: "inherit" }} />
@@ -388,62 +395,62 @@ export default function DepartmentsPage() {
               Search
             </Button>
           </Box>
+        </Box>
 
-          {/* Filters group */}
-          <Box
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: {
+              xs: "1fr",
+              sm: "repeat(2, minmax(0, 1fr))",
+              lg: "140px 200px 220px auto",
+            },
+            gap: 1.5,
+            alignItems: "end",
+            width: "100%",
+            flexShrink: 0,
+          }}
+        >
+          <SelectField
+            label="Type"
+            value={filterType}
+            onChange={(v) => setFilterType(v as "" | "Internal" | "External")}
+            options={TYPE_FILTER_OPTIONS}
+            menuMaxRows={6}
+          />
+          <SelectField
+            label="Reseller"
+            value={filterResellerId}
+            onChange={handleResellerFilterChange}
+            options={resellerFilterOptions}
+            menuMaxRows={6}
+          />
+          <SelectField
+            label="Parent company"
+            value={filterParentCompanyId}
+            onChange={setFilterParentCompanyId}
+            options={
+              filterResellerId.trim()
+                ? parentCompanyFilterOptions
+                : [{ value: "", label: "Choose a reseller first" }]
+            }
+            disabled={!filterResellerId.trim()}
+            menuMaxRows={6}
+          />
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={!hasActiveFilters}
+            onClick={clearFilters}
             sx={{
-              display: "grid",
-              gridTemplateColumns: {
-                xs: "1fr",
-                sm: "repeat(2, minmax(0, 1fr))",
-                lg: "140px 200px 220px auto",
-              },
-              gap: 1.5,
-              alignItems: "end",
-              justifyContent: { lg: "end" },
-              width: "100%",
+              minWidth: 140,
+              whiteSpace: "nowrap",
+              width: "auto",
+              justifySelf: { xs: "stretch", sm: "start" },
             }}
           >
-            <SelectField
-              label="Type"
-              value={filterType}
-              onChange={(v) => setFilterType(v as "" | "Internal" | "External")}
-              options={TYPE_FILTER_OPTIONS}
-              menuMaxRows={6}
-            />
-            <SelectField
-              label="Reseller"
-              value={filterResellerId}
-              onChange={handleResellerFilterChange}
-              options={resellerFilterOptions}
-              menuMaxRows={6}
-            />
-            <SelectField
-              label="Parent company"
-              value={filterParentCompanyId}
-              onChange={setFilterParentCompanyId}
-              options={
-                filterResellerId.trim()
-                  ? parentCompanyFilterOptions
-                  : [{ value: "", label: "Choose a reseller first" }]
-              }
-              disabled={!filterResellerId.trim()}
-              menuMaxRows={6}
-            />
-            <Button
-              type="button"
-              variant="secondary"
-              disabled={!hasActiveFilters}
-              onClick={clearFilters}
-              sx={{
-                minWidth: 140,
-                whiteSpace: "nowrap",
-                width: { xs: "100%", lg: "auto" },
-              }}
-            >
-              Clear filters
-            </Button>
-          </Box>
+            Clear filters
+          </Button>
         </Box>
 
         <DataTable<DepartmentRow>

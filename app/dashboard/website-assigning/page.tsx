@@ -286,7 +286,13 @@ export default function WebsiteAssigningPage() {
             menuMaxRows={7}
             disabled={!filterResellerId.trim() || !filterParentCompanyId.trim()}
           />
-          <Box sx={{ display: "flex", justifyContent: { xs: "stretch", lg: "flex-end" } }}>
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: { xs: "stretch", lg: "flex-end" },
+              gridColumn: { xs: "auto", sm: "2 / 3" },
+            }}
+          >
             <Button
               type="button"
               variant="outlined"
