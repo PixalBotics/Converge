@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import Box from "@mui/material/Box";
+import Collapse from "@mui/material/Collapse";
 import Drawer from "@mui/material/Drawer";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import { useTheme } from "@mui/material/styles";
@@ -14,6 +16,8 @@ import IconButton from "@mui/material/IconButton";
 import { Typography } from "@/components/common";
 import {
   Close as CloseIcon,
+  ExpandLess,
+  ExpandMore,
   Logout as LogoutIcon,
   Login as LoginIcon,
 } from "@mui/icons-material";
@@ -42,8 +46,69 @@ import type { AppTheme } from "@/theme/theme";
 import {
   getVisibleDashboardNavItems,
   isNavPathSelected,
+  type DashboardNavItem,
 } from "@/lib/permissions";
 import { SidebarReactIcon } from "./icons/SidebarReactIcon";
+
+function ActivityNavGroup({
+  item,
+  pathname,
+  navTextProps,
+  onNavigate,
+}: {
+  item: DashboardNavItem;
+  pathname: string;
+  navTextProps: typeof navTypographyBase;
+  onNavigate: () => void;
+}) {
+  const children = item.children ?? [];
+  const isChildActive = children.some((ch) => isNavPathSelected(pathname, ch.href, ch.prefixMatch));
+  const [open, setOpen] = useState(isChildActive);
+
+  useEffect(() => {
+    if (isChildActive) setOpen(true);
+  }, [isChildActive]);
+
+  return (
+    <>
+      <ListItemButton
+        onClick={() => setOpen((v) => !v)}
+        sx={navItemSx}
+        aria-expanded={open}
+      >
+        <ListItemIcon sx={listIconDefaultSx}>
+          <SidebarReactIcon iconKey={item.iconKey} />
+        </ListItemIcon>
+        <ListItemText primary={item.label} primaryTypographyProps={navTextProps} />
+        <Box sx={{ display: "flex", alignItems: "center", color: "inherit" }}>
+          {open ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
+        </Box>
+      </ListItemButton>
+      <Collapse in={open} timeout="auto" unmountOnExit>
+        <List component="div" disablePadding>
+          {children.map((ch) => {
+            const selected = isNavPathSelected(pathname, ch.href, ch.prefixMatch);
+            return (
+              <ListItemButton
+                key={ch.href}
+                component={Link}
+                href={ch.href}
+                selected={selected}
+                sx={[navItemSx, { pl: 5 }]}
+                onClick={onNavigate}
+              >
+                <ListItemIcon sx={selected ? listIconSelectedSx : listIconDefaultSx}>
+                  <SidebarReactIcon iconKey={ch.iconKey} />
+                </ListItemIcon>
+                <ListItemText primary={ch.label} primaryTypographyProps={navTextProps} />
+              </ListItemButton>
+            );
+          })}
+        </List>
+      </Collapse>
+    </>
+  );
+}
 
 export default function DashboardSidebar({ open = false, onClose }: { open?: boolean; onClose?: () => void }) {
   const theme = useTheme() as AppTheme;
@@ -87,6 +152,17 @@ export default function DashboardSidebar({ open = false, onClose }: { open?: boo
       <List dense sx={listSx}>
         <Typography sx={sectionLabelSx}>ACTIVITY</Typography>
         {activityItems.map((item) => {
+          if (item.children?.length) {
+            return (
+              <ActivityNavGroup
+                key={`group:${item.label}`}
+                item={item}
+                pathname={pathname}
+                navTextProps={navTextProps}
+                onNavigate={() => !isDesktop && onClose?.()}
+              />
+            );
+          }
           const selected = isNavPathSelected(pathname, item.href, item.prefixMatch);
           return (
             <ListItemButton

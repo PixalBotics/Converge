@@ -41,6 +41,13 @@ export type DashboardNavItem = {
   prefixMatch?: boolean;
   /** Demo-only items (kept for existing seed/demo account behavior). */
   demoOnly?: boolean;
+  /**
+   * Parent row only: show when RBAC is on and the user has any of these page permissions.
+   * Ignored when `permission` is set (flat items use `permission` only).
+   */
+  permissionsAny?: string[];
+  /** Nested links (e.g. Departments + Designations under one sidebar dropdown). */
+  children?: DashboardNavItem[];
 };
 
 type PagePermission =
@@ -139,7 +146,6 @@ const PAGE_PERMISSION_ORDER: readonly PagePermission[] = [
   "page:website-assignments",
   "page:roles",
   "page:departments",
-  "page:designations",
   "page:pools",
   "page:shifts",
   "page:chat",
@@ -173,9 +179,24 @@ function toNavItem(permission: PagePermission): DashboardNavItem | null {
   };
 }
 
-export const DASHBOARD_NAV_ITEMS: readonly DashboardNavItem[] = PAGE_PERMISSION_ORDER.map(toNavItem).filter(
-  (item): item is DashboardNavItem => !!item,
-);
+const DEPARTMENTS_AND_DESIGNATIONS_GROUP: DashboardNavItem = {
+  href: "/dashboard/departments",
+  label: "Department",
+  section: "activity",
+  iconKey: "departments",
+  permission: null,
+  permissionsAny: ["page:departments", "page:designations"],
+  children: [
+    { ...toNavItem("page:departments")!, label: "Department List" },
+    { ...toNavItem("page:designations")!, label: "Designation" },
+  ],
+};
+
+export const DASHBOARD_NAV_ITEMS: readonly DashboardNavItem[] = PAGE_PERMISSION_ORDER.flatMap((permission) => {
+  if (permission === "page:departments") return [DEPARTMENTS_AND_DESIGNATIONS_GROUP];
+  const item = toNavItem(permission);
+  return item ? [item] : [];
+});
 
 function hasPagePermission(pagePermissionSet: Set<string>, required: string): boolean {
   return pagePermissionSet.has(PAGE_ACCESS_ALL) || pagePermissionSet.has(required);
@@ -194,13 +215,30 @@ export function getVisibleDashboardNavItems(opts: {
 }): DashboardNavItem[] {
   const permissionDriven = opts.rbacEnabled
     ? DASHBOARD_NAV_ITEMS.filter((item) => {
+        if (item.children?.length) {
+          const any = item.permissionsAny;
+          if (any?.length) {
+            return any.some((p) => hasPagePermission(opts.pagePermissionSet, p));
+          }
+          return true;
+        }
         if (!item.permission) return true;
         return hasPagePermission(opts.pagePermissionSet, item.permission);
       })
     : DASHBOARD_NAV_ITEMS;
 
+  const withFilteredChildren = permissionDriven.map((item) => {
+    if (!item.children?.length) return item;
+    const children = item.children.filter((ch) => {
+      if (!opts.rbacEnabled) return true;
+      if (!ch.permission) return true;
+      return hasPagePermission(opts.pagePermissionSet, ch.permission);
+    });
+    return { ...item, children };
+  });
+
   const withAlwaysVisible = [
-    ...permissionDriven,
+    ...withFilteredChildren,
     ...ALWAYS_VISIBLE_NAV_ITEMS.filter((item) => item.section === opts.section),
   ];
 
@@ -209,8 +247,20 @@ export function getVisibleDashboardNavItems(opts: {
   return dedupedByHref.filter((item) => {
     if (item.section !== opts.section) return false;
     if (item.demoOnly && !opts.isDemoUser) return false;
+    if (item.children?.length === 0) return false;
     return true;
   });
+}
+
+function firstLeafHref(item: DashboardNavItem): string | null {
+  if (item.children?.length) {
+    for (const ch of item.children) {
+      const h = firstLeafHref(ch);
+      if (h) return h;
+    }
+    return null;
+  }
+  return item.href;
 }
 
 export function getRequiredPagePermission(pathname: string): string | null {
@@ -256,7 +306,11 @@ export function getFirstAccessibleDashboardPath(opts: {
     pagePermissionSet: opts.pagePermissionSet,
     isDemoUser: opts.isDemoUser,
   });
-  return visible[0]?.href ?? null;
+  for (const item of visible) {
+    const href = firstLeafHref(item);
+    if (href) return href;
+  }
+  return null;
 }
 
 /** Backward-compatible helper name used by older auth exports. */
