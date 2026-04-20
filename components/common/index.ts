@@ -22,6 +22,8 @@ export {
   ChatVolumeChart,
 } from "./Charts";
 export { Dropdown } from "./Dropdown";
+export { Calendar } from "./Calendar";
+export type { CalendarProps } from "./Calendar";
 export { SegmentedControl } from "./SegmentedControl";
 export { DataTable, dataTableActionButton } from "./DataTable";
 export type { DataTableProps, DataTableColumn } from "./DataTable/DataTable.types";

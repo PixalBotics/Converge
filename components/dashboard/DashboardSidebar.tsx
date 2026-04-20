@@ -8,6 +8,8 @@ import Collapse from "@mui/material/Collapse";
 import Drawer from "@mui/material/Drawer";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import { useTheme } from "@mui/material/styles";
+import type { Theme } from "@mui/material/styles";
+import type { SystemStyleObject } from "@mui/system";
 import List from "@mui/material/List";
 import ListItemButton from "@mui/material/ListItemButton";
 import ListItemIcon from "@mui/material/ListItemIcon";
@@ -64,6 +66,10 @@ function ActivityNavGroup({
   const children = item.children ?? [];
   const isChildActive = children.some((ch) => isNavPathSelected(pathname, ch.href, ch.prefixMatch));
   const [open, setOpen] = useState(isChildActive);
+  const nestedNavItemSx = (theme: Theme): SystemStyleObject<Theme> => ({
+    ...(navItemSx as (t: Theme) => SystemStyleObject<Theme>)(theme),
+    pl: 5,
+  });
 
   useEffect(() => {
     if (isChildActive) setOpen(true);
@@ -94,7 +100,7 @@ function ActivityNavGroup({
                 component={Link}
                 href={ch.href}
                 selected={selected}
-                sx={[navItemSx, { pl: 5 }]}
+                sx={nestedNavItemSx}
                 onClick={onNavigate}
               >
                 <ListItemIcon sx={selected ? listIconSelectedSx : listIconDefaultSx}>

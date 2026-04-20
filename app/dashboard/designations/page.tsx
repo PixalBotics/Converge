@@ -145,7 +145,8 @@ export default function DesignationsPage() {
   };
 
   return (
-    <Box sx={[pageWrapper, rolesPageWrapper]}>
+    <Box sx={pageWrapper}>
+      <Box sx={rolesPageWrapper}>
       <Box sx={{ mb: 0.5 }}>
         <Typography variant="regularLarge" fontWeight={700} color="white">
           Designations
@@ -246,6 +247,7 @@ export default function DesignationsPage() {
           </Box>
         </Box>
       </DashboardCard>
+      </Box>
     </Box>
   );
 }

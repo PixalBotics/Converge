@@ -15,6 +15,7 @@ export type DashboardSidebarIconKey =
   | "hrms"
   | "ipBlocklist"
   | "licenses"
+  | "leave"
   | "pools"
   | "reports"
   | "resellers"
@@ -109,7 +110,7 @@ const ROUTE_RULES: readonly RouteRule[] = [
     label: "Designations",
   },
   { permission: "page:pools", href: "/dashboard/pools", iconKey: "pools", label: "Pools" },
-  { permission: "page:shifts", href: "/dashboard/shifts", iconKey: "shifts", label: "Shifts" },
+  { permission: "page:shifts", href: "/dashboard/shifts", iconKey: "shifts", label: "Shifts", prefixMatch: true },
   { permission: "page:chat", href: "/dashboard/chat-operations", iconKey: "chat" },
   { permission: "page:chat-widget", href: "/dashboard/chat-widget", iconKey: "chatWidget" },
   { permission: "page:crm-integration", href: "/dashboard/crm-integration", iconKey: "crmIntegration", prefixMatch: true },
@@ -147,7 +148,6 @@ const PAGE_PERMISSION_ORDER: readonly PagePermission[] = [
   "page:roles",
   "page:departments",
   "page:pools",
-  "page:shifts",
   "page:chat",
   "page:chat-widget",
   "page:crm-integration",
@@ -192,8 +192,83 @@ const DEPARTMENTS_AND_DESIGNATIONS_GROUP: DashboardNavItem = {
   ],
 };
 
+const SHIFTS_GROUP: DashboardNavItem = {
+  href: "/dashboard/shifts",
+  label: "Shifts",
+  section: "activity",
+  iconKey: "shifts",
+  permission: null,
+  permissionsAny: ["page:shifts"],
+  children: [
+    { ...toNavItem("page:shifts")!, label: "Shift List", prefixMatch: false },
+    {
+      href: "/dashboard/shifts/department-shift",
+      label: "Department Shift",
+      section: "activity",
+      iconKey: "shifts",
+      permission: "page:shifts",
+    },
+    {
+      href: "/dashboard/shifts/pool-shift",
+      label: "Pool Shift",
+      section: "activity",
+      iconKey: "shifts",
+      permission: "page:shifts",
+    },
+  ],
+};
+
+const ATTENDANCE_GROUP: DashboardNavItem = {
+  href: "/dashboard/attendance/my-attendance",
+  label: "Attendance",
+  section: "activity",
+  iconKey: "reports",
+  permission: null,
+  children: [
+    {
+      href: "/dashboard/attendance/my-attendance",
+      label: "My Attendance",
+      section: "activity",
+      iconKey: "reports",
+      permission: null,
+    },
+    {
+      href: "/dashboard/attendance/team-attendance",
+      label: "Team Attendance",
+      section: "activity",
+      iconKey: "reports",
+      permission: null,
+    },
+  ],
+};
+
+const LEAVE_GROUP: DashboardNavItem = {
+  href: "/dashboard/leave/leave-type",
+  label: "Leave",
+  section: "activity",
+  iconKey: "leave",
+  permission: null,
+  children: [
+    {
+      href: "/dashboard/leave/leave-type",
+      label: "Leave Type",
+      section: "activity",
+      iconKey: "leave",
+      permission: null,
+    },
+    {
+      href: "/dashboard/leave/apply-leave",
+      label: "Apply Leave",
+      section: "activity",
+      iconKey: "leave",
+      permission: null,
+    },
+  ],
+};
+
 export const DASHBOARD_NAV_ITEMS: readonly DashboardNavItem[] = PAGE_PERMISSION_ORDER.flatMap((permission) => {
   if (permission === "page:departments") return [DEPARTMENTS_AND_DESIGNATIONS_GROUP];
+  if (permission === "page:pools") return [toNavItem("page:pools")!, SHIFTS_GROUP, ATTENDANCE_GROUP, LEAVE_GROUP];
   const item = toNavItem(permission);
   return item ? [item] : [];
 });
