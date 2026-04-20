@@ -1,11 +1,11 @@
 "use client";
 
-import { useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Box from "@mui/material/Box";
 import IconButton from "@mui/material/IconButton";
 import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
-import { MoreHoriz as MoreHorizIcon, Person as PersonIcon } from "@mui/icons-material";
+import { Person as PersonIcon, Edit as EditIcon, Delete as DeleteIcon } from "@mui/icons-material";
 import { AddCircleIcon } from "@/components/dashboard/icons/AddCircleIcon";
 import {
   Typography,
@@ -14,15 +14,11 @@ import {
   dataTableActionButton,
   Button,
   SearchBar,
-  FilterButton,
   TablePagination,
-  FormModal,
-  InputField,
-  SelectField,
-  Checkbox,
-  Divider,
 } from "@/components/common";
 import type { DataTableColumn } from "@/components/common";
+import { SearchIcon } from "@/components/dashboard/icons/SearchIcon";
+import { useRolesListQuery, useSoftDeleteRoleMutation } from "@/lib/hooks";
 import {
   rolesPageWrapper,
   rolesHeader,
@@ -31,143 +27,72 @@ import {
   rolesCard,
   rolesCardHeader,
   rolesIconBox,
-  rolesSearchRow,
-  rolesSearchFieldWrapper,
   rolesFooterRow,
   rolesPaginationWrapper,
 } from "./roles.styles";
-
-const PERMISSION_CATEGORIES: { title: string; permissions: { id: string; label: string }[] }[] = [
-  {
-    title: "User Management",
-    permissions: [
-      { id: "view-users", label: "View Users" },
-      { id: "create-user", label: "Create User" },
-      { id: "edit-user", label: "Edit User" },
-      { id: "delete-user", label: "Delete User" },
-    ],
-  },
-  {
-    title: "Department Management",
-    permissions: [
-      { id: "create-department", label: "Create Department" },
-      { id: "edit-department", label: "Edit Department" },
-    ],
-  },
-  {
-    title: "Chat Operations",
-    permissions: [
-      { id: "handle-chat", label: "Handle Chat" },
-      { id: "takeover-chat", label: "Takeover Chat" },
-      { id: "whisper", label: "Whisper (Internal notes)" },
-      { id: "transfer-chat", label: "Transfer Chat" },
-      { id: "close-chat", label: "Close Chat" },
-    ],
-  },
-  {
-    title: "Department Management",
-    permissions: [{ id: "quality-assurance", label: "Quality Assurance" }],
-  },
-  {
-    title: "Company & Billing",
-    permissions: [
-      { id: "manage-company-info", label: "Manage Company Info" },
-      { id: "manage-website-widgets", label: "Manage Website Widgets" },
-    ],
-  },
-];
-
-const ALL_PERMISSION_IDS = PERMISSION_CATEGORIES.flatMap((c) => c.permissions.map((p) => p.id));
-
-interface RoleRow extends Record<string, unknown> {
-  departmentsName: string;
-  roleType: "Platform" | "Department";
-  linkedDepartment: string;
-  totalUsers: string;
-}
-
-const ROLES_DATA: RoleRow[] = [
-  { departmentsName: "Super Admin", roleType: "Platform", linkedDepartment: "-", totalUsers: "3 User" },
-  { departmentsName: "Support Manager", roleType: "Department", linkedDepartment: "Customer Support", totalUsers: "3 User" },
-  { departmentsName: "Chat Agent", roleType: "Department", linkedDepartment: "-", totalUsers: "3 User" },
-  { departmentsName: "QA Analyst", roleType: "Platform", linkedDepartment: "-", totalUsers: "3 User" },
-  { departmentsName: "Super Admin", roleType: "Platform", linkedDepartment: "-", totalUsers: "3 User" },
-  { departmentsName: "Support Manager", roleType: "Department", linkedDepartment: "Customer Support", totalUsers: "3 User" },
-  { departmentsName: "Chat Agent", roleType: "Department", linkedDepartment: "-", totalUsers: "3 User" },
-  { departmentsName: "QA Analyst", roleType: "Platform", linkedDepartment: "-", totalUsers: "3 User" },
-];
-
-const initialPermissions: Record<string, boolean> = Object.fromEntries(
-  ALL_PERMISSION_IDS.map((id) => [id, false])
-);
+import { DeleteRoleConfirmModal } from "./components/DeleteRoleConfirmModal";
+import { RoleModal } from "./components/RoleModal";
+import { extractRolesLimit, extractRolesRows, extractRolesTotal, extractRolesTotalPages, type RoleRow } from "./utils";
 
 export default function RolesPage() {
   const theme = useTheme() as AppTheme;
+  const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
-  const pageCount = 3;
-  const totalEntries = "256K";
-  const [isAddRoleOpen, setIsAddRoleOpen] = useState(false);
-  const [roleName, setRoleName] = useState("");
-  const [roleType, setRoleType] = useState("Platform");
-  const [linkedDepartment, setLinkedDepartment] = useState("");
-  const [permissions, setPermissions] = useState<Record<string, boolean>>(initialPermissions);
+  const [roleFormOpen, setRoleFormOpen] = useState(false);
+  const [roleToEdit, setRoleToEdit] = useState<RoleRow | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<RoleRow | null>(null);
 
-  const allSelected = useMemo(
-    () => ALL_PERMISSION_IDS.every((id) => permissions[id]),
-    [permissions]
+  const rolesQuery = useRolesListQuery(
+    {
+      page,
+      limit: 20,
+      ...(search.trim() ? { search: search.trim() } : {}),
+    },
+    { enabled: true },
   );
-  const handleSelectAll = useCallback(() => {
-    const next = !allSelected;
-    setPermissions((prev) => ({
-      ...prev,
-      ...Object.fromEntries(ALL_PERMISSION_IDS.map((id) => [id, next])),
-    }));
-  }, [allSelected]);
 
-  const filteredRows = useMemo(() => {
-    const query = search.trim().toLowerCase();
-    if (!query) return ROLES_DATA;
-    return ROLES_DATA.filter(
-      (row) =>
-        row.departmentsName.toLowerCase().includes(query) ||
-        row.roleType.toLowerCase().includes(query) ||
-        row.linkedDepartment.toLowerCase().includes(query) ||
-        row.totalUsers.toLowerCase().includes(query)
-    );
+  const softDeleteRoleMutation = useSoftDeleteRoleMutation();
+
+  const rows = useMemo(() => extractRolesRows(rolesQuery.data), [rolesQuery.data]);
+  const totalEntries = useMemo(() => extractRolesTotal(rolesQuery.data), [rolesQuery.data]);
+  const pageCount = useMemo(() => extractRolesTotalPages(rolesQuery.data), [rolesQuery.data]);
+  const pageLimit = useMemo(() => extractRolesLimit(rolesQuery.data) ?? 20, [rolesQuery.data]);
+
+  useEffect(() => {
+    // Clear applied search when SearchBar cross is used.
+    if (searchInput.trim().length > 0) return;
+    if (!search.trim()) return;
+    setSearch("");
+    setPage(1);
+  }, [searchInput, search]);
+
+  useEffect(() => {
+    setPage(1);
   }, [search]);
+
+  useEffect(() => {
+    setPage((p) => (p > pageCount ? pageCount : p));
+  }, [pageCount]);
 
   const columns = useMemo<DataTableColumn<RoleRow>[]>(
     () => [
-      { id: "departmentsName", label: "Departments Name", cellVariant: "default" },
+      { id: "name", label: "Role name" },
       {
-        id: "roleType",
-        label: "Role Type",
-        render: (value) => (
-          <Box
-            component="span"
-            sx={{
-              px: 1.5,
-              py: 0.5,
-              borderRadius: "9999px",
-              fontSize: "0.75rem",
-              fontWeight: 500,
-              bgcolor: String(value) === "Platform" ? theme.app.dashboard.blueTintBg : theme.app.dashboard.pinkTintBg,
-              color: String(value) === "Platform" ? theme.app.dashboard.blueTint : theme.app.dashboard.accentPinkLight,
-            }}
-          >
-            {String(value ?? "—")}
-          </Box>
-        ),
+        id: "userCount",
+        label: "Users",
+        render: (value) => {
+          const n = Number(value);
+          return Number.isFinite(n) ? String(n) : "—";
+        },
       },
-      { id: "linkedDepartment", label: "Linked Department", cellVariant: "muted" },
-      { id: "totalUsers", label: "Total Users", cellVariant: "muted" },
     ],
     [theme]
   );
 
-  const start = (page - 1) * 8 + 1;
-  const end = Math.min(page * 8, filteredRows.length);
+  const start = rows.length > 0 ? (page - 1) * pageLimit + 1 : 0;
+  const end = (page - 1) * pageLimit + rows.length;
+  const isLoading = rolesQuery.isLoading || rolesQuery.isFetching;
 
   return (
     <Box sx={rolesPageWrapper}>
@@ -180,7 +105,14 @@ export default function RolesPage() {
           Roles
         </Typography>
         <Box sx={rolesAddButtonWrapper}>
-          <Button variant="primary" sx={rolesAddButton} onClick={() => setIsAddRoleOpen(true)}>
+          <Button
+            variant="primary"
+            sx={rolesAddButton}
+            onClick={() => {
+              setRoleToEdit(null);
+              setRoleFormOpen(true);
+            }}
+          >
             <AddCircleIcon width={16} height={16} />
             <Typography component="span" variant="medium" sx={{ color: "inherit" }}>
               Add New Role
@@ -188,6 +120,34 @@ export default function RolesPage() {
           </Button>
         </Box>
       </Box>
+
+      <RoleModal
+        open={roleFormOpen}
+        onClose={() => setRoleFormOpen(false)}
+        editRole={roleToEdit}
+        onSaved={() => {
+          // Ensure list refreshes after save.
+          void rolesQuery.refetch();
+        }}
+      />
+
+      <DeleteRoleConfirmModal
+        open={deleteTarget != null}
+        roleName={deleteTarget?.name ?? ""}
+        onDismiss={() => {
+          if (!softDeleteRoleMutation.isPending) setDeleteTarget(null);
+        }}
+        onConfirm={() => {
+          const id = deleteTarget?.id?.trim();
+          if (!id) return;
+          softDeleteRoleMutation.mutate(id, {
+            onSuccess: () => {
+              setDeleteTarget(null);
+            },
+          });
+        }}
+        isDeleting={softDeleteRoleMutation.isPending}
+      />
 
       <DashboardCard sx={rolesCard}>
         <Box sx={rolesCardHeader}>
@@ -200,171 +160,103 @@ export default function RolesPage() {
               fontWeight={600}
               sx={{ color: theme.app.text.primary }}
             >
-              Departments
+              Roles
             </Typography>
           </Box>
-          <Box sx={rolesSearchRow}>
-            <Box sx={rolesSearchFieldWrapper}>
-              <SearchBar
-                value={search}
-                onChange={setSearch}
-                placeholder="Search anything..."
-                sx={{ minWidth: "100%" }}
-              />
+          <Box
+            sx={{
+              display: "flex",
+              gap: 1.25,
+              alignItems: "center",
+              width: { xs: "100%", md: "min(100%, 520px)" },
+            }}
+          >
+            <Box sx={{ flex: 1, minWidth: 0 }}>
+              <SearchBar value={searchInput} onChange={setSearchInput} placeholder="Search roles…" sx={{ width: "100%" }} />
             </Box>
-            <FilterButton sx={{ whiteSpace: "nowrap" }} />
+            <Button
+              type="button"
+              variant="primary"
+              disabled={searchInput.trim() === search.trim()}
+              onClick={() => setSearch(searchInput)}
+              sx={{ minWidth: 132, whiteSpace: "nowrap" }}
+            >
+              <Box component="span" sx={{ display: "inline-flex", lineHeight: 0 }}>
+                <SearchIcon width={18} height={18} sx={{ color: "inherit" }} />
+              </Box>
+              Search
+            </Button>
           </Box>
         </Box>
 
         <DataTable<RoleRow>
           columns={columns}
-          rows={filteredRows}
-          getRowId={(row, idx) => `${row.departmentsName}-${row.roleType}-${idx}`}
+          rows={rows}
+          getRowId={(row) => row.id}
           minWidth={800}
+          tableSx={{
+            tableLayout: "fixed",
+            "& th:nth-of-type(1), & td:nth-of-type(1)": { width: "70%", whiteSpace: "normal", wordBreak: "break-word" },
+            "& th:nth-of-type(2), & td:nth-of-type(2)": { width: "15%" },
+            "& th:nth-of-type(3), & td:nth-of-type(3)": { width: "15%", textAlign: "right" },
+          }}
           actionColumn={{
             label: "Action",
-            render: () => (
-              <IconButton size="small" sx={dataTableActionButton}>
-                <MoreHorizIcon fontSize="small" />
-              </IconButton>
-            ),
+            render: (row) => {
+              const rowId = row.id?.trim() ?? "";
+              const isDeletingThis =
+                softDeleteRoleMutation.isPending &&
+                softDeleteRoleMutation.variables === rowId;
+              return (
+                <Box sx={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 1 }}>
+                  <IconButton
+                    size="small"
+                    aria-label="Edit role"
+                    disabled={!rowId}
+                    onClick={() => {
+                      if (!rowId) return;
+                      setRoleToEdit(row);
+                      setRoleFormOpen(true);
+                    }}
+                    sx={{ ...dataTableActionButton, color: theme.app.dashboard.white80 }}
+                  >
+                    <EditIcon fontSize="small" />
+                  </IconButton>
+                  <IconButton
+                    size="small"
+                    aria-label="Delete role"
+                    disabled={!rowId || isDeletingThis}
+                    onClick={() => {
+                      if (!rowId) return;
+                      setDeleteTarget(row);
+                    }}
+                    sx={{
+                      ...dataTableActionButton,
+                      color: theme.app.dashboard.accentRedLight,
+                      opacity: !rowId ? 0.35 : 1,
+                    }}
+                  >
+                    <DeleteIcon fontSize="small" />
+                  </IconButton>
+                </Box>
+              );
+            },
           }}
         />
 
         <Box sx={rolesFooterRow}>
           <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted }}>
-            Showing data {start} to {end} of {totalEntries} entries
+            {isLoading
+              ? "Loading roles..."
+              : rolesQuery.isError
+                ? "Could not load roles."
+                : `Showing data ${start} to ${end} of ${totalEntries} entries`}
           </Typography>
           <Box sx={rolesPaginationWrapper}>
             <TablePagination page={page} pageCount={pageCount} onPageChange={setPage} />
           </Box>
         </Box>
       </DashboardCard>
-
-      <FormModal
-        open={isAddRoleOpen}
-        title="Create New Role"
-        description="Define role details and granular permissions."
-        onClose={() => setIsAddRoleOpen(false)}
-        onSave={() => setIsAddRoleOpen(false)}
-        sx={{ maxWidth: 720 }}
-      >
-        <InputField
-          label="Role Name"
-          placeholder="Role Name"
-          value={roleName}
-          onChange={(e) => setRoleName((e.target as HTMLInputElement).value)}
-        />
-        <SelectField
-          label="Role Type"
-          value={roleType}
-          onChange={setRoleType}
-          options={[
-            { label: "Platform", value: "Platform" },
-            { label: "Department", value: "Department" },
-          ]}
-        />
-        <SelectField
-          label="Linked Department"
-          value={linkedDepartment}
-          onChange={setLinkedDepartment}
-          options={[
-            { label: "Linked Department", value: "" },
-            { label: "Customer Support", value: "Customer Support" },
-            { label: "Engineering", value: "Engineering" },
-          ]}
-        />
-        <Box sx={{ mt: 1 }}>
-          <Box
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              mb: 1.5,
-            }}
-          >
-            <Typography
-              variant="medium"
-              fontWeight={600}
-              sx={{ color: theme.app.text.primary }}
-            >
-              Permissions
-            </Typography>
-            <Box
-              component="button"
-              type="button"
-              onClick={handleSelectAll}
-              sx={{
-                color: theme.app.dashboard.textMuted95,
-                cursor: "pointer",
-                background: "none",
-                border: "none",
-                textDecoration: "underline",
-                fontSize: 14,
-                fontFamily: "inherit",
-                "&:hover": { color: theme.app.text.primary },
-              }}
-            >
-              Select All
-            </Box>
-          </Box>
-          <Divider />
-          <Box
-            sx={{
-              display: "grid",
-              gridTemplateColumns: "repeat(2, 1fr)",
-              gap: 1.5,
-            }}
-          >
-            {PERMISSION_CATEGORIES.map((category, idx) => (
-              <Box
-                key={`${category.title}-${idx}`}
-                sx={{
-                  p: 1.5,
-                  borderRadius: 1.5,
-                  background: theme.app.dashboard.glassGradient,
-                  backdropFilter: "blur(10px)",
-                  WebkitBackdropFilter: "blur(10px)",
-                  boxShadow: theme.app.dashboard.glassShadow,
-                }}
-              >
-                <Typography
-                  variant="body2"
-                  fontWeight={600}
-                  sx={{ color: theme.app.text.primary, mb: 1, fontSize: 13 }}
-                >
-                  {category.title}
-                </Typography>
-                <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
-                  {category.permissions.map((perm) => (
-                    <Box
-                      key={perm.id}
-                      sx={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 1,
-                      }}
-                    >
-                      <Checkbox
-                        checked={!!permissions[perm.id]}
-                        onChange={(_, checked) =>
-                          setPermissions((p) => ({ ...p, [perm.id]: checked }))
-                        }
-                      />
-                      <Typography
-                        variant="body2"
-                        sx={{ color: theme.app.text.primary, fontSize: 13 }}
-                      >
-                        {perm.label}
-                      </Typography>
-                    </Box>
-                  ))}
-                </Box>
-              </Box>
-            ))}
-          </Box>
-        </Box>
-      </FormModal>
     </Box>
   );
 }

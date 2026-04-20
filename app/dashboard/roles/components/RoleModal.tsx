@@ -1,0 +1,352 @@
+"use client";
+
+import { useEffect, useMemo, useRef, useState } from "react";
+import Box from "@mui/material/Box";
+import CircularProgress from "@mui/material/CircularProgress";
+import { useTheme } from "@mui/material/styles";
+import type { AppTheme } from "@/theme/theme";
+import { Checkbox, Divider, FormModal, InputField, Typography } from "@/components/common";
+import { extractApiErrorMessageForToast, publishAppToast } from "@/lib/notify";
+import {
+  useCreateRoleMutation,
+  usePermissionsCatalogQuery,
+  useReplaceRolePermissionsMutation,
+  useRoleQuery,
+  useRolePermissionsQuery,
+  useUpdateRoleMutation,
+} from "@/lib/hooks";
+import {
+  extractPermissionsCatalogGroups,
+  extractRoleNameFromDetail,
+  extractRoleAssignedPermissionNames,
+  type PermissionGroup,
+  type RoleRow,
+} from "../utils";
+
+export type RoleModalProps = {
+  open: boolean;
+  onClose: () => void;
+  onSaved?: () => void;
+  editRole?: RoleRow | null;
+};
+
+function buildPermissionsMap(selected: string[]): Record<string, boolean> {
+  const next: Record<string, boolean> = {};
+  for (const code of selected) next[code] = true;
+  return next;
+}
+
+export function RoleModal({ open, onClose, onSaved, editRole = null }: RoleModalProps) {
+  const theme = useTheme() as AppTheme;
+  const editId = editRole?.id?.trim() ?? "";
+  const isEdit = editId.length > 0;
+
+  const [roleName, setRoleName] = useState("");
+  const [permissionSearch, setPermissionSearch] = useState("");
+  const [permissions, setPermissions] = useState<Record<string, boolean>>({});
+
+  const hydratedKeyRef = useRef<string | null>(null);
+
+  const permissionsCatalogQuery = usePermissionsCatalogQuery({
+    enabled: open,
+    scope: "role-modal",
+  });
+
+  const rolePermissionsQuery = useRolePermissionsQuery(editId, {
+    enabled: open && isEdit,
+    scope: "role-modal",
+    skipGlobalToast: true,
+  });
+
+  const roleDetailQuery = useRoleQuery(editId, {
+    enabled: open && isEdit,
+    scope: "role-modal",
+    skipGlobalToast: true,
+  });
+
+  const createRoleMutation = useCreateRoleMutation();
+  const updateRoleMutation = useUpdateRoleMutation();
+  const replacePermsMutation = useReplaceRolePermissionsMutation();
+  const isSaving =
+    createRoleMutation.isPending || updateRoleMutation.isPending || replacePermsMutation.isPending;
+
+  const permissionGroups: PermissionGroup[] = useMemo(
+    () => extractPermissionsCatalogGroups(permissionsCatalogQuery.data),
+    [permissionsCatalogQuery.data],
+  );
+
+  const filteredPermissionGroups: PermissionGroup[] = useMemo(() => {
+    const q = permissionSearch.trim().toLowerCase();
+    if (!q) return permissionGroups;
+    return permissionGroups
+      .map((g) => ({
+        ...g,
+        permissions: g.permissions.filter(
+          (p) =>
+            p.code.toLowerCase().includes(q) || p.label.toLowerCase().includes(q),
+        ),
+      }))
+      .filter((g) => g.permissions.length > 0);
+  }, [permissionGroups, permissionSearch]);
+
+  const allCodes = useMemo(() => {
+    const set = new Set<string>();
+    for (const g of permissionGroups) for (const p of g.permissions) set.add(p.code);
+    return Array.from(set);
+  }, [permissionGroups]);
+
+  const allSelected = useMemo(() => allCodes.length > 0 && allCodes.every((c) => permissions[c]), [allCodes, permissions]);
+
+  useEffect(() => {
+    if (!open) {
+      hydratedKeyRef.current = null;
+      return;
+    }
+
+    const key = isEdit ? `edit:${editId}` : "add";
+    if (hydratedKeyRef.current === key) return;
+    hydratedKeyRef.current = key;
+
+    setRoleName(isEdit ? (editRole?.name ?? "") : "");
+    setPermissionSearch("");
+    setPermissions({});
+  }, [open, isEdit, editId, editRole]);
+
+  useEffect(() => {
+    if (!open) return;
+    if (!permissionGroups.length) return;
+    // Ensure all permission codes exist in the map (unchecked by default).
+    setPermissions((prev) => {
+      const next = { ...prev };
+      for (const code of allCodes) if (next[code] == null) next[code] = false;
+      return next;
+    });
+  }, [open, permissionGroups, allCodes]);
+
+  useEffect(() => {
+    if (!open || !isEdit || !rolePermissionsQuery.isSuccess) return;
+    const assigned = extractRoleAssignedPermissionNames(rolePermissionsQuery.data);
+    if (assigned.length === 0) return;
+    setPermissions((prev) => ({ ...prev, ...buildPermissionsMap(assigned) }));
+  }, [open, isEdit, rolePermissionsQuery.isSuccess, rolePermissionsQuery.data]);
+
+  useEffect(() => {
+    if (!open || !isEdit || !roleDetailQuery.isSuccess) return;
+    const serverName = extractRoleNameFromDetail(roleDetailQuery.data);
+    if (!serverName) return;
+    setRoleName(serverName);
+  }, [open, isEdit, roleDetailQuery.isSuccess, roleDetailQuery.data]);
+
+  const handleToggleAll = () => {
+    const next = !allSelected;
+    setPermissions((prev) => {
+      const updated = { ...prev };
+      for (const code of allCodes) updated[code] = next;
+      return updated;
+    });
+  };
+
+  const selectedPermissionNames = useMemo(
+    () => allCodes.filter((c) => permissions[c]),
+    [allCodes, permissions],
+  );
+
+  const detailError =
+    (permissionsCatalogQuery.isError
+      ? extractApiErrorMessageForToast(permissionsCatalogQuery.error) ?? "Could not load permissions catalog."
+      : null)
+    ?? (roleDetailQuery.isError
+      ? extractApiErrorMessageForToast(roleDetailQuery.error) ?? "Could not load role details."
+      : null)
+    ?? (rolePermissionsQuery.isError
+      ? extractApiErrorMessageForToast(rolePermissionsQuery.error) ?? "Could not load role permissions."
+      : null);
+
+  const isLoading =
+    permissionsCatalogQuery.isLoading ||
+    permissionsCatalogQuery.isFetching ||
+    (isEdit && (
+      roleDetailQuery.isLoading ||
+      roleDetailQuery.isFetching ||
+      rolePermissionsQuery.isLoading ||
+      rolePermissionsQuery.isFetching
+    ));
+
+  const handleSave = async () => {
+    const name = roleName.trim();
+    if (!name) {
+      publishAppToast({ variant: "error", message: "Please enter a role name." });
+      return;
+    }
+    if (selectedPermissionNames.length === 0) {
+      publishAppToast({ variant: "error", message: "Please select at least one permission." });
+      return;
+    }
+
+    const closeOnSuccess = () => {
+      onSaved?.();
+      onClose();
+    };
+
+    if (!isEdit) {
+      createRoleMutation.mutate(
+        { name, permissionNames: selectedPermissionNames },
+        { onSuccess: closeOnSuccess },
+      );
+      return;
+    }
+
+    // Update name first, then replace permissions.
+    updateRoleMutation.mutate(
+      { id: editId, body: { name } },
+      {
+        onSuccess: () => {
+          replacePermsMutation.mutate(
+            { id: editId, body: { permissionNames: selectedPermissionNames } },
+            { onSuccess: closeOnSuccess },
+          );
+        },
+      },
+    );
+  };
+
+  return (
+    <FormModal
+      open={open}
+      title={isEdit ? "Edit Role" : "Add Role"}
+      description={
+        isEdit
+          ? "Update role name and permissions. Changes take effect immediately."
+          : "Create a role and assign permissions."
+      }
+      onClose={onClose}
+      onSave={handleSave}
+      primaryButtonLabel={isEdit ? "Save changes" : "Create role"}
+      primaryButtonDisabled={isSaving || isLoading || Boolean(detailError)}
+      cancelButtonLabel="Cancel"
+      maxWidth={780}
+      fitContent
+    >
+      {detailError ? (
+        <Typography variant="medium" sx={{ color: theme.palette.error.light, lineHeight: 1.5 }}>
+          {detailError}
+        </Typography>
+      ) : isLoading ? (
+        <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", py: 5 }}>
+          <CircularProgress size={36} aria-label="Loading role data" />
+        </Box>
+      ) : (
+        <>
+          <InputField
+            label="Role Name"
+            placeholder="e.g. Support Agent"
+            value={roleName}
+            onChange={(e) => setRoleName((e.target as HTMLInputElement).value)}
+            disabled={isSaving}
+          />
+
+          <Box sx={{ mt: 0.5 }}>
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                mb: 1.25,
+                gap: 2,
+              }}
+            >
+              <Typography variant="medium" fontWeight={700} sx={{ color: theme.app.text.primary }}>
+                Permissions
+              </Typography>
+              <Box
+                component="button"
+                type="button"
+                onClick={handleToggleAll}
+                disabled={allCodes.length === 0}
+                sx={{
+                  color: theme.app.dashboard.textMuted95,
+                  cursor: allCodes.length === 0 ? "default" : "pointer",
+                  background: "none",
+                  border: "none",
+                  textDecoration: "underline",
+                  fontSize: 14,
+                  fontFamily: "inherit",
+                  opacity: allCodes.length === 0 ? 0.4 : 1,
+                  "&:hover": { color: theme.app.text.primary },
+                }}
+              >
+                {allSelected ? "Unselect all" : "Select all"}
+              </Box>
+            </Box>
+            <Divider />
+
+            <Box sx={{ mt: 1.5 }}>
+              <InputField
+                label="Search permissions"
+                placeholder="Type to search (e.g. page:roles, user:create)"
+                value={permissionSearch}
+                onChange={(e) => setPermissionSearch((e.target as HTMLInputElement).value)}
+                disabled={isSaving}
+              />
+            </Box>
+
+            <Box
+              sx={{
+                mt: 1.25,
+                display: "grid",
+                gridTemplateColumns: { xs: "1fr", md: "repeat(2, minmax(0, 1fr))" },
+                gap: 1.5,
+              }}
+            >
+              {filteredPermissionGroups.map((group, idx) => (
+                <Box
+                  key={`${group.title}-${idx}`}
+                  sx={{
+                    p: 1.5,
+                    borderRadius: 1.5,
+                    background: theme.app.dashboard.glassGradient,
+                    backdropFilter: "blur(10px)",
+                    WebkitBackdropFilter: "blur(10px)",
+                    boxShadow: theme.app.dashboard.glassShadow,
+                    border: `1px solid ${theme.app.dashboard.cardBorder}`,
+                  }}
+                >
+                  <Typography
+                    variant="body2"
+                    fontWeight={700}
+                    sx={{ color: theme.app.text.primary, mb: 1, fontSize: 13 }}
+                  >
+                    {group.title}
+                  </Typography>
+                  <Box sx={{ display: "flex", flexDirection: "column", gap: 0.75 }}>
+                    {group.permissions.map((perm) => (
+                      <Box
+                        key={perm.code}
+                        sx={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 1,
+                        }}
+                      >
+                        <Checkbox
+                          checked={Boolean(permissions[perm.code])}
+                          onChange={(_, checked) =>
+                            setPermissions((p) => ({ ...p, [perm.code]: checked }))
+                          }
+                        />
+                        <Typography variant="body2" sx={{ color: theme.app.text.primary, fontSize: 13 }}>
+                          {perm.label}
+                        </Typography>
+                      </Box>
+                    ))}
+                  </Box>
+                </Box>
+              ))}
+            </Box>
+          </Box>
+        </>
+      )}
+    </FormModal>
+  );
+}
+

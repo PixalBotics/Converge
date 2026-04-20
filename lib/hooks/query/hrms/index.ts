@@ -1,6 +1,20 @@
 export { hrmsAttendanceKeys } from "./attendance";
-export { hrmsDepartmentsKeys, useDepartmentsListQuery } from "./departments";
-export { hrmsDesignationsKeys, useDesignationsListQuery } from "./designations";
+export {
+  hrmsDepartmentsKeys,
+  useCreateDepartmentMutation,
+  useDepartmentQuery,
+  useDepartmentsListQuery,
+  useSoftDeleteDepartmentMutation,
+  useUpdateDepartmentMutation,
+} from "./departments";
+export {
+  hrmsDesignationsKeys,
+  useCreateDesignationMutation,
+  useDesignationQuery,
+  useDesignationsListQuery,
+  useSoftDeleteDesignationMutation,
+  useUpdateDesignationMutation,
+} from "./designations";
 export { hrmsDepartmentHeadsKeys } from "./department-heads";
 export { hrmsPoolHeadsKeys } from "./pool-heads";
 export { hrmsDepartmentShiftsKeys } from "./department-shifts";

@@ -13,6 +13,7 @@ export {
 } from "./users";
 export type { UsersListParams, UserFilterSuggestionsParams } from "./users";
 export { accessKeys } from "./access";
+export { usePermissionsCatalogQuery } from "./access";
 export { companiesKeys } from "./companies";
 export {
   useCompaniesByResellerQuery,
@@ -29,7 +30,15 @@ export {
 } from "./companies";
 export type { CompaniesListParams } from "./companies";
 export { rolesKeys } from "./roles";
-export { useRolesListQuery } from "./roles";
+export {
+  useCreateRoleMutation,
+  useReplaceRolePermissionsMutation,
+  useRoleQuery,
+  useRolePermissionsQuery,
+  useRolesListQuery,
+  useSoftDeleteRoleMutation,
+  useUpdateRoleMutation,
+} from "./roles";
 export { websiteAssignmentsKeys } from "./website-assignments";
 export {
   useWebsiteAssignmentsWebsitesQuery,

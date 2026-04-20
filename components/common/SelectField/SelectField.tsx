@@ -25,15 +25,16 @@ export interface SelectFieldProps {
   onChange: (value: string) => void;
   options: SelectFieldOption[];
   placeholder?: string;
+  disabled?: boolean;
   /** Cap visible menu height to this many rows; extra options scroll inside the panel. */
   menuMaxRows?: number;
   /** For scroll-to-error: sets `data-setup-scroll-anchor` (comma-separated paths allowed). */
   scrollAnchorPath?: string;
 }
 
-/** Default MUI `MenuItem` (non-dense) min-height is 48px; small padding for list edges. */
-const MENU_ITEM_APPROX_PX = 48;
-const MENU_LIST_EDGE_PADDING_PX = 16;
+/** Dense `MenuItem` row height used only when `menuMaxRows` is set (compact, predictable scroll). */
+const MENU_ITEM_DENSE_APPROX_PX = 40;
+const MENU_LIST_EDGE_PADDING_PX = 12;
 
 export function SelectField({
   label,
@@ -41,18 +42,51 @@ export function SelectField({
   onChange,
   options,
   placeholder,
+  disabled = false,
   menuMaxRows,
   scrollAnchorPath,
 }: SelectFieldProps) {
   const theme = useTheme() as AppTheme;
   const fieldId = label.toLowerCase().replace(/\s+/g, "-");
-  const menuListScrollSx =
-    menuMaxRows != null && menuMaxRows > 0
-      ? {
-          maxHeight: menuMaxRows * MENU_ITEM_APPROX_PX + MENU_LIST_EDGE_PADDING_PX,
-          overflowY: "auto",
-        }
-      : undefined;
+  const menuCapped = menuMaxRows != null && menuMaxRows > 0;
+  const menuMaxHeightPx = menuCapped
+    ? menuMaxRows * MENU_ITEM_DENSE_APPROX_PX + MENU_LIST_EDGE_PADDING_PX
+    : null;
+
+  /**
+   * MUI Menu `Paper` defaults to a large max-height; we cap height and keep scrolling on the
+   * `MenuList` so options are not visually “cut” at the panel edge.
+   */
+  const menuListSx = menuMaxHeightPx
+    ? {
+        flex: "1 1 auto",
+        minHeight: 0,
+        maxHeight: "100%",
+        overflowY: "auto",
+        overscrollBehavior: "contain",
+        py: 0.5,
+        // Smooth scroll styling inside dialogs
+        scrollbarGutter: "stable",
+      }
+    : undefined;
+
+  const menuPaperSx = menuMaxHeightPx
+    ? {
+        maxHeight: `${menuMaxHeightPx}px`,
+        display: "flex",
+        flexDirection: "column",
+        overflow: "hidden",
+      }
+    : undefined;
+
+  const paperStyle = menuMaxHeightPx
+    ? ({
+        maxHeight: menuMaxHeightPx,
+        overflow: "hidden",
+        display: "flex",
+        flexDirection: "column",
+      } as const)
+    : undefined;
 
   return (
     <Box
@@ -66,6 +100,7 @@ export function SelectField({
         id={fieldId}
         select
         fullWidth
+        disabled={disabled}
         value={value}
         onChange={(event) => onChange(event.target.value)}
         onMouseMove={applyOutlineFieldCursorPosition}
@@ -76,9 +111,11 @@ export function SelectField({
         SelectProps={{
           MenuProps: {
             sx: { zIndex: FORM_MODAL_MUI_OVERLAY_Z_INDEX },
-            MenuListProps: menuListScrollSx ? { sx: menuListScrollSx } : undefined,
+            ...(menuCapped ? { marginThreshold: 8 } : {}),
+            MenuListProps: menuListSx ? { sx: menuListSx } : undefined,
             PaperProps: {
-              sx: selectMenuPaperSx(theme),
+              sx: [selectMenuPaperSx(theme), menuPaperSx ?? {}],
+              ...(paperStyle ? { style: paperStyle } : {}),
             },
           },
         }}
@@ -87,7 +124,17 @@ export function SelectField({
           <MenuItem
             key={option.value}
             value={option.value}
-            sx={selectMenuItemSx(theme)}
+            dense={menuCapped}
+            sx={[
+              selectMenuItemSx(theme),
+              menuCapped
+                ? {
+                    minHeight: MENU_ITEM_DENSE_APPROX_PX,
+                    py: 0.75,
+                    fontSize: 13,
+                  }
+                : {},
+            ]}
           >
             {option.label}
           </MenuItem>
@@ -96,4 +143,3 @@ export function SelectField({
     </Box>
   );
 }
-

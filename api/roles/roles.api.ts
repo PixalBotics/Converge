@@ -24,6 +24,11 @@ export async function softDeleteRole(id: string): Promise<unknown> {
   return data;
 }
 
+export async function getRole(id: string): Promise<unknown> {
+  const { data } = await apiClient.get(`/roles/${encodeURIComponent(id)}`);
+  return data;
+}
+
 export async function getRolePermissions(id: string): Promise<unknown> {
   const { data } = await apiClient.get(
     `/roles/${encodeURIComponent(id)}/permissions`,

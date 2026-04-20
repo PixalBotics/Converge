@@ -6,6 +6,11 @@ export async function listDesignations(params?: JsonRecord): Promise<unknown> {
   return data;
 }
 
+export async function getDesignation(id: string): Promise<unknown> {
+  const { data } = await apiClient.get(`/hrms/designations/${encodeURIComponent(id)}`);
+  return data;
+}
+
 export async function createDesignation(body: JsonRecord): Promise<unknown> {
   const { data } = await apiClient.post("/hrms/designations", body);
   return data;

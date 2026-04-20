@@ -6,6 +6,11 @@ export async function listDepartments(params?: JsonRecord): Promise<unknown> {
   return data;
 }
 
+export async function getDepartment(id: string): Promise<unknown> {
+  const { data } = await apiClient.get(`/hrms/departments/${encodeURIComponent(id)}`);
+  return data;
+}
+
 export async function createDepartment(body: JsonRecord): Promise<unknown> {
   const { data } = await apiClient.post("/hrms/departments", body);
   return data;

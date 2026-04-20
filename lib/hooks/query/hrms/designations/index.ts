@@ -1,2 +1,8 @@
 export { hrmsDesignationsKeys } from "./keys";
-export { useDesignationsListQuery } from "./hooks";
+export {
+  useCreateDesignationMutation,
+  useDesignationQuery,
+  useDesignationsListQuery,
+  useSoftDeleteDesignationMutation,
+  useUpdateDesignationMutation,
+} from "./hooks";

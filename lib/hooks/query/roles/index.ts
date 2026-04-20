@@ -1,2 +1,10 @@
 export { rolesKeys } from "./keys";
-export { useRolesListQuery } from "./hooks";
+export {
+  useCreateRoleMutation,
+  useReplaceRolePermissionsMutation,
+  useRoleQuery,
+  useRolePermissionsQuery,
+  useRolesListQuery,
+  useSoftDeleteRoleMutation,
+  useUpdateRoleMutation,
+} from "./hooks";

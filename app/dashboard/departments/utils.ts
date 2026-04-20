@@ -4,6 +4,10 @@ export type DepartmentRow = {
   id: string;
   name: string;
   type: "Internal" | "External";
+  /** Present when API returns flat or nested reseller (External departments). */
+  resellerId?: string;
+  /** Present when API returns flat or nested parent company (External departments). */
+  parentCompanyId?: string;
 };
 
 function toDepartmentRow(item: unknown): DepartmentRow | null {
@@ -15,11 +19,49 @@ function toDepartmentRow(item: unknown): DepartmentRow | null {
   const typeRaw = String(r.type ?? "Internal");
   const type: "Internal" | "External" = typeRaw === "External" ? "External" : "Internal";
 
+  const resellerObj = asRecord(r.reseller);
+  const parentObj = asRecord(r.parentCompany);
+  const resellerIdRaw =
+    r.resellerId ?? r.reseller_id ?? resellerObj?.id;
+  const parentCompanyIdRaw =
+    r.parentCompanyId
+    ?? r.parent_company_id
+    ?? parentObj?.id
+    ?? r.companyId
+    ?? r.company_id;
+  const resellerId =
+    resellerIdRaw != null && String(resellerIdRaw).trim().length > 0
+      ? String(resellerIdRaw).trim()
+      : undefined;
+  const parentCompanyId =
+    parentCompanyIdRaw != null && String(parentCompanyIdRaw).trim().length > 0
+      ? String(parentCompanyIdRaw).trim()
+      : undefined;
+
   return {
     id,
     name,
     type,
+    ...(resellerId ? { resellerId } : {}),
+    ...(parentCompanyId ? { parentCompanyId } : {}),
   };
+}
+
+/**
+ * Normalizes `GET /hrms/departments/:id` (and similar) envelopes to {@link DepartmentRow}.
+ */
+export function extractDepartmentFromDetailApi(payload: unknown): DepartmentRow | null {
+  const root = asRecord(payload);
+  if (!root) return null;
+  const data = asRecord(root.data);
+  const fromNested =
+    toDepartmentRow(asRecord(data?.department))
+    ?? toDepartmentRow(asRecord(data?.item))
+    ?? toDepartmentRow(data)
+    ?? toDepartmentRow(asRecord(root.department))
+    ?? toDepartmentRow(asRecord(root.item))
+    ?? toDepartmentRow(root);
+  return fromNested;
 }
 
 export function extractDepartmentsRows(payload: unknown): DepartmentRow[] {

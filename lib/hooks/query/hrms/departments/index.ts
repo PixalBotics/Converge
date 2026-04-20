@@ -1,2 +1,8 @@
 export { hrmsDepartmentsKeys } from "./keys";
-export { useDepartmentsListQuery } from "./hooks";
+export {
+  useCreateDepartmentMutation,
+  useDepartmentQuery,
+  useDepartmentsListQuery,
+  useSoftDeleteDepartmentMutation,
+  useUpdateDepartmentMutation,
+} from "./hooks";

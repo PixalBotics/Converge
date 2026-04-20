@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Box from "@mui/material/Box";
 import IconButton from "@mui/material/IconButton";
 import { AttachMoney as AttachMoneyIcon } from "@mui/icons-material";
-import MoreHoriz from "@mui/icons-material/MoreHoriz";
+import { Edit as EditIcon, Delete as DeleteIcon } from "@mui/icons-material";
 import { useTheme } from "@mui/material/styles";
 import { useQueryClient } from "@tanstack/react-query";
 import type { AppTheme } from "@/theme/theme";
@@ -15,14 +15,19 @@ import {
   dataTableActionButton,
   TablePagination,
   Button,
-  InputField,
-  SelectField,
   SearchBar,
-  FilterButton,
+  SelectField,
 } from "@/components/common";
 import type { DataTableColumn } from "@/components/common";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
-import { useDesignationsListQuery, hrmsDesignationsKeys } from "@/lib/hooks";
+import {
+  hrmsDesignationsKeys,
+  useCompaniesSetupResellersQuery,
+  useDepartmentsListQuery,
+  useDesignationsListQuery,
+  useSoftDeleteDesignationMutation,
+} from "@/lib/hooks";
+import { pickItemsArray, toIdNameOption } from "@/app/dashboard/user-page/components/add-user-modal.utils";
 import {
   rolesCard,
   rolesFooterRow,
@@ -32,18 +37,15 @@ import {
 } from "../roles/roles.styles";
 import { footerMutedText, pageWrapper } from "../companies/overview.styles";
 import {
-  departmentsCardHeader,
-  departmentsSearchRow,
-  departmentsSearchFieldWrapper,
-} from "../website-assigning/website-assigning.styles";
-import { publishAppToast } from "@/lib/notify";
-import {
   type DesignationRow,
   extractDesignationsRows,
   extractDesignationsTotal,
   extractDesignationsTotalPages,
   extractDesignationsLimit,
 } from "./utils";
+import { AddDesignationModal } from "./components/AddDesignationModal";
+import { DeleteDesignationConfirmModal } from "./components/DeleteDesignationConfirmModal";
+import { SearchIcon } from "@/components/dashboard/icons/SearchIcon";
 
 const DEFAULT_PAGE_LIMIT = 20;
 
@@ -59,30 +61,62 @@ function formatCompactEntryTotal(n: number): string {
   return String(n);
 }
 
-const DEPARTMENT_SELECT_OPTIONS = [
-  { label: "Assign Department Head", value: "" },
-  { label: "Engineering", value: "engineering" },
-  { label: "Customer Support", value: "support" },
-  { label: "Sales", value: "sales" },
-  { label: "Product", value: "product" },
-];
-
 export default function DesignationsPage() {
   const theme = useTheme() as AppTheme;
   const queryClient = useQueryClient();
-  const [departmentNameField, setDepartmentNameField] = useState("");
-  const [assignedDepartment, setAssignedDepartment] = useState("");
+  const [designationFormOpen, setDesignationFormOpen] = useState(false);
+  const [designationToEdit, setDesignationToEdit] = useState<DesignationRow | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<DesignationRow | null>(null);
+
+  const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
+  const [filterResellerId, setFilterResellerId] = useState("");
+  const [filterDepartmentId, setFilterDepartmentId] = useState("");
   const [page, setPage] = useState(1);
 
-  const listParams = useMemo(
-    () => ({
+  const softDeleteDesignationMutation = useSoftDeleteDesignationMutation();
+
+  const resellersQuery = useCompaniesSetupResellersQuery({ enabled: true });
+  const departmentsQuery = useDepartmentsListQuery(
+    filterResellerId.trim() ? { resellerId: filterResellerId.trim() } : undefined,
+    { enabled: true, scope: "designations-page-filters" },
+  );
+
+  const resellerOptions = useMemo(() => {
+    return pickItemsArray(resellersQuery.data)
+      .map((row) => toIdNameOption(row))
+      .filter((o): o is { value: string; label: string } => o !== null);
+  }, [resellersQuery.data]);
+
+  const resellerFilterOptions = useMemo(() => {
+    const all = { value: "", label: "All resellers" };
+    if (resellerOptions.length > 0) return [all, ...resellerOptions];
+    return [{ value: "", label: resellersQuery.isLoading ? "Loading resellers…" : "No resellers available" }];
+  }, [resellerOptions, resellersQuery.isLoading]);
+
+  const departmentOptions = useMemo(() => {
+    return pickItemsArray(departmentsQuery.data)
+      .map((row) => toIdNameOption(row))
+      .filter((o): o is { value: string; label: string } => o !== null);
+  }, [departmentsQuery.data]);
+
+  const departmentFilterOptions = useMemo(() => {
+    const all = { value: "", label: "All departments" };
+    if (departmentOptions.length > 0) return [all, ...departmentOptions];
+    return [{ value: "", label: departmentsQuery.isLoading ? "Loading departments…" : "No departments available" }];
+  }, [departmentOptions, departmentsQuery.isLoading]);
+
+  const listParams = useMemo(() => {
+    const params: Record<string, string | number> = {
       page,
       limit: DEFAULT_PAGE_LIMIT,
-      ...(search.trim() ? { search: search.trim() } : {}),
-    }),
-    [page, search],
-  );
+    };
+    const q = search.trim();
+    if (q) params.search = q;
+    if (filterResellerId.trim()) params.resellerId = filterResellerId.trim();
+    if (filterDepartmentId.trim()) params.departmentId = filterDepartmentId.trim();
+    return params;
+  }, [page, search, filterResellerId, filterDepartmentId]);
 
   const designationsQuery = useDesignationsListQuery(listParams, {
     scope: "designations-page",
@@ -100,9 +134,22 @@ export default function DesignationsPage() {
     [designationsQuery.data],
   );
 
+  const hasActiveFilters =
+    Boolean(search.trim()) ||
+    Boolean(filterResellerId.trim()) ||
+    Boolean(filterDepartmentId.trim());
+
+  useEffect(() => {
+    // When the SearchBar cross button clears the input, reset applied search to show full data.
+    if (searchInput.trim().length > 0) return;
+    if (!search.trim()) return;
+    setSearch("");
+    setPage(1);
+  }, [searchInput, search]);
+
   useEffect(() => {
     setPage(1);
-  }, [search]);
+  }, [search, filterResellerId, filterDepartmentId]);
 
   useEffect(() => {
     setPage((p) => (p > pageCount ? pageCount : p));
@@ -120,86 +167,74 @@ export default function DesignationsPage() {
     [],
   );
 
-  const resetForm = () => {
-    setDepartmentNameField("");
-    setAssignedDepartment("");
-  };
-
-  const handleCancelForm = () => {
-    resetForm();
-  };
-
-  const handleSaveDesignation = () => {
-    const name = departmentNameField.trim();
-    if (!name) {
-      publishAppToast({ variant: "error", message: "Please enter a department name." });
-      return;
-    }
-    if (!assignedDepartment.trim()) {
-      publishAppToast({ variant: "error", message: "Please assign a department." });
-      return;
-    }
-    publishAppToast({ variant: "success", message: `Designation saved for “${name}”.` });
-    resetForm();
+  const handleDesignationSaved = () => {
     void queryClient.invalidateQueries({ queryKey: hrmsDesignationsKeys.all });
   };
 
-  return (
-    <Box sx={[pageWrapper, rolesPageWrapper]}>
-      <Box sx={{ mb: 0.5 }}>
-        <Typography variant="regularLarge" fontWeight={700} color="white">
-          Designations
-        </Typography>
-        <Typography variant="body2" sx={{ mt: 0.75, color: theme.app.dashboard.textMuted, maxWidth: 720 }}>
-          Generate and distribute licenses to client companies
-        </Typography>
-      </Box>
+  const openDesignationFormForAdd = () => {
+    setDesignationToEdit(null);
+    setDesignationFormOpen(true);
+  };
 
-      <DashboardCard sx={rolesCard}>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 2.5 }}>
-          <Box sx={rolesIconBox}>
-            <AttachMoneyIcon sx={{ fontSize: 20, color: theme.app.dashboard.white95 }} />
-          </Box>
-          <Typography variant="mediumLarge" fontWeight={600} color="white">
-            Add New Designation
+  const closeDesignationForm = () => {
+    setDesignationFormOpen(false);
+    setDesignationToEdit(null);
+  };
+
+  const handleConfirmDeleteDesignation = () => {
+    const id = deleteTarget?.id?.trim();
+    if (!id) return;
+    softDeleteDesignationMutation.mutate(id, {
+      onSuccess: () => {
+        setDeleteTarget(null);
+        handleDesignationSaved();
+      },
+    });
+  };
+
+  const clearFilters = () => {
+    setSearchInput("");
+    setSearch("");
+    setFilterResellerId("");
+    setFilterDepartmentId("");
+  };
+
+  return (
+    <Box sx={{ ...(pageWrapper as object), ...(rolesPageWrapper as object) }}>
+      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 1.5, mb: 0.5 }}>
+        <Box>
+          <Typography variant="regularLarge" fontWeight={700} color="white">
+            Designations
+          </Typography>
+          <Typography variant="body2" sx={{ mt: 0.75, color: theme.app.dashboard.textMuted, maxWidth: 720 }}>
+            Manage designation titles and assign them to departments.
           </Typography>
         </Box>
+        <Button variant="primary" sx={gradientPrimaryButtonSx} onClick={openDesignationFormForAdd}>
+          Add Designation
+        </Button>
+      </Box>
 
-        <Box
-          sx={{
-            display: "grid",
-            gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
-            gap: 2,
-            mb: 2.5,
-          }}
-        >
-          <InputField
-            label="Department Name"
-            placeholder="Food"
-            value={departmentNameField}
-            onChange={(e) => setDepartmentNameField(e.target.value)}
-          />
-          <SelectField
-            label="Department"
-            value={assignedDepartment}
-            onChange={setAssignedDepartment}
-            options={DEPARTMENT_SELECT_OPTIONS}
-          />
-        </Box>
+      <AddDesignationModal
+        open={designationFormOpen}
+        onClose={closeDesignationForm}
+        onSaved={handleDesignationSaved}
+        editDesignation={designationToEdit}
+      />
 
-        <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 1.5, flexWrap: "wrap" }}>
-          <Button variant="secondary" onClick={handleCancelForm}>
-            Cancel
-          </Button>
-          <Button variant="primary" sx={gradientPrimaryButtonSx} onClick={handleSaveDesignation}>
-            Save Designation
-          </Button>
-        </Box>
-      </DashboardCard>
+      <DeleteDesignationConfirmModal
+        open={deleteTarget != null}
+        designationName={deleteTarget?.designationName ?? ""}
+        onDismiss={() => {
+          if (!softDeleteDesignationMutation.isPending) setDeleteTarget(null);
+        }}
+        onConfirm={handleConfirmDeleteDesignation}
+        isDeleting={softDeleteDesignationMutation.isPending}
+      />
 
       <DashboardCard sx={rolesCard}>
-        <Box sx={departmentsCardHeader}>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 2 }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexShrink: 0 }}>
             <Box sx={rolesIconBox}>
               <AttachMoneyIcon sx={{ fontSize: 20, color: theme.app.dashboard.white95 }} />
             </Box>
@@ -208,11 +243,79 @@ export default function DesignationsPage() {
             </Typography>
           </Box>
 
-          <Box sx={departmentsSearchRow}>
-            <Box sx={departmentsSearchFieldWrapper}>
-              <SearchBar value={search} onChange={setSearch} placeholder="Search anything.." />
+          {/* Search + filters toolbar */}
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: { xs: "1fr", lg: "minmax(420px, 1fr) minmax(520px, 1fr)" },
+              gap: { xs: 2, lg: 2.5 },
+              alignItems: "end",
+              width: "100%",
+            }}
+          >
+            <Box sx={{ display: "flex", gap: 1.25, alignItems: "center", width: "100%", minWidth: 0 }}>
+              <Box sx={{ flex: 1, minWidth: 0 }}>
+                <SearchBar
+                  value={searchInput}
+                  onChange={setSearchInput}
+                  placeholder="Search designation, department, reseller, or parent company…"
+                  sx={{ width: "100%" }}
+                />
+              </Box>
+              <Button
+                type="button"
+                variant="primary"
+                disabled={searchInput.trim() === search.trim()}
+                onClick={() => setSearch(searchInput)}
+                sx={{ minWidth: 132, whiteSpace: "nowrap" }}
+              >
+                <Box component="span" sx={{ display: "inline-flex", lineHeight: 0 }}>
+                  <SearchIcon width={18} height={18} sx={{ color: "inherit" }} />
+                </Box>
+                Search
+              </Button>
             </Box>
-            <FilterButton />
+
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: {
+                  xs: "1fr",
+                  sm: "repeat(2, minmax(0, 1fr))",
+                  lg: "220px 1fr auto",
+                },
+                gap: 1.5,
+                alignItems: "end",
+                width: "100%",
+              }}
+            >
+              <SelectField
+                label="Reseller"
+                value={filterResellerId}
+                onChange={(v) => {
+                  setFilterResellerId(v);
+                  setFilterDepartmentId("");
+                }}
+                options={resellerFilterOptions}
+                menuMaxRows={6}
+              />
+              <SelectField
+                label="Department"
+                value={filterDepartmentId}
+                onChange={setFilterDepartmentId}
+                options={departmentFilterOptions}
+                menuMaxRows={6}
+              />
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={!hasActiveFilters}
+                onClick={clearFilters}
+                sx={{ minWidth: 140, whiteSpace: "nowrap", width: { xs: "100%", lg: "auto" } }}
+              >
+                Clear filters
+              </Button>
+            </Box>
           </Box>
         </Box>
 
@@ -221,15 +324,53 @@ export default function DesignationsPage() {
           rows={tableRows}
           getRowId={(row) => row.id}
           minWidth={640}
+          tableSx={{
+            tableLayout: "fixed",
+            "& th:nth-of-type(1), & td:nth-of-type(1)": { width: "44%", whiteSpace: "normal", wordBreak: "break-word" },
+            "& th:nth-of-type(2), & td:nth-of-type(2)": { width: "36%", whiteSpace: "normal", wordBreak: "break-word" },
+            "& th:nth-of-type(3), & td:nth-of-type(3)": { width: "20%", textAlign: "right" },
+          }}
           actionColumn={{
             label: "Action",
-            render: () => (
-              <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
-                <IconButton size="small" sx={dataTableActionButton}>
-                  <MoreHoriz fontSize="small" />
-                </IconButton>
-              </Box>
-            ),
+            render: (row) => {
+              const rowId = row.id?.trim() ?? "";
+              const isDeletingThis =
+                softDeleteDesignationMutation.isPending &&
+                softDeleteDesignationMutation.variables === rowId;
+              return (
+                <Box sx={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 1 }}>
+                  <IconButton
+                    size="small"
+                    aria-label="Edit designation"
+                    disabled={!rowId}
+                    onClick={() => {
+                      if (!rowId) return;
+                      setDesignationToEdit(row);
+                      setDesignationFormOpen(true);
+                    }}
+                    sx={{ ...dataTableActionButton, color: theme.app.dashboard.white80 }}
+                  >
+                    <EditIcon fontSize="small" />
+                  </IconButton>
+                  <IconButton
+                    size="small"
+                    aria-label="Delete designation"
+                    disabled={!rowId || isDeletingThis}
+                    onClick={() => {
+                      if (!rowId) return;
+                      setDeleteTarget(row);
+                    }}
+                    sx={{
+                      ...dataTableActionButton,
+                      color: theme.app.dashboard.accentRedLight,
+                      opacity: !rowId ? 0.35 : 1,
+                    }}
+                  >
+                    <DeleteIcon fontSize="small" />
+                  </IconButton>
+                </Box>
+              );
+            },
           }}
         />
 

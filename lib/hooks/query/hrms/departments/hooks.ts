@@ -1,7 +1,13 @@
 "use client";
 
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { listDepartments } from "@/api";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  createDepartment,
+  getDepartment,
+  listDepartments,
+  softDeleteDepartment,
+  updateDepartment,
+} from "@/api";
 import type { JsonRecord } from "@/api";
 import { hrmsDepartmentsKeys } from "./keys";
 
@@ -15,5 +21,49 @@ export function useDepartmentsListQuery(
     queryFn: () => listDepartments(params),
     enabled: options?.enabled ?? true,
     placeholderData: keepPreviousData,
+  });
+}
+
+export function useDepartmentQuery(
+  id: string | undefined,
+  options?: { enabled?: boolean; scope?: string; /** Avoid duplicate toast when errors are shown inline (e.g. modal). */ skipGlobalToast?: boolean },
+) {
+  const trimmed = id?.trim() ?? "";
+  const scope = options?.scope ?? "default";
+  return useQuery({
+    queryKey: [...hrmsDepartmentsKeys.detail(trimmed), scope] as const,
+    queryFn: () => getDepartment(trimmed),
+    enabled: (options?.enabled ?? true) && trimmed.length > 0,
+    meta: options?.skipGlobalToast ? { skipGlobalToast: true } : undefined,
+  });
+}
+
+export function useCreateDepartmentMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: JsonRecord) => createDepartment(body),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: hrmsDepartmentsKeys.all });
+    },
+  });
+}
+
+export function useUpdateDepartmentMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (vars: { id: string; body: JsonRecord }) => updateDepartment(vars.id, vars.body),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: hrmsDepartmentsKeys.all });
+    },
+  });
+}
+
+export function useSoftDeleteDepartmentMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => softDeleteDepartment(id),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: hrmsDepartmentsKeys.all });
+    },
   });
 }
