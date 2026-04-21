@@ -1,0 +1,11 @@
+# Next.js on Netlify must use the OpenNext adapter (this plugin), not “static file” hosting.
+# If Site settings → Build & deploy → Publish directory is set to the repo root, deep links
+# and refreshes return 404. This file overrides that: publish points at the Next build output
+# and the plugin provisions Functions/Edge so App Router routes are served correctly.
+
+[build]
+  command = "npm run build"
+  publish = ".next"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
