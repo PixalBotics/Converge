@@ -207,7 +207,7 @@ export function AddDepartmentModal({
     departmentDetailQuery.isSuccess &&
     !detailErrorMessage &&
     (!detailParsedRow || detailParsedRow.id !== editId)
-      ? "Could not read department data from the server response."
+      ? "We couldn’t load the department details. Please try again."
       : null;
 
   const detailLoading = isEdit && !departmentDetailQuery.isSuccess && !departmentDetailQuery.isError;
@@ -220,7 +220,7 @@ export function AddDepartmentModal({
       title={isEdit ? "Edit Department" : "Add Department"}
       description={
         isEdit
-          ? "Department fields are loaded from the server. Update and save when you are done."
+          ? "Review the department details, update the fields, and save your changes."
           : "Create a new department with the appropriate type and access levels."
       }
       onClose={onClose}

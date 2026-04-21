@@ -2,18 +2,13 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Box from "@mui/material/Box";
-import IconButton from "@mui/material/IconButton";
 import { AttachMoney as AttachMoneyIcon } from "@mui/icons-material";
-import MoreHoriz from "@mui/icons-material/MoreHoriz";
 import { useTheme } from "@mui/material/styles";
 import type { SxProps, Theme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import {
   Typography,
   DashboardCard,
-  DataTable,
-  dataTableActionButton,
-  TablePagination,
   Button,
   InputField,
   SelectField,
@@ -27,7 +22,6 @@ import {
   rolesFooterRow,
   rolesIconBox,
   rolesPageWrapper,
-  rolesPaginationWrapper,
 } from "../roles/roles.styles";
 import { footerMutedText, pageWrapper } from "../companies/overview.styles";
 import {
@@ -36,75 +30,138 @@ import {
   departmentsSearchFieldWrapper,
 } from "../website-assigning/website-assigning.styles";
 import { publishAppToast } from "@/lib/notify";
+import { isRecord, pickNum, pickStr, unwrapApiData } from "@/lib/utils";
+import {
+  useCompaniesListQuery,
+  useCompaniesSetupResellersQuery,
+  useCreatePoolMutation,
+  useDeletePoolMutation,
+  useDepartmentsListQuery,
+  usePoolsListQuery,
+  useUpdatePoolMutation,
+} from "@/lib/hooks/query";
+import { pickItemsArray, toIdNameOption } from "@/app/dashboard/user-page/components/add-user-modal.utils";
+import { PoolModals, PoolsTableCard } from "./components";
 
 const PAGE_LIMIT = 8;
-const DISPLAY_TOTAL_ENTRIES = 256_000;
 
 export type PoolRow = {
   id: string;
   poolName: string;
-  poolHead: string;
-  totalMembers: string;
+  departmentName: string;
 };
-
-function formatCompactEntryTotal(n: number): string {
-  if (n >= 1_000_000) {
-    const m = n / 1_000_000;
-    return `${m % 1 === 0 ? m : m.toFixed(1)}M`;
-  }
-  if (n >= 1000) {
-    const k = n / 1000;
-    return `${k % 1 === 0 ? k : k.toFixed(0)}K`;
-  }
-  return String(n);
-}
-
-const MOCK_POOL_ROWS: PoolRow[] = Array.from({ length: 16 }, (_, i) => ({
-  id: `pool-${i + 1}`,
-  poolName: "BrickVault Ltd.com",
-  poolHead: "Raja Saif UI UX",
-  totalMembers: "1224353535",
-}));
-
-const POOL_HEAD_SELECT_OPTIONS = [
-  { label: "Assign Department Head", value: "" },
-  { label: "Raja Saif UI UX", value: "raja" },
-  { label: "Engineering Lead", value: "eng" },
-  { label: "Operations", value: "ops" },
-];
 
 export default function PoolsPage() {
   const theme = useTheme() as AppTheme;
+  const [resellerId, setResellerId] = useState("");
+  const [parentCompanyId, setParentCompanyId] = useState("");
+  const [departmentId, setDepartmentId] = useState("");
   const [poolNameField, setPoolNameField] = useState("");
-  const [poolHeadId, setPoolHeadId] = useState("");
-  const [search, setSearch] = useState("");
+  const [searchInput, setSearchInput] = useState("");
+  const [appliedSearch, setAppliedSearch] = useState("");
   const [page, setPage] = useState(1);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [editTarget, setEditTarget] = useState<PoolRow | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<PoolRow | null>(null);
+  const [editName, setEditName] = useState("");
 
-  const filteredRows = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return MOCK_POOL_ROWS;
-    return MOCK_POOL_ROWS.filter(
-      (r) =>
-        r.poolName.toLowerCase().includes(q) ||
-        r.poolHead.toLowerCase().includes(q) ||
-        r.totalMembers.includes(q),
-    );
-  }, [search]);
+  const resellersQuery = useCompaniesSetupResellersQuery({ enabled: true });
+  const resellerOptions = useMemo(() => {
+    const base = pickItemsArray(resellersQuery.data)
+      .map(toIdNameOption)
+      .filter((o): o is { value: string; label: string } => o !== null);
+    return [{ value: "", label: "— Select reseller —" }, ...base];
+  }, [resellersQuery.data]);
 
-  const pageCount = Math.max(1, Math.ceil(filteredRows.length / PAGE_LIMIT));
+  const parentCompaniesQuery = useCompaniesListQuery(
+    resellerId.trim()
+      ? {
+          all: true,
+          view: "flat",
+          resellerId: resellerId.trim(),
+          rootOnly: true,
+        }
+      : undefined,
+    { enabled: Boolean(resellerId.trim()) },
+  );
+  const parentCompanyOptions = useMemo(() => {
+    const base = pickItemsArray(parentCompaniesQuery.data)
+      .map(toIdNameOption)
+      .filter((o): o is { value: string; label: string } => o !== null);
+    return [{ value: "", label: "— Select parent company —" }, ...base];
+  }, [parentCompaniesQuery.data]);
+
+  const departmentsQuery = useDepartmentsListQuery(
+    {
+      all: true,
+      ...(resellerId.trim() ? { resellerId: resellerId.trim() } : {}),
+      ...(parentCompanyId.trim() ? { parentCompanyId: parentCompanyId.trim() } : {}),
+    },
+    { enabled: true, scope: "pools" },
+  );
+  const departmentOptions = useMemo(() => {
+    const base = pickItemsArray(departmentsQuery.data)
+      .map(toIdNameOption)
+      .filter((o): o is { value: string; label: string } => o !== null);
+    return [{ value: "", label: "— Select department —" }, ...base];
+  }, [departmentsQuery.data]);
+
+  const listParams = useMemo(() => {
+    const params: Record<string, unknown> = { page, limit: PAGE_LIMIT };
+    if (appliedSearch.trim()) params.search = appliedSearch.trim();
+    if (resellerId.trim()) params.resellerId = resellerId.trim();
+    if (parentCompanyId.trim()) params.parentCompanyId = parentCompanyId.trim();
+    if (departmentId.trim()) params.departmentId = departmentId.trim();
+    return params as any;
+  }, [appliedSearch, departmentId, page, parentCompanyId, resellerId]);
+
+  const poolsQuery = usePoolsListQuery(listParams, { enabled: true, scope: "pools-page" });
+  const createMutation = useCreatePoolMutation();
+  const updateMutation = useUpdatePoolMutation();
+  const deleteMutation = useDeletePoolMutation();
+
+  const payload = unwrapApiData(poolsQuery.data);
+  const payloadObj = isRecord(payload) ? payload : null;
+  const items = useMemo(() => {
+    if (!payloadObj) return [];
+    const arr = payloadObj["items"];
+    return Array.isArray(arr) ? (arr as unknown[]).filter(isRecord) : [];
+  }, [payloadObj]);
+
+  const totalEntries = useMemo(() => {
+    const n = pickNum(payloadObj, ["total", "count", "totalCount"]);
+    return n ?? items.length;
+  }, [payloadObj, items.length]);
+
+  const pageCount = useMemo(() => {
+    const n = pickNum(payloadObj, ["totalPages"]);
+    return n && n > 0 ? n : 1;
+  }, [payloadObj]);
 
   useEffect(() => {
     setPage(1);
-  }, [search]);
+  }, [resellerId, parentCompanyId, departmentId]);
+
+  useEffect(() => {
+    setParentCompanyId("");
+    setDepartmentId("");
+  }, [resellerId]);
+
+  useEffect(() => {
+    setDepartmentId("");
+  }, [parentCompanyId]);
 
   useEffect(() => {
     setPage((p) => (p > pageCount ? pageCount : p));
   }, [pageCount]);
 
-  const tableRows = useMemo(() => {
-    const start = (page - 1) * PAGE_LIMIT;
-    return filteredRows.slice(start, start + PAGE_LIMIT);
-  }, [filteredRows, page]);
+  const tableRows = useMemo<PoolRow[]>(() => {
+    return items.map((r) => ({
+      id: pickStr(r, ["id"]) || "",
+      poolName: pickStr(r, ["name", "poolName"]) || "—",
+      departmentName: pickStr(isRecord(r["department"]) ? (r["department"] as Record<string, unknown>) : null, ["name"]) || "—",
+    })).filter((r) => r.id);
+  }, [items]);
 
   const footerRangeStart = tableRows.length > 0 ? (page - 1) * PAGE_LIMIT + 1 : 0;
   const footerRangeEnd = (page - 1) * PAGE_LIMIT + tableRows.length;
@@ -112,87 +169,72 @@ export default function PoolsPage() {
   const columns = useMemo<DataTableColumn<PoolRow>[]>(
     () => [
       { id: "poolName", label: "Pool Name" },
-      { id: "poolHead", label: "Pool Head" },
-      { id: "totalMembers", label: "Total Members" },
+      { id: "departmentName", label: "Department" },
     ],
     [],
   );
 
   const resetForm = () => {
     setPoolNameField("");
-    setPoolHeadId("");
   };
 
   const handleCancelForm = () => {
     resetForm();
   };
 
-  const handleSavePool = () => {
+  const handleSavePool = (opts?: { onSuccess?: () => void }) => {
     const name = poolNameField.trim();
     if (!name) {
       publishAppToast({ variant: "error", message: "Please enter a pool name." });
       return;
     }
-    if (!poolHeadId.trim()) {
-      publishAppToast({ variant: "error", message: "Please assign a pool head." });
+    if (!departmentId.trim()) {
+      publishAppToast({ variant: "error", message: "Please select a department first." });
       return;
     }
-    publishAppToast({ variant: "success", message: `Pool “${name}” saved.` });
-    resetForm();
+    createMutation.mutate(
+      { departmentId: departmentId.trim(), name },
+      {
+        onSuccess: () => {
+          publishAppToast({ variant: "success", message: `Pool “${name}” saved.` });
+          resetForm();
+          opts?.onSuccess?.();
+        },
+        onError: () => publishAppToast({ variant: "error", message: "Could not create pool." }),
+      },
+    );
+  };
+
+  const handleClearFilters = () => {
+    setResellerId("");
+    setParentCompanyId("");
+    setDepartmentId("");
+    setSearchInput("");
+    setAppliedSearch("");
+    setPage(1);
   };
 
   return (
     <Box sx={[pageWrapper, rolesPageWrapper] as SxProps<Theme>}>
-      <Box sx={{ mb: 0.5 }}>
-        <Typography variant="regularLarge" fontWeight={700} color="white">
-          Pools
-        </Typography>
-        <Typography variant="body2" sx={{ mt: 0.75, color: theme.app.dashboard.textMuted, maxWidth: 720 }}>
-          Generate and distribute licenses to client companies
-        </Typography>
-      </Box>
-
-      <DashboardCard sx={rolesCard}>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 2.5 }}>
-          <Box sx={rolesIconBox}>
-            <AttachMoneyIcon sx={{ fontSize: 20, color: theme.app.dashboard.white95 }} />
-          </Box>
-          <Typography variant="mediumLarge" fontWeight={600} color="white">
-            Add New Designation
+      <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 2, mb: 0.75 }}>
+        <Box>
+          <Typography variant="regularLarge" fontWeight={700} color="white">
+            Pools
+          </Typography>
+          <Typography variant="body2" sx={{ mt: 0.75, color: theme.app.dashboard.textMuted, maxWidth: 720 }}>
+            Create and manage pools by department.
           </Typography>
         </Box>
 
-        <Box
-          sx={{
-            display: "grid",
-            gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
-            gap: 2,
-            mb: 2.5,
-          }}
+        <Button
+          variant="primary"
+          sx={gradientPrimaryButtonSx}
+          disabled={deleteMutation.isPending}
+          onClick={() => setCreateOpen(true)}
         >
-          <InputField
-            label="Pool Name"
-            placeholder="Food"
-            value={poolNameField}
-            onChange={(e) => setPoolNameField(e.target.value)}
-          />
-          <SelectField
-            label="Assign Pool Head"
-            value={poolHeadId}
-            onChange={setPoolHeadId}
-            options={POOL_HEAD_SELECT_OPTIONS}
-          />
-        </Box>
-
-        <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 1.5, flexWrap: "wrap" }}>
-          <Button variant="secondary" onClick={handleCancelForm}>
-            Cancel
-          </Button>
-          <Button variant="primary" sx={gradientPrimaryButtonSx} onClick={handleSavePool}>
-            Save Pool
-          </Button>
-        </Box>
-      </DashboardCard>
+          Add pool
+        </Button>
+      </Box>
 
       <DashboardCard sx={rolesCard}>
         <Box sx={departmentsCardHeader}>
@@ -201,44 +243,144 @@ export default function PoolsPage() {
               <AttachMoneyIcon sx={{ fontSize: 20, color: theme.app.dashboard.white95 }} />
             </Box>
             <Typography variant="mediumLarge" fontWeight={600} color="white">
-              Designations
+              Filters
             </Typography>
           </Box>
 
-          <Box sx={departmentsSearchRow}>
-            <Box sx={departmentsSearchFieldWrapper}>
-              <SearchBar value={search} onChange={setSearch} placeholder="Search anything.." />
-            </Box>
-            <FilterButton />
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <Button variant="outlined" onClick={handleClearFilters}>
+              Clear filters
+            </Button>
           </Box>
         </Box>
 
-        <DataTable<PoolRow>
-          columns={columns}
-          rows={tableRows}
-          getRowId={(row) => row.id}
-          minWidth={640}
-          actionColumn={{
-            label: "Action",
-            render: () => (
-              <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
-                <IconButton size="small" sx={dataTableActionButton}>
-                  <MoreHoriz fontSize="small" />
-                </IconButton>
-              </Box>
-            ),
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: { xs: "1fr", md: "minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr)" },
+            gap: 1.5,
+            mt: 2,
           }}
-        />
-
-        <Box sx={rolesFooterRow}>
-          <Typography variant="medium" sx={footerMutedText(theme)}>
-            {`Showing data ${footerRangeStart} to ${footerRangeEnd} of ${formatCompactEntryTotal(DISPLAY_TOTAL_ENTRIES)} entries`}
-          </Typography>
-          <Box sx={rolesPaginationWrapper}>
-            <TablePagination page={page} pageCount={pageCount} onPageChange={setPage} />
-          </Box>
+        >
+          <SelectField
+            label="Reseller"
+            value={resellerId}
+            onChange={setResellerId}
+            options={resellerOptions}
+            menuMaxRows={8}
+          />
+          <SelectField
+            label="Parent company"
+            value={parentCompanyId}
+            onChange={setParentCompanyId}
+            options={parentCompanyOptions}
+            menuMaxRows={8}
+            disabled={!resellerId.trim()}
+          />
+          <SelectField
+            label="Department"
+            value={departmentId}
+            onChange={setDepartmentId}
+            options={departmentOptions}
+            menuMaxRows={8}
+          />
         </Box>
       </DashboardCard>
+
+      <PoolsTableCard
+        rows={tableRows}
+        columns={columns}
+        isLoading={poolsQuery.isLoading || poolsQuery.isFetching}
+        search={searchInput}
+        onSearchChange={setSearchInput}
+        onSearchSubmit={() => {
+          setAppliedSearch(searchInput);
+          setPage(1);
+        }}
+        page={page}
+        pageCount={pageCount}
+        footerText={
+          poolsQuery.isLoading
+            ? "Loading…"
+            : `Showing data ${footerRangeStart} to ${footerRangeEnd} of ${totalEntries} entries`
+        }
+        onPageChange={setPage}
+        onEdit={(row) => {
+          setEditTarget(row);
+          setEditName(row.poolName);
+        }}
+        onDelete={setDeleteTarget}
+        disableActions={deleteMutation.isPending}
+      />
+
+      <PoolModals
+        theme={theme}
+        createOpen={createOpen}
+        onCloseCreate={() => {
+          if (createMutation.isPending) return;
+          setCreateOpen(false);
+          handleCancelForm();
+        }}
+        onSaveCreate={() => {
+          handleSavePool({
+            onSuccess: () => {
+              setCreateOpen(false);
+            },
+          });
+        }}
+        isCreating={createMutation.isPending}
+        departmentId={departmentId}
+        onDepartmentIdChange={setDepartmentId}
+        departmentOptions={departmentOptions}
+        poolNameField={poolNameField}
+        onPoolNameChange={setPoolNameField}
+        editOpen={editTarget != null}
+        onCloseEdit={() => {
+          if (updateMutation.isPending) return;
+          setEditTarget(null);
+          setEditName("");
+        }}
+        onSaveEdit={() => {
+          const target = editTarget;
+          if (!target) return;
+          const name = editName.trim();
+          if (!name) {
+            publishAppToast({ variant: "error", message: "Please enter a pool name." });
+            return;
+          }
+          updateMutation.mutate(
+            { id: target.id, body: { name } },
+            {
+              onSuccess: () => {
+                publishAppToast({ variant: "success", message: "Pool updated." });
+                setEditTarget(null);
+              },
+              onError: () => publishAppToast({ variant: "error", message: "Could not update pool." }),
+            },
+          );
+        }}
+        isEditing={updateMutation.isPending}
+        editName={editName}
+        onEditNameChange={setEditName}
+        deleteOpen={deleteTarget != null}
+        deleteDescription={deleteTarget ? `Delete pool “${deleteTarget.poolName}”?` : "Delete this pool?"}
+        onCloseDelete={() => {
+          if (deleteMutation.isPending) return;
+          setDeleteTarget(null);
+        }}
+        onConfirmDelete={() => {
+          const target = deleteTarget;
+          if (!target) return;
+          deleteMutation.mutate(target.id, {
+            onSuccess: () => {
+              publishAppToast({ variant: "success", message: "Pool deleted." });
+              setDeleteTarget(null);
+            },
+            onError: () => publishAppToast({ variant: "error", message: "Could not delete pool." }),
+          });
+        }}
+        isDeleting={deleteMutation.isPending}
+      />
     </Box>
   );
 }

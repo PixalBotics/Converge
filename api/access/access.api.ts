@@ -6,8 +6,8 @@ export async function getMyEffectivePermissions(): Promise<unknown> {
   return data;
 }
 
-export async function listPermissionsCatalog(): Promise<unknown> {
-  const { data } = await apiClient.get("/access/permissions/catalog");
+export async function listPermissionsCatalog(params?: JsonRecord): Promise<unknown> {
+  const { data } = await apiClient.get("/access/permissions/catalog", { params });
   return data;
 }
 

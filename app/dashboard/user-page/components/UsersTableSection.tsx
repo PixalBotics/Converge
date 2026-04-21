@@ -4,12 +4,15 @@ import { useMemo, useState } from "react";
 import Box from "@mui/material/Box";
 import Avatar from "@mui/material/Avatar";
 import IconButton from "@mui/material/IconButton";
+import Link from "@mui/material/Link";
 import {
   AttachMoney as AttachMoneyIcon,
   Login as LoginIcon,
+  OpenInNew as OpenInNewIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
 } from "@mui/icons-material";
+import NextLink from "next/link";
 import {
   Typography,
   DashboardCard,
@@ -205,6 +208,31 @@ export function UsersTableSection(props: Props) {
                 canDeleteUser && !!row.id && !isSelf;
               return (
                 <Box sx={{ display: "flex", alignItems: "center", justifyContent: "flex-start", gap: 1 }}>
+                  {row.id ? (
+                    <Link
+                      component={NextLink}
+                      href={`/dashboard/user-page/user/${encodeURIComponent(row.id)}`}
+                      sx={{
+                        color: theme.palette.primary.main,
+                        textDecoration: "none",
+                        cursor: "pointer",
+                        fontSize: 14,
+                        fontWeight: 600,
+                        "&:hover": { textDecoration: "underline" },
+                      }}
+                    >
+                      Detail
+                    </Link>
+                  ) : (
+                    <IconButton
+                      size="small"
+                      aria-label="User detail (unavailable)"
+                      disabled
+                      sx={{ ...dataTableActionButton, color: theme.app.dashboard.white80, opacity: 0.4 }}
+                    >
+                      <OpenInNewIcon fontSize="small" />
+                    </IconButton>
+                  )}
                   <IconButton
                     size="small"
                     aria-label="Login As"

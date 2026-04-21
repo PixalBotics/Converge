@@ -1,6 +1,11 @@
 import { apiClient } from "../http/axios-instance";
 import type { JsonRecord } from "../types/common.types";
-import type { WebsiteAssignmentsWebsitesResponseEnvelope } from "../types/website-assignments.types";
+import type {
+  AssignWebsiteTierBody,
+  WebsiteAssignmentUserWebsitesEnvelope,
+  WebsiteAssignmentWebsiteDetailEnvelope,
+  WebsiteAssignmentsWebsitesResponseEnvelope,
+} from "../types/website-assignments.types";
 
 export async function listWebsitesInScope(
   params?: JsonRecord,
@@ -16,8 +21,8 @@ export async function listWebsitesInScope(
 
 export async function getWebsiteAssignmentDetail(
   websiteId: string,
-): Promise<unknown> {
-  const { data } = await apiClient.get(
+): Promise<WebsiteAssignmentWebsiteDetailEnvelope> {
+  const { data } = await apiClient.get<WebsiteAssignmentWebsiteDetailEnvelope>(
     `/website-assignments/websites/${encodeURIComponent(websiteId)}`,
   );
   return data;
@@ -26,15 +31,15 @@ export async function getWebsiteAssignmentDetail(
 export async function listWebsitesForUser(
   userId: string,
   params?: JsonRecord,
-): Promise<unknown> {
-  const { data } = await apiClient.get(
+): Promise<WebsiteAssignmentUserWebsitesEnvelope> {
+  const { data } = await apiClient.get<WebsiteAssignmentUserWebsitesEnvelope>(
     `/website-assignments/users/${encodeURIComponent(userId)}/websites`,
     { params },
   );
   return data;
 }
 
-export async function assignWebsiteTier(body: JsonRecord): Promise<unknown> {
+export async function assignWebsiteTier(body: AssignWebsiteTierBody): Promise<unknown> {
   const { data } = await apiClient.post("/website-assignments", body);
   return data;
 }

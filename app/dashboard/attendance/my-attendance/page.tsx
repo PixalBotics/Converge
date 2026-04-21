@@ -5,13 +5,16 @@ import Box from "@mui/material/Box";
 import { AccessTime as AccessTimeIcon, CalendarMonth as CalendarMonthIcon } from "@mui/icons-material";
 import type { SxProps, Theme } from "@mui/material/styles";
 import { useRouter } from "next/navigation";
-import { Typography, DashboardCard, DataTable, TablePagination, Button, SearchBar, FilterButton } from "@/components/common";
+import { Typography, DashboardCard, DataTable, TablePagination, Button, SearchBar, FilterButton, Calendar } from "@/components/common";
 import type { DataTableColumn } from "@/components/common";
 import { rolesCard, rolesFooterRow, rolesIconBox, rolesPageWrapper, rolesPaginationWrapper } from "../../roles/roles.styles";
 import { footerMutedText, pageWrapper } from "../../companies/overview.styles";
 import { departmentsCardHeader, departmentsSearchFieldWrapper, departmentsSearchRow } from "../../website-assigning/website-assigning.styles";
 import type { AppTheme } from "@/theme/theme";
 import { useTheme } from "@mui/material/styles";
+import { useAttendanceMeQuery } from "@/lib/hooks/query";
+import { isRecord, unwrapApiData } from "@/lib/utils";
+import { EmptyAttendanceState } from "../components/EmptyAttendanceState";
 import {
   attendanceCardTitleSx,
   attendanceDateButtonSx,
@@ -23,7 +26,6 @@ import {
 } from "./my-attendance.styles";
 
 const PAGE_LIMIT = 16;
-const DISPLAY_TOTAL_ENTRIES = 256_000;
 
 type AttendanceRow = {
   id: string;
@@ -33,58 +35,88 @@ type AttendanceRow = {
   status: string;
 };
 
-const MOCK_ATTENDANCE_ROWS: AttendanceRow[] = Array.from({ length: 32 }, (_, i) => ({
-  id: `attendance-${i + 1}`,
-  date: "12 Jun Wednesday",
-  checkInTime: "08:52 AM",
-  checkOutTime: "06:15 PM",
-  status: "Present",
-}));
-
-function formatCompactEntryTotal(n: number): string {
-  if (n >= 1_000_000) {
-    const m = n / 1_000_000;
-    return `${m % 1 === 0 ? m : m.toFixed(1)}M`;
-  }
-  if (n >= 1000) {
-    const k = n / 1000;
-    return `${k % 1 === 0 ? k : k.toFixed(0)}K`;
-  }
-  return String(n);
-}
-
 export default function MyAttendancePage() {
   const router = useRouter();
   const theme = useTheme() as AppTheme;
+  const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
+  const startOfMonth = useMemo(() => `${today.slice(0, 7)}-01`, [today]);
+  const [from, setFrom] = useState(startOfMonth);
+  const [to, setTo] = useState(today);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
 
+  const attendanceQuery = useAttendanceMeQuery(
+    { from, to, page, limit: PAGE_LIMIT },
+    { enabled: Boolean(from.trim() && to.trim()) },
+  );
+
+  const apiItems = useMemo(() => {
+    const data = unwrapApiData(attendanceQuery.data);
+    if (!data) return [];
+    if (Array.isArray(data)) return data.filter(isRecord);
+    if (!isRecord(data)) return [];
+    const items = (data as any).items;
+    return Array.isArray(items) ? items.filter(isRecord) : [];
+  }, [attendanceQuery.data]);
+
+  const total = useMemo(() => {
+    const data = unwrapApiData(attendanceQuery.data);
+    if (!isRecord(data)) return apiItems.length;
+    const n = Number((data as any).total);
+    return Number.isFinite(n) ? n : apiItems.length;
+  }, [attendanceQuery.data, apiItems.length]);
+
+  const totalPages = useMemo(() => {
+    const data = unwrapApiData(attendanceQuery.data);
+    if (!isRecord(data)) return 1;
+    const n = Number((data as any).totalPages);
+    return Number.isFinite(n) && n > 0 ? n : 1;
+  }, [attendanceQuery.data]);
+
+  const toBaseRows = useMemo(() => {
+    return apiItems.map((row, idx) => {
+      const pick = (keys: string[]) => {
+        for (const k of keys) {
+          const v = (row as any)[k];
+          if (typeof v === "string" && v.trim()) return v.trim();
+        }
+        return "";
+      };
+      return {
+        id: pick(["id", "attendanceId"]) || `attendance-${idx}`,
+        date: pick(["date", "day", "attendanceDate"]) || "—",
+        checkInTime: pick(["checkIn", "checkInTime", "inTime"]) || "—",
+        checkOutTime: pick(["checkOut", "checkOutTime", "outTime"]) || "—",
+        status: pick(["status"]) || "—",
+      } as AttendanceRow;
+    });
+  }, [apiItems]);
+
   const filteredRows = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return MOCK_ATTENDANCE_ROWS;
-    return MOCK_ATTENDANCE_ROWS.filter(
+    const base = toBaseRows;
+    if (!q) return base;
+    return base.filter(
       (r) =>
         r.date.toLowerCase().includes(q) ||
         r.checkInTime.toLowerCase().includes(q) ||
         r.checkOutTime.toLowerCase().includes(q) ||
         r.status.toLowerCase().includes(q),
     );
-  }, [search]);
-
-  const pageCount = Math.max(1, Math.ceil(filteredRows.length / PAGE_LIMIT));
+  }, [search, toBaseRows]);
 
   useEffect(() => {
     setPage(1);
-  }, [search]);
+  }, [search, from, to]);
 
   useEffect(() => {
-    setPage((p) => (p > pageCount ? pageCount : p));
-  }, [pageCount]);
+    setPage((p) => (p > totalPages ? totalPages : p));
+  }, [totalPages]);
 
   const tableRows = useMemo(() => {
-    const start = (page - 1) * PAGE_LIMIT;
-    return filteredRows.slice(start, start + PAGE_LIMIT);
-  }, [filteredRows, page]);
+    // API already paginates; filtering is local within current page.
+    return filteredRows;
+  }, [filteredRows]);
 
   const footerRangeStart = tableRows.length > 0 ? (page - 1) * PAGE_LIMIT + 1 : 0;
   const footerRangeEnd = (page - 1) * PAGE_LIMIT + tableRows.length;
@@ -111,12 +143,20 @@ export default function MyAttendancePage() {
             My Attendance
           </Typography>
           <Typography variant="body2" sx={attendanceSubtextSx}>
-            Generate and distribute licenses to client companies
+            View your attendance history for the selected date range.
           </Typography>
         </Box>
         <Box sx={attendanceHeaderActionsSx}>
-          <Button variant="secondary" startIcon={<CalendarMonthIcon fontSize="small" />} sx={attendanceDateButtonSx}>
-            1 Jun - 30 Jun, 2025
+          <Button
+            variant="secondary"
+            startIcon={<CalendarMonthIcon fontSize="small" />}
+            sx={attendanceDateButtonSx}
+            onClick={() => {
+              setFrom(startOfMonth);
+              setTo(today);
+            }}
+          >
+            {from} → {to}
           </Button>
           <Button
             variant="primary"
@@ -127,6 +167,39 @@ export default function MyAttendancePage() {
           </Button>
         </Box>
       </Box>
+
+      <DashboardCard sx={rolesCard}>
+        <Box sx={departmentsCardHeader}>
+          <Box sx={attendanceCardTitleSx}>
+            <Box sx={rolesIconBox}>
+              <AccessTimeIcon sx={{ fontSize: 20, color: theme.app.dashboard.white95 }} />
+            </Box>
+            <Typography variant="mediumLarge" fontWeight={600} color="white">
+              Select Filter
+            </Typography>
+          </Box>
+          <Box />
+        </Box>
+
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: { xs: "1fr", md: "minmax(0, 1fr) minmax(0, 1fr) 180px" },
+            gap: 1.5,
+            alignItems: "end",
+          }}
+        >
+          <Calendar label="From" value={from} onChange={setFrom} />
+          <Calendar label="To" value={to} onChange={setTo} />
+          <Button
+            variant="primary"
+            sx={attendanceMarkButtonSx}
+            onClick={() => publishAppToast({ variant: "success", message: "Filter applied." })}
+          >
+            Apply Filter
+          </Button>
+        </Box>
+      </DashboardCard>
 
       <DashboardCard sx={rolesCard}>
         <Box sx={departmentsCardHeader}>
@@ -147,19 +220,31 @@ export default function MyAttendancePage() {
           </Box>
         </Box>
 
-        <DataTable<AttendanceRow>
-          columns={columns}
-          rows={tableRows}
-          getRowId={(row) => row.id}
-          minWidth={780}
-        />
+        {attendanceQuery.isLoading || attendanceQuery.isFetching ? (
+          <DataTable<AttendanceRow>
+            columns={columns}
+            rows={tableRows}
+            getRowId={(row) => row.id}
+            isLoading
+            minWidth={780}
+          />
+        ) : tableRows.length === 0 ? (
+          <EmptyAttendanceState />
+        ) : (
+          <DataTable<AttendanceRow>
+            columns={columns}
+            rows={tableRows}
+            getRowId={(row) => row.id}
+            minWidth={780}
+          />
+        )}
 
         <Box sx={rolesFooterRow}>
           <Typography variant="medium" sx={footerMutedText(theme)}>
-            {`Showing data ${footerRangeStart} to ${footerRangeEnd} of ${formatCompactEntryTotal(DISPLAY_TOTAL_ENTRIES)} entries`}
+            {attendanceQuery.isLoading ? "Loading…" : `Showing data ${footerRangeStart} to ${footerRangeEnd} of ${total} entries`}
           </Typography>
           <Box sx={rolesPaginationWrapper}>
-            <TablePagination page={page} pageCount={pageCount} onPageChange={setPage} />
+            <TablePagination page={page} pageCount={totalPages} onPageChange={setPage} />
           </Box>
         </Box>
       </DashboardCard>

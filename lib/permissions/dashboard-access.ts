@@ -38,7 +38,7 @@ export type DashboardNavItem = {
   iconKey: DashboardSidebarIconKey;
   /** Backend PAGE permission, e.g. `page:users`. Null means always visible. */
   permission: string | null;
-  /** Prefix match for dynamic routes such as `/dashboard/website-assigning/[userId]`. */
+  /** Prefix match for dynamic routes such as `/dashboard/website-assigning/website/[websiteId]`. */
   prefixMatch?: boolean;
   /** Demo-only items (kept for existing seed/demo account behavior). */
   demoOnly?: boolean;
@@ -215,6 +215,13 @@ const SHIFTS_GROUP: DashboardNavItem = {
       iconKey: "shifts",
       permission: "page:shifts",
     },
+    {
+      href: "/dashboard/shifts/user-shift",
+      label: "User Shift",
+      section: "activity",
+      iconKey: "shifts",
+      permission: "page:shifts",
+    },
   ],
 };
 
@@ -230,13 +237,6 @@ const WEBSITE_GROUP: DashboardNavItem = {
       ...toNavItem("page:website-assignments")!,
       label: "Website Assign",
       prefixMatch: false,
-    },
-    {
-      href: "/dashboard/website-assigning/user-assign",
-      label: "User Assign",
-      section: "activity",
-      iconKey: "websiteAssignments",
-      permission: "page:website-assignments",
     },
   ],
 };
@@ -296,9 +296,57 @@ const LEAVE_GROUP: DashboardNavItem = {
   ],
 };
 
+const USERS_GROUP: DashboardNavItem = {
+  href: "/dashboard/user-page",
+  label: "Users",
+  section: "activity",
+  iconKey: "users",
+  permission: null,
+  permissionsAny: ["page:users"],
+  children: [
+    { ...toNavItem("page:users")!, label: "User List", prefixMatch: false },
+    {
+      href: "/dashboard/user-page/permissions",
+      label: "User Permissions",
+      section: "activity",
+      iconKey: "users",
+      permission: "page:users",
+      prefixMatch: false,
+    },
+  ],
+};
+
+const HRMS_GROUP: DashboardNavItem = {
+  href: "/dashboard/hrms",
+  label: "HRMS",
+  section: "activity",
+  iconKey: "hrms",
+  permission: null,
+  permissionsAny: ["page:hrms"],
+  children: [
+    { ...toNavItem("page:hrms")!, label: "Overview", prefixMatch: false },
+    {
+      href: "/dashboard/hrms/pool-heads",
+      label: "Pool Heads",
+      section: "activity",
+      iconKey: "hrms",
+      permission: "page:hrms",
+    },
+    {
+      href: "/dashboard/hrms/department-heads",
+      label: "Department Heads",
+      section: "activity",
+      iconKey: "hrms",
+      permission: "page:hrms",
+    },
+  ],
+};
+
 export const DASHBOARD_NAV_ITEMS: readonly DashboardNavItem[] = PAGE_PERMISSION_ORDER.flatMap((permission) => {
   if (permission === "page:departments") return [DEPARTMENTS_AND_DESIGNATIONS_GROUP];
   if (permission === "page:website-assignments") return [WEBSITE_GROUP];
+  if (permission === "page:users") return [USERS_GROUP];
+  if (permission === "page:hrms") return [HRMS_GROUP];
   if (permission === "page:pools") return [toNavItem("page:pools")!, SHIFTS_GROUP, ATTENDANCE_GROUP, LEAVE_GROUP];
   const item = toNavItem(permission);
   return item ? [item] : [];

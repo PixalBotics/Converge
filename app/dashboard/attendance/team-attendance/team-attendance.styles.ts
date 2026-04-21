@@ -69,7 +69,10 @@ export const teamAttendanceGenerateLicenseButtonSx: SxProps<Theme> = (theme) => 
 
 export const teamAttendanceFilterGridSx: SxProps<Theme> = {
   display: "grid",
-  gridTemplateColumns: { xs: "1fr", md: "minmax(0, 1fr) minmax(0, 1fr) 180px" },
+  gridTemplateColumns: {
+    xs: "1fr",
+    md: "minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) 180px",
+  },
   gap: 1.5,
   alignItems: "end",
 };

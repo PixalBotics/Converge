@@ -5,11 +5,15 @@ import Box from "@mui/material/Box";
 import { AccessTime as AccessTimeIcon } from "@mui/icons-material";
 import type { SxProps, Theme } from "@mui/material/styles";
 import { useTheme } from "@mui/material/styles";
-import { Typography, DashboardCard, DataTable, TablePagination, Button, InputField, SelectField } from "@/components/common";
+import { Typography, DashboardCard, DataTable, TablePagination, Button, Calendar, SelectField } from "@/components/common";
 import type { DataTableColumn } from "@/components/common";
 import { rolesCard, rolesFooterRow, rolesIconBox, rolesPageWrapper, rolesPaginationWrapper } from "../../roles/roles.styles";
 import { footerMutedText, pageWrapper } from "../../companies/overview.styles";
 import type { AppTheme } from "@/theme/theme";
+import { useAttendanceUserQuery, useUsersListQuery } from "@/lib/hooks/query";
+import { isRecord, unwrapApiData } from "@/lib/utils";
+import { extractUsersRows } from "@/app/dashboard/user-page/utils";
+import { EmptyAttendanceState } from "../components/EmptyAttendanceState";
 import {
   teamAttendanceApplyButtonSx,
   teamAttendanceCardTitleSx,
@@ -24,7 +28,6 @@ import {
 } from "./team-attendance.styles";
 
 const PAGE_LIMIT = 16;
-const DISPLAY_TOTAL_ENTRIES = 256_000;
 
 type TeamAttendanceRow = {
   id: string;
@@ -35,63 +38,77 @@ type TeamAttendanceRow = {
   checkOut: string;
 };
 
-const DEPARTMENT_OPTIONS = [
-  { label: "Department", value: "" },
-  { label: "Operations", value: "operations" },
-  { label: "Support", value: "support" },
-  { label: "Sales", value: "sales" },
-];
-
-const MOCK_TEAM_ATTENDANCE_ROWS: TeamAttendanceRow[] = Array.from({ length: 32 }, (_, i) => ({
-  id: `team-attendance-${i + 1}`,
-  employeeName: "Raja Saif UI UX",
-  date: "12 Jun Wednesday",
-  status: "Approved",
-  checkIn: "08:52 AM",
-  checkOut: "06:15 PM",
-}));
-
-function formatCompactEntryTotal(n: number): string {
-  if (n >= 1_000_000) {
-    const m = n / 1_000_000;
-    return `${m % 1 === 0 ? m : m.toFixed(1)}M`;
-  }
-  if (n >= 1000) {
-    const k = n / 1000;
-    return `${k % 1 === 0 ? k : k.toFixed(0)}K`;
-  }
-  return String(n);
-}
-
 export default function TeamAttendancePage() {
   const theme = useTheme() as AppTheme;
-  const [department, setDepartment] = useState("");
-  const [dateRange, setDateRange] = useState("");
+  const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
+  const startOfMonth = useMemo(() => `${today.slice(0, 7)}-01`, [today]);
+  const [from, setFrom] = useState(startOfMonth);
+  const [to, setTo] = useState(today);
+  const [selectedUserId, setSelectedUserId] = useState("");
   const [page, setPage] = useState(1);
 
-  const filteredRows = useMemo(() => {
-    if (!department && !dateRange.trim()) return MOCK_TEAM_ATTENDANCE_ROWS;
-    return MOCK_TEAM_ATTENDANCE_ROWS.filter((row) => {
-      const byDepartment = !department || row.employeeName.toLowerCase().includes(department.toLowerCase());
-      const byDate = !dateRange.trim() || row.date.toLowerCase().includes(dateRange.trim().toLowerCase());
-      return byDepartment && byDate;
-    });
-  }, [department, dateRange]);
+  const usersQuery = useUsersListQuery({ page: 1, limit: 200 }, { enabled: true });
+  const userRows = useMemo(() => extractUsersRows(usersQuery.data), [usersQuery.data]);
+  const userOptions = useMemo(() => {
+    const base = userRows.map((u) => ({ value: u.id, label: `${u.user} · ${u.email}` }));
+    return [{ value: "", label: usersQuery.isLoading ? "Loading users…" : "— Select user —" }, ...base];
+  }, [userRows, usersQuery.isLoading]);
 
-  const pageCount = Math.max(1, Math.ceil(filteredRows.length / PAGE_LIMIT));
+  const attendanceQuery = useAttendanceUserQuery(
+    selectedUserId,
+    { from, to, page, limit: PAGE_LIMIT },
+    { enabled: Boolean(selectedUserId.trim() && from.trim() && to.trim()) },
+  );
+
+  const apiItems = useMemo(() => {
+    const data = unwrapApiData(attendanceQuery.data);
+    if (!data) return [];
+    if (Array.isArray(data)) return data.filter(isRecord);
+    if (!isRecord(data)) return [];
+    const items = (data as any).items;
+    return Array.isArray(items) ? items.filter(isRecord) : [];
+  }, [attendanceQuery.data]);
+
+  const total = useMemo(() => {
+    const data = unwrapApiData(attendanceQuery.data);
+    if (!isRecord(data)) return apiItems.length;
+    const n = Number((data as any).total);
+    return Number.isFinite(n) ? n : apiItems.length;
+  }, [attendanceQuery.data, apiItems.length]);
+
+  const totalPages = useMemo(() => {
+    const data = unwrapApiData(attendanceQuery.data);
+    if (!isRecord(data)) return 1;
+    const n = Number((data as any).totalPages);
+    return Number.isFinite(n) && n > 0 ? n : 1;
+  }, [attendanceQuery.data]);
 
   useEffect(() => {
     setPage(1);
-  }, [department, dateRange]);
+  }, [selectedUserId, from, to]);
 
   useEffect(() => {
-    setPage((p) => (p > pageCount ? pageCount : p));
-  }, [pageCount]);
+    setPage((p) => (p > totalPages ? totalPages : p));
+  }, [totalPages]);
 
-  const tableRows = useMemo(() => {
-    const start = (page - 1) * PAGE_LIMIT;
-    return filteredRows.slice(start, start + PAGE_LIMIT);
-  }, [filteredRows, page]);
+  const tableRows = useMemo<TeamAttendanceRow[]>(() => {
+    const pick = (row: Record<string, unknown>, keys: string[]) => {
+      for (const k of keys) {
+        const v = (row as any)[k];
+        if (typeof v === "string" && v.trim()) return v.trim();
+      }
+      return "";
+    };
+    const userLabel = userOptions.find((o) => o.value === selectedUserId)?.label ?? "—";
+    return apiItems.map((row, idx) => ({
+      id: pick(row, ["id", "attendanceId"]) || `team-${idx}`,
+      employeeName: pick(row, ["employeeName", "userName", "name"]) || userLabel,
+      date: pick(row, ["date", "day", "attendanceDate"]) || "—",
+      status: pick(row, ["status"]) || "—",
+      checkIn: pick(row, ["checkIn", "checkInTime", "inTime"]) || "—",
+      checkOut: pick(row, ["checkOut", "checkOutTime", "outTime"]) || "—",
+    }));
+  }, [apiItems, selectedUserId, userOptions]);
 
   const footerRangeStart = tableRows.length > 0 ? (page - 1) * PAGE_LIMIT + 1 : 0;
   const footerRangeEnd = (page - 1) * PAGE_LIMIT + tableRows.length;
@@ -119,17 +136,10 @@ export default function TeamAttendancePage() {
             Team Attendance
           </Typography>
           <Typography variant="body2" sx={teamAttendanceSubtextSx}>
-            Generate and distribute licenses to client companies
+            Review attendance for a selected team member and date range.
           </Typography>
         </Box>
-        <Box sx={teamAttendanceHeaderActionsSx}>
-          <Button variant="secondary" sx={teamAttendanceSendSelectedButtonSx}>
-            Send Selected
-          </Button>
-          <Button variant="secondary" sx={teamAttendanceGenerateLicenseButtonSx}>
-            Generate License
-          </Button>
-        </Box>
+        <Box sx={teamAttendanceHeaderActionsSx} />
       </Box>
 
       <DashboardCard sx={rolesCard}>
@@ -144,18 +154,18 @@ export default function TeamAttendancePage() {
 
         <Box sx={teamAttendanceFilterGridSx}>
           <SelectField
-            label="Department"
-            value={department}
-            onChange={setDepartment}
-            options={DEPARTMENT_OPTIONS}
+            label="User"
+            value={selectedUserId}
+            onChange={setSelectedUserId}
+            options={userOptions}
+            menuMaxRows={8}
           />
-          <InputField
-            label="Date Range"
-            placeholder="Add Date..."
-            value={dateRange}
-            onChange={(e) => setDateRange(e.target.value)}
-            sx={teamAttendanceDateRangeFieldSx}
-          />
+          <Box sx={teamAttendanceDateRangeFieldSx}>
+            <Calendar label="From" value={from} onChange={setFrom} />
+          </Box>
+          <Box sx={teamAttendanceDateRangeFieldSx}>
+            <Calendar label="To" value={to} onChange={setTo} />
+          </Box>
           <Button variant="primary" sx={teamAttendanceApplyButtonSx}>
             Apply Filter
           </Button>
@@ -168,23 +178,40 @@ export default function TeamAttendancePage() {
             <AccessTimeIcon sx={{ fontSize: 20, color: theme.app.dashboard.white95 }} />
           </Box>
           <Typography variant="mediumLarge" fontWeight={600} color="white">
-            Departments List
+            Attendance Records
           </Typography>
         </Box>
 
-        <DataTable<TeamAttendanceRow>
-          columns={columns}
-          rows={tableRows}
-          getRowId={(row) => row.id}
-          minWidth={860}
-        />
+        {attendanceQuery.isLoading || attendanceQuery.isFetching ? (
+          <DataTable<TeamAttendanceRow>
+            columns={columns}
+            rows={tableRows}
+            getRowId={(row) => row.id}
+            isLoading
+            minWidth={860}
+          />
+        ) : !selectedUserId.trim() ? (
+          <EmptyAttendanceState
+            title="Select a user to view attendance"
+            subtitle="Choose a user from the filter above, then apply the date range."
+          />
+        ) : tableRows.length === 0 ? (
+          <EmptyAttendanceState />
+        ) : (
+          <DataTable<TeamAttendanceRow>
+            columns={columns}
+            rows={tableRows}
+            getRowId={(row) => row.id}
+            minWidth={860}
+          />
+        )}
 
         <Box sx={rolesFooterRow}>
           <Typography variant="medium" sx={footerMutedText(theme)}>
-            {`Showing data ${footerRangeStart} to ${footerRangeEnd} of ${formatCompactEntryTotal(DISPLAY_TOTAL_ENTRIES)} entries`}
+            {attendanceQuery.isLoading ? "Loading…" : `Showing data ${footerRangeStart} to ${footerRangeEnd} of ${total} entries`}
           </Typography>
           <Box sx={rolesPaginationWrapper}>
-            <TablePagination page={page} pageCount={pageCount} onPageChange={setPage} />
+            <TablePagination page={page} pageCount={totalPages} onPageChange={setPage} />
           </Box>
         </Box>
       </DashboardCard>

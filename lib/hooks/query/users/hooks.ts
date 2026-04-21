@@ -5,7 +5,9 @@ import {
   createUser,
   getUser,
   getUserFilterSuggestions,
+  getUserPermissions,
   listUsers,
+  replaceUserPermissionOverrides,
   softDeleteUser,
   updateUser,
 } from "@/api";
@@ -29,6 +31,8 @@ export type UserFilterSuggestionsParams = {
 export type UsersListParams = {
   page?: number;
   limit?: number;
+  /** When true, backend returns all rows (no pagination). */
+  all?: boolean;
   userType?: "Internal" | "External";
   search?: string;
   companyId?: string;
@@ -65,6 +69,29 @@ export function useUserQuery(id: string | undefined, options?: { enabled?: boole
     queryKey: usersKeys.detail(trimmed),
     queryFn: () => getUser(trimmed),
     enabled: (options?.enabled ?? true) && trimmed.length > 0,
+  });
+}
+
+export function useUserPermissionsQuery(id: string | undefined, options?: { enabled?: boolean; scope?: string }) {
+  const trimmed = id?.trim() ?? "";
+  const scope = options?.scope ?? "default";
+  return useQuery({
+    queryKey: [...usersKeys.permissions(trimmed), scope] as const,
+    queryFn: () => getUserPermissions(trimmed),
+    enabled: (options?.enabled ?? true) && trimmed.length > 0,
+  });
+}
+
+export function useReplaceUserPermissionOverridesMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (vars: { id: string; body: JsonRecord }) =>
+      replaceUserPermissionOverrides(vars.id, vars.body),
+    onSuccess: (_data, vars) => {
+      void queryClient.invalidateQueries({ queryKey: usersKeys.permissions(vars.id) });
+      void queryClient.invalidateQueries({ queryKey: usersKeys.detail(vars.id) });
+      void queryClient.invalidateQueries({ queryKey: usersKeys.lists() });
+    },
   });
 }
 

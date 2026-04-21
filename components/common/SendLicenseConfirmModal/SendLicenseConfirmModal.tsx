@@ -23,11 +23,28 @@ export interface SendLicenseConfirmModalProps {
   open: boolean;
   /** “No” — dismiss only */
   onDismiss: () => void;
-  /** “Yes – Send License” — confirm action */
+  /** Confirm action (may be async; parent can track loading via `confirmDisabled`). */
   onConfirm: () => void;
+  /** Override default “Send License Key ?” title. */
+  title?: string;
+  /** Override default license copy. */
+  description?: string;
+  dismissLabel?: string;
+  confirmLabel?: string;
+  /** Disable confirm (e.g. while POST is in flight). */
+  confirmDisabled?: boolean;
 }
 
-export function SendLicenseConfirmModal({ open, onDismiss, onConfirm }: SendLicenseConfirmModalProps) {
+export function SendLicenseConfirmModal({
+  open,
+  onDismiss,
+  onConfirm,
+  title = "Send License Key ?",
+  description = "Do you want to send the license key for this Parent Company? An email will be dispatched according to the user type.",
+  dismissLabel = "No",
+  confirmLabel = "Yes – Send License",
+  confirmDisabled = false,
+}: SendLicenseConfirmModalProps) {
   const theme = useTheme() as AppTheme;
   useBodyScrollLock(open);
 
@@ -81,35 +98,35 @@ export function SendLicenseConfirmModal({ open, onDismiss, onConfirm }: SendLice
             lineHeight: 1.3,
           }}
         >
-          Send License Key ?
+          {title}
         </Typography>
 
         <Typography
           variant="medium"
           sx={{
             color: theme.app.dashboard.textMuted,
-            maxWidth: 360,
+            maxWidth: 400,
             mx: "auto",
             lineHeight: 1.55,
             mb: 2.5,
           }}
         >
-          Do you want to send the license key for this Parent Company? An email will be dispatched according to the user
-          type.
+          {description}
         </Typography>
 
         <Box sx={sendLicenseConfirmActionsRowSx}>
           <Button type="button" variant="outlined" onClick={onDismiss} sx={resolveSx(filterChromeButtonSx, theme)}>
-            No
+            {dismissLabel}
           </Button>
           <Button
             type="button"
             variant="primary"
             onClick={onConfirm}
+            disabled={confirmDisabled}
             sx={gradientPrimaryButtonSx}
             startIcon={<AutoAwesome sx={{ fontSize: 18 }} />}
           >
-            Yes – Send License
+            {confirmLabel}
           </Button>
         </Box>
       </ModalGlassShell>

@@ -12,13 +12,14 @@ function toRoleRow(item: unknown): RoleRow | null {
   const id = String(r.id ?? "").trim();
   if (!id) return null;
   const name = String(r.name ?? r.roleName ?? "").trim() || "—";
+  const countObj = asRecord((r as Record<string, unknown>)._count);
   const rawCount =
-    (asRecord(r._count) as any)?.users ??
-    r.userCount ??
-    r.usersCount ??
-    r.totalUsers ??
-    r.assignedUsers ??
-    r.user_count;
+    (countObj ? countObj.users : undefined) ??
+    (r as Record<string, unknown>).userCount ??
+    (r as Record<string, unknown>).usersCount ??
+    (r as Record<string, unknown>).totalUsers ??
+    (r as Record<string, unknown>).assignedUsers ??
+    (r as Record<string, unknown>).user_count;
   const userCount = Number(rawCount);
   return {
     id,
@@ -30,8 +31,9 @@ function toRoleRow(item: unknown): RoleRow | null {
 export function extractRolesRows(payload: unknown): RoleRow[] {
   const root = asRecord(payload);
   const data = asRecord(root?.data);
+  const itemsRaw = data ? (data as Record<string, unknown>).items : undefined;
   const list =
-    (Array.isArray((data as any)?.items) ? ((data as any).items as unknown[]) : null) ??
+    (Array.isArray(itemsRaw) ? (itemsRaw as unknown[]) : null) ??
     pickArray(payload, ["items", "rows", "results", "roles"]);
   return list.map(toRoleRow).filter((row): row is RoleRow => row !== null);
 }
@@ -76,10 +78,11 @@ function pickString(v: unknown): string {
 function extractCatalogArray(payload: unknown): unknown[] {
   const root = asRecord(payload);
   if (!root) return [];
-  const direct = (root as any)?.data;
+  const direct = (root as Record<string, unknown>).data;
   if (Array.isArray(direct)) return direct;
-  const nested = asRecord((root as any)?.data);
-  if (Array.isArray((nested as any)?.data)) return (nested as any).data;
+  const nested = asRecord((root as Record<string, unknown>).data);
+  const nestedData = nested ? (nested as Record<string, unknown>).data : undefined;
+  if (Array.isArray(nestedData)) return nestedData;
   return pickArray(payload, ["items", "rows", "results", "permissions"]);
 }
 
@@ -96,9 +99,11 @@ function toPermissionOption(raw: unknown): PermissionOption | null {
 export function extractPermissionsCatalogGroups(payload: unknown): PermissionGroup[] {
   const root = asRecord(payload);
   const data = asRecord(root?.data);
+  const dataRec = (data ?? null) as Record<string, unknown> | null;
+  const rootRec = (root ?? null) as Record<string, unknown> | null;
   const groupsRaw =
-    (Array.isArray((data as any)?.groups) ? (data as any).groups : null)
-    ?? (Array.isArray((root as any)?.groups) ? (root as any).groups : null)
+    (Array.isArray(dataRec?.groups) ? dataRec?.groups : null)
+    ?? (Array.isArray(rootRec?.groups) ? rootRec?.groups : null)
     ?? null;
   if (groupsRaw) {
     const out: PermissionGroup[] = [];
@@ -113,6 +118,34 @@ export function extractPermissionsCatalogGroups(payload: unknown): PermissionGro
     if (out.length > 0) return out;
   }
 
+  // Some backends return grouped output as an object map, e.g.:
+  // { data: { PAGE: [...], OPERATIONAL: [...] } } (or lower-case keys).
+  // Support that shape as well.
+  const groupedObj =
+    (asRecord(dataRec?.permissionNamesByType) as Record<string, unknown> | null) ??
+    (asRecord(dataRec?.permissionsByType) as Record<string, unknown> | null) ??
+    (asRecord(dataRec?.grouped) as Record<string, unknown> | null) ??
+    (asRecord(rootRec?.permissionNamesByType) as Record<string, unknown> | null) ??
+    (asRecord(rootRec?.permissionsByType) as Record<string, unknown> | null) ??
+    (asRecord(rootRec?.grouped) as Record<string, unknown> | null) ??
+    (data as Record<string, unknown> | null);
+  if (groupedObj && !Array.isArray(groupedObj)) {
+    const out: PermissionGroup[] = [];
+    for (const [k, v] of Object.entries(groupedObj)) {
+      if (!Array.isArray(v)) continue;
+      const permissions = (v as unknown[])
+        .map(toPermissionOption)
+        .filter((p): p is PermissionOption => p !== null)
+        .sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: "base" }));
+      if (permissions.length === 0) continue;
+      out.push({ title: pickString(k) || "Permissions", permissions });
+    }
+    if (out.length > 0) {
+      out.sort((a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: "base" }));
+      return out;
+    }
+  }
+
   // Group by permissionType if available (OPERATIONAL / PAGE).
   const items = extractCatalogArray(payload);
   const grouped = new Map<string, PermissionOption[]>();
@@ -120,7 +153,7 @@ export function extractPermissionsCatalogGroups(payload: unknown): PermissionGro
     const r = asRecord(item);
     const option = toPermissionOption(item);
     if (!option) continue;
-    const type = pickString((r as any)?.permissionType) || "Permissions";
+    const type = pickString(r ? (r as Record<string, unknown>).permissionType : undefined) || "Permissions";
     const list = grouped.get(type) ?? [];
     list.push(option);
     grouped.set(type, list);
@@ -148,20 +181,25 @@ export function extractPermissionsCatalogFlat(payload: unknown): PermissionOptio
 export function extractRoleAssignedPermissionNames(payload: unknown): string[] {
   const root = asRecord(payload);
   const data = asRecord(root?.data);
+  const dataRec = (data ?? null) as Record<string, unknown> | null;
+  const rootRec = (root ?? null) as Record<string, unknown> | null;
   const candidates: unknown[] = [
-    (data as any)?.permissionNames,
-    (data as any)?.permissions,
-    (data as any)?.assignedPermissionNames,
-    (data as any)?.assigned,
-    (root as any)?.permissionNames,
-    (root as any)?.permissions,
-    (root as any)?.assignedPermissionNames,
-    (root as any)?.assigned,
+    dataRec?.permissionNames,
+    dataRec?.permissions,
+    dataRec?.assignedPermissionNames,
+    dataRec?.assigned,
+    rootRec?.permissionNames,
+    rootRec?.permissions,
+    rootRec?.assignedPermissionNames,
+    rootRec?.assigned,
   ];
   for (const c of candidates) {
     if (!Array.isArray(c)) continue;
     const out = (c as unknown[])
-      .map((v) => pickString((asRecord(v) as any)?.name ?? (asRecord(v) as any)?.code ?? v))
+      .map((v) => {
+        const vr = asRecord(v) as Record<string, unknown> | null;
+        return pickString((vr ? vr.name ?? vr.code : undefined) ?? v);
+      })
       .filter((s) => s.length > 0);
     if (out.length > 0) return Array.from(new Set(out)).sort();
   }
@@ -172,7 +210,8 @@ export function extractRoleNameFromDetail(payload: unknown): string {
   const root = asRecord(payload);
   const data = asRecord(root?.data);
   const source = data ?? root;
-  const name = String((source as any)?.name ?? (source as any)?.roleName ?? "").trim();
+  const src = (source ?? null) as Record<string, unknown> | null;
+  const name = String((src?.name ?? src?.roleName ?? "") as unknown).trim();
   return name;
 }
 

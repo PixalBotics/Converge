@@ -82,7 +82,7 @@ export default function CompaniesPage() {
           if (!id) {
             publishAppToast({
               variant: "error",
-              message: "Could not start setup: draft id missing from server response.",
+              message: "Could not start setup. Please try again.",
             });
             return;
           }

@@ -63,6 +63,14 @@ export function Calendar({
                 ...(sx ? [resolveSx(sx, theme)] : []),
               ] as SxProps<Theme>,
             },
+            popper: {
+              placement: "bottom-start",
+              modifiers: [
+                // Always open below the field (no auto-flip to top).
+                { name: "flip", enabled: false },
+                { name: "preventOverflow", enabled: true, options: { altAxis: true, padding: 8 } },
+              ],
+            },
           }}
         />
       </LocalizationProvider>

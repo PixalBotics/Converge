@@ -11,6 +11,13 @@ export async function createShiftTemplate(body: JsonRecord): Promise<unknown> {
   return data;
 }
 
+export async function getShiftTemplate(id: string): Promise<unknown> {
+  const { data } = await apiClient.get(
+    `/hrms/shifts/${encodeURIComponent(id)}`,
+  );
+  return data;
+}
+
 export async function updateShiftTemplate(
   id: string,
   body: JsonRecord,

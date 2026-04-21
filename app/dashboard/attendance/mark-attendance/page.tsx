@@ -9,6 +9,8 @@ import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.style
 import { rolesCard, rolesIconBox, rolesPageWrapper } from "../../roles/roles.styles";
 import { pageWrapper } from "../../companies/overview.styles";
 import { publishAppToast } from "@/lib/notify";
+import { useAttendanceCheckInMutation, useAttendanceCheckOutMutation } from "@/lib/hooks/query";
+import NextLink from "next/link";
 import {
   markAttendanceActionsSx,
   markAttendanceCardHeaderSx,
@@ -19,24 +21,45 @@ import {
 } from "./mark-attendance.styles";
 
 export default function MarkAttendancePage() {
-  const [checkIn, setCheckIn] = useState("");
-  const [checkOut, setCheckOut] = useState("");
+  const [date] = useState(() => new Date().toISOString().slice(0, 10));
+  const [checkedIn, setCheckedIn] = useState(false);
+  const checkInMutation = useAttendanceCheckInMutation();
+  const checkOutMutation = useAttendanceCheckOutMutation();
 
-  const handleCancel = () => {
-    setCheckIn("");
-    setCheckOut("");
+  const handleCheckIn = () => {
+    const d = date.trim();
+    if (!d) {
+      publishAppToast({ variant: "error", message: "Please select a date." });
+      return;
+    }
+    checkInMutation.mutate(
+      { date: d },
+      {
+        onSuccess: () => {
+          setCheckedIn(true);
+          publishAppToast({ variant: "success", message: "Checked in." });
+        },
+        onError: () => publishAppToast({ variant: "error", message: "Could not check in." }),
+      },
+    );
   };
 
-  const handleMarkAttendance = () => {
-    if (!checkIn.trim()) {
-      publishAppToast({ variant: "error", message: "Please enter check-in time." });
+  const handleCheckOut = () => {
+    const d = date.trim();
+    if (!d) {
+      publishAppToast({ variant: "error", message: "Please select a date." });
       return;
     }
-    if (!checkOut.trim()) {
-      publishAppToast({ variant: "error", message: "Please enter check-out time." });
-      return;
-    }
-    publishAppToast({ variant: "success", message: "Attendance marked successfully." });
+    checkOutMutation.mutate(
+      { date: d },
+      {
+        onSuccess: () => {
+          setCheckedIn(false);
+          publishAppToast({ variant: "success", message: "Checked out." });
+        },
+        onError: () => publishAppToast({ variant: "error", message: "Could not check out." }),
+      },
+    );
   };
 
   return (
@@ -46,7 +69,7 @@ export default function MarkAttendancePage() {
           Mark Attendance
         </Typography>
         <Typography variant="body2" sx={markAttendanceSubtextSx}>
-          Generate and distribute licenses to client companies
+          Check in/out for your own user (HRMS Attendance).
         </Typography>
       </Box>
 
@@ -62,26 +85,35 @@ export default function MarkAttendancePage() {
 
         <Box sx={markAttendanceFormGridSx}>
           <InputField
-            label="Check-in"
-            placeholder="Food"
-            value={checkIn}
-            onChange={(e) => setCheckIn(e.target.value)}
-          />
-          <InputField
-            label="Check-out"
-            placeholder="Assign Department Head"
-            value={checkOut}
-            onChange={(e) => setCheckOut(e.target.value)}
+            label="Date"
+            type="date"
+            value={date}
+            readOnly
+            inputProps={{ readOnly: true }}
           />
         </Box>
 
         <Box sx={markAttendanceActionsSx}>
-          <Button variant="secondary" onClick={handleCancel}>
-            Cancel
+          <Button variant="secondary" component={NextLink} href="/dashboard/attendance/my-attendance">
+            Back
           </Button>
-          <Button variant="primary" sx={gradientPrimaryButtonSx} onClick={handleMarkAttendance}>
-            Mark Attendance
+          <Button
+            variant="secondary"
+            disabled={checkInMutation.isPending || checkOutMutation.isPending}
+            onClick={handleCheckIn}
+          >
+            {checkInMutation.isPending ? "Checking in…" : "Check in"}
           </Button>
+          {checkedIn ? (
+            <Button
+              variant="primary"
+              sx={gradientPrimaryButtonSx}
+              disabled={checkInMutation.isPending || checkOutMutation.isPending}
+              onClick={handleCheckOut}
+            >
+              {checkOutMutation.isPending ? "Checking out…" : "Check out"}
+            </Button>
+          ) : null}
         </Box>
       </DashboardCard>
     </Box>

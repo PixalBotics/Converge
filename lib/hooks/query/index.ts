@@ -5,9 +5,11 @@ export { useLoginAsMutation, useLoginMutation, useLogoutMutation, useMeQuery } f
 export { usersKeys } from "./users";
 export {
   useCreateUserMutation,
+  useReplaceUserPermissionOverridesMutation,
   useSoftDeleteUserMutation,
   useUpdateUserMutation,
   useUserFilterSuggestionsQuery,
+  useUserPermissionsQuery,
   useUserQuery,
   useUsersListQuery,
 } from "./users";
@@ -41,9 +43,15 @@ export {
 } from "./roles";
 export { websiteAssignmentsKeys } from "./website-assignments";
 export {
+  useAssignWebsiteTierMutation,
+  useWebsiteAssignmentDetailQuery,
+  useWebsiteAssignmentsUserWebsitesQuery,
   useWebsiteAssignmentsWebsitesQuery,
 } from "./website-assignments";
-export type { WebsiteAssignmentsWebsitesParams } from "./website-assignments";
+export type {
+  WebsiteAssignmentsUserWebsitesParams,
+  WebsiteAssignmentsWebsitesParams,
+} from "./website-assignments";
 export { platformKeys } from "./platform";
 export { useGeneratePlatformLicenseKeyMutation, usePlatformLicenseKeysQuery } from "./platform";
 export { platformThemeKeys, usePlatformThemeMeQuery, useUpdatePlatformThemeMutation } from "./platform-theme";

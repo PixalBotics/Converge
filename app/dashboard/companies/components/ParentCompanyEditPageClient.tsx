@@ -9,13 +9,14 @@ import AccordionSummary from "@mui/material/AccordionSummary";
 import Box from "@mui/material/Box";
 import TextField from "@mui/material/TextField";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import ChevronRightIcon from "@mui/icons-material/ChevronRight";
+import BusinessOutlined from "@mui/icons-material/BusinessOutlined";
 import { CheckCircle as CheckCircleIcon } from "@mui/icons-material";
 import { alpha, useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
-import { Button, FormModal, InputField, Typography } from "@/components/common";
+import { Button, InputField, Typography } from "@/components/common";
 import { Label } from "@/components/common/Label";
 import { textFieldStyles } from "@/components/common/InputField/InputField.styles";
+import type { JsonRecord } from "@/api";
 import type { ParentCompanyChildDetail } from "@/api/types/companies.types";
 import { normalizePocsFromCarrier } from "@/lib/companies/parent-detail-pocs";
 import { CompanyPocSummaryBlock } from "./CompanyPocSummaryBlock";
@@ -43,6 +44,9 @@ import {
   stepperSegment,
 } from "../overview.styles";
 import { departmentsCard } from "../../website-assigning/website-assigning.styles";
+import { ChildCompanyPocPanel } from "./ChildCompanyPocPanel";
+import { ChildCompanyPocEditor } from "./ChildCompanyPocEditor";
+import { ChildCompanyWebsitesPanel } from "./ChildCompanyWebsitesPanel";
 
 type ChildFormState = {
   name: string;
@@ -51,19 +55,68 @@ type ChildFormState = {
   address: string;
 };
 
+type ChildWebsiteRow = { id?: string; url: string; name: string };
+
+type ChildPocRow = {
+  companyContactId?: string;
+  userId?: string;
+  pocInvite?: Record<string, unknown>;
+  userProfile?: Record<string, unknown>;
+};
+
 function toChildForm(c: ParentCompanyChildDetail): ChildFormState {
+  const emailRaw = c.email ?? c.companyEmail ?? "";
   return {
     name: c.name ?? "",
-    email: c.email ?? "",
+    email: String(emailRaw ?? ""),
     phone: c.phone ?? "",
     address: c.address ?? "",
   };
 }
 
-function buildChildPatch(before: ChildFormState, after: ChildFormState): Record<string, string> {
-  const body: Record<string, string> = {};
+function toChildWebsites(c: ParentCompanyChildDetail): ChildWebsiteRow[] {
+  const out: ChildWebsiteRow[] = [];
+  const seen = new Set<string>();
+  const push = (idRaw: unknown, urlRaw: unknown, nameRaw: unknown) => {
+    const id = String(idRaw ?? "").trim();
+    const url = String(urlRaw ?? "").trim();
+    const name = String(nameRaw ?? "").trim();
+    const key = id || url;
+    if (!key || seen.has(key)) return;
+    seen.add(key);
+    out.push({ ...(id ? { id } : {}), url, name });
+  };
+  const w = c.website as unknown as { id?: string; websiteId?: string; url?: string; name?: string } | null | undefined;
+  if (w) push(w.id ?? w.websiteId, w.url, w.name);
+  const multi = c.websites;
+  if (Array.isArray(multi)) {
+    for (const raw of multi) {
+      const r = raw as any;
+      push(r?.id ?? r?.websiteId, r?.url, r?.name);
+    }
+  }
+  return out;
+}
+
+function toChildPocs(c: ParentCompanyChildDetail): ChildPocRow[] {
+  const out: ChildPocRow[] = [];
+  const raw = (c as any)?.pocs;
+  if (Array.isArray(raw)) {
+    for (const p of raw) {
+      const pcid = String((p as any)?.companyContactId ?? "").trim();
+      const userId = String((p as any)?.user?.id ?? (p as any)?.userId ?? "").trim();
+      if (!pcid && !userId) continue;
+      out.push({ ...(pcid ? { companyContactId: pcid } : {}), ...(userId ? { userId } : {}) });
+    }
+  }
+  return out;
+}
+
+/** PATCH /companies/:id — matches OpenAPI (companyEmail, not email). */
+function buildChildPatch(before: ChildFormState, after: ChildFormState): JsonRecord {
+  const body: JsonRecord = {};
   if (after.name.trim() !== before.name.trim()) body.name = after.name.trim();
-  if (after.email.trim() !== before.email.trim()) body.email = after.email.trim();
+  if (after.email.trim() !== before.email.trim()) body.companyEmail = after.email.trim();
   if (after.phone.trim() !== before.phone.trim()) body.phone = after.phone.trim();
   if (after.address.trim() !== before.address.trim()) body.address = after.address.trim();
   return body;
@@ -110,7 +163,6 @@ export function ParentCompanyEditPageClient() {
   const [parentName, setParentName] = useState("");
   const [initialParentName, setInitialParentName] = useState("");
   const [parentFieldErrors, setParentFieldErrors] = useState<Record<string, string>>({});
-  const [parentModalOpen, setParentModalOpen] = useState(false);
 
   useEffect(() => {
     if (!detail?.parentCompany) return;
@@ -118,16 +170,6 @@ export function ParentCompanyEditPageClient() {
     setParentName(n);
     setInitialParentName(n);
     setParentFieldErrors({});
-  }, [detail?.parentCompany]);
-
-  useEffect(() => {
-    if (step !== 1) setParentModalOpen(false);
-  }, [step]);
-
-  const parentPocPreview = useMemo(() => {
-    if (!detail?.parentCompany) return null;
-    const rows = normalizePocsFromCarrier(detail.parentCompany);
-    return rows[0]?.name?.trim() || null;
   }, [detail?.parentCompany]);
 
   const updateParentMutation = useUpdateParentCompanyMutation();
@@ -138,6 +180,11 @@ export function ParentCompanyEditPageClient() {
   const [childFieldErrors, setChildFieldErrors] = useState<Record<string, Record<string, string>>>(
     {},
   );
+  const [childWebsites, setChildWebsites] = useState<Record<string, ChildWebsiteRow[]>>({});
+  const [childWebsitesBase, setChildWebsitesBase] = useState<Record<string, ChildWebsiteRow[]>>({});
+  const [childPocs, setChildPocs] = useState<Record<string, ChildPocRow[]>>({});
+  const [childPocsBase, setChildPocsBase] = useState<Record<string, ChildPocRow[]>>({});
+  const [childTouched, setChildTouched] = useState<Record<string, { websites?: boolean; pocs?: boolean }>>({});
   const [savingChildId, setSavingChildId] = useState<string | null>(null);
   const childFormsHydratedForParent = useRef<string>("");
 
@@ -151,13 +198,28 @@ export function ParentCompanyEditPageClient() {
     childFormsHydratedForParent.current = parentId;
     const nextForms: Record<string, ChildFormState> = {};
     const nextBase: Record<string, ChildFormState> = {};
+    const nextWebsites: Record<string, ChildWebsiteRow[]> = {};
+    const nextWebsitesBase: Record<string, ChildWebsiteRow[]> = {};
+    const nextPocs: Record<string, ChildPocRow[]> = {};
+    const nextPocsBase: Record<string, ChildPocRow[]> = {};
     for (const c of detail.children) {
       const form = toChildForm(c);
       nextForms[c.id] = form;
       nextBase[c.id] = { ...form };
+      const ws = toChildWebsites(c);
+      nextWebsites[c.id] = ws;
+      nextWebsitesBase[c.id] = ws.map((x) => ({ ...x }));
+      const ps = toChildPocs(c);
+      nextPocs[c.id] = ps;
+      nextPocsBase[c.id] = ps.map((x) => ({ ...x }));
     }
     setChildForms(nextForms);
     setChildBaselines(nextBase);
+    setChildWebsites(nextWebsites);
+    setChildWebsitesBase(nextWebsitesBase);
+    setChildPocs(nextPocs);
+    setChildPocsBase(nextPocsBase);
+    setChildTouched({});
     setChildFieldErrors({});
   }, [parentId, detail?.children]);
 
@@ -170,7 +232,6 @@ export function ParentCompanyEditPageClient() {
     }
     if (Object.keys(patch).length === 0) {
       if (thenGoStep2) {
-        setParentModalOpen(false);
         setStepInUrl(2);
       }
       return;
@@ -180,7 +241,6 @@ export function ParentCompanyEditPageClient() {
       setInitialParentName(parentName.trim());
       publishAppToast({ variant: "success", message: "Parent company updated." });
       if (thenGoStep2) {
-        setParentModalOpen(false);
         setStepInUrl(2);
       }
     } catch (e) {
@@ -196,9 +256,24 @@ export function ParentCompanyEditPageClient() {
     const current = childForms[childId];
     if (!baseline || !current || !parentId) return;
     const patch = buildChildPatch(baseline, current);
-    if (Object.keys(patch).length === 0) {
-      return;
+    const touched = childTouched[childId] ?? {};
+    if (touched.websites) {
+      patch.websites = (childWebsites[childId] ?? []).map((w) => ({
+        ...(w.id ? { id: w.id } : {}),
+        url: String(w.url ?? "").trim(),
+        name: String(w.name ?? "").trim(),
+      }));
     }
+    if (touched.pocs) {
+      patch.pocs = (childPocs[childId] ?? []).map((p) => ({
+        ...(p.companyContactId ? { companyContactId: p.companyContactId } : {}),
+        ...(p.userId ? { userId: p.userId } : {}),
+        ...(p.pocInvite ? { pocInvite: p.pocInvite } : {}),
+        ...(p.userProfile ? { userProfile: p.userProfile } : {}),
+      }));
+    }
+
+    if (Object.keys(patch).length === 0) return;
     setSavingChildId(childId);
     setChildFieldErrors((prev) => ({ ...prev, [childId]: {} }));
     try {
@@ -208,9 +283,21 @@ export function ParentCompanyEditPageClient() {
         parentIdForList: parentId,
       });
       setChildBaselines((prev) => ({ ...prev, [childId]: { ...current } }));
+      if (touched.websites) {
+        const ws = childWebsites[childId] ?? [];
+        setChildWebsitesBase((prev) => ({ ...prev, [childId]: ws.map((x) => ({ ...x })) }));
+      }
+      if (touched.pocs) {
+        const ps = childPocs[childId] ?? [];
+        setChildPocsBase((prev) => ({ ...prev, [childId]: ps.map((x) => ({ ...x })) }));
+      }
+      setChildTouched((prev) => ({ ...prev, [childId]: {} }));
       publishAppToast({ variant: "success", message: "Child company updated." });
     } catch (e) {
-      const fields = extractNestFieldErrors(e);
+      let fields = extractNestFieldErrors(e);
+      if (fields.companyEmail && !fields.email) {
+        fields = { ...fields, email: fields.companyEmail };
+      }
       if (Object.keys(fields).length) {
         setChildFieldErrors((prev) => ({ ...prev, [childId]: fields }));
       }
@@ -227,6 +314,16 @@ export function ParentCompanyEditPageClient() {
       if (!row) return prev;
       return { ...prev, [childId]: { ...row, ...patch } };
     });
+  };
+
+  const updateChildWebsites = (childId: string, next: ChildWebsiteRow[]) => {
+    setChildWebsites((prev) => ({ ...prev, [childId]: next }));
+    setChildTouched((prev) => ({ ...prev, [childId]: { ...(prev[childId] ?? {}), websites: true } }));
+  };
+
+  const updateChildPocs = (childId: string, next: ChildPocRow[]) => {
+    setChildPocs((prev) => ({ ...prev, [childId]: next }));
+    setChildTouched((prev) => ({ ...prev, [childId]: { ...(prev[childId] ?? {}), pocs: true } }));
   };
 
   const listHref = "/dashboard/companies";
@@ -248,9 +345,9 @@ export function ParentCompanyEditPageClient() {
   }
 
   return (
-    <Box sx={pageWrapper}>
+    <Box sx={[pageWrapper, { maxWidth: 1040, width: "100%", mx: "auto", pb: 4 }]}>
       <Box sx={pageHeaderRow}>
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
           <Button
             component={Link}
             href={listHref}
@@ -259,11 +356,12 @@ export function ParentCompanyEditPageClient() {
           >
             ← All companies
           </Button>
-          <Typography variant="regularLarge" fontWeight={700} color="white">
+          <Typography variant="regularLarge" fontWeight={700} color="white" sx={{ letterSpacing: "-0.02em" }}>
             Edit company
           </Typography>
-          <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, maxWidth: 520, lineHeight: 1.5 }}>
-            Update the parent company, reseller context, and each child. Changes save per section.
+          <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, maxWidth: 640, lineHeight: 1.65 }}>
+            Two clear steps: parent & reseller, then each child with company details, contacts, and websites. Save
+            each block when you are done — nothing is auto-lost when you expand another row.
           </Typography>
         </Box>
       </Box>
@@ -314,117 +412,60 @@ export function ParentCompanyEditPageClient() {
             display: "flex",
             flexDirection: "column",
             gap: 2,
+            maxWidth: 720,
+            width: "100%",
+            alignSelf: "stretch",
+            borderRadius: "16px",
+            border: `1px solid ${alpha(theme.app.dashboard.cardBorder, 0.55)}`,
+            boxShadow: `0 18px 48px ${alpha("#000", 0.22)}`,
           }}
         >
           <Box>
             <Typography component="p" sx={stepEyebrowSx(theme)}>
-              {"Step 1 · Parent & reseller"}
+              Step 1 · Parent & reseller
             </Typography>
             <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, mt: 0.75, lineHeight: 1.55 }}>
-              Open the row to see and edit this parent company, reseller context, and contacts — same idea as
-              child rows on step 2.
+              Edit the parent on this page (same full-width pattern as child companies on step 2). Use the actions
+              below when you are ready to continue.
             </Typography>
           </Box>
 
-          <Box
-            component="button"
-            type="button"
-            onClick={() => setParentModalOpen(true)}
-            aria-expanded={parentModalOpen}
-            aria-haspopup="dialog"
-            sx={{
-              width: "100%",
-              textAlign: "left",
-              cursor: "pointer",
-              border: `1px solid ${alpha(theme.app.dashboard.cardBorder, 0.95)}`,
-              borderRadius: "14px",
-              p: { xs: 1.75, sm: 2 },
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: 2,
-              bgcolor: alpha(theme.app.dashboard.white95, 0.04),
-              boxShadow: `0 1px 0 ${alpha("#000", 0.2)} inset`,
-              transition: theme.transitions.create(["border-color", "background-color"], {
-                duration: theme.transitions.duration.shorter,
-              }),
-              "&:hover": {
-                bgcolor: alpha(theme.app.dashboard.white95, 0.07),
-                borderColor: alpha(theme.app.dashboard.accentBlue, 0.45),
-              },
-              "&:focus-visible": {
-                outline: `2px solid ${alpha(theme.app.dashboard.accentBlue, 0.8)}`,
-                outlineOffset: 2,
-              },
-            }}
-          >
-            <Box sx={{ minWidth: 0, flex: 1, display: "flex", flexDirection: "column", gap: 0.35 }}>
-              <Typography
-                sx={{
-                  color: theme.app.dashboard.white95,
-                  fontWeight: 600,
-                  fontSize: "0.9375rem",
-                  lineHeight: 1.35,
-                }}
-              >
-                {(parentName.trim() || detail.parentCompany.name || "Parent company").trim()}
-              </Typography>
-              <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, lineHeight: 1.45 }}>
-                Reseller · {detail.parentCompany.reseller?.name ?? "—"}
-              </Typography>
-              {parentPocPreview ? (
-                <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, mt: 0.35 }}>
-                  Primary contact · {parentPocPreview}
-                </Typography>
-              ) : null}
-            </Box>
-            <ChevronRightIcon
-              sx={{ color: alpha(theme.app.dashboard.white95, 0.65), fontSize: 22, flexShrink: 0 }}
-              aria-hidden
+          <Box sx={{ ...sectionStack, pt: 0.5 }}>
+            <Typography sx={{ ...sectionOverlineSx(theme), mb: 0.25 }}>Parent company</Typography>
+            <InputField
+              label="Parent company name"
+              value={parentName}
+              onChange={(e) => setParentName(e.target.value)}
+              error={Boolean(parentFieldErrors.name)}
+              helperText={parentFieldErrors.name ?? "\u00a0"}
+              inputProps={{ maxLength: 200 }}
             />
-          </Box>
-
-          <FormModal
-            open={parentModalOpen}
-            title="Parent company"
-            description={`You are editing “${detail.parentCompany.name ?? "—"}” under reseller ${detail.parentCompany.reseller?.name ?? "—"}.`}
-            onClose={() => setParentModalOpen(false)}
-            onSave={() => void handleSaveParent(true)}
-            primaryButtonLabel={updateParentMutation.isPending ? "Saving…" : "Save & next"}
-            primaryButtonDisabled={updateParentMutation.isPending}
-            cancelButtonLabel="Close"
-            fitContent
-            maxWidth={560}
-          >
-            <Box sx={sectionStack}>
-              <InputField
-                label="Parent company name"
-                value={parentName}
-                onChange={(e) => setParentName(e.target.value)}
-                error={Boolean(parentFieldErrors.name)}
-                helperText={parentFieldErrors.name ?? "\u00a0"}
-                inputProps={{ maxLength: 200 }}
-              />
-              <Box>
-                <Typography component="h3" sx={{ ...sectionOverlineSx(theme), mb: 1 }}>
-                  Reseller
-                </Typography>
-                <Typography variant="body1" sx={{ color: theme.app.text.primary, fontWeight: 500 }}>
-                  {detail.parentCompany.reseller?.name ?? "—"}
-                </Typography>
-              </Box>
-            <CompanyPocSummaryBlock rows={normalizePocsFromCarrier(detail.parentCompany)} />
-              <Box sx={{ display: "flex", justifyContent: "flex-end", pt: 0.5 }}>
-                <Button
-                  variant="secondary"
-                  disabled={updateParentMutation.isPending}
-                  onClick={() => void handleSaveParent(false)}
-                >
-                  {updateParentMutation.isPending ? "Saving…" : "Save only"}
-                </Button>
-              </Box>
+            <Box>
+              <Typography component="h3" sx={{ ...sectionOverlineSx(theme), mb: 1 }}>
+                Reseller
+              </Typography>
+              <Typography variant="body1" sx={{ color: theme.app.text.primary, fontWeight: 500 }}>
+                {detail.parentCompany.reseller?.name ?? "—"}
+              </Typography>
             </Box>
-          </FormModal>
+            <CompanyPocSummaryBlock rows={normalizePocsFromCarrier(detail.parentCompany)} />
+            <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1.5, justifyContent: "flex-end", pt: 1 }}>
+              <Button
+                variant="secondary"
+                disabled={updateParentMutation.isPending}
+                onClick={() => void handleSaveParent(false)}
+              >
+                {updateParentMutation.isPending ? "Saving…" : "Save parent"}
+              </Button>
+              <Button
+                variant="primary"
+                disabled={updateParentMutation.isPending}
+                onClick={() => void handleSaveParent(true)}
+              >
+                {updateParentMutation.isPending ? "Saving…" : "Save & go to child companies"}
+              </Button>
+            </Box>
+          </Box>
         </Box>
       ) : null}
 
@@ -436,6 +477,12 @@ export function ParentCompanyEditPageClient() {
             display: "flex",
             flexDirection: "column",
             gap: 2.25,
+            maxWidth: 900,
+            width: "100%",
+            alignSelf: "stretch",
+            borderRadius: "16px",
+            border: `1px solid ${alpha(theme.app.dashboard.cardBorder, 0.55)}`,
+            boxShadow: `0 18px 48px ${alpha("#000", 0.22)}`,
           }}
         >
           <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 2, flexWrap: "wrap" }}>
@@ -470,10 +517,10 @@ export function ParentCompanyEditPageClient() {
                   sx={{
                     bgcolor: alpha(theme.app.dashboard.white95, 0.04),
                     border: `1px solid ${alpha(theme.app.dashboard.cardBorder, 0.9)}`,
-                    borderRadius: "14px !important",
+                    borderRadius: "16px !important",
                     overflow: "hidden",
                     "&:before": { display: "none" },
-                    boxShadow: `0 1px 0 ${alpha("#000", 0.2)} inset`,
+                    boxShadow: `0 10px 32px ${alpha("#000", 0.16)}, inset 0 1px 0 ${alpha(theme.app.dashboard.white95, 0.05)}`,
                   }}
                 >
                   <AccordionSummary
@@ -482,13 +529,28 @@ export function ParentCompanyEditPageClient() {
                     }
                     sx={{
                       px: 2,
-                      py: 1.5,
-                      minHeight: 56,
-                      "& .MuiAccordionSummary-content": { my: 1, alignItems: "flex-start" },
+                      py: 1.75,
+                      minHeight: 68,
+                      "& .MuiAccordionSummary-content": { my: 1, alignItems: "center", gap: 1.5 },
                     }}
                   >
-                    <Box sx={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 0.35 }}>
-                      <Typography sx={{ color: theme.app.dashboard.white95, fontWeight: 600, fontSize: "0.9375rem" }}>
+                    <Box
+                      sx={{
+                        width: 44,
+                        height: 44,
+                        borderRadius: "12px",
+                        flexShrink: 0,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        bgcolor: alpha(theme.palette.primary.main, 0.14),
+                        color: theme.palette.primary.light,
+                      }}
+                    >
+                      <BusinessOutlined sx={{ fontSize: 24 }} />
+                    </Box>
+                    <Box sx={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 0.35, minWidth: 0 }}>
+                      <Typography sx={{ color: theme.app.dashboard.white95, fontWeight: 700, fontSize: "0.975rem" }}>
                         {form.name.trim() || child.name || "Child company"}
                       </Typography>
                       <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted }}>
@@ -496,7 +558,7 @@ export function ParentCompanyEditPageClient() {
                       </Typography>
                     </Box>
                   </AccordionSummary>
-                  <AccordionDetails sx={{ px: 2, pb: 2.5, pt: 0 }}>
+                  <AccordionDetails sx={{ px: 2, pb: 2.75, pt: 0, bgcolor: alpha("#000", 0.08) }}>
                     <Box sx={{ ...sectionStack, pt: 0.5 }}>
                       <Typography sx={{ ...sectionOverlineSx(theme), mb: 0.5 }}>
                         Company details
@@ -544,14 +606,28 @@ export function ParentCompanyEditPageClient() {
                           sx={textFieldStyles(theme)}
                         />
                       </Box>
-                      <CompanyPocSummaryBlock rows={normalizePocsFromCarrier(child)} />
+                      <ChildCompanyPocEditor
+                        child={child}
+                        resellerId={String(detail.parentCompany.reseller?.id ?? "").trim()}
+                        parentCompanyId={parentId}
+                        pocs={childPocs[child.id] ?? childPocsBase[child.id] ?? []}
+                        onPocsChange={(next) => updateChildPocs(child.id, next)}
+                        disabled={savingChildId === child.id}
+                      />
+                      <ChildCompanyWebsitesPanel
+                        child={child}
+                        parentCompanyId={parentId}
+                        websites={childWebsites[child.id] ?? childWebsitesBase[child.id] ?? []}
+                        onWebsitesChange={(next) => updateChildWebsites(child.id, next)}
+                        disabled={savingChildId === child.id}
+                      />
                       <Button
                         variant="primary"
-                        sx={{ alignSelf: "flex-start", mt: 0.5 }}
+                        sx={{ alignSelf: "flex-start", mt: 1 }}
                         disabled={savingChildId === child.id}
                         onClick={() => void handleSaveChild(child.id)}
                       >
-                        {savingChildId === child.id ? "Saving…" : "Save changes"}
+                        {savingChildId === child.id ? "Saving…" : "Save company details"}
                       </Button>
                     </Box>
                   </AccordionDetails>

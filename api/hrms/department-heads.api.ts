@@ -6,6 +6,11 @@ export async function listDepartmentHeads(params?: JsonRecord): Promise<unknown>
   return data;
 }
 
+export async function listDepartmentHeadsAttendance(params?: JsonRecord): Promise<unknown> {
+  const { data } = await apiClient.get("/hrms/department-heads/attendance", { params });
+  return data;
+}
+
 export async function assignDepartmentHead(body: JsonRecord): Promise<unknown> {
   const { data } = await apiClient.post("/hrms/department-heads", body);
   return data;

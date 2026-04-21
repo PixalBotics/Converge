@@ -1,4 +1,4 @@
-import { createTheme, darken } from "@mui/material/styles";
+import { alpha, createTheme, darken } from "@mui/material/styles";
 
 /** App-wide background gradient (Discord-style midnight + Nitro-adjacent presets). */
 export const mainBackgroundGradient =
@@ -224,6 +224,66 @@ export function createAppMuiTheme(
             "&::-webkit-scrollbar": {
               display: "none",
             },
+          },
+        },
+      },
+      /**
+       * MUI X Date Pickers (Calendar / DatePicker) — match dashboard glass theme.
+       * Applies to every DatePicker in the app (filters, selections, etc).
+       */
+      MuiPickersPopper: {
+        styleOverrides: {
+          paper: ({ theme }) => {
+            const app = (theme as { app?: any }).app ?? {};
+            return {
+              // Match DashboardCard glass surface (same as the rest of the UI).
+              background: app.dashboard?.cardBg ?? alpha(app.dashboard?.menuSurfaceBg ?? "#1e1f22", 0.96),
+              border: `1px solid ${app.dashboard?.cardBorder ?? app.dashboard?.overlayBorder ?? "rgba(255,255,255,0.2)"}`,
+              boxShadow: app.dashboard?.cardGlassShadow ?? "0 18px 60px rgba(0,0,0,0.55)",
+              backdropFilter: app.dashboard?.cardBackdropBlur ?? "blur(18px) saturate(140%)",
+              color: app.text?.primary ?? "#fff",
+            };
+          },
+        },
+      },
+      MuiPickersLayout: {
+        styleOverrides: {
+          root: ({ theme }) => {
+            const app = (theme as { app?: any }).app ?? {};
+            return {
+              color: app.text?.primary ?? "#fff",
+              "& .MuiPickersCalendarHeader-label": {
+                color: app.text?.primary ?? "#fff",
+                fontWeight: 700,
+              },
+              "& .MuiPickersArrowSwitcher-button": {
+                color: app.dashboard?.white95 ?? "rgba(255,255,255,0.95)",
+                "&:hover": {
+                  backgroundColor: alpha(app.dashboard?.overlayLight ?? "rgba(255,255,255,0.06)", 0.7),
+                },
+              },
+              "& .MuiPickersDay-root": {
+                color: app.dashboard?.white95 ?? "rgba(255,255,255,0.95)",
+                borderRadius: 10,
+                "&:hover": {
+                  backgroundColor: alpha(app.dashboard?.overlayMedium ?? "rgba(255,255,255,0.08)", 0.8),
+                },
+              },
+              "& .MuiPickersDay-today": {
+                border: `1px solid ${alpha(app.dashboard?.accentBlue ?? "#5865F2", 0.8)}`,
+              },
+              "& .MuiPickersDay-root.Mui-selected": {
+                backgroundColor: alpha(app.dashboard?.accentBlue ?? "#5865F2", 0.85),
+                color: app.text?.primary ?? "#fff",
+                fontWeight: 800,
+                "&:hover": {
+                  backgroundColor: alpha(app.dashboard?.accentBlue ?? "#5865F2", 0.92),
+                },
+              },
+              "& .MuiPickersDay-root.Mui-disabled": {
+                color: alpha(app.dashboard?.white95 ?? "rgba(255,255,255,0.95)", 0.28),
+              },
+            };
           },
         },
       },

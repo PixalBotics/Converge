@@ -5,6 +5,7 @@ import Assignment from "@mui/icons-material/Assignment";
 import FilterList from "@mui/icons-material/FilterList";
 import IosShare from "@mui/icons-material/IosShare";
 import Box from "@mui/material/Box";
+import Chip from "@mui/material/Chip";
 import Link from "@mui/material/Link";
 import NextLink from "next/link";
 import { useTheme } from "@mui/material/styles";
@@ -19,7 +20,6 @@ import {
   FilterButton,
   SearchBar,
   SelectField,
-  TablePagination,
   Typography,
 } from "@/components/common";
 import { useCompaniesByResellerQuery, useCompaniesSetupResellersQuery, useWebsiteAssignmentsWebsitesQuery } from "@/lib/hooks";
@@ -27,6 +27,7 @@ import type { DataTableColumn } from "@/components/common";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
 import { SearchIcon } from "@/components/dashboard/icons/SearchIcon";
 import {
+  extractChildCompanyOptionsForParentFromByResellerTree,
   extractParentCompaniesFromByResellerTree,
   pickItemsArray,
   toIdNameOption,
@@ -40,15 +41,17 @@ import {
   websiteAssignmentHeaderActions,
   websiteAssignmentPageHeader,
   websiteAssignmentPageWrapper,
-  websiteAssignmentPaginationWrapper,
   websiteAssignmentSearchFieldWrapper,
   websiteAssignmentSearchRow,
   websiteAssignmentTableCard,
   websiteAssignmentTableIconBox,
   websiteAssignmentTableToolbar,
 } from "./website-assigning.styles";
+import type { WebsiteAssignmentScopeItem } from "@/api/types/website-assignments.types";
+import { groupWebsitesByParentChild, sitesListHref } from "./group-websites-by-org";
 
-const DEFAULT_PAGE_LIMIT = 20;
+/** One API page size — avoids loading thousands of rows at once. */
+const WEBSITES_PAGE_LIMIT = 50;
 
 const ASSIGNED_FILTER_OPTIONS = [
   { value: "", label: "All" },
@@ -67,42 +70,16 @@ type WebsiteRow = {
   isFullyAssigned: boolean;
 };
 
-function buildChildCompanyOptionsFromCompaniesTree(payload: unknown, parentCompanyId: string) {
-  const pid = parentCompanyId.trim();
-  if (!pid) return [{ value: "", label: "All child companies" }];
-  const items = pickItemsArray(payload);
-  const byId = new Map<string, { value: string; label: string }>();
-  for (const raw of items) {
-    const item = typeof raw === "object" && raw !== null ? (raw as Record<string, unknown>) : null;
-    const parents = Array.isArray(item?.parentCompanies) ? (item?.parentCompanies as unknown[]) : [];
-    for (const pRaw of parents) {
-      const p = typeof pRaw === "object" && pRaw !== null ? (pRaw as Record<string, unknown>) : null;
-      const pId = String(p?.id ?? "").trim();
-      if (!pId || pId !== pid) continue;
-      const children = Array.isArray(p?.childCompanies) ? (p?.childCompanies as unknown[]) : [];
-      for (const cRaw of children) {
-        const c = typeof cRaw === "object" && cRaw !== null ? (cRaw as Record<string, unknown>) : null;
-        const id = String(c?.id ?? "").trim();
-        if (!id) continue;
-        const label = String(c?.name ?? "").trim() || id;
-        byId.set(id, { value: id, label });
-      }
-    }
-  }
-  const list = Array.from(byId.values()).sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: "base" }));
-  return [{ value: "", label: "All child companies" }, ...(list.length ? list : [])];
-}
-
 export default function WebsiteAssigningPage() {
   const theme = useTheme() as AppTheme;
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
-  const [page, setPage] = useState(1);
   const [filterAssigned, setFilterAssigned] = useState<string>("");
   const [filterResellerId, setFilterResellerId] = useState("");
   const [filterParentCompanyId, setFilterParentCompanyId] = useState("");
   const [filterChildCompanyId, setFilterChildCompanyId] = useState("");
   const [isAssignOpen, setIsAssignOpen] = useState(false);
+  const [page, setPage] = useState(1);
 
   const resellersQuery = useCompaniesSetupResellersQuery({ enabled: true });
   const companiesByResellerQuery = useCompaniesByResellerQuery(
@@ -138,7 +115,11 @@ export default function WebsiteAssigningPage() {
   const childCompanyFilterOptions = useMemo(() => {
     if (!filterResellerId.trim()) return [{ value: "", label: "All child companies" }];
     if (!filterParentCompanyId.trim()) return [{ value: "", label: "All child companies" }];
-    const options = buildChildCompanyOptionsFromCompaniesTree(companiesByResellerQuery.data, filterParentCompanyId);
+    const children = extractChildCompanyOptionsForParentFromByResellerTree(
+      companiesByResellerQuery.data,
+      filterParentCompanyId,
+    );
+    const options = [{ value: "", label: "All child companies" }, ...(children.length ? children : [])];
     if (options.length > 1) return options;
     return [{ value: "", label: companiesByResellerQuery.isLoading ? "Loading child companies…" : "No child companies available" }];
   }, [filterResellerId, filterParentCompanyId, companiesByResellerQuery.data, companiesByResellerQuery.isLoading]);
@@ -152,7 +133,7 @@ export default function WebsiteAssigningPage() {
   const listParams = useMemo(() => {
     const params: Record<string, string | number | boolean> = {
       page,
-      limit: DEFAULT_PAGE_LIMIT,
+      limit: WEBSITES_PAGE_LIMIT,
     };
     const q = search.trim();
     if (q) params.search = q;
@@ -167,9 +148,18 @@ export default function WebsiteAssigningPage() {
     useWebsiteAssignmentsWebsitesQuery(listParams, { enabled: true });
   const websitesData = websitesResponse?.data;
 
-  const filteredRows = useMemo(() => {
-    const items = websitesData?.items ?? [];
-    return items.map((item) => ({
+  const scopeItems = useMemo(() => websitesData?.items ?? [], [websitesData?.items]);
+
+  const hierarchy = useMemo(() => groupWebsitesByParentChild(scopeItems), [scopeItems]);
+
+  const totalEntries = websitesData?.total ?? scopeItems.length;
+  const totalPages = Math.max(1, websitesData?.totalPages ?? 1);
+  const rangeStart = scopeItems.length === 0 ? 0 : (page - 1) * WEBSITES_PAGE_LIMIT + 1;
+  const rangeEnd = scopeItems.length === 0 ? 0 : (page - 1) * WEBSITES_PAGE_LIMIT + scopeItems.length;
+  const isLoading = isWebsitesLoading || isFetching;
+
+  function itemToWebsiteRow(item: WebsiteAssignmentScopeItem): WebsiteRow {
+    return {
       id: item.websiteId,
       reseller: item.resellerName || "-",
       parentCompany: item.parentCompanyName || "-",
@@ -178,24 +168,72 @@ export default function WebsiteAssigningPage() {
       websiteUrl: item.url || "-",
       assignedCount: item.assignedCount ?? 0,
       isFullyAssigned: Boolean(item.isFullyAssigned),
-    }));
-  }, [websitesData?.items]);
+    };
+  }
 
-  const pageCount = websitesData?.totalPages ?? 1;
-  const totalEntries = websitesData?.total ?? 0;
-  const limit = websitesData?.limit ?? DEFAULT_PAGE_LIMIT;
-  const isLoading = isWebsitesLoading || isFetching;
+  const childCompanyPillSx = useMemo(
+    () => ({
+      alignSelf: "flex-start",
+      justifyContent: "flex-start",
+      px: 2,
+      minWidth: "auto",
+      borderRadius: "9999px",
+      fontWeight: 600,
+      fontSize: 13,
+    }),
+    [],
+  );
 
-  const columns = useMemo<DataTableColumn<WebsiteRow>[]>(
+  const nestedSiteColumns = useMemo<DataTableColumn<WebsiteRow>[]>(
     () => [
-      { id: "reseller", label: "Reseller" },
-      { id: "parentCompany", label: "Parent Company" },
-      { id: "childCompany", label: "Child Company" },
-      { id: "websiteName", label: "Website Name" },
-      { id: "websiteUrl", label: "Website URL", cellVariant: "muted" },
-      { id: "assignedCount", label: "Assigned Count" },
+      {
+        id: "website",
+        label: "Website",
+        render: (_, row) => (
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 0.35, minWidth: 0 }}>
+            <Typography variant="body2" fontWeight={600} sx={{ color: theme.app.text.primary }}>
+              {row.websiteName}
+            </Typography>
+            <Typography
+              variant="caption"
+              sx={{
+                color: theme.app.dashboard.textMuted,
+                wordBreak: "break-all",
+                lineHeight: 1.45,
+              }}
+            >
+              {row.websiteUrl}
+            </Typography>
+          </Box>
+        ),
+      },
+      {
+        id: "agents",
+        label: "Agents",
+        render: (_, row) => (
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
+            <Typography variant="body2" fontWeight={600} sx={{ color: theme.app.text.primary }}>
+              {row.assignedCount}
+            </Typography>
+            {row.isFullyAssigned ? (
+              <Chip
+                label="Full"
+                size="small"
+                sx={{
+                  height: 22,
+                  fontSize: 11,
+                  fontWeight: 600,
+                  bgcolor: `${theme.palette.success.main}22`,
+                  color: theme.palette.success.main,
+                  border: `1px solid ${theme.palette.success.main}55`,
+                }}
+              />
+            ) : null}
+          </Box>
+        ),
+      },
     ],
-    []
+    [theme],
   );
 
   useEffect(() => {
@@ -203,12 +241,11 @@ export default function WebsiteAssigningPage() {
     if (searchInput.trim().length > 0) return;
     if (!search.trim()) return;
     setSearch("");
-    setPage(1);
   }, [searchInput, search]);
 
   useEffect(() => {
     setPage(1);
-  }, [filterAssigned, filterResellerId, filterParentCompanyId, filterChildCompanyId, search]);
+  }, [search, filterAssigned, filterResellerId, filterParentCompanyId, filterChildCompanyId]);
 
   useEffect(() => {
     // Reset dependent filters
@@ -227,8 +264,8 @@ export default function WebsiteAssigningPage() {
           <Typography variant="regularLarge" fontWeight={700} sx={{ color: theme.app.text.primary, mb: 0.5 }}>
             Website Assignment
           </Typography>
-          <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted, maxWidth: 520 }}>
-            Manage user assignments across different websites
+          <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted, maxWidth: 560 }}>
+            Websites you can manage in your scope. Open one to see the full assignment breakdown for that site.
           </Typography>
         </Box>
         <Box sx={websiteAssignmentHeaderActions}>
@@ -339,7 +376,10 @@ export default function WebsiteAssigningPage() {
               type="button"
               variant="primary"
               disabled={searchInput.trim() === search.trim()}
-              onClick={() => setSearch(searchInput)}
+              onClick={() => {
+                setSearch(searchInput);
+                setPage(1);
+              }}
               sx={{ minWidth: 132, whiteSpace: "nowrap", alignSelf: { xs: "stretch", sm: "center" } }}
             >
               Search
@@ -348,41 +388,137 @@ export default function WebsiteAssigningPage() {
           </Box>
         </Box>
 
-        <DataTable<WebsiteRow>
-          columns={columns}
-          rows={filteredRows}
-          isLoading={isLoading}
-          getRowId={(row) => row.id}
-          minWidth={1100}
-          actionColumn={{
-            label: "Action",
-            render: (row) => (
-              <Link
-                component={NextLink}
-                href={`/dashboard/website-assigning/${encodeURIComponent(row.id)}`}
+        {isLoading ? (
+          <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted, py: 2 }}>
+            Loading websites…
+          </Typography>
+        ) : hierarchy.length === 0 ? (
+          <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted, py: 2 }}>
+            No websites match your filters.
+          </Typography>
+        ) : (
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 3, pt: 0.5 }}>
+            {hierarchy.map((parent) => (
+              <Box
+                key={`${parent.parentCompanyId}:${parent.parentCompanyName}`}
                 sx={{
-                  color: theme.palette.primary.main,
-                  textDecoration: "none",
-                  cursor: "pointer",
-                  fontSize: 14,
-                  fontWeight: 500,
-                  "&:hover": { textDecoration: "underline" },
+                  borderLeft: `3px solid ${theme.palette.primary.main}`,
+                  pl: { xs: 1.5, sm: 2 },
                 }}
               >
-                View Detail
-              </Link>
-            ),
-          }}
-        />
+                <Typography variant="mediumLarge" fontWeight={700} sx={{ color: theme.app.text.primary, mb: 0.5 }}>
+                  Parent company: {parent.parentCompanyName}
+                </Typography>
+                <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, display: "block", mb: 2 }}>
+                  Client (reseller): {parent.resellerName}
+                </Typography>
 
-        <Box sx={websiteAssignmentFooterRow}>
+                {parent.children.map((child) => (
+                  <Box
+                    key={`${child.childCompanyId}:${child.childCompanyName}`}
+                    sx={{ mb: 2.5, ml: { xs: 0, sm: 0.5 } }}
+                  >
+                    <Box
+                      sx={{
+                        display: "flex",
+                        flexWrap: "wrap",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        gap: 1,
+                        mb: 1,
+                      }}
+                    >
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
+                        <Typography variant="medium" fontWeight={600} sx={{ color: theme.app.text.primary }}>
+                          Child company:
+                        </Typography>
+                        {child.childCompanyName.trim() && child.childCompanyName !== "—" ? (
+                          <Button type="button" variant="secondary" size="small" sx={childCompanyPillSx}>
+                            {child.childCompanyName}
+                          </Button>
+                        ) : (
+                          <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted }}>
+                            —
+                          </Typography>
+                        )}
+                        <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted }}>
+                          ({child.websites.length} website{child.websites.length === 1 ? "" : "s"})
+                        </Typography>
+                      </Box>
+                      <Button
+                        type="button"
+                        size="small"
+                        variant="outlined"
+                        component={NextLink}
+                        href={sitesListHref(parent.parentCompanyId, child.childCompanyId)}
+                        sx={{ whiteSpace: "nowrap" }}
+                      >
+                        All websites (detail)
+                      </Button>
+                    </Box>
+                    <DataTable<WebsiteRow>
+                      columns={nestedSiteColumns}
+                      rows={child.websites.map(itemToWebsiteRow)}
+                      isLoading={false}
+                      getRowId={(row) => row.id}
+                      minWidth={560}
+                      actionColumn={{
+                        label: "Detail",
+                        render: (row) => (
+                          <Link
+                            component={NextLink}
+                            href={`/dashboard/website-assigning/website/${encodeURIComponent(row.id)}`}
+                            sx={{
+                              color: theme.palette.primary.main,
+                              textDecoration: "none",
+                              cursor: "pointer",
+                              fontSize: 14,
+                              fontWeight: 500,
+                              "&:hover": { textDecoration: "underline" },
+                            }}
+                          >
+                            Website detail
+                          </Link>
+                        ),
+                      }}
+                    />
+                  </Box>
+                ))}
+              </Box>
+            ))}
+          </Box>
+        )}
+
+        <Box
+          sx={[
+            websiteAssignmentFooterRow,
+            {
+              flexWrap: "wrap",
+              alignItems: "center",
+              justifyContent: "space-between",
+            },
+          ]}
+        >
           <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted }}>
             {isLoading
-              ? "Loading websites..."
-              : `Showing data ${filteredRows.length > 0 ? (page - 1) * limit + 1 : 0} to ${(page - 1) * limit + filteredRows.length} of ${totalEntries} entries`}
+              ? ""
+              : totalEntries === 0
+                ? "No results."
+                : `${rangeStart}–${rangeEnd} of ${totalEntries} · page ${page} / ${totalPages} (${WEBSITES_PAGE_LIMIT} per page). Parent/child blocks = this page only.`}
           </Typography>
-          <Box sx={websiteAssignmentPaginationWrapper}>
-            <TablePagination page={page} pageCount={pageCount} onPageChange={setPage} />
+          <Box sx={{ display: "flex", gap: 1, flexShrink: 0 }}>
+            <Button type="button" variant="outlined" size="small" disabled={page <= 1 || isLoading} onClick={() => setPage((p) => Math.max(1, p - 1))}>
+              Previous
+            </Button>
+            <Button
+              type="button"
+              variant="outlined"
+              size="small"
+              disabled={page >= totalPages || isLoading}
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            >
+              Next
+            </Button>
           </Box>
         </Box>
       </DashboardCard>

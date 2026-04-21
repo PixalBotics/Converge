@@ -152,7 +152,8 @@ export function isChildRowPocComplete(r: DraftChildPayload): boolean {
   return true;
 }
 
-function buildPocInviteForRow(c: DraftChildPayload): JsonRecord | null {
+/** Builds `pocInvite` JSON for PATCH (parent or child company). */
+export function buildPocInviteForRow(c: DraftChildPayload): JsonRecord | null {
   if (!isChildRowPocComplete(c)) return null;
   const pocEmail = c.pocEmail.trim().slice(0, POC_EMAIL_MAX_LEN);
   const invite: JsonRecord = {

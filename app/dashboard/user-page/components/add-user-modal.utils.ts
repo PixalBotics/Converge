@@ -171,16 +171,43 @@ function extractParentCompaniesFromFlatItems(payload: unknown): ParentCompanyOpt
     .sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: "base" }));
 }
 
-/*
-export function buildChildCompanyOptions(
+/**
+ * Child companies under a parent for `GET /companies/by-reseller/:id?view=tree`
+ * (`data.items[].parentCompanies[].childCompanies[]`).
+ */
+export function extractChildCompanyOptionsForParentFromByResellerTree(
   payload: unknown,
   parentCompanyId: string,
 ): { value: string; label: string }[] {
-  if (!parentCompanyId.trim()) return [];
+  const pid = parentCompanyId.trim();
+  if (!pid) return [];
   const items = pickItemsArray(payload);
-  const rows = items.map(toCompanyRow).filter((r): r is CompanyRow => !!r);
-  return rows
-    .filter((r) => r.parentCompanyId === parentCompanyId)
-    .map((r) => ({ value: r.id, label: r.name }));
+  const byId = new Map<string, { value: string; label: string }>();
+  for (const raw of items) {
+    const item = asRecord(raw);
+    if (!item) continue;
+    const parents = Array.isArray(item.parentCompanies)
+      ? (item.parentCompanies as unknown[])
+      : [];
+    for (const pRaw of parents) {
+      const p = asRecord(pRaw);
+      if (!p) continue;
+      const pId = String(p.id ?? "").trim();
+      if (!pId || pId !== pid) continue;
+      const children = Array.isArray(p.childCompanies)
+        ? (p.childCompanies as unknown[])
+        : [];
+      for (const cRaw of children) {
+        const c = asRecord(cRaw);
+        if (!c) continue;
+        const id = String(c.id ?? "").trim();
+        if (!id) continue;
+        const label = String(c.name ?? "").trim() || id;
+        byId.set(id, { value: id, label });
+      }
+    }
+  }
+  return Array.from(byId.values()).sort((a, b) =>
+    a.label.localeCompare(b.label, undefined, { sensitivity: "base" }),
+  );
 }
-*/

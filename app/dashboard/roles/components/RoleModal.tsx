@@ -22,6 +22,23 @@ import {
   type PermissionGroup,
   type RoleRow,
 } from "../utils";
+import { isRecord, unwrapApiData } from "@/lib/utils";
+
+function extractAssignedFromRoleDetail(payload: unknown): string[] {
+  const data = unwrapApiData(payload);
+  const inner = isRecord(data) ? data : null;
+  const byTypeRaw = inner && "permissionNamesByType" in inner ? inner.permissionNamesByType : null;
+  const byType = isRecord(byTypeRaw) ? (byTypeRaw as Record<string, unknown>) : null;
+  if (!byType) return [];
+  const out: string[] = [];
+  for (const v of Object.values(byType)) {
+    if (!Array.isArray(v)) continue;
+    for (const item of v) {
+      if (typeof item === "string" && item.trim()) out.push(item.trim());
+    }
+  }
+  return Array.from(new Set(out)).sort();
+}
 
 export type RoleModalProps = {
   open: boolean;
@@ -46,11 +63,15 @@ export function RoleModal({ open, onClose, onSaved, editRole = null }: RoleModal
   const [permissions, setPermissions] = useState<Record<string, boolean>>({});
 
   const hydratedKeyRef = useRef<string | null>(null);
+  const hydratedPermsForRoleIdRef = useRef<string | null>(null);
 
-  const permissionsCatalogQuery = usePermissionsCatalogQuery({
-    enabled: open,
-    scope: "role-modal",
-  });
+  const permissionsCatalogQuery = usePermissionsCatalogQuery(
+    { groupByType: true },
+    {
+      enabled: open,
+      scope: "role-modal",
+    },
+  );
 
   const rolePermissionsQuery = useRolePermissionsQuery(editId, {
     enabled: open && isEdit,
@@ -63,6 +84,13 @@ export function RoleModal({ open, onClose, onSaved, editRole = null }: RoleModal
     scope: "role-modal",
     skipGlobalToast: true,
   });
+
+  useEffect(() => {
+    if (!open || !isEdit) return;
+    // Ensure we actually hit GET /roles/:id and /roles/:id/permissions when editing.
+    void roleDetailQuery.refetch();
+    void rolePermissionsQuery.refetch();
+  }, [open, isEdit, editId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const createRoleMutation = useCreateRoleMutation();
   const updateRoleMutation = useUpdateRoleMutation();
@@ -100,6 +128,7 @@ export function RoleModal({ open, onClose, onSaved, editRole = null }: RoleModal
   useEffect(() => {
     if (!open) {
       hydratedKeyRef.current = null;
+      hydratedPermsForRoleIdRef.current = null;
       return;
     }
 
@@ -110,6 +139,7 @@ export function RoleModal({ open, onClose, onSaved, editRole = null }: RoleModal
     setRoleName(isEdit ? (editRole?.name ?? "") : "");
     setPermissionSearch("");
     setPermissions({});
+    hydratedPermsForRoleIdRef.current = null;
   }, [open, isEdit, editId, editRole]);
 
   useEffect(() => {
@@ -125,10 +155,66 @@ export function RoleModal({ open, onClose, onSaved, editRole = null }: RoleModal
 
   useEffect(() => {
     if (!open || !isEdit || !rolePermissionsQuery.isSuccess) return;
-    const assigned = extractRoleAssignedPermissionNames(rolePermissionsQuery.data);
+    if (!allCodes.length) return;
+    if (hydratedPermsForRoleIdRef.current === editId) return;
+    const fromPermsEndpoint = extractRoleAssignedPermissionNames(rolePermissionsQuery.data);
+    const assigned = fromPermsEndpoint;
     if (assigned.length === 0) return;
-    setPermissions((prev) => ({ ...prev, ...buildPermissionsMap(assigned) }));
-  }, [open, isEdit, rolePermissionsQuery.isSuccess, rolePermissionsQuery.data]);
+
+    // Map assigned values to catalog codes (case-insensitive).
+    // Backend may return either permission codes or human labels.
+    const lookup = new Map<string, string>();
+    for (const g of permissionGroups) {
+      for (const p of g.permissions) {
+        lookup.set(p.code.toLowerCase(), p.code);
+        lookup.set(p.label.toLowerCase(), p.code);
+      }
+    }
+    for (const code of allCodes) {
+      const k = code.toLowerCase();
+      if (!lookup.has(k)) lookup.set(k, code);
+    }
+    const mapped = assigned
+      .map((c) => lookup.get(c.toLowerCase()) ?? c)
+      .filter((c) => c.length > 0);
+
+    setPermissions((prev) => ({ ...prev, ...buildPermissionsMap(mapped) }));
+    hydratedPermsForRoleIdRef.current = editId;
+  }, [
+    open,
+    isEdit,
+    editId,
+    rolePermissionsQuery.isSuccess,
+    rolePermissionsQuery.data,
+    allCodes,
+    permissionGroups,
+  ]);
+
+  useEffect(() => {
+    if (!open || !isEdit || !roleDetailQuery.isSuccess) return;
+    if (!allCodes.length) return;
+    if (hydratedPermsForRoleIdRef.current === editId) return;
+    const assigned = extractAssignedFromRoleDetail(roleDetailQuery.data);
+    if (assigned.length === 0) return;
+
+    const lookup = new Map<string, string>();
+    for (const g of permissionGroups) {
+      for (const p of g.permissions) {
+        lookup.set(p.code.toLowerCase(), p.code);
+        lookup.set(p.label.toLowerCase(), p.code);
+      }
+    }
+    for (const code of allCodes) {
+      const k = code.toLowerCase();
+      if (!lookup.has(k)) lookup.set(k, code);
+    }
+    const mapped = assigned
+      .map((c) => lookup.get(c.toLowerCase()) ?? c)
+      .filter((c) => c.length > 0);
+
+    setPermissions((prev) => ({ ...prev, ...buildPermissionsMap(mapped) }));
+    hydratedPermsForRoleIdRef.current = editId;
+  }, [open, isEdit, editId, roleDetailQuery.isSuccess, roleDetailQuery.data, allCodes, permissionGroups]);
 
   useEffect(() => {
     if (!open || !isEdit || !roleDetailQuery.isSuccess) return;
@@ -313,12 +399,12 @@ export function RoleModal({ open, onClose, onSaved, editRole = null }: RoleModal
                 >
                   <Typography
                     variant="body2"
-                    fontWeight={700}
+                    fontWeight={800}
                     sx={{ color: theme.app.text.primary, mb: 1, fontSize: 13 }}
                   >
                     {group.title}
                   </Typography>
-                  <Box sx={{ display: "flex", flexDirection: "column", gap: 0.75 }}>
+                  <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
                     {group.permissions.map((perm) => (
                       <Box
                         key={perm.code}
@@ -326,17 +412,26 @@ export function RoleModal({ open, onClose, onSaved, editRole = null }: RoleModal
                           display: "flex",
                           alignItems: "center",
                           gap: 1,
+                          py: 0.25,
+                          minWidth: 0,
                         }}
                       >
                         <Checkbox
                           checked={Boolean(permissions[perm.code])}
-                          onChange={(_, checked) =>
-                            setPermissions((p) => ({ ...p, [perm.code]: checked }))
-                          }
+                          onChange={(_, checked) => setPermissions((p) => ({ ...p, [perm.code]: checked }))}
                         />
-                        <Typography variant="body2" sx={{ color: theme.app.text.primary, fontSize: 13 }}>
-                          {perm.label}
-                        </Typography>
+                        <Box sx={{ minWidth: 0 }}>
+                          <Typography variant="body2" sx={{ color: theme.app.text.primary, fontSize: 13 }} noWrap>
+                            {perm.label}
+                          </Typography>
+                          <Typography
+                            variant="caption"
+                            sx={{ color: theme.app.dashboard.textMuted, fontSize: 12 }}
+                            noWrap
+                          >
+                            {perm.code}
+                          </Typography>
+                        </Box>
                       </Box>
                     ))}
                   </Box>

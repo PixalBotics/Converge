@@ -54,8 +54,8 @@ export const approvalLeaveSearchWrapSx: SxProps<Theme> = {
   flex: { xs: "1 1 auto", md: "0 0 auto" },
 };
 
-export const approvalLeaveStatusSx: SxProps<Theme> = (theme) => ({
-  color: (theme as AppTheme).app.success.main,
+export const approvalLeaveStatusSx = (theme: AppTheme) => ({
+  color: theme.app.dashboard.accentGreen ?? theme.palette.success.main,
   fontWeight: 600,
   fontSize: 13,
 });

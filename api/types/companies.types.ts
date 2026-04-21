@@ -137,10 +137,20 @@ export interface ParentCompanyChildNestedParent {
   reseller: ParentCompanyDetailReseller;
 }
 
+/** Optional website payload on child company (`GET/PATCH /companies/...`). */
+export interface ParentCompanyChildWebsiteSnippet {
+  id?: string;
+  websiteId?: string;
+  url?: string | null;
+  name?: string | null;
+}
+
 export interface ParentCompanyChildDetail {
   id: string;
   name: string;
   email: string;
+  /** Some GET payloads mirror PATCH field name. */
+  companyEmail?: string | null;
   phone: string;
   address: string;
   parentCompanyId?: string;
@@ -151,6 +161,10 @@ export interface ParentCompanyChildDetail {
   resellerId?: string;
   /** Same as `id` when API sends both. */
   childCompanyId?: string;
+  /** Singular website link on child (common on PATCH body mirror). */
+  website?: ParentCompanyChildWebsiteSnippet | null;
+  /** Some APIs return multiple site rows on the child. */
+  websites?: ParentCompanyChildWebsiteSnippet[] | null;
   pocInvite?: CompanyPocInviteSummary | null;
   /** Company contacts with nested `user` (actual API shape). */
   pocs?: CompanyContactPoc[] | null;

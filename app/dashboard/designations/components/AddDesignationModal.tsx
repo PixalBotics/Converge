@@ -132,7 +132,7 @@ export function AddDesignationModal({
     detailQuery.isSuccess &&
     !detailErrorMessage &&
     (!detailParsedRow || detailParsedRow.id !== editId)
-      ? "Could not read designation data from the server response."
+      ? "We couldn’t load the designation details. Please try again."
       : null;
   const detailLoading = isEdit && !detailQuery.isSuccess && !detailQuery.isError;
   const formDisabled = savePending || detailLoading || Boolean(detailErrorMessage) || Boolean(detailShapeError);
@@ -143,7 +143,7 @@ export function AddDesignationModal({
       title={isEdit ? "Edit Designation" : "Add Designation"}
       description={
         isEdit
-          ? "Designation fields are loaded from the server. Update and save when you are done."
+          ? "Review the designation details, update the fields, and save your changes."
           : "Create a new designation and assign it to a department."
       }
       onClose={onClose}

@@ -1,16 +1,41 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Box from "@mui/material/Box";
+import IconButton from "@mui/material/IconButton";
 import { AttachMoney as AttachMoneyIcon } from "@mui/icons-material";
+import DeleteIcon from "@mui/icons-material/Delete";
 import type { SxProps, Theme } from "@mui/material/styles";
-import { Typography, DashboardCard, Button, SelectField } from "@/components/common";
+import { useTheme } from "@mui/material/styles";
+import type { AppTheme } from "@/theme/theme";
+import {
+  Typography,
+  DashboardCard,
+  Button,
+  SelectField,
+  DataTable,
+  dataTableActionButton,
+  TablePagination,
+  InputField,
+  FormModal,
+  ConfirmActionModal,
+} from "@/components/common";
+import type { DataTableColumn } from "@/components/common";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
 import { rolesCard, rolesIconBox, rolesPageWrapper } from "../../roles/roles.styles";
-import { pageWrapper } from "../../companies/overview.styles";
+import { footerMutedText, pageWrapper } from "../../companies/overview.styles";
 import { publishAppToast } from "@/lib/notify";
+import { isRecord, pickNum, pickStr, unwrapApiData } from "@/lib/utils";
 import {
-  poolShiftActionsSx,
+  useAssignPoolShiftMutation,
+  useDepartmentsListQuery,
+  usePoolShiftAssignmentsListQuery,
+  usePoolsListQuery,
+  useRemovePoolShiftAssignmentMutation,
+  useShiftsListQuery,
+} from "@/lib/hooks/query";
+import { pickItemsArray, toIdNameOption } from "@/app/dashboard/user-page/components/add-user-modal.utils";
+import {
   poolShiftCardHeaderSx,
   poolShiftFormGridSx,
   poolShiftHeaderWrapSx,
@@ -18,50 +43,246 @@ import {
   poolShiftSubtextSx,
 } from "./pool-shift.styles";
 
-const POOL_OPTIONS = [
-  { label: "Food", value: "food" },
-  { label: "Operations Pool", value: "operations-pool" },
-  { label: "Support Pool", value: "support-pool" },
-];
+const PAGE_LIMIT = 8;
 
-const SHIFT_OPTIONS = [
-  { label: "Assign Department Head", value: "" },
-  { label: "Morning Shift", value: "morning" },
-  { label: "Evening Shift", value: "evening" },
-  { label: "Night Shift", value: "night" },
-];
+type AssignmentRow = {
+  id: string;
+  poolName: string;
+  shiftName: string;
+  effectiveFrom: string;
+  effectiveTo: string;
+};
 
 export default function PoolShiftPage() {
-  const [pool, setPool] = useState("food");
-  const [shift, setShift] = useState("");
+  const theme = useTheme() as AppTheme;
+  const [departmentId, setDepartmentId] = useState("");
+  const [poolId, setPoolId] = useState("");
+  const [page, setPage] = useState(1);
+  const [assignOpen, setAssignOpen] = useState(false);
+  const [removeTarget, setRemoveTarget] = useState<AssignmentRow | null>(null);
+
+  const [shiftId, setShiftId] = useState("");
+  const [effectiveFrom, setEffectiveFrom] = useState("");
+  const [effectiveTo, setEffectiveTo] = useState("");
+
+  const departmentsQuery = useDepartmentsListQuery({ all: true }, { enabled: true, scope: "pool-shift" });
+  const departmentOptions = useMemo(() => {
+    const base = pickItemsArray(departmentsQuery.data)
+      .map(toIdNameOption)
+      .filter((o): o is { value: string; label: string } => o !== null);
+    return [{ value: "", label: "— Select department —" }, ...base];
+  }, [departmentsQuery.data]);
+
+  const poolsQuery = usePoolsListQuery(
+    departmentId.trim() ? { departmentId: departmentId.trim(), all: true } : undefined,
+    { enabled: Boolean(departmentId.trim()), scope: "pool-shift" },
+  );
+  const poolOptions = useMemo(() => {
+    const payload = unwrapApiData(poolsQuery.data);
+    const payloadObj = isRecord(payload) ? payload : null;
+    const items = Array.isArray(payloadObj?.["items"]) ? (payloadObj?.["items"] as unknown[]).filter(isRecord) : [];
+    const base = items
+      .map((r) => {
+        const id = pickStr(r, ["id"]);
+        const name = pickStr(r, ["name"]);
+        if (!id || !name) return null;
+        return { value: id, label: name };
+      })
+      .filter((o): o is { value: string; label: string } => o !== null);
+    return [{ value: "", label: "— Select pool —" }, ...base];
+  }, [poolsQuery.data]);
+
+  const shiftsQuery = useShiftsListQuery({ all: true }, { enabled: true, scope: "pool-shift-templates" });
+  const shiftOptions = useMemo(() => {
+    const payload = unwrapApiData(shiftsQuery.data);
+    const payloadObj = isRecord(payload) ? payload : null;
+    const items = Array.isArray(payloadObj?.["items"]) ? (payloadObj?.["items"] as unknown[]).filter(isRecord) : [];
+    const base = items
+      .map((r) => {
+        const id = pickStr(r, ["id"]);
+        const name = pickStr(r, ["name"]);
+        if (!id || !name) return null;
+        return { value: id, label: name };
+      })
+      .filter((o): o is { value: string; label: string } => o !== null);
+    return [{ value: "", label: "— Select shift —" }, ...base];
+  }, [shiftsQuery.data]);
+
+  const selectedPoolLabel = useMemo(() => {
+    if (!poolId.trim()) return "";
+    return poolOptions.find((o) => o.value === poolId)?.label ?? "";
+  }, [poolId, poolOptions]);
+
+  const listParams = useMemo(
+    () =>
+      poolId.trim()
+        ? {
+            poolId: poolId.trim(),
+            page,
+            limit: PAGE_LIMIT,
+          }
+        : undefined,
+    [poolId, page],
+  );
+  const listQuery = usePoolShiftAssignmentsListQuery(listParams, { enabled: Boolean(poolId.trim()), scope: "pool-shift" });
+  const assignMutation = useAssignPoolShiftMutation();
+  const removeMutation = useRemovePoolShiftAssignmentMutation();
+
+  const payload = unwrapApiData(listQuery.data);
+  const payloadObj = isRecord(payload) ? payload : null;
+  const items = useMemo(() => {
+    const arr = payloadObj?.["items"];
+    return Array.isArray(arr) ? (arr as unknown[]).filter(isRecord) : [];
+  }, [payloadObj]);
+
+  const totalEntries = useMemo(() => {
+    const n = pickNum(payloadObj, ["total", "count", "totalCount"]);
+    return n ?? items.length;
+  }, [payloadObj, items.length]);
+
+  const pageCount = useMemo(() => {
+    const n = pickNum(payloadObj, ["totalPages"]);
+    return n && n > 0 ? n : 1;
+  }, [payloadObj]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [poolId]);
+
+  useEffect(() => {
+    setPage((p) => (p > pageCount ? pageCount : p));
+  }, [pageCount]);
+
+  useEffect(() => {
+    // changing department should reset pool selection
+    setPoolId("");
+  }, [departmentId]);
+
+  const tableRows = useMemo<AssignmentRow[]>(() => {
+    return items
+      .map((r) => {
+        const id = pickStr(r, ["id"]);
+        if (!id) return null;
+        const poolName =
+          pickStr(isRecord(r["pool"]) ? (r["pool"] as Record<string, unknown>) : null, ["name"]) ||
+          selectedPoolLabel ||
+          "—";
+        const shiftName =
+          pickStr(isRecord(r["shift"]) ? (r["shift"] as Record<string, unknown>) : null, ["name"]) ||
+          pickStr(r, ["shiftName"]) ||
+          "—";
+        const from = pickStr(r, ["effectiveFrom", "from", "startDate"]) || "—";
+        const to = pickStr(r, ["effectiveTo", "to", "endDate"]) || "—";
+        return { id, poolName, shiftName, effectiveFrom: from, effectiveTo: to };
+      })
+      .filter((x): x is AssignmentRow => x !== null);
+  }, [items, selectedPoolLabel]);
+
+  const footerRangeStart = tableRows.length > 0 ? (page - 1) * PAGE_LIMIT + 1 : 0;
+  const footerRangeEnd = (page - 1) * PAGE_LIMIT + tableRows.length;
+
+  const columns = useMemo<DataTableColumn<AssignmentRow>[]>(
+    () => [
+      { id: "poolName", label: "Pool" },
+      { id: "shiftName", label: "Shift" },
+      { id: "effectiveFrom", label: "Effective from" },
+      { id: "effectiveTo", label: "Effective to" },
+    ],
+    [],
+  );
 
   const handleCancel = () => {
-    setPool("food");
-    setShift("");
+    setShiftId("");
+    setEffectiveFrom("");
+    setEffectiveTo("");
   };
 
   const handleAssign = () => {
-    if (!pool) {
+    if (!departmentId.trim()) {
+      publishAppToast({ variant: "error", message: "Please select a department." });
+      return;
+    }
+    if (!poolId.trim()) {
       publishAppToast({ variant: "error", message: "Please select a pool." });
       return;
     }
-    if (!shift) {
+    if (!shiftId.trim()) {
       publishAppToast({ variant: "error", message: "Please select a shift." });
       return;
     }
-    publishAppToast({ variant: "success", message: "Pool shift assigned successfully." });
+    if (!effectiveFrom.trim()) {
+      publishAppToast({ variant: "error", message: "Please select effective from date." });
+      return;
+    }
+    if (!effectiveTo.trim()) {
+      publishAppToast({ variant: "error", message: "Please select effective to date." });
+      return;
+    }
+
+    assignMutation.mutate(
+      {
+        poolId: poolId.trim(),
+        shiftId: shiftId.trim(),
+        effectiveFrom: effectiveFrom.trim(),
+        effectiveTo: effectiveTo.trim(),
+      },
+      {
+        onSuccess: () => {
+          publishAppToast({ variant: "success", message: "Pool shift assigned successfully." });
+          setAssignOpen(false);
+          handleCancel();
+        },
+        onError: () => publishAppToast({ variant: "error", message: "Could not assign shift." }),
+      },
+    );
   };
 
   return (
     <Box sx={[pageWrapper, rolesPageWrapper] as SxProps<Theme>}>
       <Box sx={poolShiftHeaderWrapSx}>
         <Typography variant="regularLarge" fontWeight={700} color="white">
-          User Shift Assignment
+          Pool shift assignments
         </Typography>
         <Typography variant="body2" sx={poolShiftSubtextSx}>
-          Generate and distribute licenses to client companies
+          Default shifts for a pool (applies to users without a user override).
         </Typography>
       </Box>
+
+      <DashboardCard sx={rolesCard}>
+        <Box sx={{ ...poolShiftCardHeaderSx, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2 }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, minWidth: 0 }}>
+            <Box sx={rolesIconBox}>
+              <AttachMoneyIcon sx={poolShiftIconSx} />
+            </Box>
+            <Typography variant="mediumLarge" fontWeight={600} color="white" noWrap>
+              Pool shift assignments
+            </Typography>
+          </Box>
+          <Button variant="primary" sx={gradientPrimaryButtonSx} onClick={() => setAssignOpen(true)}>
+            Add pool shift
+          </Button>
+        </Box>
+
+        <Box sx={poolShiftFormGridSx}>
+          <SelectField
+            label="Department"
+            value={departmentId}
+            onChange={setDepartmentId}
+            options={departmentOptions}
+            menuMaxRows={8}
+          />
+          <SelectField
+            label="Pool"
+            value={poolId}
+            onChange={setPoolId}
+            options={poolOptions}
+            searchable
+            searchPlaceholder="Search pool…"
+            menuMaxRows={7}
+            disabled={!departmentId.trim()}
+          />
+        </Box>
+      </DashboardCard>
 
       <DashboardCard sx={rolesCard}>
         <Box sx={poolShiftCardHeaderSx}>
@@ -69,24 +290,138 @@ export default function PoolShiftPage() {
             <AttachMoneyIcon sx={poolShiftIconSx} />
           </Box>
           <Typography variant="mediumLarge" fontWeight={600} color="white">
-            Pool Shift Assignment
+            Assigned shifts
           </Typography>
         </Box>
 
-        <Box sx={poolShiftFormGridSx}>
-          <SelectField label="Pool" value={pool} onChange={setPool} options={POOL_OPTIONS} />
-          <SelectField label="Shift" value={shift} onChange={setShift} options={SHIFT_OPTIONS} />
-        </Box>
+        <DataTable<AssignmentRow>
+          columns={columns}
+          rows={tableRows}
+          isLoading={listQuery.isLoading || listQuery.isFetching}
+          getRowId={(row) => row.id}
+          minWidth={720}
+          actionColumn={{
+            label: "Action",
+            render: (row) => (
+              <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+                <IconButton
+                  size="small"
+                  sx={{
+                    ...dataTableActionButton,
+                    color: theme.app.dashboard.accentRedLight,
+                    opacity: removeMutation.isPending ? 0.7 : 1,
+                  }}
+                  aria-label="Remove assignment"
+                  disabled={removeMutation.isPending}
+                  onClick={() => {
+                    setRemoveTarget(row);
+                  }}
+                >
+                  <DeleteIcon fontSize="small" />
+                </IconButton>
+              </Box>
+            ),
+          }}
+        />
 
-        <Box sx={poolShiftActionsSx}>
-          <Button variant="secondary" onClick={handleCancel}>
-            Cancel
-          </Button>
-          <Button variant="primary" sx={gradientPrimaryButtonSx} onClick={handleAssign}>
-            Pool Shift Assignment
-          </Button>
+        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mt: 2 }}>
+          <Typography variant="medium" sx={footerMutedText(theme)}>
+            {!poolId.trim()
+              ? "Select a pool to view assignments."
+              : listQuery.isLoading
+                ? "Loading…"
+                : `Showing data ${footerRangeStart} to ${footerRangeEnd} of ${totalEntries} entries`}
+          </Typography>
+          <TablePagination page={page} pageCount={pageCount} onPageChange={setPage} />
         </Box>
       </DashboardCard>
+
+      <FormModal
+        open={assignOpen}
+        title="Add pool shift"
+        description="Assign a default shift to everyone in the pool (date range)."
+        onClose={() => {
+          if (assignMutation.isPending) return;
+          setAssignOpen(false);
+          handleCancel();
+        }}
+        onSave={handleAssign}
+        primaryButtonLabel={assignMutation.isPending ? "Saving…" : "Assign"}
+        primaryButtonDisabled={assignMutation.isPending}
+        cancelButtonLabel="Close"
+        maxWidth={600}
+        fitContent
+      >
+        {!departmentId.trim() || !poolId.trim() ? (
+          <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted }}>
+            Pick a department and pool first, then assign a shift.
+          </Typography>
+        ) : null}
+        <SelectField
+          label="Department"
+          value={departmentId}
+          onChange={setDepartmentId}
+          options={departmentOptions}
+          menuMaxRows={8}
+        />
+        <SelectField
+          label="Pool"
+          value={poolId}
+          onChange={setPoolId}
+          options={poolOptions}
+          searchable
+          searchPlaceholder="Search pool…"
+          menuMaxRows={7}
+          disabled={!departmentId.trim()}
+        />
+        <SelectField
+          label="Shift"
+          value={shiftId}
+          onChange={setShiftId}
+          options={shiftOptions}
+          searchable
+          searchPlaceholder="Search shift…"
+          menuMaxRows={7}
+        />
+        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 2 }}>
+          <InputField
+            label="Effective from"
+            type="date"
+            value={effectiveFrom}
+            onChange={(e) => setEffectiveFrom(e.target.value)}
+          />
+          <InputField
+            label="Effective to"
+            type="date"
+            value={effectiveTo}
+            onChange={(e) => setEffectiveTo(e.target.value)}
+          />
+        </Box>
+      </FormModal>
+
+      <ConfirmActionModal
+        open={removeTarget != null}
+        title="Remove assignment?"
+        description="Remove this pool shift assignment?"
+        confirmLabel={removeMutation.isPending ? "Removing…" : "Remove"}
+        cancelLabel="Cancel"
+        isLoading={removeMutation.isPending}
+        onDismiss={() => {
+          if (removeMutation.isPending) return;
+          setRemoveTarget(null);
+        }}
+        onConfirm={() => {
+          const target = removeTarget;
+          if (!target) return;
+          removeMutation.mutate(target.id, {
+            onSuccess: () => {
+              publishAppToast({ variant: "success", message: "Assignment removed." });
+              setRemoveTarget(null);
+            },
+            onError: () => publishAppToast({ variant: "error", message: "Could not remove assignment." }),
+          });
+        }}
+      />
     </Box>
   );
 }
