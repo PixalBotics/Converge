@@ -5,15 +5,12 @@ import Box from "@mui/material/Box";
 import { useTheme } from "@mui/material/styles";
 import type { SxProps, Theme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
-import {
-  Typography,
-  Button,
-} from "@/components/common";
+import { Typography } from "@/components/common";
 import type { DataTableColumn } from "@/components/common";
-import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
 import { rolesPageWrapper } from "../../roles/roles.styles";
 import { pageWrapper } from "../../companies/overview.styles";
 import { formatIsoDate, isRecord, pickNum, pickStr, unwrapApiData } from "@/lib/utils";
+import { publishAppToast } from "@/lib/notify";
 import {
   useDecideLeaveDepartmentMutation,
   useDecideLeavePoolMutation,
@@ -21,12 +18,11 @@ import {
   usePendingLeavePoolQueueQuery,
 } from "@/lib/hooks/query";
 import {
-  approvalLeaveCardHeaderSx,
   approvalLeaveHeaderWrapSx,
   approvalLeaveStatusSx,
   approvalLeaveSubtextSx,
-} from "./approval-leave.styles";
-import { ApprovalLeaveTableCard, LeaveDecisionModal, type LeaveDecision } from "./components";
+} from "../approval-leave/approval-leave.styles";
+import { ApprovalLeaveTableCard, LeaveDecisionModal, type LeaveDecision } from "../approval-leave/components";
 
 const PAGE_LIMIT = 8;
 
