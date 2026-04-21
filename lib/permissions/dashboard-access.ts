@@ -287,8 +287,15 @@ const LEAVE_GROUP: DashboardNavItem = {
       permission: null,
     },
     {
-      href: "/dashboard/leave/approval-leave",
-      label: "Approval Leave",
+      href: "/dashboard/leave/approval-inbox",
+      label: "Approval Inbox",
+      section: "activity",
+      iconKey: "leave",
+      permission: null,
+    },
+    {
+      href: "/dashboard/leave/approve-leave",
+      label: "Approve Leave",
       section: "activity",
       iconKey: "leave",
       permission: null,

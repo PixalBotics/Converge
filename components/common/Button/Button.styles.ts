@@ -13,6 +13,7 @@ export const baseButtonStyles: SxProps<Theme> = {
   justifyContent: "center",
   gap: "8px",
   minWidth: 140,
+  boxShadow: "none",
 };
 
 export const primaryButtonStyles = (theme: Theme): SxProps<Theme> => ({
@@ -60,11 +61,12 @@ export const gradientPrimaryButtonSx: SxProps<Theme> = (theme) => {
   return {
     background: app.dashboard.gradientButton,
     color: app.dashboard.gradientButtonText,
-    boxShadow: "0 10px 25px rgba(0,0,0,0.28)",
+    boxShadow: "none",
     border: `1px solid ${app.dashboard.overlayBorder}`,
     "&:hover": {
       background: app.dashboard.gradientButton,
       color: app.dashboard.gradientButtonText,
+      boxShadow: "none",
     },
   };
 };
