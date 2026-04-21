@@ -319,11 +319,72 @@ const PHONE_NUMBER_SETUP_ITEM: DashboardNavItem = {
   permission: null,
 };
 
+const INVOICE_DETAILS_ITEM: DashboardNavItem = {
+  href: "/dashboard/invoice-details",
+  label: "Invoice Details",
+  section: "activity",
+  iconKey: "billing",
+  permission: null,
+};
+
+const PAYMENT_TRACKING_ITEM: DashboardNavItem = {
+  href: "/dashboard/payment-tracking",
+  label: "Payment Tracking",
+  section: "activity",
+  iconKey: "billing",
+  permission: null,
+};
+
+const BILLING_DASHBOARD_ITEM: DashboardNavItem = {
+  href: "/dashboard/billing-dashboard",
+  label: "Billing Dashboard",
+  section: "activity",
+  iconKey: "billing",
+  permission: null,
+};
+
+const PAY_TO_PLATFORM_DASHBOARD_ITEM: DashboardNavItem = {
+  href: "/dashboard/pay-to-platform-dashboard",
+  label: "Pay to Platform",
+  section: "activity",
+  iconKey: "billing",
+  permission: null,
+};
+
+const PROCESS_PAYMENT_DASHBOARD_ITEM: DashboardNavItem = {
+  href: "/dashboard/process-payment-dashboard",
+  label: "Process Payment",
+  section: "activity",
+  iconKey: "billing",
+  permission: null,
+};
+
+const PAYMENT_HISTORY_ITEM: DashboardNavItem = {
+  href: "/dashboard/payment-history",
+  label: "Payment History",
+  section: "activity",
+  iconKey: "billing",
+  permission: null,
+};
+
 export const DASHBOARD_NAV_ITEMS: readonly DashboardNavItem[] = PAGE_PERMISSION_ORDER.flatMap((permission) => {
   if (permission === "page:departments") return [DEPARTMENTS_AND_DESIGNATIONS_GROUP];
   if (permission === "page:website-assignments") return [WEBSITE_GROUP];
   if (permission === "page:pools") {
-    return [toNavItem("page:pools")!, SHIFTS_GROUP, ATTENDANCE_GROUP, LEAVE_GROUP, LEAVE_BALANCE_ITEM, PHONE_NUMBER_SETUP_ITEM];
+    return [
+      toNavItem("page:pools")!,
+      SHIFTS_GROUP,
+      ATTENDANCE_GROUP,
+      LEAVE_GROUP,
+      LEAVE_BALANCE_ITEM,
+      PHONE_NUMBER_SETUP_ITEM,
+      INVOICE_DETAILS_ITEM,
+      PAYMENT_TRACKING_ITEM,
+      BILLING_DASHBOARD_ITEM,
+      PAY_TO_PLATFORM_DASHBOARD_ITEM,
+      PROCESS_PAYMENT_DASHBOARD_ITEM,
+      PAYMENT_HISTORY_ITEM,
+    ];
   }
   const item = toNavItem(permission);
   return item ? [item] : [];
