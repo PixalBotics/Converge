@@ -5,6 +5,7 @@ import type { AppTheme } from "@/theme/theme";
 export const dataTableContainer: SxProps<Theme> = {
   overflowX: "auto",
   overflowY: "auto",
+  boxShadow: "none",
   WebkitOverflowScrolling: "touch",
   scrollbarWidth: "none",
   msOverflowStyle: "none",
@@ -15,6 +16,7 @@ export const dataTableContainer: SxProps<Theme> = {
 export const dataTableContainerHorizontalOnly: SxProps<Theme> = {
   overflowX: "auto",
   overflowY: "visible",
+  boxShadow: "none",
   WebkitOverflowScrolling: "touch",
   scrollbarWidth: "none",
   msOverflowStyle: "none",
@@ -27,6 +29,7 @@ export const dataTableRoot: SxProps<Theme> = (theme) => {
   return {
     width: "100%",
     borderCollapse: "collapse",
+    boxShadow: "none",
     "& th, & td": {
       borderColor: b,
       borderBottom: `1px solid ${b}`,

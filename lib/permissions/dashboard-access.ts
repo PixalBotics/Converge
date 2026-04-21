@@ -287,8 +287,15 @@ const LEAVE_GROUP: DashboardNavItem = {
       permission: null,
     },
     {
-      href: "/dashboard/leave/approval-leave",
-      label: "Approval Leave",
+      href: "/dashboard/leave/approval-inbox",
+      label: "Approval Inbox",
+      section: "activity",
+      iconKey: "leave",
+      permission: null,
+    },
+    {
+      href: "/dashboard/leave/approve-leave",
+      label: "Approve Leave",
       section: "activity",
       iconKey: "leave",
       permission: null,
@@ -296,10 +303,18 @@ const LEAVE_GROUP: DashboardNavItem = {
   ],
 };
 
+const LEAVE_BALANCE_ITEM: DashboardNavItem = {
+  href: "/dashboard/leave/leave-balance",
+  label: "Leave Balance",
+  section: "activity",
+  iconKey: "leave",
+  permission: null,
+};
+
 export const DASHBOARD_NAV_ITEMS: readonly DashboardNavItem[] = PAGE_PERMISSION_ORDER.flatMap((permission) => {
   if (permission === "page:departments") return [DEPARTMENTS_AND_DESIGNATIONS_GROUP];
   if (permission === "page:website-assignments") return [WEBSITE_GROUP];
-  if (permission === "page:pools") return [toNavItem("page:pools")!, SHIFTS_GROUP, ATTENDANCE_GROUP, LEAVE_GROUP];
+  if (permission === "page:pools") return [toNavItem("page:pools")!, SHIFTS_GROUP, ATTENDANCE_GROUP, LEAVE_GROUP, LEAVE_BALANCE_ITEM];
   const item = toNavItem(permission);
   return item ? [item] : [];
 });

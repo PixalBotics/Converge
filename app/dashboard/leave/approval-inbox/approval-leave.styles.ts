@@ -55,7 +55,7 @@ export const approvalLeaveSearchWrapSx: SxProps<Theme> = {
 };
 
 export const approvalLeaveStatusSx: SxProps<Theme> = (theme) => ({
-  color: (theme as AppTheme).app.success.main,
+  color: theme.palette.success.main,
   fontWeight: 600,
   fontSize: 13,
 });

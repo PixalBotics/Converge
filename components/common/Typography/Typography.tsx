@@ -19,7 +19,7 @@ export function Typography(props: TypographyProps) {
     : undefined;
   const titleSpacingSx =
     isCustomVariant && titleVariantKeys.includes(variant as TypographyVariantKey)
-      ? { mb: "0px" }
+      ? { pb: "5px" }
       : undefined;
   const muiVariant: MuiTypographyComponentProps["variant"] | undefined =
     isCustomVariant ? undefined : (variant as MuiTypographyComponentProps["variant"]);
