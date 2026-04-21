@@ -16,6 +16,8 @@ import { useAttendanceMeQuery } from "@/lib/hooks/query";
 import { publishAppToast } from "@/lib/notify";
 import { isRecord, unwrapApiData } from "@/lib/utils";
 import { EmptyAttendanceState } from "../components/EmptyAttendanceState";
+import { useAuth } from "@/lib/auth";
+import { OP } from "@/lib/permissions";
 import {
   attendanceCardTitleSx,
   attendanceDateButtonSx,
@@ -39,6 +41,13 @@ type AttendanceRow = {
 export default function MyAttendancePage() {
   const router = useRouter();
   const theme = useTheme() as AppTheme;
+  const { hasOperational } = useAuth();
+  const canViewSelfAttendance =
+    hasOperational(OP.hrms.attendance.selfView) ||
+    hasOperational(OP.hrms.attendance.self) ||
+    hasOperational(OP.hrms.attendance.view);
+  const canMarkAttendance =
+    hasOperational(OP.hrms.attendance.checkIn) || hasOperational(OP.hrms.attendance.checkOut);
   const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
   const startOfMonth = useMemo(() => `${today.slice(0, 7)}-01`, [today]);
   const [from, setFrom] = useState(startOfMonth);
@@ -159,13 +168,15 @@ export default function MyAttendancePage() {
           >
             {from} → {to}
           </Button>
-          <Button
-            variant="primary"
-            sx={attendanceMarkButtonSx}
-            onClick={() => router.push("/dashboard/attendance/mark-attendance")}
-          >
-            Mark Attendance
-          </Button>
+          {canMarkAttendance ? (
+            <Button
+              variant="primary"
+              sx={attendanceMarkButtonSx}
+              onClick={() => router.push("/dashboard/attendance/mark-attendance")}
+            >
+              Mark Attendance
+            </Button>
+          ) : null}
         </Box>
       </Box>
 
@@ -221,7 +232,19 @@ export default function MyAttendancePage() {
           </Box>
         </Box>
 
-        {attendanceQuery.isLoading || attendanceQuery.isFetching ? (
+        {!canViewSelfAttendance ? (
+          <Typography variant="body2" sx={{ px: 2, py: 3, color: theme.app.dashboard.textMuted, lineHeight: 1.6 }}>
+            You do not have permission to view self attendance. This area expects operational permissions such as{" "}
+            <Box component="span" sx={{ color: "white", fontWeight: 600 }}>
+              {OP.hrms.attendance.selfView}
+            </Box>{" "}
+            or{" "}
+            <Box component="span" sx={{ color: "white", fontWeight: 600 }}>
+              {OP.hrms.attendance.self}
+            </Box>
+            .
+          </Typography>
+        ) : attendanceQuery.isLoading || attendanceQuery.isFetching ? (
           <DataTable<AttendanceRow>
             columns={columns}
             rows={tableRows}

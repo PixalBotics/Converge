@@ -5,6 +5,9 @@ export const PERMISSION_BUCKET_OPERATIONAL = "OPERATIONAL";
 /** Wildcard-style page permission some tenants send with the rest of PAGE perms. */
 export const PAGE_ACCESS_ALL = "page:access";
 
+/** Home shell `/dashboard` — granted on the client for everyone when RBAC is on; other `page:*` still come from the API. */
+export const PAGE_PERMISSION_DASHBOARD = "page:dashboard";
+
 export type PermissionsByType = Record<string, string[]>;
 
 function normalizeBucketKey(rawKey: string): string {
@@ -32,11 +35,34 @@ export function mergePermissionsByType(
     const merged = [...(primary?.[k] ?? []), ...(secondary?.[k] ?? [])];
     out[k] = [...new Set(merged)];
   }
+  return applyPageSlugAliases(out);
+}
+
+/** Backend sometimes sends singular pool slug; app routes use `page:pools`. */
+const PAGE_SLUG_ALIASES: Record<string, string> = {
+  "page:pool": "page:pools",
+};
+
+/**
+ * Page keys for RBAC checks / sidebar filtering. Includes canonical slugs for known
+ * backend aliases so `page:pool` and `page:pools` both satisfy `page:pools` routes.
+ */
+export function toPermissionSet(perms: string[] | undefined): Set<string> {
+  const raw = (perms ?? []).map((p) => p.trim()).filter(Boolean);
+  const out = new Set<string>();
+  for (const p of raw) {
+    out.add(p);
+    const canonical = PAGE_SLUG_ALIASES[p];
+    if (canonical) out.add(canonical);
+  }
   return out;
 }
 
-export function toPermissionSet(perms: string[] | undefined): Set<string> {
-  return new Set((perms ?? []).map((p) => p.trim()).filter(Boolean));
+function applyPageSlugAliases(perms: PermissionsByType): PermissionsByType {
+  const page = perms[PERMISSION_BUCKET_PAGE];
+  if (!page?.length) return perms;
+  const mapped = page.map((p) => PAGE_SLUG_ALIASES[p] ?? p);
+  return { ...perms, [PERMISSION_BUCKET_PAGE]: [...new Set(mapped)] };
 }
 
 /**
@@ -59,7 +85,77 @@ function normalizePermissionsRaw(raw: unknown): PermissionsByType | undefined {
   for (const key of Object.keys(out)) {
     out[key] = [...new Set(out[key])];
   }
-  return Object.keys(out).length > 0 ? out : undefined;
+  return Object.keys(out).length > 0 ? applyPageSlugAliases(out) : undefined;
+}
+
+/**
+ * Merges top-level `page` / `operational` arrays with `breakdown.{page,operational}`.
+ * Some APIs send `page` only at the parent and duplicate (or extend) operational under
+ * `breakdown`; returning `breakdown` alone used to drop `PAGE` and left RBAC with an empty
+ * page set while `OPERATIONAL` still hydrated — sidebar saw zero `page:*` keys.
+ */
+function mergeBreakdownIntoPermissionBuckets(rec: Record<string, unknown>): PermissionsByType | undefined {
+  const bd = rec.breakdown;
+  const fromBreakdown =
+    bd && typeof bd === "object" && !Array.isArray(bd)
+      ? normalizePermissionsRaw(bd as Record<string, unknown>)
+      : undefined;
+  const fromSiblings = normalizePermissionsRaw(rec);
+  return mergePermissionsByType(fromSiblings, fromBreakdown);
+}
+
+/**
+ * `{ permissions: { breakdown: { page: [], operational: [] } } }` style payloads (also merges siblings).
+ */
+function normalizePermissionsBreakdown(raw: unknown): PermissionsByType | undefined {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return undefined;
+  return mergeBreakdownIntoPermissionBuckets(raw as Record<string, unknown>);
+}
+
+function readBooleanFlag(val: unknown): boolean {
+  return val === true || val === "true" || val === 1;
+}
+
+function extractIsPlatformAdminFromRecord(rec: Record<string, unknown>): boolean {
+  if (readBooleanFlag(rec.isPlatformAdmin)) return true;
+  const permSingular = rec.permission;
+  if (permSingular && typeof permSingular === "object" && !Array.isArray(permSingular)) {
+    const p = permSingular as Record<string, unknown>;
+    if (readBooleanFlag(p.isPlatformAdmin)) return true;
+    const bd = p.breakdown;
+    if (bd && typeof bd === "object" && !Array.isArray(bd)) {
+      if (readBooleanFlag((bd as Record<string, unknown>).isPlatformAdmin)) return true;
+    }
+  }
+  const perms = rec.permissions;
+  if (perms && typeof perms === "object" && !Array.isArray(perms)) {
+    const p = perms as Record<string, unknown>;
+    if (readBooleanFlag(p.isPlatformAdmin)) return true;
+    const bd = p.breakdown;
+    if (bd && typeof bd === "object" && !Array.isArray(bd)) {
+      if (readBooleanFlag((bd as Record<string, unknown>).isPlatformAdmin)) return true;
+    }
+  }
+  return false;
+}
+
+/** True when API marks the user as platform admin (full page + operational bypass in AuthContext). */
+export function extractIsPlatformAdmin(payload: unknown): boolean {
+  if (!payload || typeof payload !== "object") return false;
+  const root = payload as Record<string, unknown>;
+  if (extractIsPlatformAdminFromRecord(root)) return true;
+
+  const data = root.data;
+  if (data && typeof data === "object" && !Array.isArray(data)) {
+    if (extractIsPlatformAdminFromRecord(data as Record<string, unknown>)) return true;
+  }
+
+  const user = root.user;
+  if (user && typeof user === "object" && !Array.isArray(user)) {
+    if (extractIsPlatformAdminFromRecord(user as Record<string, unknown>)) return true;
+  }
+
+  return false;
 }
 
 function readStringArray(raw: unknown): string[] {
@@ -100,18 +196,48 @@ function normalizePermissionsList(raw: unknown): PermissionsByType | undefined {
   for (const key of Object.keys(out)) {
     out[key] = [...new Set(out[key])];
   }
-  return Object.keys(out).length > 0 ? out : undefined;
+  return Object.keys(out).length > 0 ? applyPageSlugAliases(out) : undefined;
 }
 
-function extractFromRecord(record: Record<string, unknown>): PermissionsByType | undefined {
+/** Shallow read for nested envelopes (e.g. login `context`, nested `user.context`). */
+function extractPermissionsFromLooseRecord(record: Record<string, unknown>): PermissionsByType | undefined {
   const direct = normalizePermissionsRaw(record.permissionsByType);
   if (direct) return direct;
 
-  const fromPermissionsObject = normalizePermissionsRaw(record.permissions);
-  if (fromPermissionsObject) return fromPermissionsObject;
+  /** Login envelope: `{ permission: { page: [], operational: [], breakdown?: {...} } }` */
+  const permissionSingular = record.permission;
+  if (permissionSingular && typeof permissionSingular === "object" && !Array.isArray(permissionSingular)) {
+    const merged = mergeBreakdownIntoPermissionBuckets(permissionSingular as Record<string, unknown>);
+    if (merged) return merged;
+  }
+
+  const permField = record.permissions;
+  if (permField && typeof permField === "object" && !Array.isArray(permField)) {
+    const merged = mergeBreakdownIntoPermissionBuckets(permField as Record<string, unknown>);
+    if (merged) return merged;
+  }
 
   const fromPermissionsList = normalizePermissionsList(record.permissions);
   if (fromPermissionsList) return fromPermissionsList;
+
+  const topBreakdown = record.breakdown;
+  if (topBreakdown && typeof topBreakdown === "object" && !Array.isArray(topBreakdown)) {
+    const fromTop = normalizePermissionsBreakdown({ breakdown: topBreakdown });
+    if (fromTop) return fromTop;
+  }
+
+  return undefined;
+}
+
+function extractFromRecord(record: Record<string, unknown>): PermissionsByType | undefined {
+  const loose = extractPermissionsFromLooseRecord(record);
+  if (loose) return loose;
+
+  const context = record.context;
+  if (context && typeof context === "object" && !Array.isArray(context)) {
+    const fromContext = extractPermissionsFromLooseRecord(context as Record<string, unknown>);
+    if (fromContext) return fromContext;
+  }
 
   return undefined;
 }
@@ -145,6 +271,12 @@ export function extractPermissionsByType(payload: unknown): PermissionsByType | 
     const userPermissions = extractFromRecord(userRecord);
     if (userPermissions) return userPermissions;
 
+    const userContext = userRecord.context;
+    if (userContext && typeof userContext === "object" && !Array.isArray(userContext)) {
+      const fromUserContext = extractPermissionsFromLooseRecord(userContext as Record<string, unknown>);
+      if (fromUserContext) return fromUserContext;
+    }
+
     const role = userRecord.role;
     if (role && typeof role === "object" && !Array.isArray(role)) {
       const rolePermissions = extractFromRecord(role as Record<string, unknown>);
@@ -156,6 +288,7 @@ export function extractPermissionsByType(payload: unknown): PermissionsByType | 
 }
 
 export function hasPagePermission(pagePerms: Set<string>, required: string): boolean {
+  if (required === PAGE_PERMISSION_DASHBOARD) return true;
   if (pagePerms.has(PAGE_ACCESS_ALL)) return true;
   return pagePerms.has(required);
 }

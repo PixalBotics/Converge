@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getMe, login, loginAs, logout } from "@/api";
 import type { LoginAsRequestBody, LoginRequestBody } from "@/api";
+import { requestAfterTokenSessionSync } from "@/lib/auth/after-token-session-sync";
 import { authKeys } from "./keys";
 
 export function useMeQuery(options?: {
@@ -46,6 +47,7 @@ export function useLoginAsMutation() {
     mutationFn: (body: LoginAsRequestBody) => loginAs(body),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: authKeys.all });
+      requestAfterTokenSessionSync();
     },
   });
 }

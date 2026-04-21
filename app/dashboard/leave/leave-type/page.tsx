@@ -19,6 +19,8 @@ import {
 import { useCreateLeaveTypeMutation, useDeleteLeaveTypeMutation, useLeaveTypesListQuery, useUpdateLeaveTypeMutation } from "@/lib/hooks/query";
 import { isRecord, pickNum, pickStr, unwrapApiData } from "@/lib/utils";
 import { LeaveTypeModals, LeaveTypesTableCard } from "./components";
+import { useAuth } from "@/lib/auth";
+import { canLeaveTypeManage, canLeaveTypeView } from "@/lib/permissions";
 
 const PAGE_LIMIT = 10;
 
@@ -30,6 +32,10 @@ type LeaveTypeRow = {
 };
 
 export default function LeaveTypePage() {
+  const { hasOperational } = useAuth();
+  const canManageLeaveTypes = canLeaveTypeManage(hasOperational);
+  const canViewLeaveTypes = canLeaveTypeView(hasOperational);
+
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
 
@@ -115,6 +121,19 @@ export default function LeaveTypePage() {
     setMaxDaysField("");
   };
 
+  if (!canViewLeaveTypes) {
+    return (
+      <Box sx={[pageWrapper, rolesPageWrapper] as SxProps<Theme>}>
+        <Typography variant="regularLarge" fontWeight={700} color="white">
+          Leave Types
+        </Typography>
+        <Typography variant="body2" sx={{ mt: 2, color: "rgba(255,255,255,0.65)" }}>
+          You do not have permission to view leave types.
+        </Typography>
+      </Box>
+    );
+  }
+
   return (
     <Box sx={[pageWrapper, rolesPageWrapper] as SxProps<Theme>}>
       <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 2, mb: 0.5 }}>
@@ -126,14 +145,16 @@ export default function LeaveTypePage() {
             Create and manage leave types.
           </Typography>
         </Box>
-        <Button
-          variant="primary"
-          sx={gradientPrimaryButtonSx}
-          disabled={deleteMutation.isPending}
-          onClick={() => setCreateOpen(true)}
-        >
-          Add leave type
-        </Button>
+        {canManageLeaveTypes ? (
+          <Button
+            variant="primary"
+            sx={gradientPrimaryButtonSx}
+            disabled={deleteMutation.isPending}
+            onClick={() => setCreateOpen(true)}
+          >
+            Add leave type
+          </Button>
+        ) : null}
       </Box>
 
       <LeaveTypesTableCard
@@ -158,6 +179,7 @@ export default function LeaveTypePage() {
         }}
         onDelete={setDeleteTarget}
         disableActions={deleteMutation.isPending}
+        showManageActions={canManageLeaveTypes}
       />
 
       <LeaveTypeModals
@@ -201,7 +223,7 @@ export default function LeaveTypePage() {
         onDescriptionChange={setDescriptionField}
         maxDaysField={maxDaysField}
         onMaxDaysChange={setMaxDaysField}
-        editOpen={editTarget != null}
+        editOpen={editTarget != null && canManageLeaveTypes}
         onCloseEdit={() => {
           if (updateMutation.isPending) return;
           setEditTarget(null);
@@ -247,7 +269,7 @@ export default function LeaveTypePage() {
         onEditDescriptionChange={setEditDescription}
         editMaxDays={editMaxDays}
         onEditMaxDaysChange={setEditMaxDays}
-        deleteOpen={deleteTarget != null}
+        deleteOpen={deleteTarget != null && canManageLeaveTypes}
         deleteDescription={deleteTarget ? `Delete leave type “${deleteTarget.name}”?` : "Delete this leave type?"}
         onCloseDelete={() => {
           if (deleteMutation.isPending) return;

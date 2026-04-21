@@ -80,6 +80,7 @@ export function UsersTableSection(props: Props) {
   const softDeleteUserMutation = useSoftDeleteUserMutation();
   const canUseLoginAs = hasOperational("user:login-as");
   const canDeleteUser = hasOperational("user:delete");
+  const canEditUser = hasOperational("user:update") || hasOperational("user:edit");
   const [deleteTarget, setDeleteTarget] = useState<UserRow | null>(null);
 
   const columns = useMemo<DataTableColumn<UserRow>[]>(
@@ -146,7 +147,7 @@ export function UsersTableSection(props: Props) {
       { id: "role", label: "Role", cellVariant: "default" },
       { id: "company", label: "Reseller", cellVariant: "default" },
     ],
-    [theme],
+    [theme, canEditUser, canUseLoginAs, canDeleteUser, authUser?.id, loginAsMutation, onEditUser],
   );
 
   const handleCloseDeleteModal = () => {
@@ -259,9 +260,9 @@ export function UsersTableSection(props: Props) {
                   <IconButton
                     size="small"
                     aria-label="Edit user"
-                    disabled={!row.id || !onEditUser}
+                    disabled={!row.id || !onEditUser || !canEditUser}
                     onClick={() => {
-                      if (row.id && onEditUser) onEditUser(row.id);
+                      if (row.id && onEditUser && canEditUser) onEditUser(row.id);
                     }}
                     sx={{
                       ...dataTableActionButton,

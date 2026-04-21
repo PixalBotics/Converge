@@ -51,6 +51,10 @@ export type PoolsTableCardProps = {
   onEdit: (row: PoolRow) => void;
   onDelete: (row: PoolRow) => void;
   disableActions: boolean;
+  /** When false, row edit is hidden (operational `hrms:pool:update`). */
+  canEdit?: boolean;
+  /** When false, row delete is hidden (operational `hrms:pool:delete`). */
+  canDelete?: boolean;
 };
 
 export function PoolsTableCard({
@@ -67,6 +71,8 @@ export function PoolsTableCard({
   onEdit,
   onDelete,
   disableActions,
+  canEdit = true,
+  canDelete = true,
 }: PoolsTableCardProps) {
   const theme = useTheme() as AppTheme;
 
@@ -107,7 +113,7 @@ export function PoolsTableCard({
                 size="small"
                 sx={dataTableActionButton}
                 aria-label="Edit pool"
-                disabled={disableActions}
+                disabled={disableActions || !canEdit}
                 onClick={() => onEdit(row)}
               >
                 <EditIcon fontSize="small" />
@@ -115,7 +121,7 @@ export function PoolsTableCard({
               <IconButton
                 size="small"
                 aria-label="Delete pool"
-                disabled={disableActions}
+                disabled={disableActions || !canDelete}
                 onClick={() => onDelete(row)}
                 sx={{
                   ...dataTableActionButton,

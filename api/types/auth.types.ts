@@ -23,11 +23,21 @@ export interface AuthApiUser {
   theme: AuthApiTheme;
 }
 
+/** Login `/auth/login` inner `data.permission` (page + operational string arrays). */
+export type LoginPermissionEnvelope = {
+  page?: string[];
+  operational?: string[];
+  breakdown?: Record<string, unknown>;
+  isPlatformAdmin?: boolean;
+};
+
 export interface LoginSuccessData extends AuthTokenPair {
   tokenType: string;
   expiresIn?: string;
   refreshExpiresIn?: string;
   user: AuthApiUser;
+  /** Some APIs send `{ page: [], operational: [] }` on the token payload root. */
+  permission?: LoginPermissionEnvelope;
   permissionsByType?: Record<string, string[]>;
   context?: Record<string, unknown>;
 }

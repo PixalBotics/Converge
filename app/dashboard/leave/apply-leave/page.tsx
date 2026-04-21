@@ -16,11 +16,13 @@ import {
   SelectField,
   DataTable,
   TablePagination,
+  FormModal,
 } from "@/components/common";
 import type { DataTableColumn } from "@/components/common";
-import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
+import { AddCircleIcon } from "@/components/dashboard/icons/AddCircleIcon";
 import { rolesCard, rolesFooterRow, rolesIconBox, rolesPageWrapper, rolesPaginationWrapper } from "../../roles/roles.styles";
-import { footerMutedText, pageWrapper } from "../../companies/overview.styles";
+import { footerMutedText, pageHeaderRow, pageWrapper } from "../../companies/overview.styles";
+import { departmentsAddButton } from "../../website-assigning/website-assigning.styles";
 import { publishAppToast } from "@/lib/notify";
 import { formatIsoDate, isRecord, pickNum, pickStr, unwrapApiData } from "@/lib/utils";
 import {
@@ -30,13 +32,13 @@ import {
   useSubmitLeaveApplicationMutation,
 } from "@/lib/hooks/query";
 import {
-  applyLeaveActionsSx,
   applyLeaveCardHeaderSx,
   applyLeaveFormGridSx,
-  applyLeaveHeaderWrapSx,
   applyLeaveIconSx,
   applyLeaveSubtextSx,
 } from "./apply-leave.styles";
+import { useAuth } from "@/lib/auth";
+import { OP } from "@/lib/permissions";
 
 const PAGE_LIMIT = 8;
 
@@ -50,12 +52,17 @@ type MyLeaveRow = {
 
 export default function ApplyLeavePage() {
   const theme = useTheme() as AppTheme;
+  const { hasOperational } = useAuth();
+  const canApplyLeave = hasOperational(OP.hrms.leave.apply);
+  const canSelfLeaveView = hasOperational(OP.hrms.leave.selfView);
+  const showLeaveInsights = canSelfLeaveView || canApplyLeave;
   const [leaveType, setLeaveType] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [reason, setReason] = useState("");
   const [page, setPage] = useState(1);
   const [quotaYear, setQuotaYear] = useState(() => new Date().getUTCFullYear());
+  const [applyModalOpen, setApplyModalOpen] = useState(false);
 
   const leaveTypesQuery = useLeaveTypesForApplyQuery({ all: true }, { enabled: true, scope: "apply-leave" });
   const leaveTypeOptions = useMemo(() => {
@@ -171,6 +178,11 @@ export default function ApplyLeavePage() {
     setReason("");
   };
 
+  const closeApplyModal = () => {
+    handleCancel();
+    setApplyModalOpen(false);
+  };
+
   const handleSubmit = () => {
     if (!leaveType.trim()) {
       publishAppToast({ variant: "error", message: "Please select leave type." });
@@ -200,6 +212,7 @@ export default function ApplyLeavePage() {
         onSuccess: () => {
           publishAppToast({ variant: "success", message: "Leave applied successfully." });
           handleCancel();
+          setApplyModalOpen(false);
         },
         onError: () => publishAppToast({ variant: "error", message: "Could not submit leave application." }),
       },
@@ -208,56 +221,53 @@ export default function ApplyLeavePage() {
 
   return (
     <Box sx={[pageWrapper, rolesPageWrapper] as SxProps<Theme>}>
-      <Box sx={applyLeaveHeaderWrapSx}>
-        <Typography variant="regularLarge" fontWeight={700} color="white">
-          Apply Leave (Employee)
-        </Typography>
-        <Typography variant="body2" sx={applyLeaveSubtextSx}>
-          Submit leave application and track approval stages.
-        </Typography>
-      </Box>
-
-      <DashboardCard sx={rolesCard}>
-        <Box sx={applyLeaveCardHeaderSx}>
-          <Box sx={rolesIconBox}>
-            <AttachMoneyIcon sx={applyLeaveIconSx} />
-          </Box>
-          <Typography variant="mediumLarge" fontWeight={600} color="white">
+      <Box sx={pageHeaderRow}>
+        <Box sx={{ flex: 1, minWidth: 0 }}>
+          <Typography variant="regularLarge" fontWeight={700} color="white">
             Apply Leave (Employee)
           </Typography>
+          <Typography variant="body2" sx={applyLeaveSubtextSx}>
+            Submit leave application and track approval stages.
+          </Typography>
         </Box>
-
-        <Box sx={applyLeaveFormGridSx}>
-          <SelectField label="Leave Type" value={leaveType} onChange={setLeaveType} options={leaveTypeOptions} menuMaxRows={8} />
-          <Calendar
-            label="Start Date"
-            value={startDate}
-            onChange={setStartDate}
-          />
-          <Calendar
-            label="End Date"
-            value={endDate}
-            min={startDate || undefined}
-            onChange={setEndDate}
-          />
-          <InputField
-            label="Reason (Textarea)"
-            placeholder="Assign Department Head"
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
-          />
-        </Box>
-
-        <Box sx={applyLeaveActionsSx}>
-          <Button variant="secondary" onClick={handleCancel}>
-            Cancel
+        {canApplyLeave ? (
+          <Button variant="primary" sx={departmentsAddButton} onClick={() => setApplyModalOpen(true)}>
+            <AddCircleIcon width={16} height={16} />
+            <Typography component="span" variant="medium" sx={{ color: "inherit" }}>
+              Apply leave
+            </Typography>
           </Button>
-          <Button variant="primary" sx={gradientPrimaryButtonSx} onClick={handleSubmit} disabled={submitMutation.isPending}>
-            Submit
-          </Button>
-        </Box>
-      </DashboardCard>
+        ) : null}
+      </Box>
 
+      {canApplyLeave ? (
+        <FormModal
+          open={applyModalOpen}
+          title="Apply leave"
+          description="Choose leave type, dates, and reason. Your request will follow the normal approval flow."
+          onClose={closeApplyModal}
+          onSave={handleSubmit}
+          primaryButtonLabel={submitMutation.isPending ? "Submitting…" : "Submit"}
+          primaryButtonDisabled={submitMutation.isPending}
+          cancelButtonLabel="Cancel"
+          maxWidth={560}
+          fitContent
+        >
+          <Box sx={applyLeaveFormGridSx}>
+            <SelectField label="Leave Type" value={leaveType} onChange={setLeaveType} options={leaveTypeOptions} menuMaxRows={8} />
+            <Calendar label="Start Date" value={startDate} onChange={setStartDate} />
+            <Calendar label="End Date" value={endDate} min={startDate || undefined} onChange={setEndDate} />
+            <InputField
+              label="Reason"
+              placeholder="Brief reason for leave"
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+            />
+          </Box>
+        </FormModal>
+      ) : null}
+
+      {showLeaveInsights ? (
       <DashboardCard sx={rolesCard}>
         <Box sx={{ ...applyLeaveCardHeaderSx, justifyContent: "space-between", gap: 2 }}>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
@@ -388,7 +398,9 @@ export default function ApplyLeavePage() {
           </Box>
         )}
       </DashboardCard>
+      ) : null}
 
+      {showLeaveInsights ? (
       <DashboardCard sx={rolesCard}>
         <Box sx={applyLeaveCardHeaderSx}>
           <Box sx={rolesIconBox}>
@@ -416,6 +428,23 @@ export default function ApplyLeavePage() {
           </Box>
         </Box>
       </DashboardCard>
+      ) : null}
+
+      {!canApplyLeave && !showLeaveInsights ? (
+        <DashboardCard sx={rolesCard}>
+          <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, lineHeight: 1.6, p: 1 }}>
+            You do not have leave permissions assigned for this screen. Required operational permissions include{" "}
+            <Box component="span" sx={{ color: "white", fontWeight: 600 }}>
+              {OP.hrms.leave.apply}
+            </Box>{" "}
+            to submit, and{" "}
+            <Box component="span" sx={{ color: "white", fontWeight: 600 }}>
+              {OP.hrms.leave.selfView}
+            </Box>{" "}
+            to view quota and your applications.
+          </Typography>
+        </DashboardCard>
+      ) : null}
     </Box>
   );
 }

@@ -17,6 +17,8 @@ import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.style
 import { rolesCard, rolesFooterRow, rolesPageWrapper, rolesPaginationWrapper } from "../../roles/roles.styles";
 import { footerMutedText, pageWrapper } from "../../companies/overview.styles";
 import { useBodyScrollLock } from "@/lib/ui/useBodyScrollLock";
+import { useAuth } from "@/lib/auth";
+import { OP } from "@/lib/permissions";
 import {
   approveLeaveCardHeaderSx,
   approveLeaveFilterGridSx,
@@ -63,6 +65,12 @@ const PAGE_LIMIT = 10;
 
 export default function ApproveLeavePage() {
   const theme = useTheme() as AppTheme;
+  const { hasOperational } = useAuth();
+  const canManageLeaveApprovals =
+    hasOperational(OP.hrms.leave.approve) ||
+    hasOperational(OP.hrms.leave.view) ||
+    hasOperational(OP.hrms.leave.approvePool) ||
+    hasOperational(OP.hrms.leave.approveDepartment);
   const [department, setDepartment] = useState("");
   const [status, setStatus] = useState("abc-group");
   const [page, setPage] = useState(1);
@@ -99,9 +107,12 @@ export default function ApproveLeavePage() {
           const statusValue = String(value ?? "");
           const isRejected = statusValue === "Rejected";
           return (
-            <Typography
+            <Box
               component="button"
+              type="button"
+              disabled={!canManageLeaveApprovals}
               onClick={() => {
+                if (!canManageLeaveApprovals) return;
                 setPendingAction(isRejected ? "Rejected" : "Approved");
                 setDecisionModalOpen(true);
               }}
@@ -112,20 +123,21 @@ export default function ApproveLeavePage() {
                 border: 0,
                 background: "transparent",
                 p: 0,
-                cursor: "pointer",
+                cursor: canManageLeaveApprovals ? "pointer" : "not-allowed",
                 textDecoration: "none",
+                opacity: canManageLeaveApprovals ? 1 : 0.45,
                 "&:hover": {
-                  textDecoration: "underline",
+                  textDecoration: canManageLeaveApprovals ? "underline" : "none",
                 },
               }}
             >
               {statusValue}
-            </Typography>
+            </Box>
           );
         },
       },
     ],
-    [theme],
+    [theme, canManageLeaveApprovals],
   );
 
   return (
@@ -240,23 +252,25 @@ export default function ApproveLeavePage() {
               <Button
                 type="button"
                 variant="secondary"
+                disabled={!canManageLeaveApprovals}
                 onClick={() => {
                   setDecisionModalOpen(false);
                   setComment("");
                 }}
               >
-                Reject
+                Cancel
               </Button>
               <Button
                 type="button"
                 variant="primary"
                 sx={gradientPrimaryButtonSx}
+                disabled={!canManageLeaveApprovals}
                 onClick={() => {
                   setDecisionModalOpen(false);
                   setComment("");
                 }}
               >
-                Approve
+                Confirm
               </Button>
             </Box>
           </ModalGlassShell>

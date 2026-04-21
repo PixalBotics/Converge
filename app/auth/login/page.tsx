@@ -15,7 +15,8 @@ import {
   InputField,
   Label,
 } from "@/components/common";
-import { APP_PATHS, getAuthEmailRules, useAuth } from "@/lib/auth";
+import { getAuthEmailRules, useAuth } from "@/lib/auth";
+import { resolveDashboardLandingHref } from "@/lib/permissions";
 import { AuthNavigationLink } from "../_components/AuthNavigationLink";
 import { AUTH_PATHS } from "../constants";
 import { authInputFieldStyles, signInButtonStyles } from "../auth-layout.styles";
@@ -44,7 +45,15 @@ const defaultValues: LoginFormValues = {
 export default function LoginPage() {
   const theme = useTheme();
   const router = useRouter();
-  const { login, isAuthenticated, isLoading } = useAuth();
+  const {
+    login,
+    isAuthenticated,
+    isLoading,
+    user,
+    permissionsByType,
+    permissionsSyncing,
+    isPlatformAdmin,
+  } = useAuth();
   const disableForm = isLoading || isAuthenticated;
   const {
     control,
@@ -59,8 +68,25 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (isLoading) return;
-    if (isAuthenticated) router.replace(APP_PATHS.dashboard);
-  }, [isAuthenticated, isLoading, router]);
+    if (!isAuthenticated) return;
+    if (permissionsSyncing) return;
+    const isDemoUser = user?.email?.trim().toLowerCase() === "demo@gmail.com";
+    router.replace(
+      resolveDashboardLandingHref({
+        permissionsByType,
+        isPlatformAdmin,
+        isDemoUser: Boolean(isDemoUser),
+      }),
+    );
+  }, [
+    isAuthenticated,
+    isLoading,
+    permissionsSyncing,
+    permissionsByType,
+    isPlatformAdmin,
+    user,
+    router,
+  ]);
 
   const onSubmit = async (values: LoginFormValues) => {
     const result = await login({

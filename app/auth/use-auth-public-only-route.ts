@@ -2,7 +2,8 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { APP_PATHS, useAuth } from "@/lib/auth";
+import { useAuth } from "@/lib/auth";
+import { resolveDashboardLandingHref } from "@/lib/permissions";
 
 /**
  * Public auth routes: if a session already exists, redirect to the app shell.
@@ -12,12 +13,36 @@ import { APP_PATHS, useAuth } from "@/lib/auth";
  */
 export function useAuthPublicOnlyRoute(): boolean {
   const router = useRouter();
-  const { isAuthenticated, isLoading } = useAuth();
+  const {
+    isAuthenticated,
+    isLoading,
+    user,
+    permissionsByType,
+    permissionsSyncing,
+    isPlatformAdmin,
+  } = useAuth();
 
   useEffect(() => {
     if (isLoading) return;
-    if (isAuthenticated) router.replace(APP_PATHS.dashboard);
-  }, [isAuthenticated, isLoading, router]);
+    if (!isAuthenticated) return;
+    if (permissionsSyncing) return;
+    const isDemoUser = user?.email?.trim().toLowerCase() === "demo@gmail.com";
+    router.replace(
+      resolveDashboardLandingHref({
+        permissionsByType,
+        isPlatformAdmin,
+        isDemoUser: Boolean(isDemoUser),
+      }),
+    );
+  }, [
+    isAuthenticated,
+    isLoading,
+    permissionsSyncing,
+    permissionsByType,
+    isPlatformAdmin,
+    user,
+    router,
+  ]);
 
   return isLoading || isAuthenticated;
 }

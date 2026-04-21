@@ -33,6 +33,8 @@ import {
   useUsersListQuery,
 } from "@/lib/hooks/query";
 import { pickItemsArray, toIdNameOption } from "@/app/dashboard/user-page/components/add-user-modal.utils";
+import { useAuth } from "@/lib/auth";
+import { canManageDepartmentHeads, canRemoveDepartmentHead } from "@/lib/permissions";
 
 const PAGE_LIMIT = 12;
 
@@ -78,6 +80,9 @@ function extractTotalPages(data: unknown): number {
 
 export default function DepartmentHeadsPage() {
   const theme = useTheme() as AppTheme;
+  const { hasOperational } = useAuth();
+  const canAssignDeptHead = canManageDepartmentHeads(hasOperational);
+  const canRemoveDeptHeadRow = canRemoveDepartmentHead(hasOperational);
   const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
 
   const [mode, setMode] = useState<"heads" | "attendance">("heads");
@@ -329,7 +334,7 @@ export default function DepartmentHeadsPage() {
             variant="primary"
             disabled={
               !departmentId.trim() ||
-              (mode === "heads" ? !selectedUserId.trim() : false) ||
+              (mode === "heads" ? !selectedUserId.trim() || !canAssignDeptHead : false) ||
               assignMutation.isPending
             }
             onClick={() => {
@@ -395,7 +400,7 @@ export default function DepartmentHeadsPage() {
                     <IconButton
                       size="small"
                       aria-label="Remove department head"
-                      disabled={!row.id || isDeletingThis}
+                      disabled={!row.id || isDeletingThis || !canRemoveDeptHeadRow}
                       onClick={() => {
                         if (!row.id) return;
                         removeMutation.mutate(row.id, {

@@ -51,6 +51,10 @@ export type ApprovalLeaveTableCardProps = {
   columns: DataTableColumn<ApprovalLeaveRow>[];
   onApprove: (rowId: string) => void;
   onReject: (rowId: string) => void;
+  canApprove?: boolean;
+  canReject?: boolean;
+  canUsePoolQueue?: boolean;
+  canUseDepartmentQueue?: boolean;
 };
 
 export function ApprovalLeaveTableCard({
@@ -67,6 +71,10 @@ export function ApprovalLeaveTableCard({
   columns,
   onApprove,
   onReject,
+  canApprove = true,
+  canReject = true,
+  canUsePoolQueue = true,
+  canUseDepartmentQueue = true,
 }: ApprovalLeaveTableCardProps) {
   const theme = useTheme() as AppTheme;
 
@@ -88,6 +96,7 @@ export function ApprovalLeaveTableCard({
               type="button"
               variant={queue === "pool" ? "primary" : "secondary"}
               onClick={() => onQueueChange("pool")}
+              disabled={!canUsePoolQueue}
               sx={queue === "pool" ? gradientPrimaryButtonSx : undefined}
             >
               Pool queue
@@ -96,6 +105,7 @@ export function ApprovalLeaveTableCard({
               type="button"
               variant={queue === "department" ? "primary" : "secondary"}
               onClick={() => onQueueChange("department")}
+              disabled={!canUseDepartmentQueue}
               sx={queue === "department" ? gradientPrimaryButtonSx : undefined}
             >
               Department queue
@@ -120,13 +130,20 @@ export function ApprovalLeaveTableCard({
           label: "Actions",
           render: (row) => (
             <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 1 }}>
-              <IconButton size="small" sx={dataTableActionButton} aria-label="Approve leave" onClick={() => onApprove(row.id)}>
+              <IconButton
+                size="small"
+                sx={dataTableActionButton}
+                aria-label="Approve leave"
+                disabled={!canApprove}
+                onClick={() => onApprove(row.id)}
+              >
                 <CheckIcon fontSize="small" />
               </IconButton>
               <IconButton
                 size="small"
                 sx={{ ...dataTableActionButton, color: theme.app.dashboard.accentRedLight }}
                 aria-label="Reject leave"
+                disabled={!canReject}
                 onClick={() => onReject(row.id)}
               >
                 <CloseIcon fontSize="small" />

@@ -10,6 +10,8 @@ import { rolesCard, rolesIconBox, rolesPageWrapper } from "../../roles/roles.sty
 import { pageWrapper } from "../../companies/overview.styles";
 import { publishAppToast } from "@/lib/notify";
 import { useAttendanceCheckInMutation, useAttendanceCheckOutMutation } from "@/lib/hooks/query";
+import { useAuth } from "@/lib/auth";
+import { OP } from "@/lib/permissions";
 import NextLink from "next/link";
 import {
   markAttendanceActionsSx,
@@ -21,6 +23,9 @@ import {
 } from "./mark-attendance.styles";
 
 export default function MarkAttendancePage() {
+  const { hasOperational } = useAuth();
+  const canCheckIn = hasOperational(OP.hrms.attendance.checkIn);
+  const canCheckOut = hasOperational(OP.hrms.attendance.checkOut);
   const [date] = useState(() => new Date().toISOString().slice(0, 10));
   const [checkedIn, setCheckedIn] = useState(false);
   const checkInMutation = useAttendanceCheckInMutation();
@@ -97,14 +102,16 @@ export default function MarkAttendancePage() {
           <Button variant="secondary" component={NextLink} href="/dashboard/attendance/my-attendance">
             Back
           </Button>
-          <Button
-            variant="secondary"
-            disabled={checkInMutation.isPending || checkOutMutation.isPending}
-            onClick={handleCheckIn}
-          >
-            {checkInMutation.isPending ? "Checking in…" : "Check in"}
-          </Button>
-          {checkedIn ? (
+          {canCheckIn ? (
+            <Button
+              variant="secondary"
+              disabled={checkInMutation.isPending || checkOutMutation.isPending}
+              onClick={handleCheckIn}
+            >
+              {checkInMutation.isPending ? "Checking in…" : "Check in"}
+            </Button>
+          ) : null}
+          {checkedIn && canCheckOut ? (
             <Button
               variant="primary"
               sx={gradientPrimaryButtonSx}

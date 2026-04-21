@@ -31,6 +31,8 @@ import {
   useUsersListQuery,
 } from "@/lib/hooks/query";
 import { pickItemsArray, toIdNameOption } from "@/app/dashboard/user-page/components/add-user-modal.utils";
+import { useAuth } from "@/lib/auth";
+import { canManagePoolHeads, canRemovePoolHead } from "@/lib/permissions";
 
 const PAGE_LIMIT = 12;
 
@@ -67,6 +69,9 @@ function extractTotalPages(data: unknown): number {
 
 export default function PoolHeadsPage() {
   const theme = useTheme() as AppTheme;
+  const { hasOperational } = useAuth();
+  const canAssignPoolHead = canManagePoolHeads(hasOperational);
+  const canRemovePoolHeadRow = canRemovePoolHead(hasOperational);
 
   const [departmentId, setDepartmentId] = useState("");
   const [poolId, setPoolId] = useState("");
@@ -230,7 +235,7 @@ export default function PoolHeadsPage() {
           <Button
             variant="primary"
             onClick={() => setAssignOpen(true)}
-            disabled={assignMutation.isPending}
+            disabled={assignMutation.isPending || !canAssignPoolHead}
           >
             Assign Pool Head
           </Button>
@@ -297,7 +302,7 @@ export default function PoolHeadsPage() {
                   <IconButton
                     size="small"
                     aria-label="Remove pool head"
-                    disabled={!row.id || isDeletingThis}
+                    disabled={!row.id || isDeletingThis || !canRemovePoolHeadRow}
                     onClick={() => {
                       if (!row.id) return;
                       removeMutation.mutate(row.id, {
@@ -368,6 +373,7 @@ export default function PoolHeadsPage() {
         }}
         primaryButtonDisabled={
           assignMutation.isPending ||
+          !canAssignPoolHead ||
           !assignDepartmentId.trim() ||
           !assignPoolId.trim() ||
           !assignUserId.trim()

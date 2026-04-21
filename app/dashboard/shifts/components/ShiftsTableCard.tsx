@@ -52,6 +52,8 @@ export type ShiftsTableCardProps = {
   onEdit: (row: ShiftRow) => void;
   onDelete: (row: ShiftRow) => void;
   disableActions: boolean;
+  canEdit?: boolean;
+  canDelete?: boolean;
 };
 
 export function ShiftsTableCard({
@@ -67,6 +69,8 @@ export function ShiftsTableCard({
   onEdit,
   onDelete,
   disableActions,
+  canEdit = true,
+  canDelete = true,
 }: ShiftsTableCardProps) {
   const theme = useTheme() as AppTheme;
 
@@ -104,7 +108,7 @@ export function ShiftsTableCard({
                 size="small"
                 sx={dataTableActionButton}
                 aria-label="Edit shift"
-                disabled={disableActions}
+                disabled={disableActions || !canEdit}
                 onClick={() => onEdit(row)}
               >
                 <EditIcon fontSize="small" />
@@ -112,7 +116,7 @@ export function ShiftsTableCard({
               <IconButton
                 size="small"
                 aria-label="Delete shift"
-                disabled={disableActions}
+                disabled={disableActions || !canDelete}
                 onClick={() => onDelete(row)}
                 sx={{
                   ...dataTableActionButton,

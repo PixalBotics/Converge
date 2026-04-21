@@ -35,6 +35,8 @@ import {
 } from "@/lib/hooks/query";
 import { pickItemsArray, toIdNameOption } from "@/app/dashboard/user-page/components/add-user-modal.utils";
 import { PoolModals, PoolsTableCard } from "./components";
+import { useAuth } from "@/lib/auth";
+import { canPoolAction } from "@/lib/permissions";
 
 const PAGE_LIMIT = 8;
 
@@ -46,6 +48,10 @@ export type PoolRow = {
 
 export default function PoolsPage() {
   const theme = useTheme() as AppTheme;
+  const { hasOperational } = useAuth();
+  const canCreatePool = canPoolAction(hasOperational, "create");
+  const canUpdatePool = canPoolAction(hasOperational, "update");
+  const canDeletePool = canPoolAction(hasOperational, "delete");
   const [resellerId, setResellerId] = useState("");
   const [parentCompanyId, setParentCompanyId] = useState("");
   const [departmentId, setDepartmentId] = useState("");
@@ -219,14 +225,16 @@ export default function PoolsPage() {
           </Typography>
         </Box>
 
-        <Button
-          variant="primary"
-          sx={gradientPrimaryButtonSx}
-          disabled={deleteMutation.isPending}
-          onClick={() => setCreateOpen(true)}
-        >
-          Add pool
-        </Button>
+        {canCreatePool ? (
+          <Button
+            variant="primary"
+            sx={gradientPrimaryButtonSx}
+            disabled={deleteMutation.isPending}
+            onClick={() => setCreateOpen(true)}
+          >
+            Add pool
+          </Button>
+        ) : null}
       </Box>
 
       <DashboardCard sx={rolesCard}>
@@ -304,6 +312,8 @@ export default function PoolsPage() {
         }}
         onDelete={setDeleteTarget}
         disableActions={deleteMutation.isPending}
+        canEdit={canUpdatePool}
+        canDelete={canDeletePool}
       />
 
       <PoolModals

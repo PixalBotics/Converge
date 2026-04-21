@@ -1,5 +1,6 @@
 import { alpha, createTheme, darken } from "@mui/material/styles";
 import type {} from "@mui/x-date-pickers/themeAugmentation";
+import { FORM_MODAL_MUI_OVERLAY_Z_INDEX } from "@/lib/ui/dialogStacking";
 
 /** App-wide background gradient (Discord-style midnight + Nitro-adjacent presets). */
 export const mainBackgroundGradient =
@@ -234,6 +235,10 @@ export function createAppMuiTheme(
        */
       MuiPickerPopper: {
         styleOverrides: {
+          /** Above `FormModal` portal (`FORM_MODAL_PORTAL_Z_INDEX`) so the calendar is not hidden behind glass dialogs. */
+          root: {
+            zIndex: FORM_MODAL_MUI_OVERLAY_Z_INDEX,
+          },
           paper: ({ theme }) => {
             const app = (theme as { app?: any }).app ?? {};
             return {

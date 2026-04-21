@@ -10,6 +10,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { flushSync } from "react-dom";
 import { isAxiosError } from "axios";
 import { usePathname, useRouter } from "next/navigation";
 import type { User, LoginCredentials } from "./types";
@@ -23,6 +24,7 @@ import {
   isImpersonatingSessionActive,
 } from "./impersonation-session";
 import {
+  extractIsPlatformAdmin,
   extractPermissionsByType,
   hasOperationalPermission,
   hasPagePermission,
@@ -33,7 +35,9 @@ import {
   toPermissionSet,
   type PermissionsByType,
 } from "./permissions-model";
+import { resolveDashboardLandingHref } from "@/lib/permissions";
 import { useAppearance } from "@/lib/theme/appearance-context";
+import { registerAfterTokenSessionSync } from "./after-token-session-sync";
 
 type AccessTokenPayload = {
   userId?: string;
@@ -65,6 +69,14 @@ function decodeJwtPayload(token: string): AccessTokenPayload | null {
   } catch {
     return null;
   }
+}
+
+function isJwtPlatformAdmin(payload: AccessTokenPayload | null): boolean {
+  if (!payload?.roles || !Array.isArray(payload.roles)) return false;
+  return payload.roles.some((r) => {
+    const s = String(r).toLowerCase().replace(/\s+/g, "");
+    return s.includes("platformadmin") || (s.includes("platform") && s.includes("admin"));
+  });
 }
 
 function mapRoleNameToAppRole(roleName?: string): User["role"] {
@@ -182,9 +194,13 @@ interface AuthContextValue {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  /** True while `/auth/me` (or post-login permission pull) is updating session permissions. */
+  permissionsSyncing: boolean;
   /** Present only when the backend sent at least one permission bucket. */
   permissionsByType: PermissionsByType | undefined;
   rbacEnabled: boolean;
+  /** Full module + route bypass (aligned with backend `isPlatformAdmin`). */
+  isPlatformAdmin: boolean;
   hasPage: (permission: string) => boolean;
   hasOperational: (permission: string) => boolean;
   isImpersonating: boolean;
@@ -192,6 +208,11 @@ interface AuthContextValue {
   login: (credentials: LoginCredentials) => Promise<LoginResult>;
   logout: () => Promise<void>;
 }
+
+export type ResolvedAuthSessionSnapshot = {
+  permissionsByType: PermissionsByType | undefined;
+  isPlatformAdmin: boolean;
+};
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
@@ -202,9 +223,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logoutMutation = useLogoutMutation();
   const { applyAccountTheme } = useAppearance();
   const accountThemeFromMeAppliedRef = useRef(false);
+  const suppressPostAuthNavPullRef = useRef(false);
+  const prevPathnameRef = useRef<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [permissionsSyncing, setPermissionsSyncing] = useState(false);
   const [permissionsByType, setPermissionsByType] = useState<PermissionsByType | undefined>(undefined);
+  const [isPlatformAdmin, setIsPlatformAdmin] = useState(false);
   const [isImpersonating, setIsImpersonating] = useState(false);
 
   const syncAccountThemeFromMePayload = useCallback(
@@ -221,6 +246,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const applyLocalAuthFromCookies = useCallback(() => {
     setUser(getUserFromAccessToken());
     setIsImpersonating(isImpersonatingSessionActive());
+    setIsPlatformAdmin(isJwtPlatformAdmin(decodeJwtPayload(getAccessToken() ?? "")));
     setIsLoading(false);
   }, []);
 
@@ -239,18 +265,108 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const hasPage = useCallback(
     (permission: string) => {
       if (!rbacEnabled) return true;
+      if (isPlatformAdmin) return true;
       return hasPagePermission(pagePermissionSet, permission);
     },
-    [rbacEnabled, pagePermissionSet],
+    [rbacEnabled, isPlatformAdmin, pagePermissionSet],
   );
 
   const hasOperational = useCallback(
     (permission: string) => {
       if (!rbacEnabled) return true;
+      if (isPlatformAdmin) return true;
       return hasOperationalPermission(operationalPermissionSet, permission);
     },
-    [rbacEnabled, operationalPermissionSet],
+    [rbacEnabled, isPlatformAdmin, operationalPermissionSet],
   );
+
+  type PullRemotePermissionMode =
+    | { type: "replace" }
+    | { type: "merge"; login: PermissionsByType | undefined };
+
+  /**
+   * Pulls `/auth/me` with permission breakdown after tokens change.
+   * Used on sign-in (merge with login payload) and after login-as (replace).
+   * Returns the merged permission snapshot for immediate routing (React state is not readable synchronously after `await`).
+   */
+  const pullRemoteAuthSession = useCallback(
+    async (permissionMode: PullRemotePermissionMode): Promise<ResolvedAuthSessionSnapshot> => {
+      setPermissionsSyncing(true);
+      const jwtAdminFallback = isJwtPlatformAdmin(decodeJwtPayload(getAccessToken() ?? ""));
+      try {
+        await synchronizeAuthSession();
+        const mePayload = await getMe({ permissionsBreakdown: true });
+        const meUser = extractUserFromMePayload(mePayload);
+        const mappedMeUser = meUser ? mapApiUserToUser(meUser) : null;
+        const fromMe = extractPermissionsByType(mePayload);
+        const mergedPermissions =
+          permissionMode.type === "merge"
+            ? (mergePermissionsByType(permissionMode.login, fromMe) ?? fromMe ?? permissionMode.login)
+            : fromMe;
+        const platformAdmin =
+          extractIsPlatformAdmin(mePayload) || isJwtPlatformAdmin(decodeJwtPayload(getAccessToken() ?? ""));
+        flushSync(() => {
+          setPermissionsByType(mergedPermissions ?? undefined);
+          setUser(mappedMeUser ?? getUserFromAccessToken());
+          setIsImpersonating(isImpersonatingSessionActive());
+          setIsPlatformAdmin(platformAdmin);
+        });
+        syncAccountThemeFromMePayload(mePayload, true);
+        return { permissionsByType: mergedPermissions ?? undefined, isPlatformAdmin: platformAdmin };
+      } catch {
+        if (permissionMode.type === "merge") {
+          const snapshot: ResolvedAuthSessionSnapshot = {
+            permissionsByType: permissionMode.login ?? undefined,
+            isPlatformAdmin: jwtAdminFallback,
+          };
+          flushSync(() => {
+            setPermissionsByType(snapshot.permissionsByType);
+            setUser(getUserFromAccessToken());
+            setIsImpersonating(isImpersonatingSessionActive());
+            setIsPlatformAdmin(snapshot.isPlatformAdmin);
+          });
+          return snapshot;
+        }
+        const snapshot: ResolvedAuthSessionSnapshot = {
+          permissionsByType: undefined,
+          isPlatformAdmin: jwtAdminFallback,
+        };
+        setUser(getUserFromAccessToken());
+        setIsImpersonating(isImpersonatingSessionActive());
+        setIsPlatformAdmin(snapshot.isPlatformAdmin);
+        return snapshot;
+      } finally {
+        setPermissionsSyncing(false);
+      }
+    },
+    [syncAccountThemeFromMePayload],
+  );
+
+  useEffect(() => {
+    registerAfterTokenSessionSync(async () => {
+      await pullRemoteAuthSession({ type: "replace" });
+    });
+    return () => registerAfterTokenSessionSync(null);
+  }, [pullRemoteAuthSession]);
+
+  /**
+   * Client navigation from `/auth/*` into the app does not re-run the initial hydrate effect.
+   * Pull `/auth/me` once on that transition so sidebar + RBAC stay in sync (e.g. cookie session).
+   */
+  useEffect(() => {
+    const prev = prevPathnameRef.current;
+    const current = pathname;
+    if (prev !== null && getAccessToken()) {
+      if (shouldSkipRemoteAuthHydration(prev) && !shouldSkipRemoteAuthHydration(current)) {
+        if (suppressPostAuthNavPullRef.current) {
+          suppressPostAuthNavPullRef.current = false;
+        } else {
+          void pullRemoteAuthSession({ type: "merge", login: undefined });
+        }
+      }
+    }
+    prevPathnameRef.current = current;
+  }, [pathname, pullRemoteAuthSession]);
 
   /** Public auth pages: no `/auth/me`, verify, or refresh on load/focus. */
   const isSkipHydrationPath = useCallback(() => {
@@ -286,6 +402,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         });
         setUser(mappedMeUser ?? getUserFromAccessToken());
         setIsImpersonating(isImpersonatingSessionActive());
+        setIsPlatformAdmin(
+          extractIsPlatformAdmin(mePayload) || isJwtPlatformAdmin(decodeJwtPayload(getAccessToken() ?? "")),
+        );
         syncAccountThemeFromMePayload(mePayload);
       } catch {
         if (!mounted) return;
@@ -295,6 +414,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
         setUser(getUserFromAccessToken());
         setIsImpersonating(isImpersonatingSessionActive());
+        setIsPlatformAdmin(isJwtPlatformAdmin(decodeJwtPayload(getAccessToken() ?? "")));
       } finally {
         if (!mounted) return;
         if (!isSkipHydrationPath()) {
@@ -343,6 +463,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         });
         setUser(mappedMeUser ?? getUserFromAccessToken());
         setIsImpersonating(isImpersonatingSessionActive());
+        setIsPlatformAdmin(
+          extractIsPlatformAdmin(mePayload) || isJwtPlatformAdmin(decodeJwtPayload(getAccessToken() ?? "")),
+        );
         syncAccountThemeFromMePayload(mePayload);
       } catch {
         if (!active) return;
@@ -351,6 +474,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
         setUser(getUserFromAccessToken());
         setIsImpersonating(isImpersonatingSessionActive());
+        setIsPlatformAdmin(isJwtPlatformAdmin(decodeJwtPayload(getAccessToken() ?? "")));
       } finally {
         if (!active) return;
         if (!isSkipHydrationPath()) {
@@ -412,11 +536,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           };
         }
         const loginPerms = extractPermissionsByType(response);
-        setPermissionsByType(loginPerms ?? undefined);
-        setUser(mappedUser);
         applyAccountTheme(response.user.theme?.backgroundColor ?? null);
         accountThemeFromMeAppliedRef.current = true;
-        router.replace(APP_PATHS.dashboard);
+        /**
+         * Commit login payload (PAGE + OPERATIONAL) synchronously so the first dashboard paint
+         * already has RBAC state; then merge with `/auth/me` for a single source of truth.
+         */
+        flushSync(() => {
+          setUser(mappedUser);
+          if (loginPerms) {
+            setPermissionsByType(loginPerms);
+          }
+          setIsPlatformAdmin(
+            extractIsPlatformAdmin(response) || isJwtPlatformAdmin(decodeJwtPayload(getAccessToken() ?? "")),
+          );
+        });
+        /**
+         * Initial `/auth` mount skips `/auth/me`, and client navigation to the dashboard
+         * does not re-run that hydrate effect — load permissions here so sidebar + RBAC
+         * match without a manual refresh.
+         */
+        const session = await pullRemoteAuthSession({ type: "merge", login: loginPerms });
+        suppressPostAuthNavPullRef.current = true;
+        const isDemoUser = mappedUser.email.trim().toLowerCase() === "demo@gmail.com";
+        const landing = resolveDashboardLandingHref({
+          permissionsByType: session.permissionsByType,
+          isPlatformAdmin: session.isPlatformAdmin,
+          isDemoUser,
+        });
+        queueMicrotask(() => {
+          router.replace(landing);
+        });
         return { success: true };
       } catch (err: unknown) {
         if (isAxiosError(err)) {
@@ -455,7 +605,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         };
       }
     },
-    [applyAccountTheme, loginMutation, router],
+    [applyAccountTheme, loginMutation, pullRemoteAuthSession, router],
   );
 
   const logout = useCallback(async () => {
@@ -466,6 +616,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     setUser(null);
     setPermissionsByType(undefined);
+    setPermissionsSyncing(false);
+    setIsPlatformAdmin(false);
     setIsImpersonating(false);
     accountThemeFromMeAppliedRef.current = false;
     router.push(AUTH_PATHS.login);
@@ -482,17 +634,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const mePayload = await getMe({ permissionsBreakdown: true });
       const meUser = extractUserFromMePayload(mePayload);
       const mappedMeUser = meUser ? mapApiUserToUser(meUser) : null;
-      setPermissionsByType((prev) => {
-        const incoming = extractPermissionsByType(mePayload);
-        if (!incoming) return prev;
-        return mergePermissionsByType(prev, incoming);
+      const incoming = extractPermissionsByType(mePayload);
+      const platformAdmin =
+        extractIsPlatformAdmin(mePayload) || isJwtPlatformAdmin(decodeJwtPayload(getAccessToken() ?? ""));
+      let mergedPermissions: PermissionsByType | undefined;
+      flushSync(() => {
+        setPermissionsByType((prev) => {
+          const merged = mergePermissionsByType(prev, incoming) ?? incoming ?? prev;
+          mergedPermissions = merged ?? undefined;
+          return merged ?? undefined;
+        });
+        setUser(mappedMeUser ?? getUserFromAccessToken());
+        setIsPlatformAdmin(platformAdmin);
       });
-      setUser(mappedMeUser ?? getUserFromAccessToken());
       clearImpersonationSession();
       setIsImpersonating(false);
       accountThemeFromMeAppliedRef.current = false;
       syncAccountThemeFromMePayload(mePayload, true);
-      router.replace(APP_PATHS.dashboard);
+      const actor = mappedMeUser ?? getUserFromAccessToken();
+      const isDemoUser = actor?.email?.trim().toLowerCase() === "demo@gmail.com";
+      router.replace(
+        resolveDashboardLandingHref({
+          permissionsByType: mergedPermissions,
+          isPlatformAdmin: platformAdmin,
+          isDemoUser: Boolean(isDemoUser),
+        }),
+      );
       return true;
     } catch {
       return false;
@@ -504,8 +671,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       user,
       isAuthenticated: !!user,
       isLoading,
+      permissionsSyncing,
       permissionsByType,
       rbacEnabled,
+      isPlatformAdmin,
       hasPage,
       hasOperational,
       isImpersonating,
@@ -513,7 +682,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       login,
       logout,
     }),
-    [user, isLoading, permissionsByType, rbacEnabled, hasPage, hasOperational, isImpersonating, revertImpersonation, login, logout],
+    [
+      user,
+      isLoading,
+      permissionsSyncing,
+      permissionsByType,
+      rbacEnabled,
+      isPlatformAdmin,
+      hasPage,
+      hasOperational,
+      isImpersonating,
+      revertImpersonation,
+      login,
+      logout,
+    ],
   );
 
   return (

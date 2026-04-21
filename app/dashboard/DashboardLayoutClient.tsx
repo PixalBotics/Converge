@@ -7,9 +7,9 @@ import Alert from "@mui/material/Alert";
 import type { SxProps, Theme } from "@mui/material/styles";
 import { LoadingScreen } from "@/components/common";
 import { AUTH_PATHS, useAuth } from "@/lib/auth";
-import { PERMISSION_BUCKET_PAGE } from "@/lib/auth/permissions-model";
+import { PERMISSION_BUCKET_PAGE, toPermissionSet } from "@/lib/auth/permissions-model";
 import { canAccessDashboardPath, getFirstAccessibleDashboardPath } from "@/lib/permissions";
-import { DashboardSidebar, DashboardHeader } from "@/components/dashboard";
+import { DashboardSidebar, DashboardHeader, OperationalViewGate } from "@/components/dashboard";
 import { dashboardMainGlassSx, dashboardMainTextSx } from "./dashboard.styles";
 import { mainBackgroundGradient } from "@/theme/theme";
 
@@ -19,14 +19,22 @@ export default function DashboardLayoutClient({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
-  const { isAuthenticated, isLoading, rbacEnabled, permissionsByType, user } = useAuth();
+  const {
+    isAuthenticated,
+    isLoading,
+    rbacEnabled,
+    permissionsByType,
+    permissionsSyncing,
+    user,
+    isPlatformAdmin,
+  } = useAuth();
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [routeAccessBlocked, setRouteAccessBlocked] = useState(false);
   const isDemoUser = user?.email?.trim().toLowerCase() === "demo@gmail.com";
 
   const pagePermissionSet = useMemo(
-    () => new Set(permissionsByType?.[PERMISSION_BUCKET_PAGE] ?? []),
+    () => toPermissionSet(permissionsByType?.[PERMISSION_BUCKET_PAGE]),
     [permissionsByType],
   );
 
@@ -40,10 +48,16 @@ export default function DashboardLayoutClient({
       setRouteAccessBlocked(false);
       return;
     }
+    /** Avoid redirecting with stale/empty page perms while `/auth/me` merge is in flight. */
+    if (permissionsSyncing) {
+      setRouteAccessBlocked(false);
+      return;
+    }
     const canAccess = canAccessDashboardPath({
       pathname,
       rbacEnabled,
       pagePermissionSet,
+      isPlatformAdmin,
     });
     if (canAccess) {
       setRouteAccessBlocked(false);
@@ -53,6 +67,7 @@ export default function DashboardLayoutClient({
       rbacEnabled,
       pagePermissionSet,
       isDemoUser,
+      isPlatformAdmin,
     });
     if (fallback && fallback !== pathname) {
       setRouteAccessBlocked(false);
@@ -60,7 +75,17 @@ export default function DashboardLayoutClient({
       return;
     }
     setRouteAccessBlocked(true);
-  }, [isLoading, isAuthenticated, rbacEnabled, pathname, pagePermissionSet, isDemoUser, router]);
+  }, [
+    isLoading,
+    isAuthenticated,
+    rbacEnabled,
+    permissionsSyncing,
+    pathname,
+    pagePermissionSet,
+    isDemoUser,
+    isPlatformAdmin,
+    router,
+  ]);
 
   if (isLoading) {
     return <LoadingScreen message="Loading..." />;
@@ -121,7 +146,7 @@ export default function DashboardLayoutClient({
             ] as SxProps<Theme>
           }
         >
-          {children}
+          <OperationalViewGate pathname={pathname}>{children}</OperationalViewGate>
         </Box>
       </Box>
     </Box>

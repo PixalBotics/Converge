@@ -45,6 +45,7 @@ export type LeaveTypesTableCardProps = {
   onEdit: (row: LeaveTypeRow) => void;
   onDelete: (row: LeaveTypeRow) => void;
   disableActions: boolean;
+  showManageActions?: boolean;
 };
 
 export function LeaveTypesTableCard({
@@ -60,6 +61,7 @@ export function LeaveTypesTableCard({
   onEdit,
   onDelete,
   disableActions,
+  showManageActions = true,
 }: LeaveTypesTableCardProps) {
   const theme = useTheme() as AppTheme;
 
@@ -89,35 +91,39 @@ export function LeaveTypesTableCard({
         isLoading={isLoading}
         getRowId={(row) => row.id}
         minWidth={700}
-        actionColumn={{
-          label: "Action",
-          render: (row) => (
-            <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 1 }}>
-              <IconButton
-                size="small"
-                sx={dataTableActionButton}
-                aria-label="Edit leave type"
-                disabled={disableActions}
-                onClick={() => onEdit(row)}
-              >
-                <EditIcon fontSize="small" />
-              </IconButton>
-              <IconButton
-                size="small"
-                aria-label="Delete leave type"
-                disabled={disableActions}
-                onClick={() => onDelete(row)}
-                sx={{
-                  ...dataTableActionButton,
-                  color: theme.app.dashboard.accentRedLight,
-                  opacity: disableActions ? 0.7 : 1,
-                }}
-              >
-                <DeleteIcon fontSize="small" />
-              </IconButton>
-            </Box>
-          ),
-        }}
+        actionColumn={
+          showManageActions
+            ? {
+                label: "Action",
+                render: (row) => (
+                  <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 1 }}>
+                    <IconButton
+                      size="small"
+                      sx={dataTableActionButton}
+                      aria-label="Edit leave type"
+                      disabled={disableActions}
+                      onClick={() => onEdit(row)}
+                    >
+                      <EditIcon fontSize="small" />
+                    </IconButton>
+                    <IconButton
+                      size="small"
+                      aria-label="Delete leave type"
+                      disabled={disableActions}
+                      onClick={() => onDelete(row)}
+                      sx={{
+                        ...dataTableActionButton,
+                        color: theme.app.dashboard.accentRedLight,
+                        opacity: disableActions ? 0.7 : 1,
+                      }}
+                    >
+                      <DeleteIcon fontSize="small" />
+                    </IconButton>
+                  </Box>
+                ),
+              }
+            : undefined
+        }
       />
 
       <Box sx={rolesFooterRow}>

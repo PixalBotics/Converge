@@ -27,6 +27,8 @@ import {
 } from "@/lib/hooks/query";
 import { isRecord, pickNum, pickStr, unwrapApiData } from "@/lib/utils";
 import { ShiftsTableCard } from "./components";
+import { useAuth } from "@/lib/auth";
+import { canShiftAction } from "@/lib/permissions";
 
 const PAGE_LIMIT = 8;
 
@@ -66,6 +68,10 @@ function getTimezoneOptions(): { value: string; label: string }[] {
 
 export default function ShiftsPage() {
   const theme = useTheme() as AppTheme;
+  const { hasOperational } = useAuth();
+  const canCreateShift = canShiftAction(hasOperational, "create");
+  const canUpdateShift = canShiftAction(hasOperational, "update");
+  const canDeleteShift = canShiftAction(hasOperational, "delete");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [createOpen, setCreateOpen] = useState(false);
@@ -252,14 +258,16 @@ export default function ShiftsPage() {
             Manage shift templates.
           </Typography>
         </Box>
-        <Button
-          variant="primary"
-          sx={gradientPrimaryButtonSx}
-          disabled={deleteMutation.isPending}
-          onClick={() => setCreateOpen(true)}
-        >
-          Add shift
-        </Button>
+        {canCreateShift ? (
+          <Button
+            variant="primary"
+            sx={gradientPrimaryButtonSx}
+            disabled={deleteMutation.isPending}
+            onClick={() => setCreateOpen(true)}
+          >
+            Add shift
+          </Button>
+        ) : null}
       </Box>
 
       <ShiftsTableCard
@@ -283,6 +291,8 @@ export default function ShiftsPage() {
         }}
         onDelete={setDeleteTarget}
         disableActions={deleteMutation.isPending}
+        canEdit={canUpdateShift}
+        canDelete={canDeleteShift}
       />
 
       <FormModal

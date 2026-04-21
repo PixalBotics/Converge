@@ -11,6 +11,7 @@ import { useTheme } from "@mui/material/styles";
 import type { Theme } from "@mui/material/styles";
 import type { SystemStyleObject } from "@mui/system";
 import List from "@mui/material/List";
+import Skeleton from "@mui/material/Skeleton";
 import ListItemButton from "@mui/material/ListItemButton";
 import ListItemIcon from "@mui/material/ListItemIcon";
 import ListItemText from "@mui/material/ListItemText";
@@ -25,7 +26,7 @@ import {
 } from "@mui/icons-material";
 import { logoSvg } from "@/assets";
 import { useAuth } from "@/lib/auth";
-import { PERMISSION_BUCKET_PAGE } from "@/lib/auth/permissions-model";
+import { PERMISSION_BUCKET_PAGE, toPermissionSet } from "@/lib/auth/permissions-model";
 import {
   SIDEBAR_WIDTH,
   navTypographyBase,
@@ -120,27 +121,67 @@ export default function DashboardSidebar({ open = false, onClose }: { open?: boo
   const theme = useTheme() as AppTheme;
   const isDesktop = useMediaQuery(theme.breakpoints.up("md"));
   const pathname = usePathname();
-  const { user, logout, isImpersonating, revertImpersonation, rbacEnabled, permissionsByType } = useAuth();
+  const {
+    user,
+    logout,
+    isImpersonating,
+    revertImpersonation,
+    rbacEnabled,
+    permissionsByType,
+    permissionsSyncing,
+    isPlatformAdmin,
+  } = useAuth();
   const isDemoUser = user?.email?.trim().toLowerCase() === "demo@gmail.com";
   const navTextProps = {
     ...navTypographyBase,
   };
-  const pagePermissionSet = new Set(permissionsByType?.[PERMISSION_BUCKET_PAGE] ?? []);
+  const pagePermissionSet = toPermissionSet(permissionsByType?.[PERMISSION_BUCKET_PAGE]);
+  const pagePermsRaw = permissionsByType?.[PERMISSION_BUCKET_PAGE];
+
   const activityItems = getVisibleDashboardNavItems({
     section: "activity",
     rbacEnabled,
     pagePermissionSet,
     isDemoUser,
+    isPlatformAdmin,
   });
   const footerItems = getVisibleDashboardNavItems({
     section: "footer",
     rbacEnabled,
     pagePermissionSet,
     isDemoUser,
+    isPlatformAdmin,
   });
 
+  useEffect(() => {
+    if (process.env.NODE_ENV !== "development") return;
+    console.log("[DashboardSidebar] PAGE permissions for nav", {
+      pageCountInSet: pagePermissionSet.size,
+      pageKeysSorted: [...pagePermissionSet].sort(),
+      rawPageArrayFromAuth: pagePermsRaw ?? null,
+      rawPageArrayLength: pagePermsRaw?.length ?? 0,
+      rbacEnabled,
+      permissionsSyncing,
+      isPlatformAdmin,
+      visibleActivityNavRows: activityItems.length,
+      visibleFooterNavRows: footerItems.length,
+    });
+  }, [
+    pagePermissionSet,
+    pagePermsRaw,
+    rbacEnabled,
+    permissionsSyncing,
+    isPlatformAdmin,
+    activityItems.length,
+    footerItems.length,
+  ]);
+
+  const showActivityNavSkeleton = permissionsSyncing;
+  const showNoModulesHint =
+    rbacEnabled && !permissionsSyncing && activityItems.length === 0 && Boolean(user);
+
   const sidebarContent = (
-    <Box sx={sidebarInnerSx}>
+    <Box sx={{ ...sidebarInnerSx, position: "relative" }}>
       <Box sx={headerBoxSx}>
         <Box
           component="img"
@@ -157,35 +198,65 @@ export default function DashboardSidebar({ open = false, onClose }: { open?: boo
 
       <List dense sx={listSx}>
         <Typography sx={sectionLabelSx}>ACTIVITY</Typography>
-        {activityItems.map((item) => {
-          if (item.children?.length) {
-            return (
-              <ActivityNavGroup
-                key={`group:${item.label}`}
-                item={item}
-                pathname={pathname}
-                navTextProps={navTextProps}
-                onNavigate={() => !isDesktop && onClose?.()}
+        {showActivityNavSkeleton ? (
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 1.25, py: 0.5, px: 0.5 }}>
+            {Array.from({ length: 7 }).map((_, i) => (
+              <Skeleton
+                key={`nav-skel-${i}`}
+                variant="rounded"
+                height={40}
+                animation="wave"
+                sx={{
+                  bgcolor: "rgba(255,255,255,0.06)",
+                  borderRadius: 1,
+                }}
               />
+            ))}
+          </Box>
+        ) : showNoModulesHint ? (
+          <Typography
+            variant="body2"
+            sx={{
+              px: 1.5,
+              py: 2,
+              color: "rgba(255,255,255,0.55)",
+              lineHeight: 1.5,
+              fontSize: 13,
+            }}
+          >
+            No navigation modules are assigned to this account yet. Ask an administrator to grant page permissions.
+          </Typography>
+        ) : (
+          activityItems.map((item) => {
+            if (item.children?.length) {
+              return (
+                <ActivityNavGroup
+                  key={`group:${item.label}`}
+                  item={item}
+                  pathname={pathname}
+                  navTextProps={navTextProps}
+                  onNavigate={() => !isDesktop && onClose?.()}
+                />
+              );
+            }
+            const selected = isNavPathSelected(pathname, item.href, item.prefixMatch);
+            return (
+              <ListItemButton
+                key={item.href}
+                component={Link}
+                href={item.href}
+                selected={selected}
+                sx={navItemSx}
+                onClick={() => !isDesktop && onClose?.()}
+              >
+                <ListItemIcon sx={selected ? listIconSelectedSx : listIconDefaultSx}>
+                  <SidebarReactIcon iconKey={item.iconKey} />
+                </ListItemIcon>
+                <ListItemText primary={item.label} primaryTypographyProps={navTextProps} />
+              </ListItemButton>
             );
-          }
-          const selected = isNavPathSelected(pathname, item.href, item.prefixMatch);
-          return (
-            <ListItemButton
-              key={item.href}
-              component={Link}
-              href={item.href}
-              selected={selected}
-              sx={navItemSx}
-              onClick={() => !isDesktop && onClose?.()}
-            >
-              <ListItemIcon sx={selected ? listIconSelectedSx : listIconDefaultSx}>
-                <SidebarReactIcon iconKey={item.iconKey} />
-              </ListItemIcon>
-              <ListItemText primary={item.label} primaryTypographyProps={navTextProps} />
-            </ListItemButton>
-          );
-        })}
+          })
+        )}
       </List>
 
       <Box sx={sidebarFooterSx}>

@@ -44,6 +44,10 @@ type Props = {
   totalEntries: number;
   limit: number;
   onPageChange: (p: number) => void;
+  /** Detail link and read-only list modals (parent/child multi). */
+  canViewCompanyDetail?: boolean;
+  canViewCompanyList?: boolean;
+  canUpdateCompany?: boolean;
 };
 
 export function CompaniesTableSection({
@@ -57,6 +61,9 @@ export function CompaniesTableSection({
   totalEntries,
   limit,
   onPageChange,
+  canViewCompanyDetail = true,
+  canViewCompanyList = true,
+  canUpdateCompany = true,
 }: Props) {
   const [childListOpen, setChildListOpen] = useState(false);
   const [childListParentName, setChildListParentName] = useState("");
@@ -103,19 +110,23 @@ export function CompaniesTableSection({
         label: "Parent Company",
         render: (_value, row) =>
           row.parentCompanies && row.parentCompanies.length > 1 ? (
-            <Button
-              variant="secondary"
-              size="small"
-              sx={{
-                alignSelf: "flex-start",
-                justifyContent: "flex-start",
-                px: 2,
-                minWidth: "auto",
-              }}
-              onClick={() => handleOpenParentList(row)}
-            >
-              {row.parentCompany}
-            </Button>
+            canViewCompanyList ? (
+              <Button
+                variant="secondary"
+                size="small"
+                sx={{
+                  alignSelf: "flex-start",
+                  justifyContent: "flex-start",
+                  px: 2,
+                  minWidth: "auto",
+                }}
+                onClick={() => handleOpenParentList(row)}
+              >
+                {row.parentCompany}
+              </Button>
+            ) : (
+              String(row.parentCompany ?? "—")
+            )
           ) : (
             String(row.parentCompany ?? "—")
           ),
@@ -125,25 +136,29 @@ export function CompaniesTableSection({
         label: "Child Company",
         render: (value, row) =>
           row.childCompanies && row.childCompanies.length > 1 ? (
-            <Button
-              variant="secondary"
-              size="small"
-              sx={{
-                alignSelf: "flex-start",
-                justifyContent: "flex-start",
-                px: 2,
-                minWidth: "auto",
-              }}
-              onClick={() => handleOpenChildList(row)}
-            >
-              {String(value ?? row.childCompany)}
-            </Button>
+            canViewCompanyList ? (
+              <Button
+                variant="secondary"
+                size="small"
+                sx={{
+                  alignSelf: "flex-start",
+                  justifyContent: "flex-start",
+                  px: 2,
+                  minWidth: "auto",
+                }}
+                onClick={() => handleOpenChildList(row)}
+              >
+                {String(value ?? row.childCompany)}
+              </Button>
+            ) : (
+              String(value ?? row.childCompany)
+            )
           ) : (
             String(value ?? row.childCompany)
           ),
       },
     ],
-    [handleOpenChildList, handleOpenParentList],
+    [canViewCompanyList, handleOpenChildList, handleOpenParentList],
   );
 
   return (
@@ -196,7 +211,7 @@ export function CompaniesTableSection({
                     flexWrap: "wrap",
                   }}
                 >
-                  {detailHref ? (
+                  {detailHref && canViewCompanyDetail ? (
                     <Button
                       component={Link}
                       href={detailHref}
@@ -208,15 +223,17 @@ export function CompaniesTableSection({
                     </Button>
                   ) : null}
                   {row.parentCompanies && row.parentCompanies.length > 1 ? (
-                    <Button
-                      variant="secondary"
-                      size="small"
-                      sx={{ minWidth: "auto", px: 1.75, whiteSpace: "nowrap" }}
-                      onClick={() => handleOpenParentList(row)}
-                    >
-                      List
-                    </Button>
-                  ) : editHref ? (
+                    canViewCompanyList ? (
+                      <Button
+                        variant="secondary"
+                        size="small"
+                        sx={{ minWidth: "auto", px: 1.75, whiteSpace: "nowrap" }}
+                        onClick={() => handleOpenParentList(row)}
+                      >
+                        List
+                      </Button>
+                    ) : null
+                  ) : editHref && canUpdateCompany ? (
                     <Button
                       component={Link}
                       href={editHref}

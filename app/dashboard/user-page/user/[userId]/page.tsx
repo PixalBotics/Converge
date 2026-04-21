@@ -51,6 +51,7 @@ export default function UserDetailPage() {
 
   const { hasOperational } = useAuth();
   const canUseLoginAs = hasOperational("user:login-as");
+  const canEditUser = hasOperational("user:update") || hasOperational("user:edit");
 
   const [isEditOpen, setIsEditOpen] = useState(false);
 
@@ -146,8 +147,11 @@ export default function UserDetailPage() {
           <IconButton
             size="small"
             aria-label="Edit user"
-            disabled={!userId}
-            onClick={() => setIsEditOpen(true)}
+            disabled={!userId || !canEditUser}
+            onClick={() => {
+              if (!canEditUser) return;
+              setIsEditOpen(true);
+            }}
             sx={{ ...dataTableActionButton, color: theme.app.dashboard.white80 }}
           >
             <EditIcon fontSize="small" />

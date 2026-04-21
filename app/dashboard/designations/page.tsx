@@ -49,6 +49,8 @@ import {
 import { AddDesignationModal } from "./components/AddDesignationModal";
 import { DeleteDesignationConfirmModal } from "./components/DeleteDesignationConfirmModal";
 import { SearchIcon } from "@/components/dashboard/icons/SearchIcon";
+import { useAuth } from "@/lib/auth";
+import { canDesignationAction } from "@/lib/permissions";
 
 const DEFAULT_PAGE_LIMIT = 20;
 
@@ -66,6 +68,10 @@ function formatCompactEntryTotal(n: number): string {
 
 export default function DesignationsPage() {
   const theme = useTheme() as AppTheme;
+  const { hasOperational } = useAuth();
+  const canCreateDes = canDesignationAction(hasOperational, "create");
+  const canUpdateDes = canDesignationAction(hasOperational, "update");
+  const canDeleteDes = canDesignationAction(hasOperational, "delete");
   const queryClient = useQueryClient();
   const [designationFormOpen, setDesignationFormOpen] = useState(false);
   const [designationToEdit, setDesignationToEdit] = useState<DesignationRow | null>(null);
@@ -214,14 +220,16 @@ export default function DesignationsPage() {
           >
             Designations
           </Typography>
-          <Box sx={rolesAddButtonWrapper}>
-            <Button variant="primary" sx={rolesAddButton} onClick={openDesignationFormForAdd}>
-              <AddCircleIcon width={16} height={16} />
-              <Typography component="span" variant="medium" sx={{ color: "inherit" }}>
-                Add New Designation
-              </Typography>
-            </Button>
-          </Box>
+          {canCreateDes ? (
+            <Box sx={rolesAddButtonWrapper}>
+              <Button variant="primary" sx={rolesAddButton} onClick={openDesignationFormForAdd}>
+                <AddCircleIcon width={16} height={16} />
+                <Typography component="span" variant="medium" sx={{ color: "inherit" }}>
+                  Add New Designation
+                </Typography>
+              </Button>
+            </Box>
+          ) : null}
         </Box>
       </Box>
 
@@ -368,9 +376,9 @@ export default function DesignationsPage() {
                   <IconButton
                     size="small"
                     aria-label="Edit designation"
-                    disabled={!rowId}
+                    disabled={!rowId || !canUpdateDes}
                     onClick={() => {
-                      if (!rowId) return;
+                      if (!rowId || !canUpdateDes) return;
                       setDesignationToEdit(row);
                       setDesignationFormOpen(true);
                     }}
@@ -381,9 +389,9 @@ export default function DesignationsPage() {
                   <IconButton
                     size="small"
                     aria-label="Delete designation"
-                    disabled={!rowId || isDeletingThis}
+                    disabled={!rowId || isDeletingThis || !canDeleteDes}
                     onClick={() => {
-                      if (!rowId) return;
+                      if (!rowId || !canDeleteDes) return;
                       setDeleteTarget(row);
                     }}
                     sx={{

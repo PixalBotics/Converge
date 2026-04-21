@@ -21,6 +21,8 @@ import {
   approvalLeaveSubtextSx,
 } from "../_approval-leave/approval-leave.styles";
 import { ApprovalLeaveTableCard, LeaveDecisionModal, type LeaveDecision } from "../_approval-leave/components";
+import { useAuth } from "@/lib/auth";
+import { OP } from "@/lib/permissions";
 
 const PAGE_LIMIT = 8;
 
@@ -33,6 +35,15 @@ type ApprovalLeaveRow = {
 };
 
 export default function ApprovalLeavePage() {
+  const { hasOperational: h } = useAuth();
+  const orgBypass = h(OP.hrms.org.manage);
+  const canPoolApprove = orgBypass || h(OP.hrms.leave.approvePool) || h(OP.hrms.leave.approve);
+  const canPoolReject = orgBypass || h(OP.hrms.leave.rejectPool);
+  const canDeptApprove = orgBypass || h(OP.hrms.leave.approveDepartment) || h(OP.hrms.leave.approve);
+  const canDeptReject = orgBypass || h(OP.hrms.leave.rejectDepartment);
+  const canUsePoolQueue = canPoolApprove || canPoolReject || h(OP.hrms.leave.view);
+  const canUseDepartmentQueue = canDeptApprove || canDeptReject || h(OP.hrms.leave.view);
+
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [queue, setQueue] = useState<"pool" | "department">("pool");
@@ -89,6 +100,11 @@ export default function ApprovalLeavePage() {
   }, [queue, search]);
 
   useEffect(() => {
+    if (queue === "pool" && !canUsePoolQueue && canUseDepartmentQueue) setQueue("department");
+    else if (queue === "department" && !canUseDepartmentQueue && canUsePoolQueue) setQueue("pool");
+  }, [canUseDepartmentQueue, canUsePoolQueue, queue]);
+
+  useEffect(() => {
     setPage((prev) => (prev > pageCount ? pageCount : prev));
   }, [pageCount]);
 
@@ -142,6 +158,10 @@ export default function ApprovalLeavePage() {
         columns={columns}
         onApprove={(id) => setDecision({ id, action: "approve" })}
         onReject={(id) => setDecision({ id, action: "reject" })}
+        canApprove={queue === "pool" ? canPoolApprove : canDeptApprove}
+        canReject={queue === "pool" ? canPoolReject : canDeptReject}
+        canUsePoolQueue={canUsePoolQueue}
+        canUseDepartmentQueue={canUseDepartmentQueue}
       />
 
       <LeaveDecisionModal

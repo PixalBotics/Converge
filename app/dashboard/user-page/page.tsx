@@ -7,6 +7,7 @@ import type { AppTheme } from "@/theme/theme";
 import { AddCircleIcon } from "@/components/dashboard/icons/AddCircleIcon";
 import { Typography, Button } from "@/components/common";
 import { useUserFilterSuggestionsQuery, useUsersListQuery } from "@/lib/hooks";
+import { useAuth } from "@/lib/auth";
 import { UserStatsCards } from "./components/UserStatsCards";
 import { UsersTableSection } from "./components/UsersTableSection";
 import { AddUserModal } from "./components/AddUserModal";
@@ -27,6 +28,8 @@ import {
 
 export default function UserPage() {
   const theme = useTheme() as AppTheme;
+  const { hasOperational } = useAuth();
+  const canCreateUser = hasOperational("user:create");
   const [searchInput, setSearchInput] = useState("");
   const [appliedSearch, setAppliedSearch] = useState("");
   const [page, setPage] = useState(1);
@@ -122,21 +125,23 @@ export default function UserPage() {
         <Typography variant="regularLarge" fontWeight={700} color="white">
           User Page
         </Typography>
-        <Box sx={overviewAddButtonWrapper}>
-          <Button
-            variant="primary"
-            sx={overviewAddButton}
-            onClick={() => {
-              setEditingUserId(undefined);
-              setIsAddOpen(true);
-            }}
-          >
-            <AddCircleIcon width={16} height={16} />
-            <Typography component="span" variant="medium" sx={{ color: "inherit" }}>
-              Add New User
-            </Typography>
-          </Button>
-        </Box>
+        {canCreateUser ? (
+          <Box sx={overviewAddButtonWrapper}>
+            <Button
+              variant="primary"
+              sx={overviewAddButton}
+              onClick={() => {
+                setEditingUserId(undefined);
+                setIsAddOpen(true);
+              }}
+            >
+              <AddCircleIcon width={16} height={16} />
+              <Typography component="span" variant="medium" sx={{ color: "inherit" }}>
+                Add New User
+              </Typography>
+            </Button>
+          </Box>
+        ) : null}
       </Box>
 
       <UserStatsCards

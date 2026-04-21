@@ -33,9 +33,13 @@ import {
 import { DeleteRoleConfirmModal } from "./components/DeleteRoleConfirmModal";
 import { RoleModal } from "./components/RoleModal";
 import { extractRolesLimit, extractRolesRows, extractRolesTotal, extractRolesTotalPages, type RoleRow } from "./utils";
+import { useAuth } from "@/lib/auth";
+import { canRoleAction } from "@/lib/permissions";
 
 export default function RolesPage() {
   const theme = useTheme() as AppTheme;
+  const { hasOperational } = useAuth();
+  const canMutateRoles = canRoleAction(hasOperational, "create");
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
@@ -104,21 +108,23 @@ export default function RolesPage() {
         >
           Roles
         </Typography>
-        <Box sx={rolesAddButtonWrapper}>
-          <Button
-            variant="primary"
-            sx={rolesAddButton}
-            onClick={() => {
-              setRoleToEdit(null);
-              setRoleFormOpen(true);
-            }}
-          >
-            <AddCircleIcon width={16} height={16} />
-            <Typography component="span" variant="medium" sx={{ color: "inherit" }}>
-              Add New Role
-            </Typography>
-          </Button>
-        </Box>
+        {canMutateRoles ? (
+          <Box sx={rolesAddButtonWrapper}>
+            <Button
+              variant="primary"
+              sx={rolesAddButton}
+              onClick={() => {
+                setRoleToEdit(null);
+                setRoleFormOpen(true);
+              }}
+            >
+              <AddCircleIcon width={16} height={16} />
+              <Typography component="span" variant="medium" sx={{ color: "inherit" }}>
+                Add New Role
+              </Typography>
+            </Button>
+          </Box>
+        ) : null}
       </Box>
 
       <RoleModal
@@ -213,9 +219,9 @@ export default function RolesPage() {
                   <IconButton
                     size="small"
                     aria-label="Edit role"
-                    disabled={!rowId}
+                    disabled={!rowId || !canMutateRoles}
                     onClick={() => {
-                      if (!rowId) return;
+                      if (!rowId || !canMutateRoles) return;
                       setRoleToEdit(row);
                       setRoleFormOpen(true);
                     }}
@@ -226,9 +232,9 @@ export default function RolesPage() {
                   <IconButton
                     size="small"
                     aria-label="Delete role"
-                    disabled={!rowId || isDeletingThis}
+                    disabled={!rowId || isDeletingThis || !canMutateRoles}
                     onClick={() => {
-                      if (!rowId) return;
+                      if (!rowId || !canMutateRoles) return;
                       setDeleteTarget(row);
                     }}
                     sx={{

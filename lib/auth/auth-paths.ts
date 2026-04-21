@@ -12,7 +12,7 @@ export const AUTH_PATHS = {
 export type AuthPathValue = (typeof AUTH_PATHS)[keyof typeof AUTH_PATHS];
 
 export const APP_PATHS = {
-  /** Default landing after sign-in / session restore. */
+  /** Dashboard shell; prefer `resolveDashboardLandingHref` from `@/lib/permissions` for RBAC-aware entry. */
   dashboard: "/dashboard",
 } as const;
 

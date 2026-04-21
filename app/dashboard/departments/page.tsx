@@ -55,6 +55,8 @@ import {
   extractDepartmentsTotalPages,
   extractDepartmentsLimit,
 } from "./utils";
+import { useAuth } from "@/lib/auth";
+import { canDepartmentAction } from "@/lib/permissions";
 
 /** Default page size sent to `GET /hrms/departments` — backend may echo a different `data.limit`. */
 const DEFAULT_PAGE_LIMIT = 20;
@@ -79,6 +81,10 @@ function formatCompactEntryTotal(n: number): string {
 
 export default function DepartmentsPage() {
   const theme = useTheme() as AppTheme;
+  const { hasOperational } = useAuth();
+  const canCreateDept = canDepartmentAction(hasOperational, "create");
+  const canUpdateDept = canDepartmentAction(hasOperational, "update");
+  const canDeleteDept = canDepartmentAction(hasOperational, "delete");
   const queryClient = useQueryClient();
   const [searchInput, setSearchInput] = useState("");
   /** Applied search string sent to API (set by Search button). */
@@ -238,9 +244,9 @@ export default function DepartmentsPage() {
             <IconButton
               size="small"
               aria-label="Edit department"
-              disabled={!rowId}
+              disabled={!rowId || !canUpdateDept}
               onClick={() => {
-                if (!rowId) return;
+                if (!rowId || !canUpdateDept) return;
                 setDepartmentToEdit(row);
                 setDepartmentFormOpen(true);
               }}
@@ -254,9 +260,9 @@ export default function DepartmentsPage() {
             <IconButton
               size="small"
               aria-label="Delete department"
-              disabled={!rowId || isDeletingThis}
+              disabled={!rowId || isDeletingThis || !canDeleteDept}
               onClick={() => {
-                if (!rowId) return;
+                if (!rowId || !canDeleteDept) return;
                 setDeleteTarget(row);
               }}
               sx={{
@@ -271,7 +277,7 @@ export default function DepartmentsPage() {
         );
       },
     }),
-    [theme, softDeleteDepartmentMutation.isPending, softDeleteDepartmentMutation.variables],
+    [theme, softDeleteDepartmentMutation.isPending, softDeleteDepartmentMutation.variables, canUpdateDept, canDeleteDept],
   );
 
   const handleDepartmentsSaved = () => {
@@ -318,12 +324,14 @@ export default function DepartmentsPage() {
         <Typography variant="regularLarge" fontWeight={700} color="white">
           Departments
         </Typography>
-        <Button variant="primary" sx={departmentsAddButton} onClick={openDepartmentFormForAdd}>
-          <AddCircleIcon width={16} height={16} />
-          <Typography component="span" variant="medium" sx={{ color: "inherit" }}>
-            Add Department
-          </Typography>
-        </Button>
+        {canCreateDept ? (
+          <Button variant="primary" sx={departmentsAddButton} onClick={openDepartmentFormForAdd}>
+            <AddCircleIcon width={16} height={16} />
+            <Typography component="span" variant="medium" sx={{ color: "inherit" }}>
+              Add Department
+            </Typography>
+          </Button>
+        ) : null}
       </Box>
 
       <AddDepartmentModal

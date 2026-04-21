@@ -1,4 +1,11 @@
-import { PAGE_ACCESS_ALL } from "@/lib/auth/permissions-model";
+import {
+  hasPagePermission,
+  isRbacActive,
+  PAGE_PERMISSION_DASHBOARD,
+  PERMISSION_BUCKET_PAGE,
+  toPermissionSet,
+  type PermissionsByType,
+} from "@/lib/auth/permissions-model";
 
 export type DashboardSidebarIconKey =
   | "accountSetup"
@@ -90,7 +97,14 @@ type RouteRule = {
  */
 const ROUTE_RULES: readonly RouteRule[] = [
   { permission: "page:dashboard", href: "/dashboard", iconKey: "dashboard" },
-  { permission: "page:hrms", href: "/dashboard/hrms", iconKey: "hrms" },
+  /**
+   * `ROUTE_RULE_BY_PERMISSION` keeps the first row per `page:*` — this must be the HRMS shell so
+   * `toNavItem("page:hrms")` and default landing do not point at `/dashboard/leave`.
+   */
+  { permission: "page:hrms", href: "/dashboard/hrms", iconKey: "hrms", prefixMatch: true },
+  /** Leave / attendance screens share the same `page:hrms` bucket as the overview above. */
+  { permission: "page:hrms", href: "/dashboard/attendance", iconKey: "leave", prefixMatch: true },
+  { permission: "page:hrms", href: "/dashboard/attendance", iconKey: "reports", prefixMatch: true },
   {
     permission: "page:account-setup",
     href: "/dashboard/companies",
@@ -98,7 +112,28 @@ const ROUTE_RULES: readonly RouteRule[] = [
     label: "Reseller-Management",
     prefixMatch: true,
   },
-  { permission: "page:users", href: "/dashboard/user-page", iconKey: "users" },
+  {
+    permission: "page:account-setup",
+    href: "/dashboard/account-setup",
+    iconKey: "accountSetup",
+    prefixMatch: true,
+  },
+  /** Same companies tree as account-setup; distinct page keys from the API. */
+  {
+    permission: "page:clients",
+    href: "/dashboard/companies",
+    iconKey: "clients",
+    label: "Clients",
+    prefixMatch: true,
+  },
+  {
+    permission: "page:resellers",
+    href: "/dashboard/companies",
+    iconKey: "resellers",
+    label: "Resellers",
+    prefixMatch: true,
+  },
+  { permission: "page:users", href: "/dashboard/user-page", iconKey: "users", prefixMatch: true },
  // { permission: "page:account-setup", href: "/dashboard/account-setup", iconKey: "accountSetup" },
   { permission: "page:website-assignments", href: "/dashboard/website-assigning", iconKey: "websiteAssignments", prefixMatch: true },
   { permission: "page:roles", href: "/dashboard/roles", iconKey: "roles" },
@@ -112,7 +147,7 @@ const ROUTE_RULES: readonly RouteRule[] = [
   { permission: "page:pools", href: "/dashboard/pools", iconKey: "pools", label: "Pools" },
   { permission: "page:shifts", href: "/dashboard/shifts", iconKey: "shifts", label: "Shifts", prefixMatch: true },
   { permission: "page:chat", href: "/dashboard/chat-operations", iconKey: "chat" },
-  { permission: "page:chat-widget", href: "/dashboard/chat-widget", iconKey: "chatWidget" },
+  { permission: "page:chat-widget", href: "/dashboard/chat-widget", iconKey: "chatWidget", prefixMatch: true },
   { permission: "page:crm-integration", href: "/dashboard/crm-integration", iconKey: "crmIntegration", prefixMatch: true },
   { permission: "page:distribution-setup", href: "/dashboard/distribution-setup", iconKey: "distributionSetup", prefixMatch: true },
   { permission: "page:ip-blocklist", href: "/dashboard/ip-block-list", iconKey: "ipBlocklist", prefixMatch: true },
@@ -122,6 +157,22 @@ const ROUTE_RULES: readonly RouteRule[] = [
   { permission: "page:settings", href: "/dashboard/settings", iconKey: "settings" },
   { permission: "page:smtp-email", href: "/dashboard/smtp-email-integration", iconKey: "smtpEmail", prefixMatch: true },
   { permission: "page:social-media", href: "/dashboard/integrations", iconKey: "socialMedia" },
+  /** Alternate / legacy entry paths that share the same backend page permission. */
+  { permission: "page:crm-integration", href: "/dashboard/crm-integrator", iconKey: "crmIntegration", prefixMatch: true },
+  {
+    permission: "page:distribution-setup",
+    href: "/dashboard/phone-number-setup",
+    iconKey: "distributionSetup",
+    prefixMatch: true,
+  },
+  { permission: "page:dashboard", href: "/dashboard/company-admin-dashboard", iconKey: "dashboard", prefixMatch: true },
+  { permission: "page:dashboard", href: "/dashboard/agent-dashboard", iconKey: "dashboard", prefixMatch: true },
+  { permission: "page:dashboard", href: "/dashboard/supervisor-dashboard", iconKey: "dashboard", prefixMatch: true },
+  { permission: "page:dashboard", href: "/dashboard/supper-dashboard", iconKey: "dashboard", prefixMatch: true },
+  { permission: "page:dashboard", href: "/dashboard/qa-dashboard", iconKey: "dashboard", prefixMatch: true },
+  { permission: "page:dashboard", href: "/dashboard/ai-management", iconKey: "dashboard", prefixMatch: true },
+  { permission: "page:settings", href: "/dashboard/security", iconKey: "settings", prefixMatch: true },
+  { permission: "page:users", href: "/dashboard/organization-user", iconKey: "users", prefixMatch: true },
 ];
 
 const ALWAYS_VISIBLE_NAV_ITEMS: readonly DashboardNavItem[] = [
@@ -134,8 +185,12 @@ const ALWAYS_VISIBLE_NAV_ITEMS: readonly DashboardNavItem[] = [
   },
 ] as const;
 
+/** First matching rule wins so one `page:*` can map to a primary nav href while extra path rules share the same permission. */
 const ROUTE_RULE_BY_PERMISSION = new Map<PagePermission, RouteRule>(
-  ROUTE_RULES.map((rule) => [rule.permission, rule]),
+  ROUTE_RULES.reduce((acc, rule) => {
+    if (!acc.has(rule.permission)) acc.set(rule.permission, rule);
+    return acc;
+  }, new Map()),
 );
 
 const PAGE_PERMISSION_ORDER: readonly PagePermission[] = [
@@ -148,6 +203,7 @@ const PAGE_PERMISSION_ORDER: readonly PagePermission[] = [
   "page:roles",
   "page:departments",
   "page:pools",
+  "page:shifts",
   "page:chat",
   "page:chat-widget",
   "page:crm-integration",
@@ -161,6 +217,84 @@ const PAGE_PERMISSION_ORDER: readonly PagePermission[] = [
   "page:social-media",
   "page:resellers",
 ] as const;
+
+/** `page:account-setup` | `page:clients` | `page:resellers` share one nav group (same `/dashboard/companies` tree). */
+const COMMERCIAL_PAGE_PERMISSIONS: readonly PagePermission[] = [
+  "page:clients",
+  "page:account-setup",
+  "page:resellers",
+];
+
+function firstCommercialPageInNavOrder(): PagePermission | null {
+  for (const p of PAGE_PERMISSION_ORDER) {
+    if (COMMERCIAL_PAGE_PERMISSIONS.includes(p)) return p;
+  }
+  return null;
+}
+
+/** Backend `page:*` keys we recognize (for `/dashboard/{segment}` → `page:{segment}` fallback). */
+const KNOWN_PAGE_PERMISSION_KEYS = new Set<string>([
+  ...(PAGE_PERMISSION_ORDER as readonly string[]),
+  "page:designations",
+]);
+
+/**
+ * First path segment after `/dashboard/` maps to a page permission (`page:…`).
+ * When the URL slug does not match the backend key (e.g. `user-page` vs `page:users`), use this map.
+ */
+const DASHBOARD_URL_SEGMENT_TO_PAGE: Readonly<Record<string, PagePermission>> = {
+  hrms: "page:hrms",
+  attendance: "page:hrms",
+  leave: "page:hrms",
+  "user-page": "page:users",
+  companies: "page:account-setup",
+  "account-setup": "page:account-setup",
+  "website-assigning": "page:website-assignments",
+  roles: "page:roles",
+  departments: "page:departments",
+  designations: "page:designations",
+  pools: "page:pools",
+  shifts: "page:shifts",
+  "chat-operations": "page:chat",
+  "chat-widget": "page:chat-widget",
+  "crm-integration": "page:crm-integration",
+  "crm-integrator": "page:crm-integration",
+  "distribution-setup": "page:distribution-setup",
+  "phone-number-setup": "page:distribution-setup",
+  "ip-block-list": "page:ip-blocklist",
+  "license-generate": "page:licenses",
+  reports: "page:reports",
+  billing: "page:billing",
+  settings: "page:settings",
+  "smtp-email-integration": "page:smtp-email",
+  integrations: "page:social-media",
+  "organization-user": "page:users",
+  "company-admin-dashboard": "page:dashboard",
+  "agent-dashboard": "page:dashboard",
+  "supervisor-dashboard": "page:dashboard",
+  "supper-dashboard": "page:dashboard",
+  "qa-dashboard": "page:dashboard",
+  "ai-management": "page:dashboard",
+  security: "page:settings",
+};
+
+function getFirstDashboardPathSegment(pathname: string): string | null {
+  const clean = pathname.split("?")[0]?.replace(/\/+$/, "") ?? "";
+  const parts = clean.split("/").filter(Boolean);
+  if (parts.length < 2 || parts[0] !== "dashboard") return null;
+  return parts[1] ?? null;
+}
+
+/** Resolve required `page:*` from `/dashboard/{segment}/…` when no `ROUTE_RULES` row matched. */
+function requiredPagePermissionFromDashboardSegment(segment: string): PagePermission {
+  const mapped = DASHBOARD_URL_SEGMENT_TO_PAGE[segment];
+  if (mapped) return mapped;
+  const literal = `page:${segment}`;
+  if (KNOWN_PAGE_PERMISSION_KEYS.has(literal)) {
+    return literal as PagePermission;
+  }
+  return "page:dashboard";
+}
 
 function permissionToLabel(permission: PagePermission): string {
   return permission.replace(/^page:/, "");
@@ -241,68 +375,6 @@ const WEBSITE_GROUP: DashboardNavItem = {
   ],
 };
 
-const ATTENDANCE_GROUP: DashboardNavItem = {
-  href: "/dashboard/attendance/my-attendance",
-  label: "Attendance",
-  section: "activity",
-  iconKey: "reports",
-  permission: null,
-  children: [
-    {
-      href: "/dashboard/attendance/my-attendance",
-      label: "My Attendance",
-      section: "activity",
-      iconKey: "reports",
-      permission: null,
-    },
-    {
-      href: "/dashboard/attendance/team-attendance",
-      label: "Team Attendance",
-      section: "activity",
-      iconKey: "reports",
-      permission: null,
-    },
-  ],
-};
-
-const LEAVE_GROUP: DashboardNavItem = {
-  href: "/dashboard/leave/leave-type",
-  label: "Leave",
-  section: "activity",
-  iconKey: "leave",
-  permission: null,
-  children: [
-    {
-      href: "/dashboard/leave/leave-type",
-      label: "Leave Type",
-      section: "activity",
-      iconKey: "leave",
-      permission: null,
-    },
-    {
-      href: "/dashboard/leave/apply-leave",
-      label: "Apply Leave",
-      section: "activity",
-      iconKey: "leave",
-      permission: null,
-    },
-    {
-      href: "/dashboard/leave/approval-inbox",
-      label: "Approval Inbox",
-      section: "activity",
-      iconKey: "leave",
-      permission: null,
-    },
-    {
-      href: "/dashboard/leave/approve-leave",
-      label: "Approve Leave",
-      section: "activity",
-      iconKey: "leave",
-      permission: null,
-    },
-  ],
-};
-
 const USERS_GROUP: DashboardNavItem = {
   href: "/dashboard/user-page",
   label: "Users",
@@ -323,6 +395,26 @@ const USERS_GROUP: DashboardNavItem = {
   ],
 };
 
+/** One sidebar row for account-setup + clients + resellers API keys (same app route). */
+const COMMERCIAL_ACCOUNT_GROUP: DashboardNavItem = {
+  href: "/dashboard/companies",
+  label: "Clients & resellers",
+  section: "activity",
+  iconKey: "clients",
+  permission: null,
+  permissionsAny: ["page:account-setup", "page:clients", "page:resellers"],
+  children: [
+    {
+      href: "/dashboard/companies",
+      label: "Companies",
+      section: "activity",
+      iconKey: "Reseller-Management",
+      permission: null,
+      prefixMatch: true,
+    },
+  ],
+};
+
 const HRMS_GROUP: DashboardNavItem = {
   href: "/dashboard/hrms",
   label: "HRMS",
@@ -331,7 +423,12 @@ const HRMS_GROUP: DashboardNavItem = {
   permission: null,
   permissionsAny: ["page:hrms"],
   children: [
-    { ...toNavItem("page:hrms")!, label: "Overview", prefixMatch: false },
+    {
+      ...toNavItem("page:hrms")!,
+      href: "/dashboard/hrms",
+      label: "Overview",
+      prefixMatch: false,
+    },
     {
       href: "/dashboard/hrms/pool-heads",
       label: "Pool Heads",
@@ -346,6 +443,62 @@ const HRMS_GROUP: DashboardNavItem = {
       iconKey: "hrms",
       permission: "page:hrms",
     },
+    {
+      href: "/dashboard/attendance/my-attendance",
+      label: "My Attendance",
+      section: "activity",
+      iconKey: "reports",
+      permission: "page:hrms",
+    },
+    {
+      href: "/dashboard/attendance/team-attendance",
+      label: "Team Attendance",
+      section: "activity",
+      iconKey: "reports",
+      permission: "page:hrms",
+    },
+    {
+      href: "/dashboard/attendance/mark-attendance",
+      label: "Mark Attendance",
+      section: "activity",
+      iconKey: "reports",
+      permission: "page:hrms",
+    },
+    {
+      href: "/dashboard/leave/leave-type",
+      label: "Leave Type",
+      section: "activity",
+      iconKey: "leave",
+      permission: "page:hrms",
+    },
+    {
+      href: "/dashboard/leave/apply-leave",
+      label: "Apply Leave",
+      section: "activity",
+      iconKey: "leave",
+      permission: "page:hrms",
+    },
+    {
+      href: "/dashboard/leave/approval-inbox",
+      label: "Approval Inbox",
+      section: "activity",
+      iconKey: "leave",
+      permission: "page:hrms",
+    },
+    {
+      href: "/dashboard/leave/approve-leave",
+      label: "Approve Leave",
+      section: "activity",
+      iconKey: "leave",
+      permission: "page:hrms",
+    },
+    {
+      href: "/dashboard/leave/leave-balance",
+      label: "Leave Balance",
+      section: "activity",
+      iconKey: "leave",
+      permission: "page:hrms",
+    },
   ],
 };
 
@@ -354,14 +507,16 @@ export const DASHBOARD_NAV_ITEMS: readonly DashboardNavItem[] = PAGE_PERMISSION_
   if (permission === "page:website-assignments") return [WEBSITE_GROUP];
   if (permission === "page:users") return [USERS_GROUP];
   if (permission === "page:hrms") return [HRMS_GROUP];
-  if (permission === "page:pools") return [toNavItem("page:pools")!, SHIFTS_GROUP, ATTENDANCE_GROUP, LEAVE_GROUP];
+  if (permission === "page:pools") return [toNavItem("page:pools")!];
+  if (permission === "page:shifts") return [SHIFTS_GROUP];
+  if (COMMERCIAL_PAGE_PERMISSIONS.includes(permission)) {
+    const first = firstCommercialPageInNavOrder();
+    if (!first || permission !== first) return [];
+    return [COMMERCIAL_ACCOUNT_GROUP];
+  }
   const item = toNavItem(permission);
   return item ? [item] : [];
 });
-
-function hasPagePermission(pagePermissionSet: Set<string>, required: string): boolean {
-  return pagePermissionSet.has(PAGE_ACCESS_ALL) || pagePermissionSet.has(required);
-}
 
 export function isNavPathSelected(pathname: string, href: string, prefixMatch?: boolean): boolean {
   if (prefixMatch) return pathname === href || pathname.startsWith(`${href}/`);
@@ -373,8 +528,11 @@ export function getVisibleDashboardNavItems(opts: {
   rbacEnabled: boolean;
   pagePermissionSet: Set<string>;
   isDemoUser: boolean;
+  /** When true with RBAC on, show the full module tree (same as RBAC off) — aligned with `useAuth().hasPage` bypass. */
+  isPlatformAdmin?: boolean;
 }): DashboardNavItem[] {
-  const permissionDriven = opts.rbacEnabled
+  const rbacFiltersNav = opts.rbacEnabled && !opts.isPlatformAdmin;
+  const permissionDriven = rbacFiltersNav
     ? DASHBOARD_NAV_ITEMS.filter((item) => {
         if (item.children?.length) {
           const any = item.permissionsAny;
@@ -391,7 +549,7 @@ export function getVisibleDashboardNavItems(opts: {
   const withFilteredChildren = permissionDriven.map((item) => {
     if (!item.children?.length) return item;
     const children = item.children.filter((ch) => {
-      if (!opts.rbacEnabled) return true;
+      if (!rbacFiltersNav) return true;
       if (!ch.permission) return true;
       return hasPagePermission(opts.pagePermissionSet, ch.permission);
     });
@@ -424,7 +582,36 @@ function firstLeafHref(item: DashboardNavItem): string | null {
   return item.href;
 }
 
-export function getRequiredPagePermission(pathname: string): string | null {
+/** Depth-first sidebar order: parent-only hrefs (e.g. group rows) are skipped when they have children. */
+function collectNavLeafHrefsInOrder(items: DashboardNavItem[]): string[] {
+  const out: string[] = [];
+  for (const item of items) {
+    if (item.children?.length) {
+      out.push(...collectNavLeafHrefsInOrder(item.children));
+    } else if (item.href?.trim()) {
+      out.push(item.href);
+    }
+  }
+  return out;
+}
+
+const PAGE_PERMISSION_ORDER_INDEX: ReadonlyMap<string, number> = new Map(
+  PAGE_PERMISSION_ORDER.map((p, i) => [p, i]),
+);
+
+function sortPagePermissionsByNavOrder(perms: readonly string[]): string[] {
+  return [...perms].sort(
+    (a, b) =>
+      (PAGE_PERMISSION_ORDER_INDEX.get(a) ?? Number.POSITIVE_INFINITY) -
+      (PAGE_PERMISSION_ORDER_INDEX.get(b) ?? Number.POSITIVE_INFINITY),
+  );
+}
+
+/**
+ * Backend `page:*` keys that grant access to this pathname (OR semantics when multiple).
+ * `null` means no page gate (always allowed under RBAC).
+ */
+export function getDashboardPathPageRequirements(pathname: string): readonly string[] | null {
   if (!pathname.startsWith("/dashboard")) return null;
 
   const publicRule = ALWAYS_VISIBLE_NAV_ITEMS.find((item) =>
@@ -434,51 +621,145 @@ export function getRequiredPagePermission(pathname: string): string | null {
     return null;
   }
 
-  const sorted = [...ROUTE_RULES].sort((a, b) => b.href.length - a.href.length);
-  for (const item of sorted) {
-    if (isNavPathSelected(pathname, item.href, item.prefixMatch)) {
-      return item.permission;
-    }
+  const matches = ROUTE_RULES.filter((rule) => isNavPathSelected(pathname, rule.href, rule.prefixMatch));
+  if (matches.length > 0) {
+    const maxLen = Math.max(...matches.map((m) => m.href.length));
+    const atMax = matches.filter((m) => m.href.length === maxLen);
+    return sortPagePermissionsByNavOrder([...new Set(atMax.map((m) => m.permission))]);
   }
-  // Unmapped dashboard child routes are not blocked by frontend.
-  return pathname === "/dashboard" ? "page:dashboard" : null;
+  /** Convention: permission follows the first segment after `/dashboard/` (see `DASHBOARD_URL_SEGMENT_TO_PAGE`). */
+  const segment = getFirstDashboardPathSegment(pathname);
+  if (!segment) {
+    return [PAGE_PERMISSION_DASHBOARD];
+  }
+  return [requiredPagePermissionFromDashboardSegment(segment)];
+}
+
+/**
+ * Primary `page:*` for this path (for logging / legacy callers). When several permissions
+ * suffice (e.g. `/dashboard/companies`), returns the earliest in sidebar priority order.
+ */
+export function getRequiredPagePermission(pathname: string): string | null {
+  const reqs = getDashboardPathPageRequirements(pathname);
+  if (!reqs?.length) return null;
+  return reqs[0] ?? null;
 }
 
 export function canAccessDashboardPath(opts: {
   pathname: string;
   rbacEnabled: boolean;
   pagePermissionSet: Set<string>;
+  /** Matches `useAuth().hasPage` — full dashboard routes without enumerating `page:*` in the token. */
+  isPlatformAdmin?: boolean;
 }): boolean {
   if (!opts.rbacEnabled) return true;
-  const required = getRequiredPagePermission(opts.pathname);
-  if (!required) return true;
-  return hasPagePermission(opts.pagePermissionSet, required);
+  if (opts.isPlatformAdmin) return true;
+  const reqs = getDashboardPathPageRequirements(opts.pathname);
+  if (!reqs?.length) return true;
+  return reqs.some((r) => hasPagePermission(opts.pagePermissionSet, r));
 }
 
-/** Preferred redirect target when current path is blocked. */
+/**
+ * `/dashboard` is intentionally passable for every session (`hasPagePermission` treats `page:dashboard`
+ * as the shell). For post-auth / “first module” redirects, prefer a concrete feature route when one exists.
+ */
+const DASHBOARD_ROOT_PATH = "/dashboard";
+
+function deprioritizeDashboardShell(hrefs: readonly string[]): string[] {
+  const rest: string[] = [];
+  const shell: string[] = [];
+  const seen = new Set<string>();
+  for (const href of hrefs) {
+    const key = href.split("?")[0]?.replace(/\/+$/, "") || DASHBOARD_ROOT_PATH;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    if (key === DASHBOARD_ROOT_PATH) shell.push(href);
+    else rest.push(href);
+  }
+  return [...rest, ...shell];
+}
+
+/** Preferred redirect target when current path is blocked or after sign-in. */
 export function getFirstAccessibleDashboardPath(opts: {
   rbacEnabled: boolean;
   pagePermissionSet: Set<string>;
   isDemoUser: boolean;
+  isPlatformAdmin?: boolean;
 }): string | null {
   const visible = getVisibleDashboardNavItems({
     section: "activity",
     rbacEnabled: opts.rbacEnabled,
     pagePermissionSet: opts.pagePermissionSet,
     isDemoUser: opts.isDemoUser,
+    isPlatformAdmin: opts.isPlatformAdmin,
   });
-  for (const item of visible) {
-    const href = firstLeafHref(item);
-    if (href) return href;
+  const candidates = deprioritizeDashboardShell(collectNavLeafHrefsInOrder(visible));
+  for (const href of candidates) {
+    if (
+      canAccessDashboardPath({
+        pathname: href,
+        rbacEnabled: opts.rbacEnabled,
+        pagePermissionSet: opts.pagePermissionSet,
+        isPlatformAdmin: opts.isPlatformAdmin,
+      })
+    ) {
+      return href;
+    }
   }
   return null;
 }
 
+/**
+ * Safe target after login / session restore while permissions hydrate.
+ * Uses `/dashboard` until RBAC data is stable, then the first accessible module in nav order.
+ */
+export function resolvePostAuthDashboardHref(opts: {
+  rbacEnabled: boolean;
+  permissionsSyncing: boolean;
+  pagePermissionSet: Set<string>;
+  isPlatformAdmin: boolean;
+  isDemoUser: boolean;
+}): string {
+  if (!opts.rbacEnabled || opts.permissionsSyncing) return DASHBOARD_ROOT_PATH;
+  return (
+    getFirstAccessibleDashboardPath({
+      rbacEnabled: true,
+      pagePermissionSet: opts.pagePermissionSet,
+      isDemoUser: opts.isDemoUser,
+      isPlatformAdmin: opts.isPlatformAdmin,
+    }) ?? DASHBOARD_ROOT_PATH
+  );
+}
+
+/**
+ * Resolves the first dashboard module the user may open once permissions are known.
+ * Call when `permissionsSyncing` is false (or to intentionally ignore a syncing flag).
+ */
+export function resolveDashboardLandingHref(opts: {
+  permissionsByType: PermissionsByType | undefined;
+  isPlatformAdmin: boolean;
+  isDemoUser: boolean;
+}): string {
+  const rbacEnabled = isRbacActive(opts.permissionsByType);
+  const pagePermissionSet = toPermissionSet(opts.permissionsByType?.[PERMISSION_BUCKET_PAGE]);
+  return resolvePostAuthDashboardHref({
+    rbacEnabled,
+    permissionsSyncing: false,
+    pagePermissionSet,
+    isPlatformAdmin: opts.isPlatformAdmin,
+    isDemoUser: opts.isDemoUser,
+  });
+}
+
 /** Backward-compatible helper name used by older auth exports. */
-export function getAccessibleDashboardHref(pagePermissionSet: Set<string>): string | null {
+export function getAccessibleDashboardHref(
+  pagePermissionSet: Set<string>,
+  opts?: { isPlatformAdmin?: boolean },
+): string | null {
   return getFirstAccessibleDashboardPath({
     rbacEnabled: true,
     pagePermissionSet,
     isDemoUser: false,
+    isPlatformAdmin: opts?.isPlatformAdmin,
   });
 }

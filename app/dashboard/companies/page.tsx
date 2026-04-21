@@ -24,9 +24,17 @@ import { CompanySetupWizardModal } from "./components/CompanySetupWizardModal";
 import { buildCompaniesTableRows } from "./utils";
 import { pageWrapper, pageHeaderRow } from "./overview.styles";
 import { departmentsAddButton } from "../website-assigning/website-assigning.styles";
+import { useAuth } from "@/lib/auth";
+import { canCompanyAction } from "@/lib/permissions";
 
 export default function CompaniesPage() {
   const theme = useTheme() as AppTheme;
+  const { hasOperational } = useAuth();
+  const canCreateCompany = canCompanyAction(hasOperational, "create");
+  const canUpdateCompany = canCompanyAction(hasOperational, "update");
+  const canViewCompanyDetail = canCompanyAction(hasOperational, "detail");
+  const canViewCompanyList = canCompanyAction(hasOperational, "list");
+  const canOpenCompanyDraft = canCreateCompany || canUpdateCompany;
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const limit = 20;
@@ -138,27 +146,31 @@ export default function CompaniesPage() {
           All Companies
         </Typography>
         <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1.25, alignItems: "center" }}>
-          <Button
-            variant="secondary"
-            sx={{ minWidth: 120, borderRadius: "9999px", py: 1.25, px: 2.5 }}
-            onClick={handleOpenDraftFlow}
-            disabled={setupWizardOpen || resumeDraftModalOpen}
-          >
-            <Typography component="span" variant="medium" color="inherit">
-              Draft{storedDraftAvailable ? " · saved" : ""}
-            </Typography>
-          </Button>
-          <Button
-            variant="primary"
-            sx={departmentsAddButton}
-            onClick={handleStartSetup}
-            disabled={createDraftMutation.isPending || setupWizardOpen}
-          >
-            <AddCircleIcon width={16} height={16} />
-            <Typography component="span" variant="medium" color="inherit">
-              {createDraftMutation.isPending ? "Starting…" : "Add Reseller / Company"}
-            </Typography>
-          </Button>
+          {canOpenCompanyDraft ? (
+            <Button
+              variant="secondary"
+              sx={{ minWidth: 120, borderRadius: "9999px", py: 1.25, px: 2.5 }}
+              onClick={handleOpenDraftFlow}
+              disabled={setupWizardOpen || resumeDraftModalOpen}
+            >
+              <Typography component="span" variant="medium" color="inherit">
+                Draft{storedDraftAvailable ? " · saved" : ""}
+              </Typography>
+            </Button>
+          ) : null}
+          {canCreateCompany ? (
+            <Button
+              variant="primary"
+              sx={departmentsAddButton}
+              onClick={handleStartSetup}
+              disabled={createDraftMutation.isPending || setupWizardOpen}
+            >
+              <AddCircleIcon width={16} height={16} />
+              <Typography component="span" variant="medium" color="inherit">
+                {createDraftMutation.isPending ? "Starting…" : "Add Reseller / Company"}
+              </Typography>
+            </Button>
+          ) : null}
         </Box>
       </Box>
 
@@ -187,6 +199,9 @@ export default function CompaniesPage() {
         totalEntries={totalEntries}
         limit={limit}
         onPageChange={setPage}
+        canViewCompanyDetail={canViewCompanyDetail}
+        canViewCompanyList={canViewCompanyList}
+        canUpdateCompany={canUpdateCompany}
       />
 
       <FormModal
