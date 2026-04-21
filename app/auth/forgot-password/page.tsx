@@ -40,7 +40,7 @@ export default function ForgotPasswordPage() {
     reValidateMode: "onChange",
   });
 
-  const onSubmit = async (_values: ForgotFormValues) => {
+  const onSubmit = async () => {
     if (!apiEnabled) {
       return;
     }

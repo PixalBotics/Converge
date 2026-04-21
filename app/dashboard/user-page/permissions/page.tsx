@@ -14,7 +14,7 @@ import { footerMutedText } from "@/app/dashboard/companies/overview.styles";
 import { AttachMoney as AttachMoneyIcon } from "@mui/icons-material";
 import { UserPermissionsModal } from "./components";
 import { useUsersListQuery } from "@/lib/hooks/query";
-import { isRecord, pickNum, pickStr, unwrapApiData } from "@/lib/utils";
+import { isRecord, pickStr, unwrapApiData } from "@/lib/utils";
 
 export default function UserPermissionsPage() {
   const theme = useTheme() as AppTheme;

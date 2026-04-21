@@ -19,10 +19,8 @@ import {
   teamAttendanceCardTitleSx,
   teamAttendanceDateRangeFieldSx,
   teamAttendanceFilterGridSx,
-  teamAttendanceGenerateLicenseButtonSx,
   teamAttendanceHeaderActionsSx,
   teamAttendanceHeaderRowSx,
-  teamAttendanceSendSelectedButtonSx,
   teamAttendanceStatusTextSx,
   teamAttendanceSubtextSx,
 } from "./team-attendance.styles";

@@ -7,9 +7,11 @@ import CheckCircleOutlineRounded from "@mui/icons-material/CheckCircleOutlineRou
 import type { SxProps, Theme } from "@mui/material/styles";
 import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
+import TextField from "@mui/material/TextField";
 import { Typography, DashboardCard, DataTable, SelectField, Button, TablePagination } from "@/components/common";
 import type { DataTableColumn } from "@/components/common";
-import { InputField } from "@/components/common";
+import { Label } from "@/components/common/Label";
+import { textFieldStyles } from "@/components/common/InputField/InputField.styles";
 import { ModalGlassShell } from "@/components/common/FormModal/ModalGlassShell";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
 import { rolesCard, rolesFooterRow, rolesPageWrapper, rolesPaginationWrapper } from "../../roles/roles.styles";
@@ -24,8 +26,6 @@ import {
   approveLeaveModalBackdropSx,
   approveLeaveModalCardSx,
   approveLeaveModalIconWrapSx,
-  approveLeaveStatusApprovedSx,
-  approveLeaveStatusRejectedSx,
   approveLeaveSubtextSx,
 } from "./approve-leave.styles";
 
@@ -106,7 +106,9 @@ export default function ApproveLeavePage() {
                 setDecisionModalOpen(true);
               }}
               sx={{
-                ...(isRejected ? approveLeaveStatusRejectedSx(theme) : approveLeaveStatusApprovedSx(theme)),
+                color: isRejected ? theme.palette.error.main : theme.palette.success.main,
+                fontWeight: 600,
+                fontSize: 13,
                 border: 0,
                 background: "transparent",
                 p: 0,
@@ -210,21 +212,28 @@ export default function ApproveLeavePage() {
             </Box>
 
             <Typography variant="regularLarge" fontWeight={700} sx={{ color: theme.app.text.primary, mt: 2.25, mb: 1 }}>
-              Comment (Textarea)
+              Confirm action
             </Typography>
             <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted, mb: 2.25 }}>
               {`Are you sure you want to ${pendingAction === "Rejected" ? "reject" : "approve"} this leave?`}
             </Typography>
 
-            <InputField
-              label="Comment"
+            <Label htmlFor="approve-leave-comment" variant="mediumLarge" sx={{ mb: 0.75 }}>
+              Comment
+            </Label>
+            <TextField
+              id="approve-leave-comment"
               placeholder="Write comment..."
               value={comment}
               onChange={(e) => setComment(e.target.value)}
               multiline
               minRows={3}
-              inputProps={{ maxLength: 400 }}
-              sx={{ "& .MuiFormHelperText-root": { display: "none" } }}
+              inputProps={{ maxLength: 400, "aria-label": "Comment" }}
+              fullWidth
+              sx={[
+                textFieldStyles(theme),
+                { "& .MuiFormHelperText-root": { display: "none" } },
+              ]}
             />
 
             <Box sx={approveLeaveModalActionsSx}>

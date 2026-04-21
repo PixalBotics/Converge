@@ -455,7 +455,7 @@ export function AssignWebsiteModal({ open, onClose, onAssign }: AssignWebsiteMod
         if (generation !== assignSaveGenerationRef.current) return;
         publishAppToast({
           variant: "error",
-          message: extractApiErrorMessageForToast(e),
+          message: extractApiErrorMessageForToast(e) ?? "Could not assign users.",
         });
       }
     })();

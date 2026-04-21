@@ -2,9 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Box from "@mui/material/Box";
-import { useTheme } from "@mui/material/styles";
 import type { SxProps, Theme } from "@mui/material/styles";
-import type { AppTheme } from "@/theme/theme";
 import { Typography } from "@/components/common";
 import type { DataTableColumn } from "@/components/common";
 import { rolesPageWrapper } from "../../roles/roles.styles";
@@ -21,8 +19,8 @@ import {
   approvalLeaveHeaderWrapSx,
   approvalLeaveStatusSx,
   approvalLeaveSubtextSx,
-} from "../approval-leave/approval-leave.styles";
-import { ApprovalLeaveTableCard, LeaveDecisionModal, type LeaveDecision } from "../approval-leave/components";
+} from "../_approval-leave/approval-leave.styles";
+import { ApprovalLeaveTableCard, LeaveDecisionModal, type LeaveDecision } from "../_approval-leave/components";
 
 const PAGE_LIMIT = 8;
 
@@ -35,7 +33,6 @@ type ApprovalLeaveRow = {
 };
 
 export default function ApprovalLeavePage() {
-  const theme = useTheme() as AppTheme;
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [queue, setQueue] = useState<"pool" | "department">("pool");
@@ -107,13 +104,13 @@ export default function ApprovalLeavePage() {
         id: "stage",
         label: "Stage",
         render: (value) => (
-          <Typography component="span" sx={approvalLeaveStatusSx(theme)}>
+          <Typography component="span" sx={approvalLeaveStatusSx}>
             {String(value)}
           </Typography>
         ),
       },
     ],
-    [theme],
+    [],
   );
 
   return (

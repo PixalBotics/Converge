@@ -13,6 +13,7 @@ import { departmentsCardHeader, departmentsSearchFieldWrapper, departmentsSearch
 import type { AppTheme } from "@/theme/theme";
 import { useTheme } from "@mui/material/styles";
 import { useAttendanceMeQuery } from "@/lib/hooks/query";
+import { publishAppToast } from "@/lib/notify";
 import { isRecord, unwrapApiData } from "@/lib/utils";
 import { EmptyAttendanceState } from "../components/EmptyAttendanceState";
 import {

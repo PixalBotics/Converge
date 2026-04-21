@@ -6,6 +6,7 @@ import Box from "@mui/material/Box";
 import Link from "@mui/material/Link";
 import NextLink from "next/link";
 import { useParams, useRouter } from "next/navigation";
+import type { SxProps, Theme } from "@mui/material/styles";
 import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import {
@@ -76,7 +77,8 @@ export default function WebsiteSitesByOrgPage() {
   );
 
   const payload = data?.data;
-  const items = payload?.items ?? [];
+  const itemsRaw = payload?.items;
+  const items = useMemo(() => (Array.isArray(itemsRaw) ? itemsRaw : []), [itemsRaw]);
   const total = payload?.total ?? items.length;
   const totalPages = Math.max(1, payload?.totalPages ?? 1);
   const rangeStart = items.length === 0 ? 0 : (page - 1) * PAGE_LIMIT + 1;
@@ -183,7 +185,7 @@ export default function WebsiteSitesByOrgPage() {
             ),
           }}
         />
-        <Box sx={[websiteAssignmentFooterRow, { flexWrap: "wrap", alignItems: "center" }]}>
+        <Box sx={[websiteAssignmentFooterRow, { flexWrap: "wrap", alignItems: "center" }] as SxProps<Theme>}>
           <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted }}>
             {isLoading || isFetching
               ? "Loading…"

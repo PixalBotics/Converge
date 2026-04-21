@@ -18,7 +18,6 @@ import {
   Typography,
 } from "@/components/common";
 import type { DataTableColumn } from "@/components/common";
-import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
 import {
   rolesCard,
   rolesFooterRow,

@@ -8,12 +8,10 @@ import {
   RiPaletteLine,
   RiSettings5Line,
   RiMailSendLine,
-  RiGlobalLine,
   RiFlowChart,
   RiUser3Line,
   RiBookletLine,
   RiShieldKeyholeLine,
-  RiBuilding2Line,
   RiBriefcase4Line,
   RiFileList3Line,
   RiPriceTag3Line,
@@ -21,9 +19,9 @@ import {
   RiTimeLine,
 } from "react-icons/ri";
 import { MdOutlineManageAccounts } from "react-icons/md";
-import { FaRegBuilding, FaRegUser, FaMoneyCheckDollar } from "react-icons/fa6";
-import { TbUsersGroup, TbSettingsCog, TbHierarchy3, TbRobot } from "react-icons/tb";
-import { LuShieldCheck, LuLayoutPanelLeft, LuUsersRound, LuNetwork, LuFileBadge2 } from "react-icons/lu";
+import { FaRegBuilding, FaMoneyCheckDollar } from "react-icons/fa6";
+import { TbUsersGroup, TbHierarchy3, TbRobot } from "react-icons/tb";
+import { LuLayoutPanelLeft, LuNetwork, LuFileBadge2 } from "react-icons/lu";
 import type { DashboardSidebarIconKey } from "@/lib/permissions";
 
 const ICON_BY_KEY: Record<DashboardSidebarIconKey, IconType> = {

@@ -87,7 +87,7 @@ export default function RolesPage() {
         },
       },
     ],
-    [theme]
+    []
   );
 
   const start = rows.length > 0 ? (page - 1) * pageLimit + 1 : 0;

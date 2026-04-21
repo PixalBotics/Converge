@@ -2,13 +2,11 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Box from "@mui/material/Box";
-import { AttachMoney as AttachMoneyIcon } from "@mui/icons-material";
 import { useTheme } from "@mui/material/styles";
 import type { SxProps, Theme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import {
   Typography,
-  DashboardCard,
   Button,
   InputField,
   SelectField,
@@ -17,12 +15,8 @@ import {
 } from "@/components/common";
 import type { DataTableColumn } from "@/components/common";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
-import {
-  rolesCard,
-  rolesIconBox,
-  rolesPageWrapper,
-} from "../roles/roles.styles";
-import { footerMutedText, pageWrapper } from "../companies/overview.styles";
+import { rolesPageWrapper } from "../roles/roles.styles";
+import { pageWrapper } from "../companies/overview.styles";
 import { publishAppToast } from "@/lib/notify";
 import {
   useCreateShiftMutation,

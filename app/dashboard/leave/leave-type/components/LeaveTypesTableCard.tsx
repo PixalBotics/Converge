@@ -8,7 +8,6 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import {
-  Button,
   DashboardCard,
   DataTable,
   dataTableActionButton,
@@ -18,7 +17,6 @@ import {
   Typography,
 } from "@/components/common";
 import type { DataTableColumn } from "@/components/common";
-import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
 import { rolesCard, rolesFooterRow, rolesIconBox, rolesPaginationWrapper } from "@/app/dashboard/roles/roles.styles";
 import { footerMutedText } from "@/app/dashboard/companies/overview.styles";
 import {

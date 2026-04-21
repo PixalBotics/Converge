@@ -8,7 +8,6 @@ import RadioGroup from "@mui/material/RadioGroup";
 import { alpha, useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import { Button, SelectField, Typography } from "@/components/common";
-import type { WebsiteListItem } from "./ChildCompanyWebsitesPanel";
 import type { PocEditRow } from "./ChildCompanyPocPanel";
 import { CompanyPocSummaryBlock } from "./CompanyPocSummaryBlock";
 import { CompanySetupChildPocBlock } from "./CompanySetupChildPocBlock";

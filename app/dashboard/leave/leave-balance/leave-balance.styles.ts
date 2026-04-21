@@ -19,7 +19,7 @@ export const leaveBalanceGridSx: SxProps<Theme> = {
   mt: 2.5,
 };
 
-export const leaveBalanceCardSx: SxProps<Theme> = (theme) => ({
+export const leaveBalanceCardSx: SxProps<Theme> = () => ({
   p: { xs: 2, sm: 2.25 },
   display: "flex",
   flexDirection: "column",
@@ -49,7 +49,7 @@ export const leaveBalanceIconWrapSx = (tone: "blue" | "orange" | "rose"): SxProp
 };
 
 export const leaveBalanceAmountSx: SxProps<Theme> = (theme) => ({
-  color: (theme as AppTheme).app.dashboard.numberBlue,
+  color: (theme as AppTheme).app.dashboard.accentBlue,
   letterSpacing: "0.3px",
 });
 

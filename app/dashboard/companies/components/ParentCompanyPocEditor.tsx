@@ -70,8 +70,6 @@ export function ParentCompanyPocEditor({ parentId, resellerId, parentCompany }: 
 
   const displayRows = useMemo(() => normalizePocsFromCarrier(parentCompany), [parentCompany]);
 
-  const pocInviteSignature = useMemo(() => JSON.stringify(parentCompany.pocInvite ?? null), [parentCompany.pocInvite]);
-
   const usersQuery = useUsersListQuery(
     { parentCompanyId: parentId.trim(), page: 1, limit: 200 },
     { enabled: parentId.trim().length > 0 },
@@ -116,7 +114,7 @@ export function ParentCompanyPocEditor({ parentId, resellerId, parentCompany }: 
     } else {
       setInviteRow(emptyDraftChildRow());
     }
-  }, [parentId, pocInviteSignature]);
+  }, [parentId, parentCompany.pocInvite]);
 
   const updateInviteRow = useCallback((_: number, patch: Partial<DraftChildPayload>) => {
     setInviteRow((prev) => ({ ...prev, ...patch }));

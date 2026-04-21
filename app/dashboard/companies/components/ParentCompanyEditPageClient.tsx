@@ -12,6 +12,7 @@ import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import BusinessOutlined from "@mui/icons-material/BusinessOutlined";
 import { CheckCircle as CheckCircleIcon } from "@mui/icons-material";
 import { alpha, useTheme } from "@mui/material/styles";
+import type { SxProps, Theme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import { Button, InputField, Typography } from "@/components/common";
 import { Label } from "@/components/common/Label";
@@ -45,7 +46,6 @@ import {
   stepperSegment,
 } from "../overview.styles";
 import { departmentsCard } from "../../website-assigning/website-assigning.styles";
-import { ChildCompanyPocPanel } from "./ChildCompanyPocPanel";
 import { ChildCompanyPocEditor } from "./ChildCompanyPocEditor";
 import { ChildCompanyWebsitesPanel } from "./ChildCompanyWebsitesPanel";
 
@@ -101,7 +101,7 @@ function toChildWebsites(c: ParentCompanyChildDetail): ChildWebsiteRow[] {
 
 function toChildPocs(c: ParentCompanyChildDetail): ChildPocRow[] {
   const out: ChildPocRow[] = [];
-  const raw = (c as Record<string, unknown>)["pocs"];
+  const raw = (c as unknown as Record<string, unknown>)["pocs"];
   if (Array.isArray(raw)) {
     for (const p of raw) {
       if (!isRecord(p)) continue;
@@ -349,7 +349,7 @@ export function ParentCompanyEditPageClient() {
   }
 
   return (
-    <Box sx={[pageWrapper, { maxWidth: 1040, width: "100%", mx: "auto", pb: 4 }]}>
+    <Box sx={[pageWrapper, { maxWidth: 1040, width: "100%", mx: "auto", pb: 4 }] as SxProps<Theme>}>
       <Box sx={pageHeaderRow}>
         <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
           <Button

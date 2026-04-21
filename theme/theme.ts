@@ -1,4 +1,5 @@
 import { alpha, createTheme, darken } from "@mui/material/styles";
+import type {} from "@mui/x-date-pickers/themeAugmentation";
 
 /** App-wide background gradient (Discord-style midnight + Nitro-adjacent presets). */
 export const mainBackgroundGradient =
@@ -231,7 +232,7 @@ export function createAppMuiTheme(
        * MUI X Date Pickers (Calendar / DatePicker) — match dashboard glass theme.
        * Applies to every DatePicker in the app (filters, selections, etc).
        */
-      MuiPickersPopper: {
+      MuiPickerPopper: {
         styleOverrides: {
           paper: ({ theme }) => {
             const app = (theme as { app?: any }).app ?? {};

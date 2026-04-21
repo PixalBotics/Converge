@@ -2,35 +2,22 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Box from "@mui/material/Box";
-import { AttachMoney as AttachMoneyIcon } from "@mui/icons-material";
-import { useTheme } from "@mui/material/styles";
 import type { SxProps, Theme } from "@mui/material/styles";
-import type { AppTheme } from "@/theme/theme";
 import {
   Typography,
   Button,
-  InputField,
-  SearchBar,
-  FilterButton,
-  FormModal,
 } from "@/components/common";
 import type { DataTableColumn } from "@/components/common";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
-import { rolesCard, rolesFooterRow, rolesIconBox, rolesPageWrapper, rolesPaginationWrapper } from "../../roles/roles.styles";
-import { footerMutedText, pageWrapper } from "../../companies/overview.styles";
+import { rolesPageWrapper } from "../../roles/roles.styles";
+import { pageWrapper } from "../../companies/overview.styles";
 import { publishAppToast } from "@/lib/notify";
 import {
   leaveTypeHeaderWrapSx,
-  leaveTypeIconSx,
   leaveTypeSubtextSx,
 } from "./leave-type.styles";
 import { useCreateLeaveTypeMutation, useDeleteLeaveTypeMutation, useLeaveTypesListQuery, useUpdateLeaveTypeMutation } from "@/lib/hooks/query";
 import { isRecord, pickNum, pickStr, unwrapApiData } from "@/lib/utils";
-import {
-  departmentsCardHeader,
-  departmentsSearchRow,
-  departmentsSearchFieldWrapper,
-} from "../../website-assigning/website-assigning.styles";
 import { LeaveTypeModals, LeaveTypesTableCard } from "./components";
 
 const PAGE_LIMIT = 10;
@@ -43,7 +30,6 @@ type LeaveTypeRow = {
 };
 
 export default function LeaveTypePage() {
-  const theme = useTheme() as AppTheme;
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
 

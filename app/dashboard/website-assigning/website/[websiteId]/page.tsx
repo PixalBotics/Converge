@@ -190,7 +190,7 @@ export default function WebsiteAssignmentDetailPage() {
 
   const sendMailForRow = (row: AssignmentRow) => {
     publishAppToast({
-      variant: "info",
+      variant: "success",
       message: `Email sending for ${row.userName} will be available once it’s enabled for this workspace.`,
     });
   };

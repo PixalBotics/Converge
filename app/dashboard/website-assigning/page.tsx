@@ -8,6 +8,7 @@ import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
 import Link from "@mui/material/Link";
 import NextLink from "next/link";
+import type { SxProps, Theme } from "@mui/material/styles";
 import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import { filterChromeButtonSx } from "@/components/common/FilterButton/filter-button.styles";
@@ -497,7 +498,7 @@ export default function WebsiteAssigningPage() {
               alignItems: "center",
               justifyContent: "space-between",
             },
-          ]}
+          ] as SxProps<Theme>}
         >
           <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted }}>
             {isLoading

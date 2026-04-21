@@ -587,7 +587,6 @@ export function UserPermissionsModal({ open, onClose, initialUserId, onSaved }: 
                               checked={checked}
                               disabled={!canEditPermissions}
                               onChange={() => toggleAllowed(p.code)}
-                              label=""
                               sx={{ p: 0 }}
                             />
                             <Box sx={{ minWidth: 0 }}>

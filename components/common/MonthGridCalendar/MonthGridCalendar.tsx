@@ -69,7 +69,7 @@ export function MonthGridCalendar({
               sx={{
                 cursor: "pointer",
                 borderRadius: 2,
-                border: `1px solid ${isToday ? theme.app.dashboard.accentMain : "rgba(255,255,255,0.08)"}`,
+                border: `1px solid ${isToday ? theme.app.dashboard.accentBlue : "rgba(255,255,255,0.08)"}`,
                 background: cell.inMonth ? "rgba(255,255,255,0.02)" : "rgba(255,255,255,0.01)",
                 px: 1,
                 py: 1,

@@ -2,11 +2,11 @@
 
 import { useMemo, useState } from "react";
 import Box from "@mui/material/Box";
+import type { SxProps, Theme } from "@mui/material/styles";
 import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import {
   Typography,
-  Button,
   ConfirmActionModal,
 } from "@/components/common";
 import type { DataTableColumn } from "@/components/common";
@@ -15,7 +15,7 @@ import { pageWrapper } from "../../companies/overview.styles";
 import { publishAppToast } from "@/lib/notify";
 import { useUsersListQuery } from "@/lib/hooks/query/users";
 import { useCreateUserShiftAssignmentMutation, useRemoveUserShiftAssignmentMutation, useShiftsListQuery, useUserShiftAssignmentsListQuery } from "@/lib/hooks/query";
-import { addMonths, daysInMonth, isRecord, isoDateInRange, pickNum, pickStr, startOfMonth, toIsoDateString, unwrapApiData } from "@/lib/utils";
+import { addMonths, daysInMonth, isRecord, pickNum, pickStr, startOfMonth, toIsoDateString, unwrapApiData } from "@/lib/utils";
 import {
   userShiftHeaderWrapSx,
   userShiftSubtextSx,
@@ -232,7 +232,7 @@ export default function UserShiftPage() {
 
   return (
     <Box sx={pageWrapper}>
-      <Box sx={[rolesPageWrapper, { maxWidth: "100%", mx: 0 }]}>
+      <Box sx={[rolesPageWrapper, { maxWidth: "100%", mx: 0 }] as SxProps<Theme>}>
         <Box sx={userShiftHeaderWrapSx}>
           <Typography variant="regularLarge" fontWeight={700} color="white">
             User shift roster

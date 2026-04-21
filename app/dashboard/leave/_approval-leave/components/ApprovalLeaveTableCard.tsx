@@ -6,7 +6,6 @@ import FilterList from "@mui/icons-material/FilterList";
 import AccessTimeRounded from "@mui/icons-material/AccessTimeRounded";
 import CheckIcon from "@mui/icons-material/Check";
 import CloseIcon from "@mui/icons-material/Close";
-import type { SxProps, Theme } from "@mui/material/styles";
 import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import {
@@ -26,7 +25,6 @@ import {
   approvalLeaveCardHeaderSx,
   approvalLeaveIconSx,
   approvalLeaveSearchWrapSx,
-  approvalLeaveStatusSx,
   approvalLeaveTitleRowSx,
   approvalLeaveToolbarSx,
 } from "../approval-leave.styles";

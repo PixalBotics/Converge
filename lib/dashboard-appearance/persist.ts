@@ -22,7 +22,7 @@ function pickSidebarWidth(raw: unknown, fallback: SidebarWidthPreset): SidebarWi
   return raw === "compact" || raw === "wide" || raw === "standard" ? raw : fallback;
 }
 
-function pickShellGlassPreset(raw: unknown, sidebar: Chrome, fallback: ShellGlassPreset): ShellGlassPreset {
+function pickShellGlassPreset(raw: unknown, sidebar: Chrome): ShellGlassPreset {
   if (raw === "light" || raw === "medium" || raw === "heavy") return raw;
   return inferShellGlassPreset(sidebar);
 }
@@ -64,7 +64,7 @@ export function parseStoredDashboardAppearance(raw: string | null): DashboardApp
       textPrimaryHex: typeof j.textPrimaryHex === "string" ? j.textPrimaryHex : fb.textPrimaryHex,
       textSecondaryHex: typeof j.textSecondaryHex === "string" ? j.textSecondaryHex : fb.textSecondaryHex,
       sidebarWidth: pickSidebarWidth(j.sidebarWidth, fb.sidebarWidth),
-      shellGlassPreset: pickShellGlassPreset(j.shellGlassPreset, sidebarChrome, fb.shellGlassPreset),
+      shellGlassPreset: pickShellGlassPreset(j.shellGlassPreset, sidebarChrome),
       sidebarChrome,
       headerChrome,
       accents: pickAccents(j.accents, fb.accents),
