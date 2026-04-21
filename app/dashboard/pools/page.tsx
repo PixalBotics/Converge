@@ -32,6 +32,7 @@ import {
 import { publishAppToast } from "@/lib/notify";
 import { isRecord, pickNum, pickStr, unwrapApiData } from "@/lib/utils";
 import {
+  type HrmsPoolsListParams,
   useCompaniesListQuery,
   useCompaniesSetupResellersQuery,
   useCreatePoolMutation,
@@ -106,13 +107,13 @@ export default function PoolsPage() {
     return [{ value: "", label: "— Select department —" }, ...base];
   }, [departmentsQuery.data]);
 
-  const listParams = useMemo(() => {
-    const params: Record<string, unknown> = { page, limit: PAGE_LIMIT };
+  const listParams = useMemo((): HrmsPoolsListParams => {
+    const params: HrmsPoolsListParams = { page, limit: PAGE_LIMIT };
     if (appliedSearch.trim()) params.search = appliedSearch.trim();
     if (resellerId.trim()) params.resellerId = resellerId.trim();
     if (parentCompanyId.trim()) params.parentCompanyId = parentCompanyId.trim();
     if (departmentId.trim()) params.departmentId = departmentId.trim();
-    return params as any;
+    return params;
   }, [appliedSearch, departmentId, page, parentCompanyId, resellerId]);
 
   const poolsQuery = usePoolsListQuery(listParams, { enabled: true, scope: "pools-page" });

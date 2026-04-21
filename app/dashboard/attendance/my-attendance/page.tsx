@@ -55,21 +55,21 @@ export default function MyAttendancePage() {
     if (!data) return [];
     if (Array.isArray(data)) return data.filter(isRecord);
     if (!isRecord(data)) return [];
-    const items = (data as any).items;
+    const items = data["items"];
     return Array.isArray(items) ? items.filter(isRecord) : [];
   }, [attendanceQuery.data]);
 
   const total = useMemo(() => {
     const data = unwrapApiData(attendanceQuery.data);
     if (!isRecord(data)) return apiItems.length;
-    const n = Number((data as any).total);
+    const n = Number(data["total"]);
     return Number.isFinite(n) ? n : apiItems.length;
   }, [attendanceQuery.data, apiItems.length]);
 
   const totalPages = useMemo(() => {
     const data = unwrapApiData(attendanceQuery.data);
     if (!isRecord(data)) return 1;
-    const n = Number((data as any).totalPages);
+    const n = Number(data["totalPages"]);
     return Number.isFinite(n) && n > 0 ? n : 1;
   }, [attendanceQuery.data]);
 
@@ -77,7 +77,7 @@ export default function MyAttendancePage() {
     return apiItems.map((row, idx) => {
       const pick = (keys: string[]) => {
         for (const k of keys) {
-          const v = (row as any)[k];
+          const v = row[k];
           if (typeof v === "string" && v.trim()) return v.trim();
         }
         return "";

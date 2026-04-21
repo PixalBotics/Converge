@@ -47,7 +47,7 @@ function extractItems(data: unknown): Record<string, unknown>[] {
   if (!payload) return [];
   if (Array.isArray(payload)) return payload.filter(isRecord);
   if (!isRecord(payload)) return [];
-  const items = (payload as any).items;
+  const items = payload["items"];
   return Array.isArray(items) ? items.filter(isRecord) : [];
 }
 
@@ -156,9 +156,9 @@ export default function PoolHeadsPage() {
     return items
       .map((r, idx) => {
         const assignmentId = pickStr(r, ["id"]) || "";
-        const user = isRecord((r as any).user) ? ((r as any).user as Record<string, unknown>) : null;
-        const pool = isRecord((r as any).pool) ? ((r as any).pool as Record<string, unknown>) : null;
-        const dept = isRecord((r as any).department) ? ((r as any).department as Record<string, unknown>) : null;
+        const user = isRecord(r["user"]) ? (r["user"] as Record<string, unknown>) : null;
+        const pool = isRecord(r["pool"]) ? (r["pool"] as Record<string, unknown>) : null;
+        const dept = isRecord(r["department"]) ? (r["department"] as Record<string, unknown>) : null;
         const userName = pickStr(user, ["name", "fullName", "userName"]) || pickStr(r, ["userName", "name"]) || "—";
         const userEmail = pickStr(user, ["email"]) || pickStr(r, ["userEmail", "email"]) || "—";
         const poolName = pickStr(pool, ["name"]) || pickStr(r, ["poolName"]) || "—";

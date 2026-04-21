@@ -28,6 +28,7 @@ import {
 import { extractNestFieldErrors } from "@/lib/companies/extract-nest-field-errors";
 import { extractApiErrorMessageForToast } from "@/lib/notify/extract-api-message";
 import { publishAppToast } from "@/lib/notify";
+import { isRecord } from "@/lib/utils";
 import {
   pageHeaderRow,
   pageWrapper,
@@ -91,8 +92,8 @@ function toChildWebsites(c: ParentCompanyChildDetail): ChildWebsiteRow[] {
   const multi = c.websites;
   if (Array.isArray(multi)) {
     for (const raw of multi) {
-      const r = raw as any;
-      push(r?.id ?? r?.websiteId, r?.url, r?.name);
+      if (!isRecord(raw)) continue;
+      push(raw["id"] ?? raw["websiteId"], raw["url"], raw["name"]);
     }
   }
   return out;
@@ -100,11 +101,14 @@ function toChildWebsites(c: ParentCompanyChildDetail): ChildWebsiteRow[] {
 
 function toChildPocs(c: ParentCompanyChildDetail): ChildPocRow[] {
   const out: ChildPocRow[] = [];
-  const raw = (c as any)?.pocs;
+  const raw = (c as Record<string, unknown>)["pocs"];
   if (Array.isArray(raw)) {
     for (const p of raw) {
-      const pcid = String((p as any)?.companyContactId ?? "").trim();
-      const userId = String((p as any)?.user?.id ?? (p as any)?.userId ?? "").trim();
+      if (!isRecord(p)) continue;
+      const userVal = p["user"];
+      const userRec = isRecord(userVal) ? userVal : null;
+      const pcid = String(p["companyContactId"] ?? "").trim();
+      const userId = String(userRec?.["id"] ?? p["userId"] ?? "").trim();
       if (!pcid && !userId) continue;
       out.push({ ...(pcid ? { companyContactId: pcid } : {}), ...(userId ? { userId } : {}) });
     }
