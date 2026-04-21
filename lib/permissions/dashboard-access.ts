@@ -311,10 +311,20 @@ const LEAVE_BALANCE_ITEM: DashboardNavItem = {
   permission: null,
 };
 
+const PHONE_NUMBER_SETUP_ITEM: DashboardNavItem = {
+  href: "/dashboard/phone-number-setup",
+  label: "Phone Number Setup",
+  section: "activity",
+  iconKey: "settings",
+  permission: null,
+};
+
 export const DASHBOARD_NAV_ITEMS: readonly DashboardNavItem[] = PAGE_PERMISSION_ORDER.flatMap((permission) => {
   if (permission === "page:departments") return [DEPARTMENTS_AND_DESIGNATIONS_GROUP];
   if (permission === "page:website-assignments") return [WEBSITE_GROUP];
-  if (permission === "page:pools") return [toNavItem("page:pools")!, SHIFTS_GROUP, ATTENDANCE_GROUP, LEAVE_GROUP, LEAVE_BALANCE_ITEM];
+  if (permission === "page:pools") {
+    return [toNavItem("page:pools")!, SHIFTS_GROUP, ATTENDANCE_GROUP, LEAVE_GROUP, LEAVE_BALANCE_ITEM, PHONE_NUMBER_SETUP_ITEM];
+  }
   const item = toNavItem(permission);
   return item ? [item] : [];
 });
