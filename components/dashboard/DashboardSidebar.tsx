@@ -53,6 +53,22 @@ import {
 } from "@/lib/permissions";
 import { SidebarReactIcon } from "./icons/SidebarReactIcon";
 
+function capitalizeWordSegment(segment: string): string {
+  if (!segment) return segment;
+  return segment.charAt(0).toUpperCase() + segment.slice(1).toLowerCase();
+}
+
+/** Title case: capitalize each word (space-separated); hyphen segments too. */
+function sidebarNavLabel(text: string): string {
+  if (!text) return text;
+  return text
+    .split(/\s+/)
+    .map((word) =>
+      word.includes("-") ? word.split("-").map(capitalizeWordSegment).join("-") : capitalizeWordSegment(word),
+    )
+    .join(" ");
+}
+
 function ActivityNavGroup({
   item,
   pathname,
@@ -86,7 +102,7 @@ function ActivityNavGroup({
         <ListItemIcon sx={listIconDefaultSx}>
           <SidebarReactIcon iconKey={item.iconKey} />
         </ListItemIcon>
-        <ListItemText primary={item.label} primaryTypographyProps={navTextProps} />
+        <ListItemText primary={sidebarNavLabel(item.label)} primaryTypographyProps={navTextProps} />
         <Box sx={{ display: "flex", alignItems: "center", color: "inherit" }}>
           {open ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
         </Box>
@@ -107,7 +123,7 @@ function ActivityNavGroup({
                 <ListItemIcon sx={selected ? listIconSelectedSx : listIconDefaultSx}>
                   <SidebarReactIcon iconKey={ch.iconKey} />
                 </ListItemIcon>
-                <ListItemText primary={ch.label} primaryTypographyProps={navTextProps} />
+                <ListItemText primary={sidebarNavLabel(ch.label)} primaryTypographyProps={navTextProps} />
               </ListItemButton>
             );
           })}
@@ -252,7 +268,7 @@ export default function DashboardSidebar({ open = false, onClose }: { open?: boo
                 <ListItemIcon sx={selected ? listIconSelectedSx : listIconDefaultSx}>
                   <SidebarReactIcon iconKey={item.iconKey} />
                 </ListItemIcon>
-                <ListItemText primary={item.label} primaryTypographyProps={navTextProps} />
+                <ListItemText primary={sidebarNavLabel(item.label)} primaryTypographyProps={navTextProps} />
               </ListItemButton>
             );
           })
@@ -275,7 +291,7 @@ export default function DashboardSidebar({ open = false, onClose }: { open?: boo
                 <ListItemIcon sx={selected ? listIconSelectedSx : listIconDefaultSx}>
                   <SidebarReactIcon iconKey={item.iconKey} />
                 </ListItemIcon>
-                <ListItemText primary={item.label} primaryTypographyProps={navTextProps} />
+                <ListItemText primary={sidebarNavLabel(item.label)} primaryTypographyProps={navTextProps} />
               </ListItemButton>
             );
           })}
