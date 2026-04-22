@@ -25,6 +25,10 @@ export interface DataTableProps<T = Record<string, unknown>> {
   loadingRowCount?: number;
   /** Optional: stable row id for keys. Default: (row, index) => String(index) */
   getRowId?: (row: T, index: number) => string | number;
+  /** Highlight the row whose id matches (via `getRowId`). */
+  selectedRowId?: string | number | null;
+  /** Whole-row click (e.g. select pool). Action cells should call `stopPropagation`. */
+  onRowClick?: (row: T, index: number) => void;
   /** Optional action column: label and render function for each row */
   actionColumn?: {
     label: string;

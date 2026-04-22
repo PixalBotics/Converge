@@ -1,8 +1,22 @@
 import { apiClient } from "../http/axios-instance";
 import type { JsonRecord } from "../types/common.types";
 
+/** Drop empty strings so axios does not send `resellerId=` / `parentCompanyId=` and confuse the API. */
+function compactDepartmentListParams(params?: JsonRecord): JsonRecord | undefined {
+  if (!params) return undefined;
+  const out: JsonRecord = {};
+  for (const [key, raw] of Object.entries(params)) {
+    if (raw === undefined || raw === null) continue;
+    if (typeof raw === "string" && !raw.trim()) continue;
+    out[key] = raw;
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
+}
+
 export async function listDepartments(params?: JsonRecord): Promise<unknown> {
-  const { data } = await apiClient.get("/hrms/departments", { params });
+  const { data } = await apiClient.get("/hrms/departments", {
+    params: compactDepartmentListParams(params),
+  });
   return data;
 }
 

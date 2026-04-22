@@ -1,12 +1,21 @@
 "use client";
 
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { assignPoolHead, listPoolHeads, removePoolHead } from "@/api";
+import { assignPoolHead, listPoolHeads, listPoolHeadsAttendance, removePoolHead } from "@/api";
 import type { JsonRecord } from "@/api";
 import { hrmsPoolHeadsKeys } from "./keys";
 
 export type HrmsPoolHeadsListParams = {
-  poolId: string;
+  poolId?: string;
+  page?: number;
+  limit?: number;
+  all?: boolean;
+};
+
+export type HrmsPoolHeadsAttendanceParams = {
+  poolId?: string;
+  memberName?: string;
+  date?: string;
   page?: number;
   limit?: number;
   all?: boolean;
@@ -19,11 +28,25 @@ export function usePoolHeadsListQuery(
   const enabled = options?.enabled ?? true;
   const scope = options?.scope ?? "default";
   const req = params as unknown as JsonRecord | undefined;
-  const poolId = (params?.poolId ?? "").trim();
   return useQuery({
     queryKey: [...hrmsPoolHeadsKeys.list(req), scope] as const,
     queryFn: () => listPoolHeads(req),
-    enabled: enabled && poolId.length > 0,
+    enabled: enabled && params != null,
+    placeholderData: keepPreviousData,
+  });
+}
+
+export function usePoolHeadsAttendanceQuery(
+  params: HrmsPoolHeadsAttendanceParams | undefined,
+  options?: { enabled?: boolean; scope?: string },
+) {
+  const enabled = options?.enabled ?? true;
+  const scope = options?.scope ?? "default";
+  const req = params as unknown as JsonRecord | undefined;
+  return useQuery({
+    queryKey: [...hrmsPoolHeadsKeys.attendance(req), scope] as const,
+    queryFn: () => listPoolHeadsAttendance(req),
+    enabled: enabled && params != null,
     placeholderData: keepPreviousData,
   });
 }

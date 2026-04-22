@@ -430,6 +430,20 @@ const HRMS_GROUP: DashboardNavItem = {
       prefixMatch: false,
     },
     {
+      href: "/dashboard/hrms/pools",
+      label: "Pools",
+      section: "activity",
+      iconKey: "pools",
+      permission: "page:hrms",
+    },
+    {
+      href: "/dashboard/hrms/pool-members",
+      label: "Pool members",
+      section: "activity",
+      iconKey: "pools",
+      permission: "page:hrms",
+    },
+    {
       href: "/dashboard/hrms/pool-heads",
       label: "Pool Heads",
       section: "activity",

@@ -5,6 +5,7 @@ import IconButton from "@mui/material/IconButton";
 import { AttachMoney as AttachMoneyIcon } from "@mui/icons-material";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
+import GroupsIcon from "@mui/icons-material/Groups";
 import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import {
@@ -35,6 +36,7 @@ export type PoolRow = {
   id: string;
   poolName: string;
   departmentName: string;
+  departmentId: string;
 };
 
 export type PoolsTableCardProps = {
@@ -50,11 +52,21 @@ export type PoolsTableCardProps = {
   onPageChange: (page: number) => void;
   onEdit: (row: PoolRow) => void;
   onDelete: (row: PoolRow) => void;
+  /** Pool members (HRMS APIs); hidden when user cannot list members. */
+  onMembers?: (row: PoolRow) => void;
   disableActions: boolean;
   /** When false, row edit is hidden (operational `hrms:pool:update`). */
   canEdit?: boolean;
   /** When false, row delete is hidden (operational `hrms:pool:delete`). */
   canDelete?: boolean;
+  /** `page:hrms` + pool view / org pool manage (list members). */
+  canViewMembers?: boolean;
+  /** Pool-members page: highlight selected pool row. */
+  selectedPoolId?: string | null;
+  /** Pool-members page: click row to select pool (edit/delete icons do not trigger this). */
+  onPoolRowClick?: (row: PoolRow) => void;
+  /** Override card title (default "Pools"). */
+  tableCardTitle?: string;
 };
 
 export function PoolsTableCard({
@@ -70,9 +82,14 @@ export function PoolsTableCard({
   onPageChange,
   onEdit,
   onDelete,
+  onMembers,
   disableActions,
   canEdit = true,
   canDelete = true,
+  canViewMembers = false,
+  selectedPoolId = null,
+  onPoolRowClick,
+  tableCardTitle,
 }: PoolsTableCardProps) {
   const theme = useTheme() as AppTheme;
 
@@ -84,7 +101,7 @@ export function PoolsTableCard({
             <AttachMoneyIcon sx={{ fontSize: 20, color: theme.app.dashboard.white95 }} />
           </Box>
           <Typography variant="mediumLarge" fontWeight={600} color="white">
-            Pools
+            {tableCardTitle ?? "Pools"}
           </Typography>
         </Box>
 
@@ -105,16 +122,35 @@ export function PoolsTableCard({
         isLoading={isLoading}
         getRowId={(row) => row.id}
         minWidth={640}
+        selectedRowId={selectedPoolId}
+        onRowClick={onPoolRowClick}
         actionColumn={{
           label: "Action",
           render: (row) => (
-            <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 1 }}>
+            <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 1 }} onClick={(e) => e.stopPropagation()}>
+              {canViewMembers && onMembers ? (
+                <IconButton
+                  size="small"
+                  sx={dataTableActionButton}
+                  aria-label="Pool members"
+                  disabled={disableActions}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onMembers(row);
+                  }}
+                >
+                  <GroupsIcon fontSize="small" />
+                </IconButton>
+              ) : null}
               <IconButton
                 size="small"
                 sx={dataTableActionButton}
                 aria-label="Edit pool"
                 disabled={disableActions || !canEdit}
-                onClick={() => onEdit(row)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEdit(row);
+                }}
               >
                 <EditIcon fontSize="small" />
               </IconButton>
@@ -122,7 +158,10 @@ export function PoolsTableCard({
                 size="small"
                 aria-label="Delete pool"
                 disabled={disableActions || !canDelete}
-                onClick={() => onDelete(row)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete(row);
+                }}
                 sx={{
                   ...dataTableActionButton,
                   color: theme.app.dashboard.accentRedLight,

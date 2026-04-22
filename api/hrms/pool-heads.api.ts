@@ -6,6 +6,11 @@ export async function listPoolHeads(params?: JsonRecord): Promise<unknown> {
   return data;
 }
 
+export async function listPoolHeadsAttendance(params?: JsonRecord): Promise<unknown> {
+  const { data } = await apiClient.get("/hrms/pool-heads/attendance", { params });
+  return data;
+}
+
 export async function assignPoolHead(body: JsonRecord): Promise<unknown> {
   const { data } = await apiClient.post("/hrms/pool-heads", body);
   return data;

@@ -83,11 +83,6 @@ export function AddUserModal({
     [companiesByResellerQuery.data],
   );
 
-  const selectedParentType = useMemo(() => {
-    const found = parentCompanyOptions.find((o) => o.value === parentCompanyId);
-    return found?.type?.trim() ?? "";
-  }, [parentCompanyOptions, parentCompanyId]);
-
   const departmentQueryParams = useMemo(() => {
     if (userType === "Internal") {
       return {};
@@ -97,15 +92,15 @@ export function AddUserModal({
       resellerId.trim().length > 0 &&
       parentCompanyId.trim().length > 0
     ) {
-      const params: Record<string, string> = {
+      return {
+        all: true,
+        type: "External",
         resellerId: resellerId.trim(),
         parentCompanyId: parentCompanyId.trim(),
-      };
-      if (selectedParentType) params.type = selectedParentType;
-      return params;
+      } as const;
     }
     return {};
-  }, [userType, resellerId, parentCompanyId, selectedParentType]);
+  }, [userType, resellerId, parentCompanyId]);
 
   const departmentsEnabledInternal = open && userType === "Internal";
   const departmentsEnabledExternal =
@@ -115,7 +110,7 @@ export function AddUserModal({
     parentCompanyId.trim().length > 0;
 
   const internalDepartmentsQuery = useDepartmentsListQuery(
-    { type: "Internal" },
+    { type: "Internal", all: true },
     {
       enabled: departmentsEnabledInternal,
       scope: "add-user-internal",

@@ -1,4 +1,5 @@
 import type { UnknownRecord, UserRow, UserSuggestion } from "./types";
+import { unwrapApiData } from "@/lib/utils/api-payload";
 
 export function asRecord(value: unknown): UnknownRecord | null {
   return value && typeof value === "object" && !Array.isArray(value)
@@ -43,7 +44,9 @@ function toUserRow(value: unknown): UserRow | null {
   const roleName = String(row.roleName ?? roleObj?.name ?? designationObj?.name ?? "—").trim();
   const resellerName = String(row.companyName ?? resellerObj?.name ?? row.company ?? "-").trim();
   const parentCompanyName = String(parentCompanyObj?.name ?? row.parentCompanyName ?? "-").trim();
-  const id = String(row.id ?? row.userId ?? "").trim();
+  const resellerId = String(row.resellerId ?? resellerObj?.id ?? "").trim();
+  const parentCompanyId = String(row.parentCompanyId ?? parentCompanyObj?.id ?? "").trim();
+  const id = String(row.id ?? row.userId ?? row.user_id ?? row._id ?? "").trim();
   const licenseKey = String(
     row.licenseKey
       ?? row.tenantLicenseKey
@@ -62,11 +65,17 @@ function toUserRow(value: unknown): UserRow | null {
     department: departmentName || "—",
     role: roleName || "—",
     company: resellerName || parentCompanyName || "-",
+    ...(resellerId ? { resellerId } : {}),
+    ...(parentCompanyId ? { parentCompanyId } : {}),
   };
 }
 
 export function extractUsersRows(payload: unknown): UserRow[] {
-  const list = pickArray(payload, ["items", "rows", "results", "users", "data"]);
+  const layer = unwrapApiData(payload);
+  if (Array.isArray(layer)) {
+    return layer.map(toUserRow).filter((row): row is UserRow => row !== null);
+  }
+  const list = pickArray(layer, ["items", "rows", "results", "users", "records", "list", "members", "data"]);
   return list.map(toUserRow).filter((row): row is UserRow => row !== null);
 }
 

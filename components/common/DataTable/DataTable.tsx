@@ -27,6 +27,8 @@ export function DataTable<T extends Record<string, unknown>>({
   tableSx,
   containerSx,
   scrollY = true,
+  selectedRowId = null,
+  onRowClick,
 }: DataTableProps<T>) {
   const sizeCellSx = size === "medium" ? { py: 1.5 } : { py: 1 };
 
@@ -85,8 +87,40 @@ export function DataTable<T extends Record<string, unknown>>({
           </Box>
         </Box>
         <Box component="tbody">
-          {(isLoading ? skeletonRows : rows).map((row, idx) => (
-            <Box component="tr" key={String(isLoading ? `skeleton-${idx}` : getRowId(row as T, idx))}>
+          {(isLoading ? skeletonRows : rows).map((row, idx) => {
+            const rowId = String(isLoading ? `skeleton-${idx}` : getRowId(row as T, idx));
+            const selected =
+              !isLoading &&
+              onRowClick &&
+              selectedRowId != null &&
+              selectedRowId !== "" &&
+              rowId === String(selectedRowId);
+            return (
+            <Box
+              component="tr"
+              key={rowId}
+              onClick={
+                isLoading || !onRowClick
+                  ? undefined
+                  : () => {
+                      onRowClick(row as T, idx);
+                    }
+              }
+              sx={
+                [
+                  selected
+                    ? {
+                        bgcolor: (t: Theme) =>
+                          alpha((t as AppTheme).palette.primary.main, t.palette.mode === "light" ? 0.12 : 0.2),
+                        boxShadow: (t: Theme) => `inset 0 0 0 1px ${alpha((t as AppTheme).palette.primary.main, 0.35)}`,
+                      }
+                    : null,
+                  onRowClick && !isLoading
+                    ? { cursor: "pointer", "&:hover": { bgcolor: (t: Theme) => alpha((t as AppTheme).app.text.primary, 0.06) } }
+                    : null,
+                ] as SxProps<Theme>
+              }
+            >
               {columns.map((col, colIdx) => (
                 <Box
                   key={col.id}
@@ -113,7 +147,7 @@ export function DataTable<T extends Record<string, unknown>>({
                 </Box>
               ))}
               {actionColumn && (
-                <Box component="td" sx={sizeCellSx}>
+                <Box component="td" sx={sizeCellSx} onClick={(e) => e.stopPropagation()}>
                   {isLoading ? (
                     <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
                       <Skeleton variant="rounded" sx={skeletonBaseSx} height={28} width={72} />
@@ -124,7 +158,8 @@ export function DataTable<T extends Record<string, unknown>>({
                 </Box>
               )}
             </Box>
-          ))}
+            );
+          })}
         </Box>
       </Box>
     </Box>

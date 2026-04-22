@@ -216,6 +216,26 @@ export function canPoolAction(h: H, op: "create" | "update" | "delete" | "view")
   return h(OP.hrms.pool.view);
 }
 
+/** List / GET pool members (`hrms:pool:view` or org pool bundles). Requires `page:hrms` in the API — check with `hasPage("page:hrms")`. */
+export function canPoolMemberList(h: H): boolean {
+  return h(OP.hrms.org.manage) || h(OP.hrms.org.poolManage) || h(OP.hrms.pool.view);
+}
+
+/** POST add/move into pool. */
+export function canPoolMemberAdd(h: H): boolean {
+  return h(OP.hrms.org.manage) || h(OP.hrms.org.poolManage) || h(OP.hrms.pool.memberAdd);
+}
+
+/** PATCH move to another pool in the same department. */
+export function canPoolMemberMove(h: H): boolean {
+  return h(OP.hrms.org.manage) || h(OP.hrms.org.poolManage) || h(OP.hrms.pool.memberUpdate);
+}
+
+/** DELETE remove from pool. */
+export function canPoolMemberRemove(h: H): boolean {
+  return h(OP.hrms.org.manage) || h(OP.hrms.org.poolManage) || h(OP.hrms.pool.memberRemove);
+}
+
 export function canShiftAction(h: H, op: "create" | "update" | "delete" | "view"): boolean {
   if (op === "create") return h(OP.hrms.shift.create);
   if (op === "update") return h(OP.hrms.shift.update);

@@ -69,6 +69,28 @@ const PREFIX_VIEW_RULES: readonly { prefix: string; anyOf: readonly string[] }[]
     ],
   },
   {
+    prefix: "/dashboard/hrms/pool-members",
+    anyOf: [
+      OP.hrms.pool.view,
+      OP.hrms.org.poolManage,
+      OP.hrms.org.manage,
+      OP.hrms.pool.memberAdd,
+      OP.hrms.pool.memberUpdate,
+      OP.hrms.pool.memberRemove,
+    ],
+  },
+  {
+    prefix: "/dashboard/hrms/pools",
+    anyOf: [
+      OP.hrms.pool.view,
+      OP.hrms.org.poolManage,
+      OP.hrms.org.manage,
+      OP.hrms.pool.memberAdd,
+      OP.hrms.pool.memberUpdate,
+      OP.hrms.pool.memberRemove,
+    ],
+  },
+  {
     prefix: "/dashboard/hrms/pool-heads",
     anyOf: [
       OP.hrms.poolHead.view,

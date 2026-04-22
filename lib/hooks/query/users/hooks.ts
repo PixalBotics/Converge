@@ -37,6 +37,7 @@ export type UsersListParams = {
   search?: string;
   companyId?: string;
   companyName?: string;
+  resellerId?: string;
   parentCompanyId?: string;
   departmentId?: string;
   designationId?: string;

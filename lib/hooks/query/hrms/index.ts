@@ -33,10 +33,11 @@ export type { HrmsDepartmentHeadsAttendanceParams, HrmsDepartmentHeadsListParams
 export {
   hrmsPoolHeadsKeys,
   useAssignPoolHeadMutation,
+  usePoolHeadsAttendanceQuery,
   usePoolHeadsListQuery,
   useRemovePoolHeadMutation,
 } from "./pool-heads";
-export type { HrmsPoolHeadsListParams } from "./pool-heads";
+export type { HrmsPoolHeadsAttendanceParams, HrmsPoolHeadsListParams } from "./pool-heads";
 export { hrmsDepartmentShiftsKeys } from "./department-shifts";
 export { hrmsDepartmentShiftAssignmentsKeys } from "./department-shift-assignments";
 export {
@@ -71,6 +72,19 @@ export type { HrmsLeaveTypesListParams } from "./leave-types";
 export { hrmsPoolsKeys } from "./pools";
 export { useCreatePoolMutation, useDeletePoolMutation, usePoolsListQuery, useUpdatePoolMutation } from "./pools";
 export type { HrmsPoolsListParams } from "./pools";
+export { hrmsPoolMembersKeys } from "./pool-members/keys";
+export {
+  useAddPoolMemberMutation,
+  useMovePoolMemberMutation,
+  usePoolMembersListQuery,
+  useRemovePoolMemberMutation,
+} from "./pool-members/hooks";
+export type { HrmsPoolMembersListParams } from "./pool-members/hooks";
+export {
+  useDepartmentPoolMembersMerged,
+  type DepartmentPoolMembersMergedOptions,
+  type MergedPoolMemberRow,
+} from "./pool-members/use-department-pool-members-merged";
 export { hrmsShiftsKeys } from "./shifts";
 export {
   useCreateShiftMutation,

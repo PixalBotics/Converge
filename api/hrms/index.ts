@@ -9,5 +9,6 @@ export * from "./pool-shift-assignments.api";
 export * from "./leave-applications.api";
 export * from "./leave-types.api";
 export * from "./pools.api";
+export * from "./pool-members.api";
 export * from "./shifts.api";
 export * from "./user-shift-assignments.api";

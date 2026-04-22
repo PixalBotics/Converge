@@ -1,19 +1,27 @@
 "use client";
 
-import type { AppTheme } from "@/theme/theme";
+import Box from "@mui/material/Box";
 import { ConfirmActionModal, FormModal, InputField, SelectField } from "@/components/common";
 
 export type SelectOption = { value: string; label: string };
 
 export type PoolModalsProps = {
-  theme: AppTheme;
   createOpen: boolean;
   onCloseCreate: () => void;
   onSaveCreate: () => void;
   isCreating: boolean;
-  departmentId: string;
-  onDepartmentIdChange: (v: string) => void;
-  departmentOptions: SelectOption[];
+  createSaveDisabled: boolean;
+  createDeptKind: "Internal" | "External";
+  onCreateDeptKindChange: (v: "Internal" | "External") => void;
+  createResellerId: string;
+  onCreateResellerIdChange: (v: string) => void;
+  createParentCompanyId: string;
+  onCreateParentCompanyIdChange: (v: string) => void;
+  createDepartmentId: string;
+  onCreateDepartmentIdChange: (v: string) => void;
+  createDepartmentOptions: SelectOption[];
+  createResellerOptions: SelectOption[];
+  createParentCompanyOptions: SelectOption[];
   poolNameField: string;
   onPoolNameChange: (v: string) => void;
 
@@ -36,9 +44,18 @@ export function PoolModals({
   onCloseCreate,
   onSaveCreate,
   isCreating,
-  departmentId,
-  onDepartmentIdChange,
-  departmentOptions,
+  createSaveDisabled,
+  createDeptKind,
+  onCreateDeptKindChange,
+  createResellerId,
+  onCreateResellerIdChange,
+  createParentCompanyId,
+  onCreateParentCompanyIdChange,
+  createDepartmentId,
+  onCreateDepartmentIdChange,
+  createDepartmentOptions,
+  createResellerOptions,
+  createParentCompanyOptions,
   poolNameField,
   onPoolNameChange,
   editOpen,
@@ -58,22 +75,65 @@ export function PoolModals({
       <FormModal
         open={createOpen}
         title="Add pool"
-        description="Create a new pool."
+        description="Internal: choose department, then enter the pool name. External: choose reseller and parent company, then department, then pool name."
         onClose={onCloseCreate}
         onSave={onSaveCreate}
         primaryButtonLabel={isCreating ? "Saving…" : "Save pool"}
-        primaryButtonDisabled={isCreating}
+        primaryButtonDisabled={isCreating || createSaveDisabled}
         cancelButtonLabel="Close"
-        maxWidth={520}
+        maxWidth={640}
         fitContent
       >
-        <SelectField label="Department" value={departmentId} onChange={onDepartmentIdChange} options={departmentOptions} menuMaxRows={8} />
-        <InputField
-          label="Pool name"
-          placeholder="e.g. Team Alpha"
-          value={poolNameField}
-          onChange={(e) => onPoolNameChange(e.target.value)}
+        <SelectField
+          label="Department type"
+          value={createDeptKind}
+          onChange={(v) => onCreateDeptKindChange(v as "Internal" | "External")}
+          options={[
+            { value: "Internal", label: "Internal" },
+            { value: "External", label: "External" },
+          ]}
+          menuMaxRows={4}
         />
+
+        {createDeptKind === "External" ? (
+          <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 1.5, mt: 1.5 }}>
+            <SelectField
+              label="Reseller"
+              value={createResellerId}
+              onChange={onCreateResellerIdChange}
+              options={createResellerOptions}
+              menuMaxRows={8}
+            />
+            <SelectField
+              label="Parent company"
+              value={createParentCompanyId}
+              onChange={onCreateParentCompanyIdChange}
+              options={createParentCompanyOptions}
+              menuMaxRows={8}
+              disabled={!createResellerId.trim()}
+            />
+          </Box>
+        ) : null}
+
+        <Box sx={{ mt: 1.5 }}>
+          <SelectField
+            label="Department"
+            value={createDepartmentId}
+            onChange={onCreateDepartmentIdChange}
+            options={createDepartmentOptions}
+            menuMaxRows={10}
+            disabled={createDeptKind === "External" && (!createResellerId.trim() || !createParentCompanyId.trim())}
+          />
+        </Box>
+
+        <Box sx={{ mt: 1.5 }}>
+          <InputField
+            label="Pool name"
+            placeholder="e.g. Team Alpha"
+            value={poolNameField}
+            onChange={(e) => onPoolNameChange(e.target.value)}
+          />
+        </Box>
       </FormModal>
 
       <FormModal
@@ -104,4 +164,3 @@ export function PoolModals({
     </>
   );
 }
-
