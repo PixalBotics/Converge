@@ -14,13 +14,32 @@ import { rolesPageWrapper } from "../../roles/roles.styles";
 import { pageWrapper } from "../../companies/overview.styles";
 import { publishAppToast } from "@/lib/notify";
 import { useUsersListQuery } from "@/lib/hooks/query/users";
-import { useCreateUserShiftAssignmentMutation, useRemoveUserShiftAssignmentMutation, useShiftsListQuery, useUserShiftAssignmentsListQuery } from "@/lib/hooks/query";
+import {
+  useCompaniesByResellerQuery,
+  useCompaniesSetupResellersQuery,
+  useCreateUserShiftAssignmentMutation,
+  useDepartmentsListQuery,
+  useRemoveUserShiftAssignmentMutation,
+  useShiftsListQuery,
+  useUserShiftAssignmentsListQuery,
+} from "@/lib/hooks/query";
 import { addMonths, daysInMonth, isRecord, pickNum, pickStr, startOfMonth, toIsoDateString, unwrapApiData } from "@/lib/utils";
+import { extractParentCompaniesFromByResellerTree, pickItemsArray, toIdNameOption } from "@/app/dashboard/user-page/components/add-user-modal.utils";
 import {
   userShiftHeaderWrapSx,
   userShiftSubtextSx,
 } from "./user-shift.styles";
-import { UserShiftAssignmentsCard, UserShiftAssignModal, UserShiftRosterCard, UsersSidebar, type CalendarCell, type UserListRow, type UserShiftAssignmentRow, type UserType } from "./components";
+import {
+  UserShiftAssignmentsCard,
+  UserShiftAssignModal,
+  UserShiftRosterCard,
+  UsersSidebar,
+  type CalendarCell,
+  type SelectedUserMeta,
+  type UserListRow,
+  type UserShiftAssignmentRow,
+  type UserType,
+} from "./components";
 
 export default function UserShiftPage() {
   const theme = useTheme() as AppTheme;
@@ -35,15 +54,71 @@ export default function UserShiftPage() {
 
   const [userSearch, setUserSearch] = useState("");
   const [userPage, setUserPage] = useState(1);
+  const [userTypeFilter, setUserTypeFilter] = useState<"all" | UserType>("all");
+  const [externalResellerId, setExternalResellerId] = useState("");
+  const [externalParentCompanyId, setExternalParentCompanyId] = useState("");
+  const [externalDepartmentId, setExternalDepartmentId] = useState("");
+  const [internalDepartmentId, setInternalDepartmentId] = useState("");
+
+  const internalScopeReady = userTypeFilter !== "Internal" || internalDepartmentId.trim().length > 0;
+  const externalScopeReady =
+    userTypeFilter !== "External" ||
+    (externalResellerId.trim().length > 0 &&
+      externalParentCompanyId.trim().length > 0 &&
+      externalDepartmentId.trim().length > 0);
+  const canLoadUsers = internalScopeReady && externalScopeReady;
+
+  const resellersQuery = useCompaniesSetupResellersQuery({ enabled: userTypeFilter === "External" });
+  const companiesByResellerQuery = useCompaniesByResellerQuery(
+    externalResellerId.trim(),
+    { view: "tree", sortBy: "name", sortOrder: "asc", all: true },
+    { enabled: userTypeFilter === "External" && externalResellerId.trim().length > 0 },
+  );
+  const externalDepartmentsQuery = useDepartmentsListQuery(
+    userTypeFilter === "External" && externalResellerId.trim() && externalParentCompanyId.trim()
+      ? {
+          all: true,
+          type: "External",
+          resellerId: externalResellerId.trim(),
+          parentCompanyId: externalParentCompanyId.trim(),
+        }
+      : undefined,
+    {
+      enabled:
+        userTypeFilter === "External" &&
+        externalResellerId.trim().length > 0 &&
+        externalParentCompanyId.trim().length > 0,
+      scope: "user-shift-external-departments",
+    },
+  );
+  const internalDepartmentsQuery = useDepartmentsListQuery(
+    userTypeFilter === "Internal" ? { all: true, type: "Internal" } : undefined,
+    { enabled: userTypeFilter === "Internal", scope: "user-shift-internal-departments" },
+  );
 
   const usersQuery = useUsersListQuery(
     {
       page: userPage,
       limit: 50,
+      ...(userTypeFilter !== "all" ? { userType: userTypeFilter } : {}),
+      ...(userTypeFilter === "Internal" && internalDepartmentId.trim()
+        ? { departmentId: internalDepartmentId.trim() }
+        : {}),
+      ...(userTypeFilter === "External" && externalParentCompanyId.trim()
+        ? { parentCompanyId: externalParentCompanyId.trim() }
+        : {}),
+      ...(userTypeFilter === "External" && externalDepartmentId.trim()
+        ? { departmentId: externalDepartmentId.trim() }
+        : {}),
       ...(userSearch.trim() ? { search: userSearch.trim() } : {}),
     },
-    { enabled: true },
+    { enabled: canLoadUsers },
   );
+
+  const formatScopeId = (value: string | undefined) => {
+    const v = (value ?? "").trim();
+    return v || "—";
+  };
 
   const { users, userOptions, userTypeById, userPageCount, userTotal } = useMemo(() => {
     const payload = unwrapApiData(usersQuery.data);
@@ -62,8 +137,10 @@ export default function UserShiftPage() {
         const email = pickStr(r, ["email"]) || "—";
         const rawType = pickStr(r, ["userType", "type"]);
         const type: UserType = rawType === "Internal" ? "Internal" : "External";
+        const resellerId = formatScopeId(pickStr(r, ["resellerId", "reseller_id"]));
+        const parentCompanyId = formatScopeId(pickStr(r, ["parentCompanyId", "parent_company_id"]));
         typeById.set(id, type);
-        return { id, name, email, type } satisfies UserListRow;
+        return { id, name, email, type, resellerId, parentCompanyId } satisfies UserListRow;
       })
       .filter((x): x is UserListRow => x !== null);
 
@@ -71,7 +148,10 @@ export default function UserShiftPage() {
       value: u.id,
       // SelectField's underlying Autocomplete uses option labels as keys.
       // Names can collide, so include email to make labels stable + unique.
-      label: `${u.name} — ${u.email} (${u.type})`,
+      label:
+        u.type === "External"
+          ? `${u.name} — ${u.email} (External | R:${u.resellerId} | P:${u.parentCompanyId})`
+          : `${u.name} — ${u.email} (Internal)`,
     }));
 
     const pageCount = pickNum(payloadObj, ["totalPages"]) ?? 1;
@@ -86,6 +166,53 @@ export default function UserShiftPage() {
     };
   }, [usersQuery.data]);
 
+  const resellerOptions = useMemo(() => {
+    const base = pickItemsArray(resellersQuery.data)
+      .map(toIdNameOption)
+      .filter((o): o is { value: string; label: string } => o !== null);
+    return [{ value: "", label: resellersQuery.isLoading ? "Loading resellers..." : "— Select reseller —" }, ...base];
+  }, [resellersQuery.data, resellersQuery.isLoading]);
+
+  const parentCompanyOptions = useMemo(() => {
+    const base = extractParentCompaniesFromByResellerTree(companiesByResellerQuery.data);
+    return [
+      {
+        value: "",
+        label:
+          externalResellerId.trim().length === 0
+            ? "Select reseller first"
+            : companiesByResellerQuery.isLoading
+              ? "Loading parent companies..."
+              : "— Select parent company —",
+      },
+      ...base,
+    ];
+  }, [companiesByResellerQuery.data, companiesByResellerQuery.isLoading, externalResellerId]);
+
+  const externalDepartmentOptions = useMemo(() => {
+    const base = pickItemsArray(externalDepartmentsQuery.data)
+      .map(toIdNameOption)
+      .filter((o): o is { value: string; label: string } => o !== null);
+    return [
+      {
+        value: "",
+        label:
+          externalParentCompanyId.trim().length === 0
+            ? "Select parent company first"
+            : externalDepartmentsQuery.isLoading
+              ? "Loading departments..."
+              : "— Select department —",
+      },
+      ...base,
+    ];
+  }, [externalDepartmentsQuery.data, externalDepartmentsQuery.isLoading, externalParentCompanyId]);
+  const internalDepartmentOptions = useMemo(() => {
+    const base = pickItemsArray(internalDepartmentsQuery.data)
+      .map(toIdNameOption)
+      .filter((o): o is { value: string; label: string } => o !== null);
+    return [{ value: "", label: internalDepartmentsQuery.isLoading ? "Loading departments..." : "— Select department —" }, ...base];
+  }, [internalDepartmentsQuery.data, internalDepartmentsQuery.isLoading]);
+
   const selectedUserType: UserType | null = useMemo(() => {
     if (!userId.trim()) return null;
     return userTypeById.get(userId.trim()) ?? null;
@@ -94,8 +221,44 @@ export default function UserShiftPage() {
   const selectedUserLabel = useMemo(() => {
     if (!userId.trim()) return "";
     const match = users.find((u) => u.id === userId.trim());
-    return match ? `${match.name} (${match.type})` : "";
+    if (!match) return "";
+    return match.type === "External"
+      ? `${match.name} (${match.type}) • R:${match.resellerId} • P:${match.parentCompanyId}`
+      : `${match.name} (${match.type})`;
   }, [userId, users]);
+
+  const selectedUserMeta = useMemo<SelectedUserMeta | null>(() => {
+    if (!userId.trim()) return null;
+    const match = users.find((u) => u.id === userId.trim());
+    if (!match) return null;
+    return {
+      name: match.name,
+      email: match.email,
+      type: match.type,
+      resellerId: match.resellerId,
+      parentCompanyId: match.parentCompanyId,
+    };
+  }, [userId, users]);
+
+  const filteredUsers = useMemo(() => {
+    if (!canLoadUsers) return [];
+    if (userTypeFilter === "all") return users;
+    return users.filter((u) => u.type === userTypeFilter);
+  }, [users, userTypeFilter, canLoadUsers]);
+
+  const handleUserTypeFilterChange = (value: "all" | UserType) => {
+    setUserTypeFilter(value);
+    setUserPage(1);
+    setUserId("");
+    if (value !== "External") {
+      setExternalResellerId("");
+      setExternalParentCompanyId("");
+      setExternalDepartmentId("");
+    }
+    if (value !== "Internal") {
+      setInternalDepartmentId("");
+    }
+  };
 
   const shiftsQuery = useShiftsListQuery({ all: true }, { enabled: true, scope: "user-shift-templates" });
   const shiftOptions = useMemo(() => {
@@ -251,16 +414,61 @@ export default function UserShiftPage() {
           }}
         >
           <UsersSidebar
-            users={users}
+            users={filteredUsers}
             selectedUserId={userId}
             onSelectUserId={setUserId}
             search={userSearch}
             onSearchChange={setUserSearch}
             page={userPage}
             pageCount={userPageCount}
-            totalLabel={`Total ${userTotal} user(s)`}
+            totalLabel={
+              userTypeFilter === "External" && !externalScopeReady
+                ? "Select external scope to load users"
+                : userTypeFilter === "Internal" && !internalScopeReady
+                  ? "Select department to load users"
+                : `Total ${userTotal} user(s)`
+            }
             onPageChange={setUserPage}
             isLoading={usersQuery.isLoading || usersQuery.isFetching}
+            typeFilter={userTypeFilter}
+            onTypeFilterChange={handleUserTypeFilterChange}
+            resellerId={externalResellerId}
+            onResellerIdChange={(value) => {
+              setExternalResellerId(value);
+              setExternalParentCompanyId("");
+              setExternalDepartmentId("");
+              setUserId("");
+              setUserPage(1);
+            }}
+            resellerOptions={resellerOptions}
+            isResellersLoading={resellersQuery.isLoading || resellersQuery.isFetching}
+            parentCompanyId={externalParentCompanyId}
+            onParentCompanyIdChange={(value) => {
+              setExternalParentCompanyId(value);
+              setExternalDepartmentId("");
+              setUserId("");
+              setUserPage(1);
+            }}
+            parentCompanyOptions={parentCompanyOptions}
+            isParentCompaniesLoading={companiesByResellerQuery.isLoading || companiesByResellerQuery.isFetching}
+            isDepartmentsLoading={
+              userTypeFilter === "Internal"
+                ? internalDepartmentsQuery.isLoading || internalDepartmentsQuery.isFetching
+                : externalDepartmentsQuery.isLoading || externalDepartmentsQuery.isFetching
+            }
+            externalScopeReady={externalScopeReady}
+            internalScopeReady={internalScopeReady}
+            departmentId={userTypeFilter === "Internal" ? internalDepartmentId : externalDepartmentId}
+            onDepartmentIdChange={(value) => {
+              if (userTypeFilter === "Internal") {
+                setInternalDepartmentId(value);
+              } else {
+                setExternalDepartmentId(value);
+              }
+              setUserId("");
+              setUserPage(1);
+            }}
+            departmentOptions={userTypeFilter === "Internal" ? internalDepartmentOptions : externalDepartmentOptions}
           />
 
           <Box sx={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
@@ -318,6 +526,7 @@ export default function UserShiftPage() {
           effectiveTo={effectiveTo}
           onEffectiveToChange={setEffectiveTo}
           showPickUserHint={!userId.trim()}
+          selectedUserMeta={selectedUserMeta}
         />
 
         <ConfirmActionModal

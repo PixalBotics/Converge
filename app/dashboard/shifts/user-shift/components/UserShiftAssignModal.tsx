@@ -5,6 +5,13 @@ import type { AppTheme } from "@/theme/theme";
 import { FormModal, InputField, SelectField, Typography } from "@/components/common";
 
 export type SelectOption = { value: string; label: string };
+export type SelectedUserMeta = {
+  name: string;
+  email: string;
+  type: "Internal" | "External";
+  resellerId: string;
+  parentCompanyId: string;
+};
 
 export type UserShiftAssignModalProps = {
   theme: AppTheme;
@@ -23,6 +30,7 @@ export type UserShiftAssignModalProps = {
   effectiveTo: string;
   onEffectiveToChange: (v: string) => void;
   showPickUserHint: boolean;
+  selectedUserMeta: SelectedUserMeta | null;
 };
 
 export function UserShiftAssignModal({
@@ -42,6 +50,7 @@ export function UserShiftAssignModal({
   effectiveTo,
   onEffectiveToChange,
   showPickUserHint,
+  selectedUserMeta,
 }: UserShiftAssignModalProps) {
   return (
     <FormModal
@@ -71,6 +80,35 @@ export function UserShiftAssignModal({
         searchPlaceholder="Search user…"
         menuMaxRows={8}
       />
+      {selectedUserMeta ? (
+        <Box
+          sx={{
+            borderRadius: 2,
+            border: "1px solid rgba(255,255,255,0.1)",
+            bgcolor: "rgba(255,255,255,0.02)",
+            p: 1.25,
+            display: "grid",
+            gap: 0.4,
+          }}
+        >
+          <Typography variant="body2" sx={{ color: "white", fontWeight: 700 }}>
+            {selectedUserMeta.name} ({selectedUserMeta.type})
+          </Typography>
+          <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted }}>
+            {selectedUserMeta.email}
+          </Typography>
+          {selectedUserMeta.type === "External" ? (
+            <>
+              <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted }}>
+                Reseller ID: {selectedUserMeta.resellerId}
+              </Typography>
+              <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted }}>
+                Parent Company ID: {selectedUserMeta.parentCompanyId}
+              </Typography>
+            </>
+          ) : null}
+        </Box>
+      ) : null}
       <SelectField
         label="Shift"
         value={shiftId}

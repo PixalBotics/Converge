@@ -2,8 +2,10 @@
 
 import Box from "@mui/material/Box";
 import Skeleton from "@mui/material/Skeleton";
+import Typography from "@mui/material/Typography";
 import type { SxProps, Theme } from "@mui/material/styles";
 import { alpha } from "@mui/material/styles";
+import { AccessTimeOutlined as AccessTimeOutlinedIcon } from "@mui/icons-material";
 import type { DataTableProps } from "./DataTable.types";
 import {
   dataTableRoot,
@@ -29,6 +31,7 @@ export function DataTable<T extends Record<string, unknown>>({
   scrollY = true,
   selectedRowId = null,
   onRowClick,
+  emptyState,
 }: DataTableProps<T>) {
   const sizeCellSx = size === "medium" ? { py: 1.5 } : { py: 1 };
 
@@ -39,6 +42,9 @@ export function DataTable<T extends Record<string, unknown>>({
   };
 
   const skeletonRows = isLoading ? Array.from({ length: loadingRowCount }) : [];
+  const hasRows = rows.length > 0;
+  const shouldShowEmptyState = !isLoading && !hasRows;
+  const EmptyStateIcon = emptyState?.icon ?? AccessTimeOutlinedIcon;
   const skeletonBaseSx = (theme: Theme) => {
     const app = (theme as AppTheme).app;
     return {
@@ -87,6 +93,52 @@ export function DataTable<T extends Record<string, unknown>>({
           </Box>
         </Box>
         <Box component="tbody">
+          {shouldShowEmptyState ? (
+            <Box component="tr">
+              <Box component="td" colSpan={columns.length + (actionColumn ? 1 : 0)} sx={{ borderBottom: "none", px: 0, py: 0 }}>
+                <Box
+                  sx={(theme) => {
+                    const app = (theme as AppTheme).app;
+                    return {
+                      mx: 2,
+                      my: 2.5,
+                      borderRadius: 3,
+                      border: `1px dashed ${alpha(app.dashboard.white95, 0.2)}`,
+                      bgcolor: alpha(app.dashboard.overlayLight, 0.6),
+                      minHeight: 160,
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      textAlign: "center",
+                      gap: 0.75,
+                      px: 2,
+                    };
+                  }}
+                >
+                  <Box
+                    sx={(theme) => ({
+                      width: 42,
+                      height: 42,
+                      borderRadius: "50%",
+                      display: "grid",
+                      placeItems: "center",
+                      color: (theme as AppTheme).app.dashboard.white80,
+                      bgcolor: alpha((theme as AppTheme).app.dashboard.white95, 0.08),
+                    })}
+                  >
+                    <EmptyStateIcon sx={{ fontSize: 22 }} />
+                  </Box>
+                  <Typography variant="medium" sx={{ color: (theme) => (theme as AppTheme).app.dashboard.white95, fontWeight: 600 }}>
+                    {emptyState?.title ?? "No records yet"}
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: (theme) => (theme as AppTheme).app.dashboard.textMuted, maxWidth: 460 }}>
+                    {emptyState?.description ?? "There is no data available for the current filter."}
+                  </Typography>
+                </Box>
+              </Box>
+            </Box>
+          ) : null}
           {(isLoading ? skeletonRows : rows).map((row, idx) => {
             const rowId = String(isLoading ? `skeleton-${idx}` : getRowId(row as T, idx));
             const selected =

@@ -39,6 +39,12 @@ export {
 } from "./pool-heads";
 export type { HrmsPoolHeadsAttendanceParams, HrmsPoolHeadsListParams } from "./pool-heads";
 export { hrmsDepartmentShiftsKeys } from "./department-shifts";
+export {
+  useDepartmentShiftsListQuery,
+  useEnableDepartmentShiftMutation,
+  useRemoveDepartmentShiftMutation,
+} from "./department-shifts";
+export type { HrmsDepartmentShiftsListParams } from "./department-shifts";
 export { hrmsDepartmentShiftAssignmentsKeys } from "./department-shift-assignments";
 export {
   useAssignDepartmentShiftMutation,

@@ -2,6 +2,11 @@ import type { SxProps, Theme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 
 export const departmentShiftHeaderWrapSx: SxProps<Theme> = {
+  display: "flex",
+  alignItems: "flex-start",
+  justifyContent: "space-between",
+  flexWrap: "wrap",
+  gap: 2,
   mb: 0.5,
 };
 
@@ -25,9 +30,9 @@ export const departmentShiftIconSx: SxProps<Theme> = (theme) => ({
 
 export const departmentShiftFormGridSx: SxProps<Theme> = {
   display: "grid",
-  gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
+  gridTemplateColumns: { xs: "1fr", md: "minmax(0,1fr) auto" },
   gap: 2,
-  mb: 2.5,
+  mb: 0.5,
 };
 
 export const departmentShiftActionsSx: SxProps<Theme> = {
@@ -36,3 +41,8 @@ export const departmentShiftActionsSx: SxProps<Theme> = {
   gap: 1.5,
   flexWrap: "wrap",
 };
+
+export const departmentShiftFilterHintSx: SxProps<Theme> = (theme) => ({
+  color: (theme as AppTheme).app.dashboard.textMuted,
+  whiteSpace: "nowrap",
+});

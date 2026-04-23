@@ -8,5 +8,5 @@ export { UserShiftAssignmentsCard } from "./UserShiftAssignmentsCard";
 export type { UserShiftAssignmentRow } from "./UserShiftAssignmentsCard";
 
 export { UserShiftAssignModal } from "./UserShiftAssignModal";
-export type { SelectOption } from "./UserShiftAssignModal";
+export type { SelectOption, SelectedUserMeta } from "./UserShiftAssignModal";
 

@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import type { SxProps, Theme } from "@mui/material/styles";
+import type { SvgIconComponent } from "@mui/icons-material";
 
 export interface DataTableColumn<T = Record<string, unknown>> {
   /** Unique key matching row data */
@@ -47,4 +48,10 @@ export interface DataTableProps<T = Record<string, unknown>> {
    * Horizontal overflow for wide tables stays on (`overflow-x: auto`).
    */
   scrollY?: boolean;
+  /** Optional empty-state content shown when there are no rows and not loading. */
+  emptyState?: {
+    title?: string;
+    description?: string;
+    icon?: SvgIconComponent;
+  };
 }

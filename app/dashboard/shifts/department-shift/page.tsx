@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import Box from "@mui/material/Box";
 import IconButton from "@mui/material/IconButton";
-import { AttachMoney as AttachMoneyIcon } from "@mui/icons-material";
+import Chip from "@mui/material/Chip";
+import { AccessTime as AccessTimeIcon } from "@mui/icons-material";
 import DeleteIcon from "@mui/icons-material/Delete";
 import type { SxProps, Theme } from "@mui/material/styles";
 import { useTheme } from "@mui/material/styles";
@@ -27,15 +28,16 @@ import { footerMutedText, pageWrapper } from "../../companies/overview.styles";
 import { publishAppToast } from "@/lib/notify";
 import { formatIsoDate, isRecord, pickNum, pickStr, unwrapApiData } from "@/lib/utils";
 import {
-  useAssignDepartmentShiftMutation,
   useDepartmentsListQuery,
-  useDepartmentShiftAssignmentsListQuery,
-  useRemoveDepartmentShiftAssignmentMutation,
+  useDepartmentShiftsListQuery,
+  useEnableDepartmentShiftMutation,
+  useRemoveDepartmentShiftMutation,
   useShiftsListQuery,
 } from "@/lib/hooks/query";
 import { pickItemsArray, toIdNameOption } from "@/app/dashboard/user-page/components/add-user-modal.utils";
 import {
   departmentShiftCardHeaderSx,
+  departmentShiftFilterHintSx,
   departmentShiftFormGridSx,
   departmentShiftHeaderWrapSx,
   departmentShiftIconSx,
@@ -89,21 +91,19 @@ export default function DepartmentShiftPage() {
 
   const listParams = useMemo(
     () =>
-      departmentId.trim()
-        ? {
-            departmentId: departmentId.trim(),
-            page,
-            limit: PAGE_LIMIT,
-          }
-        : undefined,
+      ({
+        ...(departmentId.trim() ? { departmentId: departmentId.trim() } : {}),
+        page,
+        limit: PAGE_LIMIT,
+      }) satisfies { departmentId?: string; page: number; limit: number },
     [departmentId, page],
   );
-  const listQuery = useDepartmentShiftAssignmentsListQuery(listParams, {
-    enabled: Boolean(departmentId.trim()),
-    scope: "dept-shift-assignments",
+  const listQuery = useDepartmentShiftsListQuery(listParams, {
+    enabled: true,
+    scope: "dept-shifts",
   });
-  const assignMutation = useAssignDepartmentShiftMutation();
-  const removeMutation = useRemoveDepartmentShiftAssignmentMutation();
+  const assignMutation = useEnableDepartmentShiftMutation();
+  const removeMutation = useRemoveDepartmentShiftMutation();
 
   const payload = unwrapApiData(listQuery.data);
   const payloadObj = isRecord(payload) ? payload : null;
@@ -219,22 +219,30 @@ export default function DepartmentShiftPage() {
   return (
     <Box sx={[pageWrapper, rolesPageWrapper] as SxProps<Theme>}>
       <Box sx={departmentShiftHeaderWrapSx}>
-        <Typography variant="regularLarge" fontWeight={700} color="white">
-          Department shift assignments
-        </Typography>
-        <Typography variant="body2" sx={departmentShiftSubtextSx}>
-          Default shifts for a department (applies to users without user/pool overrides).
-        </Typography>
+        <Box>
+          <Typography variant="regularLarge" fontWeight={700} color="white">
+            Department shift assignments
+          </Typography>
+          <Typography variant="body2" sx={departmentShiftSubtextSx}>
+            Default shifts for a department (applies to users without user/pool overrides).
+          </Typography>
+        </Box>
+        <Chip
+          size="small"
+          label={`${totalEntries} assignment${totalEntries === 1 ? "" : "s"}`}
+          variant="outlined"
+          sx={{ alignSelf: "flex-start", borderColor: "rgba(255,255,255,0.35)", color: theme.app.dashboard.white95 }}
+        />
       </Box>
 
       <DashboardCard sx={rolesCard}>
         <Box sx={{ ...departmentShiftCardHeaderSx, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2 }}>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, minWidth: 0 }}>
             <Box sx={rolesIconBox}>
-              <AttachMoneyIcon sx={departmentShiftIconSx} />
+              <AccessTimeIcon sx={departmentShiftIconSx} />
             </Box>
             <Typography variant="mediumLarge" fontWeight={600} color="white" noWrap>
-              Department shift assignments
+              Filters
             </Typography>
           </Box>
 
@@ -242,6 +250,7 @@ export default function DepartmentShiftPage() {
             variant="primary"
             sx={gradientPrimaryButtonSx}
             onClick={() => setAssignOpen(true)}
+            disabled={!departmentId.trim()}
           >
             Assign shift
           </Button>
@@ -255,14 +264,25 @@ export default function DepartmentShiftPage() {
             options={departmentOptions}
             menuMaxRows={8}
           />
-          <Box />
+          <Box sx={{ display: "flex", alignItems: "end", justifyContent: { xs: "flex-start", md: "flex-end" }, gap: 1.25, flexWrap: "wrap" }}>
+            <Typography variant="body2" sx={departmentShiftFilterHintSx}>
+              {departmentId.trim() ? "Filtered by department" : "Showing all departments"}
+            </Typography>
+            <Button
+              variant="secondary"
+              onClick={() => setDepartmentId("")}
+              disabled={!departmentId.trim()}
+            >
+              Clear filter
+            </Button>
+          </Box>
         </Box>
       </DashboardCard>
 
       <DashboardCard sx={rolesCard}>
         <Box sx={departmentShiftCardHeaderSx}>
           <Box sx={rolesIconBox}>
-            <AttachMoneyIcon sx={departmentShiftIconSx} />
+            <AccessTimeIcon sx={departmentShiftIconSx} />
           </Box>
           <Typography variant="mediumLarge" fontWeight={600} color="white">
             Assigned shifts
@@ -301,11 +321,11 @@ export default function DepartmentShiftPage() {
 
         <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mt: 2 }}>
           <Typography variant="medium" sx={footerMutedText(theme)}>
-            {!departmentId.trim()
-              ? "Select a department to view assignments."
-              : listQuery.isLoading
-                ? "Loading…"
-                : `Showing data ${footerRangeStart} to ${footerRangeEnd} of ${totalEntries} entries`}
+            {listQuery.isLoading
+              ? "Loading…"
+              : tableRows.length === 0
+                ? "No shift assignments found for the current filter."
+              : `Showing data ${footerRangeStart} to ${footerRangeEnd} of ${totalEntries} entries`}
           </Typography>
           <TablePagination page={page} pageCount={pageCount} onPageChange={setPage} />
         </Box>
