@@ -44,7 +44,7 @@ export function useAddPoolMemberMutation() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (vars: { poolId: string; userId: string }) =>
-      addPoolMember(vars.poolId, { userId: vars.userId }),
+      addPoolMember(vars.poolId, vars.userId),
     onSuccess: (_data, vars) => {
       invalidatePoolMembers(qc, vars.poolId);
       void qc.invalidateQueries({ queryKey: hrmsPoolMembersKeys.all });

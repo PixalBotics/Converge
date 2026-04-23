@@ -18,10 +18,21 @@ export async function listPoolMembers(
   return data;
 }
 
-export async function addPoolMember(poolId: string, body: JsonRecord): Promise<unknown> {
+type AddPoolMemberInput = JsonRecord | string;
+
+function toAddPoolMemberBody(input: AddPoolMemberInput): JsonRecord {
+  if (typeof input === "string") {
+    return { userId: input.trim() };
+  }
+
+  const userId = String(input.userId ?? input.user_id ?? "").trim();
+  return { userId };
+}
+
+export async function addPoolMember(poolId: string, input: AddPoolMemberInput): Promise<unknown> {
   const { data } = await apiClient.post(
     `/hrms/pools/${encodeURIComponent(poolId)}/members`,
-    body,
+    toAddPoolMemberBody(input),
   );
   return data;
 }
