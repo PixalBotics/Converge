@@ -38,6 +38,12 @@ export function CompanyParentListModal({
           const name = String(p.name ?? "").trim() || "—";
           const childArr = Array.isArray(p.childCompanies) ? p.childCompanies : [];
           const childN = childArr.length;
+          const childNames = childArr
+            .map((childRaw) => {
+              const child = asRecord(childRaw);
+              return String(child?.name ?? "").trim();
+            })
+            .filter((childName) => childName.length > 0);
           const href =
             id.length > 0 ? `/dashboard/companies/${encodeURIComponent(id)}/edit?step=1` : "";
 
@@ -66,6 +72,11 @@ export function CompanyParentListModal({
                       ? "1 child company"
                       : `${childN} child companies`}
                 </Typography>
+                {childNames.length > 0 ? (
+                  <Typography variant="body2" sx={{ mt: 0.5, color: "rgba(255,255,255,0.84)" }}>
+                    {childNames.join(", ")}
+                  </Typography>
+                ) : null}
               </Box>
               {href ? (
                 <Button component={Link} href={href} variant="primary" size="small" sx={{ flexShrink: 0 }}>

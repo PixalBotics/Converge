@@ -135,7 +135,25 @@ export function CompaniesTableSection({
         id: "childCompany",
         label: "Child Company",
         render: (value, row) =>
-          row.childCompanies && row.childCompanies.length > 1 ? (
+          row.parentCompanies && row.parentCompanies.length > 1 ? (
+            canViewCompanyList ? (
+              <Button
+                variant="secondary"
+                size="small"
+                sx={{
+                  alignSelf: "flex-start",
+                  justifyContent: "flex-start",
+                  px: 2,
+                  minWidth: "auto",
+                }}
+                onClick={() => handleOpenParentList(row)}
+              >
+                {String(value ?? row.childCompany)}
+              </Button>
+            ) : (
+              String(value ?? row.childCompany)
+            )
+          ) : row.childCompanies && row.childCompanies.length > 1 ? (
             canViewCompanyList ? (
               <Button
                 variant="secondary"

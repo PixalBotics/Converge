@@ -26,6 +26,13 @@ export function buildCompaniesTableRows(companiesData: CompaniesData | undefined
 
     /** One reseller, multiple parent companies → single row (same idea as “N Child Companies”). */
     if (parentCompanies.length > 1) {
+      const totalChildCompanies = parentCompanies.reduce((count, parent) => {
+        const parentObj = asRecord(parent);
+        const childCompanies = Array.isArray(parentObj?.childCompanies)
+          ? parentObj.childCompanies
+          : [];
+        return count + childCompanies.length;
+      }, 0);
       rows.push({
         id:
           resellerId.length > 0
@@ -35,7 +42,8 @@ export function buildCompaniesTableRows(companiesData: CompaniesData | undefined
         reseller: resellerName,
         resellerId: resellerId || undefined,
         parentCompany: `${parentCompanies.length} Parent Companies`,
-        childCompany: "—",
+        childCompany:
+          totalChildCompanies > 0 ? `${totalChildCompanies} Child Companies` : "—",
         parentCompanies: parentCompanies as UnknownRecord[],
       });
       continue;
