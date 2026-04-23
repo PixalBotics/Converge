@@ -57,6 +57,24 @@ export default function UserDetailPage() {
 
   const userQuery = useUserQuery(userId, { enabled: userId.trim().length > 0 });
   const userRecord = useMemo(() => extractUserRecordFromDetailPayload(userQuery.data), [userQuery.data]);
+  const departmentName = useMemo(() => {
+    const departmentObj =
+      userRecord && typeof userRecord === "object" && !Array.isArray(userRecord) && userRecord.department && typeof userRecord.department === "object"
+        ? (userRecord.department as Record<string, unknown>)
+        : null;
+    return (
+      String(departmentObj?.name ?? userRecord?.departmentName ?? userRecord?.department_name ?? "").trim() || "—"
+    );
+  }, [userRecord]);
+  const designationName = useMemo(() => {
+    const designationObj =
+      userRecord && typeof userRecord === "object" && !Array.isArray(userRecord) && userRecord.designation && typeof userRecord.designation === "object"
+        ? (userRecord.designation as Record<string, unknown>)
+        : null;
+    return (
+      String(designationObj?.name ?? userRecord?.designationName ?? userRecord?.designation_name ?? "").trim() || "—"
+    );
+  }, [userRecord]);
 
   const licenseKey = String(userRecord?.licenseKey ?? userRecord?.tenantLicenseKey ?? "").trim();
 
@@ -168,23 +186,54 @@ export default function UserDetailPage() {
             Loading user…
           </Typography>
         ) : userRecord ? (
-          <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)" }, gap: 1.5 }}>
-            <Typography variant="body2" sx={{ color: theme.app.text.primary }}>
-              <Box component="span" sx={{ color: theme.app.dashboard.textMuted, mr: 1 }}>Name</Box>
-              {`${String(userRecord.firstName ?? userRecord.first_name ?? "").trim()} ${String(userRecord.lastName ?? userRecord.last_name ?? "").trim()}`.trim() || "—"}
-            </Typography>
-            <Typography variant="body2" sx={{ color: theme.app.text.primary }}>
-              <Box component="span" sx={{ color: theme.app.dashboard.textMuted, mr: 1 }}>Email</Box>
-              {String(userRecord.email ?? "").trim() || "—"}
-            </Typography>
-            <Typography variant="body2" sx={{ color: theme.app.text.primary }}>
-              <Box component="span" sx={{ color: theme.app.dashboard.textMuted, mr: 1 }}>Type</Box>
-              {String(userRecord.userType ?? userRecord.type ?? "").trim() || "—"}
-            </Typography>
-            <Typography variant="body2" sx={{ color: theme.app.text.primary }}>
-              <Box component="span" sx={{ color: theme.app.dashboard.textMuted, mr: 1 }}>License key</Box>
-              {licenseKey || "—"}
-            </Typography>
+          <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))" }, gap: 1.25 }}>
+            {[
+              {
+                key: "Name",
+                value:
+                  `${String(userRecord.firstName ?? userRecord.first_name ?? "").trim()} ${String(userRecord.lastName ?? userRecord.last_name ?? "").trim()}`.trim() ||
+                  "—",
+              },
+              { key: "Email", value: String(userRecord.email ?? "").trim() || "—" },
+              { key: "Type", value: String(userRecord.userType ?? userRecord.type ?? "").trim() || "—" },
+              { key: "License Key", value: licenseKey || "—" },
+              { key: "Department", value: departmentName },
+              { key: "Designation", value: designationName },
+            ].map((item) => (
+              <Box
+                key={item.key}
+                sx={{
+                  border: "1px solid rgba(255,255,255,0.09)",
+                  borderRadius: 1.75,
+                  backgroundColor: "rgba(255,255,255,0.02)",
+                  px: 1.25,
+                  py: 1,
+                }}
+              >
+                <Typography
+                  variant="caption"
+                  sx={{
+                    color: theme.app.dashboard.textMuted,
+                    letterSpacing: "0.06em",
+                    textTransform: "uppercase",
+                    fontWeight: 700,
+                  }}
+                >
+                  {item.key}
+                </Typography>
+                <Typography
+                  variant="body2"
+                  sx={{
+                    color: theme.app.text.primary,
+                    fontWeight: 600,
+                    mt: 0.3,
+                    wordBreak: "break-word",
+                  }}
+                >
+                  {item.value}
+                </Typography>
+              </Box>
+            ))}
           </Box>
         ) : (
           <Typography variant="body2" sx={{ color: theme.palette.error.light }}>

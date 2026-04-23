@@ -100,39 +100,53 @@ export function DataTable<T extends Record<string, unknown>>({
                   sx={(theme) => {
                     const app = (theme as AppTheme).app;
                     return {
-                      mx: 2,
-                      my: 2.5,
-                      borderRadius: 3,
-                      border: `1px dashed ${alpha(app.dashboard.white95, 0.2)}`,
-                      bgcolor: alpha(app.dashboard.overlayLight, 0.6),
-                      minHeight: 160,
+                      mx: { xs: 1, sm: 1.5, md: 2 },
+                      my: { xs: 1.25, sm: 1.75, md: 2.25 },
+                      borderRadius: 3.5,
+                      border: `1px solid ${alpha(app.dashboard.white95, 0.14)}`,
+                      boxShadow: `inset 0 1px 0 ${alpha(app.dashboard.white95, 0.08)}`,
+                      bgcolor: alpha(app.dashboard.overlayLight, 0.52),
+                      minHeight: 190,
                       display: "flex",
                       flexDirection: "column",
                       alignItems: "center",
                       justifyContent: "center",
                       textAlign: "center",
-                      gap: 0.75,
-                      px: 2,
+                      gap: 0.9,
+                      px: 2.5,
+                      py: 2,
                     };
                   }}
                 >
                   <Box
                     sx={(theme) => ({
-                      width: 42,
-                      height: 42,
+                      width: 54,
+                      height: 54,
                       borderRadius: "50%",
                       display: "grid",
                       placeItems: "center",
-                      color: (theme as AppTheme).app.dashboard.white80,
-                      bgcolor: alpha((theme as AppTheme).app.dashboard.white95, 0.08),
+                      color: (theme as AppTheme).app.dashboard.white95,
+                      border: `1px solid ${alpha((theme as AppTheme).app.dashboard.white95, 0.18)}`,
+                      background: `linear-gradient(180deg, ${alpha((theme as AppTheme).app.dashboard.white95, 0.16)} 0%, ${alpha((theme as AppTheme).app.dashboard.white95, 0.05)} 100%)`,
                     })}
                   >
-                    <EmptyStateIcon sx={{ fontSize: 22 }} />
+                    <EmptyStateIcon sx={{ fontSize: 26 }} />
                   </Box>
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      color: (theme) => alpha((theme as AppTheme).app.dashboard.white95, 0.72),
+                      letterSpacing: "0.08em",
+                      textTransform: "uppercase",
+                      fontWeight: 700,
+                    }}
+                  >
+                    Empty State
+                  </Typography>
                   <Typography variant="medium" sx={{ color: (theme) => (theme as AppTheme).app.dashboard.white95, fontWeight: 600 }}>
                     {emptyState?.title ?? "No records yet"}
                   </Typography>
-                  <Typography variant="body2" sx={{ color: (theme) => (theme as AppTheme).app.dashboard.textMuted, maxWidth: 460 }}>
+                  <Typography variant="body2" sx={{ color: (theme) => (theme as AppTheme).app.dashboard.textMuted, maxWidth: 520, lineHeight: 1.55 }}>
                     {emptyState?.description ?? "There is no data available for the current filter."}
                   </Typography>
                 </Box>

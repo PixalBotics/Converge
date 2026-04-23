@@ -13,7 +13,7 @@ import type { DataTableColumn } from "@/components/common";
 import { rolesPageWrapper } from "../../roles/roles.styles";
 import { pageWrapper } from "../../companies/overview.styles";
 import { publishAppToast } from "@/lib/notify";
-import { useUsersListQuery } from "@/lib/hooks/query/users";
+import { useUserQuery, useUsersListQuery } from "@/lib/hooks/query/users";
 import {
   useCompaniesByResellerQuery,
   useCompaniesSetupResellersQuery,
@@ -114,6 +114,7 @@ export default function UserShiftPage() {
     },
     { enabled: canLoadUsers },
   );
+  const userDetailQuery = useUserQuery(userId.trim(), { enabled: Boolean(userId.trim()) });
 
   const formatScopeId = (value: string | undefined) => {
     const v = (value ?? "").trim();
@@ -129,6 +130,8 @@ export default function UserShiftPage() {
       .map((r) => {
         const id = pickStr(r, ["id"]);
         if (!id) return null;
+        const resellerObj = isRecord(r["reseller"]) ? (r["reseller"] as Record<string, unknown>) : null;
+        const parentCompanyObj = isRecord(r["parentCompany"]) ? (r["parentCompany"] as Record<string, unknown>) : null;
         const name =
           pickStr(r, ["name"]) ||
           [pickStr(r, ["firstName"]), pickStr(r, ["lastName"])].filter(Boolean).join(" ") ||
@@ -137,8 +140,14 @@ export default function UserShiftPage() {
         const email = pickStr(r, ["email"]) || "—";
         const rawType = pickStr(r, ["userType", "type"]);
         const type: UserType = rawType === "Internal" ? "Internal" : "External";
-        const resellerId = formatScopeId(pickStr(r, ["resellerId", "reseller_id"]));
-        const parentCompanyId = formatScopeId(pickStr(r, ["parentCompanyId", "parent_company_id"]));
+        const resellerId = formatScopeId(
+          pickStr(r, ["resellerId", "reseller_id"]) ||
+            pickStr(resellerObj, ["id", "name"]),
+        );
+        const parentCompanyId = formatScopeId(
+          pickStr(r, ["parentCompanyId", "parent_company_id", "companyId", "company_id"]) ||
+            pickStr(parentCompanyObj, ["id", "name"]),
+        );
         typeById.set(id, type);
         return { id, name, email, type, resellerId, parentCompanyId } satisfies UserListRow;
       })
@@ -213,32 +222,68 @@ export default function UserShiftPage() {
     return [{ value: "", label: internalDepartmentsQuery.isLoading ? "Loading departments..." : "— Select department —" }, ...base];
   }, [internalDepartmentsQuery.data, internalDepartmentsQuery.isLoading]);
 
-  const selectedUserType: UserType | null = useMemo(() => {
-    if (!userId.trim()) return null;
-    return userTypeById.get(userId.trim()) ?? null;
-  }, [userId, userTypeById]);
-
-  const selectedUserLabel = useMemo(() => {
-    if (!userId.trim()) return "";
-    const match = users.find((u) => u.id === userId.trim());
-    if (!match) return "";
-    return match.type === "External"
-      ? `${match.name} (${match.type}) • R:${match.resellerId} • P:${match.parentCompanyId}`
-      : `${match.name} (${match.type})`;
-  }, [userId, users]);
-
   const selectedUserMeta = useMemo<SelectedUserMeta | null>(() => {
     if (!userId.trim()) return null;
-    const match = users.find((u) => u.id === userId.trim());
-    if (!match) return null;
+
+    const detailPayload = unwrapApiData(userDetailQuery.data);
+    const detailObj = isRecord(detailPayload) ? detailPayload : null;
+    const resellerObj = isRecord(detailObj?.["reseller"]) ? (detailObj?.["reseller"] as Record<string, unknown>) : null;
+    const parentCompanyObj = isRecord(detailObj?.["parentCompany"])
+      ? (detailObj?.["parentCompany"] as Record<string, unknown>)
+      : null;
+    const departmentObj = isRecord(detailObj?.["department"]) ? (detailObj?.["department"] as Record<string, unknown>) : null;
+    const designationObj = isRecord(detailObj?.["designation"]) ? (detailObj?.["designation"] as Record<string, unknown>) : null;
+    const detailId = pickStr(detailObj, ["id"]);
+
+    if (detailObj && detailId && detailId === userId.trim()) {
+      const rawType = pickStr(detailObj, ["userType", "type"]);
+      const type: UserType = rawType === "Internal" ? "Internal" : "External";
+      const name =
+        pickStr(detailObj, ["name"]) ||
+        [pickStr(detailObj, ["firstName"]), pickStr(detailObj, ["lastName"])].filter(Boolean).join(" ") ||
+        pickStr(detailObj, ["email"]) ||
+        "—";
+      const email = pickStr(detailObj, ["email"]) || "—";
+      const resellerId = formatScopeId(
+        pickStr(detailObj, ["resellerId", "reseller_id"]) ||
+          pickStr(resellerObj, ["id", "name"]),
+      );
+      const parentCompanyId = formatScopeId(
+        pickStr(detailObj, ["parentCompanyId", "parent_company_id", "companyId", "company_id"]) ||
+          pickStr(parentCompanyObj, ["id", "name"]),
+      );
+      const departmentName =
+        pickStr(departmentObj, ["name"]) ||
+        pickStr(detailObj, ["departmentName", "department_name"]) ||
+        "—";
+      const designationName =
+        pickStr(designationObj, ["name"]) ||
+        pickStr(detailObj, ["designationName", "designation_name"]) ||
+        "—";
+      return { name, email, type, resellerId, parentCompanyId, departmentName, designationName };
+    }
+
+    const listMatch = users.find((u) => u.id === userId.trim());
+    if (!listMatch) return null;
     return {
-      name: match.name,
-      email: match.email,
-      type: match.type,
-      resellerId: match.resellerId,
-      parentCompanyId: match.parentCompanyId,
+      name: listMatch.name,
+      email: listMatch.email,
+      type: listMatch.type,
+      resellerId: listMatch.resellerId,
+      parentCompanyId: listMatch.parentCompanyId,
+      departmentName: "—",
+      designationName: "—",
     };
-  }, [userId, users]);
+  }, [userId, userDetailQuery.data, users]);
+
+  const selectedUserType: UserType | null = selectedUserMeta?.type ?? (userTypeById.get(userId.trim()) ?? null);
+
+  const selectedUserLabel = useMemo(() => {
+    if (!selectedUserMeta) return "";
+    return selectedUserMeta.type === "External"
+      ? `${selectedUserMeta.name} (${selectedUserMeta.type}) • R:${selectedUserMeta.resellerId} • P:${selectedUserMeta.parentCompanyId}`
+      : `${selectedUserMeta.name} (${selectedUserMeta.type})`;
+  }, [selectedUserMeta]);
 
   const filteredUsers = useMemo(() => {
     if (!canLoadUsers) return [];

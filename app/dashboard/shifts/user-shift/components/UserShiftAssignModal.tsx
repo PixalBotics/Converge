@@ -11,6 +11,8 @@ export type SelectedUserMeta = {
   type: "Internal" | "External";
   resellerId: string;
   parentCompanyId: string;
+  departmentName: string;
+  designationName: string;
 };
 
 export type UserShiftAssignModalProps = {
@@ -96,6 +98,12 @@ export function UserShiftAssignModal({
           </Typography>
           <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted }}>
             {selectedUserMeta.email}
+          </Typography>
+          <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted }}>
+            Department: {selectedUserMeta.departmentName}
+          </Typography>
+          <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted }}>
+            Designation: {selectedUserMeta.designationName}
           </Typography>
           {selectedUserMeta.type === "External" ? (
             <>
