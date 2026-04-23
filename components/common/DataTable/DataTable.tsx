@@ -143,7 +143,7 @@ export function DataTable<T extends Record<string, unknown>>({
                   >
                     Empty State
                   </Typography>
-                  <Typography variant="medium" sx={{ color: (theme) => (theme as AppTheme).app.dashboard.white95, fontWeight: 600 }}>
+                  <Typography variant="subtitle2" sx={{ color: (theme) => (theme as AppTheme).app.dashboard.white95, fontWeight: 600 }}>
                     {emptyState?.title ?? "No records yet"}
                   </Typography>
                   <Typography variant="body2" sx={{ color: (theme) => (theme as AppTheme).app.dashboard.textMuted, maxWidth: 520, lineHeight: 1.55 }}>
