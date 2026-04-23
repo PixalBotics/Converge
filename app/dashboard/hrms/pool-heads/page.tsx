@@ -70,6 +70,8 @@ type PoolHeadRow = {
   userType: UserKind;
   resellerId: string;
   parentCompanyId: string;
+  resellerName: string;
+  parentCompanyName: string;
   poolId: string;
   poolName: string;
   departmentId: string;
@@ -82,6 +84,7 @@ type AttendanceRow = {
   employeeName: string;
   userType: UserKind;
   resellerId: string;
+  resellerName: string;
   parentCompanyId: string;
   poolName: string;
   date: string;
@@ -142,6 +145,8 @@ function mapPoolHeadItem(r: Record<string, unknown>, idx: number): PoolHeadRow |
     user && isRecord(user["department"]) ? (user["department"] as Record<string, unknown>) : null;
   const userDesignation =
     user && isRecord(user["designation"]) ? (user["designation"] as Record<string, unknown>) : null;
+  const userParentCompany =
+    user && isRecord(user["parentCompany"]) ? (user["parentCompany"] as Record<string, unknown>) : null;
   const dept =
     (isRecord(r["department"]) ? (r["department"] as Record<string, unknown>) : null) ??
     poolDepartment ??
@@ -164,20 +169,34 @@ function mapPoolHeadItem(r: Record<string, unknown>, idx: number): PoolHeadRow |
       pickStr(poolReseller, ["id"]) ||
       pickStr(poolDepartment, ["resellerId", "reseller_id"]),
   );
+  const resellerName =
+    pickStr(r, ["resellerName"]) ||
+    pickStr(poolReseller, ["name"]) ||
+    pickStr(poolDepartment, ["resellerName"]) ||
+    "—";
   const parentCompanyId = formatScopeId(
     pickStr(r, ["parentCompanyId", "parent_company_id"]) ||
+      pickStr(r, ["userParentCompanyId"]) ||
       pickStr(user, ["parentCompanyId", "parent_company_id"]) ||
+      pickStr(userParentCompany, ["id"]) ||
       pickStr(poolParentCompany, ["id"]) ||
       pickStr(poolDepartment, ["parentCompanyId", "parent_company_id"]),
   );
+  const parentCompanyName =
+    pickStr(r, ["parentCompanyName", "userParentCompanyName"]) ||
+    pickStr(user, ["parentCompanyName"]) ||
+    pickStr(userParentCompany, ["name"]) ||
+    pickStr(poolParentCompany, ["name"]) ||
+    pickStr(poolDepartment, ["parentCompanyName"]) ||
+    "—";
   const poolId = pickStr(pool, ["id"]) || pickStr(r, ["poolId"]) || "";
   const poolName = pickStr(pool, ["name"]) || pickStr(r, ["poolName"]) || "—";
   const departmentId = pickStr(dept, ["id"]) || pickStr(r, ["departmentId", "poolDepartmentId"]) || "";
   const departmentName = pickStr(dept, ["name"]) || pickStr(r, ["departmentName", "poolDepartmentName"]) || "—";
   const designationName =
+    pickStr(r, ["userDesignationName", "designationName"]) ||
     pickStr(userDesignation, ["name", "title"]) ||
     pickStr(user, ["designationName", "designation"]) ||
-    pickStr(r, ["designationName", "userDesignationName"]) ||
     "—";
   const id = assignmentId || `ph-${idx}`;
   if (!id) return null;
@@ -188,6 +207,8 @@ function mapPoolHeadItem(r: Record<string, unknown>, idx: number): PoolHeadRow |
     userType,
     resellerId,
     parentCompanyId,
+    resellerName,
+    parentCompanyName,
     poolId,
     poolName,
     departmentId,
@@ -387,11 +408,21 @@ export default function PoolHeadsPage() {
       const rawType = pickStr(userNested, ["userType", "type"]) || pickStr(row, ["userType", "user_type"]);
       const userType = parseUserKind(rawType);
       const resellerId = formatScopeId(pickStr(row, ["resellerId"]) || pickStr(userNested, ["resellerId"]));
+      const poolNested = isRecord(row["pool"]) ? (row["pool"] as Record<string, unknown>) : null;
+      const poolDepartment =
+        poolNested && isRecord(poolNested["department"]) ? (poolNested["department"] as Record<string, unknown>) : null;
+      const poolReseller =
+        poolDepartment && isRecord(poolDepartment["reseller"])
+          ? (poolDepartment["reseller"] as Record<string, unknown>)
+          : null;
+      const resellerName =
+        pickStr(row, ["resellerName"]) ||
+        pickStr(poolReseller, ["name"]) ||
+        "—";
       const parentCompanyId = formatScopeId(
         pickStr(row, ["parentCompanyId", "parent_company_id"]) ||
           pickStr(userNested, ["parentCompanyId", "parent_company_id"]),
       );
-      const poolNested = row["pool"];
       const poolName =
         pick(isRecord(poolNested) ? (poolNested as Record<string, unknown>) : row, ["name", "poolName"]) ||
         pick(row, ["poolName"]) ||
@@ -401,6 +432,7 @@ export default function PoolHeadsPage() {
         employeeName,
         userType,
         resellerId,
+        resellerName,
         parentCompanyId,
         poolName,
         date: pick(row, ["date", "day", "attendanceDate"]) || "—",
@@ -453,26 +485,8 @@ export default function PoolHeadsPage() {
 
   const columns = useMemo<DataTableColumn<PoolHeadRow>[]>(
     () => [
-      {
-        id: "userType",
-        label: "Type",
-        render: (_v, row) =>
-          row.userType === "—" ? (
-            <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted }}>
-              —
-            </Typography>
-          ) : (
-            <Chip
-              size="small"
-              label={row.userType}
-              color={row.userType === "Internal" ? "primary" : "secondary"}
-              variant="outlined"
-              sx={{ borderColor: "rgba(255,255,255,0.35)" }}
-            />
-          ),
-      },
-      { id: "resellerId", label: "Reseller ID" },
-      { id: "parentCompanyId", label: "Parent company ID" },
+      { id: "resellerName", label: "Reseller" },
+      { id: "parentCompanyName", label: "Parent company" },
       { id: "departmentName", label: "Department" },
       { id: "designationName", label: "Designation" },
       { id: "poolName", label: "Pool" },
@@ -484,25 +498,7 @@ export default function PoolHeadsPage() {
 
   const attendanceColumns = useMemo<DataTableColumn<AttendanceRow>[]>(
     () => [
-      {
-        id: "userType",
-        label: "Type",
-        render: (_v, row) =>
-          row.userType === "—" ? (
-            <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted }}>
-              —
-            </Typography>
-          ) : (
-            <Chip
-              size="small"
-              label={row.userType}
-              color={row.userType === "Internal" ? "primary" : "secondary"}
-              variant="outlined"
-              sx={{ borderColor: "rgba(255,255,255,0.35)" }}
-            />
-          ),
-      },
-      { id: "resellerId", label: "Reseller ID" },
+      { id: "resellerName", label: "Reseller" },
       { id: "parentCompanyId", label: "Parent company ID" },
       { id: "employeeName", label: "Member" },
       { id: "poolName", label: "Pool" },
