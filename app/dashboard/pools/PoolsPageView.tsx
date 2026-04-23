@@ -162,7 +162,6 @@ export function PoolsPageView({ mode }: PoolsPageViewProps) {
     {
       all: true,
       type: "External",
-      resellerId: createModalResellerId.trim(),
       parentCompanyId: createModalParentCompanyId.trim(),
     },
     {
@@ -277,7 +276,6 @@ export function PoolsPageView({ mode }: PoolsPageViewProps) {
     {
       all: true,
       type: "External",
-      resellerId: hubResellerId.trim(),
       parentCompanyId: hubParentCompanyId.trim(),
     },
     {
@@ -317,7 +315,6 @@ export function PoolsPageView({ mode }: PoolsPageViewProps) {
       ? {
           all: true,
           userType: "External",
-          resellerId: hubResellerId.trim(),
           parentCompanyId: hubParentCompanyId.trim(),
           ...(hubDepartmentId.trim() ? { departmentId: hubDepartmentId.trim() } : {}),
         }
