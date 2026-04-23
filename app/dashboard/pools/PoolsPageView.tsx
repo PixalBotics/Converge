@@ -9,9 +9,6 @@ import { alpha, useTheme } from "@mui/material/styles";
 import type { SxProps, Theme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import Checkbox from "@mui/material/Checkbox";
-import FormControl from "@mui/material/FormControl";
-import MenuItem from "@mui/material/MenuItem";
-import Select from "@mui/material/Select";
 import Table from "@mui/material/Table";
 import TableBody from "@mui/material/TableBody";
 import TableCell from "@mui/material/TableCell";
@@ -65,8 +62,6 @@ import {
 
 const PAGE_LIMIT = 8;
 const HUB_ADD_USER_TABLE_MAX_PX = 360;
-const HUB_MEMBER_RANK_OPTIONS = ["Primary", "Backup", "Secondary"] as const;
-type HubMemberRank = (typeof HUB_MEMBER_RANK_OPTIONS)[number];
 
 const hubUserCheckboxSx = (theme: AppTheme) => ({
   color: theme.app.dashboard.textMuted,
@@ -116,7 +111,6 @@ export function PoolsPageView({ mode }: PoolsPageViewProps) {
   const [hubUserId, setHubUserId] = useState("");
   const [hubUserSearchInput, setHubUserSearchInput] = useState("");
   const [hubUserSearchApplied, setHubUserSearchApplied] = useState("");
-  const [hubMemberRankByUserId, setHubMemberRankByUserId] = useState<Record<string, HubMemberRank>>({});
 
   const resellersQuery = useCompaniesSetupResellersQuery({ enabled: true });
   const resellerOptions = useMemo(() => {
@@ -522,16 +516,6 @@ export function PoolsPageView({ mode }: PoolsPageViewProps) {
     if (!hubFilteredUserRows.some((r) => r.id === hubUserId)) setHubUserId("");
   }, [hubFilteredUserRows, hubUserId]);
 
-  useEffect(() => {
-    setHubMemberRankByUserId((prev) => {
-      const next: Record<string, HubMemberRank> = {};
-      for (const r of hubUserSourceRows) {
-        next[r.id] = prev[r.id] ?? "Primary";
-      }
-      return next;
-    });
-  }, [hubUserSourceRows]);
-
   const resetHubAddMemberForm = () => {
     setHubDeptKind("Internal");
     setHubResellerId("");
@@ -541,7 +525,6 @@ export function PoolsPageView({ mode }: PoolsPageViewProps) {
     setHubUserId("");
     setHubUserSearchInput("");
     setHubUserSearchApplied("");
-    setHubMemberRankByUserId({});
   };
 
   const handleHubAddMemberSave = () => {
@@ -880,8 +863,7 @@ export function PoolsPageView({ mode }: PoolsPageViewProps) {
                     User
                   </Typography>
                   <Typography variant="body2" sx={{ mt: 1, color: theme.app.text.secondary, maxWidth: 560 }}>
-                    Click a row to select one person. Search narrows the list. Rank is shown for convenience; only the
-                    selected user is sent when you add to the pool.
+                    Click a row to select one person. Search narrows the list.
                   </Typography>
                 </Box>
                 {hubUserSourceRows.length > 0 && !hubUsersLoading ? (
@@ -1015,21 +997,6 @@ export function PoolsPageView({ mode }: PoolsPageViewProps) {
                         >
                           Department
                         </TableCell>
-                        <TableCell
-                          sx={{
-                            bgcolor:
-                              theme.palette.mode === "light"
-                                ? theme.palette.background.paper
-                                : theme.app.dashboard.overlayLight,
-                            color: theme.app.text.secondary,
-                            fontWeight: 600,
-                            fontSize: 11,
-                            py: 0.75,
-                            width: 140,
-                          }}
-                        >
-                          Rank
-                        </TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
@@ -1070,40 +1037,6 @@ export function PoolsPageView({ mode }: PoolsPageViewProps) {
                             </TableCell>
                             <TableCell sx={{ color: theme.app.text.secondary, maxWidth: 160 }}>
                               {row.department}
-                            </TableCell>
-                            <TableCell
-                              padding="none"
-                              onClick={(e) => e.stopPropagation()}
-                              onKeyDown={(e) => e.stopPropagation()}
-                            >
-                              <FormControl size="small" fullWidth sx={{ minWidth: 120, py: 0.25 }}>
-                                <Select
-                                  value={hubMemberRankByUserId[row.id] ?? "Primary"}
-                                  onChange={(e) =>
-                                    setHubMemberRankByUserId((prev) => ({
-                                      ...prev,
-                                      [row.id]: e.target.value as HubMemberRank,
-                                    }))
-                                  }
-                                  displayEmpty
-                                  sx={{
-                                    fontSize: 13,
-                                    color: theme.app.text.primary,
-                                    "& .MuiOutlinedInput-notchedOutline": {
-                                      borderColor: theme.app.dashboard.overlayBorder,
-                                    },
-                                    "&:hover .MuiOutlinedInput-notchedOutline": {
-                                      borderColor: theme.app.dashboard.textMuted,
-                                    },
-                                  }}
-                                >
-                                  {HUB_MEMBER_RANK_OPTIONS.map((opt) => (
-                                    <MenuItem key={opt} value={opt}>
-                                      {opt}
-                                    </MenuItem>
-                                  ))}
-                                </Select>
-                              </FormControl>
                             </TableCell>
                           </TableRow>
                         );

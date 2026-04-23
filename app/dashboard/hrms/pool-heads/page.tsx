@@ -74,6 +74,7 @@ type PoolHeadRow = {
   poolName: string;
   departmentId: string;
   departmentName: string;
+  designationName: string;
 };
 
 type AttendanceRow = {
@@ -127,24 +128,57 @@ function mapPoolHeadItem(r: Record<string, unknown>, idx: number): PoolHeadRow |
   const assignmentId = pickStr(r, ["id"]) || "";
   const user = isRecord(r["user"]) ? (r["user"] as Record<string, unknown>) : null;
   const pool = isRecord(r["pool"]) ? (r["pool"] as Record<string, unknown>) : null;
+  const poolDepartment =
+    pool && isRecord(pool["department"]) ? (pool["department"] as Record<string, unknown>) : null;
+  const poolReseller =
+    poolDepartment && isRecord(poolDepartment["reseller"])
+      ? (poolDepartment["reseller"] as Record<string, unknown>)
+      : null;
+  const poolParentCompany =
+    poolDepartment && isRecord(poolDepartment["parentCompany"])
+      ? (poolDepartment["parentCompany"] as Record<string, unknown>)
+      : null;
+  const userDepartment =
+    user && isRecord(user["department"]) ? (user["department"] as Record<string, unknown>) : null;
+  const userDesignation =
+    user && isRecord(user["designation"]) ? (user["designation"] as Record<string, unknown>) : null;
   const dept =
     (isRecord(r["department"]) ? (r["department"] as Record<string, unknown>) : null) ??
-    (pool && isRecord(pool["department"]) ? (pool["department"] as Record<string, unknown>) : null);
-  const userName = pickStr(user, ["name", "fullName", "userName"]) || pickStr(r, ["userName", "name"]) || "—";
+    poolDepartment ??
+    userDepartment;
+  const firstName = pickStr(user, ["firstName", "first_name"]) || "";
+  const middleName = pickStr(user, ["middleName", "middle_name"]) || "";
+  const lastName = pickStr(user, ["lastName", "last_name"]) || "";
+  const joinedName = `${firstName} ${middleName} ${lastName}`.replace(/\s+/g, " ").trim();
+  const userName =
+    joinedName ||
+    pickStr(user, ["name", "fullName", "userName"]) ||
+    pickStr(r, ["userName", "name"]) ||
+    "—";
   const userEmail = pickStr(user, ["email"]) || pickStr(r, ["userEmail", "email"]) || "—";
   const rawType = pickStr(user, ["userType", "type", "user_type"]) || pickStr(r, ["userType", "user_type"]);
   const userType = parseUserKind(rawType);
   const resellerId = formatScopeId(
-    pickStr(r, ["resellerId"]) || pickStr(user, ["resellerId", "reseller_id"]),
+    pickStr(r, ["resellerId"]) ||
+      pickStr(user, ["resellerId", "reseller_id"]) ||
+      pickStr(poolReseller, ["id"]) ||
+      pickStr(poolDepartment, ["resellerId", "reseller_id"]),
   );
   const parentCompanyId = formatScopeId(
     pickStr(r, ["parentCompanyId", "parent_company_id"]) ||
-      pickStr(user, ["parentCompanyId", "parent_company_id"]),
+      pickStr(user, ["parentCompanyId", "parent_company_id"]) ||
+      pickStr(poolParentCompany, ["id"]) ||
+      pickStr(poolDepartment, ["parentCompanyId", "parent_company_id"]),
   );
   const poolId = pickStr(pool, ["id"]) || pickStr(r, ["poolId"]) || "";
   const poolName = pickStr(pool, ["name"]) || pickStr(r, ["poolName"]) || "—";
   const departmentId = pickStr(dept, ["id"]) || pickStr(r, ["departmentId", "poolDepartmentId"]) || "";
   const departmentName = pickStr(dept, ["name"]) || pickStr(r, ["departmentName", "poolDepartmentName"]) || "—";
+  const designationName =
+    pickStr(userDesignation, ["name", "title"]) ||
+    pickStr(user, ["designationName", "designation"]) ||
+    pickStr(r, ["designationName", "userDesignationName"]) ||
+    "—";
   const id = assignmentId || `ph-${idx}`;
   if (!id) return null;
   return {
@@ -158,6 +192,7 @@ function mapPoolHeadItem(r: Record<string, unknown>, idx: number): PoolHeadRow |
     poolName,
     departmentId,
     departmentName,
+    designationName,
   };
 }
 
@@ -439,6 +474,7 @@ export default function PoolHeadsPage() {
       { id: "resellerId", label: "Reseller ID" },
       { id: "parentCompanyId", label: "Parent company ID" },
       { id: "departmentName", label: "Department" },
+      { id: "designationName", label: "Designation" },
       { id: "poolName", label: "Pool" },
       { id: "userName", label: "User" },
       { id: "userEmail", label: "Email" },
