@@ -239,7 +239,7 @@ export default function PoolHeadsPage() {
   const [assignDepartmentId, setAssignDepartmentId] = useState("");
   const [assignPoolId, setAssignPoolId] = useState("");
   const [assignUserId, setAssignUserId] = useState("");
-  const [assignUserTypeFilter, setAssignUserTypeFilter] = useState<"all" | "Internal" | "External">("all");
+  const [assignUserTypeFilter, setAssignUserTypeFilter] = useState<"Internal" | "External">("External");
 
   const departmentsQuery = useDepartmentsListQuery({ all: true }, { enabled: true, scope: "pool-heads" });
   const departmentOptions = useMemo(() => {
@@ -289,46 +289,21 @@ export default function PoolHeadsPage() {
     return [{ value: "", label: assignPoolsQuery.isLoading ? "Loading pools…" : "— Select pool —" }, ...base];
   }, [assignPoolsQuery.data, assignPoolsQuery.isLoading]);
 
-  const assignInternalUsersQuery = useUsersListQuery(
+  const assignUsersQuery = useUsersListQuery(
     assignOpen
       ? {
           all: true,
-          userType: "Internal",
+          userType: assignUserTypeFilter,
           ...(assignDepartmentId.trim() ? { departmentId: assignDepartmentId.trim() } : {}),
-        }
-      : undefined,
-    { enabled: assignOpen },
-  );
-  const assignExternalUsersQuery = useUsersListQuery(
-    assignOpen
-      ? {
-          all: true,
-          userType: "External",
-          ...(assignDepartmentId.trim() ? { departmentId: assignDepartmentId.trim() } : {}),
+          ...(assignPoolId.trim() ? { poolId: assignPoolId.trim() } : {}),
         }
       : undefined,
     { enabled: assignOpen },
   );
 
-  const mergedAssignUserRows = useMemo((): UserRow[] => {
-    const int = extractUsersRows(assignInternalUsersQuery.data);
-    const ext = extractUsersRows(assignExternalUsersQuery.data);
-    const map = new Map<string, UserRow>();
-    for (const r of int) map.set(r.id, r);
-    for (const r of ext) map.set(r.id, r);
-    return Array.from(map.values());
-  }, [assignInternalUsersQuery.data, assignExternalUsersQuery.data]);
+  const filteredAssignUserRows = useMemo((): UserRow[] => extractUsersRows(assignUsersQuery.data), [assignUsersQuery.data]);
 
-  const filteredAssignUserRows = useMemo(() => {
-    if (assignUserTypeFilter === "all") return mergedAssignUserRows;
-    return mergedAssignUserRows.filter((r) => r.type === assignUserTypeFilter);
-  }, [mergedAssignUserRows, assignUserTypeFilter]);
-
-  const assignUsersLoading =
-    assignInternalUsersQuery.isLoading ||
-    assignInternalUsersQuery.isFetching ||
-    assignExternalUsersQuery.isLoading ||
-    assignExternalUsersQuery.isFetching;
+  const assignUsersLoading = assignUsersQuery.isLoading || assignUsersQuery.isFetching;
 
   /** Department without pool: fetch all in scope then filter/paginate client-side (API has no departmentId on list). */
   const poolHeadsClientPaging = Boolean(departmentId.trim() && !poolId.trim());
@@ -524,7 +499,7 @@ export default function PoolHeadsPage() {
     setAssignDepartmentId("");
     setAssignPoolId("");
     setAssignUserId("");
-    setAssignUserTypeFilter("all");
+    setAssignUserTypeFilter("External");
   };
 
   return (
@@ -791,11 +766,10 @@ export default function PoolHeadsPage() {
             <SelectField
               label="Users — type"
               value={assignUserTypeFilter}
-              onChange={(v) => setAssignUserTypeFilter(v as "all" | "Internal" | "External")}
+              onChange={(v) => setAssignUserTypeFilter(v as "Internal" | "External")}
               options={[
-                { value: "all", label: "Internal + External" },
-                { value: "Internal", label: "Internal only" },
-                { value: "External", label: "External only" },
+                { value: "Internal", label: "Internal" },
+                { value: "External", label: "External" },
               ]}
               menuMaxRows={4}
             />

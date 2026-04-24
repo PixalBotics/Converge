@@ -8,6 +8,7 @@ import {
   removePoolMember,
 } from "@/api";
 import type { JsonRecord } from "@/api";
+import { usersKeys } from "../../users";
 import { hrmsPoolMembersKeys } from "./keys";
 
 export type HrmsPoolMembersListParams = {
@@ -48,6 +49,7 @@ export function useAddPoolMemberMutation() {
     onSuccess: (_data, vars) => {
       invalidatePoolMembers(qc, vars.poolId);
       void qc.invalidateQueries({ queryKey: hrmsPoolMembersKeys.all });
+      void qc.invalidateQueries({ queryKey: usersKeys.lists() });
     },
   });
 }
@@ -61,6 +63,7 @@ export function useMovePoolMemberMutation() {
       invalidatePoolMembers(qc, vars.poolId);
       invalidatePoolMembers(qc, vars.targetPoolId);
       void qc.invalidateQueries({ queryKey: hrmsPoolMembersKeys.all });
+      void qc.invalidateQueries({ queryKey: usersKeys.lists() });
     },
   });
 }
@@ -72,6 +75,7 @@ export function useRemovePoolMemberMutation() {
     onSuccess: (_data, vars) => {
       invalidatePoolMembers(qc, vars.poolId);
       void qc.invalidateQueries({ queryKey: hrmsPoolMembersKeys.all });
+      void qc.invalidateQueries({ queryKey: usersKeys.lists() });
     },
   });
 }

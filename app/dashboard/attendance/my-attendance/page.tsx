@@ -38,6 +38,22 @@ type AttendanceRow = {
   status: string;
 };
 
+function formatDateOnly(value: string): string {
+  const raw = value.trim();
+  if (!raw) return "—";
+  const d = new Date(raw);
+  if (Number.isNaN(d.getTime())) return raw.slice(0, 10);
+  return d.toISOString().slice(0, 10);
+}
+
+function formatTimeOnly(value: string): string {
+  const raw = value.trim();
+  if (!raw) return "—";
+  const d = new Date(raw);
+  if (Number.isNaN(d.getTime())) return raw;
+  return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: true });
+}
+
 export default function MyAttendancePage() {
   const router = useRouter();
   const theme = useTheme() as AppTheme;
@@ -94,9 +110,9 @@ export default function MyAttendancePage() {
       };
       return {
         id: pick(["id", "attendanceId"]) || `attendance-${idx}`,
-        date: pick(["date", "day", "attendanceDate"]) || "—",
-        checkInTime: pick(["checkIn", "checkInTime", "inTime"]) || "—",
-        checkOutTime: pick(["checkOut", "checkOutTime", "outTime"]) || "—",
+        date: formatDateOnly(pick(["date", "day", "attendanceDate"])),
+        checkInTime: formatTimeOnly(pick(["checkInAt", "checkIn", "checkInTime", "inTime"])),
+        checkOutTime: formatTimeOnly(pick(["checkOutAt", "checkOut", "checkOutTime", "outTime"])),
         status: pick(["status"]) || "—",
       } as AttendanceRow;
     });

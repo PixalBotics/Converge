@@ -62,9 +62,7 @@ type HeadRow = {
   id: string;
   userName: string;
   userEmail: string;
-  userType: UserKind;
-  resellerId: string;
-  parentCompanyId: string;
+  parentCompanyName: string;
   departmentId: string;
   departmentName: string;
 };
@@ -120,22 +118,22 @@ function mapDepartmentHeadItem(r: Record<string, unknown>, idx: number): HeadRow
   const assignmentId = pickStr(r, ["id"]) || "";
   const user = isRecord(r["user"]) ? (r["user"] as Record<string, unknown>) : null;
   const dept = isRecord(r["department"]) ? (r["department"] as Record<string, unknown>) : null;
-  const name = pickStr(user, ["name", "fullName", "userName"]) || pickStr(r, ["userName", "name"]) || "—";
+  const deptParentCompany =
+    dept && isRecord(dept["parentCompany"]) ? (dept["parentCompany"] as Record<string, unknown>) : null;
+  const firstName = pickStr(user, ["firstName", "first_name"]) || "";
+  const lastName = pickStr(user, ["lastName", "last_name"]) || "";
+  const joinedName = `${firstName} ${lastName}`.replace(/\s+/g, " ").trim();
+  const name = joinedName || pickStr(r, ["userName"]) || pickStr(user, ["name", "fullName", "userName"]) || "—";
   const email = pickStr(user, ["email"]) || pickStr(r, ["userEmail", "email"]) || "—";
-  const rawType = pickStr(user, ["userType", "type", "user_type"]) || pickStr(r, ["userType", "user_type"]);
-  const userType = parseUserKind(rawType);
-  const resellerId = formatScopeId(
-    pickStr(r, ["resellerId"]) || pickStr(user, ["resellerId", "reseller_id"]),
-  );
-  const parentCompanyId = formatScopeId(
-    pickStr(r, ["parentCompanyId", "parent_company_id"]) ||
-      pickStr(user, ["parentCompanyId", "parent_company_id"]),
-  );
+  const parentCompanyName =
+    pickStr(r, ["parentCompanyName"]) ||
+    pickStr(deptParentCompany, ["name"]) ||
+    "—";
   const departmentId = pickStr(dept, ["id"]) || pickStr(r, ["departmentId"]) || "";
   const departmentName = pickStr(dept, ["name"]) || pickStr(r, ["departmentName"]) || "—";
   const id = assignmentId || `dh-${idx}`;
   if (!id) return null;
-  return { id, userName: name, userEmail: email, userType, resellerId, parentCompanyId, departmentId, departmentName };
+  return { id, userName: name, userEmail: email, parentCompanyName, departmentId, departmentName };
 }
 
 export default function DepartmentHeadsPage() {
@@ -247,27 +245,8 @@ export default function DepartmentHeadsPage() {
 
   const headsColumns = useMemo<DataTableColumn<HeadRow>[]>(
     () => [
-      {
-        id: "userType",
-        label: "Type",
-        render: (_v, row) =>
-          row.userType === "—" ? (
-            <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted }}>
-              —
-            </Typography>
-          ) : (
-            <Chip
-              size="small"
-              label={row.userType}
-              color={row.userType === "Internal" ? "primary" : "secondary"}
-              variant="outlined"
-              sx={{ borderColor: "rgba(255,255,255,0.35)" }}
-            />
-          ),
-      },
-      { id: "resellerId", label: "Reseller ID" },
-      { id: "parentCompanyId", label: "Parent company ID" },
       { id: "departmentName", label: "Department" },
+      { id: "parentCompanyName", label: "Parent company" },
       { id: "userName", label: "User" },
       { id: "userEmail", label: "Email" },
     ],

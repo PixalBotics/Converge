@@ -33,14 +33,25 @@ export type UsersListParams = {
   limit?: number;
   /** When true, backend returns all rows (no pagination). */
   all?: boolean;
+  /** When true, return only users not assigned to any pool. */
+  unassignedPoolOnly?: boolean;
   userType?: "Internal" | "External";
   search?: string;
+  userName?: string;
   companyId?: string;
   companyName?: string;
+  parentCompanyName?: string;
+  resellerName?: string;
+  roleName?: string;
   resellerId?: string;
   parentCompanyId?: string;
   departmentId?: string;
   designationId?: string;
+  poolId?: string;
+  poolName?: string;
+  isPoolHead?: boolean;
+  isDepartmentHead?: boolean;
+  headRole?: "all" | "poolHead" | "departmentHead" | "anyHead" | "none";
   userId?: string;
 };
 
