@@ -269,9 +269,17 @@ export default function PoolHeadsPage() {
   const [assignPoolId, setAssignPoolId] = useState("");
   const [assignUserId, setAssignUserId] = useState("");
   const [assignUserTypeFilter, setAssignUserTypeFilter] = useState<"Internal" | "External">("External");
+  const [assignExternalResellerId, setAssignExternalResellerId] = useState("");
+  const [assignExternalParentCompanyId, setAssignExternalParentCompanyId] = useState("");
 
   const departmentsQuery = useDepartmentsListQuery({ all: true }, { enabled: true, scope: "pool-heads" });
   const departmentOptions = useMemo(() => {
+    const base = pickItemsArray(departmentsQuery.data)
+      .map(toIdNameOption)
+      .filter((o): o is { value: string; label: string } => o !== null);
+    return [{ value: "", label: departmentsQuery.isLoading ? "Loading departments…" : "— Select department —" }, ...base];
+  }, [departmentsQuery.data, departmentsQuery.isLoading]);
+  const assignDepartmentOptions = useMemo(() => {
     const base = pickItemsArray(departmentsQuery.data)
       .map(toIdNameOption)
       .filter((o): o is { value: string; label: string } => o !== null);
@@ -317,6 +325,38 @@ export default function PoolHeadsPage() {
       .filter((o): o is { value: string; label: string } => o !== null);
     return [{ value: "", label: assignPoolsQuery.isLoading ? "Loading pools…" : "— Select pool —" }, ...base];
   }, [assignPoolsQuery.data, assignPoolsQuery.isLoading]);
+
+  const assignResellersQuery = useCompaniesSetupResellersQuery({
+    enabled: assignOpen && assignUserTypeFilter === "External",
+  });
+  const assignParentCompaniesQuery = useCompaniesByResellerQuery(
+    assignExternalResellerId.trim(),
+    { view: "tree", sortBy: "name", sortOrder: "asc", all: true },
+    {
+      enabled: assignOpen && assignUserTypeFilter === "External" && Boolean(assignExternalResellerId.trim()),
+    },
+  );
+  const assignResellerOptions = useMemo(() => {
+    const base = pickItemsArray(assignResellersQuery.data)
+      .map(toIdNameOption)
+      .filter((o): o is { value: string; label: string } => o !== null);
+    return [{ value: "", label: assignResellersQuery.isLoading ? "Loading resellers..." : "— Select reseller —" }, ...base];
+  }, [assignResellersQuery.data, assignResellersQuery.isLoading]);
+  const assignParentCompanyOptions = useMemo(() => {
+    const base = extractParentCompaniesFromByResellerTree(assignParentCompaniesQuery.data);
+    return [
+      {
+        value: "",
+        label:
+          assignExternalResellerId.trim().length === 0
+            ? "Select reseller first"
+            : assignParentCompaniesQuery.isLoading
+              ? "Loading parent companies..."
+              : "— Select parent company —",
+      },
+      ...base,
+    ];
+  }, [assignParentCompaniesQuery.data, assignParentCompaniesQuery.isLoading, assignExternalResellerId]);
 
   const assignUsersQuery = useUsersListQuery(
     assignOpen
@@ -798,8 +838,6 @@ export default function PoolHeadsPage() {
           <Box sx={{ gridColumn: { xs: "auto", sm: "1 / -1" } }}>
             <SelectField
               label="Users — type"
-              value={assignUserTypeFilter}
-              onChange={(v) => setAssignUserTypeFilter(v as "Internal" | "External")}
               options={[
                 { value: "Internal", label: "Internal" },
                 { value: "External", label: "External" },
