@@ -41,6 +41,8 @@ export type UsersListParams = {
   parentCompanyId?: string;
   departmentId?: string;
   designationId?: string;
+  poolId?: string;
+  poolName?: string;
   userId?: string;
 };
 
