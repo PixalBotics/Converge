@@ -177,7 +177,7 @@ export function PoolMembersPanel({
 
   const addViaModal = memberActionsVariant === "edit-delete";
   const usersQuery = useUsersListQuery(
-    active && departmentId ? { all: true, limit: 250, departmentId } : undefined,
+    active && departmentId ? { all: true, limit: 250, departmentId, unassignedPoolOnly: true } : undefined,
     {
       enabled:
         active &&

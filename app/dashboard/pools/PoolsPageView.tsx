@@ -295,6 +295,7 @@ export function PoolsPageView({ mode }: PoolsPageViewProps) {
       ? {
           all: true,
           userType: "Internal",
+          unassignedPoolOnly: true,
           ...(hubDepartmentId.trim() ? { departmentId: hubDepartmentId.trim() } : {}),
         }
       : undefined,
@@ -309,6 +310,7 @@ export function PoolsPageView({ mode }: PoolsPageViewProps) {
       ? {
           all: true,
           userType: "External",
+          unassignedPoolOnly: true,
           parentCompanyId: hubParentCompanyId.trim(),
           ...(hubDepartmentId.trim() ? { departmentId: hubDepartmentId.trim() } : {}),
         }
