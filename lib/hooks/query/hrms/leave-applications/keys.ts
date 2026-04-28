@@ -14,6 +14,8 @@ export const hrmsLeaveApplicationsKeys = {
       "department-queue",
       params,
     ] as const,
+  pendingTenantQueue: (params?: Params) =>
+    [...hrmsLeaveApplicationsKeys.all, "pending", "tenant-queue", params] as const,
   detail: (id: string) =>
     [...hrmsLeaveApplicationsKeys.all, "detail", id] as const,
 };

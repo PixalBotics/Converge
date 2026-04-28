@@ -37,12 +37,13 @@ export type ApprovalLeaveRow = {
   stage: string;
   applicantFirstName?: string;
   applicantLastName?: string;
+  departmentName?: string;
   poolName?: string;
 };
 
 export type ApprovalLeaveTableCardProps = {
-  queue: "pool" | "department";
-  onQueueChange: (v: "pool" | "department") => void;
+  queue: "pool" | "department" | "tenant";
+  onQueueChange: (v: "pool" | "department" | "tenant") => void;
   search: string;
   onSearchChange: (v: string) => void;
   page: number;
@@ -58,6 +59,7 @@ export type ApprovalLeaveTableCardProps = {
   canReject?: boolean;
   canUsePoolQueue?: boolean;
   canUseDepartmentQueue?: boolean;
+  canUseTenantQueue?: boolean;
 };
 
 export function ApprovalLeaveTableCard({
@@ -78,6 +80,7 @@ export function ApprovalLeaveTableCard({
   canReject = true,
   canUsePoolQueue = true,
   canUseDepartmentQueue = true,
+  canUseTenantQueue = true,
 }: ApprovalLeaveTableCardProps) {
   const theme = useTheme() as AppTheme;
 
@@ -112,6 +115,15 @@ export function ApprovalLeaveTableCard({
               sx={queue === "department" ? gradientPrimaryButtonSx : undefined}
             >
               Department queue
+            </Button>
+            <Button
+              type="button"
+              variant={queue === "tenant" ? "primary" : "secondary"}
+              onClick={() => onQueueChange("tenant")}
+              disabled={!canUseTenantQueue}
+              sx={queue === "tenant" ? gradientPrimaryButtonSx : undefined}
+            >
+              Tenant queue
             </Button>
           </Box>
           <Box sx={approvalLeaveSearchWrapSx}>

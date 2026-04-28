@@ -52,7 +52,7 @@ type MyLeaveRow = {
 
 export default function ApplyLeavePage() {
   const theme = useTheme() as AppTheme;
-  const { hasOperational, user } = useAuth();
+  const { hasOperational } = useAuth();
   const canApplyLeave = hasOperational(OP.hrms.leave.apply);
   const canSelfLeaveView = hasOperational(OP.hrms.leave.selfView);
   const showLeaveInsights = canSelfLeaveView || canApplyLeave;
@@ -118,12 +118,10 @@ export default function ApplyLeavePage() {
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [quotaQuery.data]);
 
-  const sessionPoolId = user?.poolId?.trim();
   const myLeavesQuery = useMyLeaveApplicationsQuery(
     {
       page,
       limit: PAGE_LIMIT,
-      ...(sessionPoolId ? { poolId: sessionPoolId } : {}),
     },
     { enabled: true, scope: "apply-leave" },
   );

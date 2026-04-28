@@ -57,12 +57,14 @@ export { useAssignPoolShiftMutation, usePoolShiftAssignmentsListQuery, useRemove
 export type { HrmsPoolShiftAssignmentsListParams } from "./pool-shift-assignments";
 export { hrmsLeaveApplicationsKeys } from "./leave-applications";
 export {
+  useDecideLeaveTenantMutation,
   useDecideLeaveDepartmentMutation,
   useDecideLeavePoolMutation,
   useLeaveQuotaSummaryQuery,
   useMyLeaveApplicationsQuery,
   usePendingLeaveDepartmentQueueQuery,
   usePendingLeavePoolQueueQuery,
+  usePendingLeaveTenantQueueQuery,
   useSubmitLeaveApplicationMutation,
 } from "./leave-applications";
 export type { HrmsLeaveApplicationsListParams } from "./leave-applications";
