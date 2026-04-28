@@ -45,6 +45,8 @@ import { publishAppToast } from "@/lib/notify";
 import { isRecord, pickNum, pickStr, unwrapApiData } from "@/lib/utils";
 import {
   useAssignPoolHeadMutation,
+  useCompaniesByResellerQuery,
+  useCompaniesSetupResellersQuery,
   useDepartmentsListQuery,
   usePoolHeadsAttendanceQuery,
   usePoolHeadsListQuery,
@@ -52,7 +54,11 @@ import {
   useRemovePoolHeadMutation,
   useUsersListQuery,
 } from "@/lib/hooks/query";
-import { pickItemsArray, toIdNameOption } from "@/app/dashboard/user-page/components/add-user-modal.utils";
+import {
+  extractParentCompaniesFromByResellerTree,
+  pickItemsArray,
+  toIdNameOption,
+} from "@/app/dashboard/user-page/components/add-user-modal.utils";
 import { extractUsersRows } from "@/app/dashboard/user-page/utils";
 import type { UserRow } from "@/app/dashboard/user-page/types";
 import { useAuth } from "@/lib/auth";
@@ -125,6 +131,29 @@ function parseUserKind(raw: string | undefined): UserKind {
   const t = (raw ?? "").trim();
   if (t === "Internal" || t === "External") return t;
   return "—";
+}
+
+function hasExistingPoolHeadAssignment(row: Record<string, unknown>): boolean {
+  const boolish = (v: unknown) => v === true || v === "true" || v === 1 || v === "1";
+  if (
+    boolish(row["isPoolHead"]) ||
+    boolish(row["hasPoolHead"]) ||
+    boolish(row["isHeadPool"])
+  ) {
+    return true;
+  }
+  const directIds = [
+    "poolHeadId",
+    "pool_head_id",
+    "headPoolId",
+    "head_pool_id",
+    "poolHeadAssignmentId",
+    "pool_head_assignment_id",
+  ];
+  if (directIds.some((k) => String(row[k] ?? "").trim().length > 0)) return true;
+  const nestedHead = row["poolHead"];
+  if (isRecord(nestedHead) && String(nestedHead["id"] ?? "").trim().length > 0) return true;
+  return false;
 }
 
 function mapPoolHeadItem(r: Record<string, unknown>, idx: number): PoolHeadRow | null {
@@ -240,9 +269,17 @@ export default function PoolHeadsPage() {
   const [assignPoolId, setAssignPoolId] = useState("");
   const [assignUserId, setAssignUserId] = useState("");
   const [assignUserTypeFilter, setAssignUserTypeFilter] = useState<"Internal" | "External">("External");
+  const [assignExternalResellerId, setAssignExternalResellerId] = useState("");
+  const [assignExternalParentCompanyId, setAssignExternalParentCompanyId] = useState("");
 
   const departmentsQuery = useDepartmentsListQuery({ all: true }, { enabled: true, scope: "pool-heads" });
   const departmentOptions = useMemo(() => {
+    const base = pickItemsArray(departmentsQuery.data)
+      .map(toIdNameOption)
+      .filter((o): o is { value: string; label: string } => o !== null);
+    return [{ value: "", label: departmentsQuery.isLoading ? "Loading departments…" : "— Select department —" }, ...base];
+  }, [departmentsQuery.data, departmentsQuery.isLoading]);
+  const assignDepartmentOptions = useMemo(() => {
     const base = pickItemsArray(departmentsQuery.data)
       .map(toIdNameOption)
       .filter((o): o is { value: string; label: string } => o !== null);
@@ -289,6 +326,38 @@ export default function PoolHeadsPage() {
     return [{ value: "", label: assignPoolsQuery.isLoading ? "Loading pools…" : "— Select pool —" }, ...base];
   }, [assignPoolsQuery.data, assignPoolsQuery.isLoading]);
 
+  const assignResellersQuery = useCompaniesSetupResellersQuery({
+    enabled: assignOpen && assignUserTypeFilter === "External",
+  });
+  const assignParentCompaniesQuery = useCompaniesByResellerQuery(
+    assignExternalResellerId.trim(),
+    { view: "tree", sortBy: "name", sortOrder: "asc", all: true },
+    {
+      enabled: assignOpen && assignUserTypeFilter === "External" && Boolean(assignExternalResellerId.trim()),
+    },
+  );
+  const assignResellerOptions = useMemo(() => {
+    const base = pickItemsArray(assignResellersQuery.data)
+      .map(toIdNameOption)
+      .filter((o): o is { value: string; label: string } => o !== null);
+    return [{ value: "", label: assignResellersQuery.isLoading ? "Loading resellers..." : "— Select reseller —" }, ...base];
+  }, [assignResellersQuery.data, assignResellersQuery.isLoading]);
+  const assignParentCompanyOptions = useMemo(() => {
+    const base = extractParentCompaniesFromByResellerTree(assignParentCompaniesQuery.data);
+    return [
+      {
+        value: "",
+        label:
+          assignExternalResellerId.trim().length === 0
+            ? "Select reseller first"
+            : assignParentCompaniesQuery.isLoading
+              ? "Loading parent companies..."
+              : "— Select parent company —",
+      },
+      ...base,
+    ];
+  }, [assignParentCompaniesQuery.data, assignParentCompaniesQuery.isLoading, assignExternalResellerId]);
+
   const assignUsersQuery = useUsersListQuery(
     assignOpen
       ? {
@@ -298,7 +367,12 @@ export default function PoolHeadsPage() {
           ...(assignPoolId.trim() ? { poolId: assignPoolId.trim() } : {}),
         }
       : undefined,
-    { enabled: assignOpen },
+    {
+      enabled:
+        assignOpen &&
+        assignUserTypeFilter === "External" &&
+        Boolean(assignExternalParentCompanyId.trim()),
+    },
   );
 
   const filteredAssignUserRows = useMemo((): UserRow[] => extractUsersRows(assignUsersQuery.data), [assignUsersQuery.data]);
@@ -696,7 +770,7 @@ export default function PoolHeadsPage() {
         open={assignOpen}
         fitContent
         title="Assign pool head"
-        description="Pick a pool (all pools load; department narrows the list). Choose one user below — Internal / External filter and checkboxes. User must belong to the pool department on the server."
+        description="Select Internal or External first. For External, choose reseller, parent company, then department. Users load from the selected scope."
         onClose={() => {
           if (assignMutation.isPending) return;
           setAssignOpen(false);
@@ -736,10 +810,9 @@ export default function PoolHeadsPage() {
       >
         <Box
           sx={{
-            display: "grid",
-            gridTemplateColumns: { xs: "1fr", sm: "minmax(0,1fr) minmax(0,1fr)" },
-            gap: 1.5,
-            alignItems: "end",
+            display: "flex",
+            flexDirection: "column",
+            gap: 1.75,
           }}
         >
           <SelectField
@@ -765,15 +838,90 @@ export default function PoolHeadsPage() {
           <Box sx={{ gridColumn: { xs: "auto", sm: "1 / -1" } }}>
             <SelectField
               label="Users — type"
-              value={assignUserTypeFilter}
-              onChange={(v) => setAssignUserTypeFilter(v as "Internal" | "External")}
               options={[
                 { value: "Internal", label: "Internal" },
                 { value: "External", label: "External" },
               ]}
-              menuMaxRows={4}
+              value={assignUserTypeFilter}
+              onChange={(v) => {
+                const next = v as "Internal" | "External";
+                setAssignUserTypeFilter(next);
+                setAssignDepartmentId("");
+                setAssignPoolId("");
+                setAssignUserId("");
+                if (next !== "External") {
+                  setAssignExternalResellerId("");
+                  setAssignExternalParentCompanyId("");
+                }
+              }}
             />
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mt: 2, mb: 1 }}>
+          </Box>
+
+          {assignUserTypeFilter === "External" ? (
+            <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 1.5 }}>
+              <SelectField
+                label="Reseller"
+                value={assignExternalResellerId}
+                onChange={(v) => {
+                  setAssignExternalResellerId(v);
+                  setAssignExternalParentCompanyId("");
+                  setAssignDepartmentId("");
+                  setAssignPoolId("");
+                  setAssignUserId("");
+                }}
+                options={assignResellerOptions}
+                menuMaxRows={8}
+              />
+              <SelectField
+                label="Parent company"
+                value={assignExternalParentCompanyId}
+                onChange={(v) => {
+                  setAssignExternalParentCompanyId(v);
+                  setAssignDepartmentId("");
+                  setAssignPoolId("");
+                  setAssignUserId("");
+                }}
+                options={assignParentCompanyOptions}
+                menuMaxRows={8}
+                disabled={!assignExternalResellerId.trim()}
+              />
+            </Box>
+          ) : null}
+
+          <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 1.5, alignItems: "end" }}>
+            <SelectField
+              label="Department"
+              value={assignDepartmentId}
+              onChange={(v) => {
+                setAssignDepartmentId(v);
+                setAssignPoolId("");
+                setAssignUserId("");
+              }}
+              options={assignDepartmentOptions}
+              menuMaxRows={8}
+              disabled={assignUserTypeFilter === "External" && !assignExternalParentCompanyId.trim()}
+            />
+            {assignDepartmentId.trim() ? (
+              <SelectField
+                label="Pool"
+                value={assignPoolId}
+                onChange={(v) => {
+                  setAssignPoolId(v);
+                }}
+                options={assignPoolOptions}
+                menuMaxRows={12}
+              />
+            ) : (
+              <Box sx={{ display: "flex", alignItems: "center", minHeight: 56 }}>
+                <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted }}>
+                  Select department to load pools.
+                </Typography>
+              </Box>
+            )}
+          </Box>
+
+          <Box>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mt: 0.5, mb: 1 }}>
               <Box sx={rolesIconBox}>
                 <PersonIcon sx={{ fontSize: 20, color: theme.app.dashboard.white95 }} />
               </Box>
@@ -929,7 +1077,7 @@ export default function PoolHeadsPage() {
               )}
             </TableContainer>
           </Box>
-          <Box sx={{ gridColumn: { xs: "auto", sm: "1 / -1" }, display: "flex", justifyContent: "flex-end" }}>
+          <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
             <Button variant="outlined" onClick={clearAssignFilters} disabled={assignMutation.isPending}>
               Clear filters
             </Button>

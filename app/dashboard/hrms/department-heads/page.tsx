@@ -126,6 +126,7 @@ function mapDepartmentHeadItem(r: Record<string, unknown>, idx: number): HeadRow
   const joinedName = `${firstName} ${lastName}`.replace(/\s+/g, " ").trim();
   const name = joinedName || pickStr(r, ["userName"]) || pickStr(user, ["name", "fullName", "userName"]) || "—";
   const email = pickStr(user, ["email"]) || pickStr(r, ["userEmail", "email"]) || "—";
+  const userType = parseUserKind(pickStr(user, ["userType", "type"]) || pickStr(r, ["userType", "user_type"]));
   const parentCompanyName =
     pickStr(r, ["parentCompanyName"]) ||
     pickStr(deptParentCompany, ["name"]) ||
@@ -134,16 +135,7 @@ function mapDepartmentHeadItem(r: Record<string, unknown>, idx: number): HeadRow
   const departmentName = pickStr(dept, ["name"]) || pickStr(r, ["departmentName"]) || "—";
   const id = assignmentId || `dh-${idx}`;
   if (!id) return null;
-  const userType = parseUserKind(pickStr(user, ["userType"]));
-  return {
-    id,
-    userName: name,
-    userEmail: email,
-    userType,
-    parentCompanyName,
-    departmentId,
-    departmentName,
-  };
+  return { id, userName: name, userEmail: email, userType, parentCompanyName, departmentId, departmentName };
 }
 
 export default function DepartmentHeadsPage() {
