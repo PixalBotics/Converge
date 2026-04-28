@@ -542,7 +542,7 @@ export default function PoolHeadsPage() {
       { id: "userName", label: "User" },
       { id: "userEmail", label: "Email" },
     ],
-    [theme],
+    [],
   );
 
   const attendanceColumns = useMemo<DataTableColumn<AttendanceRow>[]>(
@@ -556,7 +556,7 @@ export default function PoolHeadsPage() {
       { id: "checkIn", label: "Check-in" },
       { id: "checkOut", label: "Check-out" },
     ],
-    [theme],
+    [],
   );
 
   const clearPageFilters = () => {

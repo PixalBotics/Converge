@@ -141,16 +141,18 @@ function toMergedPoolMemberRow(r: Record<string, unknown>): MergedPoolMemberRow 
 }
 
 /**
- * Pool members hub: GET `/hrms/pool-members` (optional `departmentId`; omit for everyone in scope),
+ * Pool members hub: GET `/hrms/pool-members` (optional `departmentId`, `poolId` from session; omit filters for broad scope),
  * pages with {@link AGGREGATE_PAGE_SIZE} until the list is exhausted, then client-side search / filters
  * and pagination.
  */
 export function useDepartmentPoolMembersMerged(
   departmentId: string | undefined,
+  sessionPoolId: string | undefined,
   enabled: boolean,
   options?: DepartmentPoolMembersMergedOptions,
 ) {
   const dept = (departmentId ?? "").trim();
+  const scopedPool = (sessionPoolId ?? "").trim();
   const search = options?.search?.trim() ?? "";
   const poolName = options?.poolName?.trim() ?? "";
   const departmentName = options?.departmentName?.trim() ?? "";
@@ -160,8 +162,9 @@ export function useDepartmentPoolMembersMerged(
   const fetchParams = useMemo((): JsonRecord => {
     return {
       ...(dept ? { departmentId: dept } : {}),
+      ...(scopedPool ? { poolId: scopedPool } : {}),
     };
-  }, [dept]);
+  }, [dept, scopedPool]);
 
   const aggregateQuery = useQuery({
     queryKey: [...hrmsPoolMembersKeys.aggregateList(fetchParams), "paged-merge"] as const,

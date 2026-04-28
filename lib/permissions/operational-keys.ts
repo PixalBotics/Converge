@@ -252,7 +252,7 @@ export function canCompanyAction(h: H, op: "create" | "update" | "detail" | "lis
   return h(OP.company.view);
 }
 
-export function canRoleAction(h: H, _op: "create" | "update" | "delete"): boolean {
+export function canRoleAction(h: H): boolean {
   return h(OP.client.permissions);
 }
 

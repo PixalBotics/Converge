@@ -35,6 +35,9 @@ export type ApprovalLeaveRow = {
   startDate: string;
   endDate: string;
   stage: string;
+  applicantFirstName?: string;
+  applicantLastName?: string;
+  poolName?: string;
 };
 
 export type ApprovalLeaveTableCardProps = {

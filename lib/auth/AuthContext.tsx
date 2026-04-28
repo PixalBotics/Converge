@@ -17,7 +17,7 @@ import type { User, LoginCredentials } from "./types";
 import { getAccessToken, getMe, setTokenPair, synchronizeAuthSession } from "@/api";
 import { useLoginMutation, useLogoutMutation } from "@/lib/hooks";
 import { extractApiErrorMessageForToast } from "@/lib/notify";
-import { APP_PATHS, AUTH_PATHS, shouldSkipRemoteAuthHydration } from "./auth-paths";
+import { AUTH_PATHS, shouldSkipRemoteAuthHydration } from "./auth-paths";
 import {
   clearImpersonationSession,
   getImpersonationSession,
@@ -56,6 +56,8 @@ type ApiUser = {
   middleName?: string | null;
   lastName?: string;
   role?: ApiRole;
+  poolId?: string;
+  pool?: { id?: string; name?: string; poolId?: string };
 };
 
 function decodeJwtPayload(token: string): AccessTokenPayload | null {
@@ -101,12 +103,22 @@ function mapApiUserToUser(user: ApiUser): User | null {
     return null;
   }
   const roleName = user.role?.name;
+  const poolObj = user.pool;
+  const poolId =
+    (typeof user.poolId === "string" && user.poolId.trim()) ||
+    (typeof poolObj?.id === "string" && poolObj.id.trim()) ||
+    (typeof poolObj?.poolId === "string" && poolObj.poolId.trim()) ||
+    undefined;
+  const poolName =
+    (typeof poolObj?.name === "string" && poolObj.name.trim()) || undefined;
   return {
     id: user.id,
     email: user.email,
     displayName: toDisplayName(user) || user.email,
     role: mapRoleNameToAppRole(roleName),
     roleLabel: roleName?.trim() || undefined,
+    poolId,
+    poolName,
   };
 }
 

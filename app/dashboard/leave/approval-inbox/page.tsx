@@ -20,22 +20,19 @@ import {
   approvalLeaveStatusSx,
   approvalLeaveSubtextSx,
 } from "../_approval-leave/approval-leave.styles";
-import { ApprovalLeaveTableCard, LeaveDecisionModal, type LeaveDecision } from "../_approval-leave/components";
+import {
+  ApprovalLeaveTableCard,
+  LeaveDecisionModal,
+  type ApprovalLeaveRow,
+  type LeaveDecision,
+} from "../_approval-leave/components";
 import { useAuth } from "@/lib/auth";
 import { OP } from "@/lib/permissions";
 
 const PAGE_LIMIT = 8;
 
-type ApprovalLeaveRow = {
-  id: string;
-  leaveType: string;
-  startDate: string;
-  endDate: string;
-  stage: string;
-};
-
 export default function ApprovalLeavePage() {
-  const { hasOperational: h } = useAuth();
+  const { hasOperational: h, user } = useAuth();
   const orgBypass = h(OP.hrms.org.manage);
   const canPoolApprove = orgBypass || h(OP.hrms.leave.approvePool) || h(OP.hrms.leave.approve);
   const canPoolReject = orgBypass || h(OP.hrms.leave.rejectPool);
@@ -49,9 +46,19 @@ export default function ApprovalLeavePage() {
   const [queue, setQueue] = useState<"pool" | "department">("pool");
   const [decision, setDecision] = useState<LeaveDecision>(null);
 
+  const sessionPoolId = user?.poolId?.trim() ?? "";
+  const poolQueueEnabled =
+    queue === "pool" && canUsePoolQueue && (orgBypass || Boolean(sessionPoolId));
+
   const poolQueueQuery = usePendingLeavePoolQueueQuery(
-    { page, limit: PAGE_LIMIT, ...(search.trim() ? { search: search.trim() } : {}) },
-    { enabled: queue === "pool", scope: "approval-inbox" },
+    {
+      page,
+      limit: PAGE_LIMIT,
+      all: false,
+      ...(sessionPoolId ? { poolId: sessionPoolId } : {}),
+      ...(search.trim() ? { search: search.trim() } : {}),
+    },
+    { enabled: poolQueueEnabled, scope: "approval-inbox" },
   );
   const deptQueueQuery = usePendingLeaveDepartmentQueueQuery(
     { page, limit: PAGE_LIMIT, ...(search.trim() ? { search: search.trim() } : {}) },
@@ -80,6 +87,22 @@ export default function ApprovalLeavePage() {
         const startDate = formatIsoDate(pickStr(r, ["startDate", "effectiveFrom"]));
         const endDate = formatIsoDate(pickStr(r, ["endDate", "effectiveTo"]));
         const stage = queue === "pool" ? "Pool review" : "Department review";
+        if (queue === "pool") {
+          const applicant = isRecord(r["user"]) ? (r["user"] as Record<string, unknown>) : null;
+          const poolNested =
+            applicant && isRecord(applicant["pool"]) ? (applicant["pool"] as Record<string, unknown>) : null;
+          const row: ApprovalLeaveRow = {
+            id,
+            leaveType,
+            startDate,
+            endDate,
+            stage,
+            applicantFirstName: pickStr(applicant, ["firstName"]) || "—",
+            applicantLastName: pickStr(applicant, ["lastName"]) || "—",
+            poolName: pickStr(applicant, ["poolName"]) || pickStr(poolNested, ["name"]) || "—",
+          };
+          return row;
+        }
         return { id, leaveType, startDate, endDate, stage };
       })
       .filter((x): x is ApprovalLeaveRow => x !== null);
@@ -113,6 +136,13 @@ export default function ApprovalLeavePage() {
 
   const columns = useMemo<DataTableColumn<ApprovalLeaveRow>[]>(
     () => [
+      ...(queue === "pool"
+        ? ([
+            { id: "applicantFirstName", label: "First name" },
+            { id: "applicantLastName", label: "Last name" },
+            { id: "poolName", label: "Pool" },
+          ] as DataTableColumn<ApprovalLeaveRow>[])
+        : []),
       { id: "leaveType", label: "Leave Type" },
       { id: "startDate", label: "Start" },
       { id: "endDate", label: "End" },
@@ -126,7 +156,7 @@ export default function ApprovalLeavePage() {
         ),
       },
     ],
-    [],
+    [queue],
   );
 
   return (

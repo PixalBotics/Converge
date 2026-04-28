@@ -252,7 +252,7 @@ export default function DepartmentHeadsPage() {
       { id: "userName", label: "User" },
       { id: "userEmail", label: "Email" },
     ],
-    [theme],
+    [],
   );
 
   const attendanceQuery = useDepartmentHeadsAttendanceQuery(
