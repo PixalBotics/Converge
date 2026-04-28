@@ -112,7 +112,7 @@ export default function TeamAttendancePage() {
   }, [departmentsQuery.data, departmentsQuery.isLoading]);
 
   const poolsQuery = usePoolsListQuery(
-    departmentId.trim() ? { departmentId: departmentId.trim(), all: true } : undefined,
+    { all: true, ...(departmentId.trim() ? { departmentId: departmentId.trim() } : {}) },
     { enabled: view === "pool", scope: "team-attendance-pools" },
   );
   const poolOptions = useMemo(() => {
@@ -361,7 +361,6 @@ export default function TeamAttendancePage() {
               onChange={setPoolId}
               options={poolOptions}
               menuMaxRows={8}
-              disabled={!departmentId.trim()}
             />
             <InputField
               label="Member name / email"

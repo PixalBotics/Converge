@@ -21,6 +21,7 @@ import {
   DashboardCard,
   DataTable,
   FormModal,
+  SearchBar,
   SegmentedControl,
   SelectField,
   TablePagination,
@@ -40,6 +41,8 @@ import { publishAppToast } from "@/lib/notify";
 import { isRecord, pickNum, pickStr, unwrapApiData } from "@/lib/utils";
 import {
   useAssignDepartmentHeadMutation,
+  useCompaniesByResellerQuery,
+  useCompaniesSetupResellersQuery,
   useDepartmentHeadsAttendanceQuery,
   useDepartmentHeadsListQuery,
   useDepartmentsListQuery,
@@ -47,11 +50,15 @@ import {
   useRemoveDepartmentHeadMutation,
   useUsersListQuery,
 } from "@/lib/hooks/query";
-import { pickItemsArray, toIdNameOption } from "@/app/dashboard/user-page/components/add-user-modal.utils";
+import {
+  extractParentCompaniesFromByResellerTree,
+  pickItemsArray,
+  toIdNameOption,
+} from "@/app/dashboard/user-page/components/add-user-modal.utils";
 import { extractUsersRows } from "@/app/dashboard/user-page/utils";
-import type { UserRow } from "@/app/dashboard/user-page/types";
 import { useAuth } from "@/lib/auth";
 import { canManageDepartmentHeads, canRemoveDepartmentHead } from "@/lib/permissions";
+import { SearchIcon } from "@/components/dashboard/icons/SearchIcon";
 
 const PAGE_LIMIT = 12;
 const ASSIGN_USER_TABLE_MAX_PX = 340;
@@ -148,11 +155,24 @@ export default function DepartmentHeadsPage() {
   const [mode, setMode] = useState<"heads" | "attendance">("heads");
   const [departmentId, setDepartmentId] = useState("");
   const [page, setPage] = useState(1);
-  const [headsUserTypeFilter, setHeadsUserTypeFilter] = useState<"all" | "Internal" | "External">("all");
+  const [headsUserTypeFilter, setHeadsUserTypeFilter] = useState<"Internal" | "External">("Internal");
+  const [headsResellerId, setHeadsResellerId] = useState("");
+  const [headsParentCompanyId, setHeadsParentCompanyId] = useState("");
+  const [headsDepartmentId, setHeadsDepartmentId] = useState("");
+  const [headsSearch, setHeadsSearch] = useState("");
+  const [headsFiltersApplied, setHeadsFiltersApplied] = useState(false);
+  const [appliedHeadsUserTypeFilter, setAppliedHeadsUserTypeFilter] = useState<"Internal" | "External" | null>(null);
+  const [appliedHeadsResellerId, setAppliedHeadsResellerId] = useState("");
+  const [appliedHeadsParentCompanyId, setAppliedHeadsParentCompanyId] = useState("");
+  const [appliedHeadsDepartmentId, setAppliedHeadsDepartmentId] = useState("");
+  const [appliedHeadsSearch, setAppliedHeadsSearch] = useState("");
 
   const [assignOpen, setAssignOpen] = useState(false);
+  const [assignDepartmentId, setAssignDepartmentId] = useState("");
   const [assignUserId, setAssignUserId] = useState("");
-  const [assignUserTypeFilter, setAssignUserTypeFilter] = useState<"all" | "Internal" | "External">("all");
+  const [assignUserTypeFilter, setAssignUserTypeFilter] = useState<"Internal" | "External">("External");
+  const [assignResellerId, setAssignResellerId] = useState("");
+  const [assignParentCompanyId, setAssignParentCompanyId] = useState("");
 
   const [attendancePoolId, setAttendancePoolId] = useState("");
   const [attendanceDate, setAttendanceDate] = useState(today);
@@ -166,8 +186,82 @@ export default function DepartmentHeadsPage() {
     return [{ value: "", label: departmentsQuery.isLoading ? "Loading departments…" : "— Select department —" }, ...base];
   }, [departmentsQuery.data, departmentsQuery.isLoading]);
 
+  const headsInternalDepartmentsQuery = useDepartmentsListQuery(
+    mode === "heads" && headsUserTypeFilter === "Internal" ? { all: true, type: "Internal" } : undefined,
+    { enabled: mode === "heads" && headsUserTypeFilter === "Internal", scope: "department-heads-filter-internal-departments" },
+  );
+  const headsResellersQuery = useCompaniesSetupResellersQuery({
+    enabled: mode === "heads" && headsUserTypeFilter === "External",
+  });
+  const headsParentCompaniesQuery = useCompaniesByResellerQuery(
+    headsResellerId.trim(),
+    { view: "tree", sortBy: "name", sortOrder: "asc", all: true },
+    { enabled: mode === "heads" && headsUserTypeFilter === "External" && Boolean(headsResellerId.trim()) },
+  );
+  const headsExternalDepartmentsQuery = useDepartmentsListQuery(
+    mode === "heads" && headsUserTypeFilter === "External" && headsResellerId.trim() && headsParentCompanyId.trim()
+      ? {
+          all: true,
+          type: "External",
+          resellerId: headsResellerId.trim(),
+          parentCompanyId: headsParentCompanyId.trim(),
+        }
+      : undefined,
+    {
+      enabled:
+        mode === "heads" &&
+        headsUserTypeFilter === "External" &&
+        Boolean(headsResellerId.trim()) &&
+        Boolean(headsParentCompanyId.trim()),
+      scope: "department-heads-filter-external-departments",
+    },
+  );
+  const headsResellerOptions = useMemo(() => {
+    const base = pickItemsArray(headsResellersQuery.data)
+      .map(toIdNameOption)
+      .filter((o): o is { value: string; label: string } => o !== null);
+    return [{ value: "", label: headsResellersQuery.isLoading ? "Loading resellers..." : "— Select reseller —" }, ...base];
+  }, [headsResellersQuery.data, headsResellersQuery.isLoading]);
+  const headsParentCompanyOptions = useMemo(() => {
+    const base = extractParentCompaniesFromByResellerTree(headsParentCompaniesQuery.data);
+    return [
+      {
+        value: "",
+        label:
+          headsResellerId.trim().length === 0
+            ? "Select reseller first"
+            : headsParentCompaniesQuery.isLoading
+              ? "Loading parent companies..."
+              : "— Select parent company —",
+      },
+      ...base,
+    ];
+  }, [headsParentCompaniesQuery.data, headsParentCompaniesQuery.isLoading, headsResellerId]);
+  const headsDepartmentOptions = useMemo(() => {
+    const source = headsUserTypeFilter === "Internal" ? headsInternalDepartmentsQuery.data : headsExternalDepartmentsQuery.data;
+    const loading =
+      headsUserTypeFilter === "Internal" ? headsInternalDepartmentsQuery.isLoading : headsExternalDepartmentsQuery.isLoading;
+    const base = pickItemsArray(source)
+      .map(toIdNameOption)
+      .filter((o): o is { value: string; label: string } => o !== null);
+    const prompt =
+      headsUserTypeFilter === "External" && !headsParentCompanyId.trim()
+        ? "Select parent company first"
+        : loading
+          ? "Loading departments..."
+          : "— Select department —";
+    return [{ value: "", label: prompt }, ...base];
+  }, [
+    headsUserTypeFilter,
+    headsInternalDepartmentsQuery.data,
+    headsInternalDepartmentsQuery.isLoading,
+    headsExternalDepartmentsQuery.data,
+    headsExternalDepartmentsQuery.isLoading,
+    headsParentCompanyId,
+  ]);
+
   const poolsQuery = usePoolsListQuery(
-    departmentId.trim() ? { departmentId: departmentId.trim(), all: true } : undefined,
+    { all: true, ...(departmentId.trim() ? { departmentId: departmentId.trim() } : {}) },
     { enabled: true, scope: "department-heads-attendance-pools" },
   );
   const poolOptions = useMemo(() => {
@@ -183,45 +277,127 @@ export default function DepartmentHeadsPage() {
     return [{ value: "", label: poolsQuery.isLoading ? "Loading pools…" : "All pools" }, ...base];
   }, [poolsQuery.data, poolsQuery.isLoading]);
 
-  const assignDept = departmentId.trim();
-
-  const assignInternalUsersQuery = useUsersListQuery(
-    assignOpen && assignDept
-      ? { all: true, userType: "Internal", departmentId: assignDept }
+  const assignInternalDepartmentsQuery = useDepartmentsListQuery(
+    assignOpen && assignUserTypeFilter === "Internal" ? { all: true, type: "Internal" } : undefined,
+    { enabled: assignOpen && assignUserTypeFilter === "Internal", scope: "department-heads-assign-internal-departments" },
+  );
+  const assignResellersQuery = useCompaniesSetupResellersQuery({
+    enabled: assignOpen && assignUserTypeFilter === "External",
+  });
+  const assignParentCompaniesQuery = useCompaniesByResellerQuery(
+    assignResellerId.trim(),
+    { view: "tree", sortBy: "name", sortOrder: "asc", all: true },
+    { enabled: assignOpen && assignUserTypeFilter === "External" && Boolean(assignResellerId.trim()) },
+  );
+  const assignExternalDepartmentsQuery = useDepartmentsListQuery(
+    assignOpen && assignUserTypeFilter === "External" && assignResellerId.trim() && assignParentCompanyId.trim()
+      ? {
+          all: true,
+          type: "External",
+          resellerId: assignResellerId.trim(),
+          parentCompanyId: assignParentCompanyId.trim(),
+        }
       : undefined,
-    { enabled: assignOpen && Boolean(assignDept) },
+    {
+      enabled:
+        assignOpen &&
+        assignUserTypeFilter === "External" &&
+        Boolean(assignResellerId.trim()) &&
+        Boolean(assignParentCompanyId.trim()),
+      scope: "department-heads-assign-external-departments",
+    },
   );
-  const assignExternalUsersQuery = useUsersListQuery(
-    assignOpen && assignDept
-      ? { all: true, userType: "External", departmentId: assignDept }
+  const assignResellerOptions = useMemo(() => {
+    const base = pickItemsArray(assignResellersQuery.data)
+      .map(toIdNameOption)
+      .filter((o): o is { value: string; label: string } => o !== null);
+    return [{ value: "", label: assignResellersQuery.isLoading ? "Loading resellers..." : "— Select reseller —" }, ...base];
+  }, [assignResellersQuery.data, assignResellersQuery.isLoading]);
+  const assignParentCompanyOptions = useMemo(() => {
+    const base = extractParentCompaniesFromByResellerTree(assignParentCompaniesQuery.data);
+    return [
+      {
+        value: "",
+        label:
+          assignResellerId.trim().length === 0
+            ? "Select reseller first"
+            : assignParentCompaniesQuery.isLoading
+              ? "Loading parent companies..."
+              : "— Select parent company —",
+      },
+      ...base,
+    ];
+  }, [assignParentCompaniesQuery.data, assignParentCompaniesQuery.isLoading, assignResellerId]);
+  const assignDepartmentOptions = useMemo(() => {
+    const source = assignUserTypeFilter === "Internal" ? assignInternalDepartmentsQuery.data : assignExternalDepartmentsQuery.data;
+    const loading =
+      assignUserTypeFilter === "Internal"
+        ? assignInternalDepartmentsQuery.isLoading
+        : assignExternalDepartmentsQuery.isLoading;
+    const base = pickItemsArray(source)
+      .map(toIdNameOption)
+      .filter((o): o is { value: string; label: string } => o !== null);
+    const prompt =
+      assignUserTypeFilter === "External" && !assignParentCompanyId.trim()
+        ? "Select parent company first"
+        : loading
+          ? "Loading departments..."
+          : "— Select department —";
+    return [{ value: "", label: prompt }, ...base];
+  }, [
+    assignUserTypeFilter,
+    assignInternalDepartmentsQuery.data,
+    assignInternalDepartmentsQuery.isLoading,
+    assignExternalDepartmentsQuery.data,
+    assignExternalDepartmentsQuery.isLoading,
+    assignParentCompanyId,
+  ]);
+  const assignUsersQuery = useUsersListQuery(
+    assignOpen
+      ? {
+          all: true,
+          userType: assignUserTypeFilter,
+          ...(assignDepartmentId.trim() ? { departmentId: assignDepartmentId.trim() } : {}),
+          ...(assignUserTypeFilter === "External" && assignParentCompanyId.trim()
+            ? { parentCompanyId: assignParentCompanyId.trim() }
+            : {}),
+        }
       : undefined,
-    { enabled: assignOpen && Boolean(assignDept) },
+    {
+      enabled:
+        assignOpen &&
+        Boolean(assignDepartmentId.trim()) &&
+        (assignUserTypeFilter === "Internal" ||
+          (Boolean(assignResellerId.trim()) && Boolean(assignParentCompanyId.trim()))),
+    },
   );
-
-  const mergedAssignUserRows = useMemo((): UserRow[] => {
-    const int = extractUsersRows(assignInternalUsersQuery.data);
-    const ext = extractUsersRows(assignExternalUsersQuery.data);
-    const map = new Map<string, UserRow>();
-    for (const r of int) map.set(r.id, r);
-    for (const r of ext) map.set(r.id, r);
-    return Array.from(map.values());
-  }, [assignInternalUsersQuery.data, assignExternalUsersQuery.data]);
-
-  const filteredAssignUserRows = useMemo(() => {
-    if (assignUserTypeFilter === "all") return mergedAssignUserRows;
-    return mergedAssignUserRows.filter((r) => r.type === assignUserTypeFilter);
-  }, [mergedAssignUserRows, assignUserTypeFilter]);
-
-  const assignUsersLoading =
-    assignInternalUsersQuery.isLoading ||
-    assignInternalUsersQuery.isFetching ||
-    assignExternalUsersQuery.isLoading ||
-    assignExternalUsersQuery.isFetching;
-
-  const headsQuery = useDepartmentHeadsListQuery(
-    departmentId.trim() ? { departmentId: departmentId.trim(), all: true } : undefined,
-    { enabled: Boolean(departmentId.trim()), scope: "department-heads-list" },
+  const filteredAssignUserRows = useMemo(
+    () =>
+      extractUsersRows(assignUsersQuery.data).filter((row) =>
+        assignUserTypeFilter === "External"
+          ? row.parentCompanyId === assignParentCompanyId.trim()
+          : true,
+      ),
+    [assignUsersQuery.data, assignUserTypeFilter, assignParentCompanyId],
   );
+  const assignUsersLoading = assignUsersQuery.isLoading || assignUsersQuery.isFetching;
+
+  const headsParams = (
+    headsFiltersApplied || appliedHeadsSearch.trim()
+      ? {
+          all: true,
+          ...(headsFiltersApplied && appliedHeadsUserTypeFilter ? { type: appliedHeadsUserTypeFilter } : {}),
+          ...(headsFiltersApplied && appliedHeadsResellerId.trim() ? { resellerId: appliedHeadsResellerId.trim() } : {}),
+          ...(headsFiltersApplied && appliedHeadsParentCompanyId.trim() ? { parentCompanyId: appliedHeadsParentCompanyId.trim() } : {}),
+          ...(headsFiltersApplied && appliedHeadsDepartmentId.trim() ? { departmentId: appliedHeadsDepartmentId.trim() } : {}),
+          ...(appliedHeadsSearch.trim() ? { search: appliedHeadsSearch.trim() } : {}),
+        }
+      : { all: true }
+  ) as Parameters<typeof useDepartmentHeadsListQuery>[0];
+  const headsQuery = useDepartmentHeadsListQuery(headsParams, {
+    enabled: mode === "heads",
+    scope: "department-heads-list",
+  });
 
   const assignMutation = useAssignDepartmentHeadMutation();
   const removeMutation = useRemoveDepartmentHeadMutation();
@@ -232,10 +408,7 @@ export default function DepartmentHeadsPage() {
     [headItems],
   );
 
-  const typedHeadRows = useMemo(() => {
-    if (headsUserTypeFilter === "all") return mappedHeadRows;
-    return mappedHeadRows.filter((r) => r.userType === headsUserTypeFilter);
-  }, [mappedHeadRows, headsUserTypeFilter]);
+  const typedHeadRows = useMemo(() => mappedHeadRows, [mappedHeadRows]);
 
   const headRowsPaged = useMemo(() => {
     const start = (page - 1) * PAGE_LIMIT;
@@ -255,7 +428,7 @@ export default function DepartmentHeadsPage() {
     [theme],
   );
 
-  const attendanceQuery = useDepartmentHeadsAttendanceQuery(
+  const attendanceParams = (
     departmentId.trim()
       ? {
           departmentId: departmentId.trim(),
@@ -264,9 +437,17 @@ export default function DepartmentHeadsPage() {
           page: attendancePage,
           limit: PAGE_LIMIT,
         }
-      : undefined,
-    { enabled: mode === "attendance", scope: "department-heads-attendance" },
-  );
+      : {
+          page: attendancePage,
+          limit: PAGE_LIMIT,
+          ...(attendancePoolId.trim() ? { poolId: attendancePoolId.trim() } : {}),
+          ...(attendanceDate.trim() ? { date: attendanceDate.trim() } : {}),
+        }
+  ) as Parameters<typeof useDepartmentHeadsAttendanceQuery>[0];
+  const attendanceQuery = useDepartmentHeadsAttendanceQuery(attendanceParams, {
+    enabled: mode === "attendance",
+    scope: "department-heads-attendance",
+  });
 
   const attendanceItems = useMemo(() => extractItems(attendanceQuery.data), [attendanceQuery.data]);
   const attendanceRows = useMemo<AttendanceRow[]>(() => {
@@ -346,12 +527,35 @@ export default function DepartmentHeadsPage() {
     setAttendancePage(1);
     setAssignUserId("");
     setAttendancePoolId("");
-    setHeadsUserTypeFilter("all");
   }, [departmentId]);
 
   useEffect(() => {
-    setPage(1);
+    setHeadsDepartmentId("");
+    if (headsUserTypeFilter === "Internal") {
+      setHeadsResellerId("");
+      setHeadsParentCompanyId("");
+    }
   }, [headsUserTypeFilter]);
+
+  useEffect(() => {
+    setHeadsParentCompanyId("");
+    setHeadsDepartmentId("");
+  }, [headsResellerId]);
+
+  useEffect(() => {
+    setHeadsDepartmentId("");
+  }, [headsParentCompanyId]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [
+    headsFiltersApplied,
+    appliedHeadsUserTypeFilter,
+    appliedHeadsResellerId,
+    appliedHeadsParentCompanyId,
+    appliedHeadsDepartmentId,
+    appliedHeadsSearch,
+  ]);
 
   useEffect(() => {
     setPage((p) => (p > headsPageCount ? headsPageCount : p));
@@ -366,14 +570,75 @@ export default function DepartmentHeadsPage() {
     if (!filteredAssignUserRows.some((r) => r.id === assignUserId)) setAssignUserId("");
   }, [filteredAssignUserRows, assignUserId]);
 
+  useEffect(() => {
+    setAssignDepartmentId("");
+    setAssignUserId("");
+    if (assignUserTypeFilter === "Internal") {
+      setAssignResellerId("");
+      setAssignParentCompanyId("");
+    }
+  }, [assignUserTypeFilter]);
+
+  useEffect(() => {
+    setAssignParentCompanyId("");
+    setAssignDepartmentId("");
+    setAssignUserId("");
+  }, [assignResellerId]);
+
+  useEffect(() => {
+    setAssignDepartmentId("");
+    setAssignUserId("");
+  }, [assignParentCompanyId]);
+
   const footerRangeStart = headRowsPaged.length > 0 ? (page - 1) * PAGE_LIMIT + 1 : 0;
   const footerRangeEnd = (page - 1) * PAGE_LIMIT + headRowsPaged.length;
   const attendanceFooterStart = attendanceRows.length > 0 ? (attendancePage - 1) * PAGE_LIMIT + 1 : 0;
   const attendanceFooterEnd = (attendancePage - 1) * PAGE_LIMIT + attendanceRows.length;
 
   const clearAssignModal = () => {
+    setAssignDepartmentId("");
     setAssignUserId("");
-    setAssignUserTypeFilter("all");
+    setAssignUserTypeFilter("External");
+    setAssignResellerId("");
+    setAssignParentCompanyId("");
+  };
+
+  const applyHeadsFilters = () => {
+    setAppliedHeadsUserTypeFilter(headsUserTypeFilter);
+    setAppliedHeadsResellerId(headsResellerId.trim());
+    setAppliedHeadsParentCompanyId(headsParentCompanyId.trim());
+    setAppliedHeadsDepartmentId(headsDepartmentId.trim());
+    setHeadsFiltersApplied(true);
+  };
+
+  const clearHeadsFilters = () => {
+    setHeadsUserTypeFilter("Internal");
+    setHeadsResellerId("");
+    setHeadsParentCompanyId("");
+    setHeadsDepartmentId("");
+    setHeadsSearch("");
+    setAppliedHeadsUserTypeFilter(null);
+    setAppliedHeadsResellerId("");
+    setAppliedHeadsParentCompanyId("");
+    setAppliedHeadsDepartmentId("");
+    setHeadsFiltersApplied(false);
+  };
+
+  const applyHeadsSearch = () => {
+    setAppliedHeadsSearch(headsSearch.trim());
+  };
+
+  const handleHeadsSearchChange = (value: string) => {
+    setHeadsSearch(value);
+    if (value.trim().length === 0) {
+      // Search clear (X button) should reset to full department-heads data.
+      setAppliedHeadsSearch("");
+      setAppliedHeadsUserTypeFilter(null);
+      setAppliedHeadsResellerId("");
+      setAppliedHeadsParentCompanyId("");
+      setAppliedHeadsDepartmentId("");
+      setHeadsFiltersApplied(false);
+    }
   };
 
   return (
@@ -399,8 +664,11 @@ export default function DepartmentHeadsPage() {
           {mode === "heads" ? (
             <Button
               variant="primary"
-              onClick={() => setAssignOpen(true)}
-              disabled={!departmentId.trim() || !canAssignDeptHead || assignMutation.isPending}
+              onClick={() => {
+                setAssignDepartmentId(headsDepartmentId.trim());
+                setAssignOpen(true);
+              }}
+              disabled={!canAssignDeptHead || assignMutation.isPending}
             >
               Assign head
             </Button>
@@ -425,47 +693,92 @@ export default function DepartmentHeadsPage() {
             display: "grid",
             gridTemplateColumns: {
               xs: "1fr",
-              md: mode === "heads" ? "minmax(0,1fr)" : "minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) 180px",
+              md:
+                mode === "heads"
+                  ? "minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr)"
+                  : "minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) 180px",
             },
             gap: 1.5,
             mt: 2,
             alignItems: "end",
           }}
         >
-          <SelectField
-            label="Department"
-            value={departmentId}
-            onChange={setDepartmentId}
-            options={departmentOptions}
-            menuMaxRows={8}
-          />
-
-          {mode === "attendance" ? (
+          {mode === "heads" ? (
             <>
+              <SelectField
+                label="Users — type"
+                value={headsUserTypeFilter}
+                onChange={(v) => setHeadsUserTypeFilter(v as "Internal" | "External")}
+                options={[
+                  { value: "Internal", label: "Internal" },
+                  { value: "External", label: "External" },
+                ]}
+                menuMaxRows={4}
+              />
+              {headsUserTypeFilter === "External" ? (
+                <>
+                  <SelectField
+                    label="Reseller"
+                    value={headsResellerId}
+                    onChange={setHeadsResellerId}
+                    options={headsResellerOptions}
+                    menuMaxRows={8}
+                  />
+                  <SelectField
+                    label="Parent company"
+                    value={headsParentCompanyId}
+                    onChange={setHeadsParentCompanyId}
+                    options={headsParentCompanyOptions}
+                    menuMaxRows={8}
+                    disabled={!headsResellerId.trim()}
+                  />
+                </>
+              ) : null}
+              <SelectField
+                label="Department"
+                value={headsDepartmentId}
+                onChange={setHeadsDepartmentId}
+                options={headsDepartmentOptions}
+                menuMaxRows={8}
+                disabled={headsUserTypeFilter === "External" && !headsParentCompanyId.trim()}
+              />
+              <Box sx={{ display: "flex", gap: 1, justifyContent: "flex-end" }}>
+                <Button
+                  variant="secondary"
+                  onClick={applyHeadsFilters}
+                >
+                  Apply
+                </Button>
+                <Button variant="outlined" onClick={clearHeadsFilters}>
+                  Clear
+                </Button>
+              </Box>
+            </>
+          ) : (
+            <>
+              <SelectField
+                label="Department"
+                value={departmentId}
+                onChange={setDepartmentId}
+                options={departmentOptions}
+                menuMaxRows={8}
+              />
               <SelectField
                 label="Pool (optional)"
                 value={attendancePoolId}
                 onChange={setAttendancePoolId}
                 options={poolOptions}
                 menuMaxRows={8}
-                disabled={!departmentId.trim()}
               />
               <Calendar label="Date (UTC)" value={attendanceDate} onChange={setAttendanceDate} />
               <Button
                 variant="secondary"
-                disabled={!departmentId.trim()}
-                onClick={() => {
-                  if (!departmentId.trim()) {
-                    publishAppToast({ variant: "error", message: "Select a department first." });
-                    return;
-                  }
-                  publishAppToast({ variant: "success", message: "Attendance filters are applied to the table." });
-                }}
+                onClick={() => publishAppToast({ variant: "success", message: "Attendance filters are applied to the table." })}
               >
                 Apply
               </Button>
             </>
-          ) : null}
+          )}
         </Box>
       </DashboardCard>
 
@@ -483,30 +796,33 @@ export default function DepartmentHeadsPage() {
               {mode === "heads" ? "Department head assignments" : "Department attendance"}
             </Typography>
           </Box>
+          {mode === "heads" ? (
+            <Box sx={{ display: "flex", alignItems: "end", gap: 1, minWidth: { xs: "100%", md: 420 } }}>
+              <Box sx={{ flex: 1 }}>
+                <SearchBar
+                  placeholder="Name, email, department, reseller..."
+                  value={headsSearch}
+                  onChange={handleHeadsSearchChange}
+                  sx={{ width: "100%" }}
+                />
+              </Box>
+              <Button
+                type="button"
+                variant="primary"
+                disabled={headsSearch.trim() === appliedHeadsSearch.trim()}
+                onClick={applyHeadsSearch}
+                sx={{ minWidth: 120, whiteSpace: "nowrap" }}
+              >
+                <Box component="span" sx={{ display: "inline-flex", lineHeight: 0 }}>
+                  <SearchIcon width={18} height={18} sx={{ color: "inherit" }} />
+                </Box>
+                Search
+              </Button>
+            </Box>
+          ) : null}
         </Box>
 
-        {mode === "heads" && departmentId.trim() ? (
-          <Box sx={{ mt: 2, display: "flex", flexWrap: "wrap", alignItems: "center", gap: 2 }}>
-            <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted }}>
-              Heads — user type
-            </Typography>
-            <SegmentedControl
-              options={[
-                { value: "all", label: "All" },
-                { value: "Internal", label: "Internal" },
-                { value: "External", label: "External" },
-              ]}
-              value={headsUserTypeFilter}
-              onChange={(v) => setHeadsUserTypeFilter(v as "all" | "Internal" | "External")}
-            />
-          </Box>
-        ) : null}
-
-        {!departmentId.trim() && mode === "heads" ? (
-          <Typography variant="body2" sx={{ mt: 2, color: theme.app.dashboard.textMuted }}>
-            Select a department to load heads (GET /hrms/department-heads with departmentId and all=true).
-          </Typography>
-        ) : mode === "heads" ? (
+        {mode === "heads" ? (
           <DataTable<HeadRow>
             columns={headsColumns}
             rows={headRowsPaged}
@@ -539,10 +855,6 @@ export default function DepartmentHeadsPage() {
               },
             }}
           />
-        ) : !departmentId.trim() ? (
-          <Typography variant="body2" sx={{ mt: 2, color: theme.app.dashboard.textMuted }}>
-            Select a department to load attendance (GET /hrms/department-heads/attendance).
-          </Typography>
         ) : (
           <DataTable<AttendanceRow>
             columns={attendanceColumns}
@@ -556,21 +868,17 @@ export default function DepartmentHeadsPage() {
         <Box sx={rolesFooterRow}>
           <Typography variant="medium" sx={footerMutedText(theme)}>
             {mode === "heads"
-              ? !departmentId.trim()
-                ? "—"
-                : headsQuery.isLoading
-                  ? "Loading…"
-                  : `Showing data ${footerRangeStart} to ${footerRangeEnd} of ${headsTotal} entries`
-              : !departmentId.trim()
-                ? "—"
-                : attendanceQuery.isLoading
-                  ? "Loading…"
-                  : `Showing data ${attendanceFooterStart} to ${attendanceFooterEnd} of ${attendanceTotal} entries`}
+              ? headsQuery.isLoading
+                ? "Loading…"
+                : `Showing data ${footerRangeStart} to ${footerRangeEnd} of ${headsTotal} entries`
+              : attendanceQuery.isLoading
+                ? "Loading…"
+                : `Showing data ${attendanceFooterStart} to ${attendanceFooterEnd} of ${attendanceTotal} entries`}
           </Typography>
           <Box sx={rolesPaginationWrapper}>
-            {mode === "heads" && departmentId.trim() ? (
+            {mode === "heads" ? (
               <TablePagination page={page} pageCount={headsPageCount} onPageChange={setPage} />
-            ) : mode === "attendance" && departmentId.trim() ? (
+            ) : mode === "attendance" ? (
               <TablePagination
                 page={attendancePage}
                 pageCount={attendancePageCount}
@@ -592,10 +900,10 @@ export default function DepartmentHeadsPage() {
           clearAssignModal();
         }}
         onSave={() => {
-          const dept = departmentId.trim();
+          const dept = assignDepartmentId.trim();
           const user = assignUserId.trim();
           if (!dept) {
-            publishAppToast({ variant: "error", message: "Select a department on the page first." });
+            publishAppToast({ variant: "error", message: "Select a department in the assign dialog." });
             return;
           }
           if (!user) {
@@ -614,29 +922,53 @@ export default function DepartmentHeadsPage() {
             },
           );
         }}
-        primaryButtonDisabled={assignMutation.isPending || !canAssignDeptHead || !departmentId.trim() || !assignUserId.trim()}
+        primaryButtonDisabled={assignMutation.isPending || !canAssignDeptHead || !assignDepartmentId.trim() || !assignUserId.trim()}
         primaryButtonLabel={assignMutation.isPending ? "Assigning…" : "Assign"}
         cancelButtonLabel="Close"
         sx={{ borderRadius: 3 }}
       >
         <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
-          {!departmentId.trim() ? (
-            <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted }}>
-              Close this dialog, select a department above, then open Assign again.
-            </Typography>
-          ) : (
-            <>
-              <SelectField
-                label="Users — type"
-                value={assignUserTypeFilter}
-                onChange={(v) => setAssignUserTypeFilter(v as "all" | "Internal" | "External")}
-                options={[
-                  { value: "all", label: "Internal + External" },
-                  { value: "Internal", label: "Internal only" },
-                  { value: "External", label: "External only" },
-                ]}
-                menuMaxRows={4}
-              />
+          <>
+            <SelectField
+              label="Users — type"
+              value={assignUserTypeFilter}
+              onChange={(v) => setAssignUserTypeFilter(v as "Internal" | "External")}
+              options={[
+                { value: "Internal", label: "Internal" },
+                { value: "External", label: "External" },
+              ]}
+              menuMaxRows={4}
+            />
+            {assignUserTypeFilter === "External" ? (
+              <>
+                <SelectField
+                  label="Reseller"
+                  value={assignResellerId}
+                  onChange={setAssignResellerId}
+                  options={assignResellerOptions}
+                  menuMaxRows={8}
+                />
+                <SelectField
+                  label="Parent company"
+                  value={assignParentCompanyId}
+                  onChange={setAssignParentCompanyId}
+                  options={assignParentCompanyOptions}
+                  menuMaxRows={8}
+                  disabled={!assignResellerId.trim()}
+                />
+              </>
+            ) : null}
+            <SelectField
+              label="Department"
+              value={assignDepartmentId}
+              onChange={(v) => {
+                setAssignDepartmentId(v);
+                setAssignUserId("");
+              }}
+              options={assignDepartmentOptions}
+              menuMaxRows={8}
+              disabled={assignUserTypeFilter === "External" && !assignParentCompanyId.trim()}
+            />
               <TableContainer
                 sx={{
                   maxHeight: ASSIGN_USER_TABLE_MAX_PX,
@@ -779,13 +1111,12 @@ export default function DepartmentHeadsPage() {
                   </Table>
                 )}
               </TableContainer>
-              <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
-                <Button variant="outlined" onClick={clearAssignModal} disabled={assignMutation.isPending}>
-                  Clear selection
-                </Button>
-              </Box>
-            </>
-          )}
+            <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+              <Button variant="outlined" onClick={clearAssignModal} disabled={assignMutation.isPending}>
+                Clear selection
+              </Button>
+            </Box>
+          </>
         </Box>
       </FormModal>
     </Box>

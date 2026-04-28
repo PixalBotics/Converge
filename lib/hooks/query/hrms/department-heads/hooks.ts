@@ -6,7 +6,11 @@ import type { JsonRecord } from "@/api";
 import { hrmsDepartmentHeadsKeys } from "./keys";
 
 export type HrmsDepartmentHeadsListParams = {
-  departmentId: string;
+  departmentId?: string;
+  resellerId?: string;
+  parentCompanyId?: string;
+  type?: "Internal" | "External";
+  search?: string;
   page?: number;
   limit?: number;
   all?: boolean;
@@ -28,11 +32,10 @@ export function useDepartmentHeadsListQuery(
   const enabled = options?.enabled ?? true;
   const scope = options?.scope ?? "default";
   const req = params as unknown as JsonRecord | undefined;
-  const departmentId = (params?.departmentId ?? "").trim();
   return useQuery({
     queryKey: [...hrmsDepartmentHeadsKeys.list(req), scope] as const,
     queryFn: () => listDepartmentHeads(req),
-    enabled: enabled && departmentId.length > 0,
+    enabled,
     placeholderData: keepPreviousData,
   });
 }

@@ -8,7 +8,7 @@ import { Typography, DashboardCard, Button, InputField } from "@/components/comm
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
 import { rolesCard, rolesIconBox, rolesPageWrapper } from "../../roles/roles.styles";
 import { pageWrapper } from "../../companies/overview.styles";
-import { publishAppToast } from "@/lib/notify";
+import { extractApiErrorMessageForToast, publishAppToast } from "@/lib/notify";
 import { useAttendanceCheckInMutation, useAttendanceCheckOutMutation, useAttendanceMeQuery } from "@/lib/hooks/query";
 import { isRecord, unwrapApiData } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
@@ -72,7 +72,11 @@ export default function MarkAttendancePage() {
         onSuccess: () => {
           publishAppToast({ variant: "success", message: "Checked in." });
         },
-        onError: () => publishAppToast({ variant: "error", message: "Could not check in." }),
+        onError: (error) =>
+          publishAppToast({
+            variant: "error",
+            message: extractApiErrorMessageForToast(error) ?? "Could not check in.",
+          }),
       },
     );
   };
@@ -89,7 +93,11 @@ export default function MarkAttendancePage() {
         onSuccess: () => {
           publishAppToast({ variant: "success", message: "Checked out." });
         },
-        onError: () => publishAppToast({ variant: "error", message: "Could not check out." }),
+        onError: (error) =>
+          publishAppToast({
+            variant: "error",
+            message: extractApiErrorMessageForToast(error) ?? "Could not check out.",
+          }),
       },
     );
   };

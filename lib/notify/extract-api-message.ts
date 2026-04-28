@@ -185,16 +185,16 @@ export function extractApiErrorMessageForToast(error: unknown): string | null {
       return stringifyMessageFragment(error.message) ?? "Request failed";
     }
 
-    /** Per-field errors (e.g. `details.fields: [{ field, message }]`) — wizard shows under inputs. */
-    if (hasNestInlineFieldPayload(data)) {
-      return null;
-    }
-
     const top = readTopLevelMessage(data);
     if (top) return top;
 
     const nestedData = readNestedDataErrorMessage(data);
     if (nestedData) return nestedData;
+
+    /** Per-field-only errors (e.g. `details.fields`) with no top-level message. */
+    if (hasNestInlineFieldPayload(data)) {
+      return null;
+    }
 
     if (hasOnlyFieldStyleErrors(data)) {
       return null;

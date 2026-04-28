@@ -363,6 +363,12 @@ export default function PoolHeadsPage() {
       ? {
           all: true,
           userType: assignUserTypeFilter,
+          ...(assignUserTypeFilter === "External" && assignExternalResellerId.trim()
+            ? { resellerId: assignExternalResellerId.trim() }
+            : {}),
+          ...(assignUserTypeFilter === "External" && assignExternalParentCompanyId.trim()
+            ? { parentCompanyId: assignExternalParentCompanyId.trim() }
+            : {}),
           ...(assignDepartmentId.trim() ? { departmentId: assignDepartmentId.trim() } : {}),
           ...(assignPoolId.trim() ? { poolId: assignPoolId.trim() } : {}),
         }
@@ -370,8 +376,7 @@ export default function PoolHeadsPage() {
     {
       enabled:
         assignOpen &&
-        assignUserTypeFilter === "External" &&
-        Boolean(assignExternalParentCompanyId.trim()),
+        (assignUserTypeFilter !== "External" || Boolean(assignExternalParentCompanyId.trim())),
     },
   );
 
