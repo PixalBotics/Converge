@@ -77,7 +77,7 @@ export type PoolsPageViewProps = {
 export function PoolsPageView({ mode }: PoolsPageViewProps) {
   const theme = useTheme() as AppTheme;
   const isMembersHub = mode === "pool-members";
-  const { hasOperational, hasPage } = useAuth();
+  const { hasOperational, hasPage, user } = useAuth();
   const canCreatePool = canPoolAction(hasOperational, "create");
   const canUpdatePool = canPoolAction(hasOperational, "update");
   const canDeletePool = canPoolAction(hasOperational, "delete");
@@ -392,10 +392,6 @@ export function PoolsPageView({ mode }: PoolsPageViewProps) {
     setPoolNameField("");
   };
 
-  const handleCancelForm = () => {
-    resetForm();
-  };
-
   const resetCreatePoolModal = () => {
     setCreateDeptKind("Internal");
     setCreateModalResellerId("");
@@ -685,6 +681,7 @@ export function PoolsPageView({ mode }: PoolsPageViewProps) {
         <Box sx={{ mt: 2 }}>
           <UnifiedPoolMembersCard
             departmentId={departmentId}
+            sessionPoolId={user?.poolId}
             active={canListPoolMembers}
             canMove={canMovePoolMember}
             canRemove={canRemovePoolMember}

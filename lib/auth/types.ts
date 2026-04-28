@@ -4,6 +4,9 @@ export interface User {
   displayName: string;
   role: "admin" | "user" | "hr-admin" | "network-admin" | "manager";
   roleLabel?: string;
+  /** From `/auth/me` when the backend attaches HRMS pool scope to the user. */
+  poolId?: string;
+  poolName?: string;
 }
 
 export interface LoginCredentials {
