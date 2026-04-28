@@ -43,6 +43,16 @@ export async function getPendingLeaveDepartmentQueue(
   return data;
 }
 
+export async function getPendingLeaveTenantQueue(
+  params?: JsonRecord,
+): Promise<unknown> {
+  const { data } = await apiClient.get(
+    "/hrms/leave-applications/pending/tenant-queue",
+    { params },
+  );
+  return data;
+}
+
 export async function decideLeavePool(
   id: string,
   body: JsonRecord,
@@ -60,6 +70,17 @@ export async function decideLeaveDepartment(
 ): Promise<unknown> {
   const { data } = await apiClient.patch(
     `/hrms/leave-applications/${encodeURIComponent(id)}/decide-department`,
+    body,
+  );
+  return data;
+}
+
+export async function decideLeaveTenant(
+  id: string,
+  body: JsonRecord,
+): Promise<unknown> {
+  const { data } = await apiClient.patch(
+    `/hrms/leave-applications/${encodeURIComponent(id)}/decide-tenant`,
     body,
   );
   return data;

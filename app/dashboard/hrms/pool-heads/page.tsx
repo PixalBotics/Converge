@@ -133,29 +133,6 @@ function parseUserKind(raw: string | undefined): UserKind {
   return "—";
 }
 
-function hasExistingPoolHeadAssignment(row: Record<string, unknown>): boolean {
-  const boolish = (v: unknown) => v === true || v === "true" || v === 1 || v === "1";
-  if (
-    boolish(row["isPoolHead"]) ||
-    boolish(row["hasPoolHead"]) ||
-    boolish(row["isHeadPool"])
-  ) {
-    return true;
-  }
-  const directIds = [
-    "poolHeadId",
-    "pool_head_id",
-    "headPoolId",
-    "head_pool_id",
-    "poolHeadAssignmentId",
-    "pool_head_assignment_id",
-  ];
-  if (directIds.some((k) => String(row[k] ?? "").trim().length > 0)) return true;
-  const nestedHead = row["poolHead"];
-  if (isRecord(nestedHead) && String(nestedHead["id"] ?? "").trim().length > 0) return true;
-  return false;
-}
-
 function mapPoolHeadItem(r: Record<string, unknown>, idx: number): PoolHeadRow | null {
   const assignmentId = pickStr(r, ["id"]) || "";
   const user = isRecord(r["user"]) ? (r["user"] as Record<string, unknown>) : null;

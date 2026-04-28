@@ -4,10 +4,12 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tansta
 import {
   decideLeaveDepartment,
   decideLeavePool,
+  decideLeaveTenant,
   getLeaveQuotaSummary,
   getMyLeaveApplications,
   getPendingLeaveDepartmentQueue,
   getPendingLeavePoolQueue,
+  getPendingLeaveTenantQueue,
   submitLeaveApplication,
 } from "@/api";
 import type { JsonRecord } from "@/api";
@@ -76,6 +78,21 @@ export function usePendingLeaveDepartmentQueueQuery(
   });
 }
 
+export function usePendingLeaveTenantQueueQuery(
+  params: HrmsLeaveApplicationsListParams | undefined,
+  options?: { enabled?: boolean; scope?: string },
+) {
+  const scope = options?.scope ?? "default";
+  const enabled = options?.enabled ?? true;
+  const req = params as unknown as JsonRecord | undefined;
+  return useQuery({
+    queryKey: [...hrmsLeaveApplicationsKeys.pendingTenantQueue(req), scope] as const,
+    queryFn: () => getPendingLeaveTenantQueue(req),
+    enabled,
+    placeholderData: keepPreviousData,
+  });
+}
+
 export function useSubmitLeaveApplicationMutation() {
   const qc = useQueryClient();
   return useMutation({
@@ -100,6 +117,16 @@ export function useDecideLeaveDepartmentMutation() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (vars: { id: string; body: JsonRecord }) => decideLeaveDepartment(vars.id, vars.body),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: hrmsLeaveApplicationsKeys.all });
+    },
+  });
+}
+
+export function useDecideLeaveTenantMutation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (vars: { id: string; body: JsonRecord }) => decideLeaveTenant(vars.id, vars.body),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: hrmsLeaveApplicationsKeys.all });
     },

@@ -10,10 +10,12 @@ import { pageWrapper } from "../../companies/overview.styles";
 import { formatIsoDate, isRecord, pickNum, pickStr, unwrapApiData } from "@/lib/utils";
 import { publishAppToast } from "@/lib/notify";
 import {
+  useDecideLeaveTenantMutation,
   useDecideLeaveDepartmentMutation,
   useDecideLeavePoolMutation,
   usePendingLeaveDepartmentQueueQuery,
   usePendingLeavePoolQueueQuery,
+  usePendingLeaveTenantQueueQuery,
 } from "@/lib/hooks/query";
 import {
   approvalLeaveHeaderWrapSx,
@@ -40,10 +42,13 @@ export default function ApprovalLeavePage() {
   const canDeptReject = orgBypass || h(OP.hrms.leave.rejectDepartment);
   const canUsePoolQueue = canPoolApprove || canPoolReject || h(OP.hrms.leave.view);
   const canUseDepartmentQueue = canDeptApprove || canDeptReject || h(OP.hrms.leave.view);
+  const canTenantApprove = canDeptApprove;
+  const canTenantReject = canDeptReject;
+  const canUseTenantQueue = canTenantApprove || canTenantReject || h(OP.hrms.leave.view);
 
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
-  const [queue, setQueue] = useState<"pool" | "department">("pool");
+  const [queue, setQueue] = useState<"pool" | "department" | "tenant">("pool");
   const [decision, setDecision] = useState<LeaveDecision>(null);
 
   const sessionPoolId = user?.poolId?.trim() ?? "";
@@ -64,10 +69,15 @@ export default function ApprovalLeavePage() {
     { page, limit: PAGE_LIMIT, ...(search.trim() ? { search: search.trim() } : {}) },
     { enabled: queue === "department", scope: "approval-inbox" },
   );
+  const tenantQueueQuery = usePendingLeaveTenantQueueQuery(
+    { page, limit: PAGE_LIMIT, all: false, ...(search.trim() ? { search: search.trim() } : {}) },
+    { enabled: queue === "tenant" && canUseTenantQueue, scope: "approval-inbox" },
+  );
   const decidePoolMutation = useDecideLeavePoolMutation();
   const decideDeptMutation = useDecideLeaveDepartmentMutation();
+  const decideTenantMutation = useDecideLeaveTenantMutation();
 
-  const activeQuery = queue === "pool" ? poolQueueQuery : deptQueueQuery;
+  const activeQuery = queue === "pool" ? poolQueueQuery : queue === "department" ? deptQueueQuery : tenantQueueQuery;
   const payload = unwrapApiData(activeQuery.data);
   const payloadObj = isRecord(payload) ? payload : null;
   const items = useMemo(() => {
@@ -86,24 +96,25 @@ export default function ApprovalLeavePage() {
           "—";
         const startDate = formatIsoDate(pickStr(r, ["startDate", "effectiveFrom"]));
         const endDate = formatIsoDate(pickStr(r, ["endDate", "effectiveTo"]));
-        const stage = queue === "pool" ? "Pool review" : "Department review";
-        if (queue === "pool") {
-          const applicant = isRecord(r["user"]) ? (r["user"] as Record<string, unknown>) : null;
-          const poolNested =
-            applicant && isRecord(applicant["pool"]) ? (applicant["pool"] as Record<string, unknown>) : null;
-          const row: ApprovalLeaveRow = {
-            id,
-            leaveType,
-            startDate,
-            endDate,
-            stage,
-            applicantFirstName: pickStr(applicant, ["firstName"]) || "—",
-            applicantLastName: pickStr(applicant, ["lastName"]) || "—",
-            poolName: pickStr(applicant, ["poolName"]) || pickStr(poolNested, ["name"]) || "—",
-          };
-          return row;
-        }
-        return { id, leaveType, startDate, endDate, stage };
+        const stage = queue === "pool" ? "Pool review" : queue === "department" ? "Department review" : "Tenant review";
+        const applicant = isRecord(r["user"]) ? (r["user"] as Record<string, unknown>) : null;
+        const poolNested =
+          applicant && isRecord(applicant["pool"]) ? (applicant["pool"] as Record<string, unknown>) : null;
+        const departmentNested =
+          applicant && isRecord(applicant["department"]) ? (applicant["department"] as Record<string, unknown>) : null;
+        const row: ApprovalLeaveRow = {
+          id,
+          leaveType,
+          startDate,
+          endDate,
+          stage,
+          applicantFirstName: pickStr(applicant, ["firstName"]) || "—",
+          applicantLastName: pickStr(applicant, ["lastName"]) || "—",
+          departmentName:
+            pickStr(applicant, ["departmentName"]) || pickStr(departmentNested, ["name"]) || "—",
+          poolName: pickStr(applicant, ["poolName"]) || pickStr(poolNested, ["name"]) || "—",
+        };
+        return row;
       })
       .filter((x): x is ApprovalLeaveRow => x !== null);
   }, [items, queue]);
@@ -124,8 +135,11 @@ export default function ApprovalLeavePage() {
 
   useEffect(() => {
     if (queue === "pool" && !canUsePoolQueue && canUseDepartmentQueue) setQueue("department");
+    else if (queue === "department" && !canUseDepartmentQueue && canUseTenantQueue) setQueue("tenant");
     else if (queue === "department" && !canUseDepartmentQueue && canUsePoolQueue) setQueue("pool");
-  }, [canUseDepartmentQueue, canUsePoolQueue, queue]);
+    else if (queue === "tenant" && !canUseTenantQueue && canUseDepartmentQueue) setQueue("department");
+    else if (queue === "tenant" && !canUseTenantQueue && canUsePoolQueue) setQueue("pool");
+  }, [canUseDepartmentQueue, canUsePoolQueue, canUseTenantQueue, queue]);
 
   useEffect(() => {
     setPage((prev) => (prev > pageCount ? pageCount : prev));
@@ -142,7 +156,12 @@ export default function ApprovalLeavePage() {
             { id: "applicantLastName", label: "Last name" },
             { id: "poolName", label: "Pool" },
           ] as DataTableColumn<ApprovalLeaveRow>[])
-        : []),
+        : ([
+            { id: "applicantFirstName", label: "First name" },
+            { id: "applicantLastName", label: "Last name" },
+            { id: "departmentName", label: "Department name" },
+            { id: "poolName", label: "Pool name" },
+          ] as DataTableColumn<ApprovalLeaveRow>[])),
       { id: "leaveType", label: "Leave Type" },
       { id: "startDate", label: "Start" },
       { id: "endDate", label: "End" },
@@ -189,23 +208,29 @@ export default function ApprovalLeavePage() {
         onApprove={(id) => setDecision({ id, action: "approve" })}
         onReject={(id) => setDecision({ id, action: "reject" })}
         canApprove={queue === "pool" ? canPoolApprove : canDeptApprove}
-        canReject={queue === "pool" ? canPoolReject : canDeptReject}
+        canReject={queue === "pool" ? canPoolReject : queue === "department" ? canDeptReject : canTenantReject}
         canUsePoolQueue={canUsePoolQueue}
         canUseDepartmentQueue={canUseDepartmentQueue}
+        canUseTenantQueue={canUseTenantQueue}
       />
 
       <LeaveDecisionModal
         decision={decision}
-        isLoading={decidePoolMutation.isPending || decideDeptMutation.isPending}
+        isLoading={decidePoolMutation.isPending || decideDeptMutation.isPending || decideTenantMutation.isPending}
         onDismiss={() => {
-          if (decidePoolMutation.isPending || decideDeptMutation.isPending) return;
+          if (decidePoolMutation.isPending || decideDeptMutation.isPending || decideTenantMutation.isPending) return;
           setDecision(null);
         }}
         onConfirm={() => {
           const d = decision;
           if (!d) return;
           const status = d.action === "approve" ? "approved" : "rejected";
-          const mutate = queue === "pool" ? decidePoolMutation : decideDeptMutation;
+          const mutate =
+            queue === "pool"
+              ? decidePoolMutation
+              : queue === "department"
+                ? decideDeptMutation
+                : decideTenantMutation;
           mutate.mutate(
             { id: d.id, body: { status } },
             {
