@@ -62,6 +62,7 @@ type HeadRow = {
   id: string;
   userName: string;
   userEmail: string;
+  userType: UserKind;
   parentCompanyName: string;
   departmentId: string;
   departmentName: string;
@@ -133,7 +134,16 @@ function mapDepartmentHeadItem(r: Record<string, unknown>, idx: number): HeadRow
   const departmentName = pickStr(dept, ["name"]) || pickStr(r, ["departmentName"]) || "—";
   const id = assignmentId || `dh-${idx}`;
   if (!id) return null;
-  return { id, userName: name, userEmail: email, parentCompanyName, departmentId, departmentName };
+  const userType = parseUserKind(pickStr(user, ["userType"]));
+  return {
+    id,
+    userName: name,
+    userEmail: email,
+    userType,
+    parentCompanyName,
+    departmentId,
+    departmentName,
+  };
 }
 
 export default function DepartmentHeadsPage() {
@@ -250,7 +260,7 @@ export default function DepartmentHeadsPage() {
       { id: "userName", label: "User" },
       { id: "userEmail", label: "Email" },
     ],
-    [theme],
+    [],
   );
 
   const attendanceQuery = useDepartmentHeadsAttendanceQuery(

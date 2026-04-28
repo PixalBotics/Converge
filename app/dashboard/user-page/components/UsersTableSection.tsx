@@ -147,7 +147,7 @@ export function UsersTableSection(props: Props) {
       { id: "role", label: "Role", cellVariant: "default" },
       { id: "company", label: "Reseller", cellVariant: "default" },
     ],
-    [theme, canEditUser, canUseLoginAs, canDeleteUser, authUser?.id, loginAsMutation, onEditUser],
+    [theme],
   );
 
   const handleCloseDeleteModal = () => {

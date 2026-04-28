@@ -39,7 +39,7 @@ import { canRoleAction } from "@/lib/permissions";
 export default function RolesPage() {
   const theme = useTheme() as AppTheme;
   const { hasOperational } = useAuth();
-  const canMutateRoles = canRoleAction(hasOperational, "create");
+  const canMutateRoles = canRoleAction(hasOperational);
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);

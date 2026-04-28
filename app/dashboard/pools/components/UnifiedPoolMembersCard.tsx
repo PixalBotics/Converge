@@ -49,12 +49,20 @@ const PAGE_LIMIT = 10;
 
 export type UnifiedPoolMembersCardProps = {
   departmentId: string;
+  /** Current user's pool from `/auth/me` — forwarded to GET `/hrms/pool-members`. */
+  sessionPoolId?: string;
   active: boolean;
   canMove: boolean;
   canRemove: boolean;
 };
 
-export function UnifiedPoolMembersCard({ departmentId, active, canMove, canRemove }: UnifiedPoolMembersCardProps) {
+export function UnifiedPoolMembersCard({
+  departmentId,
+  sessionPoolId,
+  active,
+  canMove,
+  canRemove,
+}: UnifiedPoolMembersCardProps) {
   const theme = useTheme() as AppTheme;
   const dept = departmentId.trim();
 
@@ -64,6 +72,7 @@ export function UnifiedPoolMembersCard({ departmentId, active, canMove, canRemov
 
   const { mergedRows, total, totalPages, isLoading, isFetching } = useDepartmentPoolMembersMerged(
     dept,
+    sessionPoolId,
     active,
     {
       search: appliedSearch.trim() || undefined,

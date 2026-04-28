@@ -18,6 +18,8 @@ export type HrmsLeaveApplicationsListParams = {
   limit?: number;
   all?: boolean;
   search?: string;
+  /** Scoped pool for HRMS list endpoints (from `/auth/me` user.pool / poolId). */
+  poolId?: string;
 };
 
 export function useMyLeaveApplicationsQuery(params: HrmsLeaveApplicationsListParams | undefined, options?: { enabled?: boolean; scope?: string }) {

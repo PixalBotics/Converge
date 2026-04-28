@@ -585,17 +585,6 @@ export function getVisibleDashboardNavItems(opts: {
   });
 }
 
-function firstLeafHref(item: DashboardNavItem): string | null {
-  if (item.children?.length) {
-    for (const ch of item.children) {
-      const h = firstLeafHref(ch);
-      if (h) return h;
-    }
-    return null;
-  }
-  return item.href;
-}
-
 /** Depth-first sidebar order: parent-only hrefs (e.g. group rows) are skipped when they have children. */
 function collectNavLeafHrefsInOrder(items: DashboardNavItem[]): string[] {
   const out: string[] = [];
