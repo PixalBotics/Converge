@@ -103,6 +103,7 @@ export function UsersSidebar({
         }}
       >
         <ListItemText
+          secondaryTypographyProps={{ component: "div" }}
           primary={
             <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1 }}>
               <Typography variant="body2" sx={{ color: "white", fontWeight: 650 }} noWrap>

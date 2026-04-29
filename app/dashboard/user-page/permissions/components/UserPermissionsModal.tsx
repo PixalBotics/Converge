@@ -27,9 +27,20 @@ function asStringArray(v: unknown): string[] {
     .filter((x) => x.length > 0);
 }
 
+function flattenPermissionNamesByType(v: unknown): string[] {
+  if (!isRecord(v)) return [];
+  const out: string[] = [];
+  for (const value of Object.values(v)) {
+    out.push(...asStringArray(value));
+  }
+  return out;
+}
+
 function extractUserOverrides(payload: unknown): { allowed: string[]; denied: string[] } {
   const data = unwrapApiData(payload);
   const obj = isRecord(data) ? (data as Record<string, unknown>) : null;
+  const allowedByType = flattenPermissionNamesByType(obj?.["allowedPermissionNamesByType"]);
+  const deniedByType = flattenPermissionNamesByType(obj?.["deniedPermissionNamesByType"]);
   const permissionNames =
     asStringArray(obj?.["permissionNames"]) ||
     asStringArray(obj?.["permissions"]) ||
@@ -43,8 +54,9 @@ function extractUserOverrides(payload: unknown): { allowed: string[]; denied: st
     asStringArray(obj?.["deniedPermissions"]) ||
     asStringArray(obj?.["denied"]);
   return {
-    allowed: Array.from(new Set([...permissionNames, ...allowed])).sort(),
-    denied: Array.from(new Set(denied)).sort(),
+    // Prefer new API shape (`*ByType`) but keep backward compatibility with legacy fields.
+    allowed: Array.from(new Set([...allowedByType, ...permissionNames, ...allowed])).sort(),
+    denied: Array.from(new Set([...deniedByType, ...denied])).sort(),
   };
 }
 

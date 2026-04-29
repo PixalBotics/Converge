@@ -64,6 +64,8 @@ function toUserRow(value: unknown): UserRow | null {
     type: String(row.userType ?? "External") === "Internal" ? "Internal" : "External",
     department: departmentName || "—",
     role: roleName || "—",
+    reseller: resellerName || "-",
+    parentCompany: parentCompanyName || "-",
     company: resellerName || parentCompanyName || "-",
     ...(resellerId ? { resellerId } : {}),
     ...(parentCompanyId ? { parentCompanyId } : {}),

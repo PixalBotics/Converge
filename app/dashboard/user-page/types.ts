@@ -7,6 +7,8 @@ export interface UserRow extends Record<string, unknown> {
   department: string;
   role: string;
   company: string;
+  reseller: string;
+  parentCompany: string;
   /** UUID when API exposes it (external / tenant scoping). */
   resellerId?: string;
   /** UUID when API exposes it. */

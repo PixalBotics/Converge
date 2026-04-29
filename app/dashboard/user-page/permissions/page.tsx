@@ -14,7 +14,7 @@ import { footerMutedText } from "@/app/dashboard/companies/overview.styles";
 import { AttachMoney as AttachMoneyIcon } from "@mui/icons-material";
 import { UserPermissionsModal } from "./components";
 import { useUsersListQuery } from "@/lib/hooks/query";
-import { isRecord, pickStr, unwrapApiData } from "@/lib/utils";
+import { extractUsersRows } from "@/app/dashboard/user-page/utils";
 
 export default function UserPermissionsPage() {
   const theme = useTheme() as AppTheme;
@@ -27,39 +27,17 @@ export default function UserPermissionsPage() {
   // Fetch all users once and filter locally for richer name search (first/middle/last).
   const usersQuery = useUsersListQuery({ all: true }, { enabled: true });
 
-  const usersPayload = unwrapApiData(usersQuery.data);
-  const usersObj = isRecord(usersPayload) ? (usersPayload as Record<string, unknown>) : null;
-  const usersItems = useMemo(() => {
-    const arr = Array.isArray(usersObj?.["items"]) ? (usersObj?.["items"] as unknown[]) : Array.isArray(usersPayload) ? (usersPayload as unknown[]) : [];
-    return arr.filter(isRecord);
-  }, [usersObj, usersPayload]);
-
   const normalizedRows = useMemo(() => {
-    return usersItems
-      .map((r) => {
-        const id = pickStr(r, ["id"]);
-        if (!id) return null;
-        const firstName = pickStr(r, ["firstName"]) || "";
-        const middleName = pickStr(r, ["middleName"]) || "";
-        const lastName = pickStr(r, ["lastName"]) || "";
-        const fallbackName = pickStr(r, ["name", "fullName", "userName"]) || "";
-        const email = pickStr(r, ["email"]) || "";
-        const displayName =
-          [firstName, middleName, lastName].filter(Boolean).join(" ").trim() ||
-          fallbackName.trim() ||
-          "—";
-        return {
-          id,
-          displayName,
-          email: email || "—",
-          firstName,
-          middleName,
-          lastName,
-        };
-      })
-      .filter((x): x is { id: string; displayName: string; email: string; firstName: string; middleName: string; lastName: string } => x !== null)
+    return extractUsersRows(usersQuery.data)
+      .map((u) => ({
+        id: u.id,
+        displayName: u.user || "—",
+        email: u.email || "—",
+        reseller: u.reseller || "—",
+        parentCompany: u.parentCompany || "—",
+      }))
       .sort((a, b) => a.displayName.localeCompare(b.displayName, undefined, { sensitivity: "base" }));
-  }, [usersItems]);
+  }, [usersQuery.data]);
 
   const filteredRows = useMemo(() => {
     const q = appliedSearch.trim().toLowerCase();
@@ -67,8 +45,9 @@ export default function UserPermissionsPage() {
     const includes = (v: string) => v.toLowerCase().includes(q);
     return normalizedRows.filter((u) => {
       if (includes(u.displayName)) return true;
-      if (includes(u.firstName) || includes(u.middleName) || includes(u.lastName)) return true;
       if (u.email !== "—" && includes(u.email)) return true;
+      if (u.reseller !== "—" && includes(u.reseller)) return true;
+      if (u.parentCompany !== "—" && includes(u.parentCompany)) return true;
       return false;
     });
   }, [normalizedRows, appliedSearch]);
@@ -83,16 +62,20 @@ export default function UserPermissionsPage() {
       id: u.id,
       name: u.displayName,
       email: u.email,
+      reseller: u.reseller,
+      parentCompany: u.parentCompany,
     }));
   }, [clampedPage, filteredRows]);
 
   const footerRangeStart = rows.length > 0 ? (clampedPage - 1) * PAGE_SIZE + 1 : 0;
   const footerRangeEnd = (clampedPage - 1) * PAGE_SIZE + rows.length;
 
-  const columns = useMemo<DataTableColumn<{ id: string; name: string; email: string }>[]>(
+  const columns = useMemo<DataTableColumn<{ id: string; name: string; email: string; reseller: string; parentCompany: string }>[]>(
     () => [
       { id: "name", label: "User" },
       { id: "email", label: "Email" },
+      { id: "reseller", label: "Reseller" },
+      { id: "parentCompany", label: "Parent company" },
     ],
     [],
   );
@@ -148,7 +131,7 @@ export default function UserPermissionsPage() {
           </Box>
 
           <Box sx={{ mt: 2 }}>
-            <DataTable<{ id: string; name: string; email: string }>
+            <DataTable<{ id: string; name: string; email: string; reseller: string; parentCompany: string }>
               columns={columns}
               rows={rows}
               isLoading={usersQuery.isLoading || usersQuery.isFetching}
