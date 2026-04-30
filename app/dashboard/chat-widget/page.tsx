@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Add from "@mui/icons-material/Add";
 import ChatRounded from "@mui/icons-material/ChatRounded";
+import SendRounded from "@mui/icons-material/SendRounded";
 import CloseRounded from "@mui/icons-material/CloseRounded";
 import MoreVert from "@mui/icons-material/MoreVert";
 import Box from "@mui/material/Box";
@@ -35,6 +36,7 @@ import {
   integrationsSearchRow,
   integrationsSectionIconBox,
 } from "../integrations/integrations.styles";
+import { LauncherPresetIcon } from "@/lib/chat-widget/launcherIcons";
 import { readWidgetDraft, type WidgetDraft } from "@/lib/chat-widget/widgetDraft";
 
 interface WidgetRow extends Record<string, unknown> {
@@ -69,6 +71,10 @@ const TABLE_ROWS: WidgetRow[] = Array.from({ length: 18 }, (_, i) => ({
   status: "Active",
   scriptStatus: "Installed",
 }));
+
+const WIDGET_LAUNCHER_SIZE_PX = 58;
+const WIDGET_PANEL_ABOVE_LAUNCHER_PX = 70;
+const WIDGET_WELCOME_ABOVE_LAUNCHER_PX = 76;
 
 export default function ChatWidgetPage() {
   const router = useRouter();
@@ -174,6 +180,60 @@ export default function ChatWidgetPage() {
         <ChatRounded sx={{ color: "#64748B", fontSize: Math.max(14, size - 12) }} />
       </Box>
     );
+
+  const renderWidgetLauncherGraphic = (sizePx: number) => {
+    if (!widgetDraft) return null;
+    if (widgetDraft.iconDataUrl) {
+      return <Box component="img" src={widgetDraft.iconDataUrl} alt="Widget icon" sx={{ width: sizePx, height: sizePx, objectFit: "contain" }} />;
+    }
+    if (widgetDraft.launcherIconPreset) {
+      return <LauncherPresetIcon presetId={widgetDraft.launcherIconPreset} color={widgetDraft.iconColor} fontSizePx={sizePx} />;
+    }
+    return <ChatRounded sx={{ color: "inherit", fontSize: sizePx }} />;
+  };
+
+  const isVideoBanner =
+    widgetDraft?.bannerMediaType === "video" ||
+    (widgetDraft?.bannerDataUrl?.startsWith("data:video/") ?? false);
+
+  const launcherLayout = useMemo(() => {
+    if (!widgetDraft?.completed) return null;
+    const bottom = widgetDraft.launcherInsetBottomPx;
+    const side = widgetDraft.launcherInsetSidePx;
+    const pos = widgetDraft.buttonPosition;
+
+    const stackBottomPx = bottom + WIDGET_PANEL_ABOVE_LAUNCHER_PX;
+    const welcomeBottomPx = bottom + WIDGET_WELCOME_ABOVE_LAUNCHER_PX;
+
+    const horizontalFab =
+      pos === "left"
+        ? { left: side, right: "auto", transform: "none" }
+        : pos === "right"
+          ? { right: side, left: "auto", transform: "none" }
+          : {
+              left: "50%",
+              right: "auto",
+              transform: `translateX(calc(-50% + ${side}px))`,
+            };
+
+    const welcomeHorizontal =
+      pos === "left"
+        ? { left: Math.max(12, side - 8), right: "auto", transform: "none" }
+        : pos === "right"
+          ? { right: Math.max(12, side - 8), left: "auto", transform: "none" }
+          : {
+              left: "50%",
+              right: "auto",
+              transform: `translateX(calc(-50% + ${side}px))`,
+            };
+
+    return { bottom, horizontalFab, stackBottomPx, welcomeBottomPx, welcomeHorizontal, pos, side };
+  }, [
+    widgetDraft?.completed,
+    widgetDraft?.launcherInsetBottomPx,
+    widgetDraft?.launcherInsetSidePx,
+    widgetDraft?.buttonPosition,
+  ]);
 
   const filteredRows = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -339,12 +399,12 @@ export default function ChatWidgetPage() {
 
       {widgetDraft?.completed ? (
         <>
-          {welcomePopupOpen && !previewOpen ? (
+          {welcomePopupOpen && !previewOpen && launcherLayout ? (
             <Box
               sx={{
+                ...launcherLayout.welcomeHorizontal,
                 position: "fixed",
-                right: 20,
-                bottom: 104,
+                bottom: launcherLayout.welcomeBottomPx,
                 width: { xs: "calc(100vw - 24px)", sm: 280 },
                 maxWidth: 280,
                 bgcolor: "#FFFFFF",
@@ -394,13 +454,13 @@ export default function ChatWidgetPage() {
             </Box>
           ) : null}
 
-          {previewOpen ? (
+          {previewOpen && launcherLayout ? (
             <Box
               ref={previewPanelRef}
               sx={{
+                ...launcherLayout.horizontalFab,
                 position: "fixed",
-                right: 28,
-                bottom: 98,
+                bottom: launcherLayout.stackBottomPx,
                 width: `${Math.max(280, Math.min(520, widgetDraft.boxWidth))}px`,
                 height: `${Math.max(320, Math.min(640, widgetDraft.boxHeight))}px`,
                 zIndex: 1200,
@@ -461,12 +521,25 @@ export default function ChatWidgetPage() {
                   }}
                 >
                   {widgetDraft.bannerOn && widgetDraft.bannerDataUrl ? (
-                    <Box
-                      component="img"
-                      src={widgetDraft.bannerDataUrl}
-                      alt="Widget banner"
-                      sx={{ width: "100%", height: 120, objectFit: "cover", borderRadius: 2 }}
-                    />
+                    isVideoBanner ? (
+                      <Box
+                        component="video"
+                        src={widgetDraft.bannerDataUrl}
+                        muted
+                        autoPlay
+                        loop
+                        playsInline
+                        controls
+                        sx={{ width: "100%", height: 120, objectFit: "cover", borderRadius: 2, bgcolor: "#000000" }}
+                      />
+                    ) : (
+                      <Box
+                        component="img"
+                        src={widgetDraft.bannerDataUrl}
+                        alt="Widget banner"
+                        sx={{ width: "100%", height: 120, objectFit: "cover", borderRadius: 2 }}
+                      />
+                    )
                   ) : null}
 
                   {messages.map((message) =>
@@ -523,11 +596,7 @@ export default function ChatWidgetPage() {
                     },
                   }}
                 >
-                  {widgetDraft.iconDataUrl ? (
-                    <Box component="img" src={widgetDraft.iconDataUrl} alt="Widget icon" sx={{ width: 20, height: 20, objectFit: "contain" }} />
-                  ) : (
-                    <ChatRounded sx={{ color: widgetDraft.buttonColor, fontSize: 20 }} />
-                  )}
+                  <Box sx={{ color: widgetDraft.iconColor, display: "flex", alignItems: "center" }}>{renderWidgetLauncherGraphic(20)}</Box>
                   <Box
                     component="input"
                     value={chatInput}
@@ -553,45 +622,45 @@ export default function ChatWidgetPage() {
                       },
                     }}
                   />
-                  <Typography
-                    variant="body2"
+                  <IconButton
+                    type="button"
+                    aria-label="Send message"
                     onClick={handleSendMessage}
+                    size="small"
                     sx={{
-                      color: "#FFFFFF",
-                      fontWeight: 700,
-                      cursor: "pointer",
-                      userSelect: "none",
                       bgcolor: widgetDraft.buttonColor,
-                      px: 1.15,
-                      py: 0.55,
-                      borderRadius: "10px",
-                      lineHeight: 1.1,
+                      color: "#FFFFFF",
+                      width: 42,
+                      height: 42,
+                      flexShrink: 0,
                       transition: "transform 0.2s ease, filter 0.2s ease",
                       "&:hover": {
+                        bgcolor: widgetDraft.buttonHoverColor || widgetDraft.buttonColor,
                         transform: "translateY(-1px)",
                         filter: "brightness(1.06)",
                       },
                     }}
                   >
-                    {widgetDraft.startChatLabel}
-                  </Typography>
+                    <SendRounded sx={{ fontSize: 22 }} />
+                  </IconButton>
                 </Box>
               </Box>
             </Box>
           ) : null}
 
+          {launcherLayout ? (
           <Box
             ref={previewToggleRef}
             role="button"
             aria-label={previewOpen ? "Close widget preview" : "Open widget preview"}
             onClick={() => setPreviewOpen((prev) => !prev)}
             sx={{
+              ...launcherLayout.horizontalFab,
               position: "fixed",
-              right: 28,
-              bottom: 28,
+              bottom: launcherLayout.bottom,
               zIndex: 1201,
-              width: 58,
-              height: 58,
+              width: WIDGET_LAUNCHER_SIZE_PX,
+              height: WIDGET_LAUNCHER_SIZE_PX,
               borderRadius: getButtonRadius(widgetDraft.buttonShape),
               bgcolor: widgetDraft.buttonColor,
               color: widgetDraft.iconColor,
@@ -603,7 +672,14 @@ export default function ChatWidgetPage() {
               transition: "transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease",
               "&:hover": {
                 bgcolor: widgetDraft.buttonHoverColor || widgetDraft.buttonColor,
-                transform: "translateY(-2px) scale(1.05)",
+                ...(launcherLayout.pos === "center"
+                  ? {
+                      transform:
+                        launcherLayout.side !== 0
+                          ? `translate(calc(-50% + ${launcherLayout.side}px), -2px) scale(1.05)`
+                          : "translate(-50%, -2px) scale(1.05)",
+                    }
+                  : { transform: "translateY(-2px) scale(1.05)" }),
                 boxShadow: "0 20px 42px rgba(2, 12, 43, 0.62), 0 0 0 4px rgba(255, 255, 255, 0.14)",
                 filter: "brightness(1.05)",
               },
@@ -611,12 +687,11 @@ export default function ChatWidgetPage() {
           >
             {previewOpen ? (
               <CloseRounded sx={{ color: "inherit", fontSize: 30 }} />
-            ) : widgetDraft.iconDataUrl ? (
-              <Box component="img" src={widgetDraft.iconDataUrl} alt="Widget icon" sx={{ width: 28, height: 28, objectFit: "contain" }} />
             ) : (
-              <ChatRounded sx={{ color: "inherit", fontSize: 28 }} />
+              renderWidgetLauncherGraphic(28)
             )}
           </Box>
+          ) : null}
         </>
       ) : null}
     </Box>
