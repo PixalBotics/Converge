@@ -4,7 +4,9 @@ import { useRef, useState, type ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
 import CloudUploadOutlined from "@mui/icons-material/CloudUploadOutlined";
 import ChatRounded from "@mui/icons-material/ChatRounded";
+import SendRounded from "@mui/icons-material/SendRounded";
 import Box from "@mui/material/Box";
+import IconButton from "@mui/material/IconButton";
 import Switch from "@mui/material/Switch";
 import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
@@ -23,9 +25,9 @@ export default function ChatWidgetBoxDesignPage() {
   const [textColor, setTextColor] = useState("#d62cad");
   const [bannerFileName, setBannerFileName] = useState("");
   const [bannerDataUrl, setBannerDataUrl] = useState("");
+  const [bannerMediaType, setBannerMediaType] = useState<"image" | "video">("image");
   const [companyLogo, setCompanyLogo] = useState("veinso");
   const [greetingMessage, setGreetingMessage] = useState("Welcome to Florida Luxurious. Tell me your budget, location, and property type preference.");
-  const [startChatLabel, setStartChatLabel] = useState("Send");
   const [sendPlaceholder, setSendPlaceholder] = useState("Ask about location, budget, or options...");
   const [boxWidth, setBoxWidth] = useState("350");
   const [boxHeight, setBoxHeight] = useState("430");
@@ -47,6 +49,7 @@ export default function ChatWidgetBoxDesignPage() {
     const file = event.target.files?.[0];
     if (!file) return;
     setBannerFileName(file.name);
+    setBannerMediaType(file.type.startsWith("video/") ? "video" : "image");
     const reader = new FileReader();
     reader.onload = () => setBannerDataUrl(typeof reader.result === "string" ? reader.result : "");
     reader.readAsDataURL(file);
@@ -63,10 +66,10 @@ export default function ChatWidgetBoxDesignPage() {
       buttonColor: buttonColor || "#1ed760",
       textColor: textColor || "#FFFFFF",
       greetingMessage,
-      startChatLabel,
       sendPlaceholder,
       bannerOn,
       bannerDataUrl,
+      bannerMediaType,
       boxWidth: safeWidth,
       boxHeight: safeHeight,
     });
@@ -194,15 +197,12 @@ export default function ChatWidgetBoxDesignPage() {
           <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted }}>{bannerFileName || "Max 10 MB files are allowed"}</Typography>
         </Box>
       ) : null}
-      <Box component="input" ref={bannerUploadRef} type="file" accept=".png,.jpg,.jpeg,.webp,.gif" onChange={handleBannerUpload} sx={{ display: "none" }} />
+      <Box component="input" ref={bannerUploadRef} type="file" accept=".png,.jpg,.jpeg,.webp,.gif,.mp4,.webm,.ogg,.mov" onChange={handleBannerUpload} sx={{ display: "none" }} />
 
       <Typography variant="mediumLarge" sx={{ color: theme.app.text.primary, mb: -1.25 }}>Text & Labels</Typography>
       <InputField label="Greeting Message" name="greeting-message" value={greetingMessage} onChange={(event) => setGreetingMessage(event.target.value)} />
 
-      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 1.5 }}>
-        <InputField label="Start Chat Button Label" name="start-chat" value={startChatLabel} onChange={(event) => setStartChatLabel(event.target.value)} />
-        <InputField label="Send Message Placeholder" name="send-placeholder" value={sendPlaceholder} onChange={(event) => setSendPlaceholder(event.target.value)} />
-      </Box>
+      <InputField label="Send Message Placeholder" name="send-placeholder" value={sendPlaceholder} onChange={(event) => setSendPlaceholder(event.target.value)} />
       <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 1.5 }}>
         <InputField
           label="Chat Box Width (px)"
@@ -262,12 +262,25 @@ export default function ChatWidgetBoxDesignPage() {
 
           <Box sx={{ p: 1.5, display: "grid", gap: 1.1, flex: 1 }}>
             {bannerOn && bannerDataUrl ? (
-              <Box
-                component="img"
-                src={bannerDataUrl}
-                alt="Uploaded banner"
-                sx={{ width: "100%", height: 120, objectFit: "cover", borderRadius: 2 }}
-              />
+              bannerMediaType === "video" ? (
+                <Box
+                  component="video"
+                  src={bannerDataUrl}
+                  muted
+                  autoPlay
+                  loop
+                  playsInline
+                  controls
+                  sx={{ width: "100%", height: 120, objectFit: "cover", borderRadius: 2, bgcolor: "#000000" }}
+                />
+              ) : (
+                <Box
+                  component="img"
+                  src={bannerDataUrl}
+                  alt="Uploaded banner"
+                  sx={{ width: "100%", height: 120, objectFit: "cover", borderRadius: 2 }}
+                />
+              )
             ) : null}
 
             <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1 }}>
@@ -285,14 +298,28 @@ export default function ChatWidgetBoxDesignPage() {
               </Typography>
             </Box>
 
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1, bgcolor: "#FFFFFF", border: "1px solid #CCD6E6", borderRadius: 2, px: 1.2, py: 0.9, mt: "auto" }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1, bgcolor: "#FFFFFF", border: "1px solid #CCD6E6", borderRadius: "22px", px: 1.2, py: 0.75, mt: "auto" }}>
               <ChatRounded sx={{ color: buttonColor || "#1ed760", fontSize: 20 }} />
               <Typography variant="body2" sx={{ color: "#5B6B82", flex: 1 }}>
                 {sendPlaceholder || "Type your message..."}
               </Typography>
-              <Typography variant="body2" sx={{ color: "#0F172A", fontWeight: 600 }}>
-                {startChatLabel || "Send"}
-              </Typography>
+              <IconButton
+                type="button"
+                aria-label="Send message"
+                size="small"
+                tabIndex={-1}
+                disableRipple
+                sx={{
+                  bgcolor: buttonColor || "#1ed760",
+                  color: "#FFFFFF",
+                  width: 42,
+                  height: 42,
+                  flexShrink: 0,
+                  "&:hover": { bgcolor: buttonColor || "#1ed760", filter: "brightness(1.06)" },
+                }}
+              >
+                <SendRounded sx={{ fontSize: 22 }} />
+              </IconButton>
             </Box>
           </Box>
         </Box>
