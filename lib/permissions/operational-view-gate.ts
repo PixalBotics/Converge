@@ -137,6 +137,8 @@ const PREFIX_VIEW_RULES: readonly { prefix: string; anyOf: readonly string[] }[]
   },
   { prefix: "/dashboard/shifts/pool-shift", anyOf: [OP.hrms.shift.view, OP.hrms.shiftAssignment.view] },
   { prefix: "/dashboard/shifts", anyOf: [OP.hrms.shift.view, OP.hrms.shiftAssignment.view] },
+  { prefix: "/dashboard/chat-operations", anyOf: [OP.chat.access] },
+  { prefix: "/dashboard/chat-ai", anyOf: [OP.chat.access] },
 ].sort((a, b) => b.prefix.length - a.prefix.length);
 
 /** When no prefix rule matched: one of these operational strings is enough to “view” that module. */

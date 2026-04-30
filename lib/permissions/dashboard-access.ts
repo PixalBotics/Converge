@@ -147,6 +147,7 @@ const ROUTE_RULES: readonly RouteRule[] = [
   { permission: "page:pools", href: "/dashboard/pools", iconKey: "pools", label: "Pools" },
   { permission: "page:shifts", href: "/dashboard/shifts", iconKey: "shifts", label: "Shifts", prefixMatch: true },
   { permission: "page:chat", href: "/dashboard/chat-operations", iconKey: "chat" },
+  { permission: "page:chat", href: "/dashboard/chat-ai", iconKey: "chat", prefixMatch: true },
   { permission: "page:chat-widget", href: "/dashboard/chat-widget", iconKey: "chatWidget", prefixMatch: true },
   { permission: "page:crm-integration", href: "/dashboard/crm-integration", iconKey: "crmIntegration", prefixMatch: true },
   { permission: "page:distribution-setup", href: "/dashboard/distribution-setup", iconKey: "distributionSetup", prefixMatch: true },
@@ -256,6 +257,7 @@ const DASHBOARD_URL_SEGMENT_TO_PAGE: Readonly<Record<string, PagePermission>> = 
   pools: "page:pools",
   shifts: "page:shifts",
   "chat-operations": "page:chat",
+  "chat-ai": "page:chat",
   "chat-widget": "page:chat-widget",
   "crm-integration": "page:crm-integration",
   "crm-integrator": "page:crm-integration",
@@ -312,6 +314,33 @@ function toNavItem(permission: PagePermission): DashboardNavItem | null {
     prefixMatch: rule.prefixMatch,
   };
 }
+
+const CHAT_GROUP: DashboardNavItem = {
+  href: "/dashboard/chat-operations",
+  label: "Chat",
+  section: "activity",
+  iconKey: "chat",
+  permission: null,
+  permissionsAny: ["page:chat"],
+  children: [
+    {
+      href: "/dashboard/chat-operations",
+      label: "Operations",
+      section: "activity",
+      iconKey: "chat",
+      permission: "page:chat",
+      prefixMatch: false,
+    },
+    {
+      href: "/dashboard/chat-ai/analytics",
+      label: "Visitor AI analytics",
+      section: "activity",
+      iconKey: "chat",
+      permission: "page:chat",
+      prefixMatch: true,
+    },
+  ],
+};
 
 const DEPARTMENTS_AND_DESIGNATIONS_GROUP: DashboardNavItem = {
   href: "/dashboard/departments",
@@ -521,6 +550,7 @@ export const DASHBOARD_NAV_ITEMS: readonly DashboardNavItem[] = PAGE_PERMISSION_
   if (permission === "page:website-assignments") return [WEBSITE_GROUP];
   if (permission === "page:users") return [USERS_GROUP];
   if (permission === "page:hrms") return [HRMS_GROUP];
+  if (permission === "page:chat") return [CHAT_GROUP];
   if (permission === "page:pools") return [toNavItem("page:pools")!];
   if (permission === "page:shifts") return [SHIFTS_GROUP];
   if (COMMERCIAL_PAGE_PERMISSIONS.includes(permission)) {

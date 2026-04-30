@@ -65,16 +65,33 @@ export function useAgentChat(params: UseAgentChatParams): UseAgentChatReturn {
   }, []);
 
   const refreshQueues = useCallback(async () => {
-    const [active, waiting] = await Promise.all([
-      getMyActiveChats(params.token),
-      getWaitingChats(params.token),
-    ]);
-    setActiveChats(active);
-    setWaitingChats(waiting);
+    const token = params.token?.trim();
+    if (!token) {
+      setActiveChats([]);
+      setWaitingChats([]);
+      return;
+    }
+    try {
+      const [active, waiting] = await Promise.all([
+        getMyActiveChats(token),
+        getWaitingChats(token),
+      ]);
+      setActiveChats(active);
+      setWaitingChats(waiting);
+    } catch {
+      setActiveChats([]);
+      setWaitingChats([]);
+    }
   }, [params.token]);
 
   useEffect(() => {
-    socketClient.connect({ authToken: params.token, forceNew: true });
+    const token = params.token?.trim();
+    if (!token) {
+      setIsConnected(false);
+      return;
+    }
+
+    socketClient.connect({ authToken: token, forceNew: true });
     setIsConnected(socketClient.isConnected());
 
     const offSocketConnect = socketClient.onSocketConnect(() => setIsConnected(true));
@@ -87,10 +104,14 @@ export function useAgentChat(params: UseAgentChatParams): UseAgentChatReturn {
     });
     const offVisitorMessage = socketClient.onVisitorMessage(upsertMessage);
     const offAgentMessage = socketClient.onAgentMessage(upsertMessage);
+    const isVisitorTyping = (payload: TypingPayload) =>
+      payload.role === "visitor" || payload.role === undefined;
     const offTyping = socketClient.onTyping((payload: TypingPayload) => {
+      if (!isVisitorTyping(payload)) return;
       setTypingByConversation((prev) => ({ ...prev, [payload.conversationId]: true }));
     });
     const offStopTyping = socketClient.onStopTyping((payload: TypingPayload) => {
+      if (!isVisitorTyping(payload)) return;
       setTypingByConversation((prev) => ({ ...prev, [payload.conversationId]: false }));
     });
     const offAssigned = socketClient.onChatAssigned(() => void refreshQueues());
@@ -133,6 +154,9 @@ export function useAgentChat(params: UseAgentChatParams): UseAgentChatReturn {
 
   const selectConversation = useCallback(
     async (conversationId: string) => {
+      const token = params.token?.trim();
+      if (!token) return;
+
       if (selectedConversationId) {
         socketClient.leaveRoom({ conversationId: selectedConversationId, role: "agent" });
       }
@@ -144,19 +168,25 @@ export function useAgentChat(params: UseAgentChatParams): UseAgentChatReturn {
         userId: params.agentId,
       });
 
-      const history = await getConversationHistory(conversationId, params.token);
-      messageMapRef.current.clear();
-      history.messages.forEach((message) => {
-        messageMapRef.current.set(messageKey(message), message);
-      });
-      setMessages(Array.from(messageMapRef.current.values()));
+      try {
+        const history = await getConversationHistory(conversationId, token);
+        messageMapRef.current.clear();
+        history.messages.forEach((message) => {
+          messageMapRef.current.set(messageKey(message), message);
+        });
+        setMessages(Array.from(messageMapRef.current.values()));
+      } catch {
+        messageMapRef.current.clear();
+        setMessages([]);
+      }
     },
     [params.agentId, params.token, selectedConversationId, socketClient],
   );
 
   const sendMessage = useCallback(
     async (content: string) => {
-      if (!selectedConversationId) {
+      const token = params.token?.trim();
+      if (!selectedConversationId || !token) {
         throw new Error("Select a conversation before sending a message.");
       }
 
@@ -173,7 +203,7 @@ export function useAgentChat(params: UseAgentChatParams): UseAgentChatReturn {
       await sendAgentMessage(
         selectedConversationId,
         { content, agentId: params.agentId },
-        params.token,
+        token,
       );
       socketClient.sendAgentMessage(optimisticMessage);
     },
@@ -181,9 +211,10 @@ export function useAgentChat(params: UseAgentChatParams): UseAgentChatReturn {
   );
 
   const closeSelectedConversation = useCallback(async () => {
-    if (!selectedConversationId) return;
+    const token = params.token?.trim();
+    if (!selectedConversationId || !token) return;
 
-    await closeConversation(selectedConversationId, params.token);
+    await closeConversation(selectedConversationId, token);
     socketClient.leaveRoom({ conversationId: selectedConversationId, role: "agent" });
     setSelectedConversationId(null);
     messageMapRef.current.clear();

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import ChatRounded from "@mui/icons-material/ChatRounded";
 import ContentCopy from "@mui/icons-material/ContentCopy";
@@ -27,7 +27,12 @@ export default function ChatWidgetScriptPage() {
     setDraft(next);
   }, []);
 
-  const chatScript = useMemo(() => buildWidgetScript(draft ?? readWidgetDraft()), [draft]);
+  const [chatScript, setChatScript] = useState("");
+
+  useEffect(() => {
+    const d = draft ?? readWidgetDraft();
+    setChatScript(buildWidgetScript(d, { scriptOrigin: window.location.origin }));
+  }, [draft]);
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(chatScript);

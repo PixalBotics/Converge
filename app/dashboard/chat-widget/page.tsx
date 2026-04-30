@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Add from "@mui/icons-material/Add";
+import SettingsOutlined from "@mui/icons-material/SettingsOutlined";
 import ChatRounded from "@mui/icons-material/ChatRounded";
 import CloseRounded from "@mui/icons-material/CloseRounded";
 import MoreVert from "@mui/icons-material/MoreVert";
@@ -36,6 +37,7 @@ import {
   integrationsSectionIconBox,
 } from "../integrations/integrations.styles";
 import { readWidgetDraft, type WidgetDraft } from "@/lib/chat-widget/widgetDraft";
+import { useAuth } from "@/lib/auth";
 
 interface WidgetRow extends Record<string, unknown> {
   id: string;
@@ -73,6 +75,7 @@ const TABLE_ROWS: WidgetRow[] = Array.from({ length: 18 }, (_, i) => ({
 export default function ChatWidgetPage() {
   const router = useRouter();
   const theme = useTheme() as AppTheme;
+  const { hasPage } = useAuth();
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [widgetDraft, setWidgetDraft] = useState<WidgetDraft | null>(null);
@@ -267,6 +270,19 @@ export default function ChatWidgetPage() {
           </Typography>
         </Box>
         <Box sx={integrationsHeaderActions}>
+          {hasPage("page:chat-widget") ? (
+            <Button
+              type="button"
+              variant="secondary"
+              startIcon={<SettingsOutlined sx={{ fontSize: 20 }} />}
+              onClick={() => {
+                const id = readWidgetDraft().widgetId;
+                router.push(`/dashboard/chat-widget/configure${id ? `?widgetId=${encodeURIComponent(id)}` : ""}`);
+              }}
+            >
+              Admin config
+            </Button>
+          ) : null}
           <Button
             type="button"
             variant="primary"

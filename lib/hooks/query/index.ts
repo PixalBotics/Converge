@@ -56,3 +56,5 @@ export { platformKeys } from "./platform";
 export { useGeneratePlatformLicenseKeyMutation, usePlatformLicenseKeysQuery } from "./platform";
 export { platformThemeKeys, usePlatformThemeMeQuery, useUpdatePlatformThemeMutation } from "./platform-theme";
 export * from "./hrms";
+export * from "./chat-widget";
+export * from "./chat-ai";

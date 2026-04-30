@@ -74,6 +74,30 @@ export const chatOpsChatListSx: SxProps<Theme> = {
   },
 };
 
+export const chatOpsListStackSx: SxProps<Theme> = {
+  flex: 1,
+  minHeight: 0,
+  display: "flex",
+  flexDirection: "column",
+  overflow: "hidden",
+};
+
+export const chatOpsListMiniHeaderSx: SxProps<Theme> = (theme) => ({
+  px: 1.45,
+  py: 0.75,
+  flexShrink: 0,
+  background: alpha((theme as AppTheme).app.dashboard.overlayLight, 0.35),
+  borderBottom: `1px solid ${alpha((theme as AppTheme).app.dashboard.cardBorder, 0.6)}`,
+});
+
+export const chatOpsToolbarRowSx: SxProps<Theme> = {
+  display: "flex",
+  alignItems: "center",
+  flexWrap: "wrap",
+  gap: 0.75,
+  mt: 0.75,
+};
+
 export const chatOpsListItemSx = (active: boolean): SxProps<Theme> => (theme) => ({
   p: 1.45,
   borderBottom: `1px solid ${alpha((theme as AppTheme).app.dashboard.cardBorder, 0.65)}`,

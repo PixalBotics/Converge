@@ -10,6 +10,7 @@ export * from "./access";
 export * from "./companies";
 export * from "./roles";
 export * from "./hrms";
+export * from "./chat-widget.api";
 export * from "./website-assignments";
 export * from "./platform";
 export * from "./platform-theme";
