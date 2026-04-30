@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Add from "@mui/icons-material/Add";
 import ChatRounded from "@mui/icons-material/ChatRounded";
+import TextsmsRounded from "@mui/icons-material/TextsmsRounded";
 import SendRounded from "@mui/icons-material/SendRounded";
 import CloseRounded from "@mui/icons-material/CloseRounded";
 import MoreVert from "@mui/icons-material/MoreVert";
@@ -75,6 +76,7 @@ const TABLE_ROWS: WidgetRow[] = Array.from({ length: 18 }, (_, i) => ({
 const WIDGET_LAUNCHER_SIZE_PX = 58;
 const WIDGET_PANEL_ABOVE_LAUNCHER_PX = 70;
 const WIDGET_WELCOME_ABOVE_LAUNCHER_PX = 76;
+const TEXT_WIDGET_ENABLED_KEY = "text_widget_enabled_v1";
 
 export default function ChatWidgetPage() {
   const router = useRouter();
@@ -86,9 +88,13 @@ export default function ChatWidgetPage() {
   const [welcomePopupOpen, setWelcomePopupOpen] = useState(false);
   const [chatInput, setChatInput] = useState("");
   const [messages, setMessages] = useState<Array<{ id: string; role: "assistant" | "user"; text: string }>>([]);
+  const [textWidgetEnabled, setTextWidgetEnabled] = useState(false);
+  const [textPreviewOpen, setTextPreviewOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const previewPanelRef = useRef<HTMLDivElement | null>(null);
   const previewToggleRef = useRef<HTMLDivElement | null>(null);
+  const textPreviewPanelRef = useRef<HTMLDivElement | null>(null);
+  const textPreviewToggleRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const draft = readWidgetDraft();
@@ -97,6 +103,9 @@ export default function ChatWidgetPage() {
       { id: "welcome", role: "assistant", text: draft.greetingMessage },
       { id: "seed-user", role: "user", text: "I can help with buying and investment options." },
     ]);
+    if (typeof window !== "undefined") {
+      setTextWidgetEnabled(window.localStorage.getItem(TEXT_WIDGET_ENABLED_KEY) === "1");
+    }
   }, []);
 
   useEffect(() => {
@@ -114,7 +123,7 @@ export default function ChatWidgetPage() {
   }, [widgetDraft?.completed, previewOpen]);
 
   useEffect(() => {
-    if (!previewOpen) return;
+    if (!previewOpen && !textPreviewOpen) return;
 
     const handleOutsideClick = (event: MouseEvent | TouchEvent) => {
       const targetNode = event.target as Node | null;
@@ -122,8 +131,12 @@ export default function ChatWidgetPage() {
 
       const clickedInsidePreview = previewPanelRef.current?.contains(targetNode) ?? false;
       const clickedOnToggle = previewToggleRef.current?.contains(targetNode) ?? false;
-      if (!clickedInsidePreview && !clickedOnToggle) {
+      const clickedInsideTextPreview = textPreviewPanelRef.current?.contains(targetNode) ?? false;
+      const clickedOnTextToggle = textPreviewToggleRef.current?.contains(targetNode) ?? false;
+
+      if (!clickedInsidePreview && !clickedOnToggle && !clickedInsideTextPreview && !clickedOnTextToggle) {
         setPreviewOpen(false);
+        setTextPreviewOpen(false);
       }
     };
 
@@ -134,7 +147,7 @@ export default function ChatWidgetPage() {
       document.removeEventListener("mousedown", handleOutsideClick);
       document.removeEventListener("touchstart", handleOutsideClick);
     };
-  }, [previewOpen]);
+  }, [previewOpen, textPreviewOpen]);
 
   const handleSendMessage = () => {
     const value = chatInput.trim();
@@ -691,6 +704,133 @@ export default function ChatWidgetPage() {
               renderWidgetLauncherGraphic(28)
             )}
           </Box>
+          ) : null}
+
+          {textWidgetEnabled ? (
+            <>
+              {textPreviewOpen ? (
+                <Box
+                  ref={textPreviewPanelRef}
+                  sx={{
+                    position: "fixed",
+                    right: 12,
+                    bottom: 112,
+                    width: "320px",
+                    height: "360px",
+                    zIndex: 1200,
+                    borderRadius: 2.5,
+                    overflow: "hidden",
+                    border: `1px solid ${theme.app.dashboard.cardBorder}`,
+                    bgcolor: "#EEF1F7",
+                    boxShadow: "0 16px 38px rgba(3, 12, 37, 0.45)",
+                    display: "flex",
+                    flexDirection: "column",
+                  }}
+                >
+                  <Box sx={{ px: 2, py: 1.5, bgcolor: "#da9b2f", color: "#FFFFFF", display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 1 }}>
+                    <Box sx={{ minWidth: 0 }}>
+                      <Typography variant="mediumLarge" sx={{ color: "inherit" }}>
+                        Special Offer
+                      </Typography>
+                      <Typography variant="body2" sx={{ color: "inherit", opacity: 0.92 }}>
+                        Get 20% off all premium plans today.
+                      </Typography>
+                    </Box>
+                    <IconButton
+                      type="button"
+                      size="small"
+                      aria-label="Close text widget preview"
+                      onClick={() => setTextPreviewOpen(false)}
+                      sx={{
+                        color: "inherit",
+                        mt: -0.4,
+                        mr: -0.6,
+                        opacity: 0.92,
+                        "&:hover": { opacity: 1, bgcolor: "rgba(0,0,0,0.12)" },
+                      }}
+                    >
+                      <CloseRounded sx={{ fontSize: 22 }} />
+                    </IconButton>
+                  </Box>
+                  <Box sx={{ p: 1.5, display: "flex", flexDirection: "column", gap: 1, flex: 1, minHeight: 0, overflow: "hidden" }}>
+                    <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1 }}>
+                      <Box sx={{ bgcolor: "#FFFFFF", border: "1px solid #CCD6E6", borderRadius: 1.25, px: 1.2, py: 0.9 }}>
+                        <Typography variant="body2" sx={{ color: "#5B6B82" }}>Name</Typography>
+                      </Box>
+                      <Box sx={{ bgcolor: "#FFFFFF", border: "1px solid #CCD6E6", borderRadius: 1.25, px: 1.2, py: 0.9 }}>
+                        <Typography variant="body2" sx={{ color: "#5B6B82" }}>Email</Typography>
+                      </Box>
+                    </Box>
+                    <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1 }}>
+                      <Box sx={{ bgcolor: "#FFFFFF", border: "1px solid #CCD6E6", borderRadius: 1.25, px: 1.2, py: 0.9 }}>
+                        <Typography variant="body2" sx={{ color: "#5B6B82" }}>Message</Typography>
+                      </Box>
+                      <Box sx={{ bgcolor: "#FFFFFF", border: "1px solid #CCD6E6", borderRadius: 1.25, px: 1.2, py: 0.9 }}>
+                        <Typography variant="body2" sx={{ color: "#5B6B82" }}>Phone Number</Typography>
+                      </Box>
+                    </Box>
+                    <Box sx={{ mt: "auto", display: "flex", alignItems: "center", gap: 1, bgcolor: "#FFFFFF", border: "1px solid #CCD6E6", borderRadius: "22px", px: 1.2, py: 0.75 }}>
+                      <TextsmsRounded sx={{ color: "#da9b2f", fontSize: 20 }} />
+                      <Typography variant="body2" sx={{ color: "#5B6B82", flex: 1 }}>
+                        Enter message...
+                      </Typography>
+                      <IconButton
+                        type="button"
+                        aria-label="Send text message"
+                        size="small"
+                        tabIndex={-1}
+                        disableRipple
+                        sx={{
+                          bgcolor: "#da9b2f",
+                          color: "#FFFFFF",
+                          width: 42,
+                          height: 42,
+                          flexShrink: 0,
+                          "&:hover": { bgcolor: "#da9b2f", filter: "brightness(1.06)" },
+                        }}
+                      >
+                        <SendRounded sx={{ fontSize: 22 }} />
+                      </IconButton>
+                    </Box>
+                  </Box>
+                </Box>
+              ) : null}
+
+              <Box
+                ref={textPreviewToggleRef}
+                role="button"
+                aria-label={textPreviewOpen ? "Close text widget preview" : "Open text widget preview"}
+                onClick={() => setTextPreviewOpen((prev) => !prev)}
+                sx={{
+                  position: "fixed",
+                  right: 0,
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  zIndex: 1201,
+                  minWidth: 88,
+                  height: 46,
+                  px: 1.6,
+                  borderRadius: "10px 0 0 10px",
+                  bgcolor: "#da9b2f",
+                  color: "#FFFFFF",
+                  display: textPreviewOpen || previewOpen ? "none" : "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  cursor: "pointer",
+                  boxShadow: "0 10px 28px rgba(2, 12, 43, 0.45)",
+                  transition: "transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease",
+                  "&:hover": {
+                    transform: "translate(-2px, -50%)",
+                    boxShadow: "0 20px 42px rgba(2, 12, 43, 0.62), 0 0 0 4px rgba(255, 255, 255, 0.14)",
+                    filter: "brightness(1.05)",
+                  },
+                }}
+              >
+                <Typography variant="medium" sx={{ color: "inherit", fontWeight: 700, letterSpacing: 0.2 }}>
+                  Text Us
+                </Typography>
+              </Box>
+            </>
           ) : null}
         </>
       ) : null}
