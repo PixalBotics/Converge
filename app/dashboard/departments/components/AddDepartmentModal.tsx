@@ -22,6 +22,7 @@ import {
   toIdNameOption,
 } from "@/app/dashboard/user-page/components/add-user-modal.utils";
 import { extractDepartmentFromDetailApi, type DepartmentRow } from "../utils";
+import { useAuth, sessionMayPickInternalUserScope } from "@/lib/auth";
 
 const EMPTY_SELECT = [{ label: "—", value: "" }] as const;
 
@@ -41,6 +42,12 @@ export function AddDepartmentModal({
   editDepartment = null,
 }: AddDepartmentModalProps) {
   const theme = useTheme() as AppTheme;
+  const { isPlatformAdmin, user: authUser } = useAuth();
+  const mayPickInternalDeptType = useMemo(
+    () => sessionMayPickInternalUserScope(isPlatformAdmin, authUser?.userType),
+    [isPlatformAdmin, authUser?.userType],
+  );
+
   const [departmentName, setDepartmentName] = useState("");
   const [departmentType, setDepartmentType] = useState<"Internal" | "External">("Internal");
   const [resellerId, setResellerId] = useState("");
@@ -60,6 +67,13 @@ export function AddDepartmentModal({
     scope: "add-department-modal",
     skipGlobalToast: true,
   });
+
+  const showInternalDepartmentTypeCard = useMemo(() => {
+    if (mayPickInternalDeptType) return true;
+    if (!isEdit) return false;
+    if (!departmentDetailQuery.isSuccess) return true;
+    return departmentType === "Internal";
+  }, [mayPickInternalDeptType, isEdit, departmentDetailQuery.isSuccess, departmentType]);
 
   const resellersQuery = useCompaniesSetupResellersQuery({
     enabled: open && departmentType === "External",
@@ -126,10 +140,10 @@ export function AddDepartmentModal({
   useEffect(() => {
     if (!open || isEdit) return;
     setDepartmentName("");
-    setDepartmentType("Internal");
+    setDepartmentType(mayPickInternalDeptType ? "Internal" : "External");
     setResellerId("");
     setParentCompanyId("");
-  }, [open, isEdit]);
+  }, [open, isEdit, mayPickInternalDeptType]);
 
   useEffect(() => {
     if (!open || !isEdit || !departmentDetailQuery.isSuccess || !departmentDetailQuery.data) return;
@@ -259,71 +273,75 @@ export function AddDepartmentModal({
               aria-label="Department type"
               sx={{
                 display: "grid",
-                gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" },
+                gridTemplateColumns: showInternalDepartmentTypeCard
+                  ? { xs: "1fr", sm: "1fr 1fr" }
+                  : { xs: "1fr", sm: "1fr" },
                 gap: 2,
               }}
             >
-              <DashboardCard
-                sx={{
-                  p: 2,
-                  borderRadius: 2,
-                  cursor: savePending ? "default" : "pointer",
-                  opacity: savePending ? 0.6 : 1,
-                  pointerEvents: savePending ? "none" : "auto",
-                  background:
-                    departmentType === "Internal"
-                      ? theme.app.dashboard.navActiveBg
-                      : theme.app.dashboard.cardBg,
-                }}
-                onClick={() => {
-                  if (savePending) return;
-                  setTypeInternal();
-                }}
-              >
-                <Box sx={{ display: "flex", alignItems: "center", gap: 1.25 }}>
-                  <Radio
-                    checked={departmentType === "Internal"}
-                    onChange={() => {
-                      if (savePending) return;
-                      setTypeInternal();
-                    }}
-                    value="Internal"
-                    disabled={savePending}
-                    disableRipple
-                    icon={
-                      <Box
-                        sx={{
-                          width: 16,
-                          height: 16,
-                          borderRadius: "9999px",
-                          border: "2px solid rgba(148,163,184,0.6)",
-                          bgcolor: "transparent",
-                        }}
-                      />
-                    }
-                    checkedIcon={
-                      <Box
-                        sx={{
-                          width: 16,
-                          height: 16,
-                          borderRadius: "9999px",
-                          bgcolor: theme.app.dashboard.accentGreen,
-                          boxShadow: "0 0 0 4px rgba(34,197,94,0.35)",
-                        }}
-                      />
-                    }
-                    sx={{ p: 0.25 }}
-                  />
-                  <Box>
-                    <Typography variant="medium" color="white" sx={{ mb: 0.25 }}>
-                      Internal
-                    </Typography>
-                    <Typography variant="small" sx={{ color: theme.app.dashboard.textMuted }}>
-                      Internal platform department
-                    </Typography>
+              {showInternalDepartmentTypeCard ? (
+                <DashboardCard
+                  sx={{
+                    p: 2,
+                    borderRadius: 2,
+                    cursor: savePending ? "default" : "pointer",
+                    opacity: savePending ? 0.6 : 1,
+                    pointerEvents: savePending ? "none" : "auto",
+                    background:
+                      departmentType === "Internal"
+                        ? theme.app.dashboard.navActiveBg
+                        : theme.app.dashboard.cardBg,
+                  }}
+                  onClick={() => {
+                    if (savePending) return;
+                    setTypeInternal();
+                  }}
+                >
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1.25 }}>
+                    <Radio
+                      checked={departmentType === "Internal"}
+                      onChange={() => {
+                        if (savePending) return;
+                        setTypeInternal();
+                      }}
+                      value="Internal"
+                      disabled={savePending}
+                      disableRipple
+                      icon={
+                        <Box
+                          sx={{
+                            width: 16,
+                            height: 16,
+                            borderRadius: "9999px",
+                            border: "2px solid rgba(148,163,184,0.6)",
+                            bgcolor: "transparent",
+                          }}
+                        />
+                      }
+                      checkedIcon={
+                        <Box
+                          sx={{
+                            width: 16,
+                            height: 16,
+                            borderRadius: "9999px",
+                            bgcolor: theme.app.dashboard.accentGreen,
+                            boxShadow: "0 0 0 4px rgba(34,197,94,0.35)",
+                          }}
+                        />
+                      }
+                      sx={{ p: 0.25 }}
+                    />
+                    <Box>
+                      <Typography variant="medium" color="white" sx={{ mb: 0.25 }}>
+                        Internal
+                      </Typography>
+                      <Typography variant="small" sx={{ color: theme.app.dashboard.textMuted }}>
+                        Internal platform department
+                      </Typography>
+                    </Box>
                   </Box>
-                </Box>
-              </DashboardCard>
+                </DashboardCard>
+              ) : null}
 
               <DashboardCard
                 sx={{

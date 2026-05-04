@@ -55,7 +55,7 @@ import {
   extractDepartmentsTotalPages,
   extractDepartmentsLimit,
 } from "./utils";
-import { useAuth } from "@/lib/auth";
+import { useAuth, sessionMayPickInternalUserScope } from "@/lib/auth";
 import { canDepartmentAction } from "@/lib/permissions";
 
 /** Default page size sent to `GET /hrms/departments` — backend may echo a different `data.limit`. */
@@ -81,7 +81,11 @@ function formatCompactEntryTotal(n: number): string {
 
 export default function DepartmentsPage() {
   const theme = useTheme() as AppTheme;
-  const { hasOperational } = useAuth();
+  const { hasOperational, isPlatformAdmin, user } = useAuth();
+  const mayPickInternalTypeFilter = useMemo(
+    () => sessionMayPickInternalUserScope(isPlatformAdmin, user?.userType),
+    [isPlatformAdmin, user?.userType],
+  );
   const canCreateDept = canDepartmentAction(hasOperational, "create");
   const canUpdateDept = canDepartmentAction(hasOperational, "update");
   const canDeleteDept = canDepartmentAction(hasOperational, "delete");
@@ -133,6 +137,8 @@ export default function DepartmentsPage() {
     return [{ value: "", label: "No companies for this reseller" }];
   }, [filterResellerId, companiesByResellerQuery.isLoading, companiesByResellerQuery.data]);
 
+  const typeForListQuery = mayPickInternalTypeFilter ? filterType : "External";
+
   const listParams = useMemo(() => {
     const params: Record<string, string | number> = {
       page,
@@ -140,7 +146,7 @@ export default function DepartmentsPage() {
     };
     const q = search.trim();
     if (q) params.search = q;
-    if (filterType) params.type = filterType;
+    if (typeForListQuery) params.type = typeForListQuery;
     const rid = filterResellerId.trim();
     if (rid) {
       params.resellerId = rid;
@@ -148,7 +154,7 @@ export default function DepartmentsPage() {
       if (pid) params.parentCompanyId = pid;
     }
     return params;
-  }, [page, search, filterType, filterResellerId, filterParentCompanyId]);
+  }, [page, search, typeForListQuery, filterResellerId, filterParentCompanyId]);
 
   const departmentsQuery = useDepartmentsListQuery(listParams, {
     scope: "departments-page",
@@ -168,9 +174,9 @@ export default function DepartmentsPage() {
 
   const hasActiveFilters =
     Boolean(search.trim()) ||
-    Boolean(filterType) ||
     Boolean(filterResellerId.trim()) ||
-    Boolean(filterParentCompanyId.trim());
+    Boolean(filterParentCompanyId.trim()) ||
+    (mayPickInternalTypeFilter && Boolean(filterType));
 
   useEffect(() => {
     // When the SearchBar cross button clears the input, reset applied search to show full data.
@@ -182,11 +188,21 @@ export default function DepartmentsPage() {
 
   useEffect(() => {
     setPage(1);
-  }, [search, filterType, filterResellerId, filterParentCompanyId]);
+  }, [search, typeForListQuery, filterResellerId, filterParentCompanyId]);
+
+  useEffect(() => {
+    if (mayPickInternalTypeFilter) return;
+    setFilterType((prev) => (prev === "Internal" || prev === "" ? "External" : prev));
+  }, [mayPickInternalTypeFilter]);
 
   useEffect(() => {
     setPage((p) => (p > pageCount ? pageCount : p));
   }, [pageCount]);
+
+  const typeFilterSelectOptions = useMemo(() => {
+    if (mayPickInternalTypeFilter) return TYPE_FILTER_OPTIONS;
+    return [{ label: "External", value: "External" }];
+  }, [mayPickInternalTypeFilter]);
 
   const footerRangeStart = tableRows.length > 0 ? (page - 1) * pageLimit + 1 : 0;
   const footerRangeEnd = (page - 1) * pageLimit + tableRows.length;
@@ -308,7 +324,7 @@ export default function DepartmentsPage() {
   const clearFilters = () => {
     setSearchInput("");
     setSearch("");
-    setFilterType("");
+    setFilterType(mayPickInternalTypeFilter ? "" : "External");
     setFilterResellerId("");
     setFilterParentCompanyId("");
   };
@@ -421,9 +437,9 @@ export default function DepartmentsPage() {
         >
           <SelectField
             label="Type"
-            value={filterType}
+            value={typeForListQuery}
             onChange={(v) => setFilterType(v as "" | "Internal" | "External")}
-            options={TYPE_FILTER_OPTIONS}
+            options={typeFilterSelectOptions}
             menuMaxRows={6}
           />
           <SelectField

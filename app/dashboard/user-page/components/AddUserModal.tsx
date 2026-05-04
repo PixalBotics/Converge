@@ -24,6 +24,7 @@ import {
   toIdNameOption,
 } from "./add-user-modal.utils";
 import { publishAppToast } from "@/lib/notify";
+import { useAuth, sessionMayPickInternalUserScope } from "@/lib/auth";
 
 export function AddUserModal({
   open,
@@ -41,6 +42,11 @@ export function AddUserModal({
 }) {
   const mode = editUserId?.trim() ? "edit" : "create";
   const trimmedEditId = editUserId?.trim() ?? "";
+  const { isPlatformAdmin, user: authUser } = useAuth();
+  const mayPickInternalSessionScope = useMemo(
+    () => sessionMayPickInternalUserScope(isPlatformAdmin, authUser?.userType),
+    [isPlatformAdmin, authUser?.userType],
+  );
 
   const [userType, setUserType] = useState<"Internal" | "External">("Internal");
   const [resellerId, setResellerId] = useState("");
@@ -57,6 +63,18 @@ export function AddUserModal({
   const [phone, setPhone] = useState("");
   const [editFormHydrated, setEditFormHydrated] = useState(false);
   const hydratedEditUserIdRef = useRef<string | null>(null);
+
+  /** Match user overview util; keep both type cards visible while edit detail is loading. */
+  const showInternalUserTypeCard =
+    mayPickInternalSessionScope ||
+    (mode === "edit" && !editFormHydrated) ||
+    (mode === "edit" && editFormHydrated && userType === "Internal");
+
+  useEffect(() => {
+    if (!open || mode !== "create") return;
+    if (showInternalUserTypeCard) return;
+    setUserType("External");
+  }, [open, mode, showInternalUserTypeCard]);
 
   const userDetailQuery = useUserQuery(trimmedEditId, {
     enabled: open && mode === "edit",
@@ -207,7 +225,8 @@ export function AddUserModal({
 
   useEffect(() => {
     if (open) return;
-    setUserType("Internal");
+    const defaultUserType: "Internal" | "External" = mayPickInternalSessionScope ? "Internal" : "External";
+    setUserType(defaultUserType);
     setResellerId("");
     setParentCompanyId("");
     setRoleValue("");
@@ -222,7 +241,7 @@ export function AddUserModal({
     setPhone("");
     setEditFormHydrated(false);
     hydratedEditUserIdRef.current = null;
-  }, [open]);
+  }, [open, mayPickInternalSessionScope]);
 
   useEffect(() => {
     if (!open || mode !== "edit" || !userDetailQuery.isSuccess || !trimmedEditId) return;
@@ -454,54 +473,65 @@ export function AddUserModal({
         />
       </Box>
 
-      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 2, mb: 3 }}>
-        <DashboardCard
-          sx={{
-            p: 2,
-            borderRadius: 2,
-            cursor: mode === "edit" ? "default" : "pointer",
-            opacity: mode === "edit" && isEditLoading ? 0.5 : 1,
-            pointerEvents: mode === "edit" ? "none" : "auto",
-            background: userType === "Internal" ? theme.app.dashboard.navActiveBg : theme.app.dashboard.cardBg,
-          }}
-          onClick={() => {
-            if (mode === "edit") return;
-            setUserType("Internal");
-            setResellerId("");
-            setParentCompanyId("");
-            setDepartmentValue("");
-            setDesignationValue("");
-            setDesignationLabelHint("");
-          }}
-        >
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1.25 }}>
-            <Radio
-              checked={userType === "Internal"}
-              onChange={() => {
-                setUserType("Internal");
-                setResellerId("");
-                setParentCompanyId("");
-                setDepartmentValue("");
-                setDesignationValue("");
-                setDesignationLabelHint("");
-              }}
-              value="Internal"
-              disabled={mode === "edit"}
-              disableRipple
-              icon={<Box sx={{ width: 16, height: 16, borderRadius: "9999px", border: "2px solid rgba(148,163,184,0.6)", bgcolor: "transparent" }} />}
-              checkedIcon={<Box sx={{ width: 16, height: 16, borderRadius: "9999px", bgcolor: theme.app.dashboard.accentGreen, boxShadow: "0 0 0 4px rgba(34,197,94,0.35)" }} />}
-              sx={{ p: 0.25 }}
-            />
-            <Box>
-              <Typography variant="medium" color="white" sx={{ mb: 0.25 }}>
-                Internal User
-              </Typography>
-              <Typography variant="small" sx={{ color: theme.app.dashboard.textMuted }}>
-                Team member with company email
-              </Typography>
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: showInternalUserTypeCard
+            ? { xs: "1fr", sm: "1fr 1fr" }
+            : { xs: "1fr", sm: "1fr" },
+          gap: 2,
+          mb: 3,
+        }}
+      >
+        {showInternalUserTypeCard ? (
+          <DashboardCard
+            sx={{
+              p: 2,
+              borderRadius: 2,
+              cursor: mode === "edit" ? "default" : "pointer",
+              opacity: mode === "edit" && isEditLoading ? 0.5 : 1,
+              pointerEvents: mode === "edit" ? "none" : "auto",
+              background: userType === "Internal" ? theme.app.dashboard.navActiveBg : theme.app.dashboard.cardBg,
+            }}
+            onClick={() => {
+              if (mode === "edit") return;
+              setUserType("Internal");
+              setResellerId("");
+              setParentCompanyId("");
+              setDepartmentValue("");
+              setDesignationValue("");
+              setDesignationLabelHint("");
+            }}
+          >
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1.25 }}>
+              <Radio
+                checked={userType === "Internal"}
+                onChange={() => {
+                  setUserType("Internal");
+                  setResellerId("");
+                  setParentCompanyId("");
+                  setDepartmentValue("");
+                  setDesignationValue("");
+                  setDesignationLabelHint("");
+                }}
+                value="Internal"
+                disabled={mode === "edit"}
+                disableRipple
+                icon={<Box sx={{ width: 16, height: 16, borderRadius: "9999px", border: "2px solid rgba(148,163,184,0.6)", bgcolor: "transparent" }} />}
+                checkedIcon={<Box sx={{ width: 16, height: 16, borderRadius: "9999px", bgcolor: theme.app.dashboard.accentGreen, boxShadow: "0 0 0 4px rgba(34,197,94,0.35)" }} />}
+                sx={{ p: 0.25 }}
+              />
+              <Box>
+                <Typography variant="medium" color="white" sx={{ mb: 0.25 }}>
+                  Internal User
+                </Typography>
+                <Typography variant="small" sx={{ color: theme.app.dashboard.textMuted }}>
+                  Team member with company email
+                </Typography>
+              </Box>
             </Box>
-          </Box>
-        </DashboardCard>
+          </DashboardCard>
+        ) : null}
 
         <DashboardCard
           sx={{

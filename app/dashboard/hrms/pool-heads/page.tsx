@@ -61,7 +61,7 @@ import {
 } from "@/app/dashboard/user-page/components/add-user-modal.utils";
 import { extractUsersRows } from "@/app/dashboard/user-page/utils";
 import type { UserRow } from "@/app/dashboard/user-page/types";
-import { useAuth } from "@/lib/auth";
+import { useAuth, sessionMayPickInternalUserScope } from "@/lib/auth";
 import { canManagePoolHeads, canRemovePoolHead } from "@/lib/permissions";
 
 const PAGE_LIMIT = 12;
@@ -225,7 +225,22 @@ function mapPoolHeadItem(r: Record<string, unknown>, idx: number): PoolHeadRow |
 
 export default function PoolHeadsPage() {
   const theme = useTheme() as AppTheme;
-  const { hasOperational } = useAuth();
+  const { hasOperational, isPlatformAdmin, user: authUser } = useAuth();
+
+  const headsUserTypeSegmentOptions = useMemo(
+    () =>
+      sessionMayPickInternalUserScope(isPlatformAdmin, authUser?.userType)
+        ? [
+            { value: "all", label: "All" },
+            { value: "Internal", label: "Internal" },
+            { value: "External", label: "External" },
+          ]
+        : [
+            { value: "all", label: "All" },
+            { value: "External", label: "External" },
+          ],
+    [isPlatformAdmin, authUser?.userType],
+  );
   const canAssignPoolHead = canManagePoolHeads(hasOperational);
   const canRemovePoolHeadRow = canRemovePoolHead(hasOperational);
   const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
@@ -556,7 +571,20 @@ export default function PoolHeadsPage() {
     setAssignPoolId("");
     setAssignUserId("");
     setAssignUserTypeFilter("External");
+    setAssignExternalResellerId("");
+    setAssignExternalParentCompanyId("");
   };
+
+  useEffect(() => {
+    if (!assignOpen || sessionMayPickInternalUserScope(isPlatformAdmin, authUser?.userType)) return;
+    setAssignUserTypeFilter("External");
+  }, [assignOpen, isPlatformAdmin, authUser?.userType]);
+
+  useEffect(() => {
+    if (sessionMayPickInternalUserScope(isPlatformAdmin, authUser?.userType) || headsUserTypeFilter !== "Internal")
+      return;
+    setHeadsUserTypeFilter("all");
+  }, [isPlatformAdmin, authUser?.userType, headsUserTypeFilter]);
 
   return (
     <Box sx={[pageWrapper, rolesPageWrapper] as SxProps<Theme>}>
@@ -651,11 +679,7 @@ export default function PoolHeadsPage() {
               Heads — user type
             </Typography>
             <SegmentedControl
-              options={[
-                { value: "all", label: "All" },
-                { value: "Internal", label: "Internal" },
-                { value: "External", label: "External" },
-              ]}
+              options={headsUserTypeSegmentOptions}
               value={headsUserTypeFilter}
               onChange={(v) => setHeadsUserTypeFilter(v as "all" | "Internal" | "External")}
             />
@@ -752,7 +776,11 @@ export default function PoolHeadsPage() {
         open={assignOpen}
         fitContent
         title="Assign pool head"
-        description="Select Internal or External first. For External, choose reseller, parent company, then department. Users load from the selected scope."
+        description={
+          sessionMayPickInternalUserScope(isPlatformAdmin, authUser?.userType)
+            ? "Select Internal or External first. For External, choose reseller, parent company, then department. Users load from the selected scope."
+            : "External users only. Choose reseller and parent company, then department and pool. Users load from the selected scope."
+        }
         onClose={() => {
           if (assignMutation.isPending) return;
           setAssignOpen(false);
@@ -820,10 +848,14 @@ export default function PoolHeadsPage() {
           <Box sx={{ gridColumn: { xs: "auto", sm: "1 / -1" } }}>
             <SelectField
               label="Users — type"
-              options={[
-                { value: "Internal", label: "Internal" },
-                { value: "External", label: "External" },
-              ]}
+              options={
+                sessionMayPickInternalUserScope(isPlatformAdmin, authUser?.userType)
+                  ? [
+                      { value: "Internal", label: "Internal" },
+                      { value: "External", label: "External" },
+                    ]
+                  : [{ value: "External", label: "External" }]
+              }
               value={assignUserTypeFilter}
               onChange={(v) => {
                 const next = v as "Internal" | "External";

@@ -11,6 +11,8 @@ export type PoolModalsProps = {
   onSaveCreate: () => void;
   isCreating: boolean;
   createSaveDisabled: boolean;
+  /** When false, only External is offered (external tenant session users). */
+  includeInternalDepartmentType?: boolean;
   createDeptKind: "Internal" | "External";
   onCreateDeptKindChange: (v: "Internal" | "External") => void;
   createResellerId: string;
@@ -45,6 +47,7 @@ export function PoolModals({
   onSaveCreate,
   isCreating,
   createSaveDisabled,
+  includeInternalDepartmentType = true,
   createDeptKind,
   onCreateDeptKindChange,
   createResellerId,
@@ -70,12 +73,22 @@ export function PoolModals({
   onConfirmDelete,
   isDeleting,
 }: PoolModalsProps) {
+  const departmentTypeOptions: SelectOption[] = includeInternalDepartmentType
+    ? [
+        { value: "Internal", label: "Internal" },
+        { value: "External", label: "External" },
+      ]
+    : [{ value: "External", label: "External" }];
+  const createPoolDescription = includeInternalDepartmentType
+    ? "Internal: choose department, then enter the pool name. External: choose reseller and parent company, then department, then pool name."
+    : "Choose reseller and parent company, then department, then pool name (external departments).";
+
   return (
     <>
       <FormModal
         open={createOpen}
         title="Add pool"
-        description="Internal: choose department, then enter the pool name. External: choose reseller and parent company, then department, then pool name."
+        description={createPoolDescription}
         onClose={onCloseCreate}
         onSave={onSaveCreate}
         primaryButtonLabel={isCreating ? "Saving…" : "Save pool"}
@@ -88,10 +101,7 @@ export function PoolModals({
           label="Department type"
           value={createDeptKind}
           onChange={(v) => onCreateDeptKindChange(v as "Internal" | "External")}
-          options={[
-            { value: "Internal", label: "Internal" },
-            { value: "External", label: "External" },
-          ]}
+          options={departmentTypeOptions}
           menuMaxRows={4}
         />
 
