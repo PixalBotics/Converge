@@ -1,6 +1,7 @@
+export { sessionMayPickInternalUserScope } from "./session-scope";
 export { AuthProvider, useAuth } from "./AuthContext";
 export { validateCredentials, createSession, isSessionValid, MOCK_LOGIN_HINT } from "./mockAuth";
-export type { User, LoginCredentials, AuthSession } from "./types";
+export type { User, LoginCredentials, AuthSession, AuthUserType } from "./types";
 export { AUTH_PATHS, APP_PATHS, shouldSkipRemoteAuthHydration } from "./auth-paths";
 export type { AuthPathValue } from "./auth-paths";
 export { getAuthEmailRules, AUTH_EMAIL_REGEX, AUTH_EMAIL_MESSAGES } from "./auth-form-validation";

@@ -56,7 +56,7 @@ import {
   toIdNameOption,
 } from "@/app/dashboard/user-page/components/add-user-modal.utils";
 import { extractUsersRows } from "@/app/dashboard/user-page/utils";
-import { useAuth } from "@/lib/auth";
+import { useAuth, sessionMayPickInternalUserScope } from "@/lib/auth";
 import { canManageDepartmentHeads, canRemoveDepartmentHead } from "@/lib/permissions";
 import { SearchIcon } from "@/components/dashboard/icons/SearchIcon";
 
@@ -147,7 +147,18 @@ function mapDepartmentHeadItem(r: Record<string, unknown>, idx: number): HeadRow
 
 export default function DepartmentHeadsPage() {
   const theme = useTheme() as AppTheme;
-  const { hasOperational } = useAuth();
+  const { hasOperational, isPlatformAdmin, user: authUser } = useAuth();
+
+  const headsFilterUserTypeOptions = useMemo(
+    () =>
+      sessionMayPickInternalUserScope(isPlatformAdmin, authUser?.userType)
+        ? [
+            { value: "Internal", label: "Internal" },
+            { value: "External", label: "External" },
+          ]
+        : [{ value: "External", label: "External" }],
+    [isPlatformAdmin, authUser?.userType],
+  );
   const canAssignDeptHead = canManageDepartmentHeads(hasOperational);
   const canRemoveDeptHeadRow = canRemoveDepartmentHead(hasOperational);
   const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
@@ -603,6 +614,20 @@ export default function DepartmentHeadsPage() {
     setAssignParentCompanyId("");
   };
 
+  useEffect(() => {
+    if (!assignOpen || sessionMayPickInternalUserScope(isPlatformAdmin, authUser?.userType)) return;
+    setAssignUserTypeFilter("External");
+  }, [assignOpen, isPlatformAdmin, authUser?.userType]);
+
+  useEffect(() => {
+    if (sessionMayPickInternalUserScope(isPlatformAdmin, authUser?.userType) || headsUserTypeFilter !== "Internal")
+      return;
+    setHeadsUserTypeFilter("External");
+    setHeadsResellerId("");
+    setHeadsParentCompanyId("");
+    setHeadsDepartmentId("");
+  }, [isPlatformAdmin, authUser?.userType, headsUserTypeFilter]);
+
   const applyHeadsFilters = () => {
     setAppliedHeadsUserTypeFilter(headsUserTypeFilter);
     setAppliedHeadsResellerId(headsResellerId.trim());
@@ -612,7 +637,9 @@ export default function DepartmentHeadsPage() {
   };
 
   const clearHeadsFilters = () => {
-    setHeadsUserTypeFilter("Internal");
+    setHeadsUserTypeFilter(
+      sessionMayPickInternalUserScope(isPlatformAdmin, authUser?.userType) ? "Internal" : "External",
+    );
     setHeadsResellerId("");
     setHeadsParentCompanyId("");
     setHeadsDepartmentId("");
@@ -709,10 +736,7 @@ export default function DepartmentHeadsPage() {
                 label="Users — type"
                 value={headsUserTypeFilter}
                 onChange={(v) => setHeadsUserTypeFilter(v as "Internal" | "External")}
-                options={[
-                  { value: "Internal", label: "Internal" },
-                  { value: "External", label: "External" },
-                ]}
+                options={headsFilterUserTypeOptions}
                 menuMaxRows={4}
               />
               {headsUserTypeFilter === "External" ? (
@@ -893,7 +917,11 @@ export default function DepartmentHeadsPage() {
         open={assignOpen}
         fitContent
         title="Assign department head"
-        description="User must be in the selected department on the server. Choose Internal / External and pick one user."
+        description={
+          sessionMayPickInternalUserScope(isPlatformAdmin, authUser?.userType)
+            ? "User must be in the selected department on the server. Choose Internal / External and pick one user."
+            : "User must be in the selected department on the server. External users only — choose reseller and parent company, then department, then pick one user."
+        }
         onClose={() => {
           if (assignMutation.isPending) return;
           setAssignOpen(false);
@@ -933,10 +961,14 @@ export default function DepartmentHeadsPage() {
               label="Users — type"
               value={assignUserTypeFilter}
               onChange={(v) => setAssignUserTypeFilter(v as "Internal" | "External")}
-              options={[
-                { value: "Internal", label: "Internal" },
-                { value: "External", label: "External" },
-              ]}
+              options={
+                sessionMayPickInternalUserScope(isPlatformAdmin, authUser?.userType)
+                  ? [
+                      { value: "Internal", label: "Internal" },
+                      { value: "External", label: "External" },
+                    ]
+                  : [{ value: "External", label: "External" }]
+              }
               menuMaxRows={4}
             />
             {assignUserTypeFilter === "External" ? (

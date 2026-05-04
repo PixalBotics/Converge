@@ -13,7 +13,7 @@ import {
 import { flushSync } from "react-dom";
 import { isAxiosError } from "axios";
 import { usePathname, useRouter } from "next/navigation";
-import type { User, LoginCredentials } from "./types";
+import type { AuthUserType, User, LoginCredentials } from "./types";
 import { getAccessToken, getMe, setTokenPair, synchronizeAuthSession } from "@/api";
 import { useLoginMutation, useLogoutMutation } from "@/lib/hooks";
 import { extractApiErrorMessageForToast } from "@/lib/notify";
@@ -56,9 +56,20 @@ type ApiUser = {
   middleName?: string | null;
   lastName?: string;
   role?: ApiRole;
+  userType?: string | null;
+  user_type?: string | null;
   poolId?: string;
   pool?: { id?: string; name?: string; poolId?: string };
 };
+
+function parseApiUserType(user: ApiUser): AuthUserType | undefined {
+  const raw = user.userType ?? user.user_type;
+  if (raw == null || String(raw).trim() === "") return undefined;
+  const n = String(raw).trim().toLowerCase();
+  if (n === "internal") return "Internal";
+  if (n === "external") return "External";
+  return undefined;
+}
 
 function decodeJwtPayload(token: string): AccessTokenPayload | null {
   const parts = token.split(".");
@@ -117,6 +128,7 @@ function mapApiUserToUser(user: ApiUser): User | null {
     displayName: toDisplayName(user) || user.email,
     role: mapRoleNameToAppRole(roleName),
     roleLabel: roleName?.trim() || undefined,
+    userType: parseApiUserType(user),
     poolId,
     poolName,
   };

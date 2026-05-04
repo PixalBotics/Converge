@@ -51,7 +51,7 @@ import { extractUsersRows } from "@/app/dashboard/user-page/utils";
 import type { UserRow } from "@/app/dashboard/user-page/types";
 import { PoolModals, PoolsTableCard, UnifiedPoolMembersCard } from "./components";
 import type { PoolRow } from "./components";
-import { useAuth } from "@/lib/auth";
+import { useAuth, sessionMayPickInternalUserScope } from "@/lib/auth";
 import {
   canPoolAction,
   canPoolMemberAdd,
@@ -77,7 +77,11 @@ export type PoolsPageViewProps = {
 export function PoolsPageView({ mode }: PoolsPageViewProps) {
   const theme = useTheme() as AppTheme;
   const isMembersHub = mode === "pool-members";
-  const { hasOperational, hasPage, user } = useAuth();
+  const { hasOperational, hasPage, user, isPlatformAdmin } = useAuth();
+  const mayPickInternalDeptType = useMemo(
+    () => sessionMayPickInternalUserScope(isPlatformAdmin, user?.userType),
+    [isPlatformAdmin, user?.userType],
+  );
   const canCreatePool = canPoolAction(hasOperational, "create");
   const canUpdatePool = canPoolAction(hasOperational, "update");
   const canDeletePool = canPoolAction(hasOperational, "delete");
@@ -356,6 +360,16 @@ export function PoolsPageView({ mode }: PoolsPageViewProps) {
   }, [parentCompanyId]);
 
   useEffect(() => {
+    if (!createOpen || isMembersHub || mayPickInternalDeptType) return;
+    setCreateDeptKind("External");
+  }, [createOpen, isMembersHub, mayPickInternalDeptType]);
+
+  useEffect(() => {
+    if (!hubAddOpen || mayPickInternalDeptType) return;
+    setHubDeptKind("External");
+  }, [hubAddOpen, mayPickInternalDeptType]);
+
+  useEffect(() => {
     setPage((p) => (p > pageCount ? pageCount : p));
   }, [pageCount]);
 
@@ -393,7 +407,7 @@ export function PoolsPageView({ mode }: PoolsPageViewProps) {
   };
 
   const resetCreatePoolModal = () => {
-    setCreateDeptKind("Internal");
+    setCreateDeptKind(mayPickInternalDeptType ? "Internal" : "External");
     setCreateModalResellerId("");
     setCreateModalParentCompanyId("");
     setCreateModalDepartmentId("");
@@ -515,7 +529,7 @@ export function PoolsPageView({ mode }: PoolsPageViewProps) {
   }, [hubFilteredUserRows, hubUserId]);
 
   const resetHubAddMemberForm = () => {
-    setHubDeptKind("Internal");
+    setHubDeptKind(mayPickInternalDeptType ? "Internal" : "External");
     setHubResellerId("");
     setHubParentCompanyId("");
     setHubDepartmentId("");
@@ -695,7 +709,11 @@ export function PoolsPageView({ mode }: PoolsPageViewProps) {
         <FormModal
           open={hubAddOpen}
           title="Add pool member"
-          description="Choose the target pool, pick one user from the list, then confirm. Internal users load by default; external flows need reseller and parent company first."
+          description={
+            mayPickInternalDeptType
+              ? "Choose the target pool, pick one user from the list, then confirm. Internal users load by default; external flows need reseller and parent company first."
+              : "Choose the target pool (external departments), pick one user from the list, then confirm. Select reseller and parent company first to load users."
+          }
           onClose={() => {
             if (addPoolMemberMutation.isPending) return;
             setHubAddOpen(false);
@@ -769,10 +787,14 @@ export function PoolsPageView({ mode }: PoolsPageViewProps) {
                     setHubUserSearchInput("");
                     setHubUserSearchApplied("");
                   }}
-                  options={[
-                    { value: "Internal", label: "Internal" },
-                    { value: "External", label: "External" },
-                  ]}
+                  options={
+                    mayPickInternalDeptType
+                      ? [
+                          { value: "Internal", label: "Internal" },
+                          { value: "External", label: "External" },
+                        ]
+                      : [{ value: "External", label: "External" }]
+                  }
                   menuMaxRows={4}
                 />
 
@@ -1066,6 +1088,7 @@ export function PoolsPageView({ mode }: PoolsPageViewProps) {
         }}
         isCreating={createMutation.isPending}
         createSaveDisabled={createSaveDisabled}
+        includeInternalDepartmentType={mayPickInternalDeptType}
         createDeptKind={createDeptKind}
         onCreateDeptKindChange={(v) => {
           setCreateDeptKind(v);

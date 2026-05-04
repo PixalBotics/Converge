@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Box from "@mui/material/Box";
 import type { SxProps, Theme } from "@mui/material/styles";
 import { useTheme } from "@mui/material/styles";
@@ -40,9 +40,15 @@ import {
   type UserShiftAssignmentRow,
   type UserType,
 } from "./components";
+import { useAuth, sessionMayPickInternalUserScope } from "@/lib/auth";
 
 export default function UserShiftPage() {
   const theme = useTheme() as AppTheme;
+  const { isPlatformAdmin, user: authUser } = useAuth();
+  const mayPickInternalUserTypeFilter = useMemo(
+    () => sessionMayPickInternalUserScope(isPlatformAdmin, authUser?.userType),
+    [isPlatformAdmin, authUser?.userType],
+  );
   const [userId, setUserId] = useState("");
   const [monthCursor, setMonthCursor] = useState(() => startOfMonth(new Date()));
   const [assignOpen, setAssignOpen] = useState(false);
@@ -305,6 +311,17 @@ export default function UserShiftPage() {
     }
   };
 
+  useEffect(() => {
+    if (mayPickInternalUserTypeFilter || userTypeFilter !== "Internal") return;
+    setUserTypeFilter("all");
+    setUserPage(1);
+    setUserId("");
+    setExternalResellerId("");
+    setExternalParentCompanyId("");
+    setExternalDepartmentId("");
+    setInternalDepartmentId("");
+  }, [mayPickInternalUserTypeFilter, userTypeFilter]);
+
   const shiftsQuery = useShiftsListQuery({ all: true }, { enabled: true, scope: "user-shift-templates" });
   const shiftOptions = useMemo(() => {
     const payload = unwrapApiData(shiftsQuery.data);
@@ -514,6 +531,7 @@ export default function UserShiftPage() {
               setUserPage(1);
             }}
             departmentOptions={userTypeFilter === "Internal" ? internalDepartmentOptions : externalDepartmentOptions}
+            showInternalTypeCapsule={mayPickInternalUserTypeFilter}
           />
 
           <Box sx={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>

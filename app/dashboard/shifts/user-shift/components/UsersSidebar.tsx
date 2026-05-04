@@ -48,6 +48,8 @@ export type UsersSidebarProps = {
   isDepartmentsLoading?: boolean;
   externalScopeReady?: boolean;
   internalScopeReady?: boolean;
+  /** When false, Internal chip is hidden (external non–platform-admin sessions). */
+  showInternalTypeCapsule?: boolean;
 };
 
 export function UsersSidebar({
@@ -77,6 +79,7 @@ export function UsersSidebar({
   isDepartmentsLoading = false,
   externalScopeReady = false,
   internalScopeReady = false,
+  showInternalTypeCapsule = true,
 }: UsersSidebarProps) {
   const theme = useTheme() as AppTheme;
   const internalUsers = users.filter((u) => u.type === "Internal");
@@ -158,14 +161,16 @@ export function UsersSidebar({
           color={typeFilter === "all" ? "primary" : "default"}
           variant={typeFilter === "all" ? "filled" : "outlined"}
         />
-        <Chip
-          size="small"
-          label="Internal"
-          clickable
-          onClick={() => onTypeFilterChange("Internal")}
-          color={typeFilter === "Internal" ? "primary" : "default"}
-          variant={typeFilter === "Internal" ? "filled" : "outlined"}
-        />
+        {showInternalTypeCapsule ? (
+          <Chip
+            size="small"
+            label="Internal"
+            clickable
+            onClick={() => onTypeFilterChange("Internal")}
+            color={typeFilter === "Internal" ? "primary" : "default"}
+            variant={typeFilter === "Internal" ? "filled" : "outlined"}
+          />
+        ) : null}
         <Chip
           size="small"
           label="External"

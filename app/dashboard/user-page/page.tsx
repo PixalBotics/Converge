@@ -7,7 +7,7 @@ import type { AppTheme } from "@/theme/theme";
 import { AddCircleIcon } from "@/components/dashboard/icons/AddCircleIcon";
 import { Typography, Button } from "@/components/common";
 import { useUserFilterSuggestionsQuery, useUsersListQuery } from "@/lib/hooks";
-import { useAuth } from "@/lib/auth";
+import { useAuth, sessionMayPickInternalUserScope } from "@/lib/auth";
 import { UserStatsCards } from "./components/UserStatsCards";
 import { UsersTableSection } from "./components/UsersTableSection";
 import { AddUserModal } from "./components/AddUserModal";
@@ -28,7 +28,11 @@ import {
 
 export default function UserPage() {
   const theme = useTheme() as AppTheme;
-  const { hasOperational } = useAuth();
+  const { hasOperational, isPlatformAdmin, user: authUser } = useAuth();
+  const showInternalUsersCard = useMemo(
+    () => sessionMayPickInternalUserScope(isPlatformAdmin, authUser?.userType),
+    [isPlatformAdmin, authUser?.userType],
+  );
   const canCreateUser = hasOperational("user:create");
   const [searchInput, setSearchInput] = useState("");
   const [appliedSearch, setAppliedSearch] = useState("");
@@ -149,6 +153,7 @@ export default function UserPage() {
         totalUsers={totalEntries}
         internalCount={internalCount}
         externalCount={externalCount}
+        showInternalUsersCard={showInternalUsersCard}
       />
 
       <UsersTableSection
