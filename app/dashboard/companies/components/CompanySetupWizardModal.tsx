@@ -58,6 +58,7 @@ import {
   addAnotherLabel,
 } from "../overview.styles";
 import { CompanySetupChildPocBlock } from "./CompanySetupChildPocBlock";
+import { useAuth, sessionMayPickInternalUserScope } from "@/lib/auth";
 
 export type CompanySetupWizardCloseReason = "completed" | "dismissed";
 
@@ -71,6 +72,8 @@ type SetupKind = "new_reseller" | "existing_reseller";
 
 export function CompanySetupWizardModal({ open, draftId, onClose }: CompanySetupWizardModalProps) {
   const theme = useTheme() as AppTheme;
+  const { isPlatformAdmin, user: authUser } = useAuth();
+  const canCreateNewReseller = sessionMayPickInternalUserScope(isPlatformAdmin, authUser?.userType);
   const [modalStep, setModalStep] = useState<1 | 2>(1);
   /** Default: new reseller — no dropdown until user picks “under existing reseller”. */
   const [setupKind, setSetupKind] = useState<SetupKind>("new_reseller");
@@ -208,6 +211,14 @@ export function CompanySetupWizardModal({ open, draftId, onClose }: CompanySetup
       setDraftChildRows([emptyDraftChildRow()]);
     }
   }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    if (canCreateNewReseller) return;
+    if (setupKind !== "existing_reseller") {
+      setSetupKind("existing_reseller");
+    }
+  }, [open, canCreateNewReseller, setupKind]);
 
   /** Hydrate form from GET `/companies/setup/draft/{id}` once per open for this draft id. */
   useEffect(() => {
@@ -489,28 +500,31 @@ export function CompanySetupWizardModal({ open, draftId, onClose }: CompanySetup
                 const v = e.target.value;
                 if (v !== "new_reseller" && v !== "existing_reseller") return;
                 clearResellerParentFieldErrors();
+                if (!canCreateNewReseller && v === "new_reseller") return;
                 setSetupKind(v);
                 if (v === "new_reseller") setResellerId("");
               }}
             >
-              <FormControlLabel
-                value="new_reseller"
-                control={
-                  <Radio
-                    size="small"
-                    sx={{
-                      color: theme.app.dashboard.textMuted,
-                      "&.Mui-checked": { color: theme.app.dashboard.accentBlue },
-                    }}
-                  />
-                }
-                label={
-                  <Typography variant="body2" color="white">
-                    New reseller — only enter the parent company name (no reseller to pick).
-                  </Typography>
-                }
-                sx={{ alignItems: "flex-start", ml: 0, mr: 0, mb: 0.5 }}
-              />
+              {canCreateNewReseller ? (
+                <FormControlLabel
+                  value="new_reseller"
+                  control={
+                    <Radio
+                      size="small"
+                      sx={{
+                        color: theme.app.dashboard.textMuted,
+                        "&.Mui-checked": { color: theme.app.dashboard.accentBlue },
+                      }}
+                    />
+                  }
+                  label={
+                    <Typography variant="body2" color="white">
+                      New reseller — only enter the parent company name (no reseller to pick).
+                    </Typography>
+                  }
+                  sx={{ alignItems: "flex-start", ml: 0, mr: 0, mb: 0.5 }}
+                />
+              ) : null}
               <FormControlLabel
                 value="existing_reseller"
                 control={
