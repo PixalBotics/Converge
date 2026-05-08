@@ -1,28 +1,59 @@
 "use client";
 
-import { useRef, useState, type ChangeEvent } from "react";
+import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
+import ChatRounded from "@mui/icons-material/ChatRounded";
 import CloudUploadOutlined from "@mui/icons-material/CloudUploadOutlined";
-import DeleteOutline from "@mui/icons-material/DeleteOutline";
-import Settings from "@mui/icons-material/Settings";
 import Box from "@mui/material/Box";
 import IconButton from "@mui/material/IconButton";
+import Link from "@mui/material/Link";
 import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import { Button, InputField, SelectField, Typography } from "@/components/common";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
 import { WidgetFlowShell } from "@/components/dashboard/WidgetFlowShell";
+import { LAUNCHER_ICON_PRESETS, LauncherPresetIcon } from "@/lib/chat-widget/launcherIcons";
+import { readWidgetDraft, saveWidgetDraft, type LauncherIconPresetId } from "@/lib/chat-widget/widgetDraft";
 
 const STEPS = ["Widget Button Design", "Chat Box Design", "Notifications & Advanced"];
+
+const PREVIEW_LAUNCHER_PX = 52;
+const PREVIEW_SIM_MIN_HEIGHT = 200;
+
+function parseInsetPxString(raw: string, fallback: number): number {
+  const n = Number.parseInt(raw.trim(), 10);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.min(240, Math.max(0, n));
+}
 
 export default function ChatWidgetButtonDesignPage() {
   const router = useRouter();
   const theme = useTheme() as AppTheme;
-  const [buttonShape, setButtonShape] = useState<"circle" | "rounded">("circle");
-  const [buttonPosition, setButtonPosition] = useState("center");
+  const [buttonShape, setButtonShape] = useState<"circle" | "rounded" | "square">("circle");
+  const [buttonPosition, setButtonPosition] = useState("right");
   const [selectedButtonColor, setSelectedButtonColor] = useState("#2AA9E0");
+  const [selectedHoverColor, setSelectedHoverColor] = useState("#1C8DC2");
+  const [selectedIconColor, setSelectedIconColor] = useState("#FFFFFF");
   const [iconFileName, setIconFileName] = useState("");
+  const [iconDataUrl, setIconDataUrl] = useState("");
+  const [launcherIconPreset, setLauncherIconPreset] = useState<LauncherIconPresetId>("phosphor-chat-circle");
+  const [launcherInsetBottom, setLauncherInsetBottom] = useState("28");
+  const [launcherInsetSide, setLauncherInsetSide] = useState("28");
   const iconUploadRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    const d = readWidgetDraft();
+    setButtonShape(d.buttonShape);
+    setButtonPosition(d.buttonPosition);
+    setSelectedButtonColor(d.buttonColor || "#2AA9E0");
+    setSelectedHoverColor(d.buttonHoverColor || "#1C8DC2");
+    setSelectedIconColor(d.iconColor || "#FFFFFF");
+    setIconDataUrl(d.iconDataUrl || "");
+    setIconFileName(d.iconDataUrl ? "Uploaded icon" : "");
+    setLauncherIconPreset(d.launcherIconPreset);
+    setLauncherInsetBottom(String(d.launcherInsetBottomPx ?? 28));
+    setLauncherInsetSide(String(d.launcherInsetSidePx ?? 28));
+  }, []);
 
   const handlePickColor = (event: ChangeEvent<HTMLInputElement>) => {
     const color = event.target.value;
@@ -44,6 +75,51 @@ export default function ChatWidgetButtonDesignPage() {
     const file = event.target.files?.[0];
     if (!file) return;
     setIconFileName(file.name);
+    const reader = new FileReader();
+    reader.onload = () => setIconDataUrl(typeof reader.result === "string" ? reader.result : "");
+    reader.readAsDataURL(file);
+  };
+
+  const buttonRadius = buttonShape === "circle" ? "50%" : buttonShape === "rounded" ? "16px" : "8px";
+  const previewBottomPx = parseInsetPxString(launcherInsetBottom, 28);
+  const previewSidePx = parseInsetPxString(launcherInsetSide, 28);
+  /** Live preview box must be tall enough so `bottom: Npx` does not push the launcher above the clip rect */
+  const previewCanvasMinHeight = Math.max(PREVIEW_SIM_MIN_HEIGHT, previewBottomPx + PREVIEW_LAUNCHER_PX + 16);
+
+  const previewFabSx = {
+    position: "absolute" as const,
+    bottom: `${previewBottomPx}px`,
+    width: 52,
+    height: 52,
+    ...(buttonPosition === "left"
+      ? { left: `${previewSidePx}px`, right: "auto", transform: "none" }
+      : buttonPosition === "right"
+        ? { right: `${previewSidePx}px`, left: "auto", transform: "none" }
+        : {
+            left: "50%",
+            right: "auto",
+            transform: `translateX(calc(-50% + ${previewSidePx}px))`,
+          }),
+  };
+
+  const handleNext = () => {
+    const bottomPx = parseInsetPxString(launcherInsetBottom, 28);
+    const sidePx = parseInsetPxString(launcherInsetSide, 28);
+    saveWidgetDraft({
+      type: "chat",
+      buttonShape,
+      buttonPosition: buttonPosition as "left" | "center" | "right",
+      launcherInsetBottomPx: bottomPx,
+      launcherInsetSidePx: sidePx,
+      buttonColor: selectedButtonColor || "#2AA9E0",
+      buttonHoverColor: selectedHoverColor || "#1C8DC2",
+      iconColor: selectedIconColor || "#FFFFFF",
+      iconDataUrl,
+      launcherIconPreset,
+      completed: false,
+      widgetId: readWidgetDraft().widgetId || "12345",
+    });
+    router.push("/dashboard/chat-widget/add/chat/box");
   };
 
   return (
@@ -57,24 +133,65 @@ export default function ChatWidgetButtonDesignPage() {
           <Button type="button" variant="secondary" onClick={() => router.push("/dashboard/chat-widget")}>
             Cancel
           </Button>
-          <Button type="button" variant="primary" sx={gradientPrimaryButtonSx} onClick={() => router.push("/dashboard/chat-widget/add/chat/box")}>
+          <Button type="button" variant="primary" sx={gradientPrimaryButtonSx} onClick={handleNext}>
             Next
           </Button>
         </>
       }
     >
       <Typography variant="mediumLarge" sx={{ color: theme.app.text.primary, mb: -1.25 }}>Button Shape</Typography>
-      <Box sx={{ display: "flex", gap: 1.5 }}>
-        <IconButton onClick={() => setButtonShape("circle")} sx={{ width: 44, height: 44, bgcolor: buttonShape === "circle" ? theme.app.dashboard.accentBlue : theme.app.dashboard.overlayLight }}>
-          <DeleteOutline sx={{ fontSize: 18, color: theme.app.text.primary }} />
+      <Box sx={{ display: "flex", gap: 1.5, flexWrap: "wrap", mt: 0.75 }}>
+        <IconButton
+          type="button"
+          aria-label="Circle button shape"
+          onClick={() => setButtonShape("circle")}
+          sx={{
+            width: 44,
+            height: 44,
+            borderRadius: "50%",
+            bgcolor: buttonShape === "circle" ? theme.app.dashboard.accentBlue : theme.app.dashboard.overlayLight,
+          }}
+        >
+          <Box
+            aria-hidden
+            sx={{
+              width: 20,
+              height: 20,
+              borderRadius: "50%",
+              bgcolor: theme.app.text.primary,
+            }}
+          />
         </IconButton>
-        <IconButton onClick={() => setButtonShape("rounded")} sx={{ width: 44, height: 44, borderRadius: 2, bgcolor: buttonShape === "rounded" ? theme.app.dashboard.accentBlue : theme.app.dashboard.overlayLight }}>
-          <Settings sx={{ fontSize: 18, color: theme.app.text.primary }} />
+        <IconButton
+          type="button"
+          aria-label="Rounded button shape"
+          onClick={() => setButtonShape("rounded")}
+          sx={{
+            width: 44,
+            height: 44,
+            borderRadius: 2,
+            bgcolor: buttonShape === "rounded" ? theme.app.dashboard.accentBlue : theme.app.dashboard.overlayLight,
+          }}
+        >
+          <Box aria-hidden sx={{ width: 24, height: 18, borderRadius: "6px", bgcolor: theme.app.text.primary }} />
+        </IconButton>
+        <IconButton
+          type="button"
+          aria-label="Square button shape"
+          onClick={() => setButtonShape("square")}
+          sx={{
+            width: 44,
+            height: 44,
+            borderRadius: 1,
+            bgcolor: buttonShape === "square" ? theme.app.dashboard.accentBlue : theme.app.dashboard.overlayLight,
+          }}
+        >
+          <Box aria-hidden sx={{ width: 20, height: 20, borderRadius: "4px", bgcolor: theme.app.text.primary }} />
         </IconButton>
       </Box>
 
       <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, mt: -0.75, mb: 0.5 }}>
-        {buttonShape === "circle" ? "Circle" : "Rounded"}
+        {buttonShape === "circle" ? "Circle" : buttonShape === "rounded" ? "Rounded" : "Square"}
       </Typography>
 
       <Typography variant="mediumLarge" sx={{ color: theme.app.text.primary, mb: -1.25 }}>Button Color</Typography>
@@ -100,6 +217,83 @@ export default function ChatWidgetButtonDesignPage() {
         </Typography>
       </Box>
       <InputField label="Hex" name="hexColor" value={selectedButtonColor} onChange={handleHexInput} />
+
+      <Typography variant="mediumLarge" sx={{ color: theme.app.text.primary, mb: -1.25 }}>Button Hover</Typography>
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1.25 }}>
+        <Box
+          component="input"
+          type="color"
+          value={selectedHoverColor || "#000000"}
+          onChange={(event: ChangeEvent<HTMLInputElement>) => setSelectedHoverColor(event.target.value)}
+          aria-label="Choose hover color"
+          sx={{
+            width: 44,
+            height: 44,
+            p: 0,
+            border: `1px solid ${theme.app.dashboard.cardBorder}`,
+            borderRadius: "4px",
+            bgcolor: "transparent",
+            cursor: "pointer",
+          }}
+        />
+        <Typography variant="mediumLarge" sx={{ color: theme.app.dashboard.textMuted }}>
+          Hover color
+        </Typography>
+      </Box>
+      <InputField label="Hover Hex" name="hoverHexColor" value={selectedHoverColor} onChange={(event) => setSelectedHoverColor(event.target.value)} />
+
+      <Typography variant="mediumLarge" sx={{ color: theme.app.text.primary, mb: -1.25 }}>
+        Default launcher icon
+      </Typography>
+      <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, mb: 0.75 }}>
+       Upload your own file below to override.
+      </Typography>
+      <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", alignItems: "center", mb: 1.25 }}>
+        <IconButton
+          type="button"
+          onClick={() => {
+            setLauncherIconPreset("");
+            setIconDataUrl("");
+            setIconFileName("");
+          }}
+          title="Simple chat icon"
+          sx={{
+            width: 48,
+            height: 48,
+            borderRadius: "50%",
+            border: `2px solid ${launcherIconPreset === "" && !iconDataUrl ? theme.app.dashboard.accentBlue : theme.app.dashboard.cardBorder}`,
+            bgcolor: selectedButtonColor || "#2AA9E0",
+            "&:hover": { bgcolor: selectedHoverColor || "#1C8DC2" },
+          }}
+        >
+          <ChatRounded sx={{ color: selectedIconColor || "#FFFFFF", fontSize: 24 }} />
+        </IconButton>
+        {LAUNCHER_ICON_PRESETS.map((preset) => {
+          const selected = !iconDataUrl && launcherIconPreset === preset.id;
+          return (
+            <IconButton
+              key={preset.id}
+              type="button"
+              onClick={() => {
+                setLauncherIconPreset(preset.id);
+                setIconDataUrl("");
+                setIconFileName("");
+              }}
+              title={preset.label}
+              sx={{
+                width: 48,
+                height: 48,
+                borderRadius: "50%",
+                border: `2px solid ${selected ? theme.app.dashboard.accentBlue : theme.app.dashboard.cardBorder}`,
+                bgcolor: selectedButtonColor || "#2AA9E0",
+                "&:hover": { bgcolor: selectedHoverColor || "#1C8DC2" },
+              }}
+            >
+              <LauncherPresetIcon presetId={preset.id} color={selectedIconColor || "#FFFFFF"} fontSizePx={26} />
+            </IconButton>
+          );
+        })}
+      </Box>
 
       <Box
         role="button"
@@ -134,12 +328,138 @@ export default function ChatWidgetButtonDesignPage() {
       </Box>
       <Box component="input" ref={iconUploadRef} type="file" accept=".svg,.png,.jpg,.jpeg,.webp" onChange={handleIconUpload} sx={{ display: "none" }} />
 
+      <Typography variant="mediumLarge" sx={{ color: theme.app.text.primary, mb: -1.25 }}>Icon Color</Typography>
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1.25 }}>
+        <Box
+          component="input"
+          type="color"
+          value={selectedIconColor || "#FFFFFF"}
+          onChange={(event: ChangeEvent<HTMLInputElement>) => setSelectedIconColor(event.target.value)}
+          aria-label="Choose icon color"
+          sx={{
+            width: 44,
+            height: 44,
+            p: 0,
+            border: `1px solid ${theme.app.dashboard.cardBorder}`,
+            borderRadius: "4px",
+            bgcolor: "transparent",
+            cursor: "pointer",
+          }}
+        />
+        <Typography variant="mediumLarge" sx={{ color: theme.app.dashboard.textMuted }}>
+          Choose icon color
+        </Typography>
+      </Box>
+      <InputField
+        label="Icon Hex"
+        name="iconHexColor"
+        value={selectedIconColor}
+        onChange={(event) => setSelectedIconColor(event.target.value)}
+      />
+
       <SelectField
         label="Button Position"
         value={buttonPosition}
         onChange={setButtonPosition}
-        options={[{ label: "Center", value: "center" }, { label: "Left", value: "left" }, { label: "Right", value: "right" }]}
+        options={[
+          { label: "Left", value: "left" },
+          { label: "Right", value: "right" },
+          { label: "Center", value: "center" },
+        ]}
       />
+
+      <Typography variant="mediumLarge" sx={{ color: theme.app.text.primary, mb: -1 }}>
+        Launcher position (fine tune)
+      </Typography>
+      <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, mb: 0.75 }}>
+        Bottom inset zyada = corner se aur upar / screen ke niche se door. Side inset = Left/Right se kinare ki spacing; Center choose karne par yeh horizontal shift (left/right slide) hai.
+      </Typography>
+      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 1.5 }}>
+        <InputField
+          label="Inset from bottom (px)"
+          name="launcher-inset-bottom"
+          type="text"
+          value={launcherInsetBottom}
+          onChange={(event) => setLauncherInsetBottom(event.target.value)}
+          inputProps={{ inputMode: "numeric", pattern: "[0-9]*", min: 0, max: 240 }}
+        />
+        <InputField
+          label={buttonPosition === "center" ? "Horizontal shift (px)" : "Inset from side (px)"}
+          name="launcher-inset-side"
+          type="text"
+          value={launcherInsetSide}
+          onChange={(event) => setLauncherInsetSide(event.target.value)}
+          inputProps={{ inputMode: "numeric", pattern: "[0-9]*", min: 0, max: 240 }}
+        />
+      </Box>
+
+      <Typography variant="mediumLarge" sx={{ color: theme.app.text.primary, mt: 0.5, mb: -0.5 }}>
+        Live Preview
+      </Typography>
+      <Box
+        sx={{
+          border: `1px solid ${theme.app.dashboard.cardBorder}`,
+          borderRadius: 3,
+          p: 2,
+          minHeight: Math.max(250, previewCanvasMinHeight + 24),
+          bgcolor: "rgba(6, 12, 54, 0.45)",
+        }}
+      >
+        <Box
+          sx={{
+            position: "relative",
+            borderRadius: 2.5,
+            border: `1px solid ${theme.app.dashboard.cardBorder}`,
+            bgcolor: "#E5EAF2",
+            minHeight: previewCanvasMinHeight,
+            overflow: "hidden",
+          }}
+        >
+          <Box
+            sx={{
+              ...previewFabSx,
+              borderRadius: buttonRadius,
+              bgcolor: selectedButtonColor || "#2AA9E0",
+              boxShadow: "0 8px 18px rgba(7, 27, 73, 0.35)",
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              transition:
+                buttonPosition === "center"
+                  ? "transform 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease"
+                  : "background-color 0.2s ease, box-shadow 0.2s ease",
+              "&:hover": {
+                bgcolor: selectedHoverColor || "#1C8DC2",
+                ...(buttonPosition === "center"
+                  ? {
+                      transform:
+                        previewSidePx !== 0
+                          ? `translate(calc(-50% + ${previewSidePx}px), -2px) scale(1.04)`
+                          : "translate(-50%, -2px) scale(1.04)",
+                      boxShadow: "0 16px 30px rgba(7, 27, 73, 0.56), 0 0 0 3px rgba(255, 255, 255, 0.16)",
+                    }
+                  : {
+                      transform: "translateY(-2px) scale(1.04)",
+                      boxShadow: "0 16px 30px rgba(7, 27, 73, 0.56), 0 0 0 3px rgba(255, 255, 255, 0.16)",
+                    }),
+              },
+            }}
+          >
+            {iconDataUrl ? (
+              <Box
+                component="img"
+                src={iconDataUrl}
+                alt="Custom widget icon"
+                sx={{ width: 26, height: 26, objectFit: "contain" }}
+              />
+            ) : launcherIconPreset ? (
+              <LauncherPresetIcon presetId={launcherIconPreset} color={selectedIconColor || "#FFFFFF"} fontSizePx={26} />
+            ) : (
+              <ChatRounded sx={{ color: selectedIconColor || "#FFFFFF", fontSize: 26 }} />
+            )}
+          </Box>
+        </Box>
+      </Box>
     </WidgetFlowShell>
   );
 }
