@@ -113,7 +113,7 @@ export default function LeaveBalancePage() {
       </Box>
 
       {showLeaveInsights ? (
-        <DashboardCard sx={[rolesCard, { mt: 2 }]}>
+        <DashboardCard sx={{ ...rolesCard, mt: 2 }}>
           <Box sx={{ ...applyLeaveCardHeaderSx, justifyContent: "space-between", gap: 2 }}>
             <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
               <Box sx={rolesIconBox}>
