@@ -430,13 +430,6 @@ const HRMS_GROUP: DashboardNavItem = {
       prefixMatch: false,
     },
     {
-      href: "/dashboard/hrms/pools",
-      label: "Pools",
-      section: "activity",
-      iconKey: "pools",
-      permission: "page:hrms",
-    },
-    {
       href: "/dashboard/hrms/pool-members",
       label: "Pool members",
       section: "activity",
@@ -499,13 +492,7 @@ const HRMS_GROUP: DashboardNavItem = {
       iconKey: "leave",
       permission: "page:hrms",
     },
-    {
-      href: "/dashboard/leave/approve-leave",
-      label: "Approve Leave",
-      section: "activity",
-      iconKey: "leave",
-      permission: "page:hrms",
-    },
+    /* Sidebar: Approve Leave hidden for now — restore child linking to /dashboard/leave/approve-leave */
     {
       href: "/dashboard/leave/leave-balance",
       label: "Leave Balance",
@@ -521,7 +508,8 @@ export const DASHBOARD_NAV_ITEMS: readonly DashboardNavItem[] = PAGE_PERMISSION_
   if (permission === "page:website-assignments") return [WEBSITE_GROUP];
   if (permission === "page:users") return [USERS_GROUP];
   if (permission === "page:hrms") return [HRMS_GROUP];
-  if (permission === "page:pools") return [toNavItem("page:pools")!];
+  /* Sidebar: Pools row hidden for now — restore: `return [toNavItem("page:pools")!]` */
+  if (permission === "page:pools") return [];
   if (permission === "page:shifts") return [SHIFTS_GROUP];
   if (COMMERCIAL_PAGE_PERMISSIONS.includes(permission)) {
     const first = firstCommercialPageInNavOrder();
