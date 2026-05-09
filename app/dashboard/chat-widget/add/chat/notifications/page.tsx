@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type ChangeEvent } from "react";
+import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
 import CloudUploadOutlined from "@mui/icons-material/CloudUploadOutlined";
 import Box from "@mui/material/Box";
@@ -10,9 +10,20 @@ import RadioGroup from "@mui/material/RadioGroup";
 import Switch from "@mui/material/Switch";
 import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
-import { Button, Checkbox, InputField, Typography } from "@/components/common";
+import { Button, Checkbox, InputField, SelectField, Typography } from "@/components/common";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
 import { WidgetFlowShell } from "@/components/dashboard/WidgetFlowShell";
+import {
+  patchRemoteWidgetConfiguration,
+  summarizePatchResult,
+} from "@/lib/chat-widget/widget-remote-sync";
+import { extractApiErrorMessageForToast } from "@/lib/notify/extract-api-message";
+import { publishAppToast } from "@/lib/notify";
+import {
+  readWidgetDraft,
+  saveWidgetDraft,
+  type WidgetInstallChatMode,
+} from "@/lib/chat-widget/widgetDraft";
 
 const STEPS = ["Widget Button Design", "Chat Box Design", "Notifications & Advanced"];
 
@@ -21,10 +32,19 @@ export default function ChatWidgetNotificationsPage() {
   const theme = useTheme() as AppTheme;
   const [browserNotification, setBrowserNotification] = useState(true);
   const [soundNotification, setSoundNotification] = useState(false);
+  const [chatMode, setChatMode] = useState<WidgetInstallChatMode>("HYBRID");
+  const [allowedDomainsInput, setAllowedDomainsInput] = useState("");
   const [videoWelcomeOn, setVideoWelcomeOn] = useState(false);
   const [videoSource, setVideoSource] = useState("upload");
   const [videoFileName, setVideoFileName] = useState("");
   const videoUploadRef = useRef<HTMLInputElement | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    const d = readWidgetDraft();
+    if (d.chatMode) setChatMode(d.chatMode);
+    setAllowedDomainsInput(d.allowedDomains?.join(", ") ?? "");
+  }, []);
 
   const handleVideoUpload = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -43,8 +63,61 @@ export default function ChatWidgetNotificationsPage() {
           <Button type="button" variant="secondary" onClick={() => router.push("/dashboard/chat-widget")}>
             Cancel
           </Button>
-          <Button type="button" variant="primary" sx={gradientPrimaryButtonSx} onClick={() => router.push("/dashboard/chat-widget/add/chat/script")}>
-            Next
+          <Button
+            type="button"
+            variant="primary"
+            sx={gradientPrimaryButtonSx}
+            disabled={saving}
+            onClick={() => {
+              if (saving) return;
+              void (async () => {
+                const prev = readWidgetDraft();
+                const rk = prev.remoteWidgetKey?.trim();
+                if (!rk) {
+                  publishAppToast({
+                    variant: "error",
+                    message:
+                      "Missing server widget draft. Go back to the first step and save again.",
+                  });
+                  router.push("/dashboard/chat-widget/add");
+                  return;
+                }
+
+                setSaving(true);
+                try {
+                  saveWidgetDraft({
+                    chatMode,
+                    allowedDomains: allowedDomainsInput
+                      .split(",")
+                      .map((s) => s.trim())
+                      .filter(Boolean),
+                  });
+                  const latest = readWidgetDraft();
+                  const patchInner = await patchRemoteWidgetConfiguration({
+                    widgetKey: rk,
+                    widgetKind: "chat",
+                    draft: latest,
+                    publishNow: false,
+                  });
+                  const sum = summarizePatchResult(patchInner);
+                  saveWidgetDraft({
+                    requiresPublishBeforeEmbed: sum.requiresPublishBeforeEmbed,
+                  });
+                  router.push("/dashboard/chat-widget/add/chat/script");
+                } catch (e) {
+                  publishAppToast({
+                    variant: "error",
+                    message:
+                      extractApiErrorMessageForToast(e) ??
+                      "Could not save advanced settings to the server.",
+                  });
+                } finally {
+                  setSaving(false);
+                }
+              })();
+            }}
+          >
+            {saving ? "Saving…" : "Next"}
           </Button>
         </>
       }
@@ -58,6 +131,29 @@ export default function ChatWidgetNotificationsPage() {
       </Box>
 
       <InputField label="Fallback Notification Text" name="fallback" value="You have a new message from support." inputProps={{ maxLength: 120 }} />
+
+      <Typography variant="mediumLarge" sx={{ color: theme.app.text.primary, mb: -1.25, mt: 0.5 }}>
+        Chat routing (backend mode)
+      </Typography>
+      <SelectField
+        label="Chat mode"
+        value={chatMode}
+        onChange={(v) => setChatMode(v as WidgetInstallChatMode)}
+        options={[
+          { label: "Hybrid (AI then agent handoff)", value: "HYBRID" },
+          { label: "AI only", value: "AI_ONLY" },
+          { label: "Agent only", value: "AGENT_ONLY" },
+        ]}
+        searchable={false}
+        menuMaxRows={6}
+      />
+      <InputField
+        label="Allowed domains (comma-separated hosts, optional)"
+        name="allowed-domains"
+        value={allowedDomainsInput}
+        onChange={(e) => setAllowedDomainsInput(e.target.value)}
+        placeholder="example.com, app.example.com"
+      />
 
       <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <Typography variant="mediumLarge" sx={{ color: theme.app.text.primary }}>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import ChatRounded from "@mui/icons-material/ChatRounded";
 import CloseRounded from "@mui/icons-material/CloseRounded";
@@ -10,11 +10,24 @@ import Box from "@mui/material/Box";
 import IconButton from "@mui/material/IconButton";
 import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
+import { getWidgetEmbedSnippet, publishWidget } from "@/api/widgets/widgets.api";
 import { Button, Typography } from "@/components/common";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
 import { WidgetFlowShell } from "@/components/dashboard/WidgetFlowShell";
 import { LauncherPresetIcon } from "@/lib/chat-widget/launcherIcons";
-import { buildWidgetScript, readWidgetDraft, saveWidgetDraft, type WidgetDraft } from "@/lib/chat-widget/widgetDraft";
+import { buildUnifiedWidgetEmbedScript, readWidgetDraft, saveWidgetDraft, type WidgetDraft } from "@/lib/chat-widget/widgetDraft";
+import {
+  createRemoteWidgetDraft,
+  patchRemoteWidgetConfiguration,
+} from "@/lib/chat-widget/widget-remote-sync";
+import {
+  pickInstallWidgetKeys,
+  pickRequiresPublishBeforeEmbed,
+  readEmbedSnippetMarkup,
+  unwrapWidgetInstallEnvelope,
+} from "@/lib/chat-widget/widget-install-response";
+import { uploadDraftWidgetAssets } from "@/lib/chat-widget/upload-widget-draft-assets";
+import { extractApiErrorMessageForToast } from "@/lib/notify/extract-api-message";
 
 function launcherSandboxHorizontalSx(position: WidgetDraft["buttonPosition"], sidePx: number): Record<string, string | number> {
   if (position === "left") return { left: sidePx, right: "auto", transform: "none" };
@@ -22,22 +35,148 @@ function launcherSandboxHorizontalSx(position: WidgetDraft["buttonPosition"], si
   return { left: "50%", right: "auto", transform: `translateX(calc(-50% + ${sidePx}px))` };
 }
 
+type InstallUiState =
+  | { phase: "loading" }
+  | { phase: "error"; message: string }
+  | { phase: "ready"; draft: WidgetDraft; embedMarkup: string };
+
 export default function ChatWidgetScriptPage() {
   const router = useRouter();
   const theme = useTheme() as AppTheme;
   const [copied, setCopied] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
-  const [draft, setDraft] = useState<WidgetDraft | null>(null);
+  const [installUi, setInstallUi] = useState<InstallUiState>({ phase: "loading" });
 
   useEffect(() => {
-    const current = readWidgetDraft();
-    const ensuredId = current.widgetId || String(Date.now());
-    const next = { ...current, type: "chat" as const, widgetId: ensuredId, completed: true };
-    saveWidgetDraft(next);
-    setDraft(next);
+    let cancelled = false;
+
+    async function runInstall() {
+      const current = readWidgetDraft();
+      const typed = { ...current, type: "chat" as const };
+
+      if (!typed.websiteId?.trim()) {
+        setInstallUi({
+          phase: "error",
+          message: "Choose a website on the first step (Add Widget → Website) before finishing install.",
+        });
+        return;
+      }
+
+      setInstallUi({ phase: "loading" });
+
+      try {
+        const assetUrls = await uploadDraftWidgetAssets({
+          websiteId: typed.websiteId,
+          draft: typed,
+        });
+
+        let widgetKey = typed.remoteWidgetKey?.trim() || "";
+
+        /** Older local sessions saved before backend draft wired — bootstrap server draft once */
+        if (!widgetKey) {
+          const created = await createRemoteWidgetDraft({
+            draft: typed,
+            widgetKind: "chat",
+          });
+          widgetKey = created.widgetKey;
+          saveWidgetDraft({
+            ...typed,
+            remoteWidgetKey: widgetKey,
+            widgetId: widgetKey,
+            requiresPublishBeforeEmbed: created.requiresPublishBeforeEmbed,
+          });
+        }
+
+        let patchInner = await patchRemoteWidgetConfiguration({
+          widgetKey,
+          widgetKind: "chat",
+          draft: readWidgetDraft(),
+          publishNow: true,
+          assetUrls,
+        });
+        if (cancelled) return;
+
+        let keys = pickInstallWidgetKeys(patchInner);
+        if (!keys.deployKey?.trim()) {
+          const pubRes = await publishWidget(widgetKey, {});
+          if (!cancelled) {
+            patchInner = unwrapWidgetInstallEnvelope(pubRes);
+            keys = pickInstallWidgetKeys(patchInner);
+          }
+        }
+
+        const finalKey = keys.widgetKey || widgetKey;
+        if (!finalKey) {
+          throw new Error("Publish completed but widgetKey is missing.");
+        }
+
+        saveWidgetDraft({
+          ...readWidgetDraft(),
+          type: "chat",
+          widgetId: finalKey,
+          remoteWidgetKey: finalKey,
+          completed: true,
+          requiresPublishBeforeEmbed: pickRequiresPublishBeforeEmbed(patchInner),
+        });
+
+        const appOrigin =
+          (typeof window !== "undefined" ? window.location.origin : "") ||
+          process.env.NEXT_PUBLIC_WIDGET_EMBED_ORIGIN ||
+          "";
+
+        let embedMarkup: string | null = null;
+        try {
+          const snippetRes = await getWidgetEmbedSnippet(finalKey);
+          if (!cancelled) embedMarkup = readEmbedSnippetMarkup(snippetRes);
+        } catch {
+          /* optional richer snippet */
+        }
+
+        const fallbackScript = buildUnifiedWidgetEmbedScript({
+          widgetKey: finalKey,
+          deployKey: keys.deployKey || "YOUR_DEPLOY_KEY",
+          appOrigin:
+            typeof appOrigin === "string" && appOrigin.length > 0
+              ? appOrigin
+              : "https://your-app.example",
+        });
+
+        const finalMarkup =
+          embedMarkup && embedMarkup.trim().length > 0 ? embedMarkup : fallbackScript;
+
+        if (!cancelled) {
+          setInstallUi({
+            phase: "ready",
+            draft: { ...typed, widgetId: finalKey, remoteWidgetKey: finalKey, completed: true },
+            embedMarkup: finalMarkup,
+          });
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setInstallUi({
+            phase: "error",
+            message: extractApiErrorMessageForToast(err) ?? "Install request failed.",
+          });
+        }
+      }
+    }
+
+    void runInstall();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  const chatScript = useMemo(() => buildWidgetScript(draft ?? readWidgetDraft()), [draft]);
+  const draft =
+    installUi.phase === "ready" ? installUi.draft : readWidgetDraft();
+
+  const chatScript =
+    installUi.phase === "ready"
+      ? installUi.embedMarkup
+      : buildUnifiedWidgetEmbedScript({
+          widgetKey: draft.widgetId?.startsWith("wgt_") ? draft.widgetId : "YOUR_WIDGET_KEY",
+          deployKey: "YOUR_DEPLOY_KEY",
+        });
 
   const previewPanelHeight = draft ? Math.max(320, Math.min(640, draft.boxHeight)) : 400;
   const previewPanelWidth = draft ? Math.max(280, Math.min(520, draft.boxWidth)) : 320;
@@ -59,12 +198,24 @@ export default function ChatWidgetScriptPage() {
       footer={
         <>
           <Button type="button" variant="secondary" onClick={() => setShowPreview((prev) => !prev)}>Preview Widget</Button>
-          <Button type="button" variant="primary" sx={gradientPrimaryButtonSx} onClick={handleCopy} startIcon={<ContentCopy sx={{ fontSize: 16 }} />}>
+          <Button type="button" variant="primary" sx={gradientPrimaryButtonSx} onClick={handleCopy} disabled={installUi.phase === "loading"} startIcon={<ContentCopy sx={{ fontSize: 16 }} />}>
             {copied ? "Copied" : "Copy Script"}
           </Button>
         </>
       }
     >
+      {installUi.phase === "loading" ? (
+        <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted }}>
+          Publishing widget (PATCH publishNow true → optional POST publish → embed snippet)…
+        </Typography>
+      ) : null}
+
+      {installUi.phase === "error" ? (
+        <Typography variant="body2" sx={{ color: theme.palette.error.main, mb: 1 }}>
+          {installUi.message}
+        </Typography>
+      ) : null}
+
       <Typography variant="mediumLarge" sx={{ color: theme.app.text.primary, mb: -1.2 }}>Embed Code</Typography>
       <Box
         sx={{
@@ -74,13 +225,19 @@ export default function ChatWidgetScriptPage() {
           bgcolor: theme.app.dashboard.overlayLight,
         }}
       >
-        <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, wordBreak: "break-all" }}>{chatScript}</Typography>
+        <Typography component="pre" variant="body2" sx={{ color: theme.app.dashboard.textMuted, wordBreak: "break-word", whiteSpace: "pre-wrap", m: 0 }}>
+          {chatScript}
+        </Typography>
       </Box>
       <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted }}>
-        Widget completed. Dashboard page par corner icon auto-show hoga.
+        {installUi.phase === "ready"
+          ? "Deployed from dashboard. Rotate deploy keys from Widget admin APIs when needed."
+          : installUi.phase === "error"
+            ? "Fix the issue above or verify chat-widget:create / chat-widget:update permissions."
+            : "Fetching embed snippet…"}
       </Typography>
 
-      {showPreview && draft ? (
+      {showPreview ? (
         <Box sx={{ mt: 2 }}>
           <Typography variant="mediumLarge" sx={{ color: theme.app.text.primary, mb: 1 }}>
             Live preview

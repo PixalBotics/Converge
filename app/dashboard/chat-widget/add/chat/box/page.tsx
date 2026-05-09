@@ -13,7 +13,13 @@ import type { AppTheme } from "@/theme/theme";
 import { Button, InputField, SelectField, Typography } from "@/components/common";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
 import { WidgetFlowShell } from "@/components/dashboard/WidgetFlowShell";
-import { saveWidgetDraft } from "@/lib/chat-widget/widgetDraft";
+import {
+  patchRemoteWidgetConfiguration,
+  summarizePatchResult,
+} from "@/lib/chat-widget/widget-remote-sync";
+import { extractApiErrorMessageForToast } from "@/lib/notify/extract-api-message";
+import { publishAppToast } from "@/lib/notify";
+import { readWidgetDraft, saveWidgetDraft } from "@/lib/chat-widget/widgetDraft";
 
 const STEPS = ["Widget Button Design", "Chat Box Design", "Notifications & Advanced"];
 export default function ChatWidgetBoxDesignPage() {
@@ -32,6 +38,7 @@ export default function ChatWidgetBoxDesignPage() {
   const [boxWidth, setBoxWidth] = useState("350");
   const [boxHeight, setBoxHeight] = useState("430");
   const bannerUploadRef = useRef<HTMLInputElement | null>(null);
+  const [saving, setSaving] = useState(false);
 
   const handleButtonColor = (event: ChangeEvent<HTMLInputElement>) => {
     const color = event.target.value;
@@ -56,24 +63,63 @@ export default function ChatWidgetBoxDesignPage() {
   };
 
   const handleNext = () => {
-    const parsedWidth = Number.parseInt(boxWidth, 10);
-    const parsedHeight = Number.parseInt(boxHeight, 10);
-    const safeWidth = Number.isFinite(parsedWidth) ? Math.min(520, Math.max(280, parsedWidth)) : 350;
-    const safeHeight = Number.isFinite(parsedHeight) ? Math.min(640, Math.max(320, parsedHeight)) : 430;
-    saveWidgetDraft({
-      headerTitleAlign: headerTitle as "Center" | "Left",
-      headerTitle: companyLogo || "AI Sales Assistant",
-      buttonColor: buttonColor || "#1ed760",
-      textColor: textColor || "#FFFFFF",
-      greetingMessage,
-      sendPlaceholder,
-      bannerOn,
-      bannerDataUrl,
-      bannerMediaType,
-      boxWidth: safeWidth,
-      boxHeight: safeHeight,
-    });
-    router.push("/dashboard/chat-widget/add/chat/notifications");
+    if (saving) return;
+    void (async () => {
+      const prev = readWidgetDraft();
+      const rk = prev.remoteWidgetKey?.trim();
+      if (!rk) {
+        publishAppToast({
+          variant: "error",
+          message:
+            "Missing server widget draft. Go back to the first step and save again.",
+        });
+        router.push("/dashboard/chat-widget/add");
+        return;
+      }
+
+      const parsedWidth = Number.parseInt(boxWidth, 10);
+      const parsedHeight = Number.parseInt(boxHeight, 10);
+      const safeWidth = Number.isFinite(parsedWidth) ? Math.min(520, Math.max(280, parsedWidth)) : 350;
+      const safeHeight = Number.isFinite(parsedHeight) ? Math.min(640, Math.max(320, parsedHeight)) : 430;
+
+      setSaving(true);
+      try {
+        saveWidgetDraft({
+          headerTitleAlign: headerTitle as "Center" | "Left",
+          headerTitle: companyLogo || "AI Sales Assistant",
+          buttonColor: buttonColor || "#1ed760",
+          textColor: textColor || "#FFFFFF",
+          greetingMessage,
+          sendPlaceholder,
+          bannerOn,
+          bannerDataUrl,
+          bannerMediaType,
+          boxWidth: safeWidth,
+          boxHeight: safeHeight,
+        });
+        const latest = readWidgetDraft();
+        const patchInner = await patchRemoteWidgetConfiguration({
+          widgetKey: rk,
+          widgetKind: "chat",
+          draft: latest,
+          publishNow: false,
+        });
+        const sum = summarizePatchResult(patchInner);
+        saveWidgetDraft({
+          requiresPublishBeforeEmbed: sum.requiresPublishBeforeEmbed,
+        });
+        router.push("/dashboard/chat-widget/add/chat/notifications");
+      } catch (e) {
+        publishAppToast({
+          variant: "error",
+          message:
+            extractApiErrorMessageForToast(e) ??
+            "Could not save chat box design to the server.",
+        });
+      } finally {
+        setSaving(false);
+      }
+    })();
   };
 
   const renderAgentIcon = () => (
@@ -105,8 +151,8 @@ export default function ChatWidgetBoxDesignPage() {
           <Button type="button" variant="secondary" onClick={() => router.push("/dashboard/chat-widget")}>
             Cancel
           </Button>
-          <Button type="button" variant="primary" sx={gradientPrimaryButtonSx} onClick={handleNext}>
-            Next
+          <Button type="button" variant="primary" sx={gradientPrimaryButtonSx} disabled={saving} onClick={handleNext}>
+            {saving ? "Saving…" : "Next"}
           </Button>
         </>
       }

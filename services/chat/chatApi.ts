@@ -1,12 +1,17 @@
 import { apiClient } from "@/api";
 import type {
-  AgentMessagePayload,
+  AgentSendMessagePayload,
+  ChatCloseResponse,
   ConversationHistoryResponse,
   ConversationSummary,
-  SendMessagePayload,
   VisitorCreateConversationPayload,
   VisitorCreateConversationResponse,
+  VisitorSendMessagePayload,
 } from "./chat.types";
+import {
+  normalizeConversationHistoryPayload,
+  normalizeConversationList,
+} from "./conversation-normalizers";
 
 function withBearer(token?: string): Record<string, string> | undefined {
   if (!token) return undefined;
@@ -25,7 +30,7 @@ export async function createConversation(
 
 export async function sendVisitorMessage(
   conversationId: string,
-  payload: SendMessagePayload,
+  payload: VisitorSendMessagePayload,
 ): Promise<unknown> {
   const { data } = await apiClient.post(
     `/chat/widget/conversations/${encodeURIComponent(conversationId)}/messages`,
@@ -36,7 +41,7 @@ export async function sendVisitorMessage(
 
 export async function sendAgentMessage(
   conversationId: string,
-  payload: AgentMessagePayload,
+  payload: AgentSendMessagePayload,
   token?: string,
 ): Promise<unknown> {
   const { data } = await apiClient.post(
@@ -50,8 +55,8 @@ export async function sendAgentMessage(
 export async function closeConversation(
   conversationId: string,
   token?: string,
-): Promise<unknown> {
-  const { data } = await apiClient.post(
+): Promise<ChatCloseResponse> {
+  const { data } = await apiClient.post<ChatCloseResponse>(
     `/chat/agent/conversations/${encodeURIComponent(conversationId)}/close`,
     undefined,
     { headers: withBearer(token) },
@@ -63,29 +68,29 @@ export async function getConversationHistory(
   conversationId: string,
   token?: string,
 ): Promise<ConversationHistoryResponse> {
-  const { data } = await apiClient.get<ConversationHistoryResponse>(
+  const { data } = await apiClient.get<unknown>(
     `/chat/agent/conversations/${encodeURIComponent(conversationId)}/history`,
     { headers: withBearer(token) },
   );
-  return data;
+  return normalizeConversationHistoryPayload(data, conversationId);
 }
 
 export async function getMyActiveChats(
   token?: string,
 ): Promise<ConversationSummary[]> {
-  const { data } = await apiClient.get<ConversationSummary[]>(
+  const { data } = await apiClient.get<unknown>(
     "/chat/agent/me/active",
     { headers: withBearer(token) },
   );
-  return data;
+  return normalizeConversationList(data);
 }
 
 export async function getWaitingChats(
   token?: string,
 ): Promise<ConversationSummary[]> {
-  const { data } = await apiClient.get<ConversationSummary[]>(
+  const { data } = await apiClient.get<unknown>(
     "/chat/agent/waiting",
     { headers: withBearer(token) },
   );
-  return data;
+  return normalizeConversationList(data);
 }

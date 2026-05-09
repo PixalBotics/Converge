@@ -6,13 +6,18 @@ import ChatRounded from "@mui/icons-material/ChatRounded";
 import CloudUploadOutlined from "@mui/icons-material/CloudUploadOutlined";
 import Box from "@mui/material/Box";
 import IconButton from "@mui/material/IconButton";
-import Link from "@mui/material/Link";
 import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import { Button, InputField, SelectField, Typography } from "@/components/common";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
 import { WidgetFlowShell } from "@/components/dashboard/WidgetFlowShell";
 import { LAUNCHER_ICON_PRESETS, LauncherPresetIcon } from "@/lib/chat-widget/launcherIcons";
+import {
+  patchRemoteWidgetConfiguration,
+  summarizePatchResult,
+} from "@/lib/chat-widget/widget-remote-sync";
+import { extractApiErrorMessageForToast } from "@/lib/notify/extract-api-message";
+import { publishAppToast } from "@/lib/notify";
 import { readWidgetDraft, saveWidgetDraft, type LauncherIconPresetId } from "@/lib/chat-widget/widgetDraft";
 
 const STEPS = ["Widget Button Design", "Chat Box Design", "Notifications & Advanced"];
@@ -40,6 +45,7 @@ export default function ChatWidgetButtonDesignPage() {
   const [launcherInsetBottom, setLauncherInsetBottom] = useState("28");
   const [launcherInsetSide, setLauncherInsetSide] = useState("28");
   const iconUploadRef = useRef<HTMLInputElement | null>(null);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     const d = readWidgetDraft();
@@ -103,23 +109,60 @@ export default function ChatWidgetButtonDesignPage() {
   };
 
   const handleNext = () => {
+    if (saving) return;
     const bottomPx = parseInsetPxString(launcherInsetBottom, 28);
     const sidePx = parseInsetPxString(launcherInsetSide, 28);
-    saveWidgetDraft({
-      type: "chat",
-      buttonShape,
-      buttonPosition: buttonPosition as "left" | "center" | "right",
-      launcherInsetBottomPx: bottomPx,
-      launcherInsetSidePx: sidePx,
-      buttonColor: selectedButtonColor || "#2AA9E0",
-      buttonHoverColor: selectedHoverColor || "#1C8DC2",
-      iconColor: selectedIconColor || "#FFFFFF",
-      iconDataUrl,
-      launcherIconPreset,
-      completed: false,
-      widgetId: readWidgetDraft().widgetId || "12345",
-    });
-    router.push("/dashboard/chat-widget/add/chat/box");
+    void (async () => {
+      const prev = readWidgetDraft();
+      const rk = prev.remoteWidgetKey?.trim();
+      if (!rk) {
+        publishAppToast({
+          variant: "error",
+          message:
+            "Missing server widget draft. Go back to the first step and save again.",
+        });
+        router.push("/dashboard/chat-widget/add");
+        return;
+      }
+
+      setSaving(true);
+      try {
+        saveWidgetDraft({
+          type: "chat",
+          buttonShape,
+          buttonPosition: buttonPosition as "left" | "center" | "right",
+          launcherInsetBottomPx: bottomPx,
+          launcherInsetSidePx: sidePx,
+          buttonColor: selectedButtonColor || "#2AA9E0",
+          buttonHoverColor: selectedHoverColor || "#1C8DC2",
+          iconColor: selectedIconColor || "#FFFFFF",
+          iconDataUrl,
+          launcherIconPreset,
+          completed: false,
+          widgetId: prev.widgetId?.startsWith("wgt_") ? prev.widgetId : rk,
+        });
+        const latest = readWidgetDraft();
+        const patchInner = await patchRemoteWidgetConfiguration({
+          widgetKey: rk,
+          widgetKind: "chat",
+          draft: latest,
+          publishNow: false,
+        });
+        const sum = summarizePatchResult(patchInner);
+        saveWidgetDraft({
+          requiresPublishBeforeEmbed: sum.requiresPublishBeforeEmbed,
+        });
+        router.push("/dashboard/chat-widget/add/chat/box");
+      } catch (e) {
+        publishAppToast({
+          variant: "error",
+          message:
+            extractApiErrorMessageForToast(e) ?? "Could not save button design to the server.",
+        });
+      } finally {
+        setSaving(false);
+      }
+    })();
   };
 
   return (
@@ -133,8 +176,8 @@ export default function ChatWidgetButtonDesignPage() {
           <Button type="button" variant="secondary" onClick={() => router.push("/dashboard/chat-widget")}>
             Cancel
           </Button>
-          <Button type="button" variant="primary" sx={gradientPrimaryButtonSx} onClick={handleNext}>
-            Next
+          <Button type="button" variant="primary" sx={gradientPrimaryButtonSx} disabled={saving} onClick={handleNext}>
+            {saving ? "Saving…" : "Next"}
           </Button>
         </>
       }

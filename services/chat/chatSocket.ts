@@ -4,7 +4,14 @@ import {
   resolveSocketEndpoint,
   SocketConnection,
 } from "@/services/socket";
-import type { ChatMessage, JoinLeaveRoomPayload, TypingPayload } from "./chat.types";
+import type {
+  ChatMessage,
+  JoinLeaveRoomPayload,
+  SocketAgentMessagePayload,
+  SocketVisitorMessagePayload,
+  TypingPayload,
+} from "./chat.types";
+import { normalizeServerMessage } from "./normalize-message";
 
 type ChatEventMap = {
   connected: (payload: unknown) => void;
@@ -62,28 +69,28 @@ export class ChatSocketClient {
 
   joinRoom(payload: JoinLeaveRoomPayload): void {
     this.joinedRooms.add(payload.conversationId);
-    this.connection.emit("join_room", payload);
+    this.connection.emit("join_room", { conversationId: payload.conversationId });
   }
 
   leaveRoom(payload: JoinLeaveRoomPayload): void {
     this.joinedRooms.delete(payload.conversationId);
-    this.connection.emit("leave_room", payload);
+    this.connection.emit("leave_room", { conversationId: payload.conversationId });
   }
 
-  sendVisitorMessage(payload: ChatMessage): void {
+  sendVisitorMessage(payload: SocketVisitorMessagePayload): void {
     this.connection.emit("visitor_message", payload);
   }
 
-  sendAgentMessage(payload: ChatMessage): void {
+  sendAgentMessage(payload: SocketAgentMessagePayload): void {
     this.connection.emit("agent_message", payload);
   }
 
-  emitTyping(payload: TypingPayload): void {
-    this.connection.emit("typing", payload);
+  emitTyping(payload: Pick<TypingPayload, "conversationId">): void {
+    this.connection.emit("typing", { conversationId: payload.conversationId });
   }
 
-  emitStopTyping(payload: TypingPayload): void {
-    this.connection.emit("stop_typing", payload);
+  emitStopTyping(payload: Pick<TypingPayload, "conversationId">): void {
+    this.connection.emit("stop_typing", { conversationId: payload.conversationId });
   }
 
   onConnected(listener: ChatEventMap["connected"]): () => void {
@@ -103,27 +110,33 @@ export class ChatSocketClient {
   }
 
   onJoinedRoom(listener: ChatEventMap["joined_room"]): () => void {
-    return this.on("joined_room", listener);
+    return this.on("joined_room", listener as (payload: unknown) => void);
   }
 
   onLeftRoom(listener: ChatEventMap["left_room"]): () => void {
-    return this.on("left_room", listener);
+    return this.on("left_room", listener as (payload: unknown) => void);
   }
 
   onVisitorMessage(listener: ChatEventMap["visitor_message"]): () => void {
-    return this.on("visitor_message", listener);
+    return this.on("visitor_message", (payload: unknown) => {
+      const m = normalizeServerMessage(payload);
+      if (m) listener(m);
+    });
   }
 
   onAgentMessage(listener: ChatEventMap["agent_message"]): () => void {
-    return this.on("agent_message", listener);
+    return this.on("agent_message", (payload: unknown) => {
+      const m = normalizeServerMessage(payload);
+      if (m) listener(m);
+    });
   }
 
   onTyping(listener: ChatEventMap["typing"]): () => void {
-    return this.on("typing", listener);
+    return this.on("typing", listener as (payload: unknown) => void);
   }
 
   onStopTyping(listener: ChatEventMap["stop_typing"]): () => void {
-    return this.on("stop_typing", listener);
+    return this.on("stop_typing", listener as (payload: unknown) => void);
   }
 
   onChatAssigned(listener: ChatEventMap["chat_assigned"]): () => void {
@@ -155,11 +168,16 @@ export class ChatSocketClient {
   }
 }
 
-let sharedChatSocket: ChatSocketClient | null = null;
+export function createChatSocketClient(): ChatSocketClient {
+  return new ChatSocketClient();
+}
 
+let sharedLegacyClient: ChatSocketClient | null = null;
+
+/** @deprecated Prefer {@link createChatSocketClient} to avoid leaking state between unrelated surfaces. */
 export function getChatSocketClient(): ChatSocketClient {
-  if (!sharedChatSocket) {
-    sharedChatSocket = new ChatSocketClient();
+  if (!sharedLegacyClient) {
+    sharedLegacyClient = new ChatSocketClient();
   }
-  return sharedChatSocket;
+  return sharedLegacyClient;
 }

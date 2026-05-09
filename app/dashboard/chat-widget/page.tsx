@@ -7,8 +7,14 @@ import ChatRounded from "@mui/icons-material/ChatRounded";
 import TextsmsRounded from "@mui/icons-material/TextsmsRounded";
 import SendRounded from "@mui/icons-material/SendRounded";
 import CloseRounded from "@mui/icons-material/CloseRounded";
-import MoreVert from "@mui/icons-material/MoreVert";
+import VisibilityOutlined from "@mui/icons-material/VisibilityOutlined";
+import EditOutlined from "@mui/icons-material/EditOutlined";
+import DeleteOutline from "@mui/icons-material/DeleteOutline";
 import Box from "@mui/material/Box";
+import Dialog from "@mui/material/Dialog";
+import DialogActions from "@mui/material/DialogActions";
+import DialogContent from "@mui/material/DialogContent";
+import DialogTitle from "@mui/material/DialogTitle";
 import IconButton from "@mui/material/IconButton";
 import { alpha } from "@mui/material/styles";
 import { useTheme } from "@mui/material/styles";
@@ -37,23 +43,20 @@ import {
   integrationsSearchRow,
   integrationsSectionIconBox,
 } from "../integrations/integrations.styles";
+import type { AdminWidgetTableRow } from "@/api/types/widgets.types";
+import {
+  deleteWidget,
+  listAdminWidgets,
+  widgetResponseData,
+} from "@/api/widgets/widgets.api";
 import { LauncherPresetIcon } from "@/lib/chat-widget/launcherIcons";
+import {
+  mapAdminWidgetToTableRow,
+  parseWidgetListData,
+} from "@/lib/chat-widget/admin-widget-list-mapper";
+import { extractApiErrorMessageForToast } from "@/lib/notify/extract-api-message";
+import { publishAppToast } from "@/lib/notify";
 import { readWidgetDraft, type WidgetDraft } from "@/lib/chat-widget/widgetDraft";
-
-interface WidgetRow extends Record<string, unknown> {
-  id: string;
-  clientOf: string;
-  parentCompany: string;
-  childCompany: string;
-  website: string;
-  widgetType: string;
-  department: string;
-  status: "Active" | "Inactive";
-  scriptStatus: "Installed" | "Pending";
-}
-
-const TOTAL_ENTRIES = 256_000;
-const PAGE_COUNT = 2;
 
 function formatEntries(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(0)}M`;
@@ -61,17 +64,7 @@ function formatEntries(n: number): string {
   return String(n);
 }
 
-const TABLE_ROWS: WidgetRow[] = Array.from({ length: 18 }, (_, i) => ({
-  id: String(i + 1),
-  clientOf: "Raja Saif",
-  parentCompany: "Global Industries",
-  childCompany: "Acme Tech",
-  website: "actech.com",
-  widgetType: "Chat",
-  department: "Sales",
-  status: "Active",
-  scriptStatus: "Installed",
-}));
+const WIDGET_LIST_PAGE_LIMIT = 20;
 
 const WIDGET_LAUNCHER_SIZE_PX = 58;
 const WIDGET_PANEL_ABOVE_LAUNCHER_PX = 70;
@@ -82,7 +75,16 @@ export default function ChatWidgetPage() {
   const router = useRouter();
   const theme = useTheme() as AppTheme;
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [page, setPage] = useState(1);
+  const [widgetsLoading, setWidgetsLoading] = useState(true);
+  const [widgetsError, setWidgetsError] = useState<string | null>(null);
+  const [tableRows, setTableRows] = useState<AdminWidgetTableRow[]>([]);
+  const [listMeta, setListMeta] = useState({
+    total: 0,
+    totalPages: 1,
+    limit: 20,
+  });
   const [widgetDraft, setWidgetDraft] = useState<WidgetDraft | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [welcomePopupOpen, setWelcomePopupOpen] = useState(false);
@@ -95,6 +97,74 @@ export default function ChatWidgetPage() {
   const previewToggleRef = useRef<HTMLDivElement | null>(null);
   const textPreviewPanelRef = useRef<HTMLDivElement | null>(null);
   const textPreviewToggleRef = useRef<HTMLDivElement | null>(null);
+  const [listRefreshKey, setListRefreshKey] = useState(0);
+  const [deleteDialogKey, setDeleteDialogKey] = useState<string | null>(null);
+  const [deleteBusy, setDeleteBusy] = useState(false);
+
+  useEffect(() => {
+    const t = window.setTimeout(() => setDebouncedSearch(search.trim()), 400);
+    return () => window.clearTimeout(t);
+  }, [search]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadWidgets() {
+      try {
+        setWidgetsLoading(true);
+        setWidgetsError(null);
+        const envelope = await listAdminWidgets({
+          page,
+          limit: WIDGET_LIST_PAGE_LIMIT,
+          search: debouncedSearch || undefined,
+        });
+        if (cancelled) return;
+
+        const raw = widgetResponseData(envelope);
+        const parsed = parseWidgetListData(raw);
+        const rows = parsed.items.map(mapAdminWidgetToTableRow);
+        setTableRows(rows);
+        setListMeta({
+          total: parsed.total,
+          totalPages: parsed.totalPages,
+          limit: parsed.limit,
+        });
+      } catch (e) {
+        if (!cancelled) {
+          setWidgetsError(extractApiErrorMessageForToast(e) ?? "Failed to load widgets");
+          setTableRows([]);
+        }
+      } finally {
+        if (!cancelled) setWidgetsLoading(false);
+      }
+    }
+    void loadWidgets();
+    return () => {
+      cancelled = true;
+    };
+  }, [page, debouncedSearch, listRefreshKey]);
+
+  const confirmDeleteWidget = async () => {
+    const key = deleteDialogKey?.trim();
+    if (!key) return;
+    setDeleteBusy(true);
+    try {
+      await deleteWidget(key);
+      publishAppToast({ variant: "success", message: "Widget removed." });
+      setDeleteDialogKey(null);
+      setListRefreshKey((n) => n + 1);
+    } catch (e) {
+      publishAppToast({
+        variant: "error",
+        message: extractApiErrorMessageForToast(e) ?? "Delete failed.",
+      });
+    } finally {
+      setDeleteBusy(false);
+    }
+  };
 
   useEffect(() => {
     const draft = readWidgetDraft();
@@ -248,84 +318,76 @@ export default function ChatWidgetPage() {
     widgetDraft?.buttonPosition,
   ]);
 
-  const filteredRows = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return TABLE_ROWS;
-    return TABLE_ROWS.filter((row) =>
-      [
-        row.clientOf,
-        row.parentCompany,
-        row.childCompany,
-        row.website,
-        row.widgetType,
-        row.department,
-        row.status,
-        row.scriptStatus,
-      ].some((field) => String(field).toLowerCase().includes(q))
-    );
-  }, [search]);
+  const rowsForTable = tableRows;
 
-  const columns = useMemo<DataTableColumn<WidgetRow>[]>(
+  const rangeStart =
+    listMeta.total === 0 ? 0 : (page - 1) * listMeta.limit + 1;
+  const rangeEnd = Math.min(page * listMeta.limit, listMeta.total);
+
+  const columns = useMemo<DataTableColumn<AdminWidgetTableRow>[]>(
     () => [
-      { id: "clientOf", label: "Client Of" },
+      { id: "resellerName", label: "Client / reseller" },
       { id: "parentCompany", label: "Parent Company", cellVariant: "muted" },
       { id: "childCompany", label: "Child Company", cellVariant: "muted" },
-      { id: "website", label: "Website", cellVariant: "muted" },
-      { id: "widgetType", label: "Widget Type", cellVariant: "muted" },
-      { id: "department", label: "Department", cellVariant: "muted" },
+      { id: "websiteLabel", label: "Website", cellVariant: "muted" },
+      { id: "widgetTypeLabel", label: "Widget Type", cellVariant: "muted" },
       {
-        id: "status",
-        label: "Status",
+        id: "surfaces",
+        label: "Surfaces",
+        cellVariant: "muted",
         render: (_v, row) => (
-          <Box
-            component="span"
-            sx={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 0.5,
-              px: 1.1,
-              py: 0.45,
-              borderRadius: "9999px",
-              bgcolor: alpha(theme.palette.success.main, theme.palette.mode === "light" ? 0.16 : 0.12),
-              border: `1px solid ${alpha(theme.palette.success.main, theme.palette.mode === "light" ? 0.3 : 0.28)}`,
-              lineHeight: 1,
-            }}
-          >
-            <Box
-              component="span"
-              sx={{
-                width: 7,
-                height: 7,
-                borderRadius: "50%",
-                bgcolor: theme.app.dashboard.accentGreen,
-                flexShrink: 0,
-              }}
-            />
-            <Typography
-              component="span"
-              variant="body2"
-              sx={{
-                color: theme.palette.mode === "light" ? "#166534" : theme.palette.success.light,
-                fontWeight: 600,
-                fontSize: "0.75rem",
-              }}
-            >
-              {row.status}
-            </Typography>
-          </Box>
-        ),
-      },
-      {
-        id: "scriptStatus",
-        label: "Script Status",
-        render: (_v, row) => (
-          <Typography component="span" variant="body2" sx={{ color: theme.app.dashboard.accentGreen, fontWeight: 600 }}>
-            {row.scriptStatus}
+          <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted }}>
+            {row.chatEnabled ? "Chat" : ""}
+            {row.chatEnabled && row.textUsEnabled ? " · " : ""}
+            {row.textUsEnabled ? "Text Us" : ""}
+            {!row.chatEnabled && !row.textUsEnabled ? "—" : ""}
           </Typography>
         ),
       },
+      { id: "publishedVersionNo", label: "Version", cellVariant: "muted" },
+      {
+        id: "statusLabel",
+        label: "Status",
+        render: (_v, row) => {
+          const isPub = row.statusLabel.toLowerCase().includes("publish");
+          return (
+            <Box
+              component="span"
+              sx={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 0.5,
+                px: 1.1,
+                py: 0.45,
+                borderRadius: "9999px",
+                bgcolor: alpha(
+                  isPub ? theme.palette.success.main : theme.palette.warning.main,
+                  theme.palette.mode === "light" ? 0.16 : 0.12,
+                ),
+                border: `1px solid ${alpha(
+                  isPub ? theme.palette.success.main : theme.palette.warning.main,
+                  theme.palette.mode === "light" ? 0.3 : 0.28,
+                )}`,
+                lineHeight: 1,
+              }}
+            >
+              <Typography
+                component="span"
+                variant="body2"
+                sx={{
+                  fontWeight: 600,
+                  fontSize: "0.75rem",
+                  color: isPub ? theme.palette.success.light : theme.palette.warning.light,
+                }}
+              >
+                {row.statusLabel}
+              </Typography>
+            </Box>
+          );
+        },
+      },
     ],
-    [theme]
+    [theme],
   );
 
   return (
@@ -336,7 +398,7 @@ export default function ChatWidgetPage() {
             Widget Management
           </Typography>
           <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted, maxWidth: 640 }}>
-            Connect your Meta Business assets to streamline your workflow and data sync.
+            List widgets from GET /widgets, add installs with POST /widgets/installations, paste the returned embed snippet.
           </Typography>
         </Box>
         <Box sx={integrationsHeaderActions}>
@@ -379,33 +441,91 @@ export default function ChatWidgetPage() {
           </Box>
         </Box>
 
-        <DataTable<WidgetRow>
+        {widgetsError ? (
+          <Box sx={{ px: 2, pb: 1 }}>
+            <Typography variant="body2" sx={{ color: theme.palette.error.main }}>
+              {widgetsError}
+            </Typography>
+          </Box>
+        ) : null}
+        {widgetsLoading ? (
+          <Box sx={{ px: 2, py: 2 }}>
+            <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted }}>
+              Loading widgets…
+            </Typography>
+          </Box>
+        ) : null}
+
+        <DataTable<AdminWidgetTableRow>
           columns={columns}
-          rows={filteredRows}
-          getRowId={(row) => row.id}
+          rows={rowsForTable}
+          getRowId={(row) => row.widgetKey || row.id}
           minWidth={1380}
           size="medium"
           actionColumn={{
             label: "Actions",
-            render: () => (
-              <IconButton
-                type="button"
-                size="small"
-                aria-label="Widget row actions"
-                sx={{ color: theme.app.dashboard.iconMuted, "&:hover": { color: theme.app.text.primary } }}
-              >
-                <MoreVert fontSize="small" />
-              </IconButton>
-            ),
+            render: (row) => {
+              const key = (row.widgetKey || row.id).trim();
+              if (!key)
+                return (
+                  <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted }}>
+                    —
+                  </Typography>
+                );
+              const pathBase = `/dashboard/chat-widget/${encodeURIComponent(key)}`;
+              return (
+                <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75 }} onClick={(e) => e.stopPropagation()}>
+                  <Button
+                    type="button"
+                    variant="outlined"
+                    size="small"
+                    startIcon={<VisibilityOutlined sx={{ fontSize: 16 }} />}
+                    aria-label={`View widget ${key}`}
+                    onClick={() => router.push(pathBase)}
+                  >
+                    View
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="primary"
+                    sx={gradientPrimaryButtonSx}
+                    size="small"
+                    startIcon={<EditOutlined sx={{ fontSize: 16 }} />}
+                    aria-label={`Edit widget ${key}`}
+                    onClick={() => router.push(`${pathBase}/edit`)}
+                  >
+                    Edit
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outlined"
+                    size="small"
+                    startIcon={<DeleteOutline sx={{ fontSize: 16 }} />}
+                    aria-label={`Delete widget ${key}`}
+                    onClick={() => setDeleteDialogKey(key)}
+                    sx={{
+                      borderColor: theme.palette.error.main,
+                      color: theme.palette.error.light,
+                    }}
+                  >
+                    Delete
+                  </Button>
+                </Box>
+              );
+            },
           }}
         />
 
         <Box sx={integrationsFooterRow}>
           <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted }}>
-            Showing data 1 to {filteredRows.length} of {formatEntries(TOTAL_ENTRIES)} entries
+            Showing data {rangeStart} to {rangeEnd} of {formatEntries(listMeta.total)} entries
           </Typography>
           <Box sx={integrationsPaginationWrapper}>
-            <TablePagination page={page} pageCount={PAGE_COUNT} onPageChange={setPage} />
+            <TablePagination
+              page={page}
+              pageCount={Math.max(1, listMeta.totalPages)}
+              onPageChange={setPage}
+            />
           </Box>
         </Box>
       </DashboardCard>
@@ -834,6 +954,50 @@ export default function ChatWidgetPage() {
           ) : null}
         </>
       ) : null}
+
+      <Dialog
+        open={Boolean(deleteDialogKey)}
+        onClose={() => !deleteBusy && setDeleteDialogKey(null)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Delete this widget?</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted }}>
+            Soft-deletes this widget on the server. The website assignment is not removed.
+          </Typography>
+          {deleteDialogKey ? (
+            <Typography
+              variant="body2"
+              sx={{ mt: 1.5, fontFamily: "monospace", wordBreak: "break-all" }}
+            >
+              {deleteDialogKey}
+            </Typography>
+          ) : null}
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={deleteBusy}
+            onClick={() => setDeleteDialogKey(null)}
+          >
+            Cancel
+          </Button>
+          <Button
+            type="button"
+            variant="primary"
+            disabled={deleteBusy}
+            onClick={() => void confirmDeleteWidget()}
+            sx={{
+              bgcolor: theme.palette.error.main,
+              "&:hover": { bgcolor: theme.palette.error.dark },
+            }}
+          >
+            {deleteBusy ? "Deleting…" : "Delete"}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

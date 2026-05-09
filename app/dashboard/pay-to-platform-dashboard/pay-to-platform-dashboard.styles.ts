@@ -49,7 +49,7 @@ export const payToPlatformStatIconWrapSx = (tone: "blue" | "orange" | "rose"): S
 };
 
 export const payToPlatformAmountSx: SxProps<Theme> = (theme) => ({
-  color: (theme as AppTheme).app.dashboard.numberBlue,
+  color: (theme as AppTheme).app.dashboard.accentBlue,
   letterSpacing: "0.3px",
 });
 
