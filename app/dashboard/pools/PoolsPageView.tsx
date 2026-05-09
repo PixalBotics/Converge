@@ -91,6 +91,9 @@ export function PoolsPageView({ mode }: PoolsPageViewProps) {
   const canMovePoolMember = hasHrmsPage && canPoolMemberMove(hasOperational);
   const canRemovePoolMember = hasHrmsPage && canPoolMemberRemove(hasOperational);
 
+  const [filterDeptKind, setFilterDeptKind] = useState<"Internal" | "External">("Internal");
+  const effectiveFilterDeptKind: "Internal" | "External" = mayPickInternalDeptType ? filterDeptKind : "External";
+
   const [resellerId, setResellerId] = useState("");
   const [parentCompanyId, setParentCompanyId] = useState("");
   const [departmentId, setDepartmentId] = useState("");
@@ -116,7 +119,7 @@ export function PoolsPageView({ mode }: PoolsPageViewProps) {
   const [hubUserSearchInput, setHubUserSearchInput] = useState("");
   const [hubUserSearchApplied, setHubUserSearchApplied] = useState("");
 
-  const resellersQuery = useCompaniesSetupResellersQuery({ enabled: true });
+  const resellersQuery = useCompaniesSetupResellersQuery({ enabled: effectiveFilterDeptKind === "External" });
   const resellerOptions = useMemo(() => {
     const base = pickItemsArray(resellersQuery.data)
       .map(toIdNameOption)
@@ -128,7 +131,7 @@ export function PoolsPageView({ mode }: PoolsPageViewProps) {
   const parentCompaniesQuery = useCompaniesByResellerQuery(
     resellerId.trim(),
     { view: "tree", sortBy: "name", sortOrder: "asc", all: true },
-    { enabled: Boolean(resellerId.trim()) },
+    { enabled: effectiveFilterDeptKind === "External" && Boolean(resellerId.trim()) },
   );
   const parentCompanyOptions = useMemo(() => {
     const base = extractParentCompaniesFromByResellerTree(parentCompaniesQuery.data).map((o) => ({
@@ -173,23 +176,55 @@ export function PoolsPageView({ mode }: PoolsPageViewProps) {
     },
   );
 
-  const departmentsQuery = useDepartmentsListQuery(
-    {
-      all: true,
-      ...(resellerId.trim() ? { resellerId: resellerId.trim() } : {}),
-      ...(parentCompanyId.trim() ? { parentCompanyId: parentCompanyId.trim() } : {}),
-      ...(resellerId.trim() && parentCompanyId.trim()
-        ? { type: "External" as const }
-        : {}),
-    },
-    { enabled: true, scope: "pools" },
+  const filterInternalDepartmentsQuery = useDepartmentsListQuery(
+    effectiveFilterDeptKind === "Internal" ? { type: "Internal", all: true } : undefined,
+    { enabled: effectiveFilterDeptKind === "Internal", scope: "pools-filter-internal-depts" },
   );
+  const filterExternalDepartmentsQuery = useDepartmentsListQuery(
+    effectiveFilterDeptKind === "External" && resellerId.trim() && parentCompanyId.trim()
+      ? {
+          all: true,
+          type: "External",
+          resellerId: resellerId.trim(),
+          parentCompanyId: parentCompanyId.trim(),
+        }
+      : undefined,
+    {
+      enabled:
+        effectiveFilterDeptKind === "External" &&
+        Boolean(resellerId.trim()) &&
+        Boolean(parentCompanyId.trim()),
+      scope: "pools-filter-external-depts",
+    },
+  );
+
   const departmentOptions = useMemo(() => {
-    const base = pickItemsArray(departmentsQuery.data)
+    const data =
+      effectiveFilterDeptKind === "Internal"
+        ? filterInternalDepartmentsQuery.data
+        : filterExternalDepartmentsQuery.data;
+    const loading =
+      effectiveFilterDeptKind === "Internal"
+        ? filterInternalDepartmentsQuery.isLoading
+        : filterExternalDepartmentsQuery.isLoading;
+    const base = pickItemsArray(data)
       .map(toIdNameOption)
       .filter((o): o is { value: string; label: string } => o !== null);
-    return [{ value: "", label: "— Select department —" }, ...base];
-  }, [departmentsQuery.data]);
+    const prompt =
+      effectiveFilterDeptKind === "External" && !parentCompanyId.trim()
+        ? "Select parent company first"
+        : loading
+          ? "Loading departments…"
+          : "— Select department —";
+    return [{ value: "", label: prompt }, ...base];
+  }, [
+    effectiveFilterDeptKind,
+    filterInternalDepartmentsQuery.data,
+    filterInternalDepartmentsQuery.isLoading,
+    filterExternalDepartmentsQuery.data,
+    filterExternalDepartmentsQuery.isLoading,
+    parentCompanyId,
+  ]);
 
   const createModalParentCompanyOptionsForCreate = useMemo(() => {
     const base = extractParentCompaniesFromByResellerTree(createModalParentCompaniesQuery.data).map((o) => ({
@@ -347,8 +382,14 @@ export function PoolsPageView({ mode }: PoolsPageViewProps) {
   }, [payloadObj]);
 
   useEffect(() => {
+    setResellerId("");
+    setParentCompanyId("");
+    setDepartmentId("");
+  }, [filterDeptKind]);
+
+  useEffect(() => {
     setPage(1);
-  }, [resellerId, parentCompanyId, departmentId]);
+  }, [resellerId, parentCompanyId, departmentId, filterDeptKind]);
 
   useEffect(() => {
     setParentCompanyId("");
@@ -442,6 +483,7 @@ export function PoolsPageView({ mode }: PoolsPageViewProps) {
   };
 
   const handleClearFilters = () => {
+    setFilterDeptKind(mayPickInternalDeptType ? "Internal" : "External");
     setResellerId("");
     setParentCompanyId("");
     setDepartmentId("");
@@ -655,32 +697,62 @@ export function PoolsPageView({ mode }: PoolsPageViewProps) {
         <Box
           sx={{
             display: "grid",
-            gridTemplateColumns: { xs: "1fr", md: "minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr)" },
+            gridTemplateColumns: {
+              xs: "1fr",
+              sm: "repeat(2, minmax(0, 1fr))",
+              lg:
+                mayPickInternalDeptType && effectiveFilterDeptKind === "External"
+                  ? "repeat(4, minmax(0, 1fr))"
+                  : mayPickInternalDeptType
+                    ? "repeat(2, minmax(0, 1fr))"
+                    : "repeat(3, minmax(0, 1fr))",
+            },
             gap: 1.5,
             mt: 2,
           }}
         >
-          <SelectField
-            label="Reseller"
-            value={resellerId}
-            onChange={setResellerId}
-            options={resellerOptions}
-            menuMaxRows={8}
-          />
-          <SelectField
-            label="Parent company"
-            value={parentCompanyId}
-            onChange={setParentCompanyId}
-            options={parentCompanyOptions}
-            menuMaxRows={8}
-            disabled={!resellerId.trim()}
-          />
+          {mayPickInternalDeptType ? (
+            <SelectField
+              label="Department type"
+              value={filterDeptKind}
+              onChange={(v) => setFilterDeptKind(v as "Internal" | "External")}
+              options={[
+                { value: "Internal", label: "Internal" },
+                { value: "External", label: "External" },
+              ]}
+              menuMaxRows={4}
+            />
+          ) : null}
+          {effectiveFilterDeptKind === "External" ? (
+            <>
+              <SelectField
+                label="Reseller"
+                value={resellerId}
+                onChange={setResellerId}
+                options={resellerOptions}
+                menuMaxRows={8}
+              />
+              <SelectField
+                label="Parent company"
+                value={parentCompanyId}
+                onChange={setParentCompanyId}
+                options={parentCompanyOptions}
+                searchable
+                searchPlaceholder="Search parent company…"
+                menuMaxRows={8}
+                disabled={!resellerId.trim()}
+              />
+            </>
+          ) : null}
           <SelectField
             label="Department"
             value={departmentId}
             onChange={setDepartmentId}
             options={departmentOptions}
+            searchable
+            searchPlaceholder="Search department…"
             menuMaxRows={8}
+            disabled={effectiveFilterDeptKind === "External" && !parentCompanyId.trim()}
           />
         </Box>
       </DashboardCard>

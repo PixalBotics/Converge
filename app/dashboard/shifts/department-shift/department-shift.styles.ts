@@ -35,6 +35,18 @@ export const departmentShiftFormGridSx: SxProps<Theme> = {
   mb: 0.5,
 };
 
+/** Filters: type / reseller / parent / department responsive grid */
+export const departmentShiftFilterFieldsGridSx: SxProps<Theme> = {
+  display: "grid",
+  gridTemplateColumns: {
+    xs: "1fr",
+    sm: "repeat(2, minmax(0, 1fr))",
+    lg: "repeat(4, minmax(0, 1fr))",
+  },
+  gap: 2,
+  mb: 0.5,
+};
+
 export const departmentShiftActionsSx: SxProps<Theme> = {
   display: "flex",
   justifyContent: "flex-end",
