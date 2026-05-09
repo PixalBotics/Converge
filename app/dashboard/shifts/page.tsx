@@ -25,7 +25,14 @@ import {
   useShiftsListQuery,
   useUpdateShiftMutation,
 } from "@/lib/hooks/query";
-import { isRecord, pickNum, pickStr, unwrapApiData } from "@/lib/utils";
+import {
+  isRecord,
+  pickNum,
+  pickStr,
+  resolveShiftDetailObject,
+  shiftApiTimeToTimeInputValue,
+  unwrapApiData,
+} from "@/lib/utils";
 import { ShiftsTableCard } from "./components";
 import { useAuth } from "@/lib/auth";
 import { canShiftAction } from "@/lib/permissions";
@@ -116,20 +123,20 @@ export default function ShiftsPage() {
     if (!editId) return;
     if (hydratedEditIdRef.current === editId) return;
 
-    const payload = unwrapApiData(shiftDetailQuery.data);
-    const obj = isRecord(payload) ? payload : null;
+    const obj = resolveShiftDetailObject(shiftDetailQuery.data);
     if (!obj) return;
 
-    const name = pickStr(obj, ["name"]);
-    const startTime = pickStr(obj, ["startTime"]);
-    const endTime = pickStr(obj, ["endTime"]);
-    const tz = pickStr(obj, ["timezone"]);
-    const breakMin = pickNum(obj, ["breakMinutes"]);
+    const name = pickStr(obj, ["name", "shiftName", "shift_name"]);
+    const startRaw = pickStr(obj, ["startTime", "start_time"]);
+    const endRaw = pickStr(obj, ["endTime", "end_time"]);
+    const tz = pickStr(obj, ["timezone", "timeZone", "time_zone"]);
+    const breakMin = pickNum(obj, ["breakMinutes", "break_minutes"]);
+    const effectiveTz = tz || "Asia/Karachi";
 
     setEditName(name);
-    setEditStartTime(startTime);
-    setEditEndTime(endTime);
-    setEditTimezone(tz || "Asia/Karachi");
+    setEditTimezone(effectiveTz);
+    setEditStartTime(shiftApiTimeToTimeInputValue(startRaw, effectiveTz));
+    setEditEndTime(shiftApiTimeToTimeInputValue(endRaw, effectiveTz));
     setEditBreakMinutes(breakMin != null ? String(breakMin) : "");
 
     hydratedEditIdRef.current = editId;
