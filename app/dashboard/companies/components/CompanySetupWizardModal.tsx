@@ -756,6 +756,7 @@ export function CompanySetupWizardModal({ open, draftId, onClose }: CompanySetup
                 rolesLoading={rolesQuery.isLoading}
                 departmentsLoading={departmentsQuery.isLoading}
                 fieldErrors={apiFieldErrors}
+                companySetupKind={setupKind}
               />
             </Box>
           ))}

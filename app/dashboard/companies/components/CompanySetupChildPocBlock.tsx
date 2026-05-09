@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useLayoutEffect, useMemo } from "react";
 import Box from "@mui/material/Box";
 import FormControl from "@mui/material/FormControl";
 import FormControlLabel from "@mui/material/FormControlLabel";
@@ -13,6 +13,7 @@ import { useDesignationsListQuery } from "@/lib/hooks/query";
 import { pickItemsArray, toIdNameOption } from "@/app/dashboard/user-page/components/add-user-modal.utils";
 import { childrenDraftFieldPath, getCompanySetupFieldError } from "@/lib/companies/company-setup-draft-field-paths";
 import type { DraftChildPayload } from "@/lib/companies/setup-draft.utils";
+import { sessionShowPocDeptDesignationPickFromList, useAuth } from "@/lib/auth";
 
 export type CompanySetupChildPocBlockProps = {
   row: DraftChildPayload;
@@ -24,6 +25,8 @@ export type CompanySetupChildPocBlockProps = {
   departmentsLoading: boolean;
   /** API paths → message, e.g. `childrenDraft.children.0.pocInvite.pocEmail`. */
   fieldErrors?: Record<string, string>;
+  /** Wizard only: drives whether "Pick from list" is offered for POC dept/designation. */
+  companySetupKind?: "new_reseller" | "existing_reseller";
 };
 
 export function CompanySetupChildPocBlock({
@@ -35,8 +38,15 @@ export function CompanySetupChildPocBlock({
   rolesLoading,
   departmentsLoading,
   fieldErrors,
+  companySetupKind = "existing_reseller",
 }: CompanySetupChildPocBlockProps) {
   const theme = useTheme() as AppTheme;
+  const { isPlatformAdmin, user } = useAuth();
+  const showPocPickFromList = sessionShowPocDeptDesignationPickFromList(
+    isPlatformAdmin,
+    user?.userType,
+    companySetupKind,
+  );
 
   const childPath = (relativePath: string) => childrenDraftFieldPath(childIndex, relativePath);
 
@@ -103,6 +113,24 @@ export function CompanySetupChildPocBlock({
               : "No external departments found for this reseller",
           },
         ];
+
+  useLayoutEffect(() => {
+    if (showPocPickFromList) return;
+    if (row.pocDepartmentMode !== "existing" && row.pocDesignationMode !== "existing") return;
+    updateChildRow(childIndex, {
+      pocDepartmentMode: "new",
+      pocDepartmentId: "",
+      pocDesignationMode: "new",
+      pocDesignationId: "",
+      pocDesignationTitle: "",
+    });
+  }, [
+    showPocPickFromList,
+    childIndex,
+    row.pocDepartmentMode,
+    row.pocDesignationMode,
+    updateChildRow,
+  ]);
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 2, width: "100%", mt: 0.5 }}>
@@ -182,6 +210,7 @@ export function CompanySetupChildPocBlock({
           value={row.pocDepartmentMode}
           onChange={(e) => {
             const v = e.target.value;
+            if (!showPocPickFromList) return;
             if (v !== "existing" && v !== "new") return;
             if (v === "new") {
               updateChildRow(childIndex, {
@@ -200,20 +229,22 @@ export function CompanySetupChildPocBlock({
             }
           }}
         >
-          <FormControlLabel
-            value="existing"
-            control={
-              <Radio
-                size="small"
-                sx={{
-                  color: theme.app.dashboard.textMuted,
-                  "&.Mui-checked": { color: theme.app.dashboard.accentBlue },
-                }}
-              />
-            }
-            label={<Typography variant="body2">Pick from list</Typography>}
-            sx={{ mr: 2 }}
-          />
+          {showPocPickFromList ? (
+            <FormControlLabel
+              value="existing"
+              control={
+                <Radio
+                  size="small"
+                  sx={{
+                    color: theme.app.dashboard.textMuted,
+                    "&.Mui-checked": { color: theme.app.dashboard.accentBlue },
+                  }}
+                />
+              }
+              label={<Typography variant="body2">Pick from list</Typography>}
+              sx={{ mr: 2 }}
+            />
+          ) : null}
           <FormControlLabel
             value="new"
             control={
@@ -288,6 +319,7 @@ export function CompanySetupChildPocBlock({
           value={row.pocDesignationMode}
           onChange={(e) => {
             const v = e.target.value;
+            if (!showPocPickFromList) return;
             if (v !== "existing" && v !== "new") return;
             updateChildRow(childIndex, {
               pocDesignationMode: v,
@@ -297,21 +329,23 @@ export function CompanySetupChildPocBlock({
             });
           }}
         >
-          <FormControlLabel
-            value="existing"
-            control={
-              <Radio
-                size="small"
-                disabled={row.pocDepartmentMode === "new"}
-                sx={{
-                  color: theme.app.dashboard.textMuted,
-                  "&.Mui-checked": { color: theme.app.dashboard.accentBlue },
-                }}
-              />
-            }
-            label={<Typography variant="body2">Pick from list</Typography>}
-            sx={{ mr: 2 }}
-          />
+          {showPocPickFromList ? (
+            <FormControlLabel
+              value="existing"
+              control={
+                <Radio
+                  size="small"
+                  disabled={row.pocDepartmentMode === "new"}
+                  sx={{
+                    color: theme.app.dashboard.textMuted,
+                    "&.Mui-checked": { color: theme.app.dashboard.accentBlue },
+                  }}
+                />
+              }
+              label={<Typography variant="body2">Pick from list</Typography>}
+              sx={{ mr: 2 }}
+            />
+          ) : null}
           <FormControlLabel
             value="new"
             control={

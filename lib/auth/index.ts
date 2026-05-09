@@ -1,4 +1,7 @@
-export { sessionMayPickInternalUserScope } from "./session-scope";
+export {
+  sessionMayPickInternalUserScope,
+  sessionShowPocDeptDesignationPickFromList,
+} from "./session-scope";
 export { AuthProvider, useAuth } from "./AuthContext";
 export { validateCredentials, createSession, isSessionValid, MOCK_LOGIN_HINT } from "./mockAuth";
 export type { User, LoginCredentials, AuthSession, AuthUserType } from "./types";
