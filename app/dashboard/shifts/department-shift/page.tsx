@@ -28,15 +28,20 @@ import { footerMutedText, pageWrapper } from "../../companies/overview.styles";
 import { publishAppToast } from "@/lib/notify";
 import { formatIsoDate, isRecord, pickNum, pickStr, unwrapApiData } from "@/lib/utils";
 import {
+  useCompaniesByResellerQuery,
+  useCompaniesSetupResellersQuery,
   useDepartmentsListQuery,
   useDepartmentShiftsListQuery,
   useEnableDepartmentShiftMutation,
   useRemoveDepartmentShiftMutation,
   useShiftsListQuery,
 } from "@/lib/hooks/query";
-import { pickItemsArray, toIdNameOption } from "@/app/dashboard/user-page/components/add-user-modal.utils";
+import { extractParentCompaniesFromByResellerTree, pickItemsArray, toIdNameOption } from "@/app/dashboard/user-page/components/add-user-modal.utils";
+import { useAuth, sessionMayPickInternalUserScope } from "@/lib/auth";
 import {
+  departmentShiftActionsSx,
   departmentShiftCardHeaderSx,
+  departmentShiftFilterFieldsGridSx,
   departmentShiftFilterHintSx,
   departmentShiftFormGridSx,
   departmentShiftHeaderWrapSx,
@@ -45,6 +50,11 @@ import {
 } from "./department-shift.styles";
 
 const PAGE_LIMIT = 8;
+
+const DEPT_KIND_OPTIONS: { value: "Internal" | "External"; label: string }[] = [
+  { value: "Internal", label: "Internal" },
+  { value: "External", label: "External" },
+];
 
 type AssignmentRow = {
   id: string;
@@ -56,22 +66,252 @@ type AssignmentRow = {
 
 export default function DepartmentShiftPage() {
   const theme = useTheme() as AppTheme;
-  const [departmentId, setDepartmentId] = useState("");
+  const { isPlatformAdmin, user: authUser } = useAuth();
+  const mayPickInternal = useMemo(
+    () => sessionMayPickInternalUserScope(isPlatformAdmin, authUser?.userType),
+    [isPlatformAdmin, authUser?.userType],
+  );
+
+  const [filterDeptKind, setFilterDeptKind] = useState<"Internal" | "External">("Internal");
+  const effectiveFilterKind: "Internal" | "External" = mayPickInternal ? filterDeptKind : "External";
+
+  const [filterResellerId, setFilterResellerId] = useState("");
+  const [filterParentCompanyId, setFilterParentCompanyId] = useState("");
+  const [filterDepartmentId, setFilterDepartmentId] = useState("");
+
   const [page, setPage] = useState(1);
   const [assignOpen, setAssignOpen] = useState(false);
   const [removeTarget, setRemoveTarget] = useState<AssignmentRow | null>(null);
+
+  const [assignDeptKind, setAssignDeptKind] = useState<"Internal" | "External">("Internal");
+  const effectiveAssignKind: "Internal" | "External" = mayPickInternal ? assignDeptKind : "External";
+
+  const [assignResellerId, setAssignResellerId] = useState("");
+  const [assignParentCompanyId, setAssignParentCompanyId] = useState("");
+  const [assignDepartmentId, setAssignDepartmentId] = useState("");
 
   const [shiftId, setShiftId] = useState("");
   const [effectiveFrom, setEffectiveFrom] = useState("");
   const [effectiveTo, setEffectiveTo] = useState("");
 
-  const departmentsQuery = useDepartmentsListQuery({ all: true }, { enabled: true, scope: "dept-shift-assignments" });
-  const departmentOptions = useMemo(() => {
-    const base = pickItemsArray(departmentsQuery.data)
+  const filterInternalDepartmentsQuery = useDepartmentsListQuery(
+    effectiveFilterKind === "Internal" ? { all: true, type: "Internal" } : undefined,
+    { enabled: effectiveFilterKind === "Internal", scope: "dept-shift-filter-internal-depts" },
+  );
+  const filterResellersQuery = useCompaniesSetupResellersQuery({
+    enabled: effectiveFilterKind === "External",
+  });
+  const filterParentCompaniesQuery = useCompaniesByResellerQuery(
+    filterResellerId.trim(),
+    { view: "tree", sortBy: "name", sortOrder: "asc", all: true },
+    { enabled: effectiveFilterKind === "External" && Boolean(filterResellerId.trim()) },
+  );
+  const filterExternalDepartmentsQuery = useDepartmentsListQuery(
+    effectiveFilterKind === "External" && filterResellerId.trim() && filterParentCompanyId.trim()
+      ? {
+          all: true,
+          type: "External",
+          resellerId: filterResellerId.trim(),
+          parentCompanyId: filterParentCompanyId.trim(),
+        }
+      : undefined,
+    {
+      enabled:
+        effectiveFilterKind === "External" &&
+        Boolean(filterResellerId.trim()) &&
+        Boolean(filterParentCompanyId.trim()),
+      scope: "dept-shift-filter-external-depts",
+    },
+  );
+
+  const assignInternalDepartmentsQuery = useDepartmentsListQuery(
+    assignOpen && effectiveAssignKind === "Internal" ? { all: true, type: "Internal" } : undefined,
+    { enabled: assignOpen && effectiveAssignKind === "Internal", scope: "dept-shift-assign-internal-depts" },
+  );
+  const assignResellersQuery = useCompaniesSetupResellersQuery({
+    enabled: assignOpen && effectiveAssignKind === "External",
+  });
+  const assignParentCompaniesQuery = useCompaniesByResellerQuery(
+    assignResellerId.trim(),
+    { view: "tree", sortBy: "name", sortOrder: "asc", all: true },
+    { enabled: assignOpen && effectiveAssignKind === "External" && Boolean(assignResellerId.trim()) },
+  );
+  const assignExternalDepartmentsQuery = useDepartmentsListQuery(
+    assignOpen && effectiveAssignKind === "External" && assignResellerId.trim() && assignParentCompanyId.trim()
+      ? {
+          all: true,
+          type: "External",
+          resellerId: assignResellerId.trim(),
+          parentCompanyId: assignParentCompanyId.trim(),
+        }
+      : undefined,
+    {
+      enabled:
+        assignOpen &&
+        effectiveAssignKind === "External" &&
+        Boolean(assignResellerId.trim()) &&
+        Boolean(assignParentCompanyId.trim()),
+      scope: "dept-shift-assign-external-depts",
+    },
+  );
+
+  useEffect(() => {
+    setFilterResellerId("");
+    setFilterParentCompanyId("");
+    setFilterDepartmentId("");
+  }, [filterDeptKind]);
+
+  useEffect(() => {
+    setFilterParentCompanyId("");
+    setFilterDepartmentId("");
+  }, [filterResellerId]);
+
+  useEffect(() => {
+    setFilterDepartmentId("");
+  }, [filterParentCompanyId]);
+
+  useEffect(() => {
+    setAssignResellerId("");
+    setAssignParentCompanyId("");
+    setAssignDepartmentId("");
+  }, [assignDeptKind]);
+
+  useEffect(() => {
+    setAssignParentCompanyId("");
+    setAssignDepartmentId("");
+  }, [assignResellerId]);
+
+  useEffect(() => {
+    setAssignDepartmentId("");
+  }, [assignParentCompanyId]);
+
+  const filterResellerOptions = useMemo(() => {
+    const base = pickItemsArray(filterResellersQuery.data)
       .map(toIdNameOption)
       .filter((o): o is { value: string; label: string } => o !== null);
-    return [{ value: "", label: "— Select department —" }, ...base];
-  }, [departmentsQuery.data]);
+    return [
+      {
+        value: "",
+        label: filterResellersQuery.isLoading ? "Loading resellers…" : "— Select reseller —",
+      },
+      ...base,
+    ];
+  }, [filterResellersQuery.data, filterResellersQuery.isLoading]);
+
+  const filterParentCompanyOptions = useMemo(() => {
+    const base = extractParentCompaniesFromByResellerTree(filterParentCompaniesQuery.data);
+    return [
+      {
+        value: "",
+        label:
+          !filterResellerId.trim()
+            ? "Select reseller first"
+            : filterParentCompaniesQuery.isLoading
+              ? "Loading parent companies…"
+              : "— Select parent company —",
+      },
+      ...base,
+    ];
+  }, [filterParentCompaniesQuery.data, filterParentCompaniesQuery.isLoading, filterResellerId]);
+
+  const filterDepartmentOptions = useMemo(() => {
+    const source =
+      effectiveFilterKind === "Internal"
+        ? filterInternalDepartmentsQuery.data
+        : filterExternalDepartmentsQuery.data;
+    const loading =
+      effectiveFilterKind === "Internal"
+        ? filterInternalDepartmentsQuery.isLoading
+        : filterExternalDepartmentsQuery.isLoading;
+    const base = pickItemsArray(source)
+      .map(toIdNameOption)
+      .filter((o): o is { value: string; label: string } => o !== null);
+    const prompt =
+      effectiveFilterKind === "External" && !filterParentCompanyId.trim()
+        ? "Select parent company first"
+        : loading
+          ? "Loading departments…"
+          : "— Select department —";
+    return [{ value: "", label: prompt }, ...base];
+  }, [
+    effectiveFilterKind,
+    filterInternalDepartmentsQuery.data,
+    filterInternalDepartmentsQuery.isLoading,
+    filterExternalDepartmentsQuery.data,
+    filterExternalDepartmentsQuery.isLoading,
+    filterParentCompanyId,
+  ]);
+
+  const assignResellerOptions = useMemo(() => {
+    const base = pickItemsArray(assignResellersQuery.data)
+      .map(toIdNameOption)
+      .filter((o): o is { value: string; label: string } => o !== null);
+    return [
+      {
+        value: "",
+        label: assignResellersQuery.isLoading ? "Loading resellers…" : "— Select reseller —",
+      },
+      ...base,
+    ];
+  }, [assignResellersQuery.data, assignResellersQuery.isLoading]);
+
+  const assignParentCompanyOptions = useMemo(() => {
+    const base = extractParentCompaniesFromByResellerTree(assignParentCompaniesQuery.data);
+    return [
+      {
+        value: "",
+        label:
+          !assignResellerId.trim()
+            ? "Select reseller first"
+            : assignParentCompaniesQuery.isLoading
+              ? "Loading parent companies…"
+              : "— Select parent company —",
+      },
+      ...base,
+    ];
+  }, [assignParentCompaniesQuery.data, assignParentCompaniesQuery.isLoading, assignResellerId]);
+
+  const assignDepartmentOptions = useMemo(() => {
+    const source =
+      effectiveAssignKind === "Internal" ? assignInternalDepartmentsQuery.data : assignExternalDepartmentsQuery.data;
+    const loading =
+      effectiveAssignKind === "Internal"
+        ? assignInternalDepartmentsQuery.isLoading
+        : assignExternalDepartmentsQuery.isLoading;
+    const base = pickItemsArray(source)
+      .map(toIdNameOption)
+      .filter((o): o is { value: string; label: string } => o !== null);
+    const prompt =
+      effectiveAssignKind === "External" && !assignParentCompanyId.trim()
+        ? "Select parent company first"
+        : loading
+          ? "Loading departments…"
+          : "— Select department —";
+    return [{ value: "", label: prompt }, ...base];
+  }, [
+    effectiveAssignKind,
+    assignInternalDepartmentsQuery.data,
+    assignInternalDepartmentsQuery.isLoading,
+    assignExternalDepartmentsQuery.data,
+    assignExternalDepartmentsQuery.isLoading,
+    assignParentCompanyId,
+  ]);
+
+  const listParams = useMemo(
+    () =>
+      ({
+        ...(filterDepartmentId.trim() ? { departmentId: filterDepartmentId.trim() } : {}),
+        page,
+        limit: PAGE_LIMIT,
+      }) satisfies { departmentId?: string; page: number; limit: number },
+    [filterDepartmentId, page],
+  );
+  const listQuery = useDepartmentShiftsListQuery(listParams, {
+    enabled: true,
+    scope: "dept-shifts",
+  });
+  const assignMutation = useEnableDepartmentShiftMutation();
+  const removeMutation = useRemoveDepartmentShiftMutation();
 
   const shiftsQuery = useShiftsListQuery({ all: true }, { enabled: true, scope: "dept-shift-templates" });
   const shiftOptions = useMemo(() => {
@@ -88,22 +328,6 @@ export default function DepartmentShiftPage() {
       .filter((o): o is { value: string; label: string } => o !== null);
     return [{ value: "", label: "— Select shift —" }, ...base];
   }, [shiftsQuery.data]);
-
-  const listParams = useMemo(
-    () =>
-      ({
-        ...(departmentId.trim() ? { departmentId: departmentId.trim() } : {}),
-        page,
-        limit: PAGE_LIMIT,
-      }) satisfies { departmentId?: string; page: number; limit: number },
-    [departmentId, page],
-  );
-  const listQuery = useDepartmentShiftsListQuery(listParams, {
-    enabled: true,
-    scope: "dept-shifts",
-  });
-  const assignMutation = useEnableDepartmentShiftMutation();
-  const removeMutation = useRemoveDepartmentShiftMutation();
 
   const payload = unwrapApiData(listQuery.data);
   const payloadObj = isRecord(payload) ? payload : null;
@@ -124,16 +348,16 @@ export default function DepartmentShiftPage() {
 
   useEffect(() => {
     setPage(1);
-  }, [departmentId]);
+  }, [filterDepartmentId]);
 
   useEffect(() => {
     setPage((p) => (p > pageCount ? pageCount : p));
   }, [pageCount]);
 
   const selectedDepartmentLabel = useMemo(() => {
-    if (!departmentId.trim()) return "";
-    return departmentOptions.find((o) => o.value === departmentId)?.label ?? "";
-  }, [departmentId, departmentOptions]);
+    if (!filterDepartmentId.trim()) return "";
+    return filterDepartmentOptions.find((o) => o.value === filterDepartmentId)?.label ?? "";
+  }, [filterDepartmentId, filterDepartmentOptions]);
 
   const tableRows = useMemo<AssignmentRow[]>(() => {
     return items
@@ -174,14 +398,42 @@ export default function DepartmentShiftPage() {
     [],
   );
 
-  const handleCancel = () => {
+  const filterHint = useMemo(() => {
+    if (filterDepartmentId.trim()) return "Filtered by department";
+    if (effectiveFilterKind === "External" && (filterResellerId.trim() || filterParentCompanyId.trim())) {
+      return "Narrow assignments with reseller / parent filters, or pick a department";
+    }
+    return "Showing all departments";
+  }, [effectiveFilterKind, filterDepartmentId, filterResellerId, filterParentCompanyId]);
+
+  const filterClearDisabled = useMemo(
+    () =>
+      !filterDepartmentId.trim() &&
+      !filterResellerId.trim() &&
+      !filterParentCompanyId.trim() &&
+      (!mayPickInternal || filterDeptKind === "Internal"),
+    [mayPickInternal, filterDeptKind, filterDepartmentId, filterResellerId, filterParentCompanyId],
+  );
+
+  const clearFilters = () => {
+    setFilterDeptKind(mayPickInternal ? "Internal" : "External");
+    setFilterResellerId("");
+    setFilterParentCompanyId("");
+    setFilterDepartmentId("");
+  };
+
+  const resetAssignModal = () => {
+    setAssignDeptKind(mayPickInternal ? "Internal" : "External");
+    setAssignResellerId("");
+    setAssignParentCompanyId("");
+    setAssignDepartmentId("");
     setShiftId("");
     setEffectiveFrom("");
     setEffectiveTo("");
   };
 
   const handleAssign = () => {
-    if (!departmentId.trim()) {
+    if (!assignDepartmentId.trim()) {
       publishAppToast({ variant: "error", message: "Please select a department." });
       return;
     }
@@ -200,7 +452,7 @@ export default function DepartmentShiftPage() {
 
     assignMutation.mutate(
       {
-        departmentId: departmentId.trim(),
+        departmentId: assignDepartmentId.trim(),
         shiftId: shiftId.trim(),
         effectiveFrom: effectiveFrom.trim(),
         effectiveTo: effectiveTo.trim(),
@@ -209,7 +461,7 @@ export default function DepartmentShiftPage() {
         onSuccess: () => {
           publishAppToast({ variant: "success", message: "Department shift assigned successfully." });
           setAssignOpen(false);
-          handleCancel();
+          resetAssignModal();
         },
         onError: () => publishAppToast({ variant: "error", message: "Could not assign shift." }),
       },
@@ -227,53 +479,79 @@ export default function DepartmentShiftPage() {
             Default shifts for a department (applies to users without user/pool overrides).
           </Typography>
         </Box>
-        <Chip
-          size="small"
-          label={`${totalEntries} assignment${totalEntries === 1 ? "" : "s"}`}
-          variant="outlined"
-          sx={{ alignSelf: "flex-start", borderColor: "rgba(255,255,255,0.35)", color: theme.app.dashboard.white95 }}
-        />
-      </Box>
-
-      <DashboardCard sx={rolesCard}>
-        <Box sx={{ ...departmentShiftCardHeaderSx, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2 }}>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, minWidth: 0 }}>
-            <Box sx={rolesIconBox}>
-              <AccessTimeIcon sx={departmentShiftIconSx} />
-            </Box>
-            <Typography variant="mediumLarge" fontWeight={600} color="white" noWrap>
-              Filters
-            </Typography>
-          </Box>
-
-          <Button
-            variant="primary"
-            sx={gradientPrimaryButtonSx}
-            onClick={() => setAssignOpen(true)}
-            disabled={!departmentId.trim()}
-          >
+        <Box sx={departmentShiftActionsSx}>
+          <Chip
+            size="small"
+            label={`${totalEntries} assignment${totalEntries === 1 ? "" : "s"}`}
+            variant="outlined"
+            sx={{ alignSelf: "center", borderColor: "rgba(255,255,255,0.35)", color: theme.app.dashboard.white95 }}
+          />
+          <Button variant="primary" sx={gradientPrimaryButtonSx} onClick={() => setAssignOpen(true)}>
             Assign shift
           </Button>
         </Box>
+      </Box>
 
-        <Box sx={departmentShiftFormGridSx}>
+      <DashboardCard sx={rolesCard}>
+        <Box sx={departmentShiftCardHeaderSx}>
+          <Box sx={rolesIconBox}>
+            <AccessTimeIcon sx={departmentShiftIconSx} />
+          </Box>
+          <Typography variant="mediumLarge" fontWeight={600} color="white">
+            Filters
+          </Typography>
+        </Box>
+
+        <Box sx={departmentShiftFilterFieldsGridSx}>
+          {mayPickInternal ? (
+            <SelectField
+              label="Department type"
+              value={filterDeptKind}
+              onChange={(v) => setFilterDeptKind(v as "Internal" | "External")}
+              options={DEPT_KIND_OPTIONS}
+              menuMaxRows={4}
+            />
+          ) : null}
+          {effectiveFilterKind === "External" ? (
+            <>
+              <SelectField
+                label="Reseller"
+                value={filterResellerId}
+                onChange={setFilterResellerId}
+                options={filterResellerOptions}
+                menuMaxRows={8}
+              />
+              <SelectField
+                label="Parent company"
+                value={filterParentCompanyId}
+                onChange={setFilterParentCompanyId}
+                options={filterParentCompanyOptions}
+                searchable
+                searchPlaceholder="Search parent company…"
+                menuMaxRows={7}
+                disabled={!filterResellerId.trim()}
+              />
+            </>
+          ) : null}
           <SelectField
             label="Department"
-            value={departmentId}
-            onChange={setDepartmentId}
-            options={departmentOptions}
+            value={filterDepartmentId}
+            onChange={setFilterDepartmentId}
+            options={filterDepartmentOptions}
+            searchable
+            searchPlaceholder="Search department…"
             menuMaxRows={8}
+            disabled={effectiveFilterKind === "External" && !filterParentCompanyId.trim()}
           />
+        </Box>
+
+        <Box sx={{ ...departmentShiftFormGridSx, mt: 0.5 }}>
+          <Typography variant="body2" sx={departmentShiftFilterHintSx}>
+            {filterHint}
+          </Typography>
           <Box sx={{ display: "flex", alignItems: "end", justifyContent: { xs: "flex-start", md: "flex-end" }, gap: 1.25, flexWrap: "wrap" }}>
-            <Typography variant="body2" sx={departmentShiftFilterHintSx}>
-              {departmentId.trim() ? "Filtered by department" : "Showing all departments"}
-            </Typography>
-            <Button
-              variant="secondary"
-              onClick={() => setDepartmentId("")}
-              disabled={!departmentId.trim()}
-            >
-              Clear filter
+            <Button variant="secondary" onClick={clearFilters} disabled={filterClearDisabled}>
+              Clear filters
             </Button>
           </Box>
         </Box>
@@ -334,11 +612,15 @@ export default function DepartmentShiftPage() {
       <FormModal
         open={assignOpen}
         title="Assign shift to department"
-        description="Assign a default shift to everyone in the department (date range)."
+        description={
+          mayPickInternal
+            ? "Pick department type (Internal or External), then department, shift, and dates."
+            : "Pick reseller, parent company, department, shift, and dates."
+        }
         onClose={() => {
           if (assignMutation.isPending) return;
           setAssignOpen(false);
-          handleCancel();
+          resetAssignModal();
         }}
         onSave={handleAssign}
         primaryButtonLabel={assignMutation.isPending ? "Saving…" : "Assign"}
@@ -347,40 +629,70 @@ export default function DepartmentShiftPage() {
         maxWidth={600}
         fitContent
       >
-        {!departmentId.trim() ? (
-          <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted }}>
-            Pick a department first, then assign a shift.
-          </Typography>
-        ) : null}
-        <SelectField
-          label="Department"
-          value={departmentId}
-          onChange={setDepartmentId}
-          options={departmentOptions}
-          menuMaxRows={8}
-        />
-        <SelectField
-          label="Shift"
-          value={shiftId}
-          onChange={setShiftId}
-          options={shiftOptions}
-          searchable
-          searchPlaceholder="Search shift…"
-          menuMaxRows={7}
-        />
-        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 2 }}>
-          <InputField
-            label="Effective from"
-            type="date"
-            value={effectiveFrom}
-            onChange={(e) => setEffectiveFrom(e.target.value)}
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
+          {mayPickInternal ? (
+            <SelectField
+              label="Department type"
+              value={assignDeptKind}
+              onChange={(v) => setAssignDeptKind(v as "Internal" | "External")}
+              options={DEPT_KIND_OPTIONS}
+              menuMaxRows={4}
+            />
+          ) : null}
+          {effectiveAssignKind === "External" ? (
+            <>
+              <SelectField
+                label="Reseller"
+                value={assignResellerId}
+                onChange={setAssignResellerId}
+                options={assignResellerOptions}
+                menuMaxRows={8}
+              />
+              <SelectField
+                label="Parent company"
+                value={assignParentCompanyId}
+                onChange={setAssignParentCompanyId}
+                options={assignParentCompanyOptions}
+                searchable
+                searchPlaceholder="Search parent company…"
+                menuMaxRows={7}
+                disabled={!assignResellerId.trim()}
+              />
+            </>
+          ) : null}
+          <SelectField
+            label="Department"
+            value={assignDepartmentId}
+            onChange={setAssignDepartmentId}
+            options={assignDepartmentOptions}
+            searchable
+            searchPlaceholder="Search department…"
+            menuMaxRows={8}
+            disabled={effectiveAssignKind === "External" && !assignParentCompanyId.trim()}
           />
-          <InputField
-            label="Effective to"
-            type="date"
-            value={effectiveTo}
-            onChange={(e) => setEffectiveTo(e.target.value)}
+          <SelectField
+            label="Shift"
+            value={shiftId}
+            onChange={setShiftId}
+            options={shiftOptions}
+            searchable
+            searchPlaceholder="Search shift…"
+            menuMaxRows={7}
           />
+          <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 2 }}>
+            <InputField
+              label="Effective from"
+              type="date"
+              value={effectiveFrom}
+              onChange={(e) => setEffectiveFrom(e.target.value)}
+            />
+            <InputField
+              label="Effective to"
+              type="date"
+              value={effectiveTo}
+              onChange={(e) => setEffectiveTo(e.target.value)}
+            />
+          </Box>
         </Box>
       </FormModal>
 

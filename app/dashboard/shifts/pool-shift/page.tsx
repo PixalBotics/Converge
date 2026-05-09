@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Box from "@mui/material/Box";
 import IconButton from "@mui/material/IconButton";
+import Chip from "@mui/material/Chip";
 import { AttachMoney as AttachMoneyIcon } from "@mui/icons-material";
 import DeleteIcon from "@mui/icons-material/Delete";
 import type { SxProps, Theme } from "@mui/material/styles";
@@ -28,15 +29,21 @@ import { publishAppToast } from "@/lib/notify";
 import { isRecord, pickNum, pickStr, unwrapApiData } from "@/lib/utils";
 import {
   useAssignPoolShiftMutation,
+  useCompaniesByResellerQuery,
+  useCompaniesSetupResellersQuery,
   useDepartmentsListQuery,
   usePoolShiftAssignmentsListQuery,
   usePoolsListQuery,
   useRemovePoolShiftAssignmentMutation,
   useShiftsListQuery,
 } from "@/lib/hooks/query";
-import { pickItemsArray, toIdNameOption } from "@/app/dashboard/user-page/components/add-user-modal.utils";
+import { extractParentCompaniesFromByResellerTree, pickItemsArray, toIdNameOption } from "@/app/dashboard/user-page/components/add-user-modal.utils";
+import { useAuth, sessionMayPickInternalUserScope } from "@/lib/auth";
 import {
+  poolShiftActionsSx,
   poolShiftCardHeaderSx,
+  poolShiftFilterFieldsGridSx,
+  poolShiftFilterHintSx,
   poolShiftFormGridSx,
   poolShiftHeaderWrapSx,
   poolShiftIconSx,
@@ -44,6 +51,11 @@ import {
 } from "./pool-shift.styles";
 
 const PAGE_LIMIT = 8;
+
+const DEPT_KIND_OPTIONS: { value: "Internal" | "External"; label: string }[] = [
+  { value: "Internal", label: "Internal" },
+  { value: "External", label: "External" },
+];
 
 type AssignmentRow = {
   id: string;
@@ -55,30 +67,209 @@ type AssignmentRow = {
 
 export default function PoolShiftPage() {
   const theme = useTheme() as AppTheme;
-  const [departmentId, setDepartmentId] = useState("");
-  const [poolId, setPoolId] = useState("");
+  const { isPlatformAdmin, user: authUser } = useAuth();
+  const mayPickInternal = useMemo(
+    () => sessionMayPickInternalUserScope(isPlatformAdmin, authUser?.userType),
+    [isPlatformAdmin, authUser?.userType],
+  );
+
+  const [filterDeptKind, setFilterDeptKind] = useState<"Internal" | "External">("Internal");
+  const effectiveFilterKind: "Internal" | "External" = mayPickInternal ? filterDeptKind : "External";
+
+  const [filterResellerId, setFilterResellerId] = useState("");
+  const [filterParentCompanyId, setFilterParentCompanyId] = useState("");
+  const [filterDepartmentId, setFilterDepartmentId] = useState("");
+  const [filterPoolId, setFilterPoolId] = useState("");
+
   const [page, setPage] = useState(1);
   const [assignOpen, setAssignOpen] = useState(false);
   const [removeTarget, setRemoveTarget] = useState<AssignmentRow | null>(null);
+
+  const [assignDeptKind, setAssignDeptKind] = useState<"Internal" | "External">("Internal");
+  const effectiveAssignKind: "Internal" | "External" = mayPickInternal ? assignDeptKind : "External";
+
+  const [assignResellerId, setAssignResellerId] = useState("");
+  const [assignParentCompanyId, setAssignParentCompanyId] = useState("");
+  const [assignDepartmentId, setAssignDepartmentId] = useState("");
+  const [assignPoolId, setAssignPoolId] = useState("");
 
   const [shiftId, setShiftId] = useState("");
   const [effectiveFrom, setEffectiveFrom] = useState("");
   const [effectiveTo, setEffectiveTo] = useState("");
 
-  const departmentsQuery = useDepartmentsListQuery({ all: true }, { enabled: true, scope: "pool-shift" });
-  const departmentOptions = useMemo(() => {
-    const base = pickItemsArray(departmentsQuery.data)
+  const filterInternalDepartmentsQuery = useDepartmentsListQuery(
+    effectiveFilterKind === "Internal" ? { all: true, type: "Internal" } : undefined,
+    { enabled: effectiveFilterKind === "Internal", scope: "pool-shift-filter-internal-depts" },
+  );
+  const filterResellersQuery = useCompaniesSetupResellersQuery({
+    enabled: effectiveFilterKind === "External",
+  });
+  const filterParentCompaniesQuery = useCompaniesByResellerQuery(
+    filterResellerId.trim(),
+    { view: "tree", sortBy: "name", sortOrder: "asc", all: true },
+    { enabled: effectiveFilterKind === "External" && Boolean(filterResellerId.trim()) },
+  );
+  const filterExternalDepartmentsQuery = useDepartmentsListQuery(
+    effectiveFilterKind === "External" && filterResellerId.trim() && filterParentCompanyId.trim()
+      ? {
+          all: true,
+          type: "External",
+          resellerId: filterResellerId.trim(),
+          parentCompanyId: filterParentCompanyId.trim(),
+        }
+      : undefined,
+    {
+      enabled:
+        effectiveFilterKind === "External" &&
+        Boolean(filterResellerId.trim()) &&
+        Boolean(filterParentCompanyId.trim()),
+      scope: "pool-shift-filter-external-depts",
+    },
+  );
+
+  const filterPoolsQuery = usePoolsListQuery(
+    filterDepartmentId.trim() ? { departmentId: filterDepartmentId.trim(), all: true } : undefined,
+    { enabled: Boolean(filterDepartmentId.trim()), scope: "pool-shift-filter-pools" },
+  );
+
+  const assignInternalDepartmentsQuery = useDepartmentsListQuery(
+    assignOpen && effectiveAssignKind === "Internal" ? { all: true, type: "Internal" } : undefined,
+    { enabled: assignOpen && effectiveAssignKind === "Internal", scope: "pool-shift-assign-internal-depts" },
+  );
+  const assignResellersQuery = useCompaniesSetupResellersQuery({
+    enabled: assignOpen && effectiveAssignKind === "External",
+  });
+  const assignParentCompaniesQuery = useCompaniesByResellerQuery(
+    assignResellerId.trim(),
+    { view: "tree", sortBy: "name", sortOrder: "asc", all: true },
+    { enabled: assignOpen && effectiveAssignKind === "External" && Boolean(assignResellerId.trim()) },
+  );
+  const assignExternalDepartmentsQuery = useDepartmentsListQuery(
+    assignOpen && effectiveAssignKind === "External" && assignResellerId.trim() && assignParentCompanyId.trim()
+      ? {
+          all: true,
+          type: "External",
+          resellerId: assignResellerId.trim(),
+          parentCompanyId: assignParentCompanyId.trim(),
+        }
+      : undefined,
+    {
+      enabled:
+        assignOpen &&
+        effectiveAssignKind === "External" &&
+        Boolean(assignResellerId.trim()) &&
+        Boolean(assignParentCompanyId.trim()),
+      scope: "pool-shift-assign-external-depts",
+    },
+  );
+  const assignPoolsQuery = usePoolsListQuery(
+    assignDepartmentId.trim() ? { departmentId: assignDepartmentId.trim(), all: true } : undefined,
+    { enabled: assignOpen && Boolean(assignDepartmentId.trim()), scope: "pool-shift-assign-pools" },
+  );
+
+  useEffect(() => {
+    setFilterResellerId("");
+    setFilterParentCompanyId("");
+    setFilterDepartmentId("");
+    setFilterPoolId("");
+  }, [filterDeptKind]);
+
+  useEffect(() => {
+    setFilterParentCompanyId("");
+    setFilterDepartmentId("");
+    setFilterPoolId("");
+  }, [filterResellerId]);
+
+  useEffect(() => {
+    setFilterDepartmentId("");
+    setFilterPoolId("");
+  }, [filterParentCompanyId]);
+
+  useEffect(() => {
+    setFilterPoolId("");
+  }, [filterDepartmentId]);
+
+  useEffect(() => {
+    setAssignResellerId("");
+    setAssignParentCompanyId("");
+    setAssignDepartmentId("");
+    setAssignPoolId("");
+  }, [assignDeptKind]);
+
+  useEffect(() => {
+    setAssignParentCompanyId("");
+    setAssignDepartmentId("");
+    setAssignPoolId("");
+  }, [assignResellerId]);
+
+  useEffect(() => {
+    setAssignDepartmentId("");
+    setAssignPoolId("");
+  }, [assignParentCompanyId]);
+
+  useEffect(() => {
+    setAssignPoolId("");
+  }, [assignDepartmentId]);
+
+  const filterResellerOptions = useMemo(() => {
+    const base = pickItemsArray(filterResellersQuery.data)
       .map(toIdNameOption)
       .filter((o): o is { value: string; label: string } => o !== null);
-    return [{ value: "", label: "— Select department —" }, ...base];
-  }, [departmentsQuery.data]);
+    return [
+      {
+        value: "",
+        label: filterResellersQuery.isLoading ? "Loading resellers…" : "— Select reseller —",
+      },
+      ...base,
+    ];
+  }, [filterResellersQuery.data, filterResellersQuery.isLoading]);
 
-  const poolsQuery = usePoolsListQuery(
-    departmentId.trim() ? { departmentId: departmentId.trim(), all: true } : undefined,
-    { enabled: Boolean(departmentId.trim()), scope: "pool-shift" },
-  );
-  const poolOptions = useMemo(() => {
-    const payload = unwrapApiData(poolsQuery.data);
+  const filterParentCompanyOptions = useMemo(() => {
+    const base = extractParentCompaniesFromByResellerTree(filterParentCompaniesQuery.data);
+    return [
+      {
+        value: "",
+        label:
+          !filterResellerId.trim()
+            ? "Select reseller first"
+            : filterParentCompaniesQuery.isLoading
+              ? "Loading parent companies…"
+              : "— Select parent company —",
+      },
+      ...base,
+    ];
+  }, [filterParentCompaniesQuery.data, filterParentCompaniesQuery.isLoading, filterResellerId]);
+
+  const filterDepartmentOptions = useMemo(() => {
+    const source =
+      effectiveFilterKind === "Internal"
+        ? filterInternalDepartmentsQuery.data
+        : filterExternalDepartmentsQuery.data;
+    const loading =
+      effectiveFilterKind === "Internal"
+        ? filterInternalDepartmentsQuery.isLoading
+        : filterExternalDepartmentsQuery.isLoading;
+    const base = pickItemsArray(source)
+      .map(toIdNameOption)
+      .filter((o): o is { value: string; label: string } => o !== null);
+    const prompt =
+      effectiveFilterKind === "External" && !filterParentCompanyId.trim()
+        ? "Select parent company first"
+        : loading
+          ? "Loading departments…"
+          : "— Select department —";
+    return [{ value: "", label: prompt }, ...base];
+  }, [
+    effectiveFilterKind,
+    filterInternalDepartmentsQuery.data,
+    filterInternalDepartmentsQuery.isLoading,
+    filterExternalDepartmentsQuery.data,
+    filterExternalDepartmentsQuery.isLoading,
+    filterParentCompanyId,
+  ]);
+
+  const filterPoolOptions = useMemo(() => {
+    const payload = unwrapApiData(filterPoolsQuery.data);
     const payloadObj = isRecord(payload) ? payload : null;
     const items = Array.isArray(payloadObj?.["items"]) ? (payloadObj?.["items"] as unknown[]).filter(isRecord) : [];
     const base = items
@@ -89,8 +280,88 @@ export default function PoolShiftPage() {
         return { value: id, label: name };
       })
       .filter((o): o is { value: string; label: string } => o !== null);
-    return [{ value: "", label: "— Select pool —" }, ...base];
-  }, [poolsQuery.data]);
+    const prompt = !filterDepartmentId.trim()
+      ? "Select department first"
+      : filterPoolsQuery.isLoading
+        ? "Loading pools…"
+        : "— Select pool —";
+    return [{ value: "", label: prompt }, ...base];
+  }, [filterPoolsQuery.data, filterPoolsQuery.isLoading, filterDepartmentId]);
+
+  const assignResellerOptions = useMemo(() => {
+    const base = pickItemsArray(assignResellersQuery.data)
+      .map(toIdNameOption)
+      .filter((o): o is { value: string; label: string } => o !== null);
+    return [
+      {
+        value: "",
+        label: assignResellersQuery.isLoading ? "Loading resellers…" : "— Select reseller —",
+      },
+      ...base,
+    ];
+  }, [assignResellersQuery.data, assignResellersQuery.isLoading]);
+
+  const assignParentCompanyOptions = useMemo(() => {
+    const base = extractParentCompaniesFromByResellerTree(assignParentCompaniesQuery.data);
+    return [
+      {
+        value: "",
+        label:
+          !assignResellerId.trim()
+            ? "Select reseller first"
+            : assignParentCompaniesQuery.isLoading
+              ? "Loading parent companies…"
+              : "— Select parent company —",
+      },
+      ...base,
+    ];
+  }, [assignParentCompaniesQuery.data, assignParentCompaniesQuery.isLoading, assignResellerId]);
+
+  const assignDepartmentOptions = useMemo(() => {
+    const source =
+      effectiveAssignKind === "Internal" ? assignInternalDepartmentsQuery.data : assignExternalDepartmentsQuery.data;
+    const loading =
+      effectiveAssignKind === "Internal"
+        ? assignInternalDepartmentsQuery.isLoading
+        : assignExternalDepartmentsQuery.isLoading;
+    const base = pickItemsArray(source)
+      .map(toIdNameOption)
+      .filter((o): o is { value: string; label: string } => o !== null);
+    const prompt =
+      effectiveAssignKind === "External" && !assignParentCompanyId.trim()
+        ? "Select parent company first"
+        : loading
+          ? "Loading departments…"
+          : "— Select department —";
+    return [{ value: "", label: prompt }, ...base];
+  }, [
+    effectiveAssignKind,
+    assignInternalDepartmentsQuery.data,
+    assignInternalDepartmentsQuery.isLoading,
+    assignExternalDepartmentsQuery.data,
+    assignExternalDepartmentsQuery.isLoading,
+    assignParentCompanyId,
+  ]);
+
+  const assignPoolOptions = useMemo(() => {
+    const payload = unwrapApiData(assignPoolsQuery.data);
+    const payloadObj = isRecord(payload) ? payload : null;
+    const items = Array.isArray(payloadObj?.["items"]) ? (payloadObj?.["items"] as unknown[]).filter(isRecord) : [];
+    const base = items
+      .map((r) => {
+        const id = pickStr(r, ["id"]);
+        const name = pickStr(r, ["name"]);
+        if (!id || !name) return null;
+        return { value: id, label: name };
+      })
+      .filter((o): o is { value: string; label: string } => o !== null);
+    const prompt = !assignDepartmentId.trim()
+      ? "Select department first"
+      : assignPoolsQuery.isLoading
+        ? "Loading pools…"
+        : "— Select pool —";
+    return [{ value: "", label: prompt }, ...base];
+  }, [assignPoolsQuery.data, assignPoolsQuery.isLoading, assignDepartmentId]);
 
   const shiftsQuery = useShiftsListQuery({ all: true }, { enabled: true, scope: "pool-shift-templates" });
   const shiftOptions = useMemo(() => {
@@ -109,22 +380,25 @@ export default function PoolShiftPage() {
   }, [shiftsQuery.data]);
 
   const selectedPoolLabel = useMemo(() => {
-    if (!poolId.trim()) return "";
-    return poolOptions.find((o) => o.value === poolId)?.label ?? "";
-  }, [poolId, poolOptions]);
+    if (!filterPoolId.trim()) return "";
+    return filterPoolOptions.find((o) => o.value === filterPoolId)?.label ?? "";
+  }, [filterPoolId, filterPoolOptions]);
 
   const listParams = useMemo(
     () =>
-      poolId.trim()
+      filterPoolId.trim()
         ? {
-            poolId: poolId.trim(),
+            poolId: filterPoolId.trim(),
             page,
             limit: PAGE_LIMIT,
           }
         : undefined,
-    [poolId, page],
+    [filterPoolId, page],
   );
-  const listQuery = usePoolShiftAssignmentsListQuery(listParams, { enabled: Boolean(poolId.trim()), scope: "pool-shift" });
+  const listQuery = usePoolShiftAssignmentsListQuery(listParams, {
+    enabled: Boolean(filterPoolId.trim()),
+    scope: "pool-shift",
+  });
   const assignMutation = useAssignPoolShiftMutation();
   const removeMutation = useRemovePoolShiftAssignmentMutation();
 
@@ -147,16 +421,11 @@ export default function PoolShiftPage() {
 
   useEffect(() => {
     setPage(1);
-  }, [poolId]);
+  }, [filterPoolId]);
 
   useEffect(() => {
     setPage((p) => (p > pageCount ? pageCount : p));
   }, [pageCount]);
-
-  useEffect(() => {
-    // changing department should reset pool selection
-    setPoolId("");
-  }, [departmentId]);
 
   const tableRows = useMemo<AssignmentRow[]>(() => {
     return items
@@ -191,18 +460,50 @@ export default function PoolShiftPage() {
     [],
   );
 
-  const handleCancel = () => {
+  const filterHint = useMemo(() => {
+    if (filterPoolId.trim()) return "Filtered by pool";
+    if (filterDepartmentId.trim()) return "Pick a pool to load assignments below";
+    if (effectiveFilterKind === "External" && (filterResellerId.trim() || filterParentCompanyId.trim())) {
+      return "Narrow pools with reseller / parent / department, then select a pool";
+    }
+    return "Select filters and a pool to view assignments";
+  }, [effectiveFilterKind, filterPoolId, filterDepartmentId, filterResellerId, filterParentCompanyId]);
+
+  const filterClearDisabled = useMemo(
+    () =>
+      !filterPoolId.trim() &&
+      !filterDepartmentId.trim() &&
+      !filterResellerId.trim() &&
+      !filterParentCompanyId.trim() &&
+      (!mayPickInternal || filterDeptKind === "Internal"),
+    [mayPickInternal, filterDeptKind, filterPoolId, filterDepartmentId, filterResellerId, filterParentCompanyId],
+  );
+
+  const clearFilters = () => {
+    setFilterDeptKind(mayPickInternal ? "Internal" : "External");
+    setFilterResellerId("");
+    setFilterParentCompanyId("");
+    setFilterDepartmentId("");
+    setFilterPoolId("");
+  };
+
+  const resetAssignModal = () => {
+    setAssignDeptKind(mayPickInternal ? "Internal" : "External");
+    setAssignResellerId("");
+    setAssignParentCompanyId("");
+    setAssignDepartmentId("");
+    setAssignPoolId("");
     setShiftId("");
     setEffectiveFrom("");
     setEffectiveTo("");
   };
 
   const handleAssign = () => {
-    if (!departmentId.trim()) {
+    if (!assignDepartmentId.trim()) {
       publishAppToast({ variant: "error", message: "Please select a department." });
       return;
     }
-    if (!poolId.trim()) {
+    if (!assignPoolId.trim()) {
       publishAppToast({ variant: "error", message: "Please select a pool." });
       return;
     }
@@ -221,7 +522,7 @@ export default function PoolShiftPage() {
 
     assignMutation.mutate(
       {
-        poolId: poolId.trim(),
+        poolId: assignPoolId.trim(),
         shiftId: shiftId.trim(),
         effectiveFrom: effectiveFrom.trim(),
         effectiveTo: effectiveTo.trim(),
@@ -230,7 +531,7 @@ export default function PoolShiftPage() {
         onSuccess: () => {
           publishAppToast({ variant: "success", message: "Pool shift assigned successfully." });
           setAssignOpen(false);
-          handleCancel();
+          resetAssignModal();
         },
         onError: () => publishAppToast({ variant: "error", message: "Could not assign shift." }),
       },
@@ -240,47 +541,101 @@ export default function PoolShiftPage() {
   return (
     <Box sx={[pageWrapper, rolesPageWrapper] as SxProps<Theme>}>
       <Box sx={poolShiftHeaderWrapSx}>
-        <Typography variant="regularLarge" fontWeight={700} color="white">
-          Pool shift assignments
-        </Typography>
-        <Typography variant="body2" sx={poolShiftSubtextSx}>
-          Default shifts for a pool (applies to users without a user override).
-        </Typography>
-      </Box>
-
-      <DashboardCard sx={rolesCard}>
-        <Box sx={{ ...poolShiftCardHeaderSx, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2 }}>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, minWidth: 0 }}>
-            <Box sx={rolesIconBox}>
-              <AttachMoneyIcon sx={poolShiftIconSx} />
-            </Box>
-            <Typography variant="mediumLarge" fontWeight={600} color="white" noWrap>
-              Pool shift assignments
-            </Typography>
-          </Box>
+        <Box>
+          <Typography variant="regularLarge" fontWeight={700} color="white">
+            Pool shift assignments
+          </Typography>
+          <Typography variant="body2" sx={poolShiftSubtextSx}>
+            Default shifts for a pool (applies to users without a user override).
+          </Typography>
+        </Box>
+        <Box sx={poolShiftActionsSx}>
+          {filterPoolId.trim() ? (
+            <Chip
+              size="small"
+              label={`${totalEntries} assignment${totalEntries === 1 ? "" : "s"}`}
+              variant="outlined"
+              sx={{ alignSelf: "center", borderColor: "rgba(255,255,255,0.35)", color: theme.app.dashboard.white95 }}
+            />
+          ) : null}
           <Button variant="primary" sx={gradientPrimaryButtonSx} onClick={() => setAssignOpen(true)}>
             Add pool shift
           </Button>
         </Box>
+      </Box>
 
-        <Box sx={poolShiftFormGridSx}>
+      <DashboardCard sx={rolesCard}>
+        <Box sx={poolShiftCardHeaderSx}>
+          <Box sx={rolesIconBox}>
+            <AttachMoneyIcon sx={poolShiftIconSx} />
+          </Box>
+          <Typography variant="mediumLarge" fontWeight={600} color="white">
+            Filters
+          </Typography>
+        </Box>
+
+        <Box sx={poolShiftFilterFieldsGridSx}>
+          {mayPickInternal ? (
+            <SelectField
+              label="Department type"
+              value={filterDeptKind}
+              onChange={(v) => setFilterDeptKind(v as "Internal" | "External")}
+              options={DEPT_KIND_OPTIONS}
+              menuMaxRows={4}
+            />
+          ) : null}
+          {effectiveFilterKind === "External" ? (
+            <>
+              <SelectField
+                label="Reseller"
+                value={filterResellerId}
+                onChange={setFilterResellerId}
+                options={filterResellerOptions}
+                menuMaxRows={8}
+              />
+              <SelectField
+                label="Parent company"
+                value={filterParentCompanyId}
+                onChange={setFilterParentCompanyId}
+                options={filterParentCompanyOptions}
+                searchable
+                searchPlaceholder="Search parent company…"
+                menuMaxRows={7}
+                disabled={!filterResellerId.trim()}
+              />
+            </>
+          ) : null}
           <SelectField
             label="Department"
-            value={departmentId}
-            onChange={setDepartmentId}
-            options={departmentOptions}
+            value={filterDepartmentId}
+            onChange={setFilterDepartmentId}
+            options={filterDepartmentOptions}
+            searchable
+            searchPlaceholder="Search department…"
             menuMaxRows={8}
+            disabled={effectiveFilterKind === "External" && !filterParentCompanyId.trim()}
           />
           <SelectField
             label="Pool"
-            value={poolId}
-            onChange={setPoolId}
-            options={poolOptions}
+            value={filterPoolId}
+            onChange={setFilterPoolId}
+            options={filterPoolOptions}
             searchable
             searchPlaceholder="Search pool…"
             menuMaxRows={7}
-            disabled={!departmentId.trim()}
+            disabled={!filterDepartmentId.trim()}
           />
+        </Box>
+
+        <Box sx={{ ...poolShiftFormGridSx, mt: 0.5 }}>
+          <Typography variant="body2" sx={poolShiftFilterHintSx}>
+            {filterHint}
+          </Typography>
+          <Box sx={{ display: "flex", alignItems: "end", justifyContent: { xs: "flex-start", md: "flex-end" }, gap: 1.25, flexWrap: "wrap" }}>
+            <Button variant="secondary" onClick={clearFilters} disabled={filterClearDisabled}>
+              Clear filters
+            </Button>
+          </Box>
         </Box>
       </DashboardCard>
 
@@ -326,7 +681,7 @@ export default function PoolShiftPage() {
 
         <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mt: 2 }}>
           <Typography variant="medium" sx={footerMutedText(theme)}>
-            {!poolId.trim()
+            {!filterPoolId.trim()
               ? "Select a pool to view assignments."
               : listQuery.isLoading
                 ? "Loading…"
@@ -339,11 +694,15 @@ export default function PoolShiftPage() {
       <FormModal
         open={assignOpen}
         title="Add pool shift"
-        description="Assign a default shift to everyone in the pool (date range)."
+        description={
+          mayPickInternal
+            ? "Pick department type, department and pool here (independent from list filters)."
+            : "Pick reseller, parent company, department and pool (independent from list filters)."
+        }
         onClose={() => {
           if (assignMutation.isPending) return;
           setAssignOpen(false);
-          handleCancel();
+          resetAssignModal();
         }}
         onSave={handleAssign}
         primaryButtonLabel={assignMutation.isPending ? "Saving…" : "Assign"}
@@ -352,50 +711,80 @@ export default function PoolShiftPage() {
         maxWidth={600}
         fitContent
       >
-        {!departmentId.trim() || !poolId.trim() ? (
-          <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted }}>
-            Pick a department and pool first, then assign a shift.
-          </Typography>
-        ) : null}
-        <SelectField
-          label="Department"
-          value={departmentId}
-          onChange={setDepartmentId}
-          options={departmentOptions}
-          menuMaxRows={8}
-        />
-        <SelectField
-          label="Pool"
-          value={poolId}
-          onChange={setPoolId}
-          options={poolOptions}
-          searchable
-          searchPlaceholder="Search pool…"
-          menuMaxRows={7}
-          disabled={!departmentId.trim()}
-        />
-        <SelectField
-          label="Shift"
-          value={shiftId}
-          onChange={setShiftId}
-          options={shiftOptions}
-          searchable
-          searchPlaceholder="Search shift…"
-          menuMaxRows={7}
-        />
-        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 2 }}>
-          <InputField
-            label="Effective from"
-            type="date"
-            value={effectiveFrom}
-            onChange={(e) => setEffectiveFrom(e.target.value)}
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
+          {mayPickInternal ? (
+            <SelectField
+              label="Department type"
+              value={assignDeptKind}
+              onChange={(v) => setAssignDeptKind(v as "Internal" | "External")}
+              options={DEPT_KIND_OPTIONS}
+              menuMaxRows={4}
+            />
+          ) : null}
+          {effectiveAssignKind === "External" ? (
+            <>
+              <SelectField
+                label="Reseller"
+                value={assignResellerId}
+                onChange={setAssignResellerId}
+                options={assignResellerOptions}
+                menuMaxRows={8}
+              />
+              <SelectField
+                label="Parent company"
+                value={assignParentCompanyId}
+                onChange={setAssignParentCompanyId}
+                options={assignParentCompanyOptions}
+                searchable
+                searchPlaceholder="Search parent company…"
+                menuMaxRows={7}
+                disabled={!assignResellerId.trim()}
+              />
+            </>
+          ) : null}
+          <SelectField
+            label="Department"
+            value={assignDepartmentId}
+            onChange={setAssignDepartmentId}
+            options={assignDepartmentOptions}
+            searchable
+            searchPlaceholder="Search department…"
+            menuMaxRows={8}
+            disabled={effectiveAssignKind === "External" && !assignParentCompanyId.trim()}
           />
-          <InputField
-            label="Effective to"
-            type="date"
-            value={effectiveTo}
-            onChange={(e) => setEffectiveTo(e.target.value)}
+          <SelectField
+            label="Pool"
+            value={assignPoolId}
+            onChange={setAssignPoolId}
+            options={assignPoolOptions}
+            searchable
+            searchPlaceholder="Search pool…"
+            menuMaxRows={7}
+            disabled={!assignDepartmentId.trim()}
           />
+          <SelectField
+            label="Shift"
+            value={shiftId}
+            onChange={setShiftId}
+            options={shiftOptions}
+            searchable
+            searchPlaceholder="Search shift…"
+            menuMaxRows={7}
+          />
+          <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 2 }}>
+            <InputField
+              label="Effective from"
+              type="date"
+              value={effectiveFrom}
+              onChange={(e) => setEffectiveFrom(e.target.value)}
+            />
+            <InputField
+              label="Effective to"
+              type="date"
+              value={effectiveTo}
+              onChange={(e) => setEffectiveTo(e.target.value)}
+            />
+          </Box>
         </Box>
       </FormModal>
 
