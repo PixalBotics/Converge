@@ -15,15 +15,17 @@ export async function listCompanies(
   return data;
 }
 
+/**
+ * Same as {@link listCompanies} with `resellerId` set — Nest `GET /companies` + `ListCompaniesQueryDto`.
+ */
 export async function listCompaniesByReseller(
   resellerId: string,
   params?: JsonRecord,
 ): Promise<CompaniesListResponseEnvelope> {
-  const { data } = await apiClient.get<CompaniesListResponseEnvelope>(
-    `/companies/by-reseller/${encodeURIComponent(resellerId)}`,
-    { params },
-  );
-  return data;
+  return listCompanies({
+    ...params,
+    resellerId: resellerId.trim(),
+  });
 }
 
 export async function getCompaniesSetupResellers(): Promise<unknown> {

@@ -30,6 +30,8 @@ import { extractApiErrorMessageForToast } from "@/lib/notify/extract-api-message
 import { publishAppToast } from "@/lib/notify";
 import { extractUsersRows } from "@/app/dashboard/user-page/utils";
 import { pickItemsArray, toIdNameOption } from "@/app/dashboard/user-page/components/add-user-modal.utils";
+import { useAuth } from "@/lib/auth";
+import { canCompaniesModuleAction } from "@/lib/permissions";
 
 function pocInviteToDraft(p: CompanyPocInviteSummary): DraftChildPayload {
   const base = emptyDraftChildRow();
@@ -50,6 +52,7 @@ function pocInviteToDraft(p: CompanyPocInviteSummary): DraftChildPayload {
     pocDesignationId: "",
     pocDesignationTitle: desTitle,
     pocDesignationNewDetails: "",
+    pocWideResellerScope: Boolean(p.wideResellerScope),
   };
 }
 
@@ -61,6 +64,8 @@ export type ParentCompanyPocEditorProps = {
 
 export function ParentCompanyPocEditor({ parentId, resellerId, parentCompany }: ParentCompanyPocEditorProps) {
   const theme = useTheme() as AppTheme;
+  const { hasPage, hasOperational } = useAuth();
+  const canUpdateCompanies = canCompaniesModuleAction(hasPage, hasOperational, "update");
   const updateParentMutation = useUpdateParentCompanyMutation();
 
   const [pocMode, setPocMode] = useState<"existing" | "invite">("existing");
@@ -216,7 +221,7 @@ export function ParentCompanyPocEditor({ parentId, resellerId, parentCompany }: 
             variant="outlined"
             color="error"
             size="small"
-            disabled={updateParentMutation.isPending}
+            disabled={!canUpdateCompanies || updateParentMutation.isPending}
             onClick={() => void handleRemovePoc()}
           >
             {updateParentMutation.isPending ? "Removing…" : "Remove current POC"}
@@ -224,20 +229,38 @@ export function ParentCompanyPocEditor({ parentId, resellerId, parentCompany }: 
         </Box>
       ) : null}
 
-      <RadioGroup row value={pocMode} onChange={(_, v) => setPocMode(v as "existing" | "invite")} sx={{ gap: 2, mb: 2, mt: 2 }}>
-        <FormControlLabel value="existing" control={<Radio size="small" />} label="Existing user" sx={{ color: theme.app.text.primary }} />
-        <FormControlLabel value="invite" control={<Radio size="small" />} label="New invite" sx={{ color: theme.app.text.primary }} />
+      <RadioGroup
+        row
+        value={pocMode}
+        onChange={(_, v) => {
+          if (!canUpdateCompanies) return;
+          setPocMode(v as "existing" | "invite");
+        }}
+        sx={{ gap: 2, mb: 2, mt: 2 }}
+      >
+        <FormControlLabel
+          value="existing"
+          control={<Radio size="small" disabled={!canUpdateCompanies} />}
+          label="Existing user"
+          sx={{ color: theme.app.text.primary }}
+        />
+        <FormControlLabel
+          value="invite"
+          control={<Radio size="small" disabled={!canUpdateCompanies} />}
+          label="New invite"
+          sx={{ color: theme.app.text.primary }}
+        />
       </RadioGroup>
 
       {pocMode === "existing" ? (
         <Box sx={{ display: "flex", flexDirection: "column", gap: 2, maxWidth: 480 }}>
-          <SelectField label="User under this parent" value={selectedUserId} onChange={setSelectedUserId} options={userOptions} menuMaxRows={8} />
+          <SelectField label="User under this parent" value={selectedUserId} onChange={setSelectedUserId} options={userOptions} menuMaxRows={8} disabled={!canUpdateCompanies} />
           <Button
             type="button"
             variant="primary"
             size="small"
             sx={{ alignSelf: "flex-start" }}
-            disabled={updateParentMutation.isPending}
+            disabled={!canUpdateCompanies || updateParentMutation.isPending}
             onClick={() => void handleSaveExistingUser()}
           >
             {updateParentMutation.isPending ? "Saving…" : "Save linked user as POC"}
@@ -254,13 +277,15 @@ export function ParentCompanyPocEditor({ parentId, resellerId, parentCompany }: 
             rolesLoading={rolesQuery.isLoading}
             departmentsLoading={departmentsQuery.isLoading}
             fieldErrors={fieldErrors}
+            fieldErrorScope="parentPocInvite"
+            controlsDisabled={!canUpdateCompanies}
           />
           <Button
             type="button"
             variant="primary"
             size="small"
             sx={{ mt: 2, alignSelf: "flex-start" }}
-            disabled={updateParentMutation.isPending}
+            disabled={!canUpdateCompanies || updateParentMutation.isPending}
             onClick={() => void handleSaveInvite()}
           >
             {updateParentMutation.isPending ? "Saving…" : "Save POC invite"}

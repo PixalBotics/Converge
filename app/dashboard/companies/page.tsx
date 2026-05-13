@@ -25,15 +25,15 @@ import { buildCompaniesTableRows } from "./utils";
 import { pageWrapper, pageHeaderRow } from "./overview.styles";
 import { departmentsAddButton } from "../website-assigning/website-assigning.styles";
 import { useAuth } from "@/lib/auth";
-import { canCompanyAction } from "@/lib/permissions";
+import { canCompaniesModuleAction } from "@/lib/permissions";
 
 export default function CompaniesPage() {
   const theme = useTheme() as AppTheme;
-  const { hasOperational } = useAuth();
-  const canCreateCompany = canCompanyAction(hasOperational, "create");
-  const canUpdateCompany = canCompanyAction(hasOperational, "update");
-  const canViewCompanyDetail = canCompanyAction(hasOperational, "detail");
-  const canViewCompanyList = canCompanyAction(hasOperational, "list");
+  const { hasPage, hasOperational } = useAuth();
+  const canCreateCompany = canCompaniesModuleAction(hasPage, hasOperational, "create");
+  const canUpdateCompany = canCompaniesModuleAction(hasPage, hasOperational, "update");
+  const canViewCompanyDetail = canCompaniesModuleAction(hasPage, hasOperational, "detail");
+  const canViewCompanyList = canCompaniesModuleAction(hasPage, hasOperational, "list");
   const canOpenCompanyDraft = canCreateCompany || canUpdateCompany;
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);

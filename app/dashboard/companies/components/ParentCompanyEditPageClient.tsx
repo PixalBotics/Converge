@@ -30,6 +30,8 @@ import { extractNestFieldErrors } from "@/lib/companies/extract-nest-field-error
 import { extractApiErrorMessageForToast } from "@/lib/notify/extract-api-message";
 import { publishAppToast } from "@/lib/notify";
 import { isRecord } from "@/lib/utils";
+import { useAuth } from "@/lib/auth";
+import { canCompaniesModuleAction } from "@/lib/permissions";
 import {
   pageHeaderRow,
   pageWrapper,
@@ -145,6 +147,8 @@ const stepEyebrowSx = (theme: AppTheme) => ({
 
 export function ParentCompanyEditPageClient() {
   const theme = useTheme() as AppTheme;
+  const { hasPage, hasOperational } = useAuth();
+  const canUpdateCompanies = canCompaniesModuleAction(hasPage, hasOperational, "update");
   const router = useRouter();
   const searchParams = useSearchParams();
   const params = useParams<{ parentId: string }>();
@@ -440,6 +444,7 @@ export function ParentCompanyEditPageClient() {
               label="Parent company name"
               value={parentName}
               onChange={(e) => setParentName(e.target.value)}
+              disabled={!canUpdateCompanies}
               error={Boolean(parentFieldErrors.name)}
               helperText={parentFieldErrors.name ?? "\u00a0"}
               inputProps={{ maxLength: 200 }}
@@ -456,14 +461,14 @@ export function ParentCompanyEditPageClient() {
             <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1.5, justifyContent: "flex-end", pt: 1 }}>
               <Button
                 variant="secondary"
-                disabled={updateParentMutation.isPending}
+                disabled={!canUpdateCompanies || updateParentMutation.isPending}
                 onClick={() => void handleSaveParent(false)}
               >
                 {updateParentMutation.isPending ? "Saving…" : "Save parent"}
               </Button>
               <Button
                 variant="primary"
-                disabled={updateParentMutation.isPending}
+                disabled={!canUpdateCompanies || updateParentMutation.isPending}
                 onClick={() => void handleSaveParent(true)}
               >
                 {updateParentMutation.isPending ? "Saving…" : "Save & go to child companies"}
@@ -571,6 +576,7 @@ export function ParentCompanyEditPageClient() {
                         label="Name"
                         value={form.name}
                         onChange={(e) => updateChildField(child.id, { name: e.target.value })}
+                        disabled={!canUpdateCompanies}
                         error={Boolean(fe.name)}
                         helperText={fe.name ?? "\u00a0"}
                         inputProps={{ maxLength: 200 }}
@@ -580,6 +586,7 @@ export function ParentCompanyEditPageClient() {
                         label="Email"
                         value={form.email}
                         onChange={(e) => updateChildField(child.id, { email: e.target.value })}
+                        disabled={!canUpdateCompanies}
                         error={Boolean(fe.email)}
                         helperText={fe.email ?? "\u00a0"}
                         inputProps={{ maxLength: 200 }}
@@ -588,6 +595,7 @@ export function ParentCompanyEditPageClient() {
                         label="Phone"
                         value={form.phone}
                         onChange={(e) => updateChildField(child.id, { phone: e.target.value })}
+                        disabled={!canUpdateCompanies}
                         error={Boolean(fe.phone)}
                         helperText={fe.phone ?? "\u00a0"}
                         inputProps={{ maxLength: 80 }}
@@ -603,6 +611,7 @@ export function ParentCompanyEditPageClient() {
                           minRows={2}
                           value={form.address}
                           onChange={(e) => updateChildField(child.id, { address: e.target.value })}
+                          disabled={!canUpdateCompanies}
                           error={Boolean(fe.address)}
                           helperText={fe.address ?? "\u00a0"}
                           inputProps={{ maxLength: 500, "aria-label": "Address" }}
@@ -616,19 +625,19 @@ export function ParentCompanyEditPageClient() {
                         parentCompanyId={parentId}
                         pocs={childPocs[child.id] ?? childPocsBase[child.id] ?? []}
                         onPocsChange={(next) => updateChildPocs(child.id, next)}
-                        disabled={savingChildId === child.id}
+                        disabled={!canUpdateCompanies || savingChildId === child.id}
                       />
                       <ChildCompanyWebsitesPanel
                         child={child}
                         parentCompanyId={parentId}
                         websites={childWebsites[child.id] ?? childWebsitesBase[child.id] ?? []}
                         onWebsitesChange={(next) => updateChildWebsites(child.id, next)}
-                        disabled={savingChildId === child.id}
+                        disabled={!canUpdateCompanies || savingChildId === child.id}
                       />
                       <Button
                         variant="primary"
                         sx={{ alignSelf: "flex-start", mt: 1 }}
-                        disabled={savingChildId === child.id}
+                        disabled={!canUpdateCompanies || savingChildId === child.id}
                         onClick={() => void handleSaveChild(child.id)}
                       >
                         {savingChildId === child.id ? "Saving…" : "Save company details"}

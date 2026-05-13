@@ -31,6 +31,8 @@ export {
   canPoolMemberRemove,
   canShiftAction,
   canCompanyAction,
+  hasCompaniesModulePage,
+  canCompaniesModuleAction,
   canRoleAction,
   canLeaveTypeManage,
   canLeaveTypeView,
