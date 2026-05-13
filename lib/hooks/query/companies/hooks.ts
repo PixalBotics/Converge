@@ -8,7 +8,6 @@ import {
   getCompanySetupDraftLatest,
   getParentCompany,
   listCompanies,
-  listCompaniesByReseller,
   submitCompanySetupDraft,
   updateCompany,
   updateCompanySetupDraft,
@@ -88,10 +87,15 @@ export function useCompaniesByResellerQuery(
   params?: CompaniesListParams,
   options?: { enabled?: boolean },
 ) {
+  const rid = resellerId.trim();
   return useQuery({
     queryKey: companiesKeys.byReseller(resellerId, params),
-    queryFn: () => listCompaniesByReseller(resellerId, params),
-    enabled: (options?.enabled ?? true) && resellerId.trim().length > 0,
+    queryFn: () =>
+      listCompanies({
+        ...params,
+        resellerId: rid,
+      }),
+    enabled: (options?.enabled ?? true) && rid.length > 0,
   });
 }
 

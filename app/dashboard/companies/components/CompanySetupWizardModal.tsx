@@ -36,6 +36,7 @@ import {
   type DraftChildPayload,
 } from "@/lib/companies/setup-draft.utils";
 import { pickItemsArray, toIdNameOption } from "@/app/dashboard/user-page/components/add-user-modal.utils";
+import { publishAppToast } from "@/lib/notify";
 import { DeleteCircleIcon } from "@/components/dashboard/icons/DeleteCircleIcon";
 import { AddCircleIcon } from "@/components/dashboard/icons/AddCircleIcon";
 import {
@@ -59,6 +60,7 @@ import {
 } from "../overview.styles";
 import { CompanySetupChildPocBlock } from "./CompanySetupChildPocBlock";
 import { useAuth, sessionMayPickInternalUserScope } from "@/lib/auth";
+import { canCompaniesModuleAction } from "@/lib/permissions";
 
 export type CompanySetupWizardCloseReason = "completed" | "dismissed";
 
@@ -72,7 +74,11 @@ type SetupKind = "new_reseller" | "existing_reseller";
 
 export function CompanySetupWizardModal({ open, draftId, onClose }: CompanySetupWizardModalProps) {
   const theme = useTheme() as AppTheme;
-  const { isPlatformAdmin, user: authUser } = useAuth();
+  const { isPlatformAdmin, user: authUser, hasPage, hasOperational } = useAuth();
+  const canSetupDraftMutate =
+    canCompaniesModuleAction(hasPage, hasOperational, "create") ||
+    canCompaniesModuleAction(hasPage, hasOperational, "update");
+  const canSubmitWizard = canCompaniesModuleAction(hasPage, hasOperational, "create");
   const canCreateNewReseller = sessionMayPickInternalUserScope(isPlatformAdmin, authUser?.userType);
   const [modalStep, setModalStep] = useState<1 | 2>(1);
   /** Default: new reseller — no dropdown until user picks “under existing reseller”. */
@@ -244,6 +250,7 @@ export function CompanySetupWizardModal({ open, draftId, onClose }: CompanySetup
   /** Persist children draft to server while editing step 2 so GET-after-refresh can hydrate rows. */
   useEffect(() => {
     if (!open || !draftId?.trim() || modalStep !== 2) return;
+    if (!canSetupDraftMutate) return;
     if (
       updateDraftMutation.isPending ||
       submitDraftMutation.isPending ||
@@ -278,6 +285,7 @@ export function CompanySetupWizardModal({ open, draftId, onClose }: CompanySetup
     updateDraftMutation.isPending,
     submitDraftMutation.isPending,
     debouncedDraftUpdateMutation.isPending,
+    canSetupDraftMutate,
   ]);
 
   const parentPayload = useMemo(
@@ -321,6 +329,7 @@ export function CompanySetupWizardModal({ open, draftId, onClose }: CompanySetup
   const handlePrimary = () => {
     void (async () => {
       if (!draftId) return;
+      if (!canSetupDraftMutate) return;
       if (modalStep === 1) {
         if (!isStepOneComplete) return;
         try {
@@ -353,6 +362,13 @@ export function CompanySetupWizardModal({ open, draftId, onClose }: CompanySetup
         return;
       }
       if (!isStepTwoComplete) return;
+      if (!canSubmitWizard) {
+        publishAppToast({
+          variant: "error",
+          message: "You do not have permission to submit this setup.",
+        });
+        return;
+      }
       try {
         await updateDraftMutation.mutateAsync({
           id: draftId,
@@ -441,11 +457,16 @@ export function CompanySetupWizardModal({ open, draftId, onClose }: CompanySetup
       }
       primaryButtonDisabled={
         modalStep === 1
-          ? !isStepOneComplete || !draftId || updateDraftMutation.isPending
+          ? !isStepOneComplete ||
+            !draftId ||
+            updateDraftMutation.isPending ||
+            !canSetupDraftMutate
           : !isStepTwoComplete ||
             !draftId ||
             updateDraftMutation.isPending ||
-            submitDraftMutation.isPending
+            submitDraftMutation.isPending ||
+            !canSetupDraftMutate ||
+            !canSubmitWizard
       }
       cancelButtonLabel="Cancel"
     >

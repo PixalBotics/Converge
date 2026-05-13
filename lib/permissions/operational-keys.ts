@@ -252,6 +252,29 @@ export function canCompanyAction(h: H, op: "create" | "update" | "detail" | "lis
   return h(OP.company.view);
 }
 
+/**
+ * Backend companies routes sit under commercial dashboard pages (`/dashboard/companies`).
+ * Gate in-app actions with the same **page** bucket the nav uses plus the matching `company:*` op
+ * (mirrors typical Nest `@RequirePermissions(['page:clients', 'company:list'])` style bundles).
+ */
+const COMPANIES_MODULE_PAGE_KEYS = [
+  "page:clients",
+  "page:account-setup",
+  "page:resellers",
+] as const;
+
+export function hasCompaniesModulePage(hasPage: (pageKey: string) => boolean): boolean {
+  return COMPANIES_MODULE_PAGE_KEYS.some((p) => hasPage(p));
+}
+
+export function canCompaniesModuleAction(
+  hasPage: (pageKey: string) => boolean,
+  hasOperational: (permission: string) => boolean,
+  op: "create" | "update" | "detail" | "list" | "view",
+): boolean {
+  return hasCompaniesModulePage(hasPage) && canCompanyAction(hasOperational, op);
+}
+
 export function canRoleAction(h: H): boolean {
   return h(OP.client.permissions);
 }
