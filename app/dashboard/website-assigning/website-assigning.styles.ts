@@ -97,7 +97,7 @@ export const websiteAssignmentTableIconBox: SxProps<Theme> = {
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
-  boxShadow: "0 10px 30px rgba(15,23,42,0.85)",
+  boxShadow: "none",
 };
 
 export const websiteAssignmentFooterRow: SxProps<Theme> = (theme) => ({
@@ -134,7 +134,7 @@ export const websiteAssignmentSectionIconSx: SxProps<Theme> = (theme) => {
     fontWeight: 700,
     fontSize: "1.25rem",
     fontFamily: theme.typography.fontFamily,
-    boxShadow: `0 8px 24px ${alpha(d.accentPurple, 0.45)}`,
+    boxShadow: "none",
   };
 };
 
@@ -218,7 +218,7 @@ export const departmentsAddButton: SxProps<Theme> = (theme) => {
     justifyContent: "center",
     background: app.dashboard.gradientButton,
     color: app.dashboard.gradientButtonText,
-    boxShadow: "0 10px 25px rgba(0,0,0,0.28)",
+    boxShadow: "none",
     border: `1px solid ${app.dashboard.overlayBorder}`,
     "&:hover": {
       background: app.dashboard.gradientButton,
@@ -244,8 +244,8 @@ export const departmentsCardHeader: SxProps<Theme> = {
 
 export const departmentsSearchRow: SxProps<Theme> = {
   display: "flex",
-  flexDirection: "row",
-  alignItems: "center",
+  flexDirection: { xs: "column", sm: "row" },
+  alignItems: { xs: "stretch", sm: "center" },
   gap: 1,
   width: { xs: "100%", md: "auto" },
 };

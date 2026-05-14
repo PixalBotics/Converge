@@ -20,6 +20,10 @@ export type CalendarAssignment = {
   shiftName: string;
   effectiveFrom: string;
   effectiveTo: string;
+  /** Effective weekly mask (assignment override or template). */
+  effectiveWorkingDaysMask?: number;
+  /** Shift template IANA zone for weekly-off resolution. */
+  shiftTimeZone?: string;
 };
 
 export type UserShiftRosterCardProps = {
@@ -65,7 +69,7 @@ export function UserShiftRosterCard({
             <AttachMoneyIcon sx={userShiftIconSx} />
           </Box>
           <Box sx={{ minWidth: 0 }}>
-            <Typography variant="mediumLarge" fontWeight={700} color="white" noWrap>
+            <Typography variant="mediumLarge" fontWeight={700} sx={{ color: "text.primary" }} noWrap>
               Roster
             </Typography>
             <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted }} noWrap>
@@ -91,6 +95,8 @@ export function UserShiftRosterCard({
           fromIso: a.effectiveFrom,
           toIso: a.effectiveTo,
           title: `${a.shiftName} (${a.effectiveFrom} → ${a.effectiveTo})`,
+          effectiveWorkingDaysMask: a.effectiveWorkingDaysMask,
+          shiftTimeZone: a.shiftTimeZone,
         }))}
         onPickDate={onPickDate}
       />

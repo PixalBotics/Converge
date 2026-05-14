@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Box from "@mui/material/Box";
 import IconButton from "@mui/material/IconButton";
 import Apartment from "@mui/icons-material/Apartment";
 import { Edit as EditIcon, Delete as DeleteIcon } from "@mui/icons-material";
-import { useTheme } from "@mui/material/styles";
+import { alpha, useTheme } from "@mui/material/styles";
 import { useQueryClient } from "@tanstack/react-query";
 import type { AppTheme } from "@/theme/theme";
 import {
@@ -17,10 +17,12 @@ import {
   TablePagination,
   Button,
   SelectField,
+  ToolbarFilterPopover,
 } from "@/components/common";
 import type { DataTableColumn } from "@/components/common";
 import { AddCircleIcon } from "@/components/dashboard/icons/AddCircleIcon";
 import { SearchIcon } from "@/components/dashboard/icons/SearchIcon";
+import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
 import { AddDepartmentModal } from "./components/AddDepartmentModal";
 import { DeleteDepartmentConfirmModal } from "./components/DeleteDepartmentConfirmModal";
 import {
@@ -38,11 +40,13 @@ import {
 import {
   departmentsAddButton,
   departmentsCard,
+  departmentsCardHeader,
   departmentsFooterRow,
   departmentsPaginationWrapper,
+  departmentsSearchFieldWrapper,
+  departmentsSearchRow,
 } from "../website-assigning/website-assigning.styles";
 import {
-  cardTitleRow,
   cardTitleIconBox,
   footerMutedText,
   pageHeaderRow,
@@ -100,6 +104,7 @@ export default function DepartmentsPage() {
   const [departmentFormOpen, setDepartmentFormOpen] = useState(false);
   const [departmentToEdit, setDepartmentToEdit] = useState<DepartmentRow | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<DepartmentRow | null>(null);
+  const [filterPanelOpen, setFilterPanelOpen] = useState(false);
 
   const softDeleteDepartmentMutation = useSoftDeleteDepartmentMutation();
 
@@ -321,18 +326,105 @@ export default function DepartmentsPage() {
     });
   };
 
-  const clearFilters = () => {
+  const clearFilters = useCallback(() => {
     setSearchInput("");
     setSearch("");
     setFilterType(mayPickInternalTypeFilter ? "" : "External");
     setFilterResellerId("");
     setFilterParentCompanyId("");
-  };
+    setFilterPanelOpen(false);
+  }, [mayPickInternalTypeFilter]);
 
-  const handleResellerFilterChange = (v: string) => {
+  const handleResellerFilterChange = useCallback((v: string) => {
     setFilterResellerId(v);
     setFilterParentCompanyId("");
-  };
+  }, []);
+
+  const departmentsFilterPanel = useMemo(() => {
+    const sectionRule = `1px solid ${alpha(theme.app.dashboard.white95, 0.1)}`;
+    return (
+      <Box sx={{ color: theme.app.text.primary }}>
+        <Box sx={{ px: 2.25, pt: 2, pb: 1.5 }}>
+          <Typography variant="medium" fontWeight={700} sx={{ color: theme.app.text.primary, mb: 1.5 }}>
+            Filters
+          </Typography>
+          <Box sx={{ display: "grid", gap: 1.75 }}>
+            {mayPickInternalTypeFilter ? (
+              <SelectField
+                label="Type"
+                value={typeForListQuery}
+                onChange={(v) => setFilterType(v as "" | "Internal" | "External")}
+                options={typeFilterSelectOptions}
+                menuMaxRows={6}
+              />
+            ) : null}
+            <SelectField
+              label="Reseller"
+              value={filterResellerId}
+              onChange={handleResellerFilterChange}
+              options={resellerFilterOptions}
+              menuMaxRows={6}
+            />
+            <SelectField
+              label="Parent company"
+              value={filterParentCompanyId}
+              onChange={setFilterParentCompanyId}
+              options={
+                filterResellerId.trim()
+                  ? parentCompanyFilterOptions
+                  : [{ value: "", label: "Choose a reseller first" }]
+              }
+              disabled={!filterResellerId.trim()}
+              menuMaxRows={6}
+            />
+          </Box>
+        </Box>
+        <Box
+          sx={{
+            display: "flex",
+            flexDirection: { xs: "column", sm: "row" },
+            justifyContent: "space-between",
+            alignItems: "stretch",
+            gap: 1.5,
+            px: 2.25,
+            py: 1.75,
+            borderTop: sectionRule,
+            bgcolor: alpha(theme.app.dashboard.white95, 0.06),
+          }}
+        >
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={!hasActiveFilters}
+            onClick={clearFilters}
+            sx={(t) => ({
+              minWidth: { xs: 0, sm: 140 },
+              width: { xs: "100%", sm: "auto" },
+              flexShrink: 0,
+              border: `1px solid ${alpha((t as AppTheme).app.dashboard.white95, 0.22)}`,
+            })}
+          >
+            Clear filters
+          </Button>
+          <Button type="button" variant="primary" sx={gradientPrimaryButtonSx} onClick={() => setFilterPanelOpen(false)}>
+            Done
+          </Button>
+        </Box>
+      </Box>
+    );
+  }, [
+    theme,
+    mayPickInternalTypeFilter,
+    typeForListQuery,
+    typeFilterSelectOptions,
+    filterResellerId,
+    filterParentCompanyId,
+    resellerFilterOptions,
+    parentCompanyFilterOptions,
+    hasActiveFilters,
+    handleResellerFilterChange,
+    clearFilters,
+  ]);
 
   return (
     <Box sx={pageWrapper}>
@@ -368,17 +460,7 @@ export default function DepartmentsPage() {
       />
 
       <DashboardCard sx={departmentsCard}>
-        <Box
-          sx={{
-            ...cardTitleRow,
-            width: "100%",
-            flexShrink: 0,
-            justifyContent: "space-between",
-            alignItems: "center",
-            gap: 2,
-            flexWrap: { xs: "wrap", lg: "nowrap" },
-          }}
-        >
+        <Box sx={departmentsCardHeader}>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1.25 }}>
             <Box sx={cardTitleIconBox}>
               <Apartment sx={{ fontSize: 18, color: theme.app.dashboard.white95 }} />
@@ -388,17 +470,8 @@ export default function DepartmentsPage() {
             </Typography>
           </Box>
 
-          <Box
-            sx={{
-              display: "flex",
-              gap: 1.25,
-              alignItems: "center",
-              width: { xs: "100%", lg: "auto" },
-              minWidth: 0,
-              justifyContent: { xs: "stretch", lg: "flex-end" },
-            }}
-          >
-            <Box sx={{ width: { xs: "100%", lg: 320 } }}>
+          <Box sx={departmentsSearchRow}>
+            <Box sx={departmentsSearchFieldWrapper}>
               <SearchBar
                 value={searchInput}
                 onChange={setSearchInput}
@@ -410,71 +483,21 @@ export default function DepartmentsPage() {
               type="button"
               variant="primary"
               disabled={searchInput.trim() === search.trim()}
-              onClick={() => setSearch(searchInput)}
-              sx={{ minWidth: 120, whiteSpace: "nowrap" }}
+              onClick={() => {
+                setSearch(searchInput.trim());
+                setPage(1);
+              }}
+              sx={{ minWidth: 132, whiteSpace: "nowrap", alignSelf: { xs: "stretch", sm: "center" } }}
             >
-              <Box component="span" sx={{ display: "inline-flex", lineHeight: 0 }}>
+              <Box component="span" sx={{ display: "inline-flex", lineHeight: 0, mr: 0.75 }}>
                 <SearchIcon width={18} height={18} sx={{ color: "inherit" }} />
               </Box>
               Search
             </Button>
+            <ToolbarFilterPopover open={filterPanelOpen} onOpenChange={setFilterPanelOpen} active={hasActiveFilters}>
+              {departmentsFilterPanel}
+            </ToolbarFilterPopover>
           </Box>
-        </Box>
-
-        <Box
-          sx={{
-            display: "grid",
-            gridTemplateColumns: {
-              xs: "1fr",
-              sm: "repeat(2, minmax(0, 1fr))",
-              lg: "140px 200px 220px auto",
-            },
-            gap: 1.5,
-            alignItems: "end",
-            width: "100%",
-            flexShrink: 0,
-          }}
-        >
-          <SelectField
-            label="Type"
-            value={typeForListQuery}
-            onChange={(v) => setFilterType(v as "" | "Internal" | "External")}
-            options={typeFilterSelectOptions}
-            menuMaxRows={6}
-          />
-          <SelectField
-            label="Reseller"
-            value={filterResellerId}
-            onChange={handleResellerFilterChange}
-            options={resellerFilterOptions}
-            menuMaxRows={6}
-          />
-          <SelectField
-            label="Parent company"
-            value={filterParentCompanyId}
-            onChange={setFilterParentCompanyId}
-            options={
-              filterResellerId.trim()
-                ? parentCompanyFilterOptions
-                : [{ value: "", label: "Choose a reseller first" }]
-            }
-            disabled={!filterResellerId.trim()}
-            menuMaxRows={6}
-          />
-          <Button
-            type="button"
-            variant="secondary"
-            disabled={!hasActiveFilters}
-            onClick={clearFilters}
-            sx={{
-              minWidth: 140,
-              whiteSpace: "nowrap",
-              width: "auto",
-              justifySelf: { xs: "stretch", sm: "start" },
-            }}
-          >
-            Clear filters
-          </Button>
         </Box>
 
         <DataTable<DepartmentRow>

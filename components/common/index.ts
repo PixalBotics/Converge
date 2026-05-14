@@ -38,7 +38,13 @@ export type {
   FilterableSearchSuggestion,
   FilterableSearchBarProps,
 } from "./SearchBar/FilterableSearchBar.types";
+export { FilterableComboField } from "./FilterableComboField/FilterableComboField";
+export type {
+  FilterableComboFieldProps,
+  FilterableComboOption,
+} from "./FilterableComboField/FilterableComboField.types";
 export { FilterButton } from "./FilterButton/FilterButton";
+export { ToolbarFilterPopover } from "./ToolbarFilterPopover/ToolbarFilterPopover";
 export { TablePagination } from "./TablePagination/TablePagination";
 export { FormModal } from "./FormModal/FormModal";
 export { EditIpBlockModal } from "./EditIpBlockModal/EditIpBlockModal";

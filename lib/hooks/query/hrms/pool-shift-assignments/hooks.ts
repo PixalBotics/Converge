@@ -6,9 +6,11 @@ import type { JsonRecord } from "@/api";
 import { hrmsPoolShiftAssignmentsKeys } from "./keys";
 
 export type HrmsPoolShiftAssignmentsListParams = {
-  poolId: string;
+  /** When set, list assignments for that pool only. */
+  poolId?: string;
   page?: number;
   limit?: number;
+  /** When true (and no `poolId`), list assignments across pools (server-supported). */
   all?: boolean;
 };
 
@@ -17,7 +19,9 @@ export function usePoolShiftAssignmentsListQuery(
   options?: { enabled?: boolean; scope?: string },
 ) {
   const scope = options?.scope ?? "default";
-  const enabled = (options?.enabled ?? true) && Boolean(params?.poolId?.trim());
+  const hasPool = Boolean(params?.poolId?.trim());
+  const listAll = params?.all === true;
+  const enabled = (options?.enabled ?? true) && Boolean(params) && (hasPool || listAll);
   const req = params as unknown as JsonRecord | undefined;
   return useQuery({
     queryKey: [...hrmsPoolShiftAssignmentsKeys.list(req), scope] as const,

@@ -9,7 +9,6 @@ import {
   DashboardCard,
   DataTable,
   SearchBar,
-  FilterButton,
   Button,
   TablePagination,
 } from "@/components/common";
@@ -35,8 +34,10 @@ import { CompanyParentListModal } from "./CompanyParentListModal";
 
 type Props = {
   theme: AppTheme;
-  search: string;
-  onSearchChange: (v: string) => void;
+  searchInput: string;
+  onSearchInputChange: (v: string) => void;
+  appliedSearch: string;
+  onSearchSubmit: () => void;
   rows: CompanyRow[];
   isLoading: boolean;
   page: number;
@@ -52,8 +53,10 @@ type Props = {
 
 export function CompaniesTableSection({
   theme,
-  search,
-  onSearchChange,
+  searchInput,
+  onSearchInputChange,
+  appliedSearch,
+  onSearchSubmit,
   rows,
   isLoading,
   page,
@@ -194,9 +197,17 @@ export function CompaniesTableSection({
 
           <Box sx={departmentsSearchRow}>
             <Box sx={departmentsSearchFieldWrapper}>
-              <SearchBar value={search} onChange={onSearchChange} placeholder="Search anything.." />
+              <SearchBar value={searchInput} onChange={onSearchInputChange} placeholder="Search anything.." />
             </Box>
-            <FilterButton />
+            <Button
+              type="button"
+              variant="primary"
+              disabled={searchInput.trim() === appliedSearch.trim()}
+              onClick={onSearchSubmit}
+              sx={{ minWidth: 132, whiteSpace: "nowrap", alignSelf: { xs: "stretch", sm: "center" } }}
+            >
+              Search
+            </Button>
           </Box>
         </Box>
 

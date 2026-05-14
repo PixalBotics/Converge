@@ -26,6 +26,10 @@ export type CompanySetupChildPocBlockProps = {
   departmentOptions: { value: string; label: string }[];
   rolesLoading: boolean;
   departmentsLoading: boolean;
+  /** When true, POC fields are read-only (e.g. no update permission). */
+  controlsDisabled?: boolean;
+  /** Which API error map shape to use for `scrollAnchorPath` / `fieldErrors` keys. */
+  fieldErrorScope?: CompanySetupFieldErrorScope;
   /** API paths → message, e.g. `childrenDraft.children.0.pocInvite.pocEmail`. */
   fieldErrors?: Record<string, string>;
   /** Wizard only: drives whether "Pick from list" is offered for POC dept/designation. */
@@ -40,6 +44,8 @@ export function CompanySetupChildPocBlock({
   departmentOptions,
   rolesLoading,
   departmentsLoading,
+  controlsDisabled = false,
+  fieldErrorScope = "wizardChild",
   fieldErrors,
   companySetupKind = "existing_reseller",
 }: CompanySetupChildPocBlockProps) {

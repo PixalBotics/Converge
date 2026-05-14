@@ -1,14 +1,32 @@
 "use client";
 
+import { useCallback, useMemo, useState } from "react";
 import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
 import List from "@mui/material/List";
 import ListItemButton from "@mui/material/ListItemButton";
 import ListItemText from "@mui/material/ListItemText";
-import { useTheme } from "@mui/material/styles";
+import { alpha, useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
-import { DashboardCard, SearchBar, SelectField, TablePagination, Typography } from "@/components/common";
+import {
+  Button,
+  DashboardCard,
+  SearchBar,
+  SelectField,
+  TablePagination,
+  ToolbarFilterPopover,
+  Typography,
+} from "@/components/common";
+import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
 import { rolesCard, rolesPaginationWrapper } from "@/app/dashboard/roles/roles.styles";
+import { HRMS_SHIFTS_LIST_SEARCH_MAX } from "@/lib/utils/hrms-shifts-list-params";
+import {
+  userShiftFilterPopoverPairRowSx,
+  userShiftFilterPopoverStackSx,
+  userShiftUsersSearchActionsSx,
+  userShiftUsersSearchColumnSx,
+  userShiftUsersSearchFieldSx,
+} from "../user-shift.styles";
 
 export type UserType = "Internal" | "External";
 
@@ -19,14 +37,19 @@ export type UserListRow = {
   type: UserType;
   resellerId: string;
   parentCompanyId: string;
+  resellerName: string;
+  parentCompanyName: string;
 };
 
 export type UsersSidebarProps = {
   users: UserListRow[];
   selectedUserId: string;
   onSelectUserId: (id: string) => void;
-  search: string;
-  onSearchChange: (value: string) => void;
+  searchDraft: string;
+  onSearchDraftChange: (value: string) => void;
+  onSearchApply: () => void;
+  searchApplyDisabled: boolean;
+  searchApplied: string;
   page: number;
   pageCount: number;
   totalLabel: string;
@@ -50,14 +73,19 @@ export type UsersSidebarProps = {
   internalScopeReady?: boolean;
   /** When false, Internal chip is hidden (external non–platform-admin sessions). */
   showInternalTypeCapsule?: boolean;
+  /** Reset type, scope, and search to defaults (same as pool / department shift “Clear filters”). */
+  onClearFilters: () => void;
 };
 
 export function UsersSidebar({
   users,
   selectedUserId,
   onSelectUserId,
-  search,
-  onSearchChange,
+  searchDraft,
+  onSearchDraftChange,
+  onSearchApply,
+  searchApplyDisabled,
+  searchApplied,
   page,
   pageCount,
   totalLabel,
@@ -80,10 +108,194 @@ export function UsersSidebar({
   externalScopeReady = false,
   internalScopeReady = false,
   showInternalTypeCapsule = true,
+  onClearFilters,
 }: UsersSidebarProps) {
   const theme = useTheme() as AppTheme;
+  const [filterOpen, setFilterOpen] = useState(false);
+
   const internalUsers = users.filter((u) => u.type === "Internal");
   const externalUsers = users.filter((u) => u.type === "External");
+
+  const filterHint = useMemo(() => {
+    if (typeFilter === "External" && externalScopeReady) return "External list uses reseller → parent company → department, then GET /users with that scope.";
+    if (typeFilter === "External") return "Pick reseller, parent company, and department to load external users.";
+    if (typeFilter === "Internal" && internalScopeReady) return "Internal list is filtered by the selected department.";
+    if (typeFilter === "Internal") return "Pick a department to load internal users.";
+    return "All: both internal and external users for the current page (API scope). Open Filter to narrow.";
+  }, [typeFilter, externalScopeReady, internalScopeReady]);
+
+  const filterActive = useMemo(
+    () =>
+      typeFilter !== "all" ||
+      Boolean(resellerId.trim()) ||
+      Boolean(parentCompanyId.trim()) ||
+      Boolean(departmentId.trim()) ||
+      Boolean(searchDraft.trim()) ||
+      Boolean(searchApplied.trim()),
+    [typeFilter, resellerId, parentCompanyId, departmentId, searchDraft, searchApplied],
+  );
+
+  const filterClearDisabled = useMemo(
+    () =>
+      typeFilter === "all" &&
+      !resellerId.trim() &&
+      !parentCompanyId.trim() &&
+      !departmentId.trim() &&
+      !searchDraft.trim() &&
+      !searchApplied.trim(),
+    [typeFilter, resellerId, parentCompanyId, departmentId, searchDraft, searchApplied],
+  );
+
+  const handleClearFilters = useCallback(() => {
+    onClearFilters();
+    setFilterOpen(false);
+  }, [onClearFilters]);
+
+  const userListFilterPanel = useMemo(() => {
+    const sectionRule = `1px solid ${alpha(theme.palette.divider, 0.9)}`;
+    return (
+      <Box sx={{ color: theme.palette.text.primary }}>
+        <Box sx={{ px: 2.25, pt: 2, pb: 1.5 }}>
+          <Typography variant="medium" fontWeight={700} sx={{ color: theme.palette.text.primary, mb: 1.5 }}>
+            Filters
+          </Typography>
+          <Box sx={userShiftFilterPopoverStackSx}>
+            <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
+              <Chip
+                size="small"
+                label="All"
+                clickable
+                onClick={() => onTypeFilterChange("all")}
+                color={typeFilter === "all" ? "primary" : "default"}
+                variant={typeFilter === "all" ? "filled" : "outlined"}
+              />
+              {showInternalTypeCapsule ? (
+                <Chip
+                  size="small"
+                  label="Internal"
+                  clickable
+                  onClick={() => onTypeFilterChange("Internal")}
+                  color={typeFilter === "Internal" ? "primary" : "default"}
+                  variant={typeFilter === "Internal" ? "filled" : "outlined"}
+                />
+              ) : null}
+              <Chip
+                size="small"
+                label="External"
+                clickable
+                onClick={() => onTypeFilterChange("External")}
+                color={typeFilter === "External" ? "primary" : "default"}
+                variant={typeFilter === "External" ? "filled" : "outlined"}
+              />
+            </Box>
+            {typeFilter === "External" ? (
+              <Box sx={userShiftFilterPopoverPairRowSx}>
+                <SelectField
+                  label="Reseller"
+                  value={resellerId}
+                  onChange={onResellerIdChange}
+                  options={resellerOptions}
+                  menuMaxRows={7}
+                  disabled={isResellersLoading}
+                />
+                <SelectField
+                  label="Parent Company"
+                  value={parentCompanyId}
+                  onChange={onParentCompanyIdChange}
+                  options={parentCompanyOptions}
+                  menuMaxRows={7}
+                  disabled={!resellerId.trim() || isParentCompaniesLoading}
+                />
+              </Box>
+            ) : null}
+            {typeFilter === "External" ? (
+              <SelectField
+                label="Department"
+                value={departmentId}
+                onChange={onDepartmentIdChange}
+                options={departmentOptions}
+                menuMaxRows={7}
+                disabled={!parentCompanyId.trim() || isDepartmentsLoading}
+              />
+            ) : null}
+            {typeFilter === "Internal" ? (
+              <SelectField
+                label="Department"
+                value={departmentId}
+                onChange={onDepartmentIdChange}
+                options={departmentOptions}
+                menuMaxRows={7}
+                disabled={isDepartmentsLoading}
+              />
+            ) : null}
+          </Box>
+          <Typography
+            variant="body2"
+            sx={{
+              mt: 1.5,
+              color: theme.app.dashboard.textMuted,
+              alignSelf: "stretch",
+              whiteSpace: "normal",
+              lineHeight: 1.5,
+            }}
+          >
+            {filterHint}
+          </Typography>
+        </Box>
+        <Box
+          sx={{
+            display: "flex",
+            flexDirection: { xs: "column", sm: "row" },
+            justifyContent: "space-between",
+            alignItems: "stretch",
+            gap: 1.5,
+            px: 2.25,
+            py: 1.75,
+            borderTop: sectionRule,
+            bgcolor: alpha(theme.palette.action.hover, theme.palette.mode === "light" ? 0.5 : 0.35),
+          }}
+        >
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={filterClearDisabled}
+            onClick={handleClearFilters}
+            sx={(t) => ({
+              minWidth: { xs: 0, sm: 140 },
+              width: { xs: "100%", sm: "auto" },
+              flexShrink: 0,
+              border: `1px solid ${alpha((t as AppTheme).palette.divider, 0.9)}`,
+            })}
+          >
+            Clear filters
+          </Button>
+          <Button type="button" variant="primary" sx={gradientPrimaryButtonSx} onClick={() => setFilterOpen(false)}>
+            Done
+          </Button>
+        </Box>
+      </Box>
+    );
+  }, [
+    theme,
+    typeFilter,
+    showInternalTypeCapsule,
+    onTypeFilterChange,
+    resellerId,
+    onResellerIdChange,
+    resellerOptions,
+    isResellersLoading,
+    parentCompanyId,
+    onParentCompanyIdChange,
+    parentCompanyOptions,
+    isParentCompaniesLoading,
+    departmentId,
+    onDepartmentIdChange,
+    departmentOptions,
+    isDepartmentsLoading,
+    filterHint,
+    filterClearDisabled,
+    handleClearFilters,
+  ]);
 
   const renderUserRow = (u: UserListRow) => {
     const selected = u.id === selectedUserId;
@@ -95,7 +307,7 @@ export function UsersSidebar({
         sx={{
           borderRadius: 2,
           mb: 0.5,
-          border: "1px solid rgba(255,255,255,0.06)",
+          border: `1px solid ${theme.palette.divider}`,
           "&.Mui-selected": {
             background: "rgba(88,101,242,0.18)",
             borderColor: "rgba(88,101,242,0.4)",
@@ -109,7 +321,7 @@ export function UsersSidebar({
           secondaryTypographyProps={{ component: "div" }}
           primary={
             <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1 }}>
-              <Typography variant="body2" sx={{ color: "white", fontWeight: 650 }} noWrap>
+              <Typography variant="body2" sx={{ color: "text.primary", fontWeight: 650 }} noWrap>
                 {u.name}
               </Typography>
               <Typography
@@ -132,10 +344,10 @@ export function UsersSidebar({
               {u.type === "External" ? (
                 <>
                   <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted }} noWrap>
-                    Reseller: {u.resellerId}
+                    Reseller: {u.type === "External" ? u.resellerName : "—"}
                   </Typography>
                   <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted }} noWrap>
-                    Parent Co: {u.parentCompanyId}
+                    Parent: {u.type === "External" ? u.parentCompanyName : "—"}
                   </Typography>
                 </>
               ) : null}
@@ -148,88 +360,48 @@ export function UsersSidebar({
 
   return (
     <DashboardCard sx={{ ...rolesCard, p: { xs: 1.25, sm: 1.5, md: 1.75 } }}>
-      <Typography variant="mediumLarge" fontWeight={700} color="white" sx={{ mb: 1 }}>
+      <Typography variant="mediumLarge" fontWeight={700} sx={{ mb: 0.5, color: "text.primary" }}>
         Users
       </Typography>
-      <SearchBar value={search} onChange={onSearchChange} placeholder="Search user (name/email)..." />
-      <Box sx={{ mt: 1, display: "flex", gap: 1, flexWrap: "wrap" }}>
-        <Chip
-          size="small"
-          label="All"
-          clickable
-          onClick={() => onTypeFilterChange("all")}
-          color={typeFilter === "all" ? "primary" : "default"}
-          variant={typeFilter === "all" ? "filled" : "outlined"}
-        />
-        {showInternalTypeCapsule ? (
-          <Chip
-            size="small"
-            label="Internal"
-            clickable
-            onClick={() => onTypeFilterChange("Internal")}
-            color={typeFilter === "Internal" ? "primary" : "default"}
-            variant={typeFilter === "Internal" ? "filled" : "outlined"}
+      <Typography variant="caption" sx={{ display: "block", mb: 1.25, color: theme.app.dashboard.textMuted, lineHeight: 1.5 }}>
+        Use <strong>Filter</strong> for type and scope. <strong>Search</strong> applies your text to the user list (API).
+      </Typography>
+      <Box sx={userShiftUsersSearchColumnSx}>
+        <Box sx={userShiftUsersSearchFieldSx}>
+          <SearchBar
+            value={searchDraft}
+            onChange={(v) => onSearchDraftChange(v.slice(0, HRMS_SHIFTS_LIST_SEARCH_MAX))}
+            placeholder="Search name, email, company…"
           />
-        ) : null}
-        <Chip
-          size="small"
-          label="External"
-          clickable
-          onClick={() => onTypeFilterChange("External")}
-          color={typeFilter === "External" ? "primary" : "default"}
-          variant={typeFilter === "External" ? "filled" : "outlined"}
-        />
+        </Box>
+        <Box sx={userShiftUsersSearchActionsSx}>
+          <Button
+            type="button"
+            variant="primary"
+            disabled={searchApplyDisabled}
+            onClick={onSearchApply}
+            sx={{
+              flexShrink: 0,
+              alignSelf: { xs: "stretch", sm: "center" },
+              minHeight: 40,
+              px: 2.5,
+              py: 1,
+              whiteSpace: "nowrap",
+              width: { xs: "100%", sm: "auto" },
+              minWidth: { xs: 0, sm: 120 },
+            }}
+          >
+            Search
+          </Button>
+          <Box sx={{ flexShrink: 0, display: "inline-flex", alignItems: "center" }}>
+            <ToolbarFilterPopover open={filterOpen} onOpenChange={setFilterOpen} active={filterActive}>
+              {userListFilterPanel}
+            </ToolbarFilterPopover>
+          </Box>
+        </Box>
       </Box>
-      {typeFilter === "External" ? (
-        <Box sx={{ mt: 1.25, display: "grid", gap: 1 }}>
-          <SelectField
-            label="Reseller"
-            value={resellerId}
-            onChange={onResellerIdChange}
-            options={resellerOptions}
-            menuMaxRows={7}
-            disabled={isResellersLoading}
-          />
-          <SelectField
-            label="Parent Company"
-            value={parentCompanyId}
-            onChange={onParentCompanyIdChange}
-            options={parentCompanyOptions}
-            menuMaxRows={7}
-            disabled={!resellerId.trim() || isParentCompaniesLoading}
-          />
-          <SelectField
-            label="Department"
-            value={departmentId}
-            onChange={onDepartmentIdChange}
-            options={departmentOptions}
-            menuMaxRows={7}
-            disabled={!parentCompanyId.trim() || isDepartmentsLoading}
-          />
-          {!externalScopeReady ? (
-            <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted }}>
-              Select reseller, parent company, and department to load external users.
-            </Typography>
-          ) : null}
-        </Box>
-      ) : typeFilter === "Internal" ? (
-        <Box sx={{ mt: 1.25, display: "grid", gap: 1 }}>
-          <SelectField
-            label="Department"
-            value={departmentId}
-            onChange={onDepartmentIdChange}
-            options={departmentOptions}
-            menuMaxRows={7}
-            disabled={isDepartmentsLoading}
-          />
-          {!internalScopeReady ? (
-            <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted }}>
-              Select department to load internal users.
-            </Typography>
-          ) : null}
-        </Box>
-      ) : null}
-      <Box sx={{ mt: 1.25, mb: 1, borderTop: "1px solid rgba(255,255,255,0.08)" }} />
+
+      <Box sx={{ mt: 1.25, mb: 1, borderTop: `1px solid ${theme.palette.divider}` }} />
 
       <Box sx={{ maxHeight: { xs: 360, lg: "calc(100vh - 320px)" }, overflow: "auto" }}>
         <List dense disablePadding>
@@ -252,9 +424,9 @@ export function UsersSidebar({
               {isLoading
                 ? "Loading…"
                 : typeFilter === "External" && !externalScopeReady
-                  ? "Select external filters first."
+                  ? "Select external filters first (Filter button)."
                   : typeFilter === "Internal" && !internalScopeReady
-                    ? "Select department first."
+                    ? "Select department first (Filter button)."
                     : "No users found."}
             </Typography>
           ) : null}
@@ -272,4 +444,3 @@ export function UsersSidebar({
     </DashboardCard>
   );
 }
-

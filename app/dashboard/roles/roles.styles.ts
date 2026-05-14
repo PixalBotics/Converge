@@ -35,7 +35,7 @@ export const rolesAddButton: SxProps<Theme> = (theme) => {
     justifyContent: "center",
     background: app.dashboard.gradientButton,
     color: app.dashboard.gradientButtonText,
-    boxShadow: "0 10px 25px rgba(0,0,0,0.28)",
+    boxShadow: "none",
     border: `1px solid ${app.dashboard.overlayBorder}`,
     "&:hover": {
       background: app.dashboard.gradientButton,
@@ -67,13 +67,13 @@ export const rolesIconBox: SxProps<Theme> = {
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
-  boxShadow: "0 10px 30px rgba(15,23,42,0.85)",
+  boxShadow: "none",
 };
 
 export const rolesSearchRow: SxProps<Theme> = {
   display: "flex",
-  flexDirection: "row",
-  alignItems: "center",
+  flexDirection: { xs: "column", sm: "row" },
+  alignItems: { xs: "stretch", sm: "center" },
   gap: 1,
   width: { xs: "100%", md: "auto" },
 };

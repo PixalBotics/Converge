@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { useRouter } from "next/navigation";
 import Box from "@mui/material/Box";
@@ -16,6 +16,7 @@ import {
   Label,
 } from "@/components/common";
 import { getAuthEmailRules, useAuth } from "@/lib/auth";
+import { parseSafeDashboardNextPath } from "@/lib/auth/safe-next-path";
 import { resolveDashboardLandingHref } from "@/lib/permissions";
 import { AuthNavigationLink } from "../_components/AuthNavigationLink";
 import { AUTH_PATHS } from "../constants";
@@ -45,6 +46,13 @@ const defaultValues: LoginFormValues = {
 export default function LoginPage() {
   const theme = useTheme();
   const router = useRouter();
+  const [safeNextPath, setSafeNextPath] = useState<string | null>(null);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    setSafeNextPath(parseSafeDashboardNextPath(params.get("next")));
+  }, []);
+
   const {
     login,
     isAuthenticated,
@@ -71,13 +79,12 @@ export default function LoginPage() {
     if (!isAuthenticated) return;
     if (permissionsSyncing) return;
     const isDemoUser = user?.email?.trim().toLowerCase() === "demo@gmail.com";
-    router.replace(
-      resolveDashboardLandingHref({
-        permissionsByType,
-        isPlatformAdmin,
-        isDemoUser: Boolean(isDemoUser),
-      }),
-    );
+    const landing = resolveDashboardLandingHref({
+      permissionsByType,
+      isPlatformAdmin,
+      isDemoUser: Boolean(isDemoUser),
+    });
+    router.replace(safeNextPath ?? landing);
   }, [
     isAuthenticated,
     isLoading,
@@ -86,6 +93,7 @@ export default function LoginPage() {
     isPlatformAdmin,
     user,
     router,
+    safeNextPath,
   ]);
 
   const onSubmit = async (values: LoginFormValues) => {

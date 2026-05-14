@@ -35,7 +35,7 @@ function detailCardSx(theme: AppTheme) {
     borderRadius: "16px",
     border: `1px solid ${alpha(theme.app.dashboard.cardBorder, 0.95)}`,
     bgcolor: alpha(theme.app.dashboard.white95, 0.035),
-    boxShadow: `0 12px 40px ${alpha("#000", 0.25)}`,
+    boxShadow: "none",
   };
 }
 

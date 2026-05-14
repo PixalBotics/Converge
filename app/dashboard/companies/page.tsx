@@ -35,6 +35,8 @@ export default function CompaniesPage() {
   const canViewCompanyDetail = canCompaniesModuleAction(hasPage, hasOperational, "detail");
   const canViewCompanyList = canCompaniesModuleAction(hasPage, hasOperational, "list");
   const canOpenCompanyDraft = canCreateCompany || canUpdateCompany;
+  const [searchInput, setSearchInput] = useState("");
+  /** Applied search sent to the companies list API (Search button). */
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const limit = 20;
@@ -63,6 +65,17 @@ export default function CompaniesPage() {
     setStoredCompanySetupDraftId(id);
     refreshStoredDraftFlag();
   }, [latestDraftQuery.isSuccess, latestDraftQuery.data, refreshStoredDraftFlag]);
+
+  useEffect(() => {
+    if (searchInput.trim().length > 0) return;
+    if (!search.trim()) return;
+    setSearch("");
+    setPage(1);
+  }, [searchInput, search]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [search]);
 
   const { data: companiesResponse, isLoading: isCompaniesLoading } = useCompaniesListQuery({
     page,
@@ -190,8 +203,13 @@ export default function CompaniesPage() {
 
       <CompaniesTableSection
         theme={theme}
-        search={search}
-        onSearchChange={setSearch}
+        searchInput={searchInput}
+        onSearchInputChange={setSearchInput}
+        appliedSearch={search}
+        onSearchSubmit={() => {
+          setSearch(searchInput.trim());
+          setPage(1);
+        }}
         rows={tableRows}
         isLoading={isCompaniesLoading}
         page={page}

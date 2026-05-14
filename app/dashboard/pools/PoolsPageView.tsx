@@ -286,6 +286,13 @@ export function PoolsPageView({ mode }: PoolsPageViewProps) {
     return params;
   }, [appliedSearch, departmentId, page, parentCompanyId, resellerId]);
 
+  useEffect(() => {
+    if (searchInput.trim().length > 0) return;
+    if (!appliedSearch.trim()) return;
+    setAppliedSearch("");
+    setPage(1);
+  }, [searchInput, appliedSearch]);
+
   const poolsQuery = usePoolsListQuery(listParams, { enabled: !isMembersHub, scope: "pools-page" });
   const createMutation = useCreatePoolMutation();
   const updateMutation = useUpdatePoolMutation();
@@ -614,9 +621,10 @@ export function PoolsPageView({ mode }: PoolsPageViewProps) {
       search={searchInput}
       onSearchChange={setSearchInput}
       onSearchSubmit={() => {
-        setAppliedSearch(searchInput);
+        setAppliedSearch(searchInput.trim());
         setPage(1);
       }}
+      searchSubmitDisabled={searchInput.trim() === appliedSearch.trim()}
       page={page}
       pageCount={pageCount}
       footerText={

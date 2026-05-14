@@ -226,7 +226,7 @@ export function FilterableSearchBar({
               backgroundImage: "none",
               backdropFilter: "none",
               WebkitBackdropFilter: "none",
-              boxShadow: "0 12px 28px rgba(0,0,0,0.28)",
+              boxShadow: "none",
             }}
           >
             {isSuggestionsLoading ? (

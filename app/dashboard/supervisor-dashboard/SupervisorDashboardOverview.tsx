@@ -9,7 +9,6 @@ import {
   Typography,
   DashboardCard,
   Dropdown,
-  FilterButton,
   Button,
   DataTable,
 } from "@/components/common";
@@ -245,7 +244,6 @@ export default function SupervisorDashboardOverview() {
                 Agent Live Status
               </Typography>
             </Box>
-            <FilterButton />
           </Box>
           <DataTable<AgentRow> columns={agentColumns} rows={AGENT_ROWS} size="small" />
           <Box sx={viewAllAgentWrap}>

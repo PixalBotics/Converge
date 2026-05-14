@@ -425,7 +425,7 @@ export function ParentCompanyEditPageClient() {
             alignSelf: "stretch",
             borderRadius: "16px",
             border: `1px solid ${alpha(theme.app.dashboard.cardBorder, 0.55)}`,
-            boxShadow: `0 18px 48px ${alpha("#000", 0.22)}`,
+            boxShadow: "none",
           }}
         >
           <Box>
@@ -491,7 +491,7 @@ export function ParentCompanyEditPageClient() {
             alignSelf: "stretch",
             borderRadius: "16px",
             border: `1px solid ${alpha(theme.app.dashboard.cardBorder, 0.55)}`,
-            boxShadow: `0 18px 48px ${alpha("#000", 0.22)}`,
+            boxShadow: "none",
           }}
         >
           <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 2, flexWrap: "wrap" }}>
@@ -529,7 +529,7 @@ export function ParentCompanyEditPageClient() {
                     borderRadius: "16px !important",
                     overflow: "hidden",
                     "&:before": { display: "none" },
-                    boxShadow: `0 10px 32px ${alpha("#000", 0.16)}, inset 0 1px 0 ${alpha(theme.app.dashboard.white95, 0.05)}`,
+                    boxShadow: `inset 0 1px 0 ${alpha(theme.app.dashboard.white95, 0.05)}`,
                   }}
                 >
                   <AccordionSummary

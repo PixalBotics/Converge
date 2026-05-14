@@ -121,11 +121,10 @@ const appColors = {
     radioInactiveBorder: "rgba(148, 163, 184, 0.6)",
     radioActiveRing: "rgba(34, 197, 94, 0.35)",
     glassGradient: "linear-gradient(140deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02))",
-    glassShadow:
-      "0 8px 18px rgba(2, 8, 30, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.08)",
-    /** DashboardCard only — deeper float + inner glass edge. */
-    cardGlassShadow:
-      "0 14px 48px rgba(0, 0, 0, 0.38), 0 0 0 1px rgba(255, 255, 255, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.16), inset 0 -1px 0 rgba(0, 0, 0, 0.15)",
+    /** Modals / glass panels: top highlight only (no floating drop shadow). */
+    glassShadow: "inset 0 1px 0 rgba(255, 255, 255, 0.08)",
+    /** Cards, filter popovers, picker paper — border + blur carry depth; avoid heavy elevation. */
+    cardGlassShadow: "none",
     liveChat: {
       cardBg: "#2b2d31",
       messageBg: "#313338",
@@ -245,7 +244,7 @@ export function createAppMuiTheme(
               // Match DashboardCard glass surface (same as the rest of the UI).
               background: app.dashboard?.cardBg ?? alpha(app.dashboard?.menuSurfaceBg ?? "#1e1f22", 0.96),
               border: `1px solid ${app.dashboard?.cardBorder ?? app.dashboard?.overlayBorder ?? "rgba(255,255,255,0.2)"}`,
-              boxShadow: app.dashboard?.cardGlassShadow ?? "0 18px 60px rgba(0,0,0,0.55)",
+              boxShadow: app.dashboard?.cardGlassShadow ?? "none",
               backdropFilter: app.dashboard?.cardBackdropBlur ?? "blur(18px) saturate(140%)",
               color: app.text?.primary ?? "#fff",
             };

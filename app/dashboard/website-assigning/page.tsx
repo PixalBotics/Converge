@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Assignment from "@mui/icons-material/Assignment";
-import FilterList from "@mui/icons-material/FilterList";
 import IosShare from "@mui/icons-material/IosShare";
 import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
@@ -12,15 +11,14 @@ import type { SxProps, Theme } from "@mui/material/styles";
 import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import { filterChromeButtonSx } from "@/components/common/FilterButton/filter-button.styles";
-import { resolveSx } from "@/utils/resolveSx";
 import {
   AssignWebsiteModal,
   Button,
   DashboardCard,
   DataTable,
-  FilterButton,
   SearchBar,
   SelectField,
+  ToolbarFilterPopover,
   Typography,
 } from "@/components/common";
 import { useCompaniesByResellerQuery, useCompaniesSetupResellersQuery, useWebsiteAssignmentsWebsitesQuery } from "@/lib/hooks";
@@ -34,10 +32,7 @@ import {
   toIdNameOption,
 } from "@/app/dashboard/user-page/components/add-user-modal.utils";
 import {
-  websiteAssignmentFilterCard,
   websiteAssignmentFilterGrid,
-  websiteAssignmentFilterIconBox,
-  websiteAssignmentFilterTitleRow,
   websiteAssignmentFooterRow,
   websiteAssignmentHeaderActions,
   websiteAssignmentPageHeader,
@@ -79,6 +74,7 @@ export default function WebsiteAssigningPage() {
   const [filterResellerId, setFilterResellerId] = useState("");
   const [filterParentCompanyId, setFilterParentCompanyId] = useState("");
   const [filterChildCompanyId, setFilterChildCompanyId] = useState("");
+  const [filterPopoverOpen, setFilterPopoverOpen] = useState(false);
   const [isAssignOpen, setIsAssignOpen] = useState(false);
   const [page, setPage] = useState(1);
 
@@ -265,8 +261,8 @@ export default function WebsiteAssigningPage() {
           <Typography variant="regularLarge" fontWeight={700} sx={{ color: theme.app.text.primary, mb: 0.5 }}>
             Website Assignment
           </Typography>
-          <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted, maxWidth: 560 }}>
-            Websites you can manage in your scope. Open one to see the full assignment breakdown for that site.
+          <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted, maxWidth: 480 }}>
+            Websites in your scope.
           </Typography>
         </Box>
         <Box sx={websiteAssignmentHeaderActions}>
@@ -284,75 +280,6 @@ export default function WebsiteAssigningPage() {
           </Button>
         </Box>
       </Box>
-
-      <DashboardCard sx={websiteAssignmentFilterCard}>
-        <Box sx={websiteAssignmentFilterTitleRow}>
-          <Box sx={websiteAssignmentFilterIconBox}>
-            <FilterList sx={{ fontSize: 20 }} />
-          </Box>
-          <Typography variant="mediumLarge" color="white" fontWeight={600}>
-            Select Filter
-          </Typography>
-        </Box>
-        <Box sx={websiteAssignmentFilterGrid}>
-          <SelectField
-            label="Assigned"
-            value={filterAssigned}
-            onChange={setFilterAssigned}
-            options={[...ASSIGNED_FILTER_OPTIONS]}
-          />
-          <SelectField
-            label="Reseller"
-            value={filterResellerId}
-            onChange={setFilterResellerId}
-            options={resellerFilterOptions}
-            menuMaxRows={6}
-          />
-          <SelectField
-            label="Parent Company"
-            value={filterParentCompanyId}
-            onChange={setFilterParentCompanyId}
-            options={parentCompanyFilterOptions}
-            menuMaxRows={7}
-            disabled={!filterResellerId.trim()}
-          />
-          <SelectField
-            label="Child Company"
-            value={filterChildCompanyId}
-            onChange={setFilterChildCompanyId}
-            options={childCompanyFilterOptions}
-            menuMaxRows={7}
-            disabled={!filterResellerId.trim() || !filterParentCompanyId.trim()}
-          />
-          <Box
-            sx={{
-              display: "flex",
-              justifyContent: { xs: "stretch", lg: "flex-end" },
-              gridColumn: { xs: "auto", sm: "2 / 3" },
-            }}
-          >
-            <Button
-              type="button"
-              variant="outlined"
-              sx={{
-                ...resolveSx(filterChromeButtonSx, theme),
-                width: { xs: "100%", lg: "auto" },
-              }}
-              onClick={() => {
-                setFilterAssigned("");
-                setFilterResellerId("");
-                setFilterParentCompanyId("");
-                setFilterChildCompanyId("");
-                setSearchInput("");
-                setSearch("");
-                setPage(1);
-              }}
-            >
-              Clear filters
-            </Button>
-          </Box>
-        </Box>
-      </DashboardCard>
 
       <DashboardCard sx={websiteAssignmentTableCard}>
         <Box sx={websiteAssignmentTableToolbar}>
@@ -385,7 +312,67 @@ export default function WebsiteAssigningPage() {
             >
               Search
             </Button>
-            <FilterButton sx={{ whiteSpace: "nowrap", alignSelf: { xs: "stretch", sm: "center" } }} />
+            <ToolbarFilterPopover
+              open={filterPopoverOpen}
+              onOpenChange={setFilterPopoverOpen}
+              active={Boolean(
+                filterAssigned || filterResellerId.trim() || filterParentCompanyId.trim() || filterChildCompanyId.trim(),
+              )}
+            >
+              <Box sx={{ p: 2, color: theme.app.text.primary }}>
+                <Box sx={websiteAssignmentFilterGrid}>
+                  <SelectField
+                    label="Assigned"
+                    value={filterAssigned}
+                    onChange={setFilterAssigned}
+                    options={[...ASSIGNED_FILTER_OPTIONS]}
+                  />
+                  <SelectField
+                    label="Reseller"
+                    value={filterResellerId}
+                    onChange={setFilterResellerId}
+                    options={resellerFilterOptions}
+                    menuMaxRows={6}
+                  />
+                  <SelectField
+                    label="Parent Company"
+                    value={filterParentCompanyId}
+                    onChange={setFilterParentCompanyId}
+                    options={parentCompanyFilterOptions}
+                    menuMaxRows={7}
+                    disabled={!filterResellerId.trim()}
+                  />
+                  <SelectField
+                    label="Child Company"
+                    value={filterChildCompanyId}
+                    onChange={setFilterChildCompanyId}
+                    options={childCompanyFilterOptions}
+                    menuMaxRows={7}
+                    disabled={!filterResellerId.trim() || !filterParentCompanyId.trim()}
+                  />
+                </Box>
+                <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1.5, justifyContent: "flex-end", mt: 2 }}>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() => {
+                      setFilterAssigned("");
+                      setFilterResellerId("");
+                      setFilterParentCompanyId("");
+                      setFilterChildCompanyId("");
+                      setSearchInput("");
+                      setSearch("");
+                      setPage(1);
+                    }}
+                  >
+                    Reset
+                  </Button>
+                  <Button type="button" variant="primary" sx={gradientPrimaryButtonSx} onClick={() => setFilterPopoverOpen(false)}>
+                    Done
+                  </Button>
+                </Box>
+              </Box>
+            </ToolbarFilterPopover>
           </Box>
         </Box>
 

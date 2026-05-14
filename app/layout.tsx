@@ -11,8 +11,8 @@ const inter = Inter({ subsets: ["latin"], display: "swap" });
 const manrope = Manrope({ subsets: ["latin"], display: "swap" });
 
 export const metadata: Metadata = {
-  title: "Interchanges",
-  description: "Built with Next.js App Router and TypeScript",
+  title: "Converge",
+  description: "Converge — dashboard and operations (Next.js App Router, TypeScript).",
 };
 
 export default function RootLayout({

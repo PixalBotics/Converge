@@ -28,3 +28,4 @@ export {
   getDashboardPathPageRequirements,
   getRequiredPagePermission,
 } from "./route-page-permissions";
+export { parseSafeDashboardNextPath } from "./safe-next-path";

@@ -2,23 +2,20 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import AutoAwesome from "@mui/icons-material/AutoAwesome";
-import FilterList from "@mui/icons-material/FilterList";
 import Send from "@mui/icons-material/Send";
 import Box from "@mui/material/Box";
 import Link from "@mui/material/Link";
 import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
-import { filterChromeButtonSx } from "@/components/common/FilterButton/filter-button.styles";
-import { resolveSx } from "@/utils/resolveSx";
 import {
   Button,
   Checkbox,
   DashboardCard,
   DataTable,
-  FilterButton,
   SearchBar,
   SelectField,
   TablePagination,
+  ToolbarFilterPopover,
   Typography,
 } from "@/components/common";
 import type { DataTableColumn } from "@/components/common";
@@ -29,10 +26,7 @@ import { useCompaniesSetupResellersQuery, usePlatformLicenseKeysQuery } from "@/
 import { extractParentCompaniesFromByResellerTree } from "@/app/dashboard/user-page/components/add-user-modal.utils";
 import { useCompaniesByResellerQuery } from "@/lib/hooks";
 import {
-  licenseGenerateFilterCard,
   licenseGenerateFilterGrid,
-  licenseGenerateFilterIconBox,
-  licenseGenerateFilterTitleRow,
   licenseGenerateFooterRow,
   licenseGenerateHeaderActions,
   licenseGeneratePageHeader,
@@ -59,6 +53,7 @@ export default function LicenseGeneratePage() {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [generateModalOpen, setGenerateModalOpen] = useState(false);
+  const [filterPopoverOpen, setFilterPopoverOpen] = useState(false);
   const [mode, setMode] = useState<"issued" | "missing">("issued");
   const [filterResellerId, setFilterResellerId] = useState("");
   const [filterParentCompanyId, setFilterParentCompanyId] = useState("");
@@ -202,8 +197,8 @@ export default function LicenseGeneratePage() {
           <Typography variant="regularLarge" fontWeight={700} color="white" sx={{ mb: 0.5 }}>
             License Generate
           </Typography>
-          <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted, maxWidth: 520 }}>
-            Generate and distribute licenses to client companies
+          <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted, maxWidth: 480 }}>
+            License keys for your clients.
           </Typography>
         </Box>
         <Box sx={licenseGenerateHeaderActions}>
@@ -230,66 +225,6 @@ export default function LicenseGeneratePage() {
         }}
       />
 
-      <DashboardCard sx={licenseGenerateFilterCard}>
-        <Box sx={licenseGenerateFilterTitleRow}>
-          <Box sx={licenseGenerateFilterIconBox}>
-            <FilterList sx={{ fontSize: 20 }} />
-          </Box>
-          <Typography variant="mediumLarge" color="white" fontWeight={600}>
-            Select Filter
-          </Typography>
-        </Box>
-        <Box sx={licenseGenerateFilterGrid}>
-          <SelectField
-            label="Mode"
-            value={mode}
-            onChange={(v) => setMode(v === "missing" ? "missing" : "issued")}
-            options={[
-              { value: "issued", label: "Issued" },
-              { value: "missing", label: "Missing" },
-            ]}
-          />
-          <SelectField
-            label="Client Of (Reseller)"
-            value={filterResellerId}
-            onChange={(v) => {
-              setFilterResellerId(v);
-              setFilterParentCompanyId("");
-            }}
-            options={resellerFilterOptions}
-            menuMaxRows={6}
-          />
-          <SelectField
-            label="Parent Company"
-            value={filterParentCompanyId}
-            onChange={setFilterParentCompanyId}
-            options={parentCompanyFilterOptions}
-            menuMaxRows={7}
-            disabled={!filterResellerId.trim()}
-          />
-          <Box sx={{ display: "flex", justifyContent: { xs: "stretch", lg: "flex-end" } }}>
-            <Button
-              type="button"
-              variant="outlined"
-              sx={{
-                ...resolveSx(filterChromeButtonSx, theme),
-                width: { xs: "100%", lg: "auto" },
-              }}
-              onClick={() => {
-                setMode("issued");
-                setFilterResellerId("");
-                setFilterParentCompanyId("");
-                setSearchInput("");
-                setSearch("");
-                setPage(1);
-              }}
-            >
-              Clear filter
-            </Button>
-          </Box>
-        </Box>
-      </DashboardCard>
-
       <DashboardCard sx={licenseGenerateTableCard}>
         <Box sx={licenseGenerateTableToolbar}>
           <Typography variant="mediumLarge" color="white" fontWeight={600}>
@@ -313,7 +248,62 @@ export default function LicenseGeneratePage() {
             >
               Search
             </Button>
-            <FilterButton sx={{ whiteSpace: "nowrap", alignSelf: { xs: "stretch", sm: "center" } }} />
+            <ToolbarFilterPopover
+              open={filterPopoverOpen}
+              onOpenChange={setFilterPopoverOpen}
+              active={Boolean(mode !== "issued" || filterResellerId.trim() || filterParentCompanyId.trim())}
+            >
+              <Box sx={{ p: 2, color: theme.app.text.primary }}>
+                <Box sx={licenseGenerateFilterGrid}>
+                  <SelectField
+                    label="Mode"
+                    value={mode}
+                    onChange={(v) => setMode(v === "missing" ? "missing" : "issued")}
+                    options={[
+                      { value: "issued", label: "Issued" },
+                      { value: "missing", label: "Missing" },
+                    ]}
+                  />
+                  <SelectField
+                    label="Client Of (Reseller)"
+                    value={filterResellerId}
+                    onChange={(v) => {
+                      setFilterResellerId(v);
+                      setFilterParentCompanyId("");
+                    }}
+                    options={resellerFilterOptions}
+                    menuMaxRows={6}
+                  />
+                  <SelectField
+                    label="Parent Company"
+                    value={filterParentCompanyId}
+                    onChange={setFilterParentCompanyId}
+                    options={parentCompanyFilterOptions}
+                    menuMaxRows={7}
+                    disabled={!filterResellerId.trim()}
+                  />
+                </Box>
+                <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1.5, justifyContent: "flex-end", mt: 2 }}>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() => {
+                      setMode("issued");
+                      setFilterResellerId("");
+                      setFilterParentCompanyId("");
+                      setSearchInput("");
+                      setSearch("");
+                      setPage(1);
+                    }}
+                  >
+                    Reset
+                  </Button>
+                  <Button type="button" variant="primary" sx={gradientPrimaryButtonSx} onClick={() => setFilterPopoverOpen(false)}>
+                    Done
+                  </Button>
+                </Box>
+              </Box>
+            </ToolbarFilterPopover>
           </Box>
         </Box>
 

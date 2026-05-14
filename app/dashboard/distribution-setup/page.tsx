@@ -13,7 +13,6 @@ import {
   Button,
   DashboardCard,
   DataTable,
-  FilterButton,
   SearchBar,
   TablePagination,
   Typography,
@@ -186,7 +185,6 @@ export default function DistributionSetupPage() {
             <Box sx={distributionSetupSearchFieldWrapper}>
               <SearchBar value={search} onChange={setSearch} placeholder="Search anything.." sx={{ minWidth: "100%" }} />
             </Box>
-            <FilterButton sx={{ whiteSpace: "nowrap", alignSelf: { xs: "stretch", sm: "center" } }} />
           </Box>
         </Box>
 

@@ -18,10 +18,13 @@ export function Button({
   type = "button",
   disabled = false,
   sx,
+  color: colorProp,
   ...rest
 }: ButtonProps) {
   const theme = useTheme();
   const muiVariant = variant === "outlined" ? "outlined" : "contained";
+  /** `contained` defaults to `color="primary"`, which forces primary label colors — invisible on light `pillBg` (e.g. Nitro mint). */
+  const muiColor = colorProp ?? (variant === "primary" ? "primary" : "inherit");
   const mergedSx = {
     ...baseButtonStyles,
     ...variantStyles[variant](theme),
@@ -32,6 +35,7 @@ export function Button({
     <MuiButton
       type={type}
       variant={muiVariant}
+      color={muiColor}
       disableElevation
       fullWidth={fullWidth}
       disabled={disabled}

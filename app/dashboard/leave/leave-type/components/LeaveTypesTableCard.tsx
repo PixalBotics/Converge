@@ -8,10 +8,10 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import {
+  Button,
   DashboardCard,
   DataTable,
   dataTableActionButton,
-  FilterButton,
   SearchBar,
   TablePagination,
   Typography,
@@ -36,8 +36,10 @@ export type LeaveTypesTableCardProps = {
   rows: LeaveTypeRow[];
   columns: DataTableColumn<LeaveTypeRow>[];
   isLoading: boolean;
-  search: string;
-  onSearchChange: (value: string) => void;
+  searchInput: string;
+  onSearchInputChange: (value: string) => void;
+  appliedSearch: string;
+  onSearchApply: () => void;
   page: number;
   pageCount: number;
   footerText: string;
@@ -52,8 +54,10 @@ export function LeaveTypesTableCard({
   rows,
   columns,
   isLoading,
-  search,
-  onSearchChange,
+  searchInput,
+  onSearchInputChange,
+  appliedSearch,
+  onSearchApply,
   page,
   pageCount,
   footerText,
@@ -79,9 +83,17 @@ export function LeaveTypesTableCard({
 
         <Box sx={departmentsSearchRow}>
           <Box sx={departmentsSearchFieldWrapper}>
-            <SearchBar value={search} onChange={onSearchChange} placeholder="Search anything.." />
+            <SearchBar value={searchInput} onChange={onSearchInputChange} placeholder="Search anything.." />
           </Box>
-          <FilterButton />
+          <Button
+            type="button"
+            variant="primary"
+            disabled={searchInput.trim() === appliedSearch.trim()}
+            onClick={onSearchApply}
+            sx={{ minWidth: 132, whiteSpace: "nowrap", alignSelf: { xs: "stretch", sm: "center" } }}
+          >
+            Search
+          </Button>
         </Box>
       </Box>
 

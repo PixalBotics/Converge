@@ -5,7 +5,7 @@ import Box from "@mui/material/Box";
 import { AccessTime as AccessTimeIcon, CalendarMonth as CalendarMonthIcon } from "@mui/icons-material";
 import type { SxProps, Theme } from "@mui/material/styles";
 import { useRouter } from "next/navigation";
-import { Typography, DashboardCard, DataTable, TablePagination, Button, SearchBar, FilterButton, Calendar } from "@/components/common";
+import { Typography, DashboardCard, DataTable, TablePagination, Button, SearchBar, Calendar } from "@/components/common";
 import type { DataTableColumn } from "@/components/common";
 import { rolesCard, rolesFooterRow, rolesIconBox, rolesPageWrapper, rolesPaginationWrapper } from "../../roles/roles.styles";
 import { footerMutedText, pageWrapper } from "../../companies/overview.styles";
@@ -244,7 +244,6 @@ export default function MyAttendancePage() {
             <Box sx={departmentsSearchFieldWrapper}>
               <SearchBar value={search} onChange={setSearch} placeholder="Search anything.." />
             </Box>
-            <FilterButton />
           </Box>
         </Box>
 

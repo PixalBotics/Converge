@@ -141,7 +141,7 @@ export const revenueIconBox: SxProps<Theme> = {
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
-  boxShadow: "0 8px 24px rgba(15, 23, 42, 0.65)",
+  boxShadow: "none",
 };
 
 export const revenueToggleGroup: SxProps<Theme> = {
@@ -165,7 +165,7 @@ export const revenueToggleGroup: SxProps<Theme> = {
       bgcolor: "#0048B70A",
       color: "#FFFFFF",
       border: "0.51px solid #D9D9D90F",
-      boxShadow: "0 6px 18px rgba(15, 23, 42, 0.8)",
+      boxShadow: "none",
       "&:hover": {
         bgcolor: "#0048B70A",
       },
@@ -386,7 +386,7 @@ export const liveOverviewHeaderIconBox: SxProps<Theme> = {
   alignItems: "center",
   justifyContent: "center",
   color: "#E9D5FF",
-  boxShadow: "0 6px 20px rgba(91, 33, 182, 0.4)",
+  boxShadow: "none",
 };
 
 export const liveOverviewWaitingCard: SxProps<Theme> = {

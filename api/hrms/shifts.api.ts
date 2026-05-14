@@ -1,6 +1,11 @@
 import { apiClient } from "../http/axios-instance";
 import type { JsonRecord } from "../types/common.types";
 
+/**
+ * `GET /hrms/shifts` — list shift templates (server-side filters).
+ * Query: camelCase `page` | `limit` | `all` | `parentCompanyId` | `search` | `shiftScope` (`internal` | `external` | `all`).
+ * `search` max 80 chars via `buildHrmsShiftsListQueryRecord`. Response may include `workingDaysMask`, `workingWeekdays`, `catalog`, `ownerResellerName`, `ownerParentCompanyName`.
+ */
 export async function listShiftTemplates(params?: JsonRecord): Promise<unknown> {
   const { data } = await apiClient.get("/hrms/shifts", { params });
   return data;

@@ -12,7 +12,6 @@ import {
   DataTable,
   dataTableActionButton,
   SearchBar,
-  FilterButton,
   TablePagination,
   ButtonOutline,
 } from "@/components/common";
@@ -197,7 +196,6 @@ export default function AgentDashboardOverview() {
             <Box sx={searchWrap}>
               <SearchBar value={search} onChange={setSearch} placeholder="Search anything..." />
             </Box>
-            <FilterButton />
           </Box>
         </Box>
 
