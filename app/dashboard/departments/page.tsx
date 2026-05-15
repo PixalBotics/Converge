@@ -20,8 +20,7 @@ import {
   ToolbarFilterPopover,
 } from "@/components/common";
 import type { DataTableColumn } from "@/components/common";
-import { AddCircleIcon } from "@/components/dashboard/icons/AddCircleIcon";
-import { SearchIcon } from "@/components/dashboard/icons/SearchIcon";
+import { AddCircleIcon, SearchIcon } from "@/components/common/icons";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
 import { AddDepartmentModal } from "./components/AddDepartmentModal";
 import { DeleteDepartmentConfirmModal } from "./components/DeleteDepartmentConfirmModal";

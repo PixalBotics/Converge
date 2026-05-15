@@ -24,7 +24,7 @@ import {
 import { useCompaniesByResellerQuery, useCompaniesSetupResellersQuery, useWebsiteAssignmentsWebsitesQuery } from "@/lib/hooks";
 import type { DataTableColumn } from "@/components/common";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
-import { SearchIcon } from "@/components/dashboard/icons/SearchIcon";
+import { SearchIcon } from "@/components/common/icons";
 import {
   extractChildCompanyOptionsForParentFromByResellerTree,
   extractParentCompaniesFromByResellerTree,

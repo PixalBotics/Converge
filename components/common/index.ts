@@ -1,6 +1,11 @@
+export * from "./icons";
 export { AppCard } from "./AppCard";
 export { DashboardCard } from "./DashboardCard";
+export { DashboardFilterSection } from "./DashboardFilterSection";
+export type { DashboardFilterSectionProps } from "./DashboardFilterSection";
 export { Button } from "./Button";
+export { AppIconButton } from "./AppIconButton";
+export type { AppIconButtonProps } from "./AppIconButton";
 export { ButtonOutline } from "./ButtonOutline";
 export type { ButtonOutlineProps } from "./ButtonOutline";
 export { Checkbox } from "./Checkbox";

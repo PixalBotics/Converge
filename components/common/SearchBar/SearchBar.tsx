@@ -7,7 +7,7 @@ import { useTheme } from "@mui/material/styles";
 import type { SxProps, Theme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import type { SearchBarProps } from "./SearchBar.types";
-import { SearchIcon } from "@/components/dashboard/icons/SearchIcon";
+import { SearchIcon } from "@/components/common/icons";
 import { resolveSx } from "@/utils/resolveSx";
 
 export function SearchBar({ value, onChange, placeholder = "Search anything..", sx }: SearchBarProps) {

@@ -56,9 +56,9 @@ export function FilterButton({ sx, onClick, active, "aria-expanded": ariaExpande
           ...(resolveSx(sx, theme) as Record<string, unknown>),
           ...(active
             ? {
-                borderColor: `${theme.app.dashboard.accentBlue} !important`,
+                borderColor: `${theme.palette.primary.main} !important`,
                 bgcolor: theme.app.dashboard.navActiveBg,
-                boxShadow: `0 0 0 1px ${alpha(theme.app.dashboard.accentBlue, 0.35)}`,
+                boxShadow: `0 0 0 1px ${alpha(theme.palette.primary.main, 0.35)}`,
               }
             : {}),
         } as SxProps<Theme>

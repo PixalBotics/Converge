@@ -58,7 +58,7 @@ import {
 import { extractUsersRows } from "@/app/dashboard/user-page/utils";
 import { useAuth, sessionMayPickInternalUserScope } from "@/lib/auth";
 import { canManageDepartmentHeads, canRemoveDepartmentHead } from "@/lib/permissions";
-import { SearchIcon } from "@/components/dashboard/icons/SearchIcon";
+import { SearchIcon } from "@/components/common/icons";
 
 const PAGE_LIMIT = 12;
 const ASSIGN_USER_TABLE_MAX_PX = 340;

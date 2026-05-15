@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Box from "@mui/material/Box";
 import { Button, SelectField } from "@/components/common";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
-import { AddIpBlockWizardShell } from "@/components/dashboard/AddIpBlockWizardShell";
+import { AddIpBlockWizardShell } from "@/features/ip-block";
 import { distributionWizardFormGrid3 } from "../../distribution-setup/wizard.styles";
 import { SmtpChipTagField } from "../../smtp-email-integration/SmtpChipTagField";
 

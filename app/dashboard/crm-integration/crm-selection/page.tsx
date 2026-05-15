@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button, SelectField } from "@/components/common";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
-import { CrmIntegrationWizardShell } from "@/components/dashboard/CrmIntegrationWizardShell";
+import { CrmIntegrationWizardShell } from "@/features/crm-integration";
 
 const CRM_OPTIONS = [
   { label: "Zoho CRM", value: "zoho" },

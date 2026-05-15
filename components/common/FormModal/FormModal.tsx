@@ -15,7 +15,7 @@ import type { AppTheme } from "@/theme/theme";
 import { Typography, Button } from "@/components/common";
 import { ModalGlassShell } from "./ModalGlassShell";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
-import { CloseCircleIcon } from "@/components/dashboard/icons/CloseCircleIcon";
+import { CloseCircleIcon } from "@/components/common/icons";
 
 export interface FormModalFieldConfig {
   id: string;

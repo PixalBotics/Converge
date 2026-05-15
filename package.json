@@ -6,6 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "storybook": "storybook dev -p 6006",
+    "build-storybook": "storybook build -o storybook-static",
     "lint": "next lint",
     "test": "vitest run",
     "test:watch": "vitest"
@@ -33,12 +35,17 @@
     "tsparticles": "^3.9.1"
   },
   "devDependencies": {
-    "vitest": "^3.2.4",
+    "@storybook/addon-essentials": "^8.6.18",
+    "@storybook/addon-themes": "^8.6.18",
+    "@storybook/react-vite": "^8.6.18",
     "@types/node": "22.19.15",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^4.7.0",
     "eslint": "^9.0.0",
     "eslint-config-next": "^15.0.0",
-    "typescript": "^5.0.0"
+    "storybook": "^8.6.18",
+    "typescript": "^5.0.0",
+    "vitest": "^3.2.4"
   }
 }

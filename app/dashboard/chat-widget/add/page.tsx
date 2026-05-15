@@ -11,7 +11,7 @@ import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import { Button, Typography } from "@/components/common";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
-import { WidgetFlowShell } from "@/components/dashboard/WidgetFlowShell";
+import { WidgetFlowShell } from "@/features/chat-widget";
 
 type WidgetType = "chat" | "text";
 

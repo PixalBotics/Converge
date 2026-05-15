@@ -1,7 +1,7 @@
 "use client";
 
 import Box from "@mui/material/Box";
-import { DataNotFoundPlaceholder } from "@/components/dashboard";
+import { DataNotFoundPlaceholder } from "@/components/layout/dashboard";
 import { Typography } from "@/components/common";
 import { useAuth } from "@/lib/auth";
 import { OP } from "@/lib/permissions";

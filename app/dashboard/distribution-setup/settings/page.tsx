@@ -10,7 +10,7 @@ import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import { Button, InputField, Typography } from "@/components/common";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
-import { DistributionWizardShell } from "@/components/dashboard/DistributionWizardShell";
+import { DistributionWizardShell } from "@/features/distribution-setup";
 
 type DistributionMethod = "Email" | "CRM" | "Both";
 

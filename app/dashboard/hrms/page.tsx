@@ -9,7 +9,7 @@ import {
   Timeline as TimelineIcon,
   PendingActions as PendingActionsIcon,
 } from "@mui/icons-material";
-import { MetricCard } from "@/components/dashboard";
+import { MetricCard } from "@/components/layout/dashboard";
 import {
   Typography,
   Dropdown,

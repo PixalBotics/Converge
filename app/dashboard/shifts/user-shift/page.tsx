@@ -3,8 +3,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Box from "@mui/material/Box";
 import type { SxProps, Theme } from "@mui/material/styles";
-import { useTheme } from "@mui/material/styles";
-import type { AppTheme } from "@/theme/theme";
 import {
   Typography,
   ConfirmActionModal,
@@ -71,7 +69,6 @@ function mapApiRecordToUserType(obj: Record<string, unknown> | null): UserType {
 }
 
 export default function UserShiftPage() {
-  const theme = useTheme() as AppTheme;
   const { isPlatformAdmin, user: authUser } = useAuth();
   const mayPickInternalUserTypeFilter = useMemo(
     () => sessionMayPickInternalUserScope(isPlatformAdmin, authUser?.userType),

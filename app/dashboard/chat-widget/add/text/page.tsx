@@ -10,7 +10,7 @@ import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import { Button, InputField, SelectField, Typography } from "@/components/common";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
-import { WidgetFlowShell } from "@/components/dashboard/WidgetFlowShell";
+import { WidgetFlowShell } from "@/features/chat-widget";
 
 export default function TextUsWidgetPage() {
   const router = useRouter();

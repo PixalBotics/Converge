@@ -21,25 +21,45 @@ const fullPageDark = {
   gap: 2,
 };
 
+/** In-dashboard route fallback: no auth gradient. Avoid `flex:1` on `<main>` — it breaks page grids. */
+const embeddedInShell = {
+  width: "100%",
+  boxSizing: "border-box",
+  minHeight: "min(calc(100dvh - 200px), 900px)",
+  display: "flex",
+  flexDirection: "column" as const,
+  alignItems: "center",
+  justifyContent: "center",
+  gap: 2,
+  background: "transparent",
+  backgroundImage: "none",
+};
+
 export function LoadingScreen({
   message,
   fullPage = true,
+  embedded = false,
 }: LoadingScreenProps) {
-  const containerSx = fullPage
-    ? fullPageDark
-    : {
-        display: "flex",
-        flexDirection: "column" as const,
-        alignItems: "center",
-        justifyContent: "center",
-        gap: 2,
-      };
+  const containerSx = embedded
+    ? embeddedInShell
+    : fullPage
+      ? fullPageDark
+      : {
+          display: "flex",
+          flexDirection: "column" as const,
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 2,
+        };
 
   return (
     <Box sx={containerSx}>
       <div className={styles.loader} role="status" aria-label="Loading" />
       {message != null && message !== "" && (
-        <Typography variant="body2" color="rgba(255,255,255,0.7)">
+        <Typography
+          variant="body2"
+          {...(embedded ? {} : { color: "rgba(255,255,255,0.7)" })}
+        >
           {message}
         </Typography>
       )}

@@ -9,7 +9,7 @@ import { LoadingScreen } from "@/components/common";
 import { AUTH_PATHS, useAuth } from "@/lib/auth";
 import { PERMISSION_BUCKET_PAGE, toPermissionSet } from "@/lib/auth/permissions-model";
 import { canAccessDashboardPath, getFirstAccessibleDashboardPath } from "@/lib/permissions";
-import { DashboardSidebar, DashboardHeader, OperationalViewGate } from "@/components/dashboard";
+import { DashboardSidebar, DashboardHeader, OperationalViewGate } from "@/components/layout/dashboard";
 import { dashboardMainGlassSx, dashboardMainTextSx } from "./dashboard.styles";
 import { mainBackgroundGradient } from "@/theme/theme";
 

@@ -34,8 +34,7 @@ import {
 } from "@/lib/companies/setup-draft.utils";
 import { pickItemsArray, toIdNameOption } from "@/app/dashboard/user-page/components/add-user-modal.utils";
 import { publishAppToast } from "@/lib/notify";
-import { DeleteCircleIcon } from "@/components/dashboard/icons/DeleteCircleIcon";
-import { AddCircleIcon } from "@/components/dashboard/icons/AddCircleIcon";
+import { AddCircleIcon, DeleteCircleIcon } from "@/components/common/icons";
 import {
   stepperOuter,
   stepperSegment,

@@ -16,6 +16,14 @@ export const baseButtonStyles: SxProps<Theme> = {
   boxShadow: "none",
 };
 
+export const compactButtonMetrics: SxProps<Theme> = {
+  py: "8px",
+  px: "18px",
+  minWidth: 112,
+  gap: "6px",
+  fontSize: 14,
+};
+
 export const primaryButtonStyles = (theme: Theme): SxProps<Theme> => ({
   backgroundColor: theme.palette.primary.main,
   color: theme.app.text.primary,

@@ -16,7 +16,7 @@ import {
   ButtonOutline,
 } from "@/components/common";
 import type { DataTableColumn } from "@/components/common";
-import { MetricCard } from "@/components/dashboard";
+import { MetricCard } from "@/components/layout/dashboard";
 import {
   ChatBubbleOutline as ChatBubbleOutlineIcon,
   Forum as ForumIcon,

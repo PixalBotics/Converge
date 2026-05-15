@@ -10,7 +10,7 @@ import type { AppTheme } from "@/theme/theme";
 import { FORM_MODAL_MUI_OVERLAY_Z_INDEX } from "@/lib/ui/dialogStacking";
 import { Label } from "@/components/common/Label";
 import { Typography } from "@/components/common/Typography";
-import { SearchIcon } from "@/components/dashboard/icons/SearchIcon";
+import { SearchIcon } from "@/components/common/icons";
 import type { FilterableComboFieldProps, FilterableComboOption } from "./FilterableComboField.types";
 
 /**

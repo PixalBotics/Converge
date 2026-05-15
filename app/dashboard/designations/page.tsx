@@ -20,7 +20,7 @@ import {
   ToolbarFilterPopover,
 } from "@/components/common";
 import type { DataTableColumn } from "@/components/common";
-import { AddCircleIcon } from "@/components/dashboard/icons/AddCircleIcon";
+import { AddCircleIcon, SearchIcon } from "@/components/common/icons";
 import {
   hrmsDesignationsKeys,
   useCompaniesSetupResellersQuery,
@@ -54,7 +54,6 @@ import {
 } from "./utils";
 import { AddDesignationModal } from "./components/AddDesignationModal";
 import { DeleteDesignationConfirmModal } from "./components/DeleteDesignationConfirmModal";
-import { SearchIcon } from "@/components/dashboard/icons/SearchIcon";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
 import { useAuth } from "@/lib/auth";
 import { canDesignationAction } from "@/lib/permissions";

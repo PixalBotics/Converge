@@ -17,8 +17,8 @@ import {
   TablePagination,
 } from "@/components/common";
 import type { DataTableColumn } from "@/components/common";
-import { MetricCard } from "@/components/dashboard";
-import { ChatsByDepartmentIcon } from "@/components/dashboard/icons/ChatsByDepartmentIcon";
+import { MetricCard } from "@/components/layout/dashboard";
+import { ChatsByDepartmentIcon } from "@/components/common/icons";
 import { userIconPath } from "@/assets";
 import {
   Chat as ChatIcon,

@@ -13,7 +13,7 @@ import type { SxProps, Theme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import { FORM_MODAL_MUI_OVERLAY_Z_INDEX } from "@/lib/ui/dialogStacking";
 import { Typography } from "@/components/common/Typography";
-import { SearchIcon } from "@/components/dashboard/icons/SearchIcon";
+import { SearchIcon } from "@/components/common/icons";
 import { resolveSx } from "@/utils/resolveSx";
 import {
   selectMenuItemSx,

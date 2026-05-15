@@ -11,7 +11,7 @@ import { useBodyScrollLock } from "@/lib/ui/useBodyScrollLock";
 import { dialogBackdropBackground } from "@/lib/ui/dialogBackdrop";
 import { FORM_MODAL_PORTAL_Z_INDEX } from "@/lib/ui/dialogStacking";
 import { ModalGlassShell } from "@/components/common/FormModal/ModalGlassShell";
-import { CloseCircleIcon } from "@/components/dashboard/icons/CloseCircleIcon";
+import { CloseCircleIcon } from "@/components/common/icons";
 import { PoolMembersPanel, type PoolMembersPanelPool } from "./PoolMembersPanel";
 
 export type PoolMembersModalProps = {

@@ -5,32 +5,30 @@ import { useRouter } from "next/navigation";
 import Add from "@mui/icons-material/Add";
 import MoreHoriz from "@mui/icons-material/MoreHoriz";
 import Box from "@mui/material/Box";
-import IconButton from "@mui/material/IconButton";
 import { alpha } from "@mui/material/styles";
 import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import {
+  AppIconButton,
   Button,
   DashboardCard,
+  DashboardFilterSection,
   DataTable,
+  FilterButton,
   SearchBar,
   TablePagination,
   Typography,
 } from "@/components/common";
 import type { DataTableColumn } from "@/components/common";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
+import { dashboardSectionIconBadgeSx } from "@/lib/design-system";
 import {
-  distributionSetupCardTitleRow,
-  distributionSetupCardToolbar,
   distributionSetupFooterRow,
   distributionSetupHeaderActions,
   distributionSetupMainCardSx,
   distributionSetupPageHeader,
   distributionSetupPageWrapper,
   distributionSetupPaginationWrapper,
-  distributionSetupSearchFieldWrapper,
-  distributionSetupSearchRow,
-  distributionSetupSectionIconBox,
 } from "./distribution-setup.styles";
 
 interface DistributionRow extends Record<string, unknown> {
@@ -163,30 +161,29 @@ export default function DistributionSetupPage() {
       </Box>
 
       <DashboardCard sx={distributionSetupMainCardSx}>
-        <Box sx={distributionSetupCardToolbar}>
-          <Box sx={distributionSetupCardTitleRow}>
-            <Box sx={distributionSetupSectionIconBox} aria-hidden>
-              <Typography
-                sx={{
-                  color: theme.app.dashboard.white95,
-                  fontWeight: 700,
-                  fontSize: "1.1rem",
-                  lineHeight: 1,
-                }}
-              >
-                $
+        <DashboardFilterSection
+          titleSlot={
+            <>
+              <Box sx={dashboardSectionIconBadgeSx} aria-hidden>
+                <Typography
+                  sx={{
+                    color: theme.app.dashboard.white95,
+                    fontWeight: 700,
+                    fontSize: "1.1rem",
+                    lineHeight: 1,
+                  }}
+                >
+                  $
+                </Typography>
+              </Box>
+              <Typography variant="mediumLarge" color="white" fontWeight={600} sx={{ textAlign: "left" }}>
+                All Distribution Setup
               </Typography>
-            </Box>
-            <Typography variant="mediumLarge" color="white" fontWeight={600} sx={{ textAlign: "left" }}>
-              All Distribution Setup
-            </Typography>
-          </Box>
-          <Box sx={distributionSetupSearchRow}>
-            <Box sx={distributionSetupSearchFieldWrapper}>
-              <SearchBar value={search} onChange={setSearch} placeholder="Search anything.." sx={{ minWidth: "100%" }} />
-            </Box>
-          </Box>
-        </Box>
+            </>
+          }
+          primarySlot={<SearchBar value={search} onChange={setSearch} placeholder="Search anything.." sx={{ minWidth: "100%" }} />}
+          filterSlot={<FilterButton />}
+        />
 
         <DataTable<DistributionRow>
           columns={columns}
@@ -197,14 +194,9 @@ export default function DistributionSetupPage() {
           actionColumn={{
             label: "Actions",
             render: () => (
-              <IconButton
-                type="button"
-                size="small"
-                aria-label="Row actions"
-                sx={{ color: theme.app.dashboard.iconMuted, "&:hover": { color: theme.app.text.primary } }}
-              >
+              <AppIconButton type="button" aria-label="Row actions" tone="muted">
                 <MoreHoriz fontSize="small" />
-              </IconButton>
+              </AppIconButton>
             ),
           }}
         />
