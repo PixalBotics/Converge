@@ -1,6 +1,4 @@
-export { default as DashboardSidebar, SIDEBAR_WIDTH } from "./DashboardSidebar";
-export { default as DashboardHeader } from "./DashboardHeader";
+/** Explicit `/index` paths so bundlers never resolve deleted `*.tsx` shims next to folders. */
+export { default as DashboardSidebar, SIDEBAR_WIDTH } from "./DashboardSidebar/index";
+export { default as DashboardHeader } from "./DashboardHeader/index";
 export { OperationalViewGate } from "./OperationalViewGate";
-export { default as MetricCard } from "./MetricCard";
-export type { MetricCardProps } from "./MetricCard";
-export { DataNotFoundPlaceholder } from "./DataNotFoundPlaceholder";

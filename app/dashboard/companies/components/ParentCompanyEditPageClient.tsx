@@ -29,7 +29,7 @@ import {
 import { extractNestFieldErrors } from "@/lib/companies/extract-nest-field-errors";
 import { extractApiErrorMessageForToast } from "@/lib/notify/extract-api-message";
 import { publishAppToast } from "@/lib/notify";
-import { isRecord } from "@/lib/utils";
+import { isRecord } from "@/lib/utils/core";
 import { useAuth } from "@/lib/auth";
 import { canCompaniesModuleAction } from "@/lib/permissions";
 import {

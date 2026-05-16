@@ -17,9 +17,18 @@ export function toolbarIconButtonSx(
     width: 36,
     height: 36,
     p: 0,
+    lineHeight: 0,
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
     borderRadius: "10px",
     border: `1px solid ${app.dashboard.cardBorder}`,
     color,
+    "& .MuiSvgIcon-root": {
+      display: "block",
+      lineHeight: 0,
+      margin: 0,
+    },
     "&:hover": {
       backgroundColor: app.dashboard.overlayLight,
       borderColor: theme.palette.primary.main,

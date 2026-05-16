@@ -1,5 +1,5 @@
 import type { UnknownRecord, UserRow, UserSuggestion } from "./types";
-import { unwrapApiData } from "@/lib/utils/api-payload";
+import { unwrapApiData } from "@/lib/utils/core";
 
 export function asRecord(value: unknown): UnknownRecord | null {
   return value && typeof value === "object" && !Array.isArray(value)

@@ -6,7 +6,7 @@ import Chip from "@mui/material/Chip";
 import List from "@mui/material/List";
 import ListItemButton from "@mui/material/ListItemButton";
 import ListItemText from "@mui/material/ListItemText";
-import { alpha, useTheme } from "@mui/material/styles";
+import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import {
   Button,
@@ -15,11 +15,12 @@ import {
   SelectField,
   TablePagination,
   ToolbarFilterPopover,
+  ToolbarFilterPopoverPanel,
   Typography,
 } from "@/components/common";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
 import { rolesCard, rolesPaginationWrapper } from "@/app/dashboard/roles/roles.styles";
-import { HRMS_SHIFTS_LIST_SEARCH_MAX } from "@/lib/utils/hrms-shifts-list-params";
+import { HRMS_SHIFTS_LIST_SEARCH_MAX } from "@/lib/utils/hrms";
 import {
   userShiftFilterPopoverPairRowSx,
   userShiftFilterPopoverStackSx,
@@ -152,14 +153,23 @@ export function UsersSidebar({
   }, [onClearFilters]);
 
   const userListFilterPanel = useMemo(() => {
-    const sectionRule = `1px solid ${alpha(theme.palette.divider, 0.9)}`;
     return (
-      <Box sx={{ color: theme.palette.text.primary }}>
-        <Box sx={{ px: 2.25, pt: 2, pb: 1.5 }}>
-          <Typography variant="medium" fontWeight={700} sx={{ color: theme.palette.text.primary, mb: 1.5 }}>
-            Filters
-          </Typography>
-          <Box sx={userShiftFilterPopoverStackSx}>
+      <ToolbarFilterPopoverPanel
+        footer={
+          <>
+            <Button type="button" variant="secondary" disabled={filterClearDisabled} onClick={handleClearFilters}>
+              Clear filters
+            </Button>
+            <Button type="button" variant="primary" sx={gradientPrimaryButtonSx} onClick={() => setFilterOpen(false)}>
+              Done
+            </Button>
+          </>
+        }
+      >
+        <Typography variant="medium" fontWeight={700} sx={{ color: theme.palette.text.primary, mb: 1.5 }}>
+          Filters
+        </Typography>
+        <Box sx={userShiftFilterPopoverStackSx}>
             <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
               <Chip
                 size="small"
@@ -241,39 +251,7 @@ export function UsersSidebar({
           >
             {filterHint}
           </Typography>
-        </Box>
-        <Box
-          sx={{
-            display: "flex",
-            flexDirection: { xs: "column", sm: "row" },
-            justifyContent: "space-between",
-            alignItems: "stretch",
-            gap: 1.5,
-            px: 2.25,
-            py: 1.75,
-            borderTop: sectionRule,
-            bgcolor: alpha(theme.palette.action.hover, theme.palette.mode === "light" ? 0.5 : 0.35),
-          }}
-        >
-          <Button
-            type="button"
-            variant="secondary"
-            disabled={filterClearDisabled}
-            onClick={handleClearFilters}
-            sx={(t) => ({
-              minWidth: { xs: 0, sm: 140 },
-              width: { xs: "100%", sm: "auto" },
-              flexShrink: 0,
-              border: `1px solid ${alpha((t as AppTheme).palette.divider, 0.9)}`,
-            })}
-          >
-            Clear filters
-          </Button>
-          <Button type="button" variant="primary" sx={gradientPrimaryButtonSx} onClick={() => setFilterOpen(false)}>
-            Done
-          </Button>
-        </Box>
-      </Box>
+      </ToolbarFilterPopoverPanel>
     );
   }, [
     theme,

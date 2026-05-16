@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from "react";
 import Box from "@mui/material/Box";
-import Divider from "@mui/material/Divider";
 import { useTheme } from "@mui/material/styles";
 import type { FilterKind, UserListTypeFilter, UserSuggestion } from "../types";
 import { FILTER_KIND_OPTIONS } from "../types";
@@ -12,7 +11,9 @@ import {
   Button,
   SegmentedControl,
   ToolbarFilterPopover,
+  ToolbarFilterPopoverPanel,
   Typography,
+  Divider,
   type FilterableComboOption,
 } from "@/components/common";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
@@ -112,7 +113,25 @@ export function UserSearchToolbar(props: Props) {
           Search
         </Button>
         <ToolbarFilterPopover open={filterOpen} onOpenChange={setFilterOpen} active={filterActive}>
-          <Box sx={{ p: 2, color: theme.app.text.primary, maxWidth: 400 }}>
+          <ToolbarFilterPopoverPanel
+            footer={
+              <>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => {
+                    onResetListFilters();
+                    setFilterOpen(false);
+                  }}
+                >
+                  Reset
+                </Button>
+                <Button type="button" variant="primary" sx={gradientPrimaryButtonSx} onClick={() => setFilterOpen(false)}>
+                  Done
+                </Button>
+              </>
+            }
+          >
             <Typography variant="medium" fontWeight={700} sx={{ mb: 0.5, color: theme.app.text.primary }}>
               List filters
             </Typography>
@@ -137,7 +156,7 @@ export function UserSearchToolbar(props: Props) {
 
             {externalScopeEnabled ? (
               <>
-                <Divider sx={{ my: 2, borderColor: theme.app.dashboard.cardBorder }} />
+                <Divider sx={{ my: 2, borderBottom: `1px solid ${theme.app.dashboard.cardBorder}` }} />
                 <Box
                   sx={{
                     p: 1.5,
@@ -175,23 +194,7 @@ export function UserSearchToolbar(props: Props) {
                 </Box>
               </>
             ) : null}
-
-            <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1.5, justifyContent: "flex-end", mt: 2 }}>
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={() => {
-                  onResetListFilters();
-                  setFilterOpen(false);
-                }}
-              >
-                Reset
-              </Button>
-              <Button type="button" variant="primary" sx={gradientPrimaryButtonSx} onClick={() => setFilterOpen(false)}>
-                Done
-              </Button>
-            </Box>
-          </Box>
+          </ToolbarFilterPopoverPanel>
         </ToolbarFilterPopover>
       </Box>
     </Box>

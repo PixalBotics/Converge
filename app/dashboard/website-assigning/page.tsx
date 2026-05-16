@@ -19,6 +19,7 @@ import {
   SearchBar,
   SelectField,
   ToolbarFilterPopover,
+  ToolbarFilterPopoverPanel,
   Typography,
 } from "@/components/common";
 import { useCompaniesByResellerQuery, useCompaniesSetupResellersQuery, useWebsiteAssignmentsWebsitesQuery } from "@/lib/hooks";
@@ -319,7 +320,30 @@ export default function WebsiteAssigningPage() {
                 filterAssigned || filterResellerId.trim() || filterParentCompanyId.trim() || filterChildCompanyId.trim(),
               )}
             >
-              <Box sx={{ p: 2, color: theme.app.text.primary }}>
+              <ToolbarFilterPopoverPanel
+                footer={
+                  <>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={() => {
+                        setFilterAssigned("");
+                        setFilterResellerId("");
+                        setFilterParentCompanyId("");
+                        setFilterChildCompanyId("");
+                        setSearchInput("");
+                        setSearch("");
+                        setPage(1);
+                      }}
+                    >
+                      Reset
+                    </Button>
+                    <Button type="button" variant="primary" sx={gradientPrimaryButtonSx} onClick={() => setFilterPopoverOpen(false)}>
+                      Done
+                    </Button>
+                  </>
+                }
+              >
                 <Box sx={websiteAssignmentFilterGrid}>
                   <SelectField
                     label="Assigned"
@@ -351,27 +375,7 @@ export default function WebsiteAssigningPage() {
                     disabled={!filterResellerId.trim() || !filterParentCompanyId.trim()}
                   />
                 </Box>
-                <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1.5, justifyContent: "flex-end", mt: 2 }}>
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    onClick={() => {
-                      setFilterAssigned("");
-                      setFilterResellerId("");
-                      setFilterParentCompanyId("");
-                      setFilterChildCompanyId("");
-                      setSearchInput("");
-                      setSearch("");
-                      setPage(1);
-                    }}
-                  >
-                    Reset
-                  </Button>
-                  <Button type="button" variant="primary" sx={gradientPrimaryButtonSx} onClick={() => setFilterPopoverOpen(false)}>
-                    Done
-                  </Button>
-                </Box>
-              </Box>
+              </ToolbarFilterPopoverPanel>
             </ToolbarFilterPopover>
           </Box>
         </Box>

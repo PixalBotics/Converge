@@ -25,7 +25,7 @@ export function Button({
   const density = size === "compact" || size === "small" ? "compact" : "default";
   const theme = useTheme();
   const muiVariant = variant === "outlined" ? "outlined" : "contained";
-  /** `contained` defaults to `color="primary"`, which forces primary label colors — invisible on light `pillBg` (e.g. Nitro mint). */
+  /** `contained` + `color="primary"` forces primary label colors — bad on `pillBg`. `danger` uses token fill via `dangerButtonStyles`. */
   const muiColor = colorProp ?? (variant === "primary" ? "primary" : "inherit");
   const mergedSx = {
     ...baseButtonStyles,

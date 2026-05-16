@@ -34,7 +34,19 @@ export function SearchBar({ value, onChange, placeholder = "Search anything..", 
         ] as SxProps<Theme>
       }
     >
-      <SearchIcon sx={{ color: app.dashboard.iconMuted, fontSize: 18 }} width={18} height={18} />
+      <Box
+        aria-hidden
+        sx={{
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          flexShrink: 0,
+          lineHeight: 0,
+          color: app.dashboard.iconMuted,
+        }}
+      >
+        <SearchIcon width={18} height={18} />
+      </Box>
       <InputBase
         placeholder={placeholder}
         value={value}

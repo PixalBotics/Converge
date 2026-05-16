@@ -7,7 +7,7 @@ import { Typography } from "@/components/common";
 import type { DataTableColumn } from "@/components/common";
 import { rolesPageWrapper } from "../../roles/roles.styles";
 import { pageWrapper } from "../../companies/overview.styles";
-import { formatIsoDate, isRecord, pickNum, pickStr, unwrapApiData } from "@/lib/utils";
+import { formatIsoDate, isRecord, pickNum, pickStr, unwrapApiData } from "@/lib/utils/core";
 import { publishAppToast } from "@/lib/notify";
 import {
   useDecideLeaveTenantMutation,

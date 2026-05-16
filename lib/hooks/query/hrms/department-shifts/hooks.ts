@@ -6,7 +6,7 @@ import type { JsonRecord } from "@/api";
 import {
   buildHrmsDepartmentShiftsListQueryRecord,
   type HrmsDepartmentShiftsListQueryInput,
-} from "@/lib/utils/hrms-department-shifts-list-params";
+} from "@/lib/utils/hrms";
 import { hrmsDepartmentShiftsKeys } from "./keys";
 
 /** `GET /hrms/department-shifts` — camelCase: `page`, `limit`, `all`, `departmentId`, `parentCompanyId`, `search`, `shiftScope`. */

@@ -14,7 +14,7 @@ import type { AppTheme } from "@/theme/theme";
 import { useTheme } from "@mui/material/styles";
 import { useAttendanceMeQuery } from "@/lib/hooks/query";
 import { publishAppToast } from "@/lib/notify";
-import { isRecord, unwrapApiData } from "@/lib/utils";
+import { isRecord, unwrapApiData } from "@/lib/utils/core";
 import { EmptyAttendanceState } from "../components/EmptyAttendanceState";
 import { useAuth } from "@/lib/auth";
 import { OP } from "@/lib/permissions";

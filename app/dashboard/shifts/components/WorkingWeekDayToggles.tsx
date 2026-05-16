@@ -11,7 +11,7 @@ import {
   clampWorkingDaysMask,
   formatWorkingDaysMaskHuman,
   toggleDayInWorkingDaysMask,
-} from "@/lib/utils/shift-working-days";
+} from "@/lib/utils/hrms";
 
 const DAYS: { bit: number; letter: string; full: string }[] = [
   { bit: 0, letter: "M", full: "Monday" },

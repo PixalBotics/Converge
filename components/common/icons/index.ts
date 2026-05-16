@@ -8,6 +8,7 @@ export {
   DollarBadgeIcon,
   HeaderSettingsIcon,
   SearchIcon,
+  SidebarNavIconSlot,
   SidebarReactIcon,
   SIDEBAR_ICON_BY_KEY,
 } from "./app-icons";

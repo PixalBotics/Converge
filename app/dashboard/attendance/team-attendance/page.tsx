@@ -27,7 +27,7 @@ import {
   usePoolsListQuery,
   useUsersListQuery,
 } from "@/lib/hooks/query";
-import { isRecord, pickStr, unwrapApiData } from "@/lib/utils";
+import { isRecord, pickStr, unwrapApiData } from "@/lib/utils/core";
 import { extractUsersRows } from "@/app/dashboard/user-page/utils";
 import { pickItemsArray, toIdNameOption } from "@/app/dashboard/user-page/components/add-user-modal.utils";
 import { EmptyAttendanceState } from "../components/EmptyAttendanceState";

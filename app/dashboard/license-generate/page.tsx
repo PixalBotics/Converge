@@ -16,6 +16,7 @@ import {
   SelectField,
   TablePagination,
   ToolbarFilterPopover,
+  ToolbarFilterPopoverPanel,
   Typography,
 } from "@/components/common";
 import type { DataTableColumn } from "@/components/common";
@@ -253,7 +254,29 @@ export default function LicenseGeneratePage() {
               onOpenChange={setFilterPopoverOpen}
               active={Boolean(mode !== "issued" || filterResellerId.trim() || filterParentCompanyId.trim())}
             >
-              <Box sx={{ p: 2, color: theme.app.text.primary }}>
+              <ToolbarFilterPopoverPanel
+                footer={
+                  <>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={() => {
+                        setMode("issued");
+                        setFilterResellerId("");
+                        setFilterParentCompanyId("");
+                        setSearchInput("");
+                        setSearch("");
+                        setPage(1);
+                      }}
+                    >
+                      Reset
+                    </Button>
+                    <Button type="button" variant="primary" sx={gradientPrimaryButtonSx} onClick={() => setFilterPopoverOpen(false)}>
+                      Done
+                    </Button>
+                  </>
+                }
+              >
                 <Box sx={licenseGenerateFilterGrid}>
                   <SelectField
                     label="Mode"
@@ -283,26 +306,7 @@ export default function LicenseGeneratePage() {
                     disabled={!filterResellerId.trim()}
                   />
                 </Box>
-                <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1.5, justifyContent: "flex-end", mt: 2 }}>
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    onClick={() => {
-                      setMode("issued");
-                      setFilterResellerId("");
-                      setFilterParentCompanyId("");
-                      setSearchInput("");
-                      setSearch("");
-                      setPage(1);
-                    }}
-                  >
-                    Reset
-                  </Button>
-                  <Button type="button" variant="primary" sx={gradientPrimaryButtonSx} onClick={() => setFilterPopoverOpen(false)}>
-                    Done
-                  </Button>
-                </Box>
-              </Box>
+              </ToolbarFilterPopoverPanel>
             </ToolbarFilterPopover>
           </Box>
         </Box>

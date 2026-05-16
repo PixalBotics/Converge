@@ -2,7 +2,7 @@ import { useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react";
 import Box from "@mui/material/Box";
 import { Typography } from "@/components/common/Typography/Typography";
-import DashboardHeader from "@/components/layout/dashboard/DashboardHeader";
+import { DashboardHeader } from "@/components/layout/dashboard";
 
 const meta = {
   title: "Dashboard/Header",

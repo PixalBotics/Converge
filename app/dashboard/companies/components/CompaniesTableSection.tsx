@@ -188,9 +188,14 @@ export function CompaniesTableSection({
         <Box sx={departmentsCardHeader}>
           <Box sx={cardTitleRow}>
             <Box sx={cardTitleIconBox}>
-              <AttachMoneyIcon sx={attachMoneyIconSx(theme)} />
+              <AttachMoneyIcon sx={attachMoneyIconSx(theme)} inheritViewBox />
             </Box>
-            <Typography variant="mediumLarge" color="white" fontWeight={600}>
+            <Typography
+              variant="mediumLarge"
+              color="white"
+              fontWeight={600}
+              sx={{ lineHeight: 1.25, display: "inline-flex", alignItems: "center" }}
+            >
               Add Reseller / Company
             </Typography>
           </Box>

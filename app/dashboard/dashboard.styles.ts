@@ -385,8 +385,21 @@ export const liveOverviewHeaderIconBox: SxProps<Theme> = {
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
+  flexShrink: 0,
+  lineHeight: 0,
   color: "#E9D5FF",
   boxShadow: "none",
+  "& > *": {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  "& .MuiSvgIcon-root": {
+    display: "block",
+    lineHeight: 0,
+    margin: 0,
+  },
+  "& svg": { display: "block", verticalAlign: "middle" },
 };
 
 export const liveOverviewWaitingCard: SxProps<Theme> = {
@@ -454,7 +467,11 @@ export const tableAvatar: SxProps<Theme> = {
   height: 32,
   bgcolor: "#3B82F6",
   color: "white",
-  "& .MuiSvgIcon-root": { fontSize: 18 },
+  "& .MuiSvgIcon-root": {
+    fontSize: 18,
+    display: "block",
+    lineHeight: 0,
+  },
 };
 
 export const tableAvatarIcon: SxProps<Theme> = {

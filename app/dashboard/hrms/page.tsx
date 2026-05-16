@@ -9,7 +9,7 @@ import {
   Timeline as TimelineIcon,
   PendingActions as PendingActionsIcon,
 } from "@mui/icons-material";
-import { MetricCard } from "@/components/layout/dashboard";
+import { MetricCard } from "@/components/common";
 import {
   Typography,
   Dropdown,
@@ -36,7 +36,7 @@ import {
   approveButtonSx,
   rejectButtonSx,
   statusPill,
-} from "./hrms.styles";
+} from "./styles";
 import { last30DaysButton } from "../dashboard.styles";
 import { useAuth } from "@/lib/auth";
 import { OP } from "@/lib/permissions";

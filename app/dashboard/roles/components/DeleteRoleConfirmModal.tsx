@@ -121,26 +121,11 @@ export function DeleteRoleConfirmModal({
           </Button>
           <Button
             type="button"
-            variant="outlined"
+            variant="danger"
             onClick={onConfirm}
             disabled={isDeleting}
             startIcon={<DeleteOutline sx={{ fontSize: 18 }} />}
-            sx={(t) => {
-              const th = t as AppTheme;
-              return {
-                minWidth: 120,
-                borderColor: alpha(th.palette.error.main, 0.85),
-                color: th.palette.error.light,
-                "&:hover": {
-                  borderColor: th.palette.error.main,
-                  backgroundColor: alpha(th.palette.error.main, 0.12),
-                },
-                "&.Mui-disabled": {
-                  borderColor: th.palette.action.disabled,
-                  color: th.palette.action.disabled,
-                },
-              };
-            }}
+            sx={{ minWidth: 120 }}
           >
             {isDeleting ? "Deleting…" : "Delete role"}
           </Button>

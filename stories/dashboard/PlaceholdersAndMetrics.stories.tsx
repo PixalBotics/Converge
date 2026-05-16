@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import Box from "@mui/material/Box";
 import PeopleAltOutlined from "@mui/icons-material/PeopleAltOutlined";
-import { DataNotFoundPlaceholder, MetricCard } from "@/components/layout/dashboard";
+import { DataNotFoundPlaceholder, MetricCard } from "@/components/common";
 
 const meta = {
   title: "Dashboard/Placeholders & metrics",

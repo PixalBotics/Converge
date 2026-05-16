@@ -36,6 +36,8 @@ export interface FormModalProps {
   cancelButtonLabel?: string;
   /** When false, hides the cancel button entirely. Default: true */
   showCancelButton?: boolean;
+  /** `danger` — red destructive submit (e.g. delete user). Default `primary` uses gradient CTA styles. */
+  primaryButtonVariant?: "primary" | "danger";
   /** Primary action icon (e.g. sparkle) — uses shared gradient primary button. */
   primaryStartIcon?: ReactNode;
   /** Modal card max width (default 540). */
@@ -63,6 +65,7 @@ export function FormModal({
   primaryButtonDisabled = false,
   cancelButtonLabel = "Cancel",
   showCancelButton = true,
+  primaryButtonVariant = "primary",
   primaryStartIcon,
   maxWidth = 540,
   fitContent = false,
@@ -226,10 +229,10 @@ export function FormModal({
             </Button>
           )}
           <Button
-            variant="primary"
+            variant={primaryButtonVariant === "danger" ? "danger" : "primary"}
             onClick={onSave}
             disabled={primaryButtonDisabled}
-            sx={gradientPrimaryButtonSx}
+            sx={primaryButtonVariant === "danger" ? undefined : gradientPrimaryButtonSx}
             startIcon={primaryStartIcon}
           >
             {primaryButtonLabel}

@@ -15,7 +15,7 @@ import {
   applyLeaveIconSx,
 } from "../apply-leave/apply-leave.styles";
 import { leaveBalanceHeaderWrapSx, leaveBalanceSubtextSx } from "./leave-balance.styles";
-import { unwrapApiData, isRecord, pickNum, pickStr } from "@/lib/utils";
+import { unwrapApiData, isRecord, pickNum, pickStr } from "@/lib/utils/core";
 import { useLeaveQuotaSummaryQuery } from "@/lib/hooks/query";
 import { useAuth } from "@/lib/auth";
 import { OP } from "@/lib/permissions";

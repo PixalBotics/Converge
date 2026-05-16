@@ -1,4 +1,4 @@
-import { HRMS_SHIFTS_LIST_SEARCH_MAX, type HrmsShiftsListShiftScope } from "./hrms-shifts-list-params";
+import { HRMS_SHIFTS_LIST_SEARCH_MAX, type HrmsShiftsListShiftScope } from "./shifts-list-params";
 
 /** Server-side list filter for `GET /hrms/department-shifts` (camelCase query keys only). */
 export type HrmsDepartmentShiftsListQueryInput = {

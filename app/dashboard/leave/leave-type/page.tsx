@@ -17,7 +17,7 @@ import {
   leaveTypeSubtextSx,
 } from "./leave-type.styles";
 import { useCreateLeaveTypeMutation, useDeleteLeaveTypeMutation, useLeaveTypesListQuery, useUpdateLeaveTypeMutation } from "@/lib/hooks/query";
-import { isRecord, pickNum, pickStr, unwrapApiData } from "@/lib/utils";
+import { isRecord, pickNum, pickStr, unwrapApiData } from "@/lib/utils/core";
 import { LeaveTypeModals, LeaveTypesTableCard } from "./components";
 import { useAuth } from "@/lib/auth";
 import { canLeaveTypeManage, canLeaveTypeView } from "@/lib/permissions";

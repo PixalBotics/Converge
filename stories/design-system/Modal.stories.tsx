@@ -49,6 +49,7 @@ function ConfirmDemo() {
         title="Discard changes?"
         description="You’ll lose edits that weren’t synced to the platform."
         confirmLabel="Discard"
+        confirmButtonVariant="danger"
         onDismiss={() => setOpen(false)}
         onConfirm={() => setOpen(false)}
       />

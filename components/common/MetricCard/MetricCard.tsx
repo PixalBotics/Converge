@@ -1,24 +1,10 @@
 "use client";
 
-import type { ReactNode } from "react";
 import Box from "@mui/material/Box";
 import { getLuminance, lighten, useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import { Typography, DashboardCard } from "@/components/common";
-
-export interface MetricCardProps {
-  title: string;
-  value: string;
-  subtitle?: string;
-  icon: ReactNode;
-  iconBgColor: string;
-  /** Value text color (e.g. card-specific accent). Default: theme primary (accent). */
-  valueColor?: string;
-  /** Subtitle color (e.g. error for alert). Default: theme `dashboard.white60`. */
-  subtitleColor?: string;
-  /** Show green trend arrow before subtitle. Default: true */
-  showTrendArrow?: boolean;
-}
+import type { MetricCardProps } from "./MetricCard.types";
 
 /** Dark cards: custom/dark accents (e.g. forest green) must not match near-black text. */
 function readableMetricValueColor(theme: AppTheme, color: string): string {
@@ -56,7 +42,7 @@ function TrendArrowUp({ strokeColor }: { strokeColor: string }) {
   );
 }
 
-export default function MetricCard({
+export function MetricCard({
   title,
   value,
   subtitle,
@@ -74,7 +60,6 @@ export default function MetricCard({
 
   return (
     <DashboardCard sx={{ p: 2.5 }}>
-      {/* Icon top-left */}
       <Box
         sx={{
           width: 44,
@@ -84,17 +69,28 @@ export default function MetricCard({
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
+          flexShrink: 0,
           color: app.dashboard.gradientButtonText,
           mb: 1.5,
+          lineHeight: 0,
+          "& > *": {
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          },
+          "& .MuiSvgIcon-root": {
+            display: "block",
+            lineHeight: 0,
+            margin: 0,
+          },
+          "& svg": { display: "block", verticalAlign: "middle" },
         }}
       >
         {icon}
       </Box>
-      {/* Title */}
       <Typography variant="body2" fontWeight={500} sx={{ mb: 0.75, color: app.dashboard.white90 }}>
         {title}
       </Typography>
-      {/* Value - large, accent color */}
       <Typography
         variant="h4"
         fontWeight={700}
@@ -102,7 +98,6 @@ export default function MetricCard({
       >
         {value}
       </Typography>
-      {/* Subtitle with optional trend arrow */}
       {subtitle && (
         <Typography
           variant="caption"

@@ -7,7 +7,7 @@ import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos";
 import { alpha, useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import { Button, dataTableActionButton, Typography } from "@/components/common";
-import { isCalendarWorkingDayForMask } from "@/lib/utils/shift-working-days";
+import { isCalendarWorkingDayForMask } from "@/lib/utils/hrms";
 import type { MonthGridCalendarProps } from "./MonthGridCalendar.types";
 
 export function MonthGridCalendar({

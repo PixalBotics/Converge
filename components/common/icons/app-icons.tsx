@@ -5,7 +5,7 @@
  * Import from `@/components/common/icons` everywhere.
  */
 
-import type { ComponentType } from "react";
+import type { ComponentType, ReactNode } from "react";
 import type { SxProps, Theme } from "@mui/material/styles";
 import type { SvgIconProps } from "@mui/material/SvgIcon";
 import Box from "@mui/material/Box";
@@ -61,6 +61,10 @@ function sizedIconSx(
     width,
     height,
     fontSize: Math.min(width, height),
+    display: "block",
+    lineHeight: 0,
+    flexShrink: 0,
+    boxSizing: "border-box",
   };
   return sx ? ([base, sx] as SxProps<Theme>) : base;
 }
@@ -98,15 +102,43 @@ export const SIDEBAR_ICON_BY_KEY = {
   websiteAssignments: LanguageOutlined,
 } satisfies Record<DashboardSidebarIconKey, SidebarGlyph>;
 
+const SIDEBAR_ICON_SLOT_PX = 24;
+
+/** Wraps any MUI glyph in the same fixed box used beside sidebar labels (logout/login, etc.). */
+export function SidebarNavIconSlot({ children }: { children: ReactNode }) {
+  return (
+    <Box
+      component="span"
+      sx={{
+        width: SIDEBAR_ICON_SLOT_PX,
+        height: SIDEBAR_ICON_SLOT_PX,
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        flexShrink: 0,
+        lineHeight: 0,
+        verticalAlign: "middle",
+      }}
+    >
+      {children}
+    </Box>
+  );
+}
+
+/** Fixed slot + default viewBox — avoids dense-nav optical drift from `inheritViewBox` in a narrow column. */
 export function SidebarReactIcon({
   iconKey,
-  size = 18,
+  size = 20,
 }: {
   iconKey: DashboardSidebarIconKey;
   size?: number;
 }) {
   const Icon = SIDEBAR_ICON_BY_KEY[iconKey] ?? DashboardRounded;
-  return <Icon sx={{ width: size, height: size, fontSize: size }} />;
+  return (
+    <SidebarNavIconSlot>
+      <Icon sx={sizedIconSx(size, size)} />
+    </SidebarNavIconSlot>
+  );
 }
 
 export function SearchIcon({ sx, width = 24, height = 24 }: AppIconSvgProps) {

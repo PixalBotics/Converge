@@ -24,19 +24,21 @@ import {
   ConfirmActionModal,
   SearchBar,
   ToolbarFilterPopover,
+  ToolbarFilterPopoverPanel,
 } from "@/components/common";
 import type { DataTableColumn } from "@/components/common";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
 import { rolesCard, rolesIconBox, rolesPageWrapper } from "../../roles/roles.styles";
 import { footerMutedText, pageWrapper } from "../../companies/overview.styles";
 import { publishAppToast } from "@/lib/notify";
-import { HRMS_SHIFTS_LIST_SEARCH_MAX, isRecord, pickNum, pickStr, unwrapApiData } from "@/lib/utils";
+import { isRecord, pickNum, pickStr, unwrapApiData } from "@/lib/utils/core";
 import {
+  HRMS_SHIFTS_LIST_SEARCH_MAX,
   clampWorkingDaysMask,
   effectiveWorkingDaysMask,
   formatWorkingDaysMaskHuman,
   HRMS_DEFAULT_WORKING_DAYS_MASK,
-} from "@/lib/utils/shift-working-days";
+} from "@/lib/utils/hrms";
 import {
   useAssignPoolShiftMutation,
   useCompaniesByResellerQuery,
@@ -582,14 +584,23 @@ export default function PoolShiftPage() {
   }, [listSearchDraft]);
 
   const poolShiftListFilterPanel = useMemo(() => {
-    const sectionRule = `1px solid ${alpha(theme.app.dashboard.white95, 0.1)}`;
     return (
-      <Box sx={{ color: theme.app.text.primary }}>
-        <Box sx={{ px: 2.25, pt: 2, pb: 1.5 }}>
-          <Typography variant="medium" fontWeight={700} sx={{ color: theme.app.text.primary, mb: 1.5 }}>
-            Filters
-          </Typography>
-          <Box sx={poolShiftFilterPopoverStackSx}>
+      <ToolbarFilterPopoverPanel
+        footer={
+          <>
+            <Button type="button" variant="secondary" disabled={filterClearDisabled} onClick={clearFilters}>
+              Clear filters
+            </Button>
+            <Button type="button" variant="primary" sx={gradientPrimaryButtonSx} onClick={() => setListFilterOpen(false)}>
+              Done
+            </Button>
+          </>
+        }
+      >
+        <Typography variant="medium" fontWeight={700} sx={{ color: theme.app.text.primary, mb: 1.5 }}>
+          Filters
+        </Typography>
+        <Box sx={poolShiftFilterPopoverStackSx}>
             {mayPickInternal ? (
               <SelectField
                 label="Department type"
@@ -644,39 +655,7 @@ export default function PoolShiftPage() {
           <Typography variant="body2" sx={{ ...poolShiftFilterHintSx, mt: 1.5 }}>
             {filterHint}
           </Typography>
-        </Box>
-        <Box
-          sx={{
-            display: "flex",
-            flexDirection: { xs: "column", sm: "row" },
-            justifyContent: "space-between",
-            alignItems: "stretch",
-            gap: 1.5,
-            px: 2.25,
-            py: 1.75,
-            borderTop: sectionRule,
-            bgcolor: alpha(theme.app.dashboard.white95, 0.06),
-          }}
-        >
-          <Button
-            type="button"
-            variant="secondary"
-            disabled={filterClearDisabled}
-            onClick={clearFilters}
-            sx={(t) => ({
-              minWidth: { xs: 0, sm: 140 },
-              width: { xs: "100%", sm: "auto" },
-              flexShrink: 0,
-              border: `1px solid ${alpha((t as AppTheme).app.dashboard.white95, 0.22)}`,
-            })}
-          >
-            Clear filters
-          </Button>
-          <Button type="button" variant="primary" sx={gradientPrimaryButtonSx} onClick={() => setListFilterOpen(false)}>
-            Done
-          </Button>
-        </Box>
-      </Box>
+      </ToolbarFilterPopoverPanel>
     );
   }, [
     theme,
@@ -1035,6 +1014,7 @@ export default function PoolShiftPage() {
         description="Remove this pool shift assignment?"
         confirmLabel={removeMutation.isPending ? "Removing…" : "Remove"}
         cancelLabel="Cancel"
+        confirmButtonVariant="danger"
         isLoading={removeMutation.isPending}
         onDismiss={() => {
           if (removeMutation.isPending) return;

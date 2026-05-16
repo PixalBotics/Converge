@@ -1,6 +1,6 @@
 import axios from "axios";
-import { pickStr } from "./api-payload";
-import { isRecord } from "./records";
+import { pickStr } from "../core/api-payload";
+import { isRecord } from "../core/records";
 
 /** User-facing message when a paginated HRMS list returns HTTP 403. */
 export function hrmsList403UserMessage(error: unknown): string | null {

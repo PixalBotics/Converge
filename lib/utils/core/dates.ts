@@ -70,4 +70,3 @@ export function shiftApiTimeToTimeInputValue(
   const mm = parts.find((p) => p.type === "minute")?.value ?? "00";
   return `${hh.padStart(2, "0")}:${mm.padStart(2, "0")}`;
 }
-

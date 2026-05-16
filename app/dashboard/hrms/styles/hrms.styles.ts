@@ -64,6 +64,20 @@ export const chartIcon: SxProps<Theme> = {
   display: "inline-flex",
   alignItems: "center",
   justifyContent: "center",
+  flexShrink: 0,
+  lineHeight: 0,
+  verticalAlign: "middle",
+  "& > *": {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  "& .MuiSvgIcon-root": {
+    display: "block",
+    lineHeight: 0,
+    margin: 0,
+  },
+  "& svg": { display: "block", verticalAlign: "middle" },
 };
 
 export const segmentedWrap: SxProps<Theme> = {

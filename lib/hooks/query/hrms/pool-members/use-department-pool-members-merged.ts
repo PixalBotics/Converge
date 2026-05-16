@@ -4,7 +4,7 @@ import { useMemo } from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { listHrmsPoolMembers } from "@/api";
 import type { JsonRecord } from "@/api";
-import { isRecord, pickNum, pickStr, unwrapApiData } from "@/lib/utils";
+import { isRecord, pickNum, pickStr, unwrapApiData } from "@/lib/utils/core";
 import { hrmsPoolMembersKeys } from "./keys";
 
 function rowsFromAggregatePayload(data: unknown): Record<string, unknown>[] {

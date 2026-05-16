@@ -1,121 +1,55 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
-import TextField from "@mui/material/TextField";
-import { useTheme } from "@mui/material/styles";
-import { Colorize } from "@mui/icons-material";
+import { PaletteOutlined } from "@mui/icons-material";
+import { useTheme, type SxProps, type Theme } from "@mui/material/styles";
 import { Button, HoverTooltip, Typography } from "@/components/common";
+import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
 import { useAppearance } from "@/lib/theme/appearance-context";
-import {
-  APPEARANCE_PRESET_BY_ID,
-  APPEARANCE_PRESETS,
-  DEFAULT_THEME_GROUP_IDS,
-  PICK_COLOR_PRESET_ID,
-} from "@/lib/theme/appearance-presets";
-import { getCustomAccentTheme, normalizeHex } from "@/lib/theme/custom-accent-theme";
-import { usePlatformThemeMeQuery, useUpdatePlatformThemeMutation } from "@/lib/hooks/query";
+import { PICK_COLOR_PRESET_ID } from "@/lib/theme/appearance-presets";
+import type { AppearancePreset } from "@/lib/theme/appearance-preset.types";
+import { getCustomAccentTheme } from "@/lib/theme/custom-accent-theme";
 import type { AppTheme } from "@/theme/theme";
-
-function persistBackgroundColorHex(presetId: string, customAccentHex: string): string {
-  if (presetId === PICK_COLOR_PRESET_ID) {
-    return normalizeHex(customAccentHex);
-  }
-  const preset = APPEARANCE_PRESET_BY_ID[presetId];
-  return preset ? normalizeHex(preset.previewBar) : normalizeHex(customAccentHex);
-}
-
-function parseBackgroundColor(raw: unknown): string | null {
-  if (raw == null || String(raw).trim() === "") return null;
-  return normalizeHex(String(raw));
-}
-
-/** Discord Appearance panel (dark charcoal) */
-const DISCORD_PANEL_BG = "#2b2d31";
-const DISCORD_PANEL_BORDER = "#1f2023";
-const DISCORD_SWATCH_RADIUS = "10px";
-/** Selected swatch ring (Discord light outline) */
-const SWATCH_SELECTED_SHADOW = "0 0 0 2px #f2f3f5, 0 0 12px rgba(242, 243, 245, 0.25)";
+import { resolveSx } from "@/utils/resolveSx";
+import { ThemeAccentPickerPopover } from "./ThemeAccentPickerPopover";
+import { ThemeSwatchButton } from "./ThemeSwatchButton";
+import {
+  getDefaultThemePresets,
+  getSolidColorPresets,
+  mutedStatusLineSx,
+  pageSubtitleSx,
+  pageTitleSx,
+  pickerPaletteOutlinedIconSx,
+  savedLineSx,
+  sectionLabelSx,
+  swatchFillInnerSx,
+  unsavedAlertSx,
+  saveActionButtonSx,
+  ThemeColorPickerInner,
+  ThemeColorPickerTrigger,
+  ThemeCustomizeColorGrid,
+  ThemeCustomizeDefaultRow,
+  ThemeCustomizeRoot,
+  ThemeCustomizeSwatchesRow,
+} from "./styles";
+import { useThemeAppearanceSave } from "./use-theme-appearance-save";
 
 export default function ThemeCustomizeClient() {
   const theme = useTheme() as AppTheme;
   const { presetId, setPresetId, presets, customAccentHex, setCustomAccentHex } = useAppearance();
   const [hexDraft, setHexDraft] = useState(customAccentHex);
+  const [colorPopoverAnchor, setColorPopoverAnchor] = useState<HTMLElement | null>(null);
 
-  const platformThemeQuery = usePlatformThemeMeQuery();
-  const { mutate: savePlatformTheme, isPending: isSavingTheme } = useUpdatePlatformThemeMutation();
-
-  /** Last value synced with server (GET or successful Save). `undefined` = initial load not finished. */
-  const [syncedHex, setSyncedHex] = useState<string | null | undefined>(undefined);
-  const hydratedFromServerRef = useRef(false);
-
-  useEffect(() => {
-    if (!platformThemeQuery.isFetched || hydratedFromServerRef.current) return;
-    hydratedFromServerRef.current = true;
-
-    if (platformThemeQuery.isError || !platformThemeQuery.data?.success) {
-      setSyncedHex(null);
-      return;
-    }
-
-    const bg = parseBackgroundColor(platformThemeQuery.data.data.backgroundColor);
-    setSyncedHex(bg);
-
-    if (bg) {
-      const presetMatch = APPEARANCE_PRESETS.find(
-        (p) => p.previewBar.toLowerCase() === bg.toLowerCase(),
-      );
-      if (presetMatch) {
-        setPresetId(presetMatch.id);
-      } else {
-        setPresetId(PICK_COLOR_PRESET_ID);
-        setCustomAccentHex(bg);
-      }
-    }
-  }, [
-    platformThemeQuery.isFetched,
-    platformThemeQuery.isError,
-    platformThemeQuery.data,
-    setPresetId,
-    setCustomAccentHex,
-  ]);
-
-  const persistHex = useMemo(
-    () => persistBackgroundColorHex(presetId, customAccentHex),
-    [presetId, customAccentHex],
+  const { platformThemeQuery, syncedHex, needsSave, isSavingTheme, handleSaveTheme } = useThemeAppearanceSave(
+    presetId,
+    customAccentHex,
+    { setPresetId, setCustomAccentHex },
   );
 
-  const normalizedPersistHex = useMemo(() => normalizeHex(persistHex), [persistHex]);
-
-  const needsSave = useMemo(() => {
-    if (syncedHex === undefined) return false;
-    return (syncedHex ?? "").toLowerCase() !== normalizedPersistHex.toLowerCase();
-  }, [syncedHex, normalizedPersistHex]);
-
-  const handleSaveTheme = useCallback(() => {
-    savePlatformTheme(
-      { backgroundColor: normalizedPersistHex },
-      {
-        onSuccess: (env) => {
-          if (!env.success) return;
-          setSyncedHex(parseBackgroundColor(env.data.backgroundColor));
-        },
-      },
-    );
-  }, [normalizedPersistHex, savePlatformTheme]);
-
-  const defaultThemePresets = useMemo(
-    () =>
-      DEFAULT_THEME_GROUP_IDS.map((id) => presets.find((p) => p.id === id)).filter(
-        (p): p is NonNullable<typeof p> => p != null
-      ),
-    [presets]
-  );
-  const defaultThemeIdSet = useMemo(() => new Set<string>(DEFAULT_THEME_GROUP_IDS), []);
-  const colorThemePresets = useMemo(
-    () => presets.filter((p) => !defaultThemeIdSet.has(p.id)),
-    [presets, defaultThemeIdSet]
-  );
+  const defaultThemePresets = useMemo(() => getDefaultThemePresets(presets), [presets]);
+  const solidColorPresets = useMemo(() => getSolidColorPresets(presets), [presets]);
 
   useEffect(() => {
     setHexDraft(customAccentHex);
@@ -125,339 +59,140 @@ export default function ThemeCustomizeClient() {
     setCustomAccentHex(hexDraft);
   }, [hexDraft, setCustomAccentHex]);
 
-  const renderSwatchFill = (p: (typeof presets)[number]) => {
-    if (p.id === PICK_COLOR_PRESET_ID) {
-      const custom = getCustomAccentTheme(customAccentHex);
-      return { background: custom.appBackground };
-    }
-    return { background: p.appBackground };
-  };
+  const closeColorPopover = useCallback(() => {
+    setColorPopoverAnchor(null);
+    onHexBlur();
+  }, [onHexBlur]);
+
+  const swatchFill = useCallback(
+    (p: AppearancePreset) => {
+      if (p.id === PICK_COLOR_PRESET_ID) {
+        return { background: getCustomAccentTheme(customAccentHex).appBackground };
+      }
+      return { background: p.appBackground };
+    },
+    [customAccentHex],
+  );
+
+  const pickSelected = presetId === PICK_COLOR_PRESET_ID;
 
   return (
-    <Box sx={{ mx: "auto", py: { xs: 2, sm: 3 }}}>
-      <Typography
-        variant="boldLarge"
-        sx={{
-          color: theme.app.text.primary,
-          mb: 0.5,
-          fontSize: { xs: 22, sm: 26 },
-        }}
-      >
+    <ThemeCustomizeRoot>
+      <Typography variant="boldLarge" sx={pageTitleSx}>
         Customize appearance
       </Typography>
-      <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted, mb: 1.5 }}>
-        Choose a theme, then save to sync the accent color to your account (dashboard shell).
+      <Typography variant="medium" sx={pageSubtitleSx}>
+        Choose a theme, then save so your accent syncs to your account (dashboard shell).
       </Typography>
 
-      <Box
-        sx={{
-          display: "flex",
-          flexWrap: "wrap",
-          alignItems: "center",
-          gap: 1.5,
-          mb: 3,
-        }}
-      >
-        <Button
-          type="button"
-          variant="primary"
-          size="small"
-          disabled={syncedHex === undefined || !needsSave || isSavingTheme}
-          loading={isSavingTheme}
-          onClick={handleSaveTheme}
+      {platformThemeQuery.isLoading ? (
+        <Typography variant="small" sx={mutedStatusLineSx}>
+          Loading saved theme…
+        </Typography>
+      ) : platformThemeQuery.isError ? (
+        <Typography variant="small" sx={mutedStatusLineSx}>
+          Could not load saved theme; showing local settings.
+        </Typography>
+      ) : null}
+
+      {syncedHex !== undefined && needsSave && (
+        <Alert severity="warning" variant="outlined" sx={unsavedAlertSx}
+          action={
+            <Button
+              type="button"
+              variant="primary"
+              size="small"
+              disabled={isSavingTheme}
+              onClick={handleSaveTheme}
+              sx={
+                {
+                  ...resolveSx(gradientPrimaryButtonSx, theme),
+                  ...resolveSx(saveActionButtonSx, theme),
+                } as SxProps<Theme>
+              }
+            >
+              {isSavingTheme ? "Saving…" : "Save to account"}
+            </Button>
+          }
         >
-          Save to account
-        </Button>
-        {platformThemeQuery.isLoading ? (
-          <Typography variant="small" sx={{ color: theme.app.dashboard.textMuted }}>
-            Loading saved theme…
-          </Typography>
-        ) : platformThemeQuery.isError ? (
-          <Typography variant="small" sx={{ color: theme.app.dashboard.textMuted }}>
-            Could not load saved theme; showing local settings.
-          </Typography>
-        ) : syncedHex !== undefined && needsSave ? (
-          <Typography variant="small" sx={{ color: theme.app.dashboard.textMuted }}>
-            Unsaved changes
-          </Typography>
-        ) : syncedHex !== undefined && !needsSave ? (
-          <Typography variant="small" sx={{ color: theme.app.dashboard.textMuted }}>
-            Saved
-          </Typography>
-        ) : null}
-      </Box>
+          Unsaved changes — your new colors are only on this device until you save.
+        </Alert>
+      )}
+
+      {syncedHex !== undefined && !needsSave && !platformThemeQuery.isLoading && (
+        <Typography variant="small" sx={savedLineSx}>
+          Saved — dashboard matches your account.
+        </Typography>
+      )}
 
       {defaultThemePresets.length > 0 && (
-        <Box sx={{ mb: 3, ml: 1 }}>
-          <Typography
-            variant="medium16"
-            sx={{
-              fontWeight: 700,
-              color: theme.app.text.primary,
-              mb: 1.5,
-              letterSpacing: 0.3,
-              textTransform: "uppercase",
-              fontSize: 12,
-            }}
-          >
+        <ThemeCustomizeDefaultRow>
+          <Typography variant="medium16" sx={sectionLabelSx}>
             Default theme
           </Typography>
-          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1.25, alignItems: "flex-start" }}>
+          <ThemeCustomizeSwatchesRow>
             {defaultThemePresets.map((p) => (
               <HoverTooltip key={p.id} label={p.label} fullWidth={false}>
-                <SwatchButton
+                <ThemeSwatchButton
+                  shape="tile"
                   compact
                   selected={presetId === p.id}
                   onClick={() => setPresetId(p.id)}
                   ariaLabel={p.label}
                 >
-                  <Box
-                    sx={{
-                      width: "100%",
-                      height: "100%",
-                      borderRadius: DISCORD_SWATCH_RADIUS,
-                      ...renderSwatchFill(p),
-                    }}
-                  />
-                </SwatchButton>
+                  <Box sx={swatchFillInnerSx(theme, { shape: "tile", fill: swatchFill(p) })} />
+                </ThemeSwatchButton>
               </HoverTooltip>
             ))}
-          </Box>
-        </Box>
+          </ThemeCustomizeSwatchesRow>
+        </ThemeCustomizeDefaultRow>
       )}
 
-      <Typography
-        variant="medium16"
-        sx={{
-          fontWeight: 700,
-          color: theme.app.text.primary,
-          mb: 1.5,
-          letterSpacing: 0.3,
-          textTransform: "uppercase",
-          fontSize: 12,
-        }}
-      >
+      <Typography variant="medium16" sx={sectionLabelSx}>
         Color themes
       </Typography>
 
-      <Box
-        sx={{
-          bgcolor: DISCORD_PANEL_BG,
-          border: `1px solid ${DISCORD_PANEL_BORDER}`,
-          borderRadius: "8px",
-          p: { xs: 1.5, sm: 2 },
-          mb: 4,
-        }}
-      >
-        <Box
-          sx={{
-            display: "grid",
-            gridTemplateColumns: {
-              xs: "repeat(3, minmax(0, 1fr))",
-              sm: "repeat(5, minmax(0, 1fr))",
-              md: "repeat(9, minmax(0, 1fr))",
-            },
-            gap: { xs: "8px", sm: "10px" },
-          }}
-        >
-          {colorThemePresets.map((p) => {
-            const selected = p.id === presetId;
-            const fill = renderSwatchFill(p);
-            const isPick = p.id === PICK_COLOR_PRESET_ID;
-
-            return (
-              <HoverTooltip key={p.id} label={p.label}>
-                <SwatchButton
-                  selected={selected}
-                  onClick={() => setPresetId(p.id)}
-                  ariaLabel={p.label}
-                >
-                {isPick ? (
-                  <Box
-                    sx={{
-                      width: "100%",
-                      height: "100%",
-                      p: "2px",
-                      borderRadius: DISCORD_SWATCH_RADIUS,
-                      background:
-                        "conic-gradient(from 200deg, #22d3ee, #a855f7, #ec4899, #eab308, #22d3ee)",
-                      boxSizing: "border-box",
-                    }}
-                  >
-                    <Box
-                      sx={{
-                        width: "100%",
-                        height: "100%",
-                        borderRadius: "8px",
-                        position: "relative",
-                        overflow: "hidden",
-                        ...fill,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                      }}
-                    >
-                      <Colorize
-                        sx={{
-                          width: "42%",
-                          height: "42%",
-                          color: customAccentHex,
-                          opacity: 0.95,
-                          filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.5))",
-                        }}
-                      />
-                    </Box>
-                  </Box>
-                ) : (
-                  <Box
-                    sx={{
-                      width: "100%",
-                      height: "100%",
-                      borderRadius: DISCORD_SWATCH_RADIUS,
-                      ...fill,
-                    }}
-                  />
-                )}
-                </SwatchButton>
-              </HoverTooltip>
-            );
-          })}
-        </Box>
-      </Box>
-
-      <Box
-        sx={{
-          p: 2,
-          borderRadius: 2,
-          border: `1px solid ${theme.app.dashboard.cardBorder}`,
-          background: theme.app.dashboard.cardBg,
-          maxWidth: 420,
-        }}
-      >
-        <Typography variant="medium16" sx={{ fontWeight: 700, color: theme.app.text.primary, mb: 1.5 }}>
-          Color picker
-        </Typography>
-        <Typography variant="small" sx={{ color: theme.app.dashboard.textMuted, mb: 2, display: "block" }}>
-          Pick a color for the &quot;Custom color&quot; theme (conic border swatch above).
-        </Typography>
-        <Box sx={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 2 }}>
-          <Box
-            component="label"
-            sx={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 1,
-              cursor: "pointer",
-            }}
+      <ThemeCustomizeColorGrid>
+        <HoverTooltip label="Custom color — open picker" fullWidth={false}>
+          <ThemeColorPickerTrigger
+            type="button"
+            aria-label="Custom color — open picker"
+            aria-haspopup="dialog"
+            aria-expanded={Boolean(colorPopoverAnchor)}
+            onClick={(e) => setColorPopoverAnchor(e.currentTarget)}
+            $selected={pickSelected}
           >
-            <Box
-              component="span"
-              sx={{
-                width: 48,
-                height: 48,
-                borderRadius: 1,
-                border: `2px solid ${theme.app.dashboard.cardBorder}`,
-                overflow: "hidden",
-                flexShrink: 0,
-              }}
-            >
-              <input
-                type="color"
-                value={customAccentHex}
-                onChange={(e) => setCustomAccentHex(e.target.value)}
-                aria-label="Choose accent color"
-                style={{
-                  width: "160%",
-                  height: "160%",
-                  margin: "-30%",
-                  padding: 0,
-                  border: "none",
-                  cursor: "pointer",
-                }}
-              />
-            </Box>
-            <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted }}>
-              Choose color
-            </Typography>
-          </Box>
-          <TextField
-            size="small"
-            label="Hex"
-            value={hexDraft}
-            onChange={(e) => setHexDraft(e.target.value)}
-            onBlur={onHexBlur}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") onHexBlur();
-            }}
-            sx={{
-              minWidth: 140,
-              "& .MuiOutlinedInput-root": {
-                color: theme.app.text.primary,
-              },
-              "& .MuiInputLabel-root": {
-                color: theme.app.dashboard.textMuted,
-              },
-            }}
-            slotProps={{
-              htmlInput: { spellCheck: false },
-            }}
-          />
-        </Box>
-      </Box>
-    </Box>
-  );
-}
+            <ThemeColorPickerInner $hex={customAccentHex}>
+              <PaletteOutlined inheritViewBox sx={pickerPaletteOutlinedIconSx(theme)} />
+            </ThemeColorPickerInner>
+          </ThemeColorPickerTrigger>
+        </HoverTooltip>
 
-function SwatchButton({
-  children,
-  selected,
-  onClick,
-  ariaLabel,
-  /** Fixed size (Default theme row) — avoids full-width tall square */
-  compact,
-}: {
-  children: React.ReactNode;
-  selected: boolean;
-  onClick: () => void;
-  ariaLabel: string;
-  compact?: boolean;
-}) {
-  return (
-    <Box
-      component="button"
-      type="button"
-      aria-label={ariaLabel}
-      aria-pressed={selected}
-      onClick={onClick}
-      sx={{
-        position: "relative",
-        m: 0,
-        p: 0,
-        border: "none",
-        cursor: "pointer",
-        borderRadius: DISCORD_SWATCH_RADIUS,
-        background: "transparent",
-        boxShadow: selected ? SWATCH_SELECTED_SHADOW : "none",
-        transition: "box-shadow 0.15s ease",
-        "&:focus-visible": {
-          outline: "2px solid #5865f2",
-          outlineOffset: 2,
-        },
-        ...(compact
-          ? {
-              width: 56,
-              height: 56,
-              flexShrink: 0,
-            }
-          : {
-              width: "100%",
-              aspectRatio: "1",
-              minWidth: 0,
-              mx: "auto",
-            }),
-      }}
-    >
-      {children}
-    </Box>
+        {solidColorPresets.map((p) => (
+          <HoverTooltip key={p.id} label={p.label}>
+            <ThemeSwatchButton
+              shape="circle"
+              selected={p.id === presetId}
+              onClick={() => setPresetId(p.id)}
+              ariaLabel={p.label}
+            >
+              <Box sx={swatchFillInnerSx(theme, { shape: "circle", fill: swatchFill(p) })} />
+            </ThemeSwatchButton>
+          </HoverTooltip>
+        ))}
+      </ThemeCustomizeColorGrid>
+
+      <ThemeAccentPickerPopover
+        theme={theme}
+        open={Boolean(colorPopoverAnchor)}
+        anchorEl={colorPopoverAnchor}
+        onClose={closeColorPopover}
+        customAccentHex={customAccentHex}
+        setCustomAccentHex={setCustomAccentHex}
+        hexDraft={hexDraft}
+        setHexDraft={setHexDraft}
+        onHexBlur={onHexBlur}
+      />
+    </ThemeCustomizeRoot>
   );
 }

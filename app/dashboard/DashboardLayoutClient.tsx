@@ -19,6 +19,7 @@ export default function DashboardLayoutClient({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const isThemeCustomizePage = pathname?.includes("/dashboard/theme") ?? false;
   const {
     isAuthenticated,
     isLoading,
@@ -124,8 +125,8 @@ export default function DashboardLayoutClient({
         bgcolor: "transparent",
         background: (theme) =>
           (theme as { appBackground?: string }).appBackground ?? mainBackgroundGradient,
-        p: { xs: 0, md: 2 },
-        gap: { xs: 0, md: 2 },
+        p: { xs: 0, md: isThemeCustomizePage ? 1 : 2 },
+        gap: { xs: 0, md: isThemeCustomizePage ? 1 : 2 },
       }}
     >
       <DashboardSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
@@ -138,7 +139,9 @@ export default function DashboardLayoutClient({
               {
                 flex: 1,
                 py: { xs: 2, sm: 3 },
-                px: { xs: 1.5, sm: 2, md: 0 },
+                px: isThemeCustomizePage
+                  ? { xs: 1, sm: 1.5, md: 0 }
+                  : { xs: 1.5, sm: 2, md: 0 },
                 overflow: "auto",
               },
               dashboardMainTextSx,

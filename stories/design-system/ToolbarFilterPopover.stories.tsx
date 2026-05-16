@@ -1,9 +1,11 @@
 import { useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react";
 import Box from "@mui/material/Box";
-import Stack from "@mui/material/Stack";
 import { ToolbarFilterPopover } from "@/components/common/ToolbarFilterPopover/ToolbarFilterPopover";
+import { ToolbarFilterPopoverPanel } from "@/components/common/ToolbarFilterPopoverPanel/ToolbarFilterPopoverPanel";
+import { Button } from "@/components/common/Button/Button";
 import { Typography } from "@/components/common/Typography/Typography";
+import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
 
 const meta = {
   title: "Design System/ToolbarFilterPopover",
@@ -19,11 +21,22 @@ function Playground() {
   return (
     <Box sx={{ display: "flex", justifyContent: "flex-end", pr: 2 }}>
       <ToolbarFilterPopover open={open} onOpenChange={setOpen} active>
-        <Stack spacing={1.5} sx={{ p: 1 }}>
+        <ToolbarFilterPopoverPanel
+          footer={
+            <>
+              <Button type="button" variant="secondary" onClick={() => setOpen(false)}>
+                Reset
+              </Button>
+              <Button type="button" variant="primary" sx={gradientPrimaryButtonSx} onClick={() => setOpen(false)}>
+                Done
+              </Button>
+            </>
+          }
+        >
           <Typography variant="small" sx={{ color: "text.secondary" }}>
-            Filter panel content (forms, chips, combo fields).
+            Long filter content scrolls here; Done stays pinned in the footer (see ToolbarFilterPopoverPanel).
           </Typography>
-        </Stack>
+        </ToolbarFilterPopoverPanel>
       </ToolbarFilterPopover>
     </Box>
   );

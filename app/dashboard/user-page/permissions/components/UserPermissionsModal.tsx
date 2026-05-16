@@ -16,7 +16,7 @@ import {
   useUserPermissionsQuery,
   useUsersListQuery,
 } from "@/lib/hooks/query";
-import { isRecord, pickStr, unwrapApiData } from "@/lib/utils";
+import { isRecord, pickStr, unwrapApiData } from "@/lib/utils/core";
 import { extractPermissionsCatalogGroups, type PermissionGroup } from "@/app/dashboard/roles/utils";
 import { FORM_MODAL_MUI_OVERLAY_Z_INDEX } from "@/lib/ui/dialogStacking";
 

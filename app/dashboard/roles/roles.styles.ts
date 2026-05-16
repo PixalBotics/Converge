@@ -67,7 +67,20 @@ export const rolesIconBox: SxProps<Theme> = {
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
+  flexShrink: 0,
+  lineHeight: 0,
   boxShadow: "none",
+  "& > *": {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  "& .MuiSvgIcon-root": {
+    display: "block",
+    lineHeight: 0,
+    margin: 0,
+  },
+  "& svg": { display: "block", verticalAlign: "middle" },
 };
 
 export const rolesSearchRow: SxProps<Theme> = {

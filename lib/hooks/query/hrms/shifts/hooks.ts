@@ -3,7 +3,7 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createShiftTemplate, deleteShiftTemplate, getShiftTemplate, listShiftTemplates, updateShiftTemplate } from "@/api";
 import type { JsonRecord } from "@/api";
-import { buildHrmsShiftsListQueryRecord, type HrmsShiftsListQueryInput } from "@/lib/utils/hrms-shifts-list-params";
+import { buildHrmsShiftsListQueryRecord, type HrmsShiftsListQueryInput } from "@/lib/utils/hrms";
 import { hrmsShiftsKeys } from "./keys";
 
 /**

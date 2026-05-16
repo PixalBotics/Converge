@@ -47,6 +47,9 @@ export function ToolbarFilterPopover({ open, onOpenChange, active, children }: T
               {
                 maxWidth: "min(calc(100vw - 24px), 420px)",
                 width: "min(calc(100vw - 24px), 420px)",
+                display: "flex",
+                flexDirection: "column",
+                overflow: "hidden",
               },
             ] as SxProps<Theme>,
           },

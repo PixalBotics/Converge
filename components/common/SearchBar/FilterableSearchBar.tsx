@@ -119,7 +119,19 @@ export function FilterableSearchBar({
             },
           }}
         >
-          <SearchIcon sx={{ color: theme.app.dashboard.iconMuted, fontSize: 18 }} width={18} height={18} />
+          <Box
+            aria-hidden
+            sx={{
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flexShrink: 0,
+              lineHeight: 0,
+              color: theme.app.dashboard.iconMuted,
+            }}
+          >
+            <SearchIcon width={18} height={18} />
+          </Box>
           <input
             ref={inputRef}
             className="converge-search-input"

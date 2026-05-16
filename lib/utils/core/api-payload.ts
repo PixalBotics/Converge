@@ -10,26 +10,6 @@ export function unwrapApiData(payload: unknown): unknown {
   return payload;
 }
 
-/** GET /hrms/shifts/:id payloads may nest `data`, `shift`, or both. Flattens to the shift attributes object. */
-export function resolveShiftDetailObject(payload: unknown): UnknownRecord | null {
-  let cur: unknown = payload;
-  for (let i = 0; i < 8; i++) {
-    if (!isRecord(cur)) return null;
-    const dataNest = cur["data"];
-    if (isRecord(dataNest)) {
-      cur = dataNest;
-      continue;
-    }
-    const shiftNest = cur["shift"];
-    if (isRecord(shiftNest)) {
-      cur = shiftNest;
-      continue;
-    }
-    break;
-  }
-  return isRecord(cur) ? cur : null;
-}
-
 export function pickStr(obj: UnknownRecord | null, keys: string[]): string {
   if (!obj) return "";
   for (const k of keys) {
@@ -54,4 +34,3 @@ export function formatIsoDate(input: string): string {
   if (!s) return "—";
   return s.includes("T") ? s.slice(0, 10) : s;
 }
-

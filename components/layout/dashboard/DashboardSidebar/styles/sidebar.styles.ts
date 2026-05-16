@@ -5,7 +5,11 @@ import { typographyVariants } from "@/components/common/Typography/typography.st
 
 export const SIDEBAR_WIDTH = 260;
 
-export const navTypographyBase = typographyVariants.medium16;
+/** Slightly roomier line box than `medium16`’s 100% — lines up with the 24px icon slot in the nav row. */
+export const navTypographyBase = {
+  ...typographyVariants.medium16,
+  lineHeight: 1.4,
+};
 
 export const sectionLabelSx: SxProps<Theme> = (theme) => {
   const app = (theme as AppTheme).app;
@@ -72,6 +76,8 @@ export const navItemSx: SxProps<Theme> = (theme) => {
     borderRadius: "10px",
     boxSizing: "border-box",
     whiteSpace: "nowrap",
+    display: "flex",
+    alignItems: "center",
     transition: "background-color 0.15s ease, color 0.15s ease",
     /** Next `Link` as root can inherit anchor color; lock to theme text. */
     textDecoration: "none",
@@ -83,8 +89,19 @@ export const navItemSx: SxProps<Theme> = (theme) => {
     "& .MuiListItemIcon-root": {
       color: defaultNavIcon,
     },
+    "& .MuiListItemText-root": {
+      marginTop: 0,
+      marginBottom: 0,
+      display: "flex",
+      alignItems: "center",
+    },
     "& .MuiListItemText-primary": {
       color: alpha(textPrimary, mode === "dark" ? 0.9 : 0.87),
+      margin: 0,
+      padding: 0,
+      lineHeight: 1.4,
+      display: "inline-flex",
+      alignItems: "center",
     },
 
     "&:hover:not(.Mui-selected)": {
@@ -109,6 +126,11 @@ export const navItemSx: SxProps<Theme> = (theme) => {
       "& .MuiListItemText-primary": {
         fontWeight: 600,
         color: textPrimary,
+        display: "inline-flex",
+        alignItems: "center",
+        lineHeight: 1.4,
+        margin: 0,
+        padding: 0,
       },
     },
 
@@ -222,10 +244,42 @@ export const sidebarFooterListSx: SxProps<Theme> = {
 /** Icon color comes from `navItemSx` (theme primary); keep layout only here. */
 export const listIconSelectedSx: SxProps<Theme> = {
   minWidth: 40,
+  width: 40,
+  maxWidth: 40,
+  p: 0,
+  m: 0,
+  mr: 1.25,
+  alignSelf: "stretch",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  flexShrink: 0,
+  "& .MuiSvgIcon-root": {
+    display: "block",
+    lineHeight: 0,
+    flexShrink: 0,
+    margin: 0,
+  },
 };
 
 export const listIconDefaultSx: SxProps<Theme> = {
   minWidth: 40,
+  width: 40,
+  maxWidth: 40,
+  p: 0,
+  m: 0,
+  mr: 1.25,
+  alignSelf: "stretch",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  flexShrink: 0,
+  "& .MuiSvgIcon-root": {
+    display: "block",
+    lineHeight: 0,
+    flexShrink: 0,
+    margin: 0,
+  },
 };
 
 export const desktopWrapperSx: SxProps<Theme> = (theme) => {

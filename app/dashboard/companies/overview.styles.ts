@@ -54,12 +54,24 @@ export const cardTitleIconBox: SxProps<Theme> = {
   display: "inline-flex",
   alignItems: "center",
   justifyContent: "center",
+  flexShrink: 0,
+  lineHeight: 0,
   backgroundColor: "rgba(255,255,255,0.08)",
   border: "1px solid rgba(255,255,255,0.14)",
+  "& .MuiSvgIcon-root": {
+    display: "block",
+    lineHeight: 0,
+    margin: 0,
+  },
 };
 
 export const attachMoneyIconSx = (theme: AppTheme): SxProps<Theme> => ({
   fontSize: 18,
+  width: 18,
+  height: 18,
+  display: "block",
+  lineHeight: 0,
+  flexShrink: 0,
   color: theme.app.dashboard.white95,
 });
 

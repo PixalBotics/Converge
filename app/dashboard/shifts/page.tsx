@@ -14,6 +14,7 @@ import {
   FormModal,
   ConfirmActionModal,
   SegmentedControl,
+  ToolbarFilterPopoverPanel,
 } from "@/components/common";
 import type { DataTableColumn } from "@/components/common";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
@@ -33,24 +34,24 @@ import {
   isRecord,
   pickNum,
   pickStr,
-  resolveShiftDetailObject,
   shiftApiTimeToTimeInputValue,
   unwrapApiData,
+} from "@/lib/utils/core";
+import {
   HRMS_SHIFTS_LIST_SEARCH_MAX,
   hrmsList403UserMessage,
-} from "@/lib/utils";
+  resolveShiftDetailObject,
+  clampWorkingDaysMask,
+  formatWorkingDaysMaskHuman,
+  HRMS_DEFAULT_WORKING_DAYS_MASK,
+  workingWeekdaysFromApiRecord,
+} from "@/lib/utils/hrms";
 import { useDebouncedValue } from "@/lib/hooks/use-debounced-value";
 import { ShiftsTableCard, WorkingWeekDayToggles, type ShiftRow } from "./components";
 import { useAuth, sessionMayPickInternalUserScope } from "@/lib/auth";
 import { canShiftAction } from "@/lib/permissions";
 import { extractParentCompaniesFromByResellerTree, pickItemsArray, toIdNameOption } from "@/app/dashboard/user-page/components/add-user-modal.utils";
 import type { JsonRecord } from "@/api";
-import {
-  clampWorkingDaysMask,
-  formatWorkingDaysMaskHuman,
-  HRMS_DEFAULT_WORKING_DAYS_MASK,
-  workingWeekdaysFromApiRecord,
-} from "@/lib/utils/shift-working-days";
 
 const PAGE_LIMIT = 8;
 
@@ -518,33 +519,41 @@ export default function ShiftsPage() {
     if (!mayPickInternal) return null;
     const sectionRule = `1px solid ${alpha(theme.app.dashboard.white95, 0.1)}`;
     return (
-      <Box sx={{ color: theme.app.text.primary }}>
-        <Box sx={{ px: 2.25, pt: 2, pb: 1.5 }}>
-          <Typography variant="medium" fontWeight={700} sx={{ color: theme.app.text.primary, mb: 1.5 }}>
-            Filters
-          </Typography>
-          <SegmentedControl
-            options={[
-              { value: "all", label: "All" },
-              { value: "internal", label: "Internal" },
-              { value: "external", label: "External" },
-            ]}
-            value={listCatalogFilter}
-            onChange={(v) => setListCatalogFilter(v as "all" | "internal" | "external")}
-            sx={{
-              width: "100%",
-              display: "flex",
-              "& .MuiToggleButtonGroup-grouped": { flex: 1, minWidth: 0 },
-            }}
-          />
-        </Box>
+      <ToolbarFilterPopoverPanel
+        footer={
+          <>
+            <Button type="button" variant="secondary" onClick={resetListFilters}>
+              Reset
+            </Button>
+            <Button type="button" variant="primary" sx={gradientPrimaryButtonSx} onClick={() => setFilterPanelOpen(false)}>
+              Done
+            </Button>
+          </>
+        }
+      >
+        <Typography variant="medium" fontWeight={700} sx={{ color: theme.app.text.primary, mb: 1.5 }}>
+          Filters
+        </Typography>
+        <SegmentedControl
+          options={[
+            { value: "all", label: "All" },
+            { value: "internal", label: "Internal" },
+            { value: "external", label: "External" },
+          ]}
+          value={listCatalogFilter}
+          onChange={(v) => setListCatalogFilter(v as "all" | "internal" | "external")}
+          sx={{
+            width: "100%",
+            display: "flex",
+            "& .MuiToggleButtonGroup-grouped": { flex: 1, minWidth: 0 },
+          }}
+        />
 
         {listCatalogFilter === "external" || listCatalogFilter === "all" ? (
           <Box
             sx={{
-              px: 2.25,
-              pt: 1.5,
-              pb: 1.5,
+              mt: 2,
+              pt: 2,
               display: "grid",
               gap: 1.75,
               borderTop: sectionRule,
@@ -573,57 +582,7 @@ export default function ShiftsPage() {
             />
           </Box>
         ) : null}
-
-        <Box
-          sx={{
-            display: "flex",
-            flexDirection: { xs: "column", sm: "row" },
-            justifyContent: "space-between",
-            alignItems: "stretch",
-            gap: 1.5,
-            px: 2.25,
-            py: 1.75,
-            borderTop: sectionRule,
-            bgcolor: alpha(theme.app.dashboard.white95, 0.06),
-          }}
-        >
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={resetListFilters}
-            sx={(t) => ({
-              minWidth: { xs: 0, sm: 140 },
-              width: { xs: "100%", sm: "auto" },
-              flexShrink: 0,
-              border: `1px solid ${alpha((t as AppTheme).app.dashboard.white95, 0.22)}`,
-              boxShadow: `inset 0 1px 0 ${alpha((t as AppTheme).app.dashboard.white95, 0.08)}`,
-            })}
-          >
-            Reset
-          </Button>
-          <Button
-            type="button"
-            variant="primary"
-            sx={(t) => {
-              const app = (t as AppTheme).app;
-              const grad =
-                typeof gradientPrimaryButtonSx === "function"
-                  ? (gradientPrimaryButtonSx as (th: Theme) => Record<string, unknown>)(t)
-                  : {};
-              return {
-                ...grad,
-                minWidth: { xs: 0, sm: 140 },
-                width: { xs: "100%", sm: "auto" },
-                flexShrink: 0,
-                border: `1px solid ${alpha(app.dashboard.overlayBorder, 1)}`,
-              };
-            }}
-            onClick={() => setFilterPanelOpen(false)}
-          >
-            Done
-          </Button>
-        </Box>
-      </Box>
+      </ToolbarFilterPopoverPanel>
     );
   }, [
     mayPickInternal,
@@ -911,6 +870,7 @@ export default function ShiftsPage() {
         description={deleteTarget ? `Delete shift “${deleteTarget.shiftName}”?` : "Delete this shift?"}
         confirmLabel={deleteMutation.isPending ? "Deleting…" : "Delete"}
         cancelLabel="Cancel"
+        confirmButtonVariant="danger"
         isLoading={deleteMutation.isPending}
         onDismiss={() => {
           if (deleteMutation.isPending) return;

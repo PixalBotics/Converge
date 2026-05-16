@@ -21,14 +21,15 @@ import {
   useShiftsListQuery,
   useUserShiftAssignmentsListQuery,
 } from "@/lib/hooks/query";
-import { addMonths, daysInMonth, formatIsoDate, isRecord, pickNum, pickStr, startOfMonth, toIsoDateString, unwrapApiData } from "@/lib/utils";
-import { HRMS_SHIFTS_LIST_SEARCH_MAX, type HrmsShiftsListShiftScope } from "@/lib/utils/hrms-shifts-list-params";
+import { addMonths, daysInMonth, formatIsoDate, isRecord, pickNum, pickStr, startOfMonth, toIsoDateString, unwrapApiData } from "@/lib/utils/core";
 import {
+  HRMS_SHIFTS_LIST_SEARCH_MAX,
+  type HrmsShiftsListShiftScope,
   clampWorkingDaysMask,
   effectiveWorkingDaysMask,
   formatWorkingDaysMaskHuman,
   HRMS_DEFAULT_WORKING_DAYS_MASK,
-} from "@/lib/utils/shift-working-days";
+} from "@/lib/utils/hrms";
 import { extractParentCompaniesFromByResellerTree, pickItemsArray, toIdNameOption } from "@/app/dashboard/user-page/components/add-user-modal.utils";
 import {
   userShiftHeaderWrapSx,
@@ -766,6 +767,7 @@ export default function UserShiftPage() {
           description="Remove this user shift assignment?"
           confirmLabel={removeMutation.isPending ? "Removing…" : "Remove"}
           cancelLabel="Cancel"
+          confirmButtonVariant="danger"
           isLoading={removeMutation.isPending}
           onDismiss={() => {
             if (removeMutation.isPending) return;

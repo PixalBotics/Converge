@@ -292,6 +292,32 @@ export function createAppMuiTheme(
           },
         },
       },
+      /** Round / square chrome icon hits — kill text baseline shift on `SvgIcon` inside flex hit targets. */
+      MuiIconButton: {
+        styleOverrides: {
+          root: {
+            lineHeight: 0,
+            alignItems: "center",
+            justifyContent: "center",
+            "& .MuiSvgIcon-root": {
+              display: "block",
+              lineHeight: 0,
+              margin: 0,
+            },
+          },
+        },
+      },
+      MuiButton: {
+        styleOverrides: {
+          root: {
+            "& .MuiSvgIcon-root": {
+              display: "block",
+              lineHeight: 0,
+              flexShrink: 0,
+            },
+          },
+        },
+      },
     },
   });
 }

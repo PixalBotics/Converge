@@ -23,7 +23,7 @@ import { rolesCard, rolesFooterRow, rolesIconBox, rolesPageWrapper, rolesPaginat
 import { footerMutedText, pageHeaderRow, pageWrapper } from "../../companies/overview.styles";
 import { departmentsAddButton } from "../../website-assigning/website-assigning.styles";
 import { publishAppToast } from "@/lib/notify";
-import { formatIsoDate, isRecord, pickNum, pickStr, unwrapApiData } from "@/lib/utils";
+import { formatIsoDate, isRecord, pickNum, pickStr, unwrapApiData } from "@/lib/utils/core";
 import {
   useLeaveTypesForApplyQuery,
   useMyLeaveApplicationsQuery,

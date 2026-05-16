@@ -13,7 +13,7 @@ import {
   DataTable,
 } from "@/components/common";
 import type { DataTableColumn } from "@/components/common";
-import { MetricCard } from "@/components/layout/dashboard";
+import { MetricCard } from "@/components/common";
 import {
   Person as PersonIcon,
   AttachMoney as AttachMoneyIcon,

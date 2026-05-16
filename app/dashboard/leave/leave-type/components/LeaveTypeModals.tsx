@@ -89,6 +89,7 @@ export function LeaveTypeModals(props: LeaveTypeModalsProps) {
         description={props.deleteDescription}
         confirmLabel={props.isDeleting ? "Deleting…" : "Delete"}
         cancelLabel="Cancel"
+        confirmButtonVariant="danger"
         isLoading={props.isDeleting}
         onDismiss={props.onCloseDelete}
         onConfirm={props.onConfirmDelete}
