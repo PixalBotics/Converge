@@ -1,5 +1,6 @@
 /** XSS-safe plain text rendering (trim + normalize newlines only). Prefer this over dangerouslySetInnerHTML. */
-export function normalizeChatMessageText(raw: string): string {
+export function normalizeChatMessageText(raw: string | undefined | null): string {
+  if (typeof raw !== "string") return "";
   return raw.replace(/\r\n/g, "\n").trim();
 }
 

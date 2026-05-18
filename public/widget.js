@@ -58,7 +58,7 @@
   /** Sandboxed-but-functional: allow-scripts + same-origin navigations for SaaS-hosted UI only */
   iframe.setAttribute(
     "sandbox",
-    "allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-popup",
+    "allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox",
   );
   iframe.style.position = "fixed";
   iframe.style.border = "0";

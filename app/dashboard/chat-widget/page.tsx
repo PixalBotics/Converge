@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Add from "@mui/icons-material/Add";
+import AutoStories from "@mui/icons-material/AutoStories";
 import ChatRounded from "@mui/icons-material/ChatRounded";
 import TextsmsRounded from "@mui/icons-material/TextsmsRounded";
 import SendRounded from "@mui/icons-material/SendRounded";
@@ -402,6 +403,14 @@ export default function ChatWidgetPage() {
           </Typography>
         </Box>
         <Box sx={integrationsHeaderActions}>
+          <Button
+            type="button"
+            variant="secondary"
+            startIcon={<AutoStories sx={{ fontSize: 20 }} />}
+            onClick={() => router.push("/dashboard/chat-widget/ai-training")}
+          >
+            AI training
+          </Button>
           <Button
             type="button"
             variant="primary"

@@ -23,7 +23,10 @@ import {
   useCompaniesSetupResellersQuery,
   useWebsiteAssignmentsWebsitesQuery,
 } from "@/lib/hooks";
-import { createRemoteWidgetDraft } from "@/lib/chat-widget/widget-remote-sync";
+import {
+  createRemoteWidgetDraft,
+  isServerWidgetDraftAlive,
+} from "@/lib/chat-widget/widget-remote-sync";
 import {
   defaultWidgetDraft,
   readWidgetDraft,
@@ -249,10 +252,25 @@ export default function WidgetTypeSelectionPage() {
                 const prev = readWidgetDraft();
                 const wid = websiteId.trim();
                 const kind = selectedTypeRef.current;
-                const needNewRemote =
+                let needNewRemote =
                   !prev.remoteWidgetKey?.trim() ||
                   prev.websiteId?.trim() !== wid ||
                   prev.type !== kind;
+
+                if (!needNewRemote && prev.remoteWidgetKey?.trim()) {
+                  try {
+                    const alive = await isServerWidgetDraftAlive(prev.remoteWidgetKey);
+                    if (!alive) needNewRemote = true;
+                  } catch (verifyErr) {
+                    publishAppToast({
+                      variant: "error",
+                      message:
+                        extractApiErrorMessageForToast(verifyErr) ??
+                        "Could not verify existing widget draft.",
+                    });
+                    return;
+                  }
+                }
 
                 const base: WidgetDraft = {
                   ...defaultWidgetDraft,

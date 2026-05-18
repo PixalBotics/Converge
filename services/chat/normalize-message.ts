@@ -11,6 +11,7 @@ function inferRole(payload: Record<string, unknown>): ChatParticipantRole {
   const roleRaw = coerceString(payload.role).toLowerCase();
   const userTypeRaw = coerceString((payload.userType ?? payload.senderType ?? payload.authorType) as unknown).toLowerCase();
 
+  if (roleRaw === "ai") return "system";
   if (
     roleRaw === "visitor" ||
     roleRaw === "agent" ||
@@ -22,6 +23,7 @@ function inferRole(payload: Record<string, unknown>): ChatParticipantRole {
   }
   if (userTypeRaw === "visitor") return "visitor";
   if (userTypeRaw === "agent") return "agent";
+  if (userTypeRaw === "ai") return "system";
   const senderRaw = coerceString(payload.sender ?? payload.sentBy ?? payload.messageSender).toLowerCase();
   if (senderRaw.includes("visitor")) return "visitor";
   if (senderRaw.includes("agent")) return "agent";

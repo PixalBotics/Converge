@@ -8,6 +8,7 @@ import type {
   ChatMessage,
   JoinLeaveRoomPayload,
   SocketAgentMessagePayload,
+  SocketTypingEmitPayload,
   SocketVisitorMessagePayload,
   TypingPayload,
 } from "./chat.types";
@@ -19,11 +20,15 @@ type ChatEventMap = {
   left_room: (payload: JoinLeaveRoomPayload) => void;
   visitor_message: (payload: ChatMessage) => void;
   agent_message: (payload: ChatMessage) => void;
+  /** Server-persisted AI pipeline message (senderType ai). */
+  ai_message: (payload: ChatMessage) => void;
   typing: (payload: TypingPayload) => void;
   stop_typing: (payload: TypingPayload) => void;
   chat_assigned: (payload: unknown) => void;
   chat_closed: (payload: unknown) => void;
   agent_assignment_popup: (payload: unknown) => void;
+  chat_transferred: (payload: unknown) => void;
+  chat_handover: (payload: unknown) => void;
 };
 
 export interface ChatSocketOptions {
@@ -82,15 +87,28 @@ export class ChatSocketClient {
   }
 
   sendAgentMessage(payload: SocketAgentMessagePayload): void {
-    this.connection.emit("agent_message", payload);
+    const body: Record<string, unknown> = {
+      conversationId: payload.conversationId,
+      message: payload.message,
+    };
+    if (payload.agentId !== undefined && payload.agentId !== "") {
+      body.agentId = payload.agentId;
+    }
+    this.connection.emit("agent_message", body);
   }
 
-  emitTyping(payload: Pick<TypingPayload, "conversationId">): void {
-    this.connection.emit("typing", { conversationId: payload.conversationId });
+  emitTyping(payload: SocketTypingEmitPayload): void {
+    const body: Record<string, unknown> = { conversationId: payload.conversationId };
+    if (payload.userType !== undefined) body.userType = payload.userType;
+    if (payload.userId !== undefined) body.userId = payload.userId;
+    this.connection.emit("typing", body);
   }
 
-  emitStopTyping(payload: Pick<TypingPayload, "conversationId">): void {
-    this.connection.emit("stop_typing", { conversationId: payload.conversationId });
+  emitStopTyping(payload: SocketTypingEmitPayload): void {
+    const body: Record<string, unknown> = { conversationId: payload.conversationId };
+    if (payload.userType !== undefined) body.userType = payload.userType;
+    if (payload.userId !== undefined) body.userId = payload.userId;
+    this.connection.emit("stop_typing", body);
   }
 
   onConnected(listener: ChatEventMap["connected"]): () => void {
@@ -131,6 +149,13 @@ export class ChatSocketClient {
     });
   }
 
+  onAiMessage(listener: ChatEventMap["ai_message"]): () => void {
+    return this.on("ai_message", (payload: unknown) => {
+      const m = normalizeServerMessage(payload);
+      if (m) listener(m);
+    });
+  }
+
   onTyping(listener: ChatEventMap["typing"]): () => void {
     return this.on("typing", listener as (payload: unknown) => void);
   }
@@ -151,6 +176,14 @@ export class ChatSocketClient {
     listener: ChatEventMap["agent_assignment_popup"],
   ): () => void {
     return this.on("agent_assignment_popup", listener);
+  }
+
+  onChatTransferred(listener: ChatEventMap["chat_transferred"]): () => void {
+    return this.on("chat_transferred", listener);
+  }
+
+  onChatHandover(listener: ChatEventMap["chat_handover"]): () => void {
+    return this.on("chat_handover", listener);
   }
 
   isConnected(): boolean {

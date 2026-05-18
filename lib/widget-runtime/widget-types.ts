@@ -59,10 +59,16 @@ export interface WidgetSessionResponse {
 
 export interface AiVisitorRespondRequest {
   message: string;
-  websiteId: string;
-  conversationId: string;
+  /** KB scope + conversation resolution — omit when empty so backend can resolve from conversationId. */
+  websiteId?: string;
+  conversationId?: string;
   widgetKey: string;
   originHost: string;
+  /**
+   * Full page URL where the widget is embedded. When backend enables live-page context, this grounds the model.
+   * Same semantics as widget message APIs’ `currentPageUrl`.
+   */
+  currentPageUrl?: string;
 }
 
 export interface AiVisitorRespondResponse {

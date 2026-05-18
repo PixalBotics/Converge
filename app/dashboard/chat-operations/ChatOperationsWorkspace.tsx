@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Attachment from "@mui/icons-material/Attachment";
 import Send from "@mui/icons-material/Send";
 import Box from "@mui/material/Box";
@@ -16,11 +16,12 @@ import {
   InputField,
   Typography,
 } from "@/components/common";
-import { getAccessToken, postAgentAiSuggestion } from "@/api";
+import { getAccessToken, postAgentAiSuggestion, formatAgentSuggestResponse } from "@/api";
 import type { AgentAiAction } from "@/api/ai/agent-suggest.api";
 import { useAuth } from "@/lib/auth";
 import { useAgentChat } from "@/lib/hooks/chat/useAgentChat";
 import type { ConversationSummary } from "@/services/chat/chat.types";
+import { postAgentWebsiteAvailabilityCheck } from "@/services/chat/chatApi";
 import {
   chatOpsBubbleSx,
   chatOpsCenterColSx,
@@ -64,6 +65,7 @@ export function ChatOperationsWorkspace() {
   const [fallbackWebsiteId, setFallbackWebsiteId] = useState("");
   const [aiOutput, setAiOutput] = useState<string | null>(null);
   const [aiBusy, setAiBusy] = useState(false);
+  const [availabilityHint, setAvailabilityHint] = useState<string | null>(null);
 
   const list: ConversationSummary[] =
     queueTab === "active" ? agentChat.activeChats : agentChat.waitingChats;
@@ -74,12 +76,47 @@ export function ChatOperationsWorkspace() {
     fallbackWebsiteId.trim() ||
     "";
 
+  useEffect(() => {
+    if (!accessToken || !websiteIdEffective.trim()) {
+      setAvailabilityHint(null);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await postAgentWebsiteAvailabilityCheck(
+          websiteIdEffective.trim(),
+          accessToken,
+        );
+        if (cancelled) return;
+        const text =
+          typeof res === "string"
+            ? res
+            : res && typeof res === "object"
+              ? JSON.stringify(res)
+              : String(res);
+        setAvailabilityHint(text.length > 180 ? `${text.slice(0, 180)}…` : text);
+      } catch {
+        if (!cancelled) setAvailabilityHint("Availability check failed.");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [accessToken, websiteIdEffective]);
+
   const pushCannedToComposer = useCallback((line: string) => {
     setComposer((prev) => (prev ? `${prev} ${line}` : line));
   }, []);
 
   const runAiAssist = async (action: AgentAiAction) => {
-    if (!accessToken || !agentChat.selectedConversationId || !websiteIdEffective.trim()) return;
+    if (!accessToken || !agentChat.selectedConversationId) return;
+    const needsWebsite =
+      action === "suggested_reply" ||
+      action === "knowledge_lookup" ||
+      action === "coach_reply" ||
+      action === "rewrite_tone";
+    if (needsWebsite && !websiteIdEffective.trim()) return;
     setAiBusy(true);
     try {
       const input =
@@ -89,11 +126,11 @@ export function ChatOperationsWorkspace() {
       const data = await postAgentAiSuggestion({
         action,
         input,
-        websiteId: websiteIdEffective.trim(),
         conversationId: agentChat.selectedConversationId,
-        tone: "professional",
+        ...(websiteIdEffective.trim() ? { websiteId: websiteIdEffective.trim() } : {}),
+        ...(action === "rewrite_tone" ? { tone: "professional" } : {}),
       });
-      setAiOutput(typeof data === "string" ? data : JSON.stringify(data, null, 2));
+      setAiOutput(formatAgentSuggestResponse(data));
     } catch {
       setAiOutput("Assist request failed.");
     } finally {
@@ -117,6 +154,17 @@ export function ChatOperationsWorkspace() {
           label={`Socket ${agentChat.isConnected ? "connected" : "disconnected"} • queue refresh every 12s`}
         />
       )}
+
+      {accessToken && websiteIdEffective.trim() && availabilityHint ? (
+        <Typography
+          variant="caption"
+          component="div"
+          sx={{ display: "block", mb: 1, color: "text.secondary", maxWidth: 960 }}
+        >
+          <strong>Website availability</strong> ({websiteIdEffective.trim().slice(0, 8)}…):{" "}
+          {availabilityHint}
+        </Typography>
+      ) : null}
 
       <DashboardCard sx={chatOpsShellSx}>
         <Box
@@ -345,7 +393,7 @@ export function ChatOperationsWorkspace() {
                 <Button
                   type="button"
                   variant="secondary"
-                  disabled={!websiteIdEffective || aiBusy}
+                  disabled={!websiteIdEffective || !agentChat.selectedConversationId || aiBusy}
                   onClick={() => void runAiAssist("suggested_reply")}
                 >
                   Suggest reply
@@ -353,7 +401,7 @@ export function ChatOperationsWorkspace() {
                 <Button
                   type="button"
                   variant="secondary"
-                  disabled={!websiteIdEffective || aiBusy}
+                  disabled={!agentChat.selectedConversationId || aiBusy}
                   onClick={() => void runAiAssist("summarize")}
                 >
                   Summarize
@@ -361,7 +409,7 @@ export function ChatOperationsWorkspace() {
                 <Button
                   type="button"
                   variant="secondary"
-                  disabled={!websiteIdEffective || aiBusy}
+                  disabled={!websiteIdEffective || !agentChat.selectedConversationId || aiBusy}
                   onClick={() => void runAiAssist("rewrite_tone")}
                 >
                   Rewrite
@@ -369,10 +417,18 @@ export function ChatOperationsWorkspace() {
                 <Button
                   type="button"
                   variant="secondary"
-                  disabled={!websiteIdEffective || aiBusy}
+                  disabled={!websiteIdEffective || !agentChat.selectedConversationId || aiBusy}
                   onClick={() => void runAiAssist("knowledge_lookup")}
                 >
                   KB lookup
+                </Button>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  disabled={!websiteIdEffective || !agentChat.selectedConversationId || aiBusy}
+                  onClick={() => void runAiAssist("coach_reply")}
+                >
+                  Coach reply
                 </Button>
               </StackRow>
               {aiBusy ? (

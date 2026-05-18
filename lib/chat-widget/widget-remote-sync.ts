@@ -1,11 +1,14 @@
+import { isAxiosError } from "axios";
 import {
   createWidgetInstallation,
+  getAdminWidget,
   patchWidgetConfiguration,
 } from "@/api/widgets/widgets.api";
 import type { JsonRecord } from "@/api/types/common.types";
 import {
   buildMinimalWidgetInstallationBody,
   buildWidgetPatchConfigurationBody,
+  type ChatWidgetWizardPatchScope,
   type WidgetInstallationAssetUrls,
 } from "./build-widget-install-body";
 import {
@@ -20,6 +23,22 @@ export type WizardWidgetKind = "chat" | "text";
 
 export function wizardKindToApiType(kind: WizardWidgetKind) {
   return kind === "text" ? ("TEXT_US" as const) : ("CHAT" as const);
+}
+
+/**
+ * Confirms `remoteWidgetKey` still exists on the server (avoids skipping `POST /widgets/installations`
+ * when localStorage holds a stale key after DB reset or env change).
+ */
+export async function isServerWidgetDraftAlive(widgetKey: string | undefined | null): Promise<boolean> {
+  const k = widgetKey?.trim();
+  if (!k) return false;
+  try {
+    const res = await getAdminWidget(k);
+    return res.success === true;
+  } catch (e) {
+    if (isAxiosError(e) && e.response?.status === 404) return false;
+    throw e;
+  }
 }
 
 export async function createRemoteWidgetDraft(params: {
@@ -68,6 +87,8 @@ export async function patchRemoteWidgetConfiguration(params: {
   publishNow?: boolean;
   assetUrls?: WidgetInstallationAssetUrls;
   embedAllowAnyOrigin?: boolean;
+  /** CHAT add-widget flow: limit PATCH to fields from the current step. */
+  chatWizardPatchScope?: ChatWidgetWizardPatchScope;
 }): Promise<JsonRecord> {
   const widgetType = wizardKindToApiType(params.widgetKind);
   const body = buildWidgetPatchConfigurationBody({
@@ -76,6 +97,7 @@ export async function patchRemoteWidgetConfiguration(params: {
     publishNow: params.publishNow ?? false,
     assetUrls: params.assetUrls,
     embedAllowAnyOrigin: params.embedAllowAnyOrigin,
+    chatWizardPatchScope: params.chatWizardPatchScope,
   });
 
   const res = await patchWidgetConfiguration(params.widgetKey, body);

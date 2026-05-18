@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type ChangeEvent } from "react";
+import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
 import CloudUploadOutlined from "@mui/icons-material/CloudUploadOutlined";
 import ChatRounded from "@mui/icons-material/ChatRounded";
@@ -19,12 +19,23 @@ import {
 } from "@/lib/chat-widget/widget-remote-sync";
 import { extractApiErrorMessageForToast } from "@/lib/notify/extract-api-message";
 import { publishAppToast } from "@/lib/notify";
-import { readWidgetDraft, saveWidgetDraft } from "@/lib/chat-widget/widgetDraft";
+import {
+  readChatWizardDraft,
+  resolveEditWidgetKeyForNavigation,
+  resolveRemoteWidgetKeyForChatWizard,
+  saveChatWizardDraft,
+  useChatWidgetWizardEdit,
+  withChatEditQuery,
+} from "@/lib/chat-widget/chat-wizard-edit";
+import {
+  defaultWidgetDraft,
+} from "@/lib/chat-widget/widgetDraft";
 
 const STEPS = ["Widget Button Design", "Chat Box Design", "Notifications & Advanced"];
 export default function ChatWidgetBoxDesignPage() {
   const router = useRouter();
   const theme = useTheme() as AppTheme;
+  const { editWidgetKey, draftReady, hydrateError } = useChatWidgetWizardEdit();
   const [headerTitle, setHeaderTitle] = useState("Center");
   const [bannerOn, setBannerOn] = useState(true);
   const [buttonColor, setButtonColor] = useState("#1ed760");
@@ -37,8 +48,41 @@ export default function ChatWidgetBoxDesignPage() {
   const [sendPlaceholder, setSendPlaceholder] = useState("Ask about location, budget, or options...");
   const [boxWidth, setBoxWidth] = useState("350");
   const [boxHeight, setBoxHeight] = useState("430");
+  const [buttonLabel, setButtonLabel] = useState(defaultWidgetDraft.buttonLabel ?? "Chat with us");
+  const [firstMessage, setFirstMessage] = useState(
+    defaultWidgetDraft.firstMessage ?? "Hi! How can we help today?",
+  );
+  const [messagePlaceholder, setMessagePlaceholder] = useState(
+    defaultWidgetDraft.messagePlaceholder ?? "Write here…",
+  );
+  const [backgroundColor, setBackgroundColor] = useState(
+    defaultWidgetDraft.backgroundColor ?? "#f8fafc",
+  );
+  const [popupEnabled, setPopupEnabled] = useState(defaultWidgetDraft.popupEnabled ?? false);
   const bannerUploadRef = useRef<HTMLInputElement | null>(null);
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!draftReady) return;
+    const d = readChatWizardDraft(resolveEditWidgetKeyForNavigation(editWidgetKey) || undefined);
+    setHeaderTitle(d.headerTitleAlign === "Left" ? "Left" : "Center");
+    setBannerOn(Boolean(d.bannerOn));
+    setButtonColor(d.buttonColor || "#1ed760");
+    setTextColor(d.textColor || "#d62cad");
+    setBannerDataUrl(d.bannerDataUrl || "");
+    setBannerFileName(d.bannerDataUrl ? "Uploaded banner" : "");
+    setBannerMediaType(d.bannerMediaType === "video" ? "video" : "image");
+    setCompanyLogo(d.headerTitle || "veinso");
+    setGreetingMessage(d.greetingMessage ?? defaultWidgetDraft.greetingMessage);
+    setSendPlaceholder(d.sendPlaceholder ?? defaultWidgetDraft.sendPlaceholder);
+    setBoxWidth(String(d.boxWidth ?? 350));
+    setBoxHeight(String(d.boxHeight ?? 430));
+    setButtonLabel(d.buttonLabel ?? "Chat with us");
+    setFirstMessage(d.firstMessage ?? "Hi! How can we help today?");
+    setMessagePlaceholder(d.messagePlaceholder ?? "Write here…");
+    setBackgroundColor(d.backgroundColor ?? "#f8fafc");
+    setPopupEnabled(Boolean(d.popupEnabled));
+  }, [draftReady, editWidgetKey]);
 
   const handleButtonColor = (event: ChangeEvent<HTMLInputElement>) => {
     const color = event.target.value;
@@ -65,8 +109,9 @@ export default function ChatWidgetBoxDesignPage() {
   const handleNext = () => {
     if (saving) return;
     void (async () => {
-      const prev = readWidgetDraft();
-      const rk = prev.remoteWidgetKey?.trim();
+      const editKey = resolveEditWidgetKeyForNavigation(editWidgetKey);
+      const prev = readChatWizardDraft(editKey || undefined);
+      const rk = resolveRemoteWidgetKeyForChatWizard(editKey || undefined, prev);
       if (!rk) {
         publishAppToast({
           variant: "error",
@@ -84,7 +129,7 @@ export default function ChatWidgetBoxDesignPage() {
 
       setSaving(true);
       try {
-        saveWidgetDraft({
+        saveChatWizardDraft(editKey || undefined, {
           headerTitleAlign: headerTitle as "Center" | "Left",
           headerTitle: companyLogo || "AI Sales Assistant",
           buttonColor: buttonColor || "#1ed760",
@@ -96,19 +141,30 @@ export default function ChatWidgetBoxDesignPage() {
           bannerMediaType,
           boxWidth: safeWidth,
           boxHeight: safeHeight,
+          buttonLabel: buttonLabel.trim() || "Chat with us",
+          firstMessage: firstMessage.trim(),
+          messagePlaceholder: messagePlaceholder.trim(),
+          backgroundColor: backgroundColor.trim() || "#f8fafc",
+          popupEnabled,
         });
-        const latest = readWidgetDraft();
+        const latest = readChatWizardDraft(editKey || undefined);
         const patchInner = await patchRemoteWidgetConfiguration({
           widgetKey: rk,
           widgetKind: "chat",
           draft: latest,
           publishNow: false,
+          chatWizardPatchScope: "chat_surface",
         });
         const sum = summarizePatchResult(patchInner);
-        saveWidgetDraft({
+        saveChatWizardDraft(editKey || undefined, {
           requiresPublishBeforeEmbed: sum.requiresPublishBeforeEmbed,
         });
-        router.push("/dashboard/chat-widget/add/chat/notifications");
+        router.push(
+          withChatEditQuery(
+            "/dashboard/chat-widget/add/chat/notifications",
+            resolveEditWidgetKeyForNavigation(editKey),
+          ),
+        );
       } catch (e) {
         publishAppToast({
           variant: "error",
@@ -151,12 +207,22 @@ export default function ChatWidgetBoxDesignPage() {
           <Button type="button" variant="secondary" onClick={() => router.push("/dashboard/chat-widget")}>
             Cancel
           </Button>
-          <Button type="button" variant="primary" sx={gradientPrimaryButtonSx} disabled={saving} onClick={handleNext}>
+          <Button type="button" variant="primary" sx={gradientPrimaryButtonSx} disabled={saving || !draftReady} onClick={handleNext}>
             {saving ? "Saving…" : "Next"}
           </Button>
         </>
       }
     >
+      {!draftReady ? (
+        <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, mb: 1 }}>
+          Loading widget…
+        </Typography>
+      ) : null}
+      {hydrateError ? (
+        <Typography variant="body2" sx={{ color: theme.palette.error.main, mb: 1 }}>
+          {hydrateError}
+        </Typography>
+      ) : null}
       <SelectField label="Header Title" value={headerTitle} onChange={setHeaderTitle} options={[{ label: "Center", value: "Center" }, { label: "Left", value: "Left" }]} />
 
       <Typography variant="mediumLarge" sx={{ color: theme.app.text.primary, mb: -1.25 }}>Button Color</Typography>
@@ -245,6 +311,53 @@ export default function ChatWidgetBoxDesignPage() {
       ) : null}
       <Box component="input" ref={bannerUploadRef} type="file" accept=".png,.jpg,.jpeg,.webp,.gif,.mp4,.webm,.ogg,.mov" onChange={handleBannerUpload} sx={{ display: "none" }} />
 
+      <Typography variant="mediumLarge" sx={{ color: theme.app.text.primary, mt: 1.5, mb: -1.25 }}>
+        Launcher & panel shell (config.ui)
+      </Typography>
+      <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, mb: 1 }}>
+        Shown on step 2 PATCH: floating button label, first bubble line, composer placeholder, panel background.
+      </Typography>
+      <InputField label="Floating button label" name="button-label" value={buttonLabel} onChange={(e) => setButtonLabel(e.target.value)} />
+      <InputField
+        label="First message (intro bubble)"
+        name="first-message"
+        value={firstMessage}
+        onChange={(e) => setFirstMessage(e.target.value)}
+      />
+      <InputField
+        label="Composer placeholder (config.ui)"
+        name="message-placeholder"
+        value={messagePlaceholder}
+        onChange={(e) => setMessagePlaceholder(e.target.value)}
+      />
+      <Typography variant="mediumLarge" sx={{ color: theme.app.text.primary, mb: -1.25 }}>
+        Panel background
+      </Typography>
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1.25 }}>
+        <Box
+          component="input"
+          type="color"
+          value={backgroundColor.startsWith("#") && backgroundColor.length >= 4 ? backgroundColor : "#f8fafc"}
+          onChange={(e: ChangeEvent<HTMLInputElement>) => setBackgroundColor(e.target.value)}
+          sx={{
+            width: 44,
+            height: 44,
+            p: 0,
+            border: `1px solid ${theme.app.dashboard.cardBorder}`,
+            borderRadius: "4px",
+            bgcolor: "transparent",
+            cursor: "pointer",
+          }}
+        />
+        <InputField label="Hex" name="bg-hex" value={backgroundColor} onChange={(e) => setBackgroundColor(e.target.value)} />
+      </Box>
+      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mt: 1 }}>
+        <Typography variant="mediumLarge" sx={{ color: theme.app.text.primary }}>
+          Popup auto-open (config.ui.popupEnabled)
+        </Typography>
+        <Switch checked={popupEnabled} onChange={(_, c) => setPopupEnabled(c)} color="success" />
+      </Box>
+
       <Typography variant="mediumLarge" sx={{ color: theme.app.text.primary, mb: -1.25 }}>Text & Labels</Typography>
       <InputField label="Greeting Message" name="greeting-message" value={greetingMessage} onChange={(event) => setGreetingMessage(event.target.value)} />
 
@@ -284,7 +397,7 @@ export default function ChatWidgetBoxDesignPage() {
             borderRadius: 2.5,
             overflow: "hidden",
             border: `1px solid ${theme.app.dashboard.cardBorder}`,
-            bgcolor: "#EEF1F7",
+            bgcolor: backgroundColor?.trim() || "#EEF1F7",
             width: `${Math.min(460, Math.max(280, Number.parseInt(boxWidth, 10) || 350))}px`,
             minHeight: `${Math.min(560, Math.max(320, Number.parseInt(boxHeight, 10) || 430))}px`,
             mx: "auto",

@@ -15,7 +15,13 @@ import { Button, Typography } from "@/components/common";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
 import { WidgetFlowShell } from "@/components/dashboard/WidgetFlowShell";
 import { LauncherPresetIcon } from "@/lib/chat-widget/launcherIcons";
-import { buildUnifiedWidgetEmbedScript, readWidgetDraft, saveWidgetDraft, type WidgetDraft } from "@/lib/chat-widget/widgetDraft";
+import { buildUnifiedWidgetEmbedScript, type WidgetDraft } from "@/lib/chat-widget/widgetDraft";
+import {
+  readChatWizardDraft,
+  resolveEditWidgetKeyForNavigation,
+  saveChatWizardDraft,
+  useChatWidgetWizardEdit,
+} from "@/lib/chat-widget/chat-wizard-edit";
 import {
   createRemoteWidgetDraft,
   patchRemoteWidgetConfiguration,
@@ -43,21 +49,29 @@ type InstallUiState =
 export default function ChatWidgetScriptPage() {
   const router = useRouter();
   const theme = useTheme() as AppTheme;
+  const { editWidgetKey, draftReady, hydrateError } = useChatWidgetWizardEdit();
   const [copied, setCopied] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [installUi, setInstallUi] = useState<InstallUiState>({ phase: "loading" });
 
+  const waitingHydrate = Boolean(resolveEditWidgetKeyForNavigation(editWidgetKey)) && !draftReady;
+
   useEffect(() => {
+    if (!draftReady) return;
+
     let cancelled = false;
 
     async function runInstall() {
-      const current = readWidgetDraft();
+      const editKey = resolveEditWidgetKeyForNavigation(editWidgetKey);
+      const current = readChatWizardDraft(editKey || undefined);
       const typed = { ...current, type: "chat" as const };
 
       if (!typed.websiteId?.trim()) {
         setInstallUi({
           phase: "error",
-          message: "Choose a website on the first step (Add Widget → Website) before finishing install.",
+          message: editKey
+            ? "This widget has no websiteId in the API response. Contact support or set website on the widget record."
+            : "Choose a website on the first step (Add Widget → Website) before finishing install.",
         });
         return;
       }
@@ -72,14 +86,15 @@ export default function ChatWidgetScriptPage() {
 
         let widgetKey = typed.remoteWidgetKey?.trim() || "";
 
-        /** Older local sessions saved before backend draft wired — bootstrap server draft once */
-        if (!widgetKey) {
+        if (editKey) {
+          widgetKey = editKey;
+        } else if (!widgetKey) {
           const created = await createRemoteWidgetDraft({
             draft: typed,
             widgetKind: "chat",
           });
           widgetKey = created.widgetKey;
-          saveWidgetDraft({
+          saveChatWizardDraft(undefined, {
             ...typed,
             remoteWidgetKey: widgetKey,
             widgetId: widgetKey,
@@ -90,7 +105,7 @@ export default function ChatWidgetScriptPage() {
         let patchInner = await patchRemoteWidgetConfiguration({
           widgetKey,
           widgetKind: "chat",
-          draft: readWidgetDraft(),
+          draft: readChatWizardDraft(editKey || undefined),
           publishNow: true,
           assetUrls,
         });
@@ -110,8 +125,8 @@ export default function ChatWidgetScriptPage() {
           throw new Error("Publish completed but widgetKey is missing.");
         }
 
-        saveWidgetDraft({
-          ...readWidgetDraft(),
+        saveChatWizardDraft(editKey || undefined, {
+          ...readChatWizardDraft(editKey || undefined),
           type: "chat",
           widgetId: finalKey,
           remoteWidgetKey: finalKey,
@@ -165,10 +180,12 @@ export default function ChatWidgetScriptPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [draftReady, editWidgetKey]);
 
   const draft =
-    installUi.phase === "ready" ? installUi.draft : readWidgetDraft();
+    installUi.phase === "ready"
+      ? installUi.draft
+      : readChatWizardDraft(resolveEditWidgetKeyForNavigation(editWidgetKey) || undefined);
 
   const chatScript =
     installUi.phase === "ready"
@@ -198,13 +215,32 @@ export default function ChatWidgetScriptPage() {
       footer={
         <>
           <Button type="button" variant="secondary" onClick={() => setShowPreview((prev) => !prev)}>Preview Widget</Button>
-          <Button type="button" variant="primary" sx={gradientPrimaryButtonSx} onClick={handleCopy} disabled={installUi.phase === "loading"} startIcon={<ContentCopy sx={{ fontSize: 16 }} />}>
+          <Button
+            type="button"
+            variant="primary"
+            sx={gradientPrimaryButtonSx}
+            onClick={handleCopy}
+            disabled={installUi.phase === "loading" || waitingHydrate}
+            startIcon={<ContentCopy sx={{ fontSize: 16 }} />}
+          >
             {copied ? "Copied" : "Copy Script"}
           </Button>
         </>
       }
     >
-      {installUi.phase === "loading" ? (
+      {waitingHydrate ? (
+        <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted }}>
+          Loading widget…
+        </Typography>
+      ) : null}
+
+      {hydrateError ? (
+        <Typography variant="body2" sx={{ color: theme.palette.error.main, mb: 1 }}>
+          {hydrateError}
+        </Typography>
+      ) : null}
+
+      {installUi.phase === "loading" && !waitingHydrate ? (
         <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted }}>
           Publishing widget (PATCH publishNow true → optional POST publish → embed snippet)…
         </Typography>

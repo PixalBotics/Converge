@@ -18,7 +18,18 @@ import {
 } from "@/lib/chat-widget/widget-remote-sync";
 import { extractApiErrorMessageForToast } from "@/lib/notify/extract-api-message";
 import { publishAppToast } from "@/lib/notify";
-import { readWidgetDraft, saveWidgetDraft, type LauncherIconPresetId } from "@/lib/chat-widget/widgetDraft";
+import {
+  readChatWizardDraft,
+  resolveEditWidgetKeyForNavigation,
+  resolveRemoteWidgetKeyForChatWizard,
+  saveChatWizardDraft,
+  useChatWidgetWizardEdit,
+  withChatEditQuery,
+} from "@/lib/chat-widget/chat-wizard-edit";
+import {
+  defaultWidgetDraft,
+  type LauncherIconPresetId,
+} from "@/lib/chat-widget/widgetDraft";
 
 const STEPS = ["Widget Button Design", "Chat Box Design", "Notifications & Advanced"];
 
@@ -31,9 +42,16 @@ function parseInsetPxString(raw: string, fallback: number): number {
   return Math.min(240, Math.max(0, n));
 }
 
+function clampNum(raw: string, min: number, max: number, fallback: number): number {
+  const n = Number.parseInt(raw.trim(), 10);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.min(max, Math.max(min, n));
+}
+
 export default function ChatWidgetButtonDesignPage() {
   const router = useRouter();
   const theme = useTheme() as AppTheme;
+  const { editWidgetKey, draftReady, hydrateError } = useChatWidgetWizardEdit();
   const [buttonShape, setButtonShape] = useState<"circle" | "rounded" | "square">("circle");
   const [buttonPosition, setButtonPosition] = useState("right");
   const [selectedButtonColor, setSelectedButtonColor] = useState("#2AA9E0");
@@ -47,8 +65,43 @@ export default function ChatWidgetButtonDesignPage() {
   const iconUploadRef = useRef<HTMLInputElement | null>(null);
   const [saving, setSaving] = useState(false);
 
+  const [expiresInMinutesStr, setExpiresInMinutesStr] = useState(
+    String(defaultWidgetDraft.expiresInMinutes ?? 60),
+  );
+  const [themeName, setThemeName] = useState(defaultWidgetDraft.themeName ?? "Brand Default");
+  const [themePrimaryColor, setThemePrimaryColor] = useState(
+    defaultWidgetDraft.themePrimaryColor ?? "",
+  );
+  const [themeSecondaryColor, setThemeSecondaryColor] = useState(
+    defaultWidgetDraft.themeSecondaryColor ?? "#64748b",
+  );
+  const [themeFontFamily, setThemeFontFamily] = useState(
+    defaultWidgetDraft.themeFontFamily ?? "Inter, system-ui, sans-serif",
+  );
+  const [themeBubbleStyle, setThemeBubbleStyle] = useState(defaultWidgetDraft.themeBubbleStyle ?? "rounded");
+  const [themeBorderRadiusPxStr, setThemeBorderRadiusPxStr] = useState(
+    String(defaultWidgetDraft.themeBorderRadiusPx ?? 12),
+  );
+  const [themeWelcomeFontStr, setThemeWelcomeFontStr] = useState(
+    String(defaultWidgetDraft.themeWelcomeFontSizePx ?? 18),
+  );
+  const [themeBodyFontStr, setThemeBodyFontStr] = useState(String(defaultWidgetDraft.themeBodyFontSizePx ?? 14));
+  const [themeInputFontStr, setThemeInputFontStr] = useState(String(defaultWidgetDraft.themeInputFontSizePx ?? 14));
+  const [themeCtaFontStr, setThemeCtaFontStr] = useState(String(defaultWidgetDraft.themeCtaFontSizePx ?? 15));
+  const [themeConsentFontStr, setThemeConsentFontStr] = useState(
+    String(defaultWidgetDraft.themeConsentFontSizePx ?? 12),
+  );
+  const [themeLineHeightStr, setThemeLineHeightStr] = useState(String(defaultWidgetDraft.themeLineHeightPx ?? 22));
+  const [themeDesignJsonAccent, setThemeDesignJsonAccent] = useState(
+    defaultWidgetDraft.themeDesignJsonAccent ?? "blue",
+  );
+  const [themeDesignJsonDensity, setThemeDesignJsonDensity] = useState(
+    defaultWidgetDraft.themeDesignJsonDensity ?? "comfortable",
+  );
+
   useEffect(() => {
-    const d = readWidgetDraft();
+    if (!draftReady) return;
+    const d = readChatWizardDraft(resolveEditWidgetKeyForNavigation(editWidgetKey) || undefined);
     setButtonShape(d.buttonShape);
     setButtonPosition(d.buttonPosition);
     setSelectedButtonColor(d.buttonColor || "#2AA9E0");
@@ -59,7 +112,22 @@ export default function ChatWidgetButtonDesignPage() {
     setLauncherIconPreset(d.launcherIconPreset);
     setLauncherInsetBottom(String(d.launcherInsetBottomPx ?? 28));
     setLauncherInsetSide(String(d.launcherInsetSidePx ?? 28));
-  }, []);
+    setExpiresInMinutesStr(String(d.expiresInMinutes ?? 60));
+    setThemeName(d.themeName ?? "Brand Default");
+    setThemePrimaryColor(d.themePrimaryColor ?? "");
+    setThemeSecondaryColor(d.themeSecondaryColor ?? "#64748b");
+    setThemeFontFamily(d.themeFontFamily ?? "Inter, system-ui, sans-serif");
+    setThemeBubbleStyle(d.themeBubbleStyle ?? "rounded");
+    setThemeBorderRadiusPxStr(String(d.themeBorderRadiusPx ?? 12));
+    setThemeWelcomeFontStr(String(d.themeWelcomeFontSizePx ?? 18));
+    setThemeBodyFontStr(String(d.themeBodyFontSizePx ?? 14));
+    setThemeInputFontStr(String(d.themeInputFontSizePx ?? 14));
+    setThemeCtaFontStr(String(d.themeCtaFontSizePx ?? 15));
+    setThemeConsentFontStr(String(d.themeConsentFontSizePx ?? 12));
+    setThemeLineHeightStr(String(d.themeLineHeightPx ?? 22));
+    setThemeDesignJsonAccent(d.themeDesignJsonAccent ?? "blue");
+    setThemeDesignJsonDensity(d.themeDesignJsonDensity ?? "comfortable");
+  }, [draftReady, editWidgetKey]);
 
   const handlePickColor = (event: ChangeEvent<HTMLInputElement>) => {
     const color = event.target.value;
@@ -113,8 +181,9 @@ export default function ChatWidgetButtonDesignPage() {
     const bottomPx = parseInsetPxString(launcherInsetBottom, 28);
     const sidePx = parseInsetPxString(launcherInsetSide, 28);
     void (async () => {
-      const prev = readWidgetDraft();
-      const rk = prev.remoteWidgetKey?.trim();
+      const editKey = resolveEditWidgetKeyForNavigation(editWidgetKey);
+      const prev = readChatWizardDraft(editKey || undefined);
+      const rk = resolveRemoteWidgetKeyForChatWizard(editKey || undefined, prev);
       if (!rk) {
         publishAppToast({
           variant: "error",
@@ -127,7 +196,7 @@ export default function ChatWidgetButtonDesignPage() {
 
       setSaving(true);
       try {
-        saveWidgetDraft({
+        saveChatWizardDraft(editKey || undefined, {
           type: "chat",
           buttonShape,
           buttonPosition: buttonPosition as "left" | "center" | "right",
@@ -140,19 +209,40 @@ export default function ChatWidgetButtonDesignPage() {
           launcherIconPreset,
           completed: false,
           widgetId: prev.widgetId?.startsWith("wgt_") ? prev.widgetId : rk,
+          expiresInMinutes: Math.min(1440, Math.max(5, Number.parseInt(expiresInMinutesStr, 10) || 60)),
+          themeName: themeName.trim() || "Brand Default",
+          themePrimaryColor: themePrimaryColor.trim() || undefined,
+          themeSecondaryColor: themeSecondaryColor.trim() || "#64748b",
+          themeFontFamily: themeFontFamily.trim() || "Inter, system-ui, sans-serif",
+          themeBubbleStyle: themeBubbleStyle.trim() || "rounded",
+          themeBorderRadiusPx: clampNum(themeBorderRadiusPxStr, 0, 48, 12),
+          themeWelcomeFontSizePx: clampNum(themeWelcomeFontStr, 10, 32, 18),
+          themeBodyFontSizePx: clampNum(themeBodyFontStr, 10, 28, 14),
+          themeInputFontSizePx: clampNum(themeInputFontStr, 10, 28, 14),
+          themeCtaFontSizePx: clampNum(themeCtaFontStr, 10, 28, 15),
+          themeConsentFontSizePx: clampNum(themeConsentFontStr, 8, 24, 12),
+          themeLineHeightPx: clampNum(themeLineHeightStr, 14, 40, 22),
+          themeDesignJsonAccent: themeDesignJsonAccent.trim() || "blue",
+          themeDesignJsonDensity: themeDesignJsonDensity.trim() || "comfortable",
         });
-        const latest = readWidgetDraft();
+        const latest = readChatWizardDraft(editKey || undefined);
         const patchInner = await patchRemoteWidgetConfiguration({
           widgetKey: rk,
           widgetKind: "chat",
           draft: latest,
           publishNow: false,
+          chatWizardPatchScope: "launcher_only",
         });
         const sum = summarizePatchResult(patchInner);
-        saveWidgetDraft({
+        saveChatWizardDraft(editKey || undefined, {
           requiresPublishBeforeEmbed: sum.requiresPublishBeforeEmbed,
         });
-        router.push("/dashboard/chat-widget/add/chat/box");
+        router.push(
+          withChatEditQuery(
+            "/dashboard/chat-widget/add/chat/box",
+            resolveEditWidgetKeyForNavigation(editKey),
+          ),
+        );
       } catch (e) {
         publishAppToast({
           variant: "error",
@@ -176,12 +266,28 @@ export default function ChatWidgetButtonDesignPage() {
           <Button type="button" variant="secondary" onClick={() => router.push("/dashboard/chat-widget")}>
             Cancel
           </Button>
-          <Button type="button" variant="primary" sx={gradientPrimaryButtonSx} disabled={saving} onClick={handleNext}>
+          <Button
+            type="button"
+            variant="primary"
+            sx={gradientPrimaryButtonSx}
+            disabled={saving || !draftReady}
+            onClick={handleNext}
+          >
             {saving ? "Saving…" : "Next"}
           </Button>
         </>
       }
     >
+      {!draftReady ? (
+        <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, mb: 1 }}>
+          Loading widget…
+        </Typography>
+      ) : null}
+      {hydrateError ? (
+        <Typography variant="body2" sx={{ color: theme.palette.error.main, mb: 1 }}>
+          {hydrateError}
+        </Typography>
+      ) : null}
       <Typography variant="mediumLarge" sx={{ color: theme.app.text.primary, mb: -1.25 }}>Button Shape</Typography>
       <Box sx={{ display: "flex", gap: 1.5, flexWrap: "wrap", mt: 0.75 }}>
         <IconButton
@@ -433,6 +539,122 @@ export default function ChatWidgetButtonDesignPage() {
           value={launcherInsetSide}
           onChange={(event) => setLauncherInsetSide(event.target.value)}
           inputProps={{ inputMode: "numeric", pattern: "[0-9]*", min: 0, max: 240 }}
+        />
+      </Box>
+
+      <Typography variant="mediumLarge" sx={{ color: theme.app.text.primary, mt: 2, mb: 0.5 }}>
+        Session & brand theme (PATCH step 1)
+      </Typography>
+      <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, mb: 1 }}>
+        These values map to config.expiresInMinutes and config.theme on the server.
+      </Typography>
+      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 1.5 }}>
+        <InputField
+          label="Session expires (minutes)"
+          name="expires-minutes"
+          value={expiresInMinutesStr}
+          onChange={(e) => setExpiresInMinutesStr(e.target.value)}
+          inputProps={{ inputMode: "numeric", min: 5, max: 1440 }}
+        />
+        <InputField label="Theme name" name="theme-name" value={themeName} onChange={(e) => setThemeName(e.target.value)} />
+        <InputField
+          label="Primary color (optional — empty uses launcher button color)"
+          name="theme-primary"
+          value={themePrimaryColor}
+          onChange={(e) => setThemePrimaryColor(e.target.value)}
+          placeholder="#2563eb"
+        />
+        <InputField
+          label="Secondary color"
+          name="theme-secondary"
+          value={themeSecondaryColor}
+          onChange={(e) => setThemeSecondaryColor(e.target.value)}
+        />
+        <InputField
+          label="Font family"
+          name="theme-font"
+          value={themeFontFamily}
+          onChange={(e) => setThemeFontFamily(e.target.value)}
+          sx={{ gridColumn: { sm: "1 / -1" } }}
+        />
+        <SelectField
+          label="Bubble style"
+          value={themeBubbleStyle}
+          onChange={setThemeBubbleStyle}
+          options={[
+            { label: "Rounded", value: "rounded" },
+            { label: "Square", value: "square" },
+            { label: "Pill", value: "pill" },
+          ]}
+        />
+        <InputField
+          label="Border radius (px)"
+          name="theme-radius"
+          value={themeBorderRadiusPxStr}
+          onChange={(e) => setThemeBorderRadiusPxStr(e.target.value)}
+          inputProps={{ inputMode: "numeric" }}
+        />
+        <InputField
+          label="Welcome font size (px)"
+          name="theme-welcome-font"
+          value={themeWelcomeFontStr}
+          onChange={(e) => setThemeWelcomeFontStr(e.target.value)}
+          inputProps={{ inputMode: "numeric" }}
+        />
+        <InputField
+          label="Body font size (px)"
+          name="theme-body-font"
+          value={themeBodyFontStr}
+          onChange={(e) => setThemeBodyFontStr(e.target.value)}
+          inputProps={{ inputMode: "numeric" }}
+        />
+        <InputField
+          label="Input font size (px)"
+          name="theme-input-font"
+          value={themeInputFontStr}
+          onChange={(e) => setThemeInputFontStr(e.target.value)}
+          inputProps={{ inputMode: "numeric" }}
+        />
+        <InputField
+          label="CTA font size (px)"
+          name="theme-cta-font"
+          value={themeCtaFontStr}
+          onChange={(e) => setThemeCtaFontStr(e.target.value)}
+          inputProps={{ inputMode: "numeric" }}
+        />
+        <InputField
+          label="Consent font size (px)"
+          name="theme-consent-font"
+          value={themeConsentFontStr}
+          onChange={(e) => setThemeConsentFontStr(e.target.value)}
+          inputProps={{ inputMode: "numeric" }}
+        />
+        <InputField
+          label="Line height (px)"
+          name="theme-line-height"
+          value={themeLineHeightStr}
+          onChange={(e) => setThemeLineHeightStr(e.target.value)}
+          inputProps={{ inputMode: "numeric" }}
+        />
+        <SelectField
+          label="Design accent"
+          value={themeDesignJsonAccent}
+          onChange={setThemeDesignJsonAccent}
+          options={[
+            { label: "Blue", value: "blue" },
+            { label: "Green", value: "green" },
+            { label: "Purple", value: "purple" },
+            { label: "Orange", value: "orange" },
+          ]}
+        />
+        <SelectField
+          label="Design density"
+          value={themeDesignJsonDensity}
+          onChange={setThemeDesignJsonDensity}
+          options={[
+            { label: "Comfortable", value: "comfortable" },
+            { label: "Compact", value: "compact" },
+          ]}
         />
       </Box>
 

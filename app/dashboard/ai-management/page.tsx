@@ -53,11 +53,12 @@ export default function AIManagementPage() {
     setReindexBusy(true);
     setStatus(null);
     try {
-      const payload = await postKbReindex({
-        sourceId: sourceIdReindex.trim(),
-        includeFailed: true,
-      });
-      setStatus(`Reindex: ${JSON.stringify(payload)}`);
+      const sid = sourceIdReindex.trim();
+      const payload = sid
+        ? { sourceId: sid, includeFailed: true as const }
+        : { includeFailed: true as const };
+      const raw = await postKbReindex(payload);
+      setStatus(`Reindex: ${JSON.stringify(raw)}`);
     } catch (e) {
       setStatus(e instanceof Error ? e.message : "Reindex failed");
     } finally {

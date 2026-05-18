@@ -44,11 +44,15 @@ export interface VisitorCreateConversationResponse {
 export interface VisitorSendMessagePayload {
   message: string;
   currentPageUrl: string;
+  /** Optional server message discriminator (SendVisitorMessageDto). */
+  messageType?: string;
 }
 
 /** POST .../agent/conversations/:id/messages */
 export interface AgentSendMessagePayload {
   message: string;
+  /** Optional server message discriminator (SendAgentMessageDto). */
+  messageType?: string;
 }
 
 export interface ConversationSummary {
@@ -89,6 +93,7 @@ export interface ChatCloseResponse {
 export interface TypingPayload {
   conversationId: string;
   userType?: "agent" | "visitor" | string;
+  userId?: string;
 }
 
 /** Socket: client → server join/leave (backend contract: conversationId only). */
@@ -103,8 +108,16 @@ export interface SocketVisitorMessagePayload {
   currentPageUrl: string;
 }
 
-/** Socket: client → server agent_message */
+/** Socket: client → server agent_message (server persists auth userId; agentId matches gateway convention). */
 export interface SocketAgentMessagePayload {
   conversationId: string;
   message: string;
+  agentId?: string;
+}
+
+/** Client → server typing / stop_typing (gateway accepts userType / userId; server may derive for visitors). */
+export interface SocketTypingEmitPayload {
+  conversationId: string;
+  userType?: "agent" | "visitor" | string;
+  userId?: string;
 }

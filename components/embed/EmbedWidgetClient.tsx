@@ -34,6 +34,10 @@ import {
   postWidgetSession,
 } from "@/lib/widget-runtime/widget-public-fetch";
 import type { WidgetConfigEnvelope } from "@/lib/widget-runtime/widget-types";
+import {
+  formatKnowledgeMatchCitation,
+  resolveVisitorAiMessageContent,
+} from "@/lib/widget-runtime/visitor-ai-display";
 import { decodeJwtExpMs } from "@/lib/widget-runtime/jwt-expiry";
 import {
   generateClientSessionId,
@@ -632,6 +636,7 @@ function WidgetChatPanel({
   const [prechatDone, setPrechatDone] = useState(false);
   const [selectedTopic, setSelectedTopic] = useState<string | undefined>();
   const [aiPending, setAiPending] = useState(false);
+  /** HYBRID only: set true when visitor taps "Talk to a human" — never from API shouldEscalate (that was forcing queue UI + repeated handoff replies). */
   const [escalated, setEscalated] = useState(false);
   const [localAiMessages, setLocalAiMessages] = useState<ChatMessage[]>([]);
 
@@ -675,15 +680,16 @@ function WidgetChatPanel({
 
   const appendAiAssistant = (
     conversationId: string,
-    text: string,
+    text: string | undefined,
     meta?: Record<string, unknown>,
   ) => {
+    const content = typeof text === "string" ? text : "";
     setLocalAiMessages((prev) => [
       ...prev,
       {
         conversationId,
         role: "system",
-        content: text,
+        content,
         createdAt: new Date().toISOString(),
         id: `ai-${Date.now()}`,
         ...(meta ? { metadata: meta } : {}),
@@ -715,20 +721,27 @@ function WidgetChatPanel({
       const aiRes = await postAiVisitorRespond(
         {
           message: firstMessage,
-          websiteId,
+          websiteId: websiteId.trim() || undefined,
           conversationId: created.conversationId,
           widgetKey,
           originHost: originHostSafe,
+          currentPageUrl: parentPageUrl.trim() || undefined,
         },
         sessionToken,
       );
       setAiPending(false);
       if (aiRes.ok) {
-        appendAiAssistant(created.conversationId, aiRes.data.response, {
-          knowledgeMatches: aiRes.data.knowledgeMatches,
-          intent: aiRes.data.intent,
-        });
-        if (aiRes.data.shouldEscalate && mode === "HYBRID") setEscalated(true);
+        appendAiAssistant(
+          created.conversationId,
+          resolveVisitorAiMessageContent(
+            aiRes.data.response,
+            aiRes.data.knowledgeMatches,
+          ),
+          {
+            knowledgeMatches: aiRes.data.knowledgeMatches,
+            intent: aiRes.data.intent,
+          },
+        );
       }
     }
     setPrechatDone(true);
@@ -740,6 +753,7 @@ function WidgetChatPanel({
     const text = normalizeChatMessageText(draft);
     if (!text || !chat.conversationId) return;
 
+    /** HYBRID: AI replies until the visitor taps "Talk to a human"; then only visitor→agent messages run until an agent joins. */
     const shouldUseAiBridge =
       mode === "AI_ONLY" || (mode === "HYBRID" && !escalated);
 
@@ -755,19 +769,23 @@ function WidgetChatPanel({
     const aiRes = await postAiVisitorRespond(
       {
         message: text,
-        websiteId,
+        websiteId: websiteId.trim() || undefined,
         conversationId: chat.conversationId,
         widgetKey,
         originHost: safeHostname(parentPageUrl),
+        currentPageUrl: parentPageUrl.trim() || undefined,
       },
       sessionToken,
     );
     setAiPending(false);
     if (aiRes.ok) {
-      appendAiAssistant(chat.conversationId, aiRes.data.response, {
-        knowledgeMatches: aiRes.data.knowledgeMatches,
-      });
-      if (aiRes.data.shouldEscalate && mode === "HYBRID") setEscalated(true);
+      appendAiAssistant(
+        chat.conversationId,
+        resolveVisitorAiMessageContent(aiRes.data.response, aiRes.data.knowledgeMatches),
+        {
+          knowledgeMatches: aiRes.data.knowledgeMatches,
+        },
+      );
     }
   };
 
@@ -1120,14 +1138,10 @@ function MessageBubble({ message }: { message: ChatMessage }) {
   const fg = alignRight ? "primary.contrastText" : "text.primary";
 
   const kmRaw = (
-    message.metadata as { knowledgeMatches?: Array<{ sourceRef?: string }> } | undefined
+    message.metadata as { knowledgeMatches?: unknown[] } | undefined
   )?.knowledgeMatches;
   const citations = Array.isArray(kmRaw)
-    ? kmRaw.map((c) =>
-        typeof c?.sourceRef === "string"
-          ? c.sourceRef.trim()
-          : ""
-      ).filter(Boolean)
+    ? kmRaw.map((c) => formatKnowledgeMatchCitation(c)).filter(Boolean)
     : [];
 
   return (

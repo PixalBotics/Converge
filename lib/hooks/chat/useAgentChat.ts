@@ -29,7 +29,7 @@ interface UseAgentChatReturn {
   visitorTypingSelected: boolean;
   refreshQueues: () => Promise<void>;
   selectConversation: (conversationId: string) => Promise<void>;
-  sendMessage: (content: string) => Promise<void>;
+  sendMessage: (content: string, options?: { messageType?: string }) => Promise<void>;
   closeSelectedConversation: () => Promise<void>;
   emitTyping: () => void;
   emitStopTyping: () => void;
@@ -116,6 +116,7 @@ export function useAgentChat(params: UseAgentChatParams): UseAgentChatReturn {
       upsertMessage(m),
     );
     const offAgentMessage = socketClient.onAgentMessage((m) => upsertMessage(m));
+    const offAiMessage = socketClient.onAiMessage((m) => upsertMessage(m));
 
     const offTyping = socketClient.onTyping((payload: TypingPayload) => {
       const cid = selectedConversationIdRef.current;
@@ -159,6 +160,9 @@ export function useAgentChat(params: UseAgentChatParams): UseAgentChatReturn {
       }
     });
 
+    const offTransferred = socketClient.onChatTransferred(() => void refreshQueues());
+    const offHandover = socketClient.onChatHandover(() => void refreshQueues());
+
     void refreshQueues();
     const poll = window.setInterval(() => void refreshQueues(), POLL_MS);
 
@@ -169,11 +173,14 @@ export function useAgentChat(params: UseAgentChatParams): UseAgentChatReturn {
       offSocketDisconnect();
       offVisitorMessage();
       offAgentMessage();
+      offAiMessage();
       offTyping();
       offStopTyping();
       offAssigned();
       offPopup();
       offClosed();
+      offTransferred();
+      offHandover();
       socketClient.disconnect();
     };
   }, [params.token, refreshQueues, socketClient, upsertMessage]);
@@ -210,7 +217,7 @@ export function useAgentChat(params: UseAgentChatParams): UseAgentChatReturn {
   );
 
   const sendMessage = useCallback(
-    async (content: string) => {
+    async (content: string, sendOpts?: { messageType?: string }) => {
       if (!selectedConversationId) {
         throw new Error("Select a conversation before sending a message.");
       }
@@ -227,12 +234,16 @@ export function useAgentChat(params: UseAgentChatParams): UseAgentChatReturn {
       upsertMessage(optimisticMessage);
       await sendAgentMessage(
         selectedConversationId,
-        { message: content },
+        {
+          message: content,
+          ...(sendOpts?.messageType ? { messageType: sendOpts.messageType } : {}),
+        },
         params.token,
       );
       socketClient.sendAgentMessage({
         conversationId: selectedConversationId,
         message: content,
+        ...(params.agentId ? { agentId: params.agentId } : {}),
       });
     },
     [params.agentId, params.token, selectedConversationId, socketClient, upsertMessage],
@@ -266,15 +277,21 @@ export function useAgentChat(params: UseAgentChatParams): UseAgentChatReturn {
 
   const emitTyping = useCallback(() => {
     if (!selectedConversationId) return;
-    socketClient.emitTyping({ conversationId: selectedConversationId });
-  }, [selectedConversationId, socketClient]);
+    socketClient.emitTyping({
+      conversationId: selectedConversationId,
+      userType: "agent",
+      ...(params.agentId ? { userId: params.agentId } : {}),
+    });
+  }, [params.agentId, selectedConversationId, socketClient]);
 
   const emitStopTyping = useCallback(() => {
     if (!selectedConversationId) return;
     socketClient.emitStopTyping({
       conversationId: selectedConversationId,
+      userType: "agent",
+      ...(params.agentId ? { userId: params.agentId } : {}),
     });
-  }, [selectedConversationId, socketClient]);
+  }, [params.agentId, selectedConversationId, socketClient]);
 
   return {
     activeChats,

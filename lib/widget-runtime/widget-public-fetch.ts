@@ -31,6 +31,46 @@ function peelSuccessEnvelope(raw: unknown, maxDepth = 4): unknown {
   return cur;
 }
 
+function parseAiVisitorRespondResponse(raw: unknown): AiVisitorRespondResponse {
+  const peeled = peelSuccessEnvelope(raw);
+  const o =
+    peeled !== null && typeof peeled === "object" && !Array.isArray(peeled)
+      ? (peeled as Record<string, unknown>)
+      : {};
+
+  const str = (v: unknown): string => (typeof v === "string" ? v : "");
+
+  const response =
+    str(o.response) ||
+    str(o.reply) ||
+    str(o.output) ||
+    str(o.suggestedReply) ||
+    str(o.suggested_reply) ||
+    str(o.assistantMessage) ||
+    str(o.assistant_message) ||
+    str(o.message) ||
+    str(o.text) ||
+    str(o.answer) ||
+    str(o.content) ||
+    str(o.body) ||
+    (typeof o.result === "string" ? str(o.result) : "");
+
+  const intent = typeof o.intent === "string" ? o.intent : undefined;
+  const shouldEscalate =
+    typeof o.shouldEscalate === "boolean"
+      ? o.shouldEscalate
+      : typeof o.should_escalate === "boolean"
+        ? o.should_escalate
+        : undefined;
+
+  const km = o.knowledgeMatches ?? o.knowledge_matches;
+  const knowledgeMatches = Array.isArray(km)
+    ? (km as NonNullable<AiVisitorRespondResponse["knowledgeMatches"]>)
+    : undefined;
+
+  return { response, intent, shouldEscalate, knowledgeMatches };
+}
+
 function coerceSurfaces(input: unknown): WidgetSurfacesDto {
   return input !== null && typeof input === "object"
     ? (input as WidgetSurfacesDto)
@@ -142,6 +182,21 @@ export async function postWidgetSession(body: WidgetSessionRequest) {
 }
 
 /** Public AI reply for embedded widget visitor. Uses widget bearer when provided. */
+function buildVisitorRespondJsonBody(body: AiVisitorRespondRequest): Record<string, unknown> {
+  const out: Record<string, unknown> = {
+    message: body.message,
+    widgetKey: body.widgetKey,
+    originHost: body.originHost,
+  };
+  const wid = body.websiteId?.trim();
+  if (wid) out.websiteId = wid;
+  const cid = body.conversationId?.trim();
+  if (cid) out.conversationId = cid;
+  const page = body.currentPageUrl?.trim();
+  if (page) out.currentPageUrl = page;
+  return out;
+}
+
 export async function postAiVisitorRespond(
   body: AiVisitorRespondRequest,
   widgetBearerToken?: string,
@@ -156,7 +211,7 @@ export async function postAiVisitorRespond(
         ? { Authorization: `Bearer ${widgetBearerToken}` }
         : {}),
     },
-    body: JSON.stringify(body),
+    body: JSON.stringify(buildVisitorRespondJsonBody(body)),
   });
 
   if (!res.ok) {
@@ -170,6 +225,7 @@ export async function postAiVisitorRespond(
     return { ok: false as const, status: res.status, message: msg };
   }
 
-  const data = (await res.json()) as AiVisitorRespondResponse;
+  const raw = await res.json();
+  const data = parseAiVisitorRespondResponse(raw);
   return { ok: true as const, data };
 }

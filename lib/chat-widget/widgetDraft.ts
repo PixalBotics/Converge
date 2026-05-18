@@ -67,6 +67,68 @@ export interface WidgetDraft {
   textUsHeaderTitle?: string;
   textUsWelcomeMessage?: string;
   textUsFormFields?: TextUsFormFieldDraft[];
+  /** Step 1+ PATCH: session length on widget config root. */
+  expiresInMinutes?: number;
+  /** Brand theme (PATCH `config.theme`) — optional; sensible fallbacks in patch builders. */
+  themeName?: string;
+  themePrimaryColor?: string;
+  themeSecondaryColor?: string;
+  themeFontFamily?: string;
+  themeBubbleStyle?: string;
+  themeBorderRadiusPx?: number;
+  themeWelcomeFontSizePx?: number;
+  themeBodyFontSizePx?: number;
+  themeInputFontSizePx?: number;
+  themeCtaFontSizePx?: number;
+  themeConsentFontSizePx?: number;
+  themeLineHeightPx?: number;
+  themeDesignJsonAccent?: string;
+  themeDesignJsonDensity?: string;
+  /** Step 2 PATCH `config.ui` */
+  buttonLabel?: string;
+  firstMessage?: string;
+  messagePlaceholder?: string;
+  backgroundColor?: string;
+  popupEnabled?: boolean;
+  /** Step 3 PATCH `config.behavior` */
+  botEnabled?: boolean;
+  notificationEnabled?: boolean;
+  browserNotification?: boolean;
+  soundNotification?: boolean;
+  fallbackNotificationText?: string;
+  videoWelcomeOn?: boolean;
+  inquiryOptions?: string[];
+  welcomeMessageBehavior?: string;
+  autoOpenEnabled?: boolean;
+  autoOpenDelaySeconds?: number;
+  fileUploadEnabled?: boolean;
+  emojiEnabled?: boolean;
+  consentRequired?: boolean;
+  consentText?: string;
+  privacyPolicyUrl?: string;
+  privacyNotice?: string;
+  allowedDomainsText?: string;
+  /** Step 3 PATCH `config.session` */
+  persistVisitorSession?: boolean;
+  sessionTtlMinutes?: number;
+  /** Step 3 PATCH `config.form` */
+  formEnabled?: boolean;
+  formTitle?: string;
+  formSubtitle?: string;
+  formSubmitLabel?: string;
+  prechatNameEnabled?: boolean;
+  prechatEmailEnabled?: boolean;
+  prechatPhoneEnabled?: boolean;
+  prechatMessageEnabled?: boolean;
+  prechatMessageRequired?: boolean;
+  /** Step 3 PATCH `config.response` */
+  responseWelcomeMessage?: string;
+  responseOfflineMessage?: string;
+  responseGreetingMessage?: string;
+  responseSendPlaceholder?: string;
+  responseAiPromptHint?: string;
+  responseAgentHandoverEnabled?: boolean;
+  responseHandoverTriggerText?: string;
 }
 
 const STORAGE_KEY = "chat_widget_draft_v1";
@@ -103,6 +165,60 @@ export const defaultWidgetDraft: WidgetDraft = {
   textUsPosition: "center",
   textUsHeaderTitle: "Special Offer",
   textUsWelcomeMessage: "Get 20% off all premium plans today.",
+  expiresInMinutes: 60,
+  themeName: "Brand Default",
+  themeSecondaryColor: "#64748b",
+  themeFontFamily: "Inter, system-ui, sans-serif",
+  themeBubbleStyle: "rounded",
+  themeBorderRadiusPx: 12,
+  themeWelcomeFontSizePx: 18,
+  themeBodyFontSizePx: 14,
+  themeInputFontSizePx: 14,
+  themeCtaFontSizePx: 15,
+  themeConsentFontSizePx: 12,
+  themeLineHeightPx: 22,
+  themeDesignJsonAccent: "blue",
+  themeDesignJsonDensity: "comfortable",
+  buttonLabel: "Chat with us",
+  firstMessage: "Hi! How can we help today?",
+  messagePlaceholder: "Write here…",
+  backgroundColor: "#f8fafc",
+  popupEnabled: false,
+  botEnabled: true,
+  notificationEnabled: true,
+  browserNotification: true,
+  soundNotification: false,
+  fallbackNotificationText: "You have a new message from support.",
+  videoWelcomeOn: false,
+  welcomeMessageBehavior: "Thanks for reaching out.",
+  autoOpenEnabled: false,
+  autoOpenDelaySeconds: 10,
+  fileUploadEnabled: true,
+  emojiEnabled: true,
+  consentRequired: true,
+  consentText: "I agree to the chat terms and privacy policy.",
+  privacyPolicyUrl: "https://www.example.com/privacy",
+  privacyNotice: "We process messages per our privacy policy.",
+  allowedDomainsText: "Only use this widget on approved domains.",
+  persistVisitorSession: true,
+  sessionTtlMinutes: 120,
+  formEnabled: true,
+  formTitle: "Before we start",
+  formSubtitle: "Tell us who you are",
+  formSubmitLabel: "Start chat",
+  prechatNameEnabled: true,
+  prechatEmailEnabled: true,
+  prechatPhoneEnabled: false,
+  prechatMessageEnabled: true,
+  prechatMessageRequired: false,
+  responseWelcomeMessage: "Hello! A teammate will join shortly.",
+  responseOfflineMessage: "We are offline; leave a message and we will reply.",
+  responseGreetingMessage: "Good day!",
+  responseSendPlaceholder: "Ask us anything…",
+  responseAiPromptHint: "Be concise and helpful.",
+  responseAgentHandoverEnabled: true,
+  responseHandoverTriggerText: "talk to human",
+  inquiryOptions: ["Billing", "Technical", "Sales"],
 };
 
 function canUseStorage() {
@@ -139,27 +255,31 @@ function normalizeChatMode(value: unknown): WidgetInstallChatMode | undefined {
   return CHAT_MODES.has(up) ? (up as WidgetInstallChatMode) : undefined;
 }
 
+/** Merge defaults + partial stored JSON with the same coercion as `readWidgetDraft`. */
+export function mergePartialWidgetDraft(parsed: Partial<WidgetDraft>): WidgetDraft {
+  return {
+    ...defaultWidgetDraft,
+    ...parsed,
+    chatMode: normalizeChatMode(parsed.chatMode) ?? defaultWidgetDraft.chatMode,
+    launcherIconPreset: normalizeLauncherIconPreset(parsed.launcherIconPreset),
+    launcherInsetBottomPx: clampLauncherInsetPx(
+      parsed.launcherInsetBottomPx,
+      defaultWidgetDraft.launcherInsetBottomPx,
+    ),
+    launcherInsetSidePx: clampLauncherInsetPx(
+      parsed.launcherInsetSidePx,
+      defaultWidgetDraft.launcherInsetSidePx,
+    ),
+  };
+}
+
 export function readWidgetDraft(): WidgetDraft {
   if (!canUseStorage()) return defaultWidgetDraft;
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     if (!raw) return defaultWidgetDraft;
     const parsed = JSON.parse(raw) as Partial<WidgetDraft>;
-    return {
-      ...defaultWidgetDraft,
-      ...parsed,
-      chatMode:
-        normalizeChatMode(parsed.chatMode) ?? defaultWidgetDraft.chatMode,
-      launcherIconPreset: normalizeLauncherIconPreset(parsed.launcherIconPreset),
-      launcherInsetBottomPx: clampLauncherInsetPx(
-        parsed.launcherInsetBottomPx,
-        defaultWidgetDraft.launcherInsetBottomPx
-      ),
-      launcherInsetSidePx: clampLauncherInsetPx(
-        parsed.launcherInsetSidePx,
-        defaultWidgetDraft.launcherInsetSidePx
-      ),
-    };
+    return mergePartialWidgetDraft(parsed);
   } catch {
     return defaultWidgetDraft;
   }

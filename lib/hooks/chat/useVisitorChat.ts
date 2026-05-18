@@ -28,7 +28,10 @@ export interface UseVisitorChatReturn {
   startConversation: (
     payload: VisitorCreateConversationPayload,
   ) => Promise<VisitorCreateConversationResponse>;
-  sendMessage: (content: string) => Promise<void>;
+  sendMessage: (
+    content: string,
+    options?: { messageType?: string },
+  ) => Promise<void>;
   emitTyping: () => void;
   emitStopTyping: () => void;
   joinRoom: (conversationId: string) => void;
@@ -95,8 +98,6 @@ export function useVisitorChat(
   }, []);
 
   useEffect(() => {
-    if (!options?.autoConnect && options?.autoConnect !== undefined) return undefined;
-
     const token = widgetTokenRef.current;
     socketClient.connect({
       authToken: token ?? undefined,
@@ -114,6 +115,7 @@ export function useVisitorChat(
 
     const offVisitorMessage = socketClient.onVisitorMessage(upsertMessage);
     const offAgentMessage = socketClient.onAgentMessage(upsertMessage);
+    const offAiMessage = socketClient.onAiMessage(upsertMessage);
 
     const offTyping = socketClient.onTyping((payload: TypingPayload) => {
       const cid = conversationIdRef.current;
@@ -140,17 +142,13 @@ export function useVisitorChat(
       offSocketDisconnect();
       offVisitorMessage();
       offAgentMessage();
+      offAiMessage();
       offTyping();
       offStopTyping();
       offAssigned();
       offClosed();
     };
-  }, [
-    options?.autoConnect,
-    options?.widgetSessionToken,
-    socketClient,
-    upsertMessage,
-  ]);
+  }, [options?.widgetSessionToken, socketClient, upsertMessage]);
 
   const joinRoom = useCallback(
     (roomConversationId: string) => {
@@ -187,7 +185,7 @@ export function useVisitorChat(
   );
 
   const sendMessage = useCallback(
-    async (content: string) => {
+    async (content: string, sendOpts?: { messageType?: string }) => {
       if (!conversationId) {
         throw new Error("Conversation not started. Call startConversation first.");
       }
@@ -205,6 +203,7 @@ export function useVisitorChat(
       await sendVisitorMessage(conversationId, {
         message: content,
         currentPageUrl: pageUrl,
+        ...(sendOpts?.messageType ? { messageType: sendOpts.messageType } : {}),
       });
       socketClient.sendVisitorMessage({
         conversationId,
@@ -217,12 +216,12 @@ export function useVisitorChat(
 
   const emitTyping = useCallback(() => {
     if (!conversationId) return;
-    socketClient.emitTyping({ conversationId });
+    socketClient.emitTyping({ conversationId, userType: "visitor" });
   }, [conversationId, socketClient]);
 
   const emitStopTyping = useCallback(() => {
     if (!conversationId) return;
-    socketClient.emitStopTyping({ conversationId });
+    socketClient.emitStopTyping({ conversationId, userType: "visitor" });
   }, [conversationId, socketClient]);
 
   return {
