@@ -164,9 +164,13 @@ export async function getWidgetRuntimeConfig(widgetKey: string) {
 }
 
 export async function postWidgetSession(body: WidgetSessionRequest) {
+  const payload: Record<string, unknown> = { widgetKey: body.widgetKey };
+  const originHost = body.originHost?.trim();
+  if (originHost) payload.originHost = originHost;
+
   const result = await fetchJsonPublic<unknown>(`/widget/session`, {
     method: "POST",
-    body: JSON.stringify(body),
+    body: JSON.stringify(payload),
   });
   if (!result.ok) return result;
   const peeled = peelSuccessEnvelope(result.data);

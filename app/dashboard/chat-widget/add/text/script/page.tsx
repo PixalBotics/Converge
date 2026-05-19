@@ -10,7 +10,7 @@ import Box from "@mui/material/Box";
 import IconButton from "@mui/material/IconButton";
 import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
-import { getWidgetEmbedSnippet, publishWidget } from "@/api/widgets/widgets.api";
+import { getWidgetEmbedSnippet } from "@/api/widgets/widgets.api";
 import { Button, Typography } from "@/components/common";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
 import { WidgetFlowShell } from "@/components/dashboard/WidgetFlowShell";
@@ -22,16 +22,15 @@ import {
   pickInstallWidgetKeys,
   pickRequiresPublishBeforeEmbed,
   readEmbedSnippetMarkup,
-  unwrapWidgetInstallEnvelope,
 } from "@/lib/chat-widget/widget-install-response";
 import { uploadDraftWidgetAssets } from "@/lib/chat-widget/upload-widget-draft-assets";
 import { extractApiErrorMessageForToast } from "@/lib/notify/extract-api-message";
 import {
-  buildUnifiedWidgetEmbedScript,
-  readWidgetDraft,
-  saveWidgetDraft,
-  type WidgetDraft,
-} from "@/lib/chat-widget/widgetDraft";
+  readChatWizardDraft,
+  saveChatWizardDraft,
+} from "@/lib/chat-widget/chat-wizard-edit";
+import { buildUnifiedWidgetEmbedScript } from "@/lib/chat-widget/widgetDraft";
+import type { WidgetDraft } from "@/lib/chat-widget/widgetDraft";
 
 const TEXT_WIDGET_ENABLED_KEY = "text_widget_enabled_v1";
 
@@ -57,7 +56,7 @@ export default function TextWidgetScriptPage() {
     let cancelled = false;
 
     async function runInstall() {
-      const current = readWidgetDraft();
+      const current = readChatWizardDraft(null);
       const typed: WidgetDraft = { ...current, type: "text" };
 
       if (!typed.websiteId?.trim()) {
@@ -84,7 +83,7 @@ export default function TextWidgetScriptPage() {
             widgetKind: "text",
           });
           widgetKey = created.widgetKey;
-          saveWidgetDraft({
+          saveChatWizardDraft(null, {
             ...typed,
             remoteWidgetKey: widgetKey,
             widgetId: widgetKey,
@@ -92,31 +91,24 @@ export default function TextWidgetScriptPage() {
           });
         }
 
-        let patchInner = await patchRemoteWidgetConfiguration({
+        const patchInner = await patchRemoteWidgetConfiguration({
           widgetKey,
           widgetKind: "text",
-          draft: readWidgetDraft(),
+          draft: readChatWizardDraft(null),
           publishNow: true,
           assetUrls,
         });
         if (cancelled) return;
 
-        let keys = pickInstallWidgetKeys(patchInner);
-        if (!keys.deployKey?.trim()) {
-          const pubRes = await publishWidget(widgetKey, {});
-          if (!cancelled) {
-            patchInner = unwrapWidgetInstallEnvelope(pubRes);
-            keys = pickInstallWidgetKeys(patchInner);
-          }
-        }
+        const keys = pickInstallWidgetKeys(patchInner);
 
         const finalKey = keys.widgetKey || widgetKey;
         if (!finalKey) {
           throw new Error("Publish completed but widgetKey is missing.");
         }
 
-        saveWidgetDraft({
-          ...readWidgetDraft(),
+        saveChatWizardDraft(null, {
+          ...readChatWizardDraft(null),
           type: "text",
           widgetId: finalKey,
           remoteWidgetKey: finalKey,
@@ -139,7 +131,6 @@ export default function TextWidgetScriptPage() {
 
         const fallbackScript = buildUnifiedWidgetEmbedScript({
           widgetKey: finalKey,
-          deployKey: keys.deployKey || "YOUR_DEPLOY_KEY",
           appOrigin:
             typeof appOrigin === "string" && appOrigin.length > 0
               ? appOrigin
@@ -175,9 +166,9 @@ export default function TextWidgetScriptPage() {
   }, []);
 
   const previewDraft =
-    installUi.phase === "ready" ? installUi.draft : readWidgetDraft();
+    installUi.phase === "ready" ? installUi.draft : readChatWizardDraft(null);
 
-  const fallbackDraft = readWidgetDraft();
+  const fallbackDraft = readChatWizardDraft(null);
   const chatScript =
     installUi.phase === "ready"
       ? installUi.embedMarkup
@@ -185,7 +176,6 @@ export default function TextWidgetScriptPage() {
           widgetKey: fallbackDraft.widgetId?.startsWith("wgt_")
             ? fallbackDraft.widgetId
             : "YOUR_WIDGET_KEY",
-          deployKey: "YOUR_DEPLOY_KEY",
         });
 
   const handleCopy = async () => {

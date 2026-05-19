@@ -2,7 +2,6 @@ import type { JsonRecord } from "@/api/types/common.types";
 
 /** Defaults for PATCH slices not yet exposed in the add-widget UI (aligned with backend BOTH example). */
 export const CHAT_WIZARD_PATCH_DEFAULTS = {
-  expiresInMinutes: 60,
   themeName: "Brand Default",
   themeSecondaryColor: "#64748b",
   themeFontFamily: "Inter, system-ui, sans-serif",

@@ -28,11 +28,11 @@ import {
   isServerWidgetDraftAlive,
 } from "@/lib/chat-widget/widget-remote-sync";
 import {
-  defaultWidgetDraft,
-  readWidgetDraft,
-  saveWidgetDraft,
-  type WidgetDraft,
-} from "@/lib/chat-widget/widgetDraft";
+  readChatWizardDraft,
+  resetCreateWizardDraft,
+  saveChatWizardDraft,
+} from "@/lib/chat-widget/chat-wizard-edit";
+import type { WidgetDraft } from "@/lib/chat-widget/widgetDraft";
 import { extractApiErrorMessageForToast } from "@/lib/notify/extract-api-message";
 import { publishAppToast } from "@/lib/notify";
 
@@ -54,7 +54,8 @@ export default function WidgetTypeSelectionPage() {
   const [creatingDraft, setCreatingDraft] = useState(false);
 
   useEffect(() => {
-    const d = readWidgetDraft();
+    resetCreateWizardDraft();
+    const d = readChatWizardDraft(null);
     if (d.tenantResellerId) setResellerId(d.tenantResellerId);
     if (d.tenantParentCompanyId) setParentCompanyId(d.tenantParentCompanyId);
     if (d.tenantChildCompanyId) setChildCompanyId(d.tenantChildCompanyId);
@@ -249,7 +250,7 @@ export default function WidgetTypeSelectionPage() {
             onClick={() => {
               if (!websiteId || !hierarchyReady || creatingDraft) return;
               void (async () => {
-                const prev = readWidgetDraft();
+                const prev = readChatWizardDraft(null);
                 const wid = websiteId.trim();
                 const kind = selectedTypeRef.current;
                 let needNewRemote =
@@ -273,7 +274,6 @@ export default function WidgetTypeSelectionPage() {
                 }
 
                 const base: WidgetDraft = {
-                  ...defaultWidgetDraft,
                   ...prev,
                   type: kind,
                   websiteId: wid,
@@ -290,7 +290,7 @@ export default function WidgetTypeSelectionPage() {
                       draft: base,
                       widgetKind: kind,
                     });
-                    saveWidgetDraft({
+                    saveChatWizardDraft(null, {
                       ...base,
                       remoteWidgetKey: created.widgetKey,
                       widgetId: created.widgetKey,
@@ -301,7 +301,7 @@ export default function WidgetTypeSelectionPage() {
                       message: "Draft saved on server. Continue configuration.",
                     });
                   } else {
-                    saveWidgetDraft({
+                    saveChatWizardDraft(null, {
                       ...base,
                     });
                   }

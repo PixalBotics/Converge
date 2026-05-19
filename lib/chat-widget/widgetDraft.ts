@@ -67,8 +67,6 @@ export interface WidgetDraft {
   textUsHeaderTitle?: string;
   textUsWelcomeMessage?: string;
   textUsFormFields?: TextUsFormFieldDraft[];
-  /** Step 1+ PATCH: session length on widget config root. */
-  expiresInMinutes?: number;
   /** Brand theme (PATCH `config.theme`) — optional; sensible fallbacks in patch builders. */
   themeName?: string;
   themePrimaryColor?: string;
@@ -165,7 +163,6 @@ export const defaultWidgetDraft: WidgetDraft = {
   textUsPosition: "center",
   textUsHeaderTitle: "Special Offer",
   textUsWelcomeMessage: "Get 20% off all premium plans today.",
-  expiresInMinutes: 60,
   themeName: "Brand Default",
   themeSecondaryColor: "#64748b",
   themeFontFamily: "Inter, system-ui, sans-serif",
@@ -332,25 +329,23 @@ function resolveWidgetEmbedOrigin(): string {
 /** Unified loader tag used after install (`GET .../embed-snippet` may return fuller HTML). */
 export function buildUnifiedWidgetEmbedScript(input: {
   widgetKey: string;
-  deployKey: string;
   appOrigin?: string;
 }) {
   const origin = (input.appOrigin ?? resolveWidgetEmbedOrigin()).replace(
     /\/+$/,
     "",
   );
-  return `<!-- Unified widget loader -->
-<script src="${origin}/widget.js" data-widget-key="${input.widgetKey}" data-deploy-key="${input.deployKey}" data-app-origin="${origin}" defer></script>`;
+  return `<!-- Unified widget loader (session JWT fetched at runtime via POST /widget/session) -->
+<script src="${origin}/widget.js" data-widget-key="${input.widgetKey}" data-app-origin="${origin}" defer></script>`;
 }
 
 export function buildWidgetScript(
   draft: WidgetDraft,
-  options?: { deployKey?: string; appOrigin?: string },
+  options?: { appOrigin?: string },
 ) {
   const origin = options?.appOrigin ?? resolveWidgetEmbedOrigin();
   return buildUnifiedWidgetEmbedScript({
     widgetKey: draft.widgetId || "YOUR_WIDGET_KEY",
-    deployKey: options?.deployKey ?? "YOUR_DEPLOY_KEY",
     appOrigin: origin,
   });
 }

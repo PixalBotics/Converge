@@ -116,9 +116,6 @@ export function mapAdminWidgetResponseToWidgetDraft(
     completed: false,
     chatMode: normalizeChatMode(chatModeRaw) ?? defaultWidgetDraft.chatMode,
     allowedDomains: allowedDomains?.length ? allowedDomains : undefined,
-    expiresInMinutes:
-      pickNum(config ?? {}, ["expiresInMinutes", "expires_in_minutes"]) ??
-      defaultWidgetDraft.expiresInMinutes,
     themeName: pickStr(theme ?? {}, ["name"]) || defaultWidgetDraft.themeName,
     themePrimaryColor: pickStr(theme ?? {}, ["primaryColor", "primary_color"]) || undefined,
     themeSecondaryColor:

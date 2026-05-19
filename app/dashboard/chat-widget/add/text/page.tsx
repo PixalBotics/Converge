@@ -17,7 +17,11 @@ import {
 } from "@/lib/chat-widget/widget-remote-sync";
 import { extractApiErrorMessageForToast } from "@/lib/notify/extract-api-message";
 import { publishAppToast } from "@/lib/notify";
-import { readWidgetDraft, saveWidgetDraft, type TextUsFormFieldDraft } from "@/lib/chat-widget/widgetDraft";
+import {
+  readChatWizardDraft,
+  saveChatWizardDraft,
+} from "@/lib/chat-widget/chat-wizard-edit";
+import type { TextUsFormFieldDraft } from "@/lib/chat-widget/widgetDraft";
 
 const DEFAULT_FIELDS: TextUsFormFieldDraft[] = [
   { key: "name", label: "Name", fieldType: "text", required: true },
@@ -46,7 +50,7 @@ export default function TextUsWidgetPage() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    const d = readWidgetDraft();
+    const d = readChatWizardDraft(null);
     if (d.type === "text") {
       if (d.textUsPosition) setPosition(d.textUsPosition);
       if (d.textUsButtonColor) setButtonColor(d.textUsButtonColor);
@@ -86,7 +90,7 @@ export default function TextUsWidgetPage() {
         { key: "phone", label: fieldPhoneLabel, fieldType: "phone", required: false },
       ];
 
-      const prev = readWidgetDraft();
+      const prev = readChatWizardDraft(null);
       const rk = prev.remoteWidgetKey?.trim();
       if (!rk) {
         publishAppToast({
@@ -99,7 +103,7 @@ export default function TextUsWidgetPage() {
 
       setSaving(true);
       try {
-        saveWidgetDraft({
+        saveChatWizardDraft(null, {
           ...prev,
           type: "text",
           completed: false,
@@ -109,7 +113,7 @@ export default function TextUsWidgetPage() {
           textUsWelcomeMessage: contentEnabled ? welcomeMessage : "",
           textUsFormFields,
         });
-        const latest = readWidgetDraft();
+        const latest = readChatWizardDraft(null);
         const patchInner = await patchRemoteWidgetConfiguration({
           widgetKey: rk,
           widgetKind: "text",
@@ -117,7 +121,7 @@ export default function TextUsWidgetPage() {
           publishNow: false,
         });
         const sum = summarizePatchResult(patchInner);
-        saveWidgetDraft({
+        saveChatWizardDraft(null, {
           requiresPublishBeforeEmbed: sum.requiresPublishBeforeEmbed,
         });
         router.push("/dashboard/chat-widget/add/text/script");

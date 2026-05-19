@@ -43,8 +43,8 @@ export interface WidgetConfigEnvelope {
 
 export interface WidgetSessionRequest {
   widgetKey: string;
-  deployKey: string;
-  originHost: string;
+  /** Optional — server may infer from Origin/Referer when omitted. */
+  originHost?: string;
 }
 
 export interface WidgetSessionResponse {

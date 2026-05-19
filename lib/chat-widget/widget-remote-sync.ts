@@ -46,7 +46,6 @@ export async function createRemoteWidgetDraft(params: {
   widgetKind: WizardWidgetKind;
 }): Promise<{
   widgetKey: string;
-  deployKey: string;
   requiresPublishBeforeEmbed: boolean;
   inner: JsonRecord;
 }> {
@@ -74,7 +73,6 @@ export async function createRemoteWidgetDraft(params: {
 
   return {
     widgetKey: keys.widgetKey,
-    deployKey: keys.deployKey,
     requiresPublishBeforeEmbed,
     inner,
   };
@@ -107,7 +105,6 @@ export async function patchRemoteWidgetConfiguration(params: {
 export function summarizePatchResult(inner: JsonRecord) {
   return {
     widgetKey: pickInstallWidgetKeys(inner).widgetKey,
-    deployKey: pickInstallWidgetKeys(inner).deployKey,
     requiresPublishBeforeEmbed: pickRequiresPublishBeforeEmbed(inner),
     status: pickWidgetRemoteStatus(inner),
   };

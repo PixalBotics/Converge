@@ -10,7 +10,7 @@ import Box from "@mui/material/Box";
 import IconButton from "@mui/material/IconButton";
 import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
-import { getWidgetEmbedSnippet, publishWidget } from "@/api/widgets/widgets.api";
+import { getWidgetEmbedSnippet } from "@/api/widgets/widgets.api";
 import { Button, Typography } from "@/components/common";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
 import { WidgetFlowShell } from "@/components/dashboard/WidgetFlowShell";
@@ -30,7 +30,6 @@ import {
   pickInstallWidgetKeys,
   pickRequiresPublishBeforeEmbed,
   readEmbedSnippetMarkup,
-  unwrapWidgetInstallEnvelope,
 } from "@/lib/chat-widget/widget-install-response";
 import { uploadDraftWidgetAssets } from "@/lib/chat-widget/upload-widget-draft-assets";
 import { extractApiErrorMessageForToast } from "@/lib/notify/extract-api-message";
@@ -102,7 +101,7 @@ export default function ChatWidgetScriptPage() {
           });
         }
 
-        let patchInner = await patchRemoteWidgetConfiguration({
+        const patchInner = await patchRemoteWidgetConfiguration({
           widgetKey,
           widgetKind: "chat",
           draft: readChatWizardDraft(editKey || undefined),
@@ -111,14 +110,7 @@ export default function ChatWidgetScriptPage() {
         });
         if (cancelled) return;
 
-        let keys = pickInstallWidgetKeys(patchInner);
-        if (!keys.deployKey?.trim()) {
-          const pubRes = await publishWidget(widgetKey, {});
-          if (!cancelled) {
-            patchInner = unwrapWidgetInstallEnvelope(pubRes);
-            keys = pickInstallWidgetKeys(patchInner);
-          }
-        }
+        const keys = pickInstallWidgetKeys(patchInner);
 
         const finalKey = keys.widgetKey || widgetKey;
         if (!finalKey) {
@@ -149,7 +141,6 @@ export default function ChatWidgetScriptPage() {
 
         const fallbackScript = buildUnifiedWidgetEmbedScript({
           widgetKey: finalKey,
-          deployKey: keys.deployKey || "YOUR_DEPLOY_KEY",
           appOrigin:
             typeof appOrigin === "string" && appOrigin.length > 0
               ? appOrigin
@@ -192,7 +183,6 @@ export default function ChatWidgetScriptPage() {
       ? installUi.embedMarkup
       : buildUnifiedWidgetEmbedScript({
           widgetKey: draft.widgetId?.startsWith("wgt_") ? draft.widgetId : "YOUR_WIDGET_KEY",
-          deployKey: "YOUR_DEPLOY_KEY",
         });
 
   const previewPanelHeight = draft ? Math.max(320, Math.min(640, draft.boxHeight)) : 400;

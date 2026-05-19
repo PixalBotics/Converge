@@ -107,15 +107,6 @@ export async function rollbackWidget(
   return data;
 }
 
-export async function rotateWidgetDeployKey(
-  widgetKey: string,
-): Promise<ApiEnvelope<JsonRecord>> {
-  const { data } = await apiClient.post<ApiEnvelope<JsonRecord>>(
-    `/widgets/${encodeURIComponent(widgetKey)}/deploy-key/rotate`,
-  );
-  return data;
-}
-
 export async function uploadWidgetAsset(params: {
   websiteId: string;
   assetType: "button_icon" | "banner_image" | "banner_video" | "background_image";

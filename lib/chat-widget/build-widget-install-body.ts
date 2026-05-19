@@ -3,7 +3,7 @@ import type {
   WidgetChatModeApi,
   WidgetTypeApi,
 } from "@/api/types/widgets.types";
-import { CHAT_WIZARD_PATCH_DEFAULTS, defaultWizardFormFields } from "./chat-wizard-patch-defaults";
+import { CHAT_WIZARD_PATCH_DEFAULTS } from "./chat-wizard-patch-defaults";
 import type { TextUsFormFieldDraft, WidgetDraft } from "./widgetDraft";
 
 export interface WidgetInstallationAssetUrls {
@@ -108,7 +108,7 @@ function themeButtonShapeForPatch(draft: WidgetDraft): string {
   return "circle";
 }
 
-/** Step 1 PATCH `config`: session TTL + full `theme` envelope + `designJson.chat` launcher only. */
+/** Step 1 PATCH `config`: full `theme` envelope + `designJson.chat` launcher only. */
 export function buildChatWizardStep1Config(
   draft: WidgetDraft,
   assetUrls?: WidgetInstallationAssetUrls,
@@ -117,7 +117,6 @@ export function buildChatWizardStep1Config(
   const chat = buildLauncherOnlyChatDesignJson(draft, assetUrls);
   const primary = draft.themePrimaryColor ?? draft.buttonColor ?? "#2563eb";
   return {
-    expiresInMinutes: draft.expiresInMinutes ?? def.expiresInMinutes,
     theme: {
       name: draft.themeName ?? def.themeName,
       primaryColor: primary,
@@ -240,7 +239,7 @@ export function buildChatWizardStep3Config(draft: WidgetDraft): JsonRecord {
       prechatPhoneEnabled: draft.prechatPhoneEnabled ?? def.prechatPhoneEnabled,
       prechatMessageEnabled: draft.prechatMessageEnabled ?? def.prechatMessageEnabled,
       prechatMessageRequired: draft.prechatMessageRequired ?? def.prechatMessageRequired,
-      fields: defaultWizardFormFields(),
+      fields: prechatDraftFieldsAsFormPayload(draft),
     },
     response: {
       welcomeMessage: draft.responseWelcomeMessage ?? def.responseWelcomeMessage,
@@ -254,6 +253,62 @@ export function buildChatWizardStep3Config(draft: WidgetDraft): JsonRecord {
   };
   if (draft.allowedDomains?.length) config.allowedDomains = draft.allowedDomains;
   return config;
+}
+
+/**
+ * Chat pre-chat fields from wizard toggles (notifications step).
+ * Maps to `config.form.fields` for embed `extractPrechatFieldsFromWidgetConfig`.
+ */
+export function prechatDraftFieldsAsFormPayload(draft: WidgetDraft): JsonRecord[] {
+  const def = CHAT_WIZARD_PATCH_DEFAULTS;
+  const nameOn = draft.prechatNameEnabled ?? def.prechatNameEnabled;
+  const emailOn = draft.prechatEmailEnabled ?? def.prechatEmailEnabled;
+  const phoneOn = draft.prechatPhoneEnabled ?? def.prechatPhoneEnabled;
+  const messageOn = draft.prechatMessageEnabled ?? def.prechatMessageEnabled;
+  const messageRequired = draft.prechatMessageRequired ?? def.prechatMessageRequired;
+
+  const fields: JsonRecord[] = [];
+  if (nameOn) {
+    fields.push({
+      key: "name",
+      label: "Name",
+      fieldType: "text",
+      type: "text",
+      required: true,
+      options: [],
+    });
+  }
+  if (emailOn) {
+    fields.push({
+      key: "email",
+      label: "Email",
+      fieldType: "email",
+      type: "email",
+      required: false,
+      options: [],
+    });
+  }
+  if (phoneOn) {
+    fields.push({
+      key: "phone",
+      label: "Phone",
+      fieldType: "phone",
+      type: "phone",
+      required: false,
+      options: [],
+    });
+  }
+  if (messageOn) {
+    fields.push({
+      key: "message",
+      label: "Message",
+      fieldType: "textarea",
+      type: "textarea",
+      required: messageRequired,
+      options: [],
+    });
+  }
+  return fields;
 }
 
 /** Text-us field list goes under PATCH `config.form.fields`; use `type` for runtime pre-chat resolver. */
@@ -355,7 +410,7 @@ export function buildWidgetInstallationPayload(input: {
 
 /** Add-widget CHAT flow: PATCH `config` in three slices (~theme / ~ui+chatBox / ~routing+behavior+session+form+response). */
 export type ChatWidgetWizardPatchScope =
-  /** Step 1: `expiresInMinutes`, `theme` (+ `designJson.chat` launcher only). */
+  /** Step 1: `theme` (+ `designJson.chat` launcher only). */
   | "launcher_only"
   /** Step 2: `theme.designJson.chat` (chatBox + header text color) + `config.ui`. */
   | "chat_surface"
@@ -476,7 +531,6 @@ export function buildWidgetPatchConfigurationBody(input: {
       config.ui = step2cfg.ui as JsonRecord;
     }
     const step1cfg = buildChatWizardStep1Config(draft, assetUrls);
-    if (step1cfg.expiresInMinutes !== undefined) config.expiresInMinutes = step1cfg.expiresInMinutes;
     const t1 = step1cfg.theme;
     if (t1 && typeof t1 === "object" && config.theme && typeof config.theme === "object") {
       const cur = config.theme as JsonRecord;

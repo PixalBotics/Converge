@@ -6,16 +6,21 @@ import type { JsonRecord } from "@/api/types/common.types";
 import { getAdminWidget, widgetResponseData } from "@/api/widgets/widgets.api";
 import { extractApiErrorMessageForToast } from "@/lib/notify/extract-api-message";
 import { mapAdminWidgetResponseToWidgetDraft } from "./admin-widget-to-draft";
-import { readWidgetEditDraft, saveWidgetEditDraft } from "./widget-edit-draft";
-import { readWidgetDraft, saveWidgetDraft, type WidgetDraft } from "./widgetDraft";
+import type { WidgetDraft } from "./widgetDraft";
+import {
+  patchCreateWizardDraft,
+  patchEditWizardDraft,
+  readCreateWizardDraft,
+  readEditWizardDraft,
+  replaceEditWizardDraftFromApi,
+  resetCreateWizardDraft,
+} from "./widget-wizard-draft-store";
 
 export const CHAT_WIDGET_EDIT_QUERY_PARAM = "edit";
 
-const SESSION_HYDRATED_KEY = "converge_chat_wizard_edit_hydrated_v1:";
-
 export function readChatWizardDraft(editWidgetKey: string | undefined | null): WidgetDraft {
   const k = editWidgetKey?.trim() ?? "";
-  return k ? readWidgetEditDraft(k) : readWidgetDraft();
+  return k ? readEditWizardDraft(k) : readCreateWizardDraft();
 }
 
 export function saveChatWizardDraft(
@@ -23,9 +28,11 @@ export function saveChatWizardDraft(
   patch: Partial<WidgetDraft>,
 ): void {
   const k = editWidgetKey?.trim() ?? "";
-  if (k) saveWidgetEditDraft(k, patch);
-  else saveWidgetDraft(patch);
+  if (k) patchEditWizardDraft(k, patch);
+  else patchCreateWizardDraft(patch);
 }
+
+export { resetCreateWizardDraft };
 
 export function resolveRemoteWidgetKeyForChatWizard(
   editWidgetKey: string | undefined | null,
@@ -58,37 +65,26 @@ export function resolveEditWidgetKeyForNavigation(preferred: string | undefined 
 export function useChatWidgetWizardEdit(): {
   editWidgetKey: string;
   isEdit: boolean;
-  /** False while first GET→localStorage merge runs for this tab session. */
+  /** False while GET /widgets/:widgetKey hydrates the in-memory edit draft. */
   draftReady: boolean;
   hydrateError: string | null;
+  /** Re-fetch widget from API and refresh form state (edit flow). */
+  reloadFromServer: () => Promise<void>;
 } {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  /**
-   * Read `edit` on every render (no `useMemo([searchParams])`): in Next.js 15 the
-   * `ReadonlyURLSearchParams` reference can stay stable across client navigations, which
-   * previously left `editWidgetKey` empty on step 3 so the notifications page never
-   * treated the flow as edit / dropped `?edit=` on the next navigation.
-   */
   const editWidgetKey = (searchParams.get(CHAT_WIDGET_EDIT_QUERY_PARAM) ?? "").trim();
   const isEdit = Boolean(editWidgetKey);
 
   const [draftReady, setDraftReady] = useState(!isEdit);
   const [hydrateError, setHydrateError] = useState<string | null>(null);
+  const [reloadToken, setReloadToken] = useState(0);
 
   useEffect(() => {
     if (!editWidgetKey) {
       setDraftReady(true);
       setHydrateError(null);
       return;
-    }
-
-    if (typeof window !== "undefined") {
-      if (window.sessionStorage.getItem(SESSION_HYDRATED_KEY + editWidgetKey) === "1") {
-        setDraftReady(true);
-        setHydrateError(null);
-        return;
-      }
     }
 
     let cancelled = false;
@@ -98,13 +94,10 @@ export function useChatWidgetWizardEdit(): {
     void (async () => {
       try {
         const res = await getAdminWidget(editWidgetKey);
+        if (cancelled) return;
         const data = widgetResponseData<JsonRecord>(res);
         const mapped = mapAdminWidgetResponseToWidgetDraft(data, editWidgetKey);
-        const existing = readWidgetEditDraft(editWidgetKey);
-        saveWidgetEditDraft(editWidgetKey, { ...existing, ...mapped });
-        if (typeof window !== "undefined") {
-          window.sessionStorage.setItem(SESSION_HYDRATED_KEY + editWidgetKey, "1");
-        }
+        replaceEditWizardDraftFromApi(editWidgetKey, mapped);
       } catch (e) {
         if (!cancelled) {
           setHydrateError(extractApiErrorMessageForToast(e) ?? "Failed to load widget for editing.");
@@ -117,7 +110,16 @@ export function useChatWidgetWizardEdit(): {
     return () => {
       cancelled = true;
     };
-  }, [editWidgetKey, pathname, searchParams.toString()]);
+  }, [editWidgetKey, pathname, searchParams.toString(), reloadToken]);
 
-  return { editWidgetKey, isEdit, draftReady, hydrateError };
+  return {
+    editWidgetKey,
+    isEdit,
+    draftReady,
+    hydrateError,
+    reloadFromServer: async () => {
+      if (!editWidgetKey) return;
+      setReloadToken((t) => t + 1);
+    },
+  };
 }

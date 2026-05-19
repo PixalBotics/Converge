@@ -25,7 +25,6 @@ export {
   deleteWidget,
   publishWidget,
   rollbackWidget,
-  rotateWidgetDeployKey,
   uploadWidgetAsset,
   widgetResponseData,
 } from "./widgets";

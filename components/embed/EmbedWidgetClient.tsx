@@ -55,14 +55,12 @@ type BootState =
 
 export interface EmbedWidgetClientProps {
   widgetKey: string;
-  deployKey: string;
   parentHost: string;
   parentPageUrl: string;
 }
 
 export function EmbedWidgetClient({
   widgetKey,
-  deployKey,
   parentHost,
   parentPageUrl,
 }: EmbedWidgetClientProps) {
@@ -91,8 +89,7 @@ export function EmbedWidgetClient({
 
       const sess = await postWidgetSession({
         widgetKey,
-        deployKey,
-        originHost: originHost || "localhost",
+        ...(originHost ? { originHost } : {}),
       });
       if (cancelled) return;
       if (!sess.ok) {
@@ -122,7 +119,7 @@ export function EmbedWidgetClient({
     return () => {
       cancelled = true;
     };
-  }, [widgetKey, deployKey, parentHost]);
+  }, [widgetKey, parentHost]);
 
   useEffect(() => {
     if (boot.phase !== "ready") return;
@@ -144,8 +141,7 @@ export function EmbedWidgetClient({
       void (async () => {
         const sess = await postWidgetSession({
           widgetKey,
-          deployKey,
-          originHost,
+          ...(originHost ? { originHost } : {}),
         });
         if (cancelled || !sess.ok) return;
         const next =
@@ -162,7 +158,7 @@ export function EmbedWidgetClient({
       cancelled = true;
       window.clearTimeout(id);
     };
-  }, [boot, deployKey, parentHost, widgetKey]);
+  }, [boot, parentHost, widgetKey]);
 
   if (boot.phase === "loading") {
     return (

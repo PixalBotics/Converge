@@ -5,31 +5,19 @@ export function unwrapWidgetInstallEnvelope(payload: unknown): JsonRecord {
   return widgetResponseData<JsonRecord>(payload);
 }
 
-/** Resolve widget key + plaintext deploy key from `POST /widgets/installations` response. */
+/** Resolve widget key from install / publish / patch responses. */
 export function pickInstallWidgetKeys(inner: JsonRecord): {
   widgetKey: string;
-  deployKey: string;
 } {
   let widgetKey = String(inner.widgetKey ?? inner.widget_key ?? "");
-  let deployKey = String(
-    inner.deployKey ??
-      inner.deployKeyPlain ??
-      inner.installToken ??
-      inner.oneTimeDeployKey ??
-      "",
-  );
 
   const nested = inner.data;
-  if (typeof nested === "object" && nested !== null && (!widgetKey || !deployKey)) {
+  if (typeof nested === "object" && nested !== null && !widgetKey) {
     const n = nested as JsonRecord;
-    if (!widgetKey) widgetKey = String(n.widgetKey ?? n.widget_key ?? "");
-    if (!deployKey)
-      deployKey = String(
-        n.deployKey ?? n.deployKeyPlain ?? n.installToken ?? n.oneTimeDeployKey ?? "",
-      );
+    widgetKey = String(n.widgetKey ?? n.widget_key ?? "");
   }
 
-  return { widgetKey, deployKey };
+  return { widgetKey };
 }
 
 export function pickRequiresPublishBeforeEmbed(inner: JsonRecord): boolean {
@@ -52,19 +40,13 @@ export function readEmbedSnippetMarkup(payload: unknown): string | null {
   return null;
 }
 
-/** Deploy key from `GET .../embed-snippet` envelope or unified loader HTML. */
-export function extractDeployKeyFromEmbedSnippetResponse(
-  payload: unknown,
-): string {
+/** JWT TTL hint from `GET .../embed-snippet` (e.g. `30m`). */
+export function pickEmbedSessionExpiresIn(payload: unknown): string {
   const inner = widgetResponseData<JsonRecord>(payload);
-  let deployKey = pickInstallWidgetKeys(inner).deployKey.trim();
-  if (deployKey) return deployKey;
-  const html = readEmbedSnippetMarkup(payload);
-  if (html) {
-    const dq = html.match(/data-deploy-key="([^"]+)"/i);
-    if (dq?.[1]) return dq[1].trim();
-    const sq = html.match(/data-deploy-key='([^']+)'/i);
-    if (sq?.[1]) return sq[1].trim();
-  }
-  return "";
+  const v =
+    inner.sessionExpiresIn ??
+    inner.session_expires_in ??
+    inner.expiresIn ??
+    inner.expires_in;
+  return typeof v === "string" && v.trim() ? v.trim() : "";
 }

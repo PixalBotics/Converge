@@ -65,9 +65,6 @@ export default function ChatWidgetButtonDesignPage() {
   const iconUploadRef = useRef<HTMLInputElement | null>(null);
   const [saving, setSaving] = useState(false);
 
-  const [expiresInMinutesStr, setExpiresInMinutesStr] = useState(
-    String(defaultWidgetDraft.expiresInMinutes ?? 60),
-  );
   const [themeName, setThemeName] = useState(defaultWidgetDraft.themeName ?? "Brand Default");
   const [themePrimaryColor, setThemePrimaryColor] = useState(
     defaultWidgetDraft.themePrimaryColor ?? "",
@@ -112,7 +109,6 @@ export default function ChatWidgetButtonDesignPage() {
     setLauncherIconPreset(d.launcherIconPreset);
     setLauncherInsetBottom(String(d.launcherInsetBottomPx ?? 28));
     setLauncherInsetSide(String(d.launcherInsetSidePx ?? 28));
-    setExpiresInMinutesStr(String(d.expiresInMinutes ?? 60));
     setThemeName(d.themeName ?? "Brand Default");
     setThemePrimaryColor(d.themePrimaryColor ?? "");
     setThemeSecondaryColor(d.themeSecondaryColor ?? "#64748b");
@@ -209,7 +205,6 @@ export default function ChatWidgetButtonDesignPage() {
           launcherIconPreset,
           completed: false,
           widgetId: prev.widgetId?.startsWith("wgt_") ? prev.widgetId : rk,
-          expiresInMinutes: Math.min(1440, Math.max(5, Number.parseInt(expiresInMinutesStr, 10) || 60)),
           themeName: themeName.trim() || "Brand Default",
           themePrimaryColor: themePrimaryColor.trim() || undefined,
           themeSecondaryColor: themeSecondaryColor.trim() || "#64748b",
@@ -543,19 +538,12 @@ export default function ChatWidgetButtonDesignPage() {
       </Box>
 
       <Typography variant="mediumLarge" sx={{ color: theme.app.text.primary, mt: 2, mb: 0.5 }}>
-        Session & brand theme (PATCH step 1)
+        Brand theme (PATCH step 1)
       </Typography>
       <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, mb: 1 }}>
-        These values map to config.expiresInMinutes and config.theme on the server.
+        These values map to config.theme on the server.
       </Typography>
       <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 1.5 }}>
-        <InputField
-          label="Session expires (minutes)"
-          name="expires-minutes"
-          value={expiresInMinutesStr}
-          onChange={(e) => setExpiresInMinutesStr(e.target.value)}
-          inputProps={{ inputMode: "numeric", min: 5, max: 1440 }}
-        />
         <InputField label="Theme name" name="theme-name" value={themeName} onChange={(e) => setThemeName(e.target.value)} />
         <InputField
           label="Primary color (optional — empty uses launcher button color)"

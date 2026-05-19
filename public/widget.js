@@ -4,8 +4,10 @@
  * Embed on customer site:
  * <script src="https://YOUR_APP_ORIGIN/widget.js"
  *         data-widget-key="wgt_xxx"
- *         data-deploy-key="YOUR_DEPLOY_KEY"
+ *         data-app-origin="https://YOUR_APP_ORIGIN"
  *         defer></script>
+ *
+ * Session JWT is obtained inside the embed iframe (POST /widget/session with widgetKey only).
  */
 (function widgetBootstrap() {
   var script =
@@ -16,7 +18,6 @@
     })();
 
   var widgetKey = script && script.getAttribute("data-widget-key");
-  var deployKey = script && script.getAttribute("data-deploy-key");
   var appOriginAttr = script && script.getAttribute("data-app-origin");
 
   function resolveAppOrigin() {
@@ -32,9 +33,9 @@
     return "";
   }
 
-  if (!widgetKey || !deployKey) {
+  if (!widgetKey) {
     if (typeof console !== "undefined" && console.warn) {
-      console.warn("[Interchanges widget] Missing data-widget-key or data-deploy-key.");
+      console.warn("[Interchanges widget] Missing data-widget-key.");
     }
     return;
   }
@@ -76,7 +77,6 @@
 
   var params = new URLSearchParams({
     widgetKey: widgetKey,
-    deployKey: deployKey,
     parentHost: parentHost,
     parentPage: parentPage || "",
   });

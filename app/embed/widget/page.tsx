@@ -9,7 +9,6 @@ function EmbedWidgetPageInner() {
 
   const widgetKey =
     sp.get("widgetKey") || sp.get("widget-key") || "";
-  const deployKey = sp.get("deployKey") || sp.get("deploy-key") || "";
   const parentHost = sp.get("parentHost") || sp.get("parent_host") || "";
 
   let parentPageUrl =
@@ -22,10 +21,10 @@ function EmbedWidgetPageInner() {
     }
   }
 
-  if (!widgetKey || !deployKey) {
+  if (!widgetKey) {
     return (
       <main style={{ padding: 16, fontFamily: "system-ui,sans-serif", fontSize: 14 }}>
-        Missing widgetKey or deployKey query parameters.
+        Missing widgetKey query parameter.
       </main>
     );
   }
@@ -34,7 +33,6 @@ function EmbedWidgetPageInner() {
     <main style={{ padding: 0, margin: 0 }}>
       <EmbedWidgetClient
         widgetKey={widgetKey}
-        deployKey={deployKey}
         parentHost={parentHost}
         parentPageUrl={parentPageUrl}
       />
