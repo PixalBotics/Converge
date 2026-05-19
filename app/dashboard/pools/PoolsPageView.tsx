@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Box from "@mui/material/Box";
-import Divider from "@mui/material/Divider";
 import Stack from "@mui/material/Stack";
 import { AttachMoney as AttachMoneyIcon } from "@mui/icons-material";
 import { alpha, useTheme } from "@mui/material/styles";
@@ -22,14 +21,22 @@ import {
   SelectField,
   FormModal,
   SearchBar,
+  ToolbarFilterPopover,
+  Divider,
 } from "@/components/common";
 import type { DataTableColumn } from "@/components/common";
-import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
-import { rolesCard, rolesIconBox, rolesPageWrapper } from "../roles/roles.styles";
-import { pageWrapper } from "../companies/overview.styles";
-import { departmentsCardHeader } from "../website-assigning/website-assigning.styles";
+import {
+  HUB_ADD_USER_TABLE_MAX_PX,
+  departmentsCardHeader,
+  gradientPrimaryButtonSx,
+  hubUserCheckboxSx,
+  pageWrapper,
+  rolesCard,
+  rolesIconBox,
+  rolesPageWrapper,
+} from "./styles";
 import { publishAppToast } from "@/lib/notify";
-import { isRecord, pickNum, pickStr, unwrapApiData } from "@/lib/utils";
+import { isRecord, pickNum, pickStr, unwrapApiData } from "@/lib/utils/core";
 import {
   type HrmsPoolsListParams,
   useAddPoolMemberMutation,
@@ -49,7 +56,7 @@ import {
 } from "@/app/dashboard/user-page/components/add-user-modal.utils";
 import { extractUsersRows } from "@/app/dashboard/user-page/utils";
 import type { UserRow } from "@/app/dashboard/user-page/types";
-import { PoolModals, PoolsTableCard, UnifiedPoolMembersCard } from "./components";
+import { PoolModals, PoolsTableCard, PoolMembersScopeFilterPanel, UnifiedPoolMembersCard } from "./components";
 import type { PoolRow } from "./components";
 import { useAuth, sessionMayPickInternalUserScope } from "@/lib/auth";
 import {
@@ -61,12 +68,6 @@ import {
 } from "@/lib/permissions";
 
 const PAGE_LIMIT = 8;
-const HUB_ADD_USER_TABLE_MAX_PX = 360;
-
-const hubUserCheckboxSx = (theme: AppTheme) => ({
-  color: theme.app.dashboard.textMuted,
-  "&.Mui-checked": { color: "#2dd4bf" },
-});
 
 export type PoolsPageMode = "pools" | "pool-members";
 
@@ -91,6 +92,9 @@ export function PoolsPageView({ mode }: PoolsPageViewProps) {
   const canMovePoolMember = hasHrmsPage && canPoolMemberMove(hasOperational);
   const canRemovePoolMember = hasHrmsPage && canPoolMemberRemove(hasOperational);
 
+  const [filterDeptKind, setFilterDeptKind] = useState<"Internal" | "External">("Internal");
+  const effectiveFilterDeptKind: "Internal" | "External" = mayPickInternalDeptType ? filterDeptKind : "External";
+
   const [resellerId, setResellerId] = useState("");
   const [parentCompanyId, setParentCompanyId] = useState("");
   const [departmentId, setDepartmentId] = useState("");
@@ -98,6 +102,7 @@ export function PoolsPageView({ mode }: PoolsPageViewProps) {
   const [searchInput, setSearchInput] = useState("");
   const [appliedSearch, setAppliedSearch] = useState("");
   const [page, setPage] = useState(1);
+  const [membersHubFilterOpen, setMembersHubFilterOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [createDeptKind, setCreateDeptKind] = useState<"Internal" | "External">("Internal");
   const [createModalResellerId, setCreateModalResellerId] = useState("");
@@ -116,7 +121,7 @@ export function PoolsPageView({ mode }: PoolsPageViewProps) {
   const [hubUserSearchInput, setHubUserSearchInput] = useState("");
   const [hubUserSearchApplied, setHubUserSearchApplied] = useState("");
 
-  const resellersQuery = useCompaniesSetupResellersQuery({ enabled: true });
+  const resellersQuery = useCompaniesSetupResellersQuery({ enabled: effectiveFilterDeptKind === "External" });
   const resellerOptions = useMemo(() => {
     const base = pickItemsArray(resellersQuery.data)
       .map(toIdNameOption)
@@ -128,7 +133,7 @@ export function PoolsPageView({ mode }: PoolsPageViewProps) {
   const parentCompaniesQuery = useCompaniesByResellerQuery(
     resellerId.trim(),
     { view: "tree", sortBy: "name", sortOrder: "asc", all: true },
-    { enabled: Boolean(resellerId.trim()) },
+    { enabled: effectiveFilterDeptKind === "External" && Boolean(resellerId.trim()) },
   );
   const parentCompanyOptions = useMemo(() => {
     const base = extractParentCompaniesFromByResellerTree(parentCompaniesQuery.data).map((o) => ({
@@ -173,23 +178,80 @@ export function PoolsPageView({ mode }: PoolsPageViewProps) {
     },
   );
 
-  const departmentsQuery = useDepartmentsListQuery(
-    {
-      all: true,
-      ...(resellerId.trim() ? { resellerId: resellerId.trim() } : {}),
-      ...(parentCompanyId.trim() ? { parentCompanyId: parentCompanyId.trim() } : {}),
-      ...(resellerId.trim() && parentCompanyId.trim()
-        ? { type: "External" as const }
-        : {}),
-    },
-    { enabled: true, scope: "pools" },
+  const filterInternalDepartmentsQuery = useDepartmentsListQuery(
+    effectiveFilterDeptKind === "Internal" ? { type: "Internal", all: true } : undefined,
+    { enabled: effectiveFilterDeptKind === "Internal", scope: "pools-filter-internal-depts" },
   );
+  const filterExternalDepartmentsQuery = useDepartmentsListQuery(
+    effectiveFilterDeptKind === "External" && resellerId.trim() && parentCompanyId.trim()
+      ? {
+          all: true,
+          type: "External",
+          resellerId: resellerId.trim(),
+          parentCompanyId: parentCompanyId.trim(),
+        }
+      : undefined,
+    {
+      enabled:
+        effectiveFilterDeptKind === "External" &&
+        Boolean(resellerId.trim()) &&
+        Boolean(parentCompanyId.trim()),
+      scope: "pools-filter-external-depts",
+    },
+  );
+
   const departmentOptions = useMemo(() => {
-    const base = pickItemsArray(departmentsQuery.data)
+    const data =
+      effectiveFilterDeptKind === "Internal"
+        ? filterInternalDepartmentsQuery.data
+        : filterExternalDepartmentsQuery.data;
+    const loading =
+      effectiveFilterDeptKind === "Internal"
+        ? filterInternalDepartmentsQuery.isLoading
+        : filterExternalDepartmentsQuery.isLoading;
+    const base = pickItemsArray(data)
       .map(toIdNameOption)
       .filter((o): o is { value: string; label: string } => o !== null);
-    return [{ value: "", label: "— Select department —" }, ...base];
-  }, [departmentsQuery.data]);
+    const prompt =
+      effectiveFilterDeptKind === "External" && !parentCompanyId.trim()
+        ? "Select parent company first"
+        : loading
+          ? "Loading departments…"
+          : "— Select department —";
+    return [{ value: "", label: prompt }, ...base];
+  }, [
+    effectiveFilterDeptKind,
+    filterInternalDepartmentsQuery.data,
+    filterInternalDepartmentsQuery.isLoading,
+    filterExternalDepartmentsQuery.data,
+    filterExternalDepartmentsQuery.isLoading,
+    parentCompanyId,
+  ]);
+
+  const hasMembersHubScopeFilters = useMemo(() => {
+    if (!mayPickInternalDeptType) {
+      return (
+        Boolean(resellerId.trim()) || Boolean(parentCompanyId.trim()) || Boolean(departmentId.trim())
+      );
+    }
+    return (
+      filterDeptKind !== "Internal" ||
+      Boolean(resellerId.trim()) ||
+      Boolean(parentCompanyId.trim()) ||
+      Boolean(departmentId.trim())
+    );
+  }, [mayPickInternalDeptType, filterDeptKind, resellerId, parentCompanyId, departmentId]);
+
+  const handleClearFilters = useCallback(() => {
+    setFilterDeptKind(mayPickInternalDeptType ? "Internal" : "External");
+    setResellerId("");
+    setParentCompanyId("");
+    setDepartmentId("");
+    setSearchInput("");
+    setAppliedSearch("");
+    setPage(1);
+    setMembersHubFilterOpen(false);
+  }, [mayPickInternalDeptType]);
 
   const createModalParentCompanyOptionsForCreate = useMemo(() => {
     const base = extractParentCompaniesFromByResellerTree(createModalParentCompaniesQuery.data).map((o) => ({
@@ -250,6 +312,13 @@ export function PoolsPageView({ mode }: PoolsPageViewProps) {
     if (departmentId.trim()) params.departmentId = departmentId.trim();
     return params;
   }, [appliedSearch, departmentId, page, parentCompanyId, resellerId]);
+
+  useEffect(() => {
+    if (searchInput.trim().length > 0) return;
+    if (!appliedSearch.trim()) return;
+    setAppliedSearch("");
+    setPage(1);
+  }, [searchInput, appliedSearch]);
 
   const poolsQuery = usePoolsListQuery(listParams, { enabled: !isMembersHub, scope: "pools-page" });
   const createMutation = useCreatePoolMutation();
@@ -347,8 +416,18 @@ export function PoolsPageView({ mode }: PoolsPageViewProps) {
   }, [payloadObj]);
 
   useEffect(() => {
+    if (!isMembersHub) setMembersHubFilterOpen(false);
+  }, [isMembersHub]);
+
+  useEffect(() => {
+    setResellerId("");
+    setParentCompanyId("");
+    setDepartmentId("");
+  }, [filterDeptKind]);
+
+  useEffect(() => {
     setPage(1);
-  }, [resellerId, parentCompanyId, departmentId]);
+  }, [resellerId, parentCompanyId, departmentId, filterDeptKind]);
 
   useEffect(() => {
     setParentCompanyId("");
@@ -439,15 +518,6 @@ export function PoolsPageView({ mode }: PoolsPageViewProps) {
         onError: () => publishAppToast({ variant: "error", message: "Could not create pool." }),
       },
     );
-  };
-
-  const handleClearFilters = () => {
-    setResellerId("");
-    setParentCompanyId("");
-    setDepartmentId("");
-    setSearchInput("");
-    setAppliedSearch("");
-    setPage(1);
   };
 
   const hubModalParentCompanyOptions = useMemo(() => {
@@ -561,7 +631,7 @@ export function PoolsPageView({ mode }: PoolsPageViewProps) {
 
   const pageTitle = isMembersHub ? "Pool members" : "Pools";
   const pageSubtitle = isMembersHub
-    ? "Open Add pool member to assign someone to a pool. The table below lists members for the department you pick in Filters."
+    ? "Open Add pool member to assign someone to a pool. The table lists members for the department scope you set with Filter (next to Search)."
     : "Create and manage pools by department.";
 
   const poolsTableEl = (
@@ -572,9 +642,10 @@ export function PoolsPageView({ mode }: PoolsPageViewProps) {
       search={searchInput}
       onSearchChange={setSearchInput}
       onSearchSubmit={() => {
-        setAppliedSearch(searchInput);
+        setAppliedSearch(searchInput.trim());
         setPage(1);
       }}
+      searchSubmitDisabled={searchInput.trim() === appliedSearch.trim()}
       page={page}
       pageCount={pageCount}
       footerText={
@@ -634,56 +705,88 @@ export function PoolsPageView({ mode }: PoolsPageViewProps) {
         ) : null}
       </Box>
 
-      <DashboardCard sx={rolesCard}>
-        <Box sx={departmentsCardHeader}>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-            <Box sx={rolesIconBox}>
-              <AttachMoneyIcon sx={{ fontSize: 20, color: theme.app.dashboard.white95 }} />
+      {!isMembersHub ? (
+        <DashboardCard sx={rolesCard}>
+          <Box sx={departmentsCardHeader}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+              <Box sx={rolesIconBox}>
+                <AttachMoneyIcon sx={{ fontSize: 20, color: theme.app.dashboard.white95 }} />
+              </Box>
+              <Typography variant="mediumLarge" fontWeight={600} color="white">
+                Filters
+              </Typography>
             </Box>
-            <Typography variant="mediumLarge" fontWeight={600} color="white">
-              Filters
-            </Typography>
+
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              <Button variant="outlined" onClick={handleClearFilters}>
+                Clear filters
+              </Button>
+            </Box>
           </Box>
 
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-            <Button variant="outlined" onClick={handleClearFilters}>
-              Clear filters
-            </Button>
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: {
+                xs: "1fr",
+                sm: "repeat(2, minmax(0, 1fr))",
+                lg:
+                  mayPickInternalDeptType && effectiveFilterDeptKind === "External"
+                    ? "repeat(4, minmax(0, 1fr))"
+                    : mayPickInternalDeptType
+                      ? "repeat(2, minmax(0, 1fr))"
+                      : "repeat(3, minmax(0, 1fr))",
+              },
+              gap: 1.5,
+              mt: 2,
+            }}
+          >
+            {mayPickInternalDeptType ? (
+              <SelectField
+                label="Department type"
+                value={filterDeptKind}
+                onChange={(v) => setFilterDeptKind(v as "Internal" | "External")}
+                options={[
+                  { value: "Internal", label: "Internal" },
+                  { value: "External", label: "External" },
+                ]}
+                menuMaxRows={4}
+              />
+            ) : null}
+            {effectiveFilterDeptKind === "External" ? (
+              <>
+                <SelectField
+                  label="Reseller"
+                  value={resellerId}
+                  onChange={setResellerId}
+                  options={resellerOptions}
+                  menuMaxRows={8}
+                />
+                <SelectField
+                  label="Parent company"
+                  value={parentCompanyId}
+                  onChange={setParentCompanyId}
+                  options={parentCompanyOptions}
+                  searchable
+                  searchPlaceholder="Search parent company…"
+                  menuMaxRows={8}
+                  disabled={!resellerId.trim()}
+                />
+              </>
+            ) : null}
+            <SelectField
+              label="Department"
+              value={departmentId}
+              onChange={setDepartmentId}
+              options={departmentOptions}
+              searchable
+              searchPlaceholder="Search department…"
+              menuMaxRows={8}
+              disabled={effectiveFilterDeptKind === "External" && !parentCompanyId.trim()}
+            />
           </Box>
-        </Box>
-
-        <Box
-          sx={{
-            display: "grid",
-            gridTemplateColumns: { xs: "1fr", md: "minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr)" },
-            gap: 1.5,
-            mt: 2,
-          }}
-        >
-          <SelectField
-            label="Reseller"
-            value={resellerId}
-            onChange={setResellerId}
-            options={resellerOptions}
-            menuMaxRows={8}
-          />
-          <SelectField
-            label="Parent company"
-            value={parentCompanyId}
-            onChange={setParentCompanyId}
-            options={parentCompanyOptions}
-            menuMaxRows={8}
-            disabled={!resellerId.trim()}
-          />
-          <SelectField
-            label="Department"
-            value={departmentId}
-            onChange={setDepartmentId}
-            options={departmentOptions}
-            menuMaxRows={8}
-          />
-        </Box>
-      </DashboardCard>
+        </DashboardCard>
+      ) : null}
 
       {isMembersHub && !canListPoolMembers ? (
         <Typography variant="body2" sx={{ mt: 2, color: theme.app.dashboard.textMuted }}>
@@ -699,6 +802,32 @@ export function PoolsPageView({ mode }: PoolsPageViewProps) {
             active={canListPoolMembers}
             canMove={canMovePoolMember}
             canRemove={canRemovePoolMember}
+            membersToolbarFilter={
+              <ToolbarFilterPopover
+                open={membersHubFilterOpen}
+                onOpenChange={setMembersHubFilterOpen}
+                active={hasMembersHubScopeFilters}
+              >
+                <PoolMembersScopeFilterPanel
+                  mayPickInternalDeptType={mayPickInternalDeptType}
+                  effectiveFilterDeptKind={effectiveFilterDeptKind}
+                  filterDeptKind={filterDeptKind}
+                  onFilterDeptKindChange={setFilterDeptKind}
+                  resellerId={resellerId}
+                  onResellerIdChange={setResellerId}
+                  parentCompanyId={parentCompanyId}
+                  onParentCompanyIdChange={setParentCompanyId}
+                  departmentId={departmentId}
+                  onDepartmentIdChange={setDepartmentId}
+                  resellerOptions={resellerOptions}
+                  parentCompanyOptions={parentCompanyOptions}
+                  departmentOptions={departmentOptions}
+                  hasMembersHubScopeFilters={hasMembersHubScopeFilters}
+                  onClearFilters={handleClearFilters}
+                  onClose={() => setMembersHubFilterOpen(false)}
+                />
+              </ToolbarFilterPopover>
+            }
           />
         </Box>
       ) : (
@@ -856,7 +985,7 @@ export function PoolsPageView({ mode }: PoolsPageViewProps) {
               </Stack>
             </Box>
 
-            <Divider sx={{ my: 2.5, borderColor: theme.app.dashboard.overlayBorder }} />
+            <Divider sx={{ my: 2.5, borderBottom: `1px solid ${theme.app.dashboard.overlayBorder}` }} />
 
             <Box
               sx={{

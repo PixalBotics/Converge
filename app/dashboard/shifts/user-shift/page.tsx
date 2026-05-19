@@ -1,10 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Box from "@mui/material/Box";
 import type { SxProps, Theme } from "@mui/material/styles";
-import { useTheme } from "@mui/material/styles";
-import type { AppTheme } from "@/theme/theme";
 import {
   Typography,
   ConfirmActionModal,
@@ -23,7 +21,15 @@ import {
   useShiftsListQuery,
   useUserShiftAssignmentsListQuery,
 } from "@/lib/hooks/query";
-import { addMonths, daysInMonth, isRecord, pickNum, pickStr, startOfMonth, toIsoDateString, unwrapApiData } from "@/lib/utils";
+import { addMonths, daysInMonth, formatIsoDate, isRecord, pickNum, pickStr, startOfMonth, toIsoDateString, unwrapApiData } from "@/lib/utils/core";
+import {
+  HRMS_SHIFTS_LIST_SEARCH_MAX,
+  type HrmsShiftsListShiftScope,
+  clampWorkingDaysMask,
+  effectiveWorkingDaysMask,
+  formatWorkingDaysMaskHuman,
+  HRMS_DEFAULT_WORKING_DAYS_MASK,
+} from "@/lib/utils/hrms";
 import { extractParentCompaniesFromByResellerTree, pickItemsArray, toIdNameOption } from "@/app/dashboard/user-page/components/add-user-modal.utils";
 import {
   userShiftHeaderWrapSx,
@@ -34,6 +40,7 @@ import {
   UserShiftAssignModal,
   UserShiftRosterCard,
   UsersSidebar,
+  type CalendarAssignment,
   type CalendarCell,
   type SelectedUserMeta,
   type UserListRow,
@@ -42,8 +49,27 @@ import {
 } from "./components";
 import { useAuth, sessionMayPickInternalUserScope } from "@/lib/auth";
 
+/** Map list/detail user payloads to UI `UserType` (nested `user`, snake_case, mixed casing). */
+function mapApiRecordToUserType(obj: Record<string, unknown> | null): UserType {
+  if (!obj) return "External";
+  const nested = isRecord(obj["user"]) ? (obj["user"] as Record<string, unknown>) : null;
+  if (typeof obj["isInternal"] === "boolean") return obj["isInternal"] ? "Internal" : "External";
+  if (nested && typeof nested["isInternal"] === "boolean") return nested["isInternal"] ? "Internal" : "External";
+  const picked =
+    pickStr(obj, ["userType", "type", "user_type"]) || pickStr(nested, ["userType", "type", "user_type"]);
+  if (picked) {
+    const low = picked.toLowerCase();
+    if (low === "internal") return "Internal";
+    if (low === "external") return "External";
+  }
+  const loose = String(obj["userType"] ?? nested?.["userType"] ?? obj["type"] ?? nested?.["type"] ?? "").trim();
+  const low = loose.toLowerCase();
+  if (low === "internal" || loose === "Internal") return "Internal";
+  if (low === "external" || loose === "External") return "External";
+  return "External";
+}
+
 export default function UserShiftPage() {
-  const theme = useTheme() as AppTheme;
   const { isPlatformAdmin, user: authUser } = useAuth();
   const mayPickInternalUserTypeFilter = useMemo(
     () => sessionMayPickInternalUserScope(isPlatformAdmin, authUser?.userType),
@@ -57,8 +83,11 @@ export default function UserShiftPage() {
   const [shiftId, setShiftId] = useState("");
   const [effectiveFrom, setEffectiveFrom] = useState("");
   const [effectiveTo, setEffectiveTo] = useState("");
+  const [assignOverrideWeek, setAssignOverrideWeek] = useState(false);
+  const [assignWorkingMask, setAssignWorkingMask] = useState(HRMS_DEFAULT_WORKING_DAYS_MASK);
 
-  const [userSearch, setUserSearch] = useState("");
+  const [userSearchDraft, setUserSearchDraft] = useState("");
+  const [userSearchApplied, setUserSearchApplied] = useState("");
   const [userPage, setUserPage] = useState(1);
   const [userTypeFilter, setUserTypeFilter] = useState<"all" | UserType>("all");
   const [externalResellerId, setExternalResellerId] = useState("");
@@ -102,6 +131,11 @@ export default function UserShiftPage() {
     { enabled: userTypeFilter === "Internal", scope: "user-shift-internal-departments" },
   );
 
+  /**
+   * GET /users (user:view) — documented filters only: userType, search, parentCompanyId,
+   * departmentId, page, limit, etc. Reseller-channel: omit userType or External only (Internal → 400).
+   * Subtree scope uses parentCompanyId, not resellerId on this endpoint.
+   */
   const usersQuery = useUsersListQuery(
     {
       page: userPage,
@@ -116,7 +150,7 @@ export default function UserShiftPage() {
       ...(userTypeFilter === "External" && externalDepartmentId.trim()
         ? { departmentId: externalDepartmentId.trim() }
         : {}),
-      ...(userSearch.trim() ? { search: userSearch.trim() } : {}),
+      ...(userSearchApplied.trim() ? { search: userSearchApplied.trim() } : {}),
     },
     { enabled: canLoadUsers },
   );
@@ -127,54 +161,56 @@ export default function UserShiftPage() {
     return v || "—";
   };
 
-  const { users, userOptions, userTypeById, userPageCount, userTotal } = useMemo(() => {
+  const { users, userTypeById, userPageCount, userTotal } = useMemo(() => {
     const payload = unwrapApiData(usersQuery.data);
     const payloadObj = isRecord(payload) ? payload : null;
     const items = Array.isArray(payloadObj?.["items"]) ? (payloadObj?.["items"] as unknown[]).filter(isRecord) : [];
     const typeById = new Map<string, UserType>();
     const rows = items
       .map((r) => {
-        const id = pickStr(r, ["id"]);
+        const nestedUser = isRecord(r["user"]) ? (r["user"] as Record<string, unknown>) : null;
+        const id = pickStr(r, ["id"]) || pickStr(nestedUser, ["id", "userId", "user_id"]);
         if (!id) return null;
         const resellerObj = isRecord(r["reseller"]) ? (r["reseller"] as Record<string, unknown>) : null;
         const parentCompanyObj = isRecord(r["parentCompany"]) ? (r["parentCompany"] as Record<string, unknown>) : null;
         const name =
           pickStr(r, ["name"]) ||
           [pickStr(r, ["firstName"]), pickStr(r, ["lastName"])].filter(Boolean).join(" ") ||
+          pickStr(nestedUser, ["name"]) ||
+          [pickStr(nestedUser, ["firstName"]), pickStr(nestedUser, ["lastName"])].filter(Boolean).join(" ") ||
           pickStr(r, ["email"]) ||
+          pickStr(nestedUser, ["email"]) ||
           "—";
-        const email = pickStr(r, ["email"]) || "—";
-        const rawType = pickStr(r, ["userType", "type"]);
-        const type: UserType = rawType === "Internal" ? "Internal" : "External";
-        const resellerId = formatScopeId(
-          pickStr(r, ["resellerId", "reseller_id"]) ||
-            pickStr(resellerObj, ["id", "name"]),
-        );
-        const parentCompanyId = formatScopeId(
-          pickStr(r, ["parentCompanyId", "parent_company_id", "companyId", "company_id"]) ||
-            pickStr(parentCompanyObj, ["id", "name"]),
-        );
+        const email = pickStr(r, ["email"]) || pickStr(nestedUser, ["email"]) || "—";
+        const type = mapApiRecordToUserType(r);
+        const resellerIdRaw = pickStr(r, ["resellerId", "reseller_id"]) || pickStr(resellerObj, ["id"]) || "";
+        const parentCompanyIdRaw =
+          pickStr(r, ["parentCompanyId", "parent_company_id", "companyId", "company_id"]) || pickStr(parentCompanyObj, ["id"]) || "";
+        const resellerId = formatScopeId(resellerIdRaw);
+        const parentCompanyId = formatScopeId(parentCompanyIdRaw);
+        const resellerName =
+          type === "Internal" ? "—" : (pickStr(resellerObj, ["name"]).trim() || resellerId || "—");
+        const parentCompanyName =
+          type === "Internal" ? "—" : (pickStr(parentCompanyObj, ["name"]).trim() || parentCompanyId || "—");
         typeById.set(id, type);
-        return { id, name, email, type, resellerId, parentCompanyId } satisfies UserListRow;
+        return {
+          id,
+          name,
+          email,
+          type,
+          resellerId,
+          parentCompanyId,
+          resellerName,
+          parentCompanyName,
+        } satisfies UserListRow;
       })
       .filter((x): x is UserListRow => x !== null);
-
-    const baseOptions = rows.map((u) => ({
-      value: u.id,
-      // SelectField's underlying Autocomplete uses option labels as keys.
-      // Names can collide, so include email to make labels stable + unique.
-      label:
-        u.type === "External"
-          ? `${u.name} — ${u.email} (External | R:${u.resellerId} | P:${u.parentCompanyId})`
-          : `${u.name} — ${u.email} (Internal)`,
-    }));
 
     const pageCount = pickNum(payloadObj, ["totalPages"]) ?? 1;
     const total = pickNum(payloadObj, ["total", "count", "totalCount"]) ?? rows.length;
 
     return {
       users: rows,
-      userOptions: [{ value: "", label: "— Select user —" }, ...baseOptions],
       userTypeById: typeById,
       userPageCount: pageCount && pageCount > 0 ? pageCount : 1,
       userTotal: total,
@@ -242,22 +278,24 @@ export default function UserShiftPage() {
     const detailId = pickStr(detailObj, ["id"]);
 
     if (detailObj && detailId && detailId === userId.trim()) {
-      const rawType = pickStr(detailObj, ["userType", "type"]);
-      const type: UserType = rawType === "Internal" ? "Internal" : "External";
+      const type = mapApiRecordToUserType(detailObj);
       const name =
         pickStr(detailObj, ["name"]) ||
         [pickStr(detailObj, ["firstName"]), pickStr(detailObj, ["lastName"])].filter(Boolean).join(" ") ||
         pickStr(detailObj, ["email"]) ||
         "—";
       const email = pickStr(detailObj, ["email"]) || "—";
-      const resellerId = formatScopeId(
-        pickStr(detailObj, ["resellerId", "reseller_id"]) ||
-          pickStr(resellerObj, ["id", "name"]),
-      );
-      const parentCompanyId = formatScopeId(
+      const resellerIdRaw = pickStr(detailObj, ["resellerId", "reseller_id"]) || pickStr(resellerObj, ["id"]) || "";
+      const parentCompanyIdRaw =
         pickStr(detailObj, ["parentCompanyId", "parent_company_id", "companyId", "company_id"]) ||
-          pickStr(parentCompanyObj, ["id", "name"]),
-      );
+        pickStr(parentCompanyObj, ["id"]) ||
+        "";
+      const resellerId = formatScopeId(resellerIdRaw);
+      const parentCompanyId = formatScopeId(parentCompanyIdRaw);
+      const resellerName =
+        type === "Internal" ? "—" : (pickStr(resellerObj, ["name"]).trim() || resellerId || "—");
+      const parentCompanyName =
+        type === "Internal" ? "—" : (pickStr(parentCompanyObj, ["name"]).trim() || parentCompanyId || "—");
       const departmentName =
         pickStr(departmentObj, ["name"]) ||
         pickStr(detailObj, ["departmentName", "department_name"]) ||
@@ -266,7 +304,7 @@ export default function UserShiftPage() {
         pickStr(designationObj, ["name"]) ||
         pickStr(detailObj, ["designationName", "designation_name"]) ||
         "—";
-      return { name, email, type, resellerId, parentCompanyId, departmentName, designationName };
+      return { name, email, type, resellerId, parentCompanyId, resellerName, parentCompanyName, departmentName, designationName };
     }
 
     const listMatch = users.find((u) => u.id === userId.trim());
@@ -277,6 +315,8 @@ export default function UserShiftPage() {
       type: listMatch.type,
       resellerId: listMatch.resellerId,
       parentCompanyId: listMatch.parentCompanyId,
+      resellerName: listMatch.resellerName,
+      parentCompanyName: listMatch.parentCompanyName,
       departmentName: "—",
       designationName: "—",
     };
@@ -284,10 +324,55 @@ export default function UserShiftPage() {
 
   const selectedUserType: UserType | null = selectedUserMeta?.type ?? (userTypeById.get(userId.trim()) ?? null);
 
+  /** `GET /hrms/shifts` catalog: follow selected user's type when set; else sidebar list filter. */
+  const shiftsShiftScope = useMemo((): HrmsShiftsListShiftScope => {
+    if (selectedUserType === "Internal") return "internal";
+    if (selectedUserType === "External") return "external";
+    if (userTypeFilter === "Internal") return "internal";
+    if (userTypeFilter === "External") return "external";
+    return "all";
+  }, [selectedUserType, userTypeFilter]);
+
+  const shiftsCatalogParentId = useMemo(() => {
+    if (selectedUserType === "External") {
+      const fromMeta = selectedUserMeta?.parentCompanyId?.trim();
+      if (fromMeta && fromMeta !== "—") return fromMeta;
+      const row = users.find((u) => u.id === userId.trim());
+      const fromRow = row?.parentCompanyId?.trim();
+      if (fromRow && fromRow !== "—") return fromRow;
+      if (userTypeFilter === "External" && externalParentCompanyId.trim()) return externalParentCompanyId.trim();
+      return "";
+    }
+    if (userTypeFilter === "External" && externalParentCompanyId.trim()) return externalParentCompanyId.trim();
+    return "";
+  }, [
+    selectedUserType,
+    selectedUserMeta?.parentCompanyId,
+    userId,
+    users,
+    userTypeFilter,
+    externalParentCompanyId,
+  ]);
+
+  const shiftsListScopeKey = `${shiftsShiftScope}:${shiftsCatalogParentId}`;
+
+  useEffect(() => {
+    setShiftId("");
+  }, [shiftsListScopeKey]);
+
+  const shiftsQuery = useShiftsListQuery(
+    {
+      all: true,
+      shiftScope: shiftsShiftScope,
+      ...(shiftsCatalogParentId.trim() ? { parentCompanyId: shiftsCatalogParentId.trim() } : {}),
+    },
+    { enabled: true, scope: "user-shift-templates" },
+  );
+
   const selectedUserLabel = useMemo(() => {
     if (!selectedUserMeta) return "";
     return selectedUserMeta.type === "External"
-      ? `${selectedUserMeta.name} (${selectedUserMeta.type}) • R:${selectedUserMeta.resellerId} • P:${selectedUserMeta.parentCompanyId}`
+      ? `${selectedUserMeta.name} (${selectedUserMeta.type}) • R:${selectedUserMeta.resellerName} • P:${selectedUserMeta.parentCompanyName}`
       : `${selectedUserMeta.name} (${selectedUserMeta.type})`;
   }, [selectedUserMeta]);
 
@@ -297,10 +382,31 @@ export default function UserShiftPage() {
     return users.filter((u) => u.type === userTypeFilter);
   }, [users, userTypeFilter, canLoadUsers]);
 
+  const handleUserSearchApply = useCallback(() => {
+    setUserSearchApplied(userSearchDraft.trim().slice(0, HRMS_SHIFTS_LIST_SEARCH_MAX));
+    setUserPage(1);
+  }, [userSearchDraft]);
+
+  const clearUserListFilters = useCallback(() => {
+    setUserTypeFilter("all");
+    setUserPage(1);
+    setUserId("");
+    setShiftId("");
+    setExternalResellerId("");
+    setExternalParentCompanyId("");
+    setExternalDepartmentId("");
+    setInternalDepartmentId("");
+    setUserSearchDraft("");
+    setUserSearchApplied("");
+  }, []);
+
   const handleUserTypeFilterChange = (value: "all" | UserType) => {
     setUserTypeFilter(value);
     setUserPage(1);
     setUserId("");
+    setShiftId("");
+    setUserSearchDraft("");
+    setUserSearchApplied("");
     if (value !== "External") {
       setExternalResellerId("");
       setExternalParentCompanyId("");
@@ -316,13 +422,15 @@ export default function UserShiftPage() {
     setUserTypeFilter("all");
     setUserPage(1);
     setUserId("");
+    setShiftId("");
     setExternalResellerId("");
     setExternalParentCompanyId("");
     setExternalDepartmentId("");
     setInternalDepartmentId("");
+    setUserSearchDraft("");
+    setUserSearchApplied("");
   }, [mayPickInternalUserTypeFilter, userTypeFilter]);
 
-  const shiftsQuery = useShiftsListQuery({ all: true }, { enabled: true, scope: "user-shift-templates" });
   const shiftOptions = useMemo(() => {
     const payload = unwrapApiData(shiftsQuery.data);
     const payloadObj = isRecord(payload) ? payload : null;
@@ -332,7 +440,10 @@ export default function UserShiftPage() {
         const id = pickStr(r, ["id"]);
         const name = pickStr(r, ["name"]);
         if (!id || !name) return null;
-        return { value: id, label: name };
+        const cat = pickStr(r, ["catalog"]).toLowerCase();
+        const scopeLabel = cat === "platform" ? "Internal" : cat === "tenant" ? "External" : "";
+        const label = scopeLabel ? `${name} (${scopeLabel})` : name;
+        return { value: id, label };
       })
       .filter((o): o is { value: string; label: string } => o !== null);
     return [{ value: "", label: "— Select shift —" }, ...base];
@@ -357,20 +468,73 @@ export default function UserShiftPage() {
       .map((r) => {
         const id = pickStr(r, ["id"]);
         if (!id) return null;
+        const shiftObj = isRecord(r["shift"]) ? (r["shift"] as Record<string, unknown>) : null;
         const shiftName =
-          pickStr(isRecord(r["shift"]) ? (r["shift"] as Record<string, unknown>) : null, ["name"]) ||
+          pickStr(shiftObj, ["name"]) ||
           pickStr(r, ["shiftName"]) ||
           "—";
         const from = pickStr(r, ["effectiveFrom", "from", "startDate"]) || "—";
         const to = pickStr(r, ["effectiveTo", "to", "endDate"]) || "—";
-        return { id, shiftName, effectiveFrom: from, effectiveTo: to };
+        const rawAssign = r["workingDaysMask"] ?? r["working_days_mask"];
+        let assignMask: number | null = null;
+        if (rawAssign !== null && rawAssign !== undefined && rawAssign !== "") {
+          const n = typeof rawAssign === "number" ? rawAssign : Number(rawAssign);
+          if (Number.isFinite(n) && n >= 1 && n <= 127) assignMask = Math.trunc(n);
+        }
+        const tmplMask = pickNum(shiftObj, ["workingDaysMask", "working_days_mask"]);
+        const eff = effectiveWorkingDaysMask(assignMask, tmplMask);
+        const weekSummary =
+          assignMask != null
+            ? formatWorkingDaysMaskHuman(clampWorkingDaysMask(assignMask))
+            : `Inherited (${formatWorkingDaysMaskHuman(eff)})`;
+        return { id, shiftName, effectiveFrom: from, effectiveTo: to, weekSummary };
       })
       .filter((x): x is UserShiftAssignmentRow => x !== null);
+  }, [assignmentItems]);
+
+  const calendarAssignments = useMemo((): CalendarAssignment[] => {
+    const out: CalendarAssignment[] = [];
+    for (const r of assignmentItems) {
+      const id = pickStr(r, ["id"]);
+      if (!id) continue;
+      const shiftObj = isRecord(r["shift"]) ? (r["shift"] as Record<string, unknown>) : null;
+      const shiftName =
+        pickStr(shiftObj, ["name"]) ||
+        pickStr(r, ["shiftName"]) ||
+        "—";
+      const fromRaw = pickStr(r, ["effectiveFrom", "from", "startDate"]);
+      const toRaw = pickStr(r, ["effectiveTo", "to", "endDate"]);
+      const from = formatIsoDate(fromRaw);
+      const to = formatIsoDate(toRaw);
+      if (!fromRaw || !toRaw || from === "—" || to === "—") continue;
+      const tz =
+        pickStr(shiftObj, ["timezone", "timeZone", "time_zone"]) ||
+        pickStr(r, ["timezone", "timeZone", "time_zone"]) ||
+        "UTC";
+      const rawAssign = r["workingDaysMask"] ?? r["working_days_mask"];
+      let assignMask: number | null = null;
+      if (rawAssign !== null && rawAssign !== undefined && rawAssign !== "") {
+        const n = typeof rawAssign === "number" ? rawAssign : Number(rawAssign);
+        if (Number.isFinite(n) && n >= 1 && n <= 127) assignMask = Math.trunc(n);
+      }
+      const tmplMask = pickNum(shiftObj, ["workingDaysMask", "working_days_mask"]);
+      const eff = effectiveWorkingDaysMask(assignMask, tmplMask);
+      out.push({
+        id,
+        shiftName,
+        effectiveFrom: from,
+        effectiveTo: to,
+        effectiveWorkingDaysMask: eff,
+        shiftTimeZone: tz,
+      });
+    }
+    return out.slice().sort((a, b) => (a.effectiveFrom < b.effectiveFrom ? 1 : -1));
   }, [assignmentItems]);
 
   const columns = useMemo<DataTableColumn<UserShiftAssignmentRow>[]>(
     () => [
       { id: "shiftName", label: "Shift" },
+      { id: "weekSummary", label: "Working week" },
       { id: "effectiveFrom", label: "Effective from" },
       { id: "effectiveTo", label: "Effective to" },
     ],
@@ -404,19 +568,14 @@ export default function UserShiftPage() {
     return cells;
   }, [monthCursor]);
 
-  const assignmentsForCalendar = useMemo(() => {
-    return tableRows
-      .filter((r) => r.effectiveFrom !== "—" && r.effectiveTo !== "—")
-      .slice()
-      .sort((a, b) => (a.effectiveFrom < b.effectiveFrom ? 1 : -1)); // more recent wins
-  }, [tableRows]);
-
   const todayIso = useMemo(() => toIsoDateString(new Date()), []);
 
   const handleCancel = () => {
     setShiftId("");
     setEffectiveFrom("");
     setEffectiveTo("");
+    setAssignOverrideWeek(false);
+    setAssignWorkingMask(HRMS_DEFAULT_WORKING_DAYS_MASK);
   };
 
   const handleAssign = () => {
@@ -443,6 +602,7 @@ export default function UserShiftPage() {
         shiftId: shiftId.trim(),
         effectiveFrom: effectiveFrom.trim(),
         effectiveTo: effectiveTo.trim(),
+        ...(assignOverrideWeek ? { workingDaysMask: clampWorkingDaysMask(assignWorkingMask) } : {}),
       },
       {
         onSuccess: () => {
@@ -459,7 +619,7 @@ export default function UserShiftPage() {
     <Box sx={pageWrapper}>
       <Box sx={[rolesPageWrapper, { maxWidth: "100%", mx: 0 }] as SxProps<Theme>}>
         <Box sx={userShiftHeaderWrapSx}>
-          <Typography variant="regularLarge" fontWeight={700} color="white">
+          <Typography variant="regularLarge" fontWeight={700} sx={{ color: "text.primary" }}>
             User shift roster
           </Typography>
           <Typography variant="body2" sx={userShiftSubtextSx}>
@@ -479,8 +639,12 @@ export default function UserShiftPage() {
             users={filteredUsers}
             selectedUserId={userId}
             onSelectUserId={setUserId}
-            search={userSearch}
-            onSearchChange={setUserSearch}
+            searchDraft={userSearchDraft}
+            onSearchDraftChange={setUserSearchDraft}
+            onSearchApply={handleUserSearchApply}
+            searchApplyDisabled={userSearchDraft.trim() === userSearchApplied.trim()}
+            searchApplied={userSearchApplied}
+            onClearFilters={clearUserListFilters}
             page={userPage}
             pageCount={userPageCount}
             totalLabel={
@@ -543,7 +707,7 @@ export default function UserShiftPage() {
               onToday={() => setMonthCursor(startOfMonth(new Date()))}
               cells={monthDays}
               todayIso={todayIso}
-              assignments={assignmentsForCalendar}
+              assignments={calendarAssignments}
               onPickDate={(iso) => {
                 if (!userId.trim()) {
                   publishAppToast({ variant: "error", message: "Select a user first." });
@@ -569,7 +733,6 @@ export default function UserShiftPage() {
         </Box>
 
         <UserShiftAssignModal
-          theme={theme}
           open={assignOpen}
           isSaving={createMutation.isPending}
           onClose={() => {
@@ -580,7 +743,10 @@ export default function UserShiftPage() {
           onSave={handleAssign}
           userId={userId}
           onUserIdChange={setUserId}
-          userOptions={userOptions}
+          users={users}
+          usersLoading={usersQuery.isLoading || usersQuery.isFetching}
+          showInternalUserTypeFilter={mayPickInternalUserTypeFilter}
+          userListTypeFilter={userTypeFilter}
           shiftId={shiftId}
           onShiftIdChange={setShiftId}
           shiftOptions={shiftOptions}
@@ -588,8 +754,11 @@ export default function UserShiftPage() {
           onEffectiveFromChange={setEffectiveFrom}
           effectiveTo={effectiveTo}
           onEffectiveToChange={setEffectiveTo}
-          showPickUserHint={!userId.trim()}
           selectedUserMeta={selectedUserMeta}
+          assignOverrideWeek={assignOverrideWeek}
+          onAssignOverrideWeekChange={setAssignOverrideWeek}
+          assignWorkingMask={assignWorkingMask}
+          onAssignWorkingMaskChange={setAssignWorkingMask}
         />
 
         <ConfirmActionModal
@@ -598,6 +767,7 @@ export default function UserShiftPage() {
           description="Remove this user shift assignment?"
           confirmLabel={removeMutation.isPending ? "Removing…" : "Remove"}
           cancelLabel="Cancel"
+          confirmButtonVariant="danger"
           isLoading={removeMutation.isPending}
           onDismiss={() => {
             if (removeMutation.isPending) return;

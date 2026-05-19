@@ -35,7 +35,9 @@ export type UsersListParams = {
   all?: boolean;
   /** When true, return only users not assigned to any pool. */
   unassignedPoolOnly?: boolean;
+  /** GET /users: Internal | External; reseller-channel must omit or use External (Internal → 400). */
   userType?: "Internal" | "External";
+  /** GET /users: global text (name, email, reseller, parent company, role, department, …). */
   search?: string;
   userName?: string;
   companyId?: string;
@@ -43,7 +45,12 @@ export type UsersListParams = {
   parentCompanyName?: string;
   resellerName?: string;
   roleName?: string;
+  /**
+   * GET /users: prefer `companyId` / `parentCompanyId` for scope — many deployments ignore `resellerId`
+   * on this route (subtree is parent-based; see user-shift `useUsersListQuery` notes).
+   */
   resellerId?: string;
+  /** GET /users: restrict to users whose company lies in this parent company subtree (inclusive). */
   parentCompanyId?: string;
   departmentId?: string;
   designationId?: string;

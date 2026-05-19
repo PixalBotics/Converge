@@ -54,7 +54,7 @@ export function GenerateLicenseKeyModal({ open, onClose, onGenerated }: Generate
 
   const parentCompanyOptions = useMemo(() => {
     /**
-     * `GET /companies/by-reseller/:id?view=tree` returns parent companies nested under
+     * `GET /companies?resellerId=:id&view=tree` returns parent companies nested under
      * `data.items[].parentCompanies[]`. This extractor normalizes both `tree` and legacy `flat`.
      */
     return extractParentCompaniesFromByResellerTree(parentCompaniesQuery.data).map((o) => ({

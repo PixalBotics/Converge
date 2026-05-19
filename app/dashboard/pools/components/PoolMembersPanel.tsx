@@ -23,7 +23,7 @@ import {
 } from "@/components/common";
 import type { DataTableColumn } from "@/components/common";
 import { publishAppToast } from "@/lib/notify";
-import { isRecord, pickNum, pickStr, unwrapApiData } from "@/lib/utils";
+import { isRecord, pickNum, pickStr, unwrapApiData } from "@/lib/utils/core";
 import {
   useAddPoolMemberMutation,
   useMovePoolMemberMutation,
@@ -455,6 +455,7 @@ export function PoolMembersPanel({
         title="Remove from pool?"
         description={removeUserLabel ? `Remove “${removeUserLabel}” from this pool?` : "Remove this user from the pool?"}
         confirmLabel={removeMutation.isPending ? "Removing…" : "Remove"}
+        confirmButtonVariant="danger"
         onDismiss={() => {
           if (removeMutation.isPending) return;
           setRemoveUserId(null);

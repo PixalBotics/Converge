@@ -10,7 +10,7 @@ import { rolesCard, rolesIconBox, rolesPageWrapper } from "../../roles/roles.sty
 import { pageWrapper } from "../../companies/overview.styles";
 import { extractApiErrorMessageForToast, publishAppToast } from "@/lib/notify";
 import { useAttendanceCheckInMutation, useAttendanceCheckOutMutation, useAttendanceMeQuery } from "@/lib/hooks/query";
-import { isRecord, unwrapApiData } from "@/lib/utils";
+import { isRecord, unwrapApiData } from "@/lib/utils/core";
 import { useAuth } from "@/lib/auth";
 import { OP } from "@/lib/permissions";
 import NextLink from "next/link";

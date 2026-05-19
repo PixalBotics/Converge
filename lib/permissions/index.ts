@@ -9,9 +9,8 @@ export {
   resolveDashboardLandingHref,
   getVisibleDashboardNavItems,
   isNavPathSelected,
-  type DashboardNavItem,
-  type DashboardSidebarIconKey,
 } from "./dashboard-access";
+export type { DashboardNavItem, DashboardNavSection, DashboardSidebarIconKey } from "./dashboard-nav.types";
 export {
   getOperationalViewAnyOfForDashboardPath,
   userSatisfiesOperationalViewForDashboardPath,
@@ -31,6 +30,8 @@ export {
   canPoolMemberRemove,
   canShiftAction,
   canCompanyAction,
+  hasCompaniesModulePage,
+  canCompaniesModuleAction,
   canRoleAction,
   canLeaveTypeManage,
   canLeaveTypeView,

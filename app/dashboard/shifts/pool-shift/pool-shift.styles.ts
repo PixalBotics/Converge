@@ -2,6 +2,11 @@ import type { SxProps, Theme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 
 export const poolShiftHeaderWrapSx: SxProps<Theme> = {
+  display: "flex",
+  alignItems: "flex-start",
+  justifyContent: "space-between",
+  flexWrap: "wrap",
+  gap: 2,
   mb: 0.5,
 };
 
@@ -25,9 +30,25 @@ export const poolShiftIconSx: SxProps<Theme> = (theme) => ({
 
 export const poolShiftFormGridSx: SxProps<Theme> = {
   display: "grid",
-  gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
+  gridTemplateColumns: { xs: "1fr", md: "1fr auto" },
   gap: 2,
-  mb: 2.5,
+  mb: 0.5,
+};
+
+/** Filter popover: stacked fields + paired row for reseller/parent (aligned bottoms). */
+export const poolShiftFilterPopoverStackSx: SxProps<Theme> = {
+  display: "flex",
+  flexDirection: "column",
+  gap: 2,
+  width: "100%",
+};
+
+export const poolShiftFilterPopoverPairRowSx: SxProps<Theme> = {
+  display: "grid",
+  gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))" },
+  gap: 2,
+  width: "100%",
+  alignItems: "end",
 };
 
 export const poolShiftActionsSx: SxProps<Theme> = {
@@ -36,3 +57,10 @@ export const poolShiftActionsSx: SxProps<Theme> = {
   gap: 1.5,
   flexWrap: "wrap",
 };
+
+export const poolShiftFilterHintSx: SxProps<Theme> = (theme) => ({
+  color: (theme as AppTheme).app.dashboard.textMuted,
+  alignSelf: "stretch",
+  whiteSpace: "normal",
+  lineHeight: 1.5,
+});

@@ -29,6 +29,8 @@ import {
   SegmentedControl,
   SelectField,
   TablePagination,
+  ToolbarFilterPopover,
+  ToolbarFilterPopoverPanel,
   Typography,
   dataTableActionButton,
 } from "@/components/common";
@@ -42,7 +44,7 @@ import {
 } from "../../roles/roles.styles";
 import { footerMutedText, pageWrapper } from "../../companies/overview.styles";
 import { publishAppToast } from "@/lib/notify";
-import { isRecord, pickNum, pickStr, unwrapApiData } from "@/lib/utils";
+import { isRecord, pickNum, pickStr, unwrapApiData } from "@/lib/utils/core";
 import {
   useAssignPoolHeadMutation,
   useCompaniesByResellerQuery,
@@ -63,6 +65,11 @@ import { extractUsersRows } from "@/app/dashboard/user-page/utils";
 import type { UserRow } from "@/app/dashboard/user-page/types";
 import { useAuth, sessionMayPickInternalUserScope } from "@/lib/auth";
 import { canManagePoolHeads, canRemovePoolHead } from "@/lib/permissions";
+import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
+import {
+  departmentsCardHeader,
+  departmentsSearchRow,
+} from "@/app/dashboard/website-assigning/website-assigning.styles";
 
 const PAGE_LIMIT = 12;
 const ASSIGN_USER_TABLE_MAX_PX = 340;
@@ -227,9 +234,11 @@ export default function PoolHeadsPage() {
   const theme = useTheme() as AppTheme;
   const { hasOperational, isPlatformAdmin, user: authUser } = useAuth();
 
+  const mayPickInternalScope = sessionMayPickInternalUserScope(isPlatformAdmin, authUser?.userType);
+
   const headsUserTypeSegmentOptions = useMemo(
     () =>
-      sessionMayPickInternalUserScope(isPlatformAdmin, authUser?.userType)
+      mayPickInternalScope
         ? [
             { value: "all", label: "All" },
             { value: "Internal", label: "Internal" },
@@ -239,7 +248,7 @@ export default function PoolHeadsPage() {
             { value: "all", label: "All" },
             { value: "External", label: "External" },
           ],
-    [isPlatformAdmin, authUser?.userType],
+    [mayPickInternalScope],
   );
   const canAssignPoolHead = canManagePoolHeads(hasOperational);
   const canRemovePoolHeadRow = canRemovePoolHead(hasOperational);
@@ -255,28 +264,155 @@ export default function PoolHeadsPage() {
   const [attendancePage, setAttendancePage] = useState(1);
   const [attendanceDate, setAttendanceDate] = useState(today);
   const [attendanceMemberName, setAttendanceMemberName] = useState("");
+  const [filterPanelOpen, setFilterPanelOpen] = useState(false);
+  /** List filter: which department slice to load (matches `GET /hrms/departments` query shape). */
+  const [filterDeptKind, setFilterDeptKind] = useState<"Internal" | "External" | "all">(() =>
+    mayPickInternalScope ? "Internal" : "External",
+  );
+  const [filterResellerId, setFilterResellerId] = useState("");
+  const [filterParentCompanyId, setFilterParentCompanyId] = useState("");
 
   const [assignOpen, setAssignOpen] = useState(false);
   const [assignDepartmentId, setAssignDepartmentId] = useState("");
   const [assignPoolId, setAssignPoolId] = useState("");
   const [assignUserId, setAssignUserId] = useState("");
-  const [assignUserTypeFilter, setAssignUserTypeFilter] = useState<"Internal" | "External">("External");
+  const [assignUserTypeFilter, setAssignUserTypeFilter] = useState<"Internal" | "External">(() =>
+    mayPickInternalScope ? "Internal" : "External",
+  );
   const [assignExternalResellerId, setAssignExternalResellerId] = useState("");
   const [assignExternalParentCompanyId, setAssignExternalParentCompanyId] = useState("");
 
-  const departmentsQuery = useDepartmentsListQuery({ all: true }, { enabled: true, scope: "pool-heads" });
-  const departmentOptions = useMemo(() => {
-    const base = pickItemsArray(departmentsQuery.data)
+  const filterAllDeptsQuery = useDepartmentsListQuery(
+    filterDeptKind === "all" ? { all: true } : undefined,
+    { enabled: filterDeptKind === "all", scope: "pool-heads-filter-all-depts" },
+  );
+  const filterInternalDeptsQuery = useDepartmentsListQuery(
+    filterDeptKind === "Internal" ? { all: true, type: "Internal" } : undefined,
+    { enabled: filterDeptKind === "Internal", scope: "pool-heads-filter-internal-depts" },
+  );
+  const filterListResellersQuery = useCompaniesSetupResellersQuery({
+    enabled: filterDeptKind === "External",
+  });
+  const filterListParentCompaniesQuery = useCompaniesByResellerQuery(
+    filterResellerId.trim(),
+    { view: "tree", sortBy: "name", sortOrder: "asc", all: true },
+    { enabled: filterDeptKind === "External" && Boolean(filterResellerId.trim()) },
+  );
+  const filterExternalDeptsQuery = useDepartmentsListQuery(
+    filterDeptKind === "External" && filterResellerId.trim() && filterParentCompanyId.trim()
+      ? {
+          all: true,
+          type: "External",
+          resellerId: filterResellerId.trim(),
+          parentCompanyId: filterParentCompanyId.trim(),
+        }
+      : undefined,
+    {
+      enabled:
+        filterDeptKind === "External" &&
+        Boolean(filterResellerId.trim()) &&
+        Boolean(filterParentCompanyId.trim()),
+      scope: "pool-heads-filter-external-depts",
+    },
+  );
+
+  const filterListResellerOptions = useMemo(() => {
+    const base = pickItemsArray(filterListResellersQuery.data)
       .map(toIdNameOption)
       .filter((o): o is { value: string; label: string } => o !== null);
-    return [{ value: "", label: departmentsQuery.isLoading ? "Loading departments…" : "— Select department —" }, ...base];
-  }, [departmentsQuery.data, departmentsQuery.isLoading]);
-  const assignDepartmentOptions = useMemo(() => {
-    const base = pickItemsArray(departmentsQuery.data)
+    return [{ value: "", label: filterListResellersQuery.isLoading ? "Loading resellers…" : "— Select reseller —" }, ...base];
+  }, [filterListResellersQuery.data, filterListResellersQuery.isLoading]);
+
+  const filterListParentCompanyOptions = useMemo(() => {
+    const base = extractParentCompaniesFromByResellerTree(filterListParentCompaniesQuery.data);
+    return [
+      {
+        value: "",
+        label:
+          !filterResellerId.trim()
+            ? "Select reseller first"
+            : filterListParentCompaniesQuery.isLoading
+              ? "Loading parent companies…"
+              : "— Select parent company —",
+      },
+      ...base,
+    ];
+  }, [filterListParentCompaniesQuery.data, filterListParentCompaniesQuery.isLoading, filterResellerId]);
+
+  const listDepartmentOptions = useMemo(() => {
+    if (filterDeptKind === "all") {
+      const base = pickItemsArray(filterAllDeptsQuery.data)
+        .map(toIdNameOption)
+        .filter((o): o is { value: string; label: string } => o !== null);
+      return [{ value: "", label: filterAllDeptsQuery.isLoading ? "Loading departments…" : "— Select department —" }, ...base];
+    }
+    if (filterDeptKind === "Internal") {
+      const base = pickItemsArray(filterInternalDeptsQuery.data)
+        .map(toIdNameOption)
+        .filter((o): o is { value: string; label: string } => o !== null);
+      return [{ value: "", label: filterInternalDeptsQuery.isLoading ? "Loading departments…" : "— Select department —" }, ...base];
+    }
+    const loading = filterExternalDeptsQuery.isLoading;
+    const base = pickItemsArray(filterExternalDeptsQuery.data)
       .map(toIdNameOption)
       .filter((o): o is { value: string; label: string } => o !== null);
-    return [{ value: "", label: departmentsQuery.isLoading ? "Loading departments…" : "— Select department —" }, ...base];
-  }, [departmentsQuery.data, departmentsQuery.isLoading]);
+    const prompt =
+      !filterResellerId.trim() || !filterParentCompanyId.trim()
+        ? "Select reseller and parent company first"
+        : loading
+          ? "Loading departments…"
+          : "— Select department —";
+    return [{ value: "", label: prompt }, ...base];
+  }, [
+    filterDeptKind,
+    filterAllDeptsQuery.data,
+    filterAllDeptsQuery.isLoading,
+    filterInternalDeptsQuery.data,
+    filterInternalDeptsQuery.isLoading,
+    filterExternalDeptsQuery.data,
+    filterExternalDeptsQuery.isLoading,
+    filterResellerId,
+    filterParentCompanyId,
+  ]);
+
+  const filterDeptKindSegmentOptions = useMemo(
+    () =>
+      mayPickInternalScope
+        ? [
+            { value: "Internal", label: "Internal" },
+            { value: "External", label: "External" },
+            { value: "all", label: "All" },
+          ]
+        : [
+            { value: "External", label: "External" },
+            { value: "all", label: "All" },
+          ],
+    [mayPickInternalScope],
+  );
+
+  useEffect(() => {
+    if (!mayPickInternalScope && filterDeptKind === "Internal") {
+      setFilterDeptKind("External");
+    }
+  }, [mayPickInternalScope, filterDeptKind]);
+
+  useEffect(() => {
+    setFilterResellerId("");
+    setFilterParentCompanyId("");
+    setDepartmentId("");
+    setPoolId("");
+  }, [filterDeptKind]);
+
+  useEffect(() => {
+    setFilterParentCompanyId("");
+    setDepartmentId("");
+    setPoolId("");
+  }, [filterResellerId]);
+
+  useEffect(() => {
+    setDepartmentId("");
+    setPoolId("");
+  }, [filterParentCompanyId]);
 
   const poolsQuery = usePoolsListQuery(
     { all: true, ...(departmentId.trim() ? { departmentId: departmentId.trim() } : {}) },
@@ -303,7 +439,7 @@ export default function PoolHeadsPage() {
 
   const assignPoolsQuery = usePoolsListQuery(
     { all: true, ...(assignDepartmentId.trim() ? { departmentId: assignDepartmentId.trim() } : {}) },
-    { enabled: assignOpen, scope: "pool-heads-assign-pools" },
+    { enabled: assignOpen && Boolean(assignDepartmentId.trim()), scope: "pool-heads-assign-pools" },
   );
   const assignPoolOptions = useMemo(() => {
     const items = extractItems(assignPoolsQuery.data);
@@ -350,25 +486,83 @@ export default function PoolHeadsPage() {
     ];
   }, [assignParentCompaniesQuery.data, assignParentCompaniesQuery.isLoading, assignExternalResellerId]);
 
-  const assignUsersQuery = useUsersListQuery(
-    assignOpen
+  const assignInternalDepartmentsQuery = useDepartmentsListQuery(
+    assignOpen && assignUserTypeFilter === "Internal" ? { all: true, type: "Internal" } : undefined,
+    { enabled: assignOpen && assignUserTypeFilter === "Internal", scope: "pool-heads-assign-int-dept" },
+  );
+  const assignExternalDepartmentsQuery = useDepartmentsListQuery(
+    assignOpen &&
+      assignUserTypeFilter === "External" &&
+      assignExternalResellerId.trim() &&
+      assignExternalParentCompanyId.trim()
       ? {
           all: true,
-          userType: assignUserTypeFilter,
-          ...(assignUserTypeFilter === "External" && assignExternalResellerId.trim()
-            ? { resellerId: assignExternalResellerId.trim() }
-            : {}),
-          ...(assignUserTypeFilter === "External" && assignExternalParentCompanyId.trim()
-            ? { parentCompanyId: assignExternalParentCompanyId.trim() }
-            : {}),
-          ...(assignDepartmentId.trim() ? { departmentId: assignDepartmentId.trim() } : {}),
-          ...(assignPoolId.trim() ? { poolId: assignPoolId.trim() } : {}),
+          type: "External",
+          resellerId: assignExternalResellerId.trim(),
+          parentCompanyId: assignExternalParentCompanyId.trim(),
         }
       : undefined,
     {
       enabled:
         assignOpen &&
-        (assignUserTypeFilter !== "External" || Boolean(assignExternalParentCompanyId.trim())),
+        assignUserTypeFilter === "External" &&
+        Boolean(assignExternalResellerId.trim()) &&
+        Boolean(assignExternalParentCompanyId.trim()),
+      scope: "pool-heads-assign-ext-dept",
+    },
+  );
+
+  const assignDepartmentOptions = useMemo(() => {
+    const source =
+      assignUserTypeFilter === "Internal"
+        ? assignInternalDepartmentsQuery.data
+        : assignExternalDepartmentsQuery.data;
+    const loading =
+      assignUserTypeFilter === "Internal"
+        ? assignInternalDepartmentsQuery.isLoading
+        : assignExternalDepartmentsQuery.isLoading;
+    const base = pickItemsArray(source)
+      .map(toIdNameOption)
+      .filter((o): o is { value: string; label: string } => o !== null);
+    const prompt =
+      assignUserTypeFilter === "External" && !assignExternalParentCompanyId.trim()
+        ? "Select parent company first"
+        : loading
+          ? "Loading departments…"
+          : "— Select department —";
+    return [{ value: "", label: prompt }, ...base];
+  }, [
+    assignUserTypeFilter,
+    assignInternalDepartmentsQuery.data,
+    assignInternalDepartmentsQuery.isLoading,
+    assignExternalDepartmentsQuery.data,
+    assignExternalDepartmentsQuery.isLoading,
+    assignExternalParentCompanyId,
+  ]);
+
+  const assignUsersQuery = useUsersListQuery(
+    assignOpen &&
+      assignDepartmentId.trim() &&
+      assignPoolId.trim() &&
+      (assignUserTypeFilter === "Internal" ||
+        (Boolean(assignExternalResellerId.trim()) && Boolean(assignExternalParentCompanyId.trim())))
+      ? {
+          all: true,
+          userType: assignUserTypeFilter,
+          ...(assignUserTypeFilter === "External"
+            ? { resellerId: assignExternalResellerId.trim(), parentCompanyId: assignExternalParentCompanyId.trim() }
+            : {}),
+          departmentId: assignDepartmentId.trim(),
+          poolId: assignPoolId.trim(),
+        }
+      : undefined,
+    {
+      enabled:
+        assignOpen &&
+        Boolean(assignDepartmentId.trim()) &&
+        Boolean(assignPoolId.trim()) &&
+        (assignUserTypeFilter === "Internal" ||
+          (Boolean(assignExternalResellerId.trim()) && Boolean(assignExternalParentCompanyId.trim()))),
     },
   );
 
@@ -557,6 +751,9 @@ export default function PoolHeadsPage() {
   );
 
   const clearPageFilters = () => {
+    setFilterDeptKind(mayPickInternalScope ? "Internal" : "External");
+    setFilterResellerId("");
+    setFilterParentCompanyId("");
     setDepartmentId("");
     setPoolId("");
     setPage(1);
@@ -564,27 +761,159 @@ export default function PoolHeadsPage() {
     setAttendanceMemberName("");
     setAttendanceDate(today);
     setHeadsUserTypeFilter("all");
+    setFilterPanelOpen(false);
   };
 
   const clearAssignFilters = () => {
     setAssignDepartmentId("");
     setAssignPoolId("");
     setAssignUserId("");
-    setAssignUserTypeFilter("External");
+    setAssignUserTypeFilter(mayPickInternalScope ? "Internal" : "External");
     setAssignExternalResellerId("");
     setAssignExternalParentCompanyId("");
   };
 
   useEffect(() => {
-    if (!assignOpen || sessionMayPickInternalUserScope(isPlatformAdmin, authUser?.userType)) return;
+    if (!assignOpen || mayPickInternalScope) return;
     setAssignUserTypeFilter("External");
-  }, [assignOpen, isPlatformAdmin, authUser?.userType]);
+  }, [assignOpen, mayPickInternalScope]);
 
   useEffect(() => {
-    if (sessionMayPickInternalUserScope(isPlatformAdmin, authUser?.userType) || headsUserTypeFilter !== "Internal")
+    if (mayPickInternalScope || headsUserTypeFilter !== "Internal")
       return;
     setHeadsUserTypeFilter("all");
-  }, [isPlatformAdmin, authUser?.userType, headsUserTypeFilter]);
+  }, [mayPickInternalScope, headsUserTypeFilter]);
+
+  const defaultListFilterDeptKind: "Internal" | "External" | "all" = mayPickInternalScope ? "Internal" : "External";
+  const filterToolbarActive =
+    filterDeptKind !== defaultListFilterDeptKind ||
+    Boolean(filterResellerId.trim()) ||
+    Boolean(filterParentCompanyId.trim()) ||
+    Boolean(departmentId.trim()) ||
+    Boolean(poolId.trim()) ||
+    headsUserTypeFilter !== "all" ||
+    Boolean(attendanceMemberName.trim()) ||
+    attendanceDate !== today;
+
+  const poolHeadsFilterPanel = useMemo(() => {
+    return (
+      <ToolbarFilterPopoverPanel
+        footer={
+          <>
+            <Button type="button" variant="secondary" disabled={!filterToolbarActive} onClick={clearPageFilters}>
+              Clear filters
+            </Button>
+            <Button type="button" variant="primary" sx={gradientPrimaryButtonSx} onClick={() => setFilterPanelOpen(false)}>
+              Done
+            </Button>
+          </>
+        }
+      >
+        <Typography variant="medium" fontWeight={700} sx={{ color: theme.app.text.primary, mb: 1.5 }}>
+          Filters
+        </Typography>
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: { xs: "1fr", md: "repeat(2, minmax(0, 1fr))" },
+            gap: 1.75,
+          }}
+        >
+            <Box sx={{ gridColumn: { md: "1 / -1" } }}>
+              <Typography variant="caption" sx={{ display: "block", mb: 0.75, fontWeight: 600, color: theme.app.text.primary }}>
+                Department list (API)
+              </Typography>
+              <SegmentedControl
+                options={filterDeptKindSegmentOptions}
+                value={filterDeptKind}
+                onChange={(v) => setFilterDeptKind(v as "Internal" | "External" | "all")}
+                size="small"
+              />
+              <Typography variant="caption" sx={{ display: "block", mt: 0.75, color: theme.app.dashboard.textMuted }}>
+                External loads departments for the selected reseller and parent company only.
+              </Typography>
+            </Box>
+            {filterDeptKind === "External" ? (
+              <>
+                <SelectField
+                  label="Reseller"
+                  value={filterResellerId}
+                  onChange={setFilterResellerId}
+                  options={filterListResellerOptions}
+                  menuMaxRows={8}
+                />
+                <SelectField
+                  label="Parent company"
+                  value={filterParentCompanyId}
+                  onChange={setFilterParentCompanyId}
+                  options={filterListParentCompanyOptions}
+                  menuMaxRows={8}
+                  disabled={!filterResellerId.trim()}
+                />
+              </>
+            ) : null}
+            <SelectField
+              label="Department"
+              value={departmentId}
+              onChange={setDepartmentId}
+              options={listDepartmentOptions}
+              menuMaxRows={8}
+              disabled={filterDeptKind === "External" && (!filterResellerId.trim() || !filterParentCompanyId.trim())}
+            />
+            <SelectField label="Pool" value={poolId} onChange={setPoolId} options={poolOptions} menuMaxRows={12} />
+            {mode === "attendance" ? (
+              <>
+                <Box sx={{ gridColumn: { md: "1 / -1" } }}>
+                  <InputField
+                    label="Member name / email"
+                    placeholder="Filter by name or email…"
+                    value={attendanceMemberName}
+                    onChange={(e) => setAttendanceMemberName(e.target.value)}
+                  />
+                </Box>
+                <Box sx={{ gridColumn: { md: "1 / -1" } }}>
+                  <Calendar label="Date (UTC)" value={attendanceDate} onChange={setAttendanceDate} />
+                </Box>
+              </>
+            ) : null}
+          </Box>
+          {mode === "heads" ? (
+            <Box sx={{ mt: 2, display: "flex", flexWrap: "wrap", alignItems: "center", gap: 2 }}>
+              <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted }}>
+                Heads — user type
+              </Typography>
+              <SegmentedControl
+                options={headsUserTypeSegmentOptions}
+                value={headsUserTypeFilter}
+                onChange={(v) => setHeadsUserTypeFilter(v as "all" | "Internal" | "External")}
+              />
+            </Box>
+          ) : null}
+      </ToolbarFilterPopoverPanel>
+    );
+  }, [
+    theme,
+    mode,
+    filterDeptKind,
+    filterResellerId,
+    filterParentCompanyId,
+    filterDeptKindSegmentOptions,
+    filterListResellerOptions,
+    filterListParentCompanyOptions,
+    departmentId,
+    poolId,
+    listDepartmentOptions,
+    poolOptions,
+    attendanceMemberName,
+    attendanceDate,
+    headsUserTypeFilter,
+    headsUserTypeSegmentOptions,
+    filterToolbarActive,
+  ]);
+
+  useEffect(() => {
+    setFilterPanelOpen(false);
+  }, [mode]);
 
   return (
     <Box sx={[pageWrapper, rolesPageWrapper] as SxProps<Theme>}>
@@ -620,76 +949,8 @@ export default function PoolHeadsPage() {
       </Box>
 
       <DashboardCard sx={rolesCard}>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-          <Box sx={rolesIconBox}>
-            <PersonIcon sx={{ fontSize: 20, color: theme.app.dashboard.white95 }} />
-          </Box>
-          <Typography variant="mediumLarge" fontWeight={600} color="white">
-            Filters
-          </Typography>
-        </Box>
-
-        <Box
-          sx={{
-            display: "grid",
-            gridTemplateColumns: {
-              xs: "1fr",
-              md:
-                mode === "heads"
-                  ? "minmax(0,1fr) minmax(0,1fr) 180px"
-                  : "minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) 180px",
-            },
-            gap: 1.5,
-            mt: 2,
-            alignItems: "end",
-          }}
-        >
-          <SelectField
-            label="Department"
-            value={departmentId}
-            onChange={setDepartmentId}
-            options={departmentOptions}
-            menuMaxRows={8}
-          />
-          <SelectField
-            label="Pool"
-            value={poolId}
-            onChange={setPoolId}
-            options={poolOptions}
-            menuMaxRows={12}
-          />
-          {mode === "attendance" ? (
-            <>
-              <InputField
-                label="Member name / email"
-                placeholder="Filter by name or email…"
-                value={attendanceMemberName}
-                onChange={(e) => setAttendanceMemberName(e.target.value)}
-              />
-              <Calendar label="Date (UTC)" value={attendanceDate} onChange={setAttendanceDate} />
-            </>
-          ) : null}
-          <Button variant="secondary" onClick={clearPageFilters}>
-            Clear filters
-          </Button>
-        </Box>
-        {mode === "heads" ? (
-          <Box sx={{ mt: 2, display: "flex", flexWrap: "wrap", alignItems: "center", gap: 2 }}>
-            <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted }}>
-              Heads — user type
-            </Typography>
-            <SegmentedControl
-              options={headsUserTypeSegmentOptions}
-              value={headsUserTypeFilter}
-              onChange={(v) => setHeadsUserTypeFilter(v as "all" | "Internal" | "External")}
-            />
-          </Box>
-        ) : null}
-      </DashboardCard>
-
-      <DashboardCard sx={rolesCard}>
-        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2, flexWrap: "wrap" }}>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+        <Box sx={[departmentsCardHeader, { pb: 1.25 }] as SxProps<Theme>}>
+          <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1.5, minWidth: 0 }}>
             <Box sx={rolesIconBox}>
               {mode === "heads" ? (
                 <PersonIcon sx={{ fontSize: 20, color: theme.app.dashboard.white95 }} />
@@ -697,9 +958,27 @@ export default function PoolHeadsPage() {
                 <AccessTimeIcon sx={{ fontSize: 20, color: theme.app.dashboard.white95 }} />
               )}
             </Box>
-            <Typography variant="mediumLarge" fontWeight={600} color="white">
-              {mode === "heads" ? "Pool head assignments" : "Pool team attendance"}
-            </Typography>
+            <Box sx={{ minWidth: 0 }}>
+              <Typography variant="mediumLarge" fontWeight={600} color="white">
+                {mode === "heads" ? "Pool head assignments" : "Pool team attendance"}
+              </Typography>
+              <Typography variant="body2" sx={{ mt: 0.5, color: theme.app.dashboard.textMuted }}>
+                Use Filter to narrow department, pool, and (for attendance) member or date. Heads table can also filter
+                by user type.
+              </Typography>
+            </Box>
+          </Box>
+          <Box
+            sx={
+              [
+                departmentsSearchRow,
+                { justifyContent: "flex-end", width: { xs: "100%", md: "auto" } },
+              ] as SxProps<Theme>
+            }
+          >
+            <ToolbarFilterPopover open={filterPanelOpen} onOpenChange={setFilterPanelOpen} active={filterToolbarActive}>
+              {poolHeadsFilterPanel}
+            </ToolbarFilterPopover>
           </Box>
         </Box>
 
@@ -777,17 +1056,32 @@ export default function PoolHeadsPage() {
         fitContent
         title="Assign pool head"
         description={
-          sessionMayPickInternalUserScope(isPlatformAdmin, authUser?.userType)
-            ? "Select Internal or External first. For External, choose reseller, parent company, then department. Users load from the selected scope."
-            : "External users only. Choose reseller and parent company, then department and pool. Users load from the selected scope."
+          mayPickInternalScope
+            ? "Choose user type first, then department and pool (all required). For External, select reseller and parent company before department. Users load after pool is selected."
+            : "External only: select reseller, parent company, department, pool, then one user."
         }
         onClose={() => {
           if (assignMutation.isPending) return;
           setAssignOpen(false);
+          clearAssignFilters();
         }}
         onSave={() => {
           const pool = assignPoolId.trim();
           const user = assignUserId.trim();
+          const dept = assignDepartmentId.trim();
+          if (assignUserTypeFilter === "External") {
+            if (!assignExternalResellerId.trim() || !assignExternalParentCompanyId.trim()) {
+              publishAppToast({
+                variant: "error",
+                message: "Select reseller and parent company for external users.",
+              });
+              return;
+            }
+          }
+          if (!dept) {
+            publishAppToast({ variant: "error", message: "Please select a department." });
+            return;
+          }
           if (!pool) {
             publishAppToast({ variant: "error", message: "Please select a pool." });
             return;
@@ -812,7 +1106,13 @@ export default function PoolHeadsPage() {
           );
         }}
         primaryButtonDisabled={
-          assignMutation.isPending || !canAssignPoolHead || !assignPoolId.trim() || !assignUserId.trim()
+          assignMutation.isPending ||
+          !canAssignPoolHead ||
+          !assignDepartmentId.trim() ||
+          !assignPoolId.trim() ||
+          !assignUserId.trim() ||
+          (assignUserTypeFilter === "External" &&
+            (!assignExternalResellerId.trim() || !assignExternalParentCompanyId.trim()))
         }
         primaryButtonLabel={assignMutation.isPending ? "Assigning…" : "Assign"}
         cancelButtonLabel="Close"
@@ -826,50 +1126,29 @@ export default function PoolHeadsPage() {
           }}
         >
           <SelectField
-            label="Department (optional)"
-            value={assignDepartmentId}
+            label="User type"
+            options={
+              mayPickInternalScope
+                ? [
+                    { value: "Internal", label: "Internal" },
+                    { value: "External", label: "External" },
+                  ]
+                : [{ value: "External", label: "External" }]
+            }
+            value={assignUserTypeFilter}
             onChange={(v) => {
-              setAssignDepartmentId(v);
+              const next = v as "Internal" | "External";
+              setAssignUserTypeFilter(next);
+              setAssignDepartmentId("");
               setAssignPoolId("");
               setAssignUserId("");
-            }}
-            options={departmentOptions}
-            menuMaxRows={8}
-          />
-          <SelectField
-            label="Pool"
-            value={assignPoolId}
-            onChange={(v) => {
-              setAssignPoolId(v);
-            }}
-            options={assignPoolOptions}
-            menuMaxRows={12}
-          />
-          <Box sx={{ gridColumn: { xs: "auto", sm: "1 / -1" } }}>
-            <SelectField
-              label="Users — type"
-              options={
-                sessionMayPickInternalUserScope(isPlatformAdmin, authUser?.userType)
-                  ? [
-                      { value: "Internal", label: "Internal" },
-                      { value: "External", label: "External" },
-                    ]
-                  : [{ value: "External", label: "External" }]
+              if (next !== "External") {
+                setAssignExternalResellerId("");
+                setAssignExternalParentCompanyId("");
               }
-              value={assignUserTypeFilter}
-              onChange={(v) => {
-                const next = v as "Internal" | "External";
-                setAssignUserTypeFilter(next);
-                setAssignDepartmentId("");
-                setAssignPoolId("");
-                setAssignUserId("");
-                if (next !== "External") {
-                  setAssignExternalResellerId("");
-                  setAssignExternalParentCompanyId("");
-                }
-              }}
-            />
-          </Box>
+            }}
+            menuMaxRows={4}
+          />
 
           {assignUserTypeFilter === "External" ? (
             <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 1.5 }}>
@@ -896,6 +1175,8 @@ export default function PoolHeadsPage() {
                   setAssignUserId("");
                 }}
                 options={assignParentCompanyOptions}
+                searchable
+                searchPlaceholder="Search parent company…"
                 menuMaxRows={8}
                 disabled={!assignExternalResellerId.trim()}
               />
@@ -912,26 +1193,22 @@ export default function PoolHeadsPage() {
                 setAssignUserId("");
               }}
               options={assignDepartmentOptions}
+              searchable
+              searchPlaceholder="Search department…"
               menuMaxRows={8}
               disabled={assignUserTypeFilter === "External" && !assignExternalParentCompanyId.trim()}
             />
-            {assignDepartmentId.trim() ? (
-              <SelectField
-                label="Pool"
-                value={assignPoolId}
-                onChange={(v) => {
-                  setAssignPoolId(v);
-                }}
-                options={assignPoolOptions}
-                menuMaxRows={12}
-              />
-            ) : (
-              <Box sx={{ display: "flex", alignItems: "center", minHeight: 56 }}>
-                <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted }}>
-                  Select department to load pools.
-                </Typography>
-              </Box>
-            )}
+            <SelectField
+              label="Pool"
+              value={assignPoolId}
+              onChange={(v) => {
+                setAssignPoolId(v);
+                setAssignUserId("");
+              }}
+              options={assignPoolOptions}
+              menuMaxRows={12}
+              disabled={!assignDepartmentId.trim()}
+            />
           </Box>
 
           <Box>
@@ -944,7 +1221,7 @@ export default function PoolHeadsPage() {
                   User List
                 </Typography>
                 <Typography variant="caption" sx={{ display: "block", color: theme.app.dashboard.textMuted }}>
-                  Department narrows pools. Click a row to select one user (POST body: poolId, userId).
+                  Loads after department and pool are selected. Click a row to pick one user (poolId + userId).
                 </Typography>
               </Box>
             </Box>

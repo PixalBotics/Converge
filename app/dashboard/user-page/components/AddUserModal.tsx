@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Box from "@mui/material/Box";
 import CircularProgress from "@mui/material/CircularProgress";
+import Checkbox from "@mui/material/Checkbox";
+import FormControlLabel from "@mui/material/FormControlLabel";
 import Radio from "@mui/material/Radio";
 import { Typography, InputField, SelectField, FormModal, DashboardCard } from "@/components/common";
 import type { JsonRecord } from "@/api";
@@ -61,6 +63,7 @@ export function AddUserModal({
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  const [wideResellerScope, setWideResellerScope] = useState(false);
   const [editFormHydrated, setEditFormHydrated] = useState(false);
   const hydratedEditUserIdRef = useRef<string | null>(null);
 
@@ -239,6 +242,7 @@ export function AddUserModal({
     setLastName("");
     setEmail("");
     setPhone("");
+    setWideResellerScope(false);
     setEditFormHydrated(false);
     hydratedEditUserIdRef.current = null;
   }, [open, mayPickInternalSessionScope]);
@@ -270,6 +274,9 @@ export function AddUserModal({
           ?? "",
       ).trim(),
     );
+
+    const wrRaw = u.wideResellerScope ?? u.wide_reseller_scope;
+    setWideResellerScope(wrRaw === true || wrRaw === "true" || wrRaw === 1 || wrRaw === "1");
 
     const typeRaw = u.userType ?? u.user_type;
     const nextType = String(typeRaw ?? "Internal") === "External" ? "External" : "Internal";
@@ -388,6 +395,7 @@ export function AddUserModal({
     if (userType === "External") {
       body.resellerId = resellerId.trim();
       body.companyId = parentCompanyId.trim();
+      body.wideResellerScope = wideResellerScope;
     }
 
     if (mode === "create") {
@@ -498,6 +506,7 @@ export function AddUserModal({
               setUserType("Internal");
               setResellerId("");
               setParentCompanyId("");
+              setWideResellerScope(false);
               setDepartmentValue("");
               setDesignationValue("");
               setDesignationLabelHint("");
@@ -510,6 +519,7 @@ export function AddUserModal({
                   setUserType("Internal");
                   setResellerId("");
                   setParentCompanyId("");
+                  setWideResellerScope(false);
                   setDepartmentValue("");
                   setDesignationValue("");
                   setDesignationLabelHint("");
@@ -610,6 +620,28 @@ export function AddUserModal({
               menuMaxRows={3}
             />
           </Box>
+
+          <FormControlLabel
+            sx={{ alignItems: "flex-start", mb: 1, ml: 0 }}
+            control={
+              <Checkbox
+                size="small"
+                checked={wideResellerScope}
+                onChange={(e) => setWideResellerScope(e.target.checked)}
+                sx={{ color: theme.app.dashboard.textMuted, py: 0.25 }}
+              />
+            }
+            label={
+              <Box>
+                <Typography variant="body2" color="white" fontWeight={600}>
+                  Wide reseller scope
+                </Typography>
+                <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, display: "block", mt: 0.25 }}>
+                  External user: allow broader reseller access when your API supports this flag.
+                </Typography>
+              </Box>
+            }
+          />
         </>
       )}
 

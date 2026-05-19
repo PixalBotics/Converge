@@ -9,7 +9,7 @@ import { Calendar, DashboardCard, DataTable, InputField, TablePagination, Typogr
 import type { DataTableColumn } from "@/components/common";
 import { rolesCard, rolesFooterRow, rolesIconBox, rolesPaginationWrapper } from "../../roles/roles.styles";
 import { footerMutedText } from "../../companies/overview.styles";
-import { isRecord, pickStr, unwrapApiData } from "@/lib/utils";
+import { isRecord, pickStr, unwrapApiData } from "@/lib/utils/core";
 import { usePoolHeadsAttendanceQuery } from "@/lib/hooks/query";
 
 const PAGE_LIMIT = 10;

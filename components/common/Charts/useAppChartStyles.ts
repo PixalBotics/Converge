@@ -38,7 +38,7 @@ export function useAppChartStyles() {
         },
         tooltipContent: {
           background: bg,
-          boxShadow: "0px 2.55px 12.74px 0px #7C8DB51F",
+          boxShadow: "none",
           border: `0.51px solid ${app.dashboard.cardBorder}`,
           borderRadius: 12,
         } satisfies CSSProperties,
@@ -92,14 +92,15 @@ export function useAppChartStyles() {
         },
         tooltipContent: {
           background: bg,
-          border: "none",
+          border: `1px solid ${app.dashboard.cardBorder}`,
           borderRadius: 10,
-          boxShadow: `0 8px 32px rgba(0,0,0,0.35), 0 0 0 1px ${app.dashboard.cardBorder}`,
+          boxShadow: "none",
           color: primaryText,
           padding: "4px 10px",
           fontWeight: 500,
           lineHeight: 1.3,
         } satisfies CSSProperties,
+        tooltipLabel: { color: primaryText, fontWeight: 600 } satisfies CSSProperties,
         tooltipItem: { color: primaryText, padding: 0 } satisfies CSSProperties,
         gradientFirst: {
           topColor: app.dashboard.accentPinkLight,
@@ -132,7 +133,7 @@ export function useAppChartStyles() {
         },
         tooltipContent: {
           background: bg,
-          boxShadow: "0px 2.55px 12.74px 0px #7C8DB51F",
+          boxShadow: "none",
           border: `0.51px solid ${app.dashboard.cardBorder}`,
           borderRadius: 12,
         } satisfies CSSProperties,

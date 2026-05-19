@@ -14,7 +14,6 @@ import {
   DashboardCard,
   DataTable,
   DisconnectConfirmModal,
-  FilterButton,
   SearchBar,
   TablePagination,
   Typography,
@@ -211,8 +210,8 @@ export default function IntegrationsPage() {
           <Typography variant="regularLarge" fontWeight={700} color="white" sx={{ mb: 0.5 }}>
             All social media integrations.
           </Typography>
-          <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted, maxWidth: 560 }}>
-            Connect your Meta Business assets to streamline your workflow and data sync.
+          <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted, maxWidth: 480 }}>
+            Connected accounts and pages.
           </Typography>
         </Box>
         <Box sx={integrationsHeaderActions}>
@@ -251,7 +250,6 @@ export default function IntegrationsPage() {
             <Box sx={integrationsSearchFieldWrapper}>
               <SearchBar value={search} onChange={setSearch} placeholder="Search anything..." sx={{ minWidth: "100%" }} />
             </Box>
-            <FilterButton sx={{ whiteSpace: "nowrap", alignSelf: { xs: "stretch", sm: "center" } }} />
           </Box>
         </Box>
 

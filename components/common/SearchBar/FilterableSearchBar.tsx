@@ -13,7 +13,7 @@ import type { SxProps, Theme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import { FORM_MODAL_MUI_OVERLAY_Z_INDEX } from "@/lib/ui/dialogStacking";
 import { Typography } from "@/components/common/Typography";
-import { SearchIcon } from "@/components/dashboard/icons/SearchIcon";
+import { SearchIcon } from "@/components/common/icons";
 import { resolveSx } from "@/utils/resolveSx";
 import {
   selectMenuItemSx,
@@ -119,7 +119,19 @@ export function FilterableSearchBar({
             },
           }}
         >
-          <SearchIcon sx={{ color: theme.app.dashboard.iconMuted, fontSize: 18 }} width={18} height={18} />
+          <Box
+            aria-hidden
+            sx={{
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flexShrink: 0,
+              lineHeight: 0,
+              color: theme.app.dashboard.iconMuted,
+            }}
+          >
+            <SearchIcon width={18} height={18} />
+          </Box>
           <input
             ref={inputRef}
             className="converge-search-input"
@@ -226,7 +238,7 @@ export function FilterableSearchBar({
               backgroundImage: "none",
               backdropFilter: "none",
               WebkitBackdropFilter: "none",
-              boxShadow: "0 12px 28px rgba(0,0,0,0.28)",
+              boxShadow: "none",
             }}
           >
             {isSuggestionsLoading ? (

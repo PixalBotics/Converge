@@ -35,6 +35,22 @@ export const departmentShiftFormGridSx: SxProps<Theme> = {
   mb: 0.5,
 };
 
+/** Filter popover: single column for predictable label/input alignment; nested row for reseller + parent. */
+export const departmentShiftFilterPopoverStackSx: SxProps<Theme> = {
+  display: "flex",
+  flexDirection: "column",
+  gap: 2,
+  width: "100%",
+};
+
+export const departmentShiftFilterPopoverPairRowSx: SxProps<Theme> = {
+  display: "grid",
+  gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))" },
+  gap: 2,
+  width: "100%",
+  alignItems: "end",
+};
+
 export const departmentShiftActionsSx: SxProps<Theme> = {
   display: "flex",
   justifyContent: "flex-end",
@@ -44,5 +60,6 @@ export const departmentShiftActionsSx: SxProps<Theme> = {
 
 export const departmentShiftFilterHintSx: SxProps<Theme> = (theme) => ({
   color: (theme as AppTheme).app.dashboard.textMuted,
-  whiteSpace: "nowrap",
+  whiteSpace: "normal",
+  lineHeight: 1.5,
 });

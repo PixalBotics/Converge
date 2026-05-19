@@ -4,9 +4,10 @@ import Box from "@mui/material/Box";
 import IconButton from "@mui/material/IconButton";
 import ArrowBackIosNewIcon from "@mui/icons-material/ArrowBackIosNew";
 import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos";
-import { useTheme } from "@mui/material/styles";
+import { alpha, useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import { Button, dataTableActionButton, Typography } from "@/components/common";
+import { isCalendarWorkingDayForMask } from "@/lib/utils/hrms";
 import type { MonthGridCalendarProps } from "./MonthGridCalendar.types";
 
 export function MonthGridCalendar({
@@ -61,6 +62,15 @@ export function MonthGridCalendar({
           const first = matches[0];
           const extraCount = Math.max(0, matches.length - 1);
           const isToday = cell.iso === todayIso;
+          const tz = first?.shiftTimeZone?.trim() ?? "";
+          const wm = first?.effectiveWorkingDaysMask;
+          const weeklyOff =
+            first &&
+            tz &&
+            wm != null &&
+            wm >= 1 &&
+            wm <= 127 &&
+            isCalendarWorkingDayForMask(cell.iso, wm, tz) === false;
 
           return (
             <Box
@@ -69,14 +79,25 @@ export function MonthGridCalendar({
               sx={{
                 cursor: "pointer",
                 borderRadius: 2,
-                border: `1px solid ${isToday ? theme.app.dashboard.accentBlue : "rgba(255,255,255,0.08)"}`,
-                background: cell.inMonth ? "rgba(255,255,255,0.02)" : "rgba(255,255,255,0.01)",
+                border: `1px solid ${
+                  isToday
+                    ? theme.app.dashboard.accentBlue
+                    : weeklyOff
+                      ? alpha(theme.app.dashboard.white95, 0.06)
+                      : alpha(theme.app.dashboard.white95, 0.08)
+                }`,
+                background: weeklyOff
+                  ? `linear-gradient(160deg, ${alpha(theme.app.dashboard.white95, 0.04)} 0%, ${alpha("#64748b", 0.08)} 100%)`
+                  : cell.inMonth
+                    ? alpha(theme.app.dashboard.white95, 0.02)
+                    : alpha(theme.app.dashboard.white95, 0.01),
                 px: 1,
                 py: 1,
                 minHeight: 72,
                 display: "flex",
                 flexDirection: "column",
                 gap: 0.75,
+                transition: "border-color 160ms ease, background 160ms ease",
               }}
             >
               <Typography
@@ -96,20 +117,30 @@ export function MonthGridCalendar({
                     borderRadius: 999,
                     px: 1,
                     py: 0.25,
-                    fontSize: 12,
+                    fontSize: 11,
+                    fontWeight: weeklyOff ? 700 : 500,
+                    letterSpacing: weeklyOff ? "0.06em" : undefined,
+                    textTransform: weeklyOff ? "uppercase" : undefined,
                     lineHeight: 1.4,
                     width: "fit-content",
-                    color: "white",
-                    background: "rgba(91, 142, 255, 0.25)",
-                    border: "1px solid rgba(91, 142, 255, 0.45)",
+                    color: weeklyOff ? alpha(theme.app.dashboard.textMuted, 0.95) : "white",
+                    background: weeklyOff ? alpha("#64748b", 0.2) : "rgba(91, 142, 255, 0.25)",
+                    border: weeklyOff
+                      ? `1px solid ${alpha("#94a3b8", 0.35)}`
+                      : "1px solid rgba(91, 142, 255, 0.45)",
+                    boxShadow: weeklyOff ? `inset 0 1px 0 ${alpha(theme.app.dashboard.white95, 0.06)}` : undefined,
                     maxWidth: "100%",
                     overflow: "hidden",
                     textOverflow: "ellipsis",
                     whiteSpace: "nowrap",
                   }}
-                  title={first.title ?? first.label}
+                  title={
+                    weeklyOff
+                      ? `Off day (weekly schedule) — ${first.title ?? first.label}`
+                      : (first.title ?? first.label)
+                  }
                 >
-                  {first.label}
+                  {weeklyOff ? "Off" : first.label}
                   {extraCount > 0 ? ` +${extraCount}` : ""}
                 </Box>
               ) : renderEmpty ? (

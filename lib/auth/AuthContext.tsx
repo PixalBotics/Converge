@@ -14,7 +14,14 @@ import { flushSync } from "react-dom";
 import { isAxiosError } from "axios";
 import { usePathname, useRouter } from "next/navigation";
 import type { AuthUserType, User, LoginCredentials } from "./types";
-import { getAccessToken, getMe, setTokenPair, synchronizeAuthSession } from "@/api";
+import {
+  getAccessToken,
+  getMe,
+  registerAuthSessionTeardown,
+  resetAuthSessionTerminatedFlag,
+  setTokenPair,
+  synchronizeAuthSession,
+} from "@/api";
 import { useLoginMutation, useLogoutMutation } from "@/lib/hooks";
 import { extractApiErrorMessageForToast } from "@/lib/notify";
 import { AUTH_PATHS, shouldSkipRemoteAuthHydration } from "./auth-paths";
@@ -35,14 +42,20 @@ import {
   toPermissionSet,
   type PermissionsByType,
 } from "./permissions-model";
+import { dismissAppBoundary, publishAuthErrorBoundary } from "@/lib/app-boundaries";
+import { extractResellerIdFromMePayload } from "./extract-reseller-id";
 import { resolveDashboardLandingHref } from "@/lib/permissions";
 import { useAppearance } from "@/lib/theme/appearance-context";
 import { registerAfterTokenSessionSync } from "./after-token-session-sync";
+import { registerSessionHydrationRetry } from "./session-hydration-retry";
+
+export type AuthGateState = "loading" | "ready" | "blocked";
 
 type AccessTokenPayload = {
   userId?: string;
   email?: string;
   roles?: string[];
+  resellerId?: string;
 };
 
 type ApiRole = {
@@ -60,6 +73,8 @@ type ApiUser = {
   user_type?: string | null;
   poolId?: string;
   pool?: { id?: string; name?: string; poolId?: string };
+  resellerId?: string;
+  reseller_id?: string;
 };
 
 function parseApiUserType(user: ApiUser): AuthUserType | undefined {
@@ -122,6 +137,10 @@ function mapApiUserToUser(user: ApiUser): User | null {
     undefined;
   const poolName =
     (typeof poolObj?.name === "string" && poolObj.name.trim()) || undefined;
+  const resellerId =
+    (typeof user.resellerId === "string" && user.resellerId.trim()) ||
+    (typeof user.reseller_id === "string" && user.reseller_id.trim()) ||
+    undefined;
   return {
     id: user.id,
     email: user.email,
@@ -131,6 +150,7 @@ function mapApiUserToUser(user: ApiUser): User | null {
     userType: parseApiUserType(user),
     poolId,
     poolName,
+    resellerId,
   };
 }
 
@@ -160,12 +180,17 @@ function getUserFromAccessToken(): User | null {
   const payload = decodeJwtPayload(accessToken);
   if (!payload?.userId || !payload?.email) return null;
   const firstRole = Array.isArray(payload.roles) ? payload.roles[0] : undefined;
+  const resellerId =
+    typeof payload.resellerId === "string" && payload.resellerId.trim()
+      ? payload.resellerId.trim()
+      : undefined;
   return {
     id: payload.userId,
     email: payload.email,
     displayName: payload.email,
     role: mapRoleNameToAppRole(firstRole),
     roleLabel: firstRole,
+    resellerId,
   };
 }
 
@@ -218,6 +243,11 @@ interface AuthContextValue {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  /**
+   * `blocked` — verify/me failed (network/server); dashboard shell must not render.
+   * Boundary modal is shown via {@link publishAuthErrorBoundary}.
+   */
+  authGate: AuthGateState;
   /** True while `/auth/me` (or post-login permission pull) is updating session permissions. */
   permissionsSyncing: boolean;
   /** Present only when the backend sent at least one permission bucket. */
@@ -255,6 +285,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [permissionsByType, setPermissionsByType] = useState<PermissionsByType | undefined>(undefined);
   const [isPlatformAdmin, setIsPlatformAdmin] = useState(false);
   const [isImpersonating, setIsImpersonating] = useState(false);
+  const [authGate, setAuthGate] = useState<AuthGateState>("loading");
 
   const syncAccountThemeFromMePayload = useCallback(
     (mePayload: unknown, force = false) => {
@@ -271,7 +302,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(getUserFromAccessToken());
     setIsImpersonating(isImpersonatingSessionActive());
     setIsPlatformAdmin(isJwtPlatformAdmin(decodeJwtPayload(getAccessToken() ?? "")));
+    setAuthGate("ready");
     setIsLoading(false);
+  }, []);
+
+  const blockAuthSession = useCallback((error?: unknown) => {
+    setUser(null);
+    setPermissionsByType(undefined);
+    setIsPlatformAdmin(false);
+    setIsImpersonating(false);
+    setAuthGate("blocked");
+    publishAuthErrorBoundary(error);
+  }, []);
+
+  const allowAuthSession = useCallback(() => {
+    dismissAppBoundary();
+    setAuthGate("ready");
   }, []);
 
   const rbacEnabled = useMemo(() => isRbacActive(permissionsByType), [permissionsByType]);
@@ -318,10 +364,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setPermissionsSyncing(true);
       const jwtAdminFallback = isJwtPlatformAdmin(decodeJwtPayload(getAccessToken() ?? ""));
       try {
-        await synchronizeAuthSession();
+        const session = await synchronizeAuthSession();
+        if (session.status === "invalid") {
+          return {
+            permissionsByType: undefined,
+            isPlatformAdmin: jwtAdminFallback,
+          };
+        }
+        if (session.status === "unreachable" || session.status === "error") {
+          blockAuthSession(session.error);
+          return {
+            permissionsByType: undefined,
+            isPlatformAdmin: jwtAdminFallback,
+          };
+        }
         const mePayload = await getMe({ permissionsBreakdown: true });
         const meUser = extractUserFromMePayload(mePayload);
-        const mappedMeUser = meUser ? mapApiUserToUser(meUser) : null;
+        let mappedMeUser = meUser ? mapApiUserToUser(meUser) : null;
+        const meResellerId = extractResellerIdFromMePayload(mePayload);
+        if (mappedMeUser && meResellerId && !mappedMeUser.resellerId) {
+          mappedMeUser = { ...mappedMeUser, resellerId: meResellerId };
+        }
         const fromMe = extractPermissionsByType(mePayload);
         const mergedPermissions =
           permissionMode.type === "merge"
@@ -336,34 +399,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setIsPlatformAdmin(platformAdmin);
         });
         syncAccountThemeFromMePayload(mePayload, true);
+        allowAuthSession();
         return { permissionsByType: mergedPermissions ?? undefined, isPlatformAdmin: platformAdmin };
-      } catch {
-        if (permissionMode.type === "merge") {
-          const snapshot: ResolvedAuthSessionSnapshot = {
-            permissionsByType: permissionMode.login ?? undefined,
-            isPlatformAdmin: jwtAdminFallback,
-          };
-          flushSync(() => {
-            setPermissionsByType(snapshot.permissionsByType);
-            setUser(getUserFromAccessToken());
-            setIsImpersonating(isImpersonatingSessionActive());
-            setIsPlatformAdmin(snapshot.isPlatformAdmin);
-          });
-          return snapshot;
-        }
-        const snapshot: ResolvedAuthSessionSnapshot = {
+      } catch (err: unknown) {
+        blockAuthSession(err);
+        return {
           permissionsByType: undefined,
           isPlatformAdmin: jwtAdminFallback,
         };
-        setUser(getUserFromAccessToken());
-        setIsImpersonating(isImpersonatingSessionActive());
-        setIsPlatformAdmin(snapshot.isPlatformAdmin);
-        return snapshot;
       } finally {
         setPermissionsSyncing(false);
       }
     },
-    [syncAccountThemeFromMePayload],
+    [allowAuthSession, blockAuthSession, syncAccountThemeFromMePayload],
   );
 
   useEffect(() => {
@@ -372,6 +420,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
     return () => registerAfterTokenSessionSync(null);
   }, [pullRemoteAuthSession]);
+
+  useEffect(() => {
+    registerAuthSessionTeardown(async ({ reason }) => {
+      setUser(null);
+      setPermissionsByType(undefined);
+      setPermissionsSyncing(false);
+      setIsPlatformAdmin(false);
+      setIsImpersonating(false);
+      setAuthGate("blocked");
+      accountThemeFromMeAppliedRef.current = false;
+      const query =
+        reason === "refresh_failed" || reason === "verify_failed"
+          ? "?session=expired"
+          : "";
+      router.replace(`${AUTH_PATHS.login}${query}`);
+    });
+    return () => registerAuthSessionTeardown(null);
+  }, [router]);
 
   /**
    * Client navigation from `/auth/*` into the app does not re-run the initial hydrate effect.
@@ -398,61 +464,83 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return shouldSkipRemoteAuthHydration(window.location.pathname);
   }, []);
 
-  useEffect(() => {
-    let mounted = true;
+  const runSessionHydration = useCallback(async () => {
+    if (isSkipHydrationPath()) {
+      applyLocalAuthFromCookies();
+      return;
+    }
 
-    const hydrateAuth = async () => {
+    setAuthGate("loading");
+    setIsLoading(true);
+
+    try {
+      const session = await synchronizeAuthSession();
       if (isSkipHydrationPath()) {
-        if (!mounted) return;
         applyLocalAuthFromCookies();
         return;
       }
 
-      try {
-        await synchronizeAuthSession();
-        if (!mounted) return;
-        if (isSkipHydrationPath()) {
-          applyLocalAuthFromCookies();
-          return;
-        }
-        const mePayload = await getMe({ permissionsBreakdown: true });
-        const meUser = extractUserFromMePayload(mePayload);
-        const mappedMeUser = meUser ? mapApiUserToUser(meUser) : null;
-        if (!mounted) return;
-        setPermissionsByType((prev) => {
-          const incoming = extractPermissionsByType(mePayload);
-          if (!incoming) return prev;
-          return mergePermissionsByType(prev, incoming);
-        });
-        setUser(mappedMeUser ?? getUserFromAccessToken());
-        setIsImpersonating(isImpersonatingSessionActive());
-        setIsPlatformAdmin(
-          extractIsPlatformAdmin(mePayload) || isJwtPlatformAdmin(decodeJwtPayload(getAccessToken() ?? "")),
-        );
-        syncAccountThemeFromMePayload(mePayload);
-      } catch {
-        if (!mounted) return;
-        if (isSkipHydrationPath()) {
-          applyLocalAuthFromCookies();
-          return;
-        }
-        setUser(getUserFromAccessToken());
-        setIsImpersonating(isImpersonatingSessionActive());
-        setIsPlatformAdmin(isJwtPlatformAdmin(decodeJwtPayload(getAccessToken() ?? "")));
-      } finally {
-        if (!mounted) return;
-        if (!isSkipHydrationPath()) {
-          setIsLoading(false);
-        }
+      if (session.status === "invalid") {
+        setAuthGate("blocked");
+        return;
       }
-    };
 
-    void hydrateAuth();
+      if (session.status === "anonymous") {
+        setUser(null);
+        setPermissionsByType(undefined);
+        setIsPlatformAdmin(false);
+        setIsImpersonating(false);
+        setAuthGate("ready");
+        return;
+      }
 
-    return () => {
-      mounted = false;
-    };
-  }, [applyLocalAuthFromCookies, isSkipHydrationPath, syncAccountThemeFromMePayload]);
+      if (session.status === "unreachable" || session.status === "error") {
+        blockAuthSession(session.error);
+        return;
+      }
+
+      const mePayload = await getMe({ permissionsBreakdown: true });
+      const meUser = extractUserFromMePayload(mePayload);
+      const mappedMeUser = meUser ? mapApiUserToUser(meUser) : null;
+      setPermissionsByType((prev) => {
+        const incoming = extractPermissionsByType(mePayload);
+        if (!incoming) return prev;
+        return mergePermissionsByType(prev, incoming);
+      });
+      setUser(mappedMeUser ?? getUserFromAccessToken());
+      setIsImpersonating(isImpersonatingSessionActive());
+      setIsPlatformAdmin(
+        extractIsPlatformAdmin(mePayload) || isJwtPlatformAdmin(decodeJwtPayload(getAccessToken() ?? "")),
+      );
+      syncAccountThemeFromMePayload(mePayload);
+      allowAuthSession();
+    } catch (err: unknown) {
+      if (isSkipHydrationPath()) {
+        applyLocalAuthFromCookies();
+        return;
+      }
+      blockAuthSession(err);
+    } finally {
+      if (!isSkipHydrationPath()) {
+        setIsLoading(false);
+      }
+    }
+  }, [
+    allowAuthSession,
+    applyLocalAuthFromCookies,
+    blockAuthSession,
+    isSkipHydrationPath,
+    syncAccountThemeFromMePayload,
+  ]);
+
+  useEffect(() => {
+    void runSessionHydration();
+  }, [runSessionHydration]);
+
+  useEffect(() => {
+    registerSessionHydrationRetry(runSessionHydration);
+    return () => registerSessionHydrationRetry(null);
+  }, [runSessionHydration]);
 
   /** Client navigations to `/auth/login` etc. must not keep dashboard user without re-evaluating cookies. */
   useEffect(() => {
@@ -471,14 +559,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
       try {
-        await synchronizeAuthSession();
+        const session = await synchronizeAuthSession();
         if (!active) return;
         if (isSkipHydrationPath()) {
           return;
         }
+        if (session.status === "invalid") {
+          return;
+        }
+        if (session.status === "unreachable" || session.status === "error") {
+          blockAuthSession(session.error);
+          return;
+        }
         const mePayload = await getMe({ permissionsBreakdown: true });
         const meUser = extractUserFromMePayload(mePayload);
-        const mappedMeUser = meUser ? mapApiUserToUser(meUser) : null;
+        let mappedMeUser = meUser ? mapApiUserToUser(meUser) : null;
+        const meResellerId = extractResellerIdFromMePayload(mePayload);
+        if (mappedMeUser && meResellerId && !mappedMeUser.resellerId) {
+          mappedMeUser = { ...mappedMeUser, resellerId: meResellerId };
+        }
         if (!active) return;
         setPermissionsByType((prev) => {
           const incoming = extractPermissionsByType(mePayload);
@@ -491,19 +590,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           extractIsPlatformAdmin(mePayload) || isJwtPlatformAdmin(decodeJwtPayload(getAccessToken() ?? "")),
         );
         syncAccountThemeFromMePayload(mePayload);
-      } catch {
+        allowAuthSession();
+      } catch (err: unknown) {
         if (!active) return;
         if (isSkipHydrationPath()) {
           return;
         }
-        setUser(getUserFromAccessToken());
-        setIsImpersonating(isImpersonatingSessionActive());
-        setIsPlatformAdmin(isJwtPlatformAdmin(decodeJwtPayload(getAccessToken() ?? "")));
-      } finally {
-        if (!active) return;
-        if (!isSkipHydrationPath()) {
-          setIsLoading(false);
-        }
+        blockAuthSession(err);
       }
     };
 
@@ -522,7 +615,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       window.removeEventListener("pageshow", handleLifecycleSync);
       window.removeEventListener("focus", handleLifecycleSync);
     };
-  }, [isSkipHydrationPath, syncAccountThemeFromMePayload]);
+  }, [allowAuthSession, blockAuthSession, isSkipHydrationPath, syncAccountThemeFromMePayload]);
 
   const login = useCallback(
     async (credentials: LoginCredentials): Promise<LoginResult> => {
@@ -562,6 +655,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const loginPerms = extractPermissionsByType(response);
         applyAccountTheme(response.user.theme?.backgroundColor ?? null);
         accountThemeFromMeAppliedRef.current = true;
+        resetAuthSessionTerminatedFlag();
         /**
          * Commit login payload (PAGE + OPERATIONAL) synchronously so the first dashboard paint
          * already has RBAC state; then merge with `/auth/me` for a single source of truth.
@@ -638,6 +732,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch {
       // Local session should still be cleared if remote logout fails.
     }
+    resetAuthSessionTerminatedFlag();
     setUser(null);
     setPermissionsByType(undefined);
     setPermissionsSyncing(false);
@@ -693,8 +788,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const value = useMemo<AuthContextValue>(
     () => ({
       user,
-      isAuthenticated: !!user,
+      isAuthenticated: authGate === "ready" && !!user,
       isLoading,
+      authGate,
       permissionsSyncing,
       permissionsByType,
       rbacEnabled,
@@ -708,6 +804,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }),
     [
       user,
+      authGate,
       isLoading,
       permissionsSyncing,
       permissionsByType,

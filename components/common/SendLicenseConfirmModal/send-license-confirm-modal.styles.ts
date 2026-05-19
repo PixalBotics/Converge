@@ -41,6 +41,18 @@ export const sendLicenseConfirmIconCircleSx: SxProps<Theme> = (theme) => ({
   alignItems: "center",
   justifyContent: "center",
   flexShrink: 0,
+  lineHeight: 0,
+  "& > *": {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  "& .MuiSvgIcon-root": {
+    display: "block",
+    lineHeight: 0,
+    margin: 0,
+  },
+  "& svg": { display: "block", verticalAlign: "middle" },
   background: `radial-gradient(ellipse 85% 85% at 50% 32%, ${alpha(theme.palette.common.white, 0.14)} 0%, ${alpha(
     theme.palette.common.white,
     0.05

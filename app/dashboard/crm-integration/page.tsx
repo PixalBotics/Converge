@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Box from "@mui/material/Box";
 import { Button, InputField, SelectField } from "@/components/common";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
-import { CrmIntegrationWizardShell } from "@/components/dashboard/CrmIntegrationWizardShell";
+import { CrmIntegrationWizardShell } from "@/features/crm-integration";
 import { distributionWizardFormGrid3 } from "../distribution-setup/wizard.styles";
 
 const CLIENT_OPTIONS = [{ label: "Jeera", value: "jeera" }];

@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo } from "react";
+import { useLayoutEffect, useMemo } from "react";
 import Box from "@mui/material/Box";
+import Checkbox from "@mui/material/Checkbox";
 import FormControl from "@mui/material/FormControl";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Radio from "@mui/material/Radio";
@@ -13,6 +14,9 @@ import { useDesignationsListQuery } from "@/lib/hooks/query";
 import { pickItemsArray, toIdNameOption } from "@/app/dashboard/user-page/components/add-user-modal.utils";
 import { childrenDraftFieldPath, getCompanySetupFieldError } from "@/lib/companies/company-setup-draft-field-paths";
 import type { DraftChildPayload } from "@/lib/companies/setup-draft.utils";
+import { sessionShowPocDeptDesignationPickFromList, useAuth } from "@/lib/auth";
+
+export type CompanySetupFieldErrorScope = "wizardChild" | "parentPocInvite";
 
 export type CompanySetupChildPocBlockProps = {
   row: DraftChildPayload;
@@ -22,8 +26,14 @@ export type CompanySetupChildPocBlockProps = {
   departmentOptions: { value: string; label: string }[];
   rolesLoading: boolean;
   departmentsLoading: boolean;
+  /** When true, POC fields are read-only (e.g. no update permission). */
+  controlsDisabled?: boolean;
+  /** Which API error map shape to use for `scrollAnchorPath` / `fieldErrors` keys. */
+  fieldErrorScope?: CompanySetupFieldErrorScope;
   /** API paths → message, e.g. `childrenDraft.children.0.pocInvite.pocEmail`. */
   fieldErrors?: Record<string, string>;
+  /** Wizard only: drives whether "Pick from list" is offered for POC dept/designation. */
+  companySetupKind?: "new_reseller" | "existing_reseller";
 };
 
 export function CompanySetupChildPocBlock({
@@ -34,14 +44,26 @@ export function CompanySetupChildPocBlock({
   departmentOptions,
   rolesLoading,
   departmentsLoading,
+  controlsDisabled = false,
+  fieldErrorScope = "wizardChild",
   fieldErrors,
+  companySetupKind = "existing_reseller",
 }: CompanySetupChildPocBlockProps) {
   const theme = useTheme() as AppTheme;
+  const { isPlatformAdmin, user } = useAuth();
+  const showPocPickFromList = sessionShowPocDeptDesignationPickFromList(
+    isPlatformAdmin,
+    user?.userType,
+    companySetupKind,
+  );
 
-  const childPath = (relativePath: string) => childrenDraftFieldPath(childIndex, relativePath);
+  const resolvePath = (relativePath: string) =>
+    fieldErrorScope === "parentPocInvite"
+      ? relativePath
+      : childrenDraftFieldPath(childIndex, relativePath);
 
   const apiMsg = (relativePath: string) =>
-    getCompanySetupFieldError(fieldErrors ?? {}, childPath(relativePath));
+    getCompanySetupFieldError(fieldErrors ?? {}, resolvePath(relativePath));
 
   const designationParams = useMemo(() => {
     const id = row.pocDepartmentId.trim();
@@ -104,6 +126,24 @@ export function CompanySetupChildPocBlock({
           },
         ];
 
+  useLayoutEffect(() => {
+    if (showPocPickFromList) return;
+    if (row.pocDepartmentMode !== "existing" && row.pocDesignationMode !== "existing") return;
+    updateChildRow(childIndex, {
+      pocDepartmentMode: "new",
+      pocDepartmentId: "",
+      pocDesignationMode: "new",
+      pocDesignationId: "",
+      pocDesignationTitle: "",
+    });
+  }, [
+    showPocPickFromList,
+    childIndex,
+    row.pocDepartmentMode,
+    row.pocDesignationMode,
+    updateChildRow,
+  ]);
+
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 2, width: "100%", mt: 0.5 }}>
       <Typography variant="medium" color="white" fontWeight={600}>
@@ -121,7 +161,8 @@ export function CompanySetupChildPocBlock({
           label="First name"
           placeholder="Ali"
           value={row.pocFirstName}
-          scrollAnchorPath={childPath("pocInvite.firstName")}
+          disabled={controlsDisabled}
+          scrollAnchorPath={resolvePath("pocInvite.firstName")}
           error={!!apiMsg("pocInvite.firstName")}
           helperText={apiMsg("pocInvite.firstName") || undefined}
           onChange={(e) => updateChildRow(childIndex, { pocFirstName: e.target.value })}
@@ -130,7 +171,8 @@ export function CompanySetupChildPocBlock({
           label="Middle name (optional)"
           placeholder="—"
           value={row.pocMiddleName}
-          scrollAnchorPath={childPath("pocInvite.middleName")}
+          disabled={controlsDisabled}
+          scrollAnchorPath={resolvePath("pocInvite.middleName")}
           error={!!apiMsg("pocInvite.middleName")}
           helperText={apiMsg("pocInvite.middleName") || undefined}
           onChange={(e) => updateChildRow(childIndex, { pocMiddleName: e.target.value })}
@@ -139,8 +181,9 @@ export function CompanySetupChildPocBlock({
           label="Last name"
           placeholder="Raza"
           value={row.pocLastName}
+          disabled={controlsDisabled}
           sx={{ gridColumn: { sm: "1 / -1" } }}
-          scrollAnchorPath={childPath("pocInvite.lastName")}
+          scrollAnchorPath={resolvePath("pocInvite.lastName")}
           error={!!apiMsg("pocInvite.lastName")}
           helperText={apiMsg("pocInvite.lastName") || undefined}
           onChange={(e) => updateChildRow(childIndex, { pocLastName: e.target.value })}
@@ -151,18 +194,52 @@ export function CompanySetupChildPocBlock({
         placeholder="ali.raza@client.example"
         type="email"
         value={row.pocEmail}
+        disabled={controlsDisabled}
         inputProps={{ maxLength: 255 }}
-        scrollAnchorPath={childPath("pocInvite.pocEmail")}
+        scrollAnchorPath={resolvePath("pocInvite.pocEmail")}
         error={!!apiMsg("pocInvite.pocEmail")}
         helperText={apiMsg("pocInvite.pocEmail") || undefined}
         onChange={(e) => updateChildRow(childIndex, { pocEmail: e.target.value })}
+      />
+
+      <FormControlLabel
+        sx={{ alignItems: "flex-start", m: 0 }}
+        control={
+          <Checkbox
+            size="small"
+            checked={row.pocWideResellerScope}
+            disabled={controlsDisabled}
+            onChange={(e) => updateChildRow(childIndex, { pocWideResellerScope: e.target.checked })}
+            sx={{ color: theme.app.dashboard.textMuted, py: 0.25 }}
+          />
+        }
+        label={
+          <Box data-setup-scroll-anchor={resolvePath("pocInvite.wideResellerScope")}>
+            <Typography variant="body2" color="white" fontWeight={600}>
+              Wide reseller scope
+            </Typography>
+            <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, display: "block", mt: 0.25 }}>
+              External POC: allow hierarchy-wide access when your API supports{" "}
+              <Box component="code" sx={{ fontSize: "0.7rem" }}>
+                wideResellerScope
+              </Box>
+              .
+            </Typography>
+            {apiMsg("pocInvite.wideResellerScope") ? (
+              <Typography variant="caption" sx={{ color: theme.palette.error.main, display: "block", mt: 0.5 }}>
+                {apiMsg("pocInvite.wideResellerScope")}
+              </Typography>
+            ) : null}
+          </Box>
+        }
       />
 
       <Box>
         <SelectField
           label="Role"
           value={row.roleId}
-          scrollAnchorPath={childPath("pocInvite.roleId")}
+          disabled={controlsDisabled}
+          scrollAnchorPath={resolvePath("pocInvite.roleId")}
           onChange={(id) => updateChildRow(childIndex, { roleId: id })}
           options={roleSelectOptions}
         />
@@ -181,7 +258,9 @@ export function CompanySetupChildPocBlock({
           row
           value={row.pocDepartmentMode}
           onChange={(e) => {
+            if (controlsDisabled) return;
             const v = e.target.value;
+            if (!showPocPickFromList) return;
             if (v !== "existing" && v !== "new") return;
             if (v === "new") {
               updateChildRow(childIndex, {
@@ -200,25 +279,28 @@ export function CompanySetupChildPocBlock({
             }
           }}
         >
-          <FormControlLabel
-            value="existing"
-            control={
-              <Radio
-                size="small"
-                sx={{
-                  color: theme.app.dashboard.textMuted,
-                  "&.Mui-checked": { color: theme.app.dashboard.accentBlue },
-                }}
-              />
-            }
-            label={<Typography variant="body2">Pick from list</Typography>}
-            sx={{ mr: 2 }}
-          />
+          {showPocPickFromList ? (
+            <FormControlLabel
+              value="existing"
+              control={
+                <Radio
+                  size="small"
+                  sx={{
+                    color: theme.app.dashboard.textMuted,
+                    "&.Mui-checked": { color: theme.app.dashboard.accentBlue },
+                  }}
+                />
+              }
+              label={<Typography variant="body2">Pick from list</Typography>}
+              sx={{ mr: 2 }}
+            />
+          ) : null}
           <FormControlLabel
             value="new"
             control={
               <Radio
                 size="small"
+                disabled={controlsDisabled}
                 sx={{
                   color: theme.app.dashboard.textMuted,
                   "&.Mui-checked": { color: theme.app.dashboard.accentBlue },
@@ -235,7 +317,8 @@ export function CompanySetupChildPocBlock({
           <SelectField
             label="Department"
             value={row.pocDepartmentId}
-            scrollAnchorPath={`${childPath("pocInvite.departmentId")},${childPath("pocInvite.departmentName")}`}
+            disabled={controlsDisabled}
+            scrollAnchorPath={`${resolvePath("pocInvite.departmentId")},${resolvePath("pocInvite.departmentName")}`}
             onChange={(id) => {
               const label = departmentOptions.find((o) => o.value === id)?.label ?? "";
               updateChildRow(childIndex, {
@@ -259,7 +342,8 @@ export function CompanySetupChildPocBlock({
             label="New department name"
             placeholder="Operations"
             value={row.pocDepartmentName}
-            scrollAnchorPath={childPath("pocInvite.departmentName")}
+            disabled={controlsDisabled}
+            scrollAnchorPath={resolvePath("pocInvite.departmentName")}
             error={!!apiMsg("pocInvite.departmentName")}
             helperText={apiMsg("pocInvite.departmentName") || undefined}
             onChange={(e) => updateChildRow(childIndex, { pocDepartmentName: e.target.value })}
@@ -268,8 +352,9 @@ export function CompanySetupChildPocBlock({
             label="Department details (optional)"
             placeholder="Brief description, location, or notes for this department"
             value={row.pocDepartmentNewDescription}
+            disabled={controlsDisabled}
             inputProps={{ maxLength: 500 }}
-            scrollAnchorPath={childPath("pocInvite.departmentDetails")}
+            scrollAnchorPath={resolvePath("pocInvite.departmentDetails")}
             error={!!apiMsg("pocInvite.departmentDetails")}
             helperText={apiMsg("pocInvite.departmentDetails") || undefined}
             onChange={(e) =>
@@ -287,7 +372,9 @@ export function CompanySetupChildPocBlock({
           row
           value={row.pocDesignationMode}
           onChange={(e) => {
+            if (controlsDisabled) return;
             const v = e.target.value;
+            if (!showPocPickFromList) return;
             if (v !== "existing" && v !== "new") return;
             updateChildRow(childIndex, {
               pocDesignationMode: v,
@@ -297,26 +384,29 @@ export function CompanySetupChildPocBlock({
             });
           }}
         >
-          <FormControlLabel
-            value="existing"
-            control={
-              <Radio
-                size="small"
-                disabled={row.pocDepartmentMode === "new"}
-                sx={{
-                  color: theme.app.dashboard.textMuted,
-                  "&.Mui-checked": { color: theme.app.dashboard.accentBlue },
-                }}
-              />
-            }
-            label={<Typography variant="body2">Pick from list</Typography>}
-            sx={{ mr: 2 }}
-          />
+          {showPocPickFromList ? (
+            <FormControlLabel
+              value="existing"
+              control={
+                <Radio
+                  size="small"
+                  disabled={row.pocDepartmentMode === "new"}
+                  sx={{
+                    color: theme.app.dashboard.textMuted,
+                    "&.Mui-checked": { color: theme.app.dashboard.accentBlue },
+                  }}
+                />
+              }
+              label={<Typography variant="body2">Pick from list</Typography>}
+              sx={{ mr: 2 }}
+            />
+          ) : null}
           <FormControlLabel
             value="new"
             control={
               <Radio
                 size="small"
+                disabled={controlsDisabled}
                 sx={{
                   color: theme.app.dashboard.textMuted,
                   "&.Mui-checked": { color: theme.app.dashboard.accentBlue },
@@ -333,7 +423,8 @@ export function CompanySetupChildPocBlock({
           <SelectField
             label="Designation"
             value={row.pocDesignationId}
-            scrollAnchorPath={`${childPath("pocInvite.designationId")},${childPath("pocInvite.designationTitle")}`}
+            disabled={controlsDisabled}
+            scrollAnchorPath={`${resolvePath("pocInvite.designationId")},${resolvePath("pocInvite.designationTitle")}`}
             onChange={(id) => {
               const label =
                 designationOptions.find((o) => o.value === id)?.label ??
@@ -358,7 +449,8 @@ export function CompanySetupChildPocBlock({
             label="Designation title"
             placeholder="Head of IT"
             value={row.pocDesignationTitle}
-            scrollAnchorPath={childPath("pocInvite.designationTitle")}
+            disabled={controlsDisabled}
+            scrollAnchorPath={resolvePath("pocInvite.designationTitle")}
             error={!!apiMsg("pocInvite.designationTitle")}
             helperText={apiMsg("pocInvite.designationTitle") || undefined}
             onChange={(e) => updateChildRow(childIndex, { pocDesignationTitle: e.target.value })}
@@ -367,8 +459,9 @@ export function CompanySetupChildPocBlock({
             label="Designation details (optional)"
             placeholder="Scope, grade, or other context for this designation"
             value={row.pocDesignationNewDetails}
+            disabled={controlsDisabled}
             inputProps={{ maxLength: 500 }}
-            scrollAnchorPath={childPath("pocInvite.designationDetails")}
+            scrollAnchorPath={resolvePath("pocInvite.designationDetails")}
             error={!!apiMsg("pocInvite.designationDetails")}
             helperText={apiMsg("pocInvite.designationDetails") || undefined}
             onChange={(e) =>

@@ -72,7 +72,7 @@ export type ParentCompanyOption = {
 };
 
 /**
- * `GET /companies/by-reseller/:id?view=tree` — parent companies live under
+ * `GET /companies?resellerId=:id&view=tree` — parent companies live under
  * `data.items[].parentCompanies[]` (each may include `childCompanies`).
  */
 export function extractParentCompaniesFromByResellerTree(
@@ -172,7 +172,7 @@ function extractParentCompaniesFromFlatItems(payload: unknown): ParentCompanyOpt
 }
 
 /**
- * Child companies under a parent for `GET /companies/by-reseller/:id?view=tree`
+ * Child companies under a parent for `GET /companies?resellerId=:id&view=tree`
  * (`data.items[].parentCompanies[].childCompanies[]`).
  */
 export function extractChildCompanyOptionsForParentFromByResellerTree(

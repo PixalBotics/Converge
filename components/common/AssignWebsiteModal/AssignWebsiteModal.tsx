@@ -45,7 +45,7 @@ import {
   useWebsiteAssignmentsWebsitesQuery,
 } from "@/lib/hooks";
 import { extractApiErrorMessageForToast, publishAppToast } from "@/lib/notify";
-import { SearchIcon } from "@/components/dashboard/icons/SearchIcon";
+import { SearchIcon } from "@/components/common/icons";
 import {
   assignWebsiteFormGridSx,
   assignWebsiteUserListCardSx,

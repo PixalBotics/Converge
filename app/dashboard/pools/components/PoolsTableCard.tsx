@@ -13,7 +13,6 @@ import {
   DashboardCard,
   DataTable,
   dataTableActionButton,
-  FilterButton,
   SearchBar,
   TablePagination,
   Typography,
@@ -46,6 +45,8 @@ export type PoolsTableCardProps = {
   search: string;
   onSearchChange: (value: string) => void;
   onSearchSubmit: () => void;
+  /** When true, Search is disabled (draft matches applied). */
+  searchSubmitDisabled?: boolean;
   page: number;
   pageCount: number;
   footerText: string;
@@ -76,6 +77,7 @@ export function PoolsTableCard({
   search,
   onSearchChange,
   onSearchSubmit,
+  searchSubmitDisabled = false,
   page,
   pageCount,
   footerText,
@@ -109,10 +111,15 @@ export function PoolsTableCard({
           <Box sx={departmentsSearchFieldWrapper}>
             <SearchBar value={search} onChange={onSearchChange} placeholder="Search anything.." />
           </Box>
-          <Button variant="outlined" onClick={onSearchSubmit} disabled={isLoading}>
+          <Button
+            type="button"
+            variant="primary"
+            disabled={isLoading || searchSubmitDisabled}
+            onClick={onSearchSubmit}
+            sx={{ minWidth: 132, whiteSpace: "nowrap", alignSelf: { xs: "stretch", sm: "center" } }}
+          >
             Search
           </Button>
-          <FilterButton />
         </Box>
       </Box>
 

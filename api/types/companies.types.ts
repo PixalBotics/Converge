@@ -96,6 +96,8 @@ export interface CompanyPocInviteSummary {
   departmentDetails?: string | null;
   designationTitle?: string | null;
   designationDetails?: string | null;
+  /** External-user invite: allow access across reseller hierarchy when API supports it. */
+  wideResellerScope?: boolean | null;
 }
 
 /** Linked user on `GET /companies/parent/:id` → `children[].pocs[]`. */

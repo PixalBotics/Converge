@@ -1,4 +1,6 @@
+import { alpha } from "@mui/material/styles";
 import type { SxProps, Theme } from "@mui/material";
+import { ICON_SIZE, iconGlyphSx } from "@/lib/design-system/icons";
 import type { AppTheme } from "@/theme/theme";
 
 /** Shared chrome for all `Button` variants — pill, padding, min width, flex + gap. */
@@ -14,6 +16,35 @@ export const baseButtonStyles: SxProps<Theme> = {
   gap: "8px",
   minWidth: 140,
   boxShadow: "none",
+  lineHeight: 1.2,
+  "& .MuiButton-startIcon, & .MuiButton-endIcon": {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    lineHeight: 0,
+    margin: 0,
+  },
+  "& .MuiButton-startIcon .MuiSvgIcon-root, & .MuiButton-endIcon .MuiSvgIcon-root": iconGlyphSx(
+    ICON_SIZE.md,
+  ) as object,
+  "& .MuiSvgIcon-root, & svg": {
+    display: "block",
+    lineHeight: 0,
+    flexShrink: 0,
+  },
+  "& .MuiTypography-root": {
+    display: "inline-flex",
+    alignItems: "center",
+    lineHeight: 1.2,
+  },
+};
+
+export const compactButtonMetrics: SxProps<Theme> = {
+  py: "8px",
+  px: "18px",
+  minWidth: 112,
+  gap: "6px",
+  fontSize: 14,
 };
 
 export const primaryButtonStyles = (theme: Theme): SxProps<Theme> => ({
@@ -26,12 +57,20 @@ export const primaryButtonStyles = (theme: Theme): SxProps<Theme> => ({
 
 export const secondaryButtonStyles = (theme: Theme): SxProps<Theme> => {
   const app = (theme as AppTheme).app;
+  const bg = app.dashboard.pillBg;
+  const bgHover = app.dashboard.pillActive;
   return {
-    backgroundColor: app.dashboard.pillBg,
-    color: app.text.primary,
-    border: `1px solid ${app.dashboard.cardBorder}`,
-    "&:hover": {
-      backgroundColor: app.dashboard.pillActive,
+    /** Beat MUI `contained`+`inherit` (`color: inherit`, grey `--variant-contained-*`). */
+    "&&": {
+      "--variant-containedBg": bg,
+      "--variant-containedColor": app.text.primary,
+      backgroundColor: bg,
+      color: app.text.primary,
+      border: `1px solid ${app.dashboard.cardBorder}`,
+    },
+    "&&:hover": {
+      "--variant-containedBg": bgHover,
+      backgroundColor: bgHover,
       borderColor: app.dashboard.overlayBorder,
     },
   };
@@ -40,11 +79,42 @@ export const secondaryButtonStyles = (theme: Theme): SxProps<Theme> => {
 export const outlinedButtonStyles = (theme: Theme): SxProps<Theme> => {
   const app = (theme as AppTheme).app;
   return {
-    borderColor: app.dashboard.cardBorder,
-    color: app.text.primary,
-    "&:hover": {
+    "&&": {
+      "--variant-outlinedColor": app.text.primary,
+      color: app.text.primary,
+      borderColor: app.dashboard.cardBorder,
+    },
+    "&&:hover": {
       borderColor: app.dashboard.overlayBorder,
       backgroundColor: app.shadow.buttonHoverBg,
+    },
+  };
+};
+
+/** Destructive confirm (delete, remove) — `theme.app.dashboard.accentRed`, not raw MUI error overrides per screen. */
+export const dangerButtonStyles = (theme: Theme): SxProps<Theme> => {
+  const app = (theme as AppTheme).app;
+  const red = app.dashboard.accentRed;
+  const hoverBg = alpha(red, 0.88);
+  return {
+    /** Same as secondary: inherit contained vars would hide the red fill. */
+    "&&": {
+      "--variant-containedBg": red,
+      "--variant-containedColor": theme.palette.common.white,
+      backgroundColor: red,
+      color: theme.palette.common.white,
+      border: `1px solid ${alpha(red, 0.55)}`,
+    },
+    "&&:hover": {
+      "--variant-containedBg": hoverBg,
+      backgroundColor: hoverBg,
+      borderColor: alpha(red, 0.72),
+    },
+    "&&.Mui-disabled": {
+      "--variant-containedBg": alpha(red, 0.35),
+      backgroundColor: alpha(red, 0.35),
+      color: alpha(theme.palette.common.white, 0.72),
+      borderColor: alpha(red, 0.28),
     },
   };
 };
@@ -53,6 +123,7 @@ export const variantStyles = {
   primary: primaryButtonStyles,
   secondary: secondaryButtonStyles,
   outlined: outlinedButtonStyles,
+  danger: dangerButtonStyles,
 } as const;
 
 /** Gradient fill on top of `baseButtonStyles` — use via `sx` where Add/Save needs accent gradient. */

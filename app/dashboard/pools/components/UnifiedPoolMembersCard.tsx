@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import Box from "@mui/material/Box";
-import IconButton from "@mui/material/IconButton";
 import Chip from "@mui/material/Chip";
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
@@ -19,6 +18,7 @@ import {
   SelectField,
   TablePagination,
   Typography,
+  AppIconButton,
   dataTableActionButton,
 } from "@/components/common";
 import type { DataTableColumn } from "@/components/common";
@@ -30,7 +30,7 @@ import {
   useRemovePoolMemberMutation,
 } from "@/lib/hooks/query";
 import { pickItemsArray } from "@/app/dashboard/user-page/components/add-user-modal.utils";
-import { isRecord, pickStr, unwrapApiData } from "@/lib/utils";
+import { isRecord, pickStr, unwrapApiData } from "@/lib/utils/core";
 import {
   rolesCard,
   rolesFooterRow,
@@ -54,6 +54,8 @@ export type UnifiedPoolMembersCardProps = {
   active: boolean;
   canMove: boolean;
   canRemove: boolean;
+  /** Scope filters (department type / reseller / parent / department) — e.g. wrapped `ToolbarFilterPopover`. */
+  membersToolbarFilter?: ReactNode;
 };
 
 export function UnifiedPoolMembersCard({
@@ -62,6 +64,7 @@ export function UnifiedPoolMembersCard({
   active,
   canMove,
   canRemove,
+  membersToolbarFilter,
 }: UnifiedPoolMembersCardProps) {
   const theme = useTheme() as AppTheme;
   const dept = departmentId.trim();
@@ -246,13 +249,15 @@ export function UnifiedPoolMembersCard({
             >
               Search
             </Button>
+            {membersToolbarFilter}
           </Box>
         </Box>
 
         {!dept ? (
           <Typography variant="body2" sx={{ mt: 1.5, mb: 1, color: theme.app.dashboard.textMuted }}>
-            Showing pool members in your scope. Use the department filter above to narrow the list and to pick pools for
-            team attendance.
+            {membersToolbarFilter
+              ? "Showing pool members in your scope. Use Filter to set department (Internal / External + reseller / parent when needed), then pick a pool below for team attendance."
+              : "Showing pool members in your scope. Use the department filter above to narrow the list and to pick pools for team attendance."}
           </Typography>
         ) : null}
         <DataTable<MergedPoolMemberRow>
@@ -266,24 +271,22 @@ export function UnifiedPoolMembersCard({
             label: "Action",
             render: (row) => (
               <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 0.5 }} onClick={(e) => e.stopPropagation()}>
-                <IconButton
-                  size="small"
-                  sx={dataTableActionButton}
+                <AppIconButton
                   aria-label="Edit (move to another pool)"
                   disabled={busy || !canMove}
                   onClick={() => openMove(row)}
+                  sx={dataTableActionButton}
                 >
                   <EditIcon fontSize="small" />
-                </IconButton>
-                <IconButton
-                  size="small"
-                  sx={{ ...dataTableActionButton, color: theme.app.dashboard.accentRedLight }}
+                </AppIconButton>
+                <AppIconButton
                   aria-label="Delete (remove from pool)"
                   disabled={busy || !canRemove}
                   onClick={() => setRemoveRow(row)}
+                  sx={{ ...dataTableActionButton, color: theme.app.dashboard.accentRedLight }}
                 >
                   <DeleteIcon fontSize="small" />
-                </IconButton>
+                </AppIconButton>
               </Box>
             ),
           }}
@@ -358,6 +361,7 @@ export function UnifiedPoolMembersCard({
             : "Remove this member from the pool?"
         }
         confirmLabel={removeMutation.isPending ? "Removing…" : "Remove"}
+        confirmButtonVariant="danger"
         onDismiss={() => {
           if (removeMutation.isPending) return;
           setRemoveRow(null);

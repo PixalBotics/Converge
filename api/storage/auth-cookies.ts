@@ -3,9 +3,10 @@ import {
   REFRESH_TOKEN_COOKIE_MAX_AGE_SEC,
 } from "../config";
 import type { AuthTokenPair } from "../types/auth.types";
-
-const ACCESS_NAME = "converge_access_token";
-const REFRESH_NAME = "converge_refresh_token";
+import {
+  AUTH_COOKIE_ACCESS,
+  AUTH_COOKIE_REFRESH,
+} from "@/lib/auth/auth-cookie-names";
 
 function isBrowser(): boolean {
   return typeof document !== "undefined";
@@ -46,11 +47,11 @@ function eraseCookieRaw(name: string): void {
 }
 
 export function getAccessToken(): string | null {
-  return readCookieRaw(ACCESS_NAME);
+  return readCookieRaw(AUTH_COOKIE_ACCESS);
 }
 
 export function getRefreshToken(): string | null {
-  return readCookieRaw(REFRESH_NAME);
+  return readCookieRaw(AUTH_COOKIE_REFRESH);
 }
 
 export function getTokenPair(): AuthTokenPair | null {
@@ -61,19 +62,19 @@ export function getTokenPair(): AuthTokenPair | null {
 }
 
 export function setTokenPair(tokens: AuthTokenPair): void {
-  writeCookieRaw(ACCESS_NAME, tokens.accessToken, ACCESS_TOKEN_COOKIE_MAX_AGE_SEC);
+  writeCookieRaw(AUTH_COOKIE_ACCESS, tokens.accessToken, ACCESS_TOKEN_COOKIE_MAX_AGE_SEC);
   writeCookieRaw(
-    REFRESH_NAME,
+    AUTH_COOKIE_REFRESH,
     tokens.refreshToken,
     REFRESH_TOKEN_COOKIE_MAX_AGE_SEC,
   );
 }
 
 export function setAccessToken(accessToken: string): void {
-  writeCookieRaw(ACCESS_NAME, accessToken, ACCESS_TOKEN_COOKIE_MAX_AGE_SEC);
+  writeCookieRaw(AUTH_COOKIE_ACCESS, accessToken, ACCESS_TOKEN_COOKIE_MAX_AGE_SEC);
 }
 
 export function clearTokens(): void {
-  eraseCookieRaw(ACCESS_NAME);
-  eraseCookieRaw(REFRESH_NAME);
+  eraseCookieRaw(AUTH_COOKIE_ACCESS);
+  eraseCookieRaw(AUTH_COOKIE_REFRESH);
 }
