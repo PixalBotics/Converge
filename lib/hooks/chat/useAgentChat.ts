@@ -8,10 +8,9 @@ import {
   getWaitingChats,
   sendAgentMessage,
 } from "@/services/chat/chatApi";
-import { getChatSocketClient } from "@/services/chat/chatSocket";
+import { createChatSocketClient } from "@/services/chat/chatSocket";
 import type {
   ChatMessage,
-  ConversationSummary,
   TypingPayload,
 } from "@/services/chat/chat.types";
 
@@ -21,35 +20,45 @@ interface UseAgentChatParams {
 }
 
 interface UseAgentChatReturn {
-  activeChats: ConversationSummary[];
-  waitingChats: ConversationSummary[];
+  activeChats: import("@/services/chat/chat.types").ConversationSummary[];
+  waitingChats: import("@/services/chat/chat.types").ConversationSummary[];
   selectedConversationId: string | null;
   messages: ChatMessage[];
+  visitorFromHistory: Record<string, unknown> | null;
   isConnected: boolean;
-  typingByConversation: Record<string, boolean>;
+  visitorTypingSelected: boolean;
   refreshQueues: () => Promise<void>;
   selectConversation: (conversationId: string) => Promise<void>;
-  sendMessage: (content: string) => Promise<void>;
+  sendMessage: (content: string, options?: { messageType?: string }) => Promise<void>;
   closeSelectedConversation: () => Promise<void>;
   emitTyping: () => void;
   emitStopTyping: () => void;
 }
 
-function messageKey(message: ChatMessage): string {
-  if (message.id) return message.id;
+function stableMessageDedupeKey(message: ChatMessage): string {
+  if (message.id) return `id:${message.id}`;
   return `${message.conversationId}:${message.role}:${message.createdAt ?? ""}:${message.content}`;
 }
 
+const POLL_MS = 12_000;
+
 export function useAgentChat(params: UseAgentChatParams): UseAgentChatReturn {
-  const socketClient = useMemo(() => getChatSocketClient(), []);
-  const [activeChats, setActiveChats] = useState<ConversationSummary[]>([]);
-  const [waitingChats, setWaitingChats] = useState<ConversationSummary[]>([]);
-  const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [isConnected, setIsConnected] = useState(false);
-  const [typingByConversation, setTypingByConversation] = useState<Record<string, boolean>>(
-    {},
+  const socketClient = useMemo(() => createChatSocketClient(), []);
+  const [activeChats, setActiveChats] = useState<
+    import("@/services/chat/chat.types").ConversationSummary[]
+  >([]);
+  const [waitingChats, setWaitingChats] = useState<
+    import("@/services/chat/chat.types").ConversationSummary[]
+  >([]);
+  const [selectedConversationId, setSelectedConversationId] = useState<string | null>(
+    null,
   );
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [visitorFromHistory, setVisitorFromHistory] =
+    useState<Record<string, unknown> | null>(null);
+  const [isConnected, setIsConnected] = useState(false);
+  const [visitorTypingSelected, setVisitorTypingSelected] = useState(false);
+
   const messageMapRef = useRef(new Map<string, ChatMessage>());
   const selectedConversationIdRef = useRef<string | null>(null);
 
@@ -58,8 +67,23 @@ export function useAgentChat(params: UseAgentChatParams): UseAgentChatReturn {
   }, [selectedConversationId]);
 
   const upsertMessage = useCallback((message: ChatMessage) => {
-    const key = messageKey(message);
-    if (messageMapRef.current.has(key)) return;
+    const key = stableMessageDedupeKey(message);
+
+    if (message.id && !message.id.startsWith("optimistic-")) {
+      const toDelete: string[] = [];
+      for (const [k, existing] of messageMapRef.current) {
+        if (
+          existing.id?.startsWith("optimistic-") &&
+          existing.role === message.role &&
+          existing.content === message.content &&
+          existing.conversationId === message.conversationId
+        ) {
+          toDelete.push(k);
+        }
+      }
+      toDelete.forEach((k) => messageMapRef.current.delete(k));
+    }
+
     messageMapRef.current.set(key, message);
     setMessages(Array.from(messageMapRef.current.values()));
   }, []);
@@ -77,7 +101,9 @@ export function useAgentChat(params: UseAgentChatParams): UseAgentChatReturn {
     socketClient.connect({ authToken: params.token, forceNew: true });
     setIsConnected(socketClient.isConnected());
 
-    const offSocketConnect = socketClient.onSocketConnect(() => setIsConnected(true));
+    const offSocketConnect = socketClient.onSocketConnect(() =>
+      setIsConnected(true),
+    );
     const offSocketDisconnect = socketClient.onSocketDisconnect(() =>
       setIsConnected(false),
     );
@@ -85,26 +111,44 @@ export function useAgentChat(params: UseAgentChatParams): UseAgentChatReturn {
       setIsConnected(true);
       void refreshQueues();
     });
-    const offVisitorMessage = socketClient.onVisitorMessage(upsertMessage);
-    const offAgentMessage = socketClient.onAgentMessage(upsertMessage);
+
+    const offVisitorMessage = socketClient.onVisitorMessage((m) =>
+      upsertMessage(m),
+    );
+    const offAgentMessage = socketClient.onAgentMessage((m) => upsertMessage(m));
+    const offAiMessage = socketClient.onAiMessage((m) => upsertMessage(m));
+
     const offTyping = socketClient.onTyping((payload: TypingPayload) => {
-      setTypingByConversation((prev) => ({ ...prev, [payload.conversationId]: true }));
+      const cid = selectedConversationIdRef.current;
+      if (!cid || payload.conversationId !== cid) return;
+      if (payload.userType === "visitor" || payload.userType == null)
+        setVisitorTypingSelected(true);
     });
     const offStopTyping = socketClient.onStopTyping((payload: TypingPayload) => {
-      setTypingByConversation((prev) => ({ ...prev, [payload.conversationId]: false }));
+      const cid = selectedConversationIdRef.current;
+      if (!cid || payload.conversationId !== cid) return;
+      setVisitorTypingSelected(false);
     });
+
     const offAssigned = socketClient.onChatAssigned(() => void refreshQueues());
-    const offPopup = socketClient.onAgentAssignmentPopup(() => void refreshQueues());
+    const offPopup = socketClient.onAgentAssignmentPopup(() =>
+      void refreshQueues(),
+    );
     const offClosed = socketClient.onChatClosed((payload: unknown) => {
-      setTypingByConversation({});
+      setVisitorTypingSelected(false);
       void refreshQueues();
-      const maybeConversationId =
+
+      let maybeConversationId: string | null = null;
+      if (
         typeof payload === "object" &&
         payload &&
         "conversationId" in payload &&
-        typeof (payload as { conversationId?: unknown }).conversationId === "string"
-          ? (payload as { conversationId: string }).conversationId
-          : null;
+        typeof (payload as { conversationId?: unknown }).conversationId ===
+          "string"
+      ) {
+        maybeConversationId = (payload as { conversationId: string })
+          .conversationId;
+      }
       if (
         maybeConversationId &&
         maybeConversationId === selectedConversationIdRef.current
@@ -112,50 +156,68 @@ export function useAgentChat(params: UseAgentChatParams): UseAgentChatReturn {
         setSelectedConversationId(null);
         messageMapRef.current.clear();
         setMessages([]);
+        setVisitorFromHistory(null);
       }
     });
 
+    const offTransferred = socketClient.onChatTransferred(() => void refreshQueues());
+    const offHandover = socketClient.onChatHandover(() => void refreshQueues());
+
     void refreshQueues();
+    const poll = window.setInterval(() => void refreshQueues(), POLL_MS);
 
     return () => {
+      window.clearInterval(poll);
       offConnected();
       offSocketConnect();
       offSocketDisconnect();
       offVisitorMessage();
       offAgentMessage();
+      offAiMessage();
       offTyping();
       offStopTyping();
       offAssigned();
       offPopup();
       offClosed();
+      offTransferred();
+      offHandover();
+      socketClient.disconnect();
     };
   }, [params.token, refreshQueues, socketClient, upsertMessage]);
 
   const selectConversation = useCallback(
     async (conversationId: string) => {
       if (selectedConversationId) {
-        socketClient.leaveRoom({ conversationId: selectedConversationId, role: "agent" });
+        socketClient.leaveRoom({ conversationId: selectedConversationId });
       }
 
       setSelectedConversationId(conversationId);
+      setVisitorTypingSelected(false);
       socketClient.joinRoom({
         conversationId,
-        role: "agent",
-        userId: params.agentId,
       });
 
-      const history = await getConversationHistory(conversationId, params.token);
+      const history = await getConversationHistory(
+        conversationId,
+        params.token,
+      );
+
       messageMapRef.current.clear();
-      history.messages.forEach((message) => {
-        messageMapRef.current.set(messageKey(message), message);
-      });
+      history.messages.forEach((msg) =>
+        messageMapRef.current.set(stableMessageDedupeKey(msg), msg),
+      );
       setMessages(Array.from(messageMapRef.current.values()));
+
+      const v = history.visitor;
+      setVisitorFromHistory(
+        typeof v === "object" && v !== null ? (v as Record<string, unknown>) : null,
+      );
     },
-    [params.agentId, params.token, selectedConversationId, socketClient],
+    [params.token, selectedConversationId, socketClient],
   );
 
   const sendMessage = useCallback(
-    async (content: string) => {
+    async (content: string, sendOpts?: { messageType?: string }) => {
       if (!selectedConversationId) {
         throw new Error("Select a conversation before sending a message.");
       }
@@ -172,10 +234,17 @@ export function useAgentChat(params: UseAgentChatParams): UseAgentChatReturn {
       upsertMessage(optimisticMessage);
       await sendAgentMessage(
         selectedConversationId,
-        { content, agentId: params.agentId },
+        {
+          message: content,
+          ...(sendOpts?.messageType ? { messageType: sendOpts.messageType } : {}),
+        },
         params.token,
       );
-      socketClient.sendAgentMessage(optimisticMessage);
+      socketClient.sendAgentMessage({
+        conversationId: selectedConversationId,
+        message: content,
+        ...(params.agentId ? { agentId: params.agentId } : {}),
+      });
     },
     [params.agentId, params.token, selectedConversationId, socketClient, upsertMessage],
   );
@@ -183,20 +252,35 @@ export function useAgentChat(params: UseAgentChatParams): UseAgentChatReturn {
   const closeSelectedConversation = useCallback(async () => {
     if (!selectedConversationId) return;
 
-    await closeConversation(selectedConversationId, params.token);
-    socketClient.leaveRoom({ conversationId: selectedConversationId, role: "agent" });
+    const closed = await closeConversation(selectedConversationId, params.token);
+    socketClient.leaveRoom({ conversationId: selectedConversationId });
+
+    const nextConversationId =
+      closed.reassigned && typeof closed.reassigned.conversationId === "string"
+        ? closed.reassigned.conversationId
+        : null;
+
     setSelectedConversationId(null);
     messageMapRef.current.clear();
     setMessages([]);
+    setVisitorFromHistory(null);
     await refreshQueues();
-  }, [params.token, refreshQueues, selectedConversationId, socketClient]);
+
+    if (nextConversationId) await selectConversation(nextConversationId);
+  }, [
+    params.token,
+    refreshQueues,
+    selectConversation,
+    selectedConversationId,
+    socketClient,
+  ]);
 
   const emitTyping = useCallback(() => {
     if (!selectedConversationId) return;
     socketClient.emitTyping({
       conversationId: selectedConversationId,
-      role: "agent",
-      actorId: params.agentId,
+      userType: "agent",
+      ...(params.agentId ? { userId: params.agentId } : {}),
     });
   }, [params.agentId, selectedConversationId, socketClient]);
 
@@ -204,8 +288,8 @@ export function useAgentChat(params: UseAgentChatParams): UseAgentChatReturn {
     if (!selectedConversationId) return;
     socketClient.emitStopTyping({
       conversationId: selectedConversationId,
-      role: "agent",
-      actorId: params.agentId,
+      userType: "agent",
+      ...(params.agentId ? { userId: params.agentId } : {}),
     });
   }, [params.agentId, selectedConversationId, socketClient]);
 
@@ -214,8 +298,9 @@ export function useAgentChat(params: UseAgentChatParams): UseAgentChatReturn {
     waitingChats,
     selectedConversationId,
     messages,
+    visitorFromHistory,
     isConnected,
-    typingByConversation,
+    visitorTypingSelected,
     refreshQueues,
     selectConversation,
     sendMessage,

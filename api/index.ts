@@ -13,6 +13,27 @@ export * from "./hrms";
 export * from "./website-assignments";
 export * from "./platform";
 export * from "./platform-theme";
+export * from "./ai/agent-suggest.api";
+export * from "./kb/kb.api";
+export {
+  listAdminWidgets,
+  createWidgetInstallation,
+  getWidgetEmbedSnippet,
+  getWidgetSnapshot,
+  getAdminWidget,
+  patchWidgetConfiguration,
+  deleteWidget,
+  publishWidget,
+  rollbackWidget,
+  uploadWidgetAsset,
+  widgetResponseData,
+} from "./widgets";
+export type {
+  AdminWidgetTableRow,
+  ListWidgetsQuery,
+  WidgetChatModeApi,
+  WidgetTypeApi,
+} from "./types/widgets.types";
 export * from "./types/auth.types";
 export type { JsonRecord } from "./types/common.types";
 export type { AssignWebsiteTierBody, WebsiteAssignmentTier } from "./types/website-assignments.types";
