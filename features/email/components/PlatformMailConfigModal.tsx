@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Box from "@mui/material/Box";
 import Skeleton from "@mui/material/Skeleton";
 import { FormModal } from "@/components/common";
@@ -8,6 +8,7 @@ import { extractApiErrorMessageForToast, publishAppToast } from "@/lib/notify";
 import { useAuth } from "@/lib/auth";
 import { OP } from "@/lib/permissions/operational-keys";
 import { MailConnectionForm } from "./MailConnectionForm";
+import type { EmailTestFeedback } from "./SmtpTestPanel";
 import { useOwnMailProviderForm } from "../hooks/useOwnMailProviderForm";
 import {
   useDeletePlatformEmailSettingsMutation,
@@ -17,6 +18,7 @@ import {
 } from "../hooks/useEmailSettings";
 import { EmailDeleteConfirmModal } from "./EmailDeleteConfirmModal";
 import { EmailModalDangerZone } from "./EmailModalDangerZone";
+import { readTestMessage } from "../utils/email-test.utils";
 
 export function PlatformMailConfigModal({
   open,
@@ -34,6 +36,11 @@ export function PlatformMailConfigModal({
   const canDelete = hasOperational(OP.smtpEmail.delete);
 
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [liveFeedback, setLiveFeedback] = useState<EmailTestFeedback | null>(null);
+
+  useEffect(() => {
+    if (open) setLiveFeedback(null);
+  }, [open]);
 
   const settingsQuery = usePlatformEmailSettingsQuery({ enabled: open && canView });
   const updateMutation = useUpdatePlatformEmailSettingsMutation();
@@ -47,7 +54,15 @@ export function PlatformMailConfigModal({
       await updateMutation.mutateAsync(body);
       onSaved?.();
     },
-    onTest: (body) => testMutation.mutateAsync(body),
+    onTest: async (body) => {
+      const result = await testMutation.mutateAsync(body);
+      const message =
+        readTestMessage(result.message) ??
+        (result.success ? "Test email sent successfully." : "Test email failed.");
+      setLiveFeedback({ success: result.success, message });
+      onSaved?.();
+      return result;
+    },
   });
 
   const handleDelete = async () => {
@@ -66,6 +81,7 @@ export function PlatformMailConfigModal({
   };
 
   const hasConfig = Boolean(settingsQuery.data?.emailProviderId);
+  const settings = settingsQuery.data;
 
   return (
     <>
@@ -91,16 +107,18 @@ export function PlatformMailConfigModal({
             <MailConnectionForm
               form={form}
               disabled={!canUpdate}
-              existingFields={settingsQuery.data?.fields}
+              existingFields={settings?.fields}
               canTest={canTest}
               testing={testMutation.isPending}
-              lastTestStatus={settingsQuery.data?.lastTestStatus}
-              lastTestedAt={settingsQuery.data?.lastTestedAt}
+              lastTestStatus={settings?.lastTestStatus}
+              lastTestedAt={settings?.lastTestedAt}
+              lastTestMessage={settings?.lastTestMessage}
+              liveFeedback={liveFeedback}
               showAudit
               audit={{
-                updatedBy: settingsQuery.data?.updatedBy,
-                updatedAt: settingsQuery.data?.updatedAt,
-                lastTestedBy: settingsQuery.data?.lastTestedBy,
+                updatedBy: settings?.updatedBy,
+                updatedAt: settings?.updatedAt,
+                lastTestedBy: settings?.lastTestedBy,
               }}
             />
 

@@ -92,6 +92,9 @@ export function normalizePlatformMailAssignmentListItem(
     providerKind: provider.providerKind,
     lastTestStatus: readTestStatus(lastTestRaw),
     lastTestedAt: readString(raw.lastTestedAt ?? raw.last_tested_at) ?? null,
+    lastTestMessage:
+      readString(raw.lastTestMessage ?? raw.last_test_message ?? raw.testMessage ?? raw.test_message) ??
+      null,
     updatedAt: readString(raw.updatedAt ?? raw.updated_at) ?? null,
   };
 }

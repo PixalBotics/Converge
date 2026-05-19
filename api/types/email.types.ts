@@ -47,6 +47,7 @@ export interface MailProviderSettings {
   fields: Record<string, string>;
   lastTestedAt?: string | null;
   lastTestStatus?: "success" | "failed" | null;
+  lastTestMessage?: string | null;
   lastTestedBy?: string | null;
   updatedAt?: string | null;
   updatedBy?: string | null;
@@ -81,6 +82,7 @@ export interface ResellerOwnMailListItem extends Record<string, unknown> {
   isEnabled: boolean;
   lastTestStatus?: "success" | "failed" | null;
   lastTestedAt?: string | null;
+  lastTestMessage?: string | null;
 }
 
 export interface PlatformMailAssignment {
@@ -109,6 +111,7 @@ export interface PlatformMailAssignmentListItem extends Record<string, unknown> 
   providerKind?: EmailProviderKind | null;
   lastTestStatus?: "success" | "failed" | null;
   lastTestedAt?: string | null;
+  lastTestMessage?: string | null;
   updatedAt?: string | null;
 }
 

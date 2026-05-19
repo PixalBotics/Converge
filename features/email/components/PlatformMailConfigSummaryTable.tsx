@@ -9,7 +9,7 @@ import { iconGlyphSx } from "@/lib/design-system";
 import { Button, DataTable, Typography } from "@/components/common";
 import type { DataTableColumn } from "@/components/common";
 import { usePlatformEmailSettingsQuery } from "../hooks/useEmailSettings";
-import { formatLastTestLabel } from "../utils/extract-email-list";
+import { EmailTestStatusCell } from "./EmailTestStatusCell";
 import { PROVIDER_CODE_LABELS } from "../email.constants";
 import { EmailConfigTableCard } from "../styles/email-configuration.styled";
 import { departmentsFooterRow, footerMutedText, gradientPrimaryButtonSx } from "../styles/email-page.styles";
@@ -24,8 +24,10 @@ type PlatformSummaryRow = {
   fromEmail: string;
   fromName: string;
   status: string;
-  lastTest: string;
   isActive: boolean;
+  lastTestStatus?: "success" | "failed" | null;
+  lastTestedAt?: string | null;
+  lastTestMessage?: string | null;
 };
 
 export function PlatformMailConfigSummaryTable({
@@ -54,7 +56,9 @@ export function PlatformMailConfigSummaryTable({
       fromName: s.fromName?.trim() || "—",
       status: s.isEnabled ? "Active" : "Paused",
       isActive: Boolean(s.isEnabled),
-      lastTest: formatLastTestLabel(s.lastTestStatus, s.lastTestedAt),
+      lastTestStatus: s.lastTestStatus,
+      lastTestedAt: s.lastTestedAt,
+      lastTestMessage: s.lastTestMessage,
     };
   }, [settingsQuery.data]);
 
@@ -68,7 +72,17 @@ export function PlatformMailConfigSummaryTable({
         label: "Sending",
         render: (_, r) => <EmailStatusChip active={r.isActive} />,
       },
-      { id: "lastTest", label: "Last test" },
+      {
+        id: "lastTest",
+        label: "Last test",
+        render: (_, r) => (
+          <EmailTestStatusCell
+            status={r.lastTestStatus}
+            testedAt={r.lastTestedAt}
+            message={r.lastTestMessage}
+          />
+        ),
+      },
     ],
     [],
   );

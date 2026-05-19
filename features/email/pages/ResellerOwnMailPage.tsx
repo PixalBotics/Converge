@@ -20,7 +20,6 @@ import {
   useDeleteResellerOwnMailMutation,
   useResellerOwnMailListQuery,
 } from "../hooks/useEmailSettings";
-import { formatLastTestLabel } from "../utils/extract-email-list";
 import { PROVIDER_CODE_LABELS } from "../email.constants";
 import { EmailConfigTableCard } from "../styles/email-configuration.styled";
 import { departmentsFooterRow, footerMutedText, gradientPrimaryButtonSx } from "../styles/email-page.styles";
@@ -129,11 +128,6 @@ export function ResellerOwnMailPage() {
         id: "isEnabled",
         label: "Status",
         render: (_, row) => <EmailStatusChip active={row.isEnabled} activeLabel="Enabled" inactiveLabel="Disabled" />,
-      },
-      {
-        id: "lastTest",
-        label: "Last test",
-        render: (_, row) => formatLastTestLabel(row.lastTestStatus, row.lastTestedAt),
       },
     ],
     [],

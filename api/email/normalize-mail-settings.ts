@@ -109,6 +109,9 @@ export function normalizeMailProviderSettings(payload: unknown): MailProviderSet
     fields: readFields(raw.fields),
     lastTestedAt: readString(raw.lastTestedAt ?? raw.last_tested_at) ?? null,
     lastTestStatus: readTestStatus(raw.lastTestStatus ?? raw.last_test_status),
+    lastTestMessage:
+      readString(raw.lastTestMessage ?? raw.last_test_message ?? raw.testMessage ?? raw.test_message) ??
+      null,
     updatedAt: readString(raw.updatedAt ?? raw.updated_at) ?? null,
     updatedBy: readEmailActorLabel(raw.updatedBy ?? raw.updated_by),
     lastTestedBy: readEmailActorLabel(raw.lastTestedBy ?? raw.last_tested_by),

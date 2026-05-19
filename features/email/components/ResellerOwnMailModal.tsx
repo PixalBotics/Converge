@@ -10,6 +10,7 @@ import { useAuth } from "@/lib/auth";
 import { OP } from "@/lib/permissions/operational-keys";
 import { ConfigurationResellerSelect } from "./configuration/ConfigurationResellerSelect";
 import { MailConnectionForm } from "./MailConnectionForm";
+import { EmailQuickTestPanel } from "./EmailQuickTestPanel";
 import { useOwnMailProviderForm } from "../hooks/useOwnMailProviderForm";
 import {
   useDeleteResellerOwnMailMutation,
@@ -21,6 +22,7 @@ import { resellerOwnMailErrorMessage } from "../utils/reseller-mail-errors";
 import { EmailDeleteConfirmModal } from "./EmailDeleteConfirmModal";
 import { EmailLockedResellerBanner } from "./EmailLockedResellerBanner";
 import { EmailModalDangerZone } from "./EmailModalDangerZone";
+import { readTestMessage } from "../utils/email-test.utils";
 
 export function ResellerOwnMailModal({
   open,
@@ -98,6 +100,7 @@ export function ResellerOwnMailModal({
 
   const hasConfig = Boolean(settingsQuery.data?.emailProviderId);
   const lockedLabel = resellerLabel?.trim() || activeId;
+  const testDisabled = !canTest || !hasConfig || !form.isEnabled || updateMutation.isPending;
 
   return (
     <>
@@ -142,11 +145,29 @@ export function ResellerOwnMailModal({
               form={form}
               disabled={!canUpdate}
               existingFields={settingsQuery.data?.fields}
-              canTest={canTest}
-              testing={testMutation.isPending}
-              lastTestStatus={settingsQuery.data?.lastTestStatus}
-              lastTestedAt={settingsQuery.data?.lastTestedAt}
+              showTestStep={false}
             />
+
+            {hasConfig && form.savedOnce ? (
+              <EmailQuickTestPanel
+                disabled={testDisabled || !canUpdate}
+                testing={testMutation.isPending}
+                onTest={async (toEmail) => {
+                  const result = await testMutation.mutateAsync({ toEmail });
+                  const message =
+                    readTestMessage(result.message) ??
+                    (result.success ? "Test email sent successfully." : "Test email failed.");
+                  publishAppToast({
+                    variant: result.success ? "success" : "error",
+                    message,
+                  });
+                  onSaved?.();
+                  return { success: result.success, message };
+                }}
+              />
+            ) : hasConfig ? (
+              <TypographyMuted>Save settings once to send a test email.</TypographyMuted>
+            ) : null}
 
             {canDelete && hasConfig ? (
               <EmailModalDangerZone
@@ -175,5 +196,13 @@ export function ResellerOwnMailModal({
         isLoading={deleteMutation.isPending}
       />
     </>
+  );
+}
+
+function TypographyMuted({ children }: { children: React.ReactNode }) {
+  return (
+    <Box component="span" sx={{ fontSize: 13, color: "rgba(255,255,255,0.6)" }}>
+      {children}
+    </Box>
   );
 }

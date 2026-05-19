@@ -1,7 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { EmailProvider, EmailProviderKind, MailProviderSettings, MailProviderSettingsBody } from "../types";
+import type {
+  EmailProvider,
+  EmailProviderKind,
+  EmailTestResult,
+  MailProviderSettings,
+  MailProviderSettingsBody,
+} from "../types";
 import { schemaFieldKey } from "../utils/schema-fields";
 import { extractApiErrorMessageForToast, publishAppToast } from "@/lib/notify";
 import { groupProvidersByKind } from "../utils/group-providers-by-kind";
@@ -21,7 +27,7 @@ export function useOwnMailProviderForm({
   enabled: boolean;
   settings: MailProviderSettings | undefined;
   onSave: (body: MailProviderSettingsBody) => Promise<unknown>;
-  onTest: (body: { toEmail?: string }) => Promise<unknown>;
+  onTest: (body: { toEmail?: string }) => Promise<EmailTestResult>;
 }) {
   const [providerKind, setProviderKind] = useState<EmailProviderKind | null>(null);
   const [providerId, setProviderId] = useState<string | null>(null);
@@ -135,13 +141,19 @@ export function useOwnMailProviderForm({
 
   const handleTest = useCallback(async () => {
     try {
-      await onTest({ toEmail: testToEmail.trim() || undefined });
-      publishAppToast({ variant: "success", message: "Test email sent." });
+      const result = await onTest({ toEmail: testToEmail.trim() || undefined });
+      const msg = result?.message?.trim() || (result?.success ? "Test email sent." : "Test failed.");
+      publishAppToast({
+        variant: result?.success ? "success" : "error",
+        message: msg,
+      });
+      return result;
     } catch (err) {
       publishAppToast({
         variant: "error",
         message: extractApiErrorMessageForToast(err) ?? "Test email failed.",
       });
+      throw err;
     }
   }, [onTest, testToEmail]);
 

@@ -30,6 +30,9 @@ export function MailConnectionForm({
   testing,
   lastTestStatus,
   lastTestedAt,
+  lastTestMessage,
+  liveFeedback,
+  showTestStep = true,
 }: {
   form: MailFormState;
   existingFields?: MailProviderSettings["fields"];
@@ -44,6 +47,10 @@ export function MailConnectionForm({
   testing?: boolean;
   lastTestStatus?: "success" | "failed" | null;
   lastTestedAt?: string | null;
+  lastTestMessage?: string | null;
+  liveFeedback?: import("./SmtpTestPanel").EmailTestFeedback | null;
+  /** Reseller modal: hide step 3; use EmailQuickTestPanel instead. */
+  showTestStep?: boolean;
 }) {
   const theme = useTheme() as AppTheme;
   const testDisabled = disabled || !canTest || !form.savedOnce || !form.isEnabled;
@@ -101,7 +108,7 @@ export function MailConnectionForm({
         </EmailFormStepBlock>
       ) : null}
 
-      {form.providerId && form.savedOnce ? (
+      {showTestStep && form.providerId && form.savedOnce ? (
         <EmailFormStepBlock
           step={3}
           title="Test your setup"
@@ -115,6 +122,8 @@ export function MailConnectionForm({
             disabled={testDisabled}
             lastTestStatus={lastTestStatus}
             lastTestedAt={lastTestedAt}
+            lastTestMessage={lastTestMessage}
+            liveFeedback={liveFeedback}
           />
           {showAudit && audit ? (
             <AuditMeta
@@ -124,7 +133,7 @@ export function MailConnectionForm({
             />
           ) : null}
         </EmailFormStepBlock>
-      ) : form.providerId ? (
+      ) : showTestStep && form.providerId ? (
         <Typography variant="small" sx={{ color: theme.app.dashboard.textMuted, pl: { md: 5.25 } }}>
           Save once to unlock the test email option.
         </Typography>

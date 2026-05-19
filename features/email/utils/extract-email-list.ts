@@ -63,6 +63,8 @@ export function extractResellerOwnMailList(payload: unknown): ResellerOwnMailLis
       lastTestStatus:
         lastTestRaw === "success" || lastTestRaw === "failed" ? lastTestRaw : null,
       lastTestedAt: readString(raw.lastTestedAt ?? raw.last_tested_at) ?? null,
+      lastTestMessage:
+        readString(raw.lastTestMessage ?? raw.last_test_message ?? raw.testMessage) ?? null,
     });
   }
   return out;

@@ -1,11 +1,15 @@
 "use client";
 
+import Alert from "@mui/material/Alert";
 import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
-import CheckCircleOutline from "@mui/icons-material/CheckCircleOutline";
-import ErrorOutline from "@mui/icons-material/ErrorOutline";
-import { Button, InputField, Typography } from "@/components/common";
+import { Button, InputField } from "@/components/common";
 import { EmailTestPanelCard } from "../styles/email-configuration.styled";
+
+export type EmailTestFeedback = {
+  success: boolean;
+  message: string;
+};
 
 export function SmtpTestPanel({
   toEmail,
@@ -15,6 +19,8 @@ export function SmtpTestPanel({
   disabled,
   lastTestStatus,
   lastTestedAt,
+  lastTestMessage,
+  liveFeedback,
 }: {
   toEmail: string;
   onToEmailChange: (value: string) => void;
@@ -23,8 +29,26 @@ export function SmtpTestPanel({
   disabled?: boolean;
   lastTestStatus?: "success" | "failed" | null;
   lastTestedAt?: string | null;
+  lastTestMessage?: string | null;
+  liveFeedback?: EmailTestFeedback | null;
 }) {
   const theme = useTheme() as AppTheme;
+
+  const storedFeedback: EmailTestFeedback | null =
+    lastTestStatus && (lastTestMessage || lastTestStatus)
+      ? {
+          success: lastTestStatus === "success",
+          message:
+            lastTestMessage?.trim() ||
+            (lastTestStatus === "success" ? "Last test passed." : "Last test failed."),
+        }
+      : null;
+
+  const feedback = liveFeedback ?? storedFeedback;
+  const testedLabel =
+    lastTestedAt && !liveFeedback
+      ? ` (${new Date(lastTestedAt).toLocaleString()})`
+      : "";
 
   return (
     <EmailTestPanelCard>
@@ -37,48 +61,19 @@ export function SmtpTestPanel({
         onChange={(e) => onToEmailChange(e.target.value)}
         disabled={disabled || testing}
       />
-      <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-        <Button type="button" variant="secondary" onClick={onTest} disabled={disabled || testing}>
-          {testing ? "Sending…" : "Send test email"}
-        </Button>
-        {lastTestStatus === "success" ? (
-          <StatusLine
-            theme={theme}
-            icon={<CheckCircleOutline sx={{ fontSize: 18 }} />}
-            color={theme.palette.success.main}
-            text={`Last test passed${lastTestedAt ? ` · ${new Date(lastTestedAt).toLocaleString()}` : ""}`}
-          />
-        ) : lastTestStatus === "failed" ? (
-          <StatusLine
-            theme={theme}
-            icon={<ErrorOutline sx={{ fontSize: 18 }} />}
-            color={theme.palette.error.main}
-            text={`Last test failed${lastTestedAt ? ` · ${new Date(lastTestedAt).toLocaleString()}` : ""}`}
-          />
-        ) : null}
-      </div>
+      <Button type="button" variant="secondary" onClick={onTest} disabled={disabled || testing}>
+        {testing ? "Sending…" : "Send test email"}
+      </Button>
+      {feedback ? (
+        <Alert severity={feedback.success ? "success" : "error"} variant="outlined" sx={{ py: 0.5 }}>
+          {feedback.message}
+          {testedLabel}
+        </Alert>
+      ) : (
+        <span style={{ fontSize: 12, color: theme.app.dashboard.textMuted }}>
+          Run a test to verify SMTP or API credentials.
+        </span>
+      )}
     </EmailTestPanelCard>
-  );
-}
-
-function StatusLine({
-  theme,
-  icon,
-  color,
-  text,
-}: {
-  theme: AppTheme;
-  icon: React.ReactNode;
-  color: string;
-  text: string;
-}) {
-  return (
-    <Typography
-      variant="small"
-      sx={{ color, fontWeight: 600, display: "flex", alignItems: "center", gap: 0.5 }}
-    >
-      {icon}
-      {text}
-    </Typography>
   );
 }

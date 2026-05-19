@@ -22,7 +22,9 @@ import type {
   ResellerOwnMailSettingsBody,
 } from "../types";
 import { extractPlatformAssignmentList, extractResellerOwnMailList } from "../utils/extract-email-list";
+import { mergeTestResultIntoSettings } from "../utils/email-test.utils";
 import { emailKeys } from "./keys";
+import type { MailProviderSettings } from "../types";
 
 export function usePlatformEmailSettingsQuery(options?: { enabled?: boolean }) {
   return useQuery({
@@ -46,7 +48,10 @@ export function useTestPlatformEmailSettingsMutation() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (body: { toEmail?: string }) => testPlatformEmailSettings(body),
-    onSuccess: () => {
+    onSuccess: (result) => {
+      qc.setQueryData<MailProviderSettings>(emailKeys.platformSettings(), (old) =>
+        old ? mergeTestResultIntoSettings(old, result) : old,
+      );
       void qc.invalidateQueries({ queryKey: emailKeys.platformSettings() });
     },
   });
@@ -104,7 +109,10 @@ export function useTestResellerOwnMailMutation(resellerId: string) {
   const rid = resellerId.trim();
   return useMutation({
     mutationFn: (body: { toEmail?: string }) => testResellerOwnMailSettings(rid, body),
-    onSuccess: () => {
+    onSuccess: (result) => {
+      qc.setQueryData<MailProviderSettings>(emailKeys.resellerOwnMail(rid), (old) =>
+        old ? mergeTestResultIntoSettings(old, result) : old,
+      );
       void qc.invalidateQueries({ queryKey: emailKeys.resellerOwnMail(rid) });
       void qc.invalidateQueries({ queryKey: emailKeys.resellerOwnMailList() });
     },

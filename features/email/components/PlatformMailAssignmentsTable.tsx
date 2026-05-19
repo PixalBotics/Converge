@@ -21,7 +21,7 @@ import {
   usePlatformEmailSettingsQuery,
   usePlatformMailAssignmentListQuery,
 } from "../hooks/useEmailSettings";
-import { formatLastTestLabel } from "../utils/extract-email-list";
+import { EmailTestStatusCell } from "./EmailTestStatusCell";
 import { PROVIDER_CODE_LABELS } from "../email.constants";
 import { EmailConfigTableCard, EmailHelpAlert } from "../styles/email-configuration.styled";
 import { departmentsFooterRow, footerMutedText, gradientPrimaryButtonSx } from "../styles/email-page.styles";
@@ -124,7 +124,13 @@ export function PlatformMailAssignmentsTable({
       {
         id: "lastTestedAt",
         label: "Last test",
-        render: (_, row) => formatLastTestLabel(row.lastTestStatus, row.lastTestedAt),
+        render: (_, row) => (
+          <EmailTestStatusCell
+            status={row.lastTestStatus}
+            testedAt={row.lastTestedAt}
+            message={row.lastTestMessage}
+          />
+        ),
       },
     ],
     [],
