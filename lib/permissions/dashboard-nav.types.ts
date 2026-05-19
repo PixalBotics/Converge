@@ -70,6 +70,7 @@ export type PagePermission =
   | "page:settings"
   | "page:shifts"
   | "page:smtp-email"
+  | "page:email-template"
   | "page:social-media"
   | "page:users"
   | "page:website-assignments";

@@ -74,6 +74,25 @@ export const ROUTE_RULES: readonly RouteRule[] = [
   { permission: "page:reports", href: "/dashboard/reports", iconKey: "reports" },
   { permission: "page:billing", href: "/dashboard/billing", iconKey: "billing" },
   { permission: "page:settings", href: "/dashboard/settings", iconKey: "settings" },
+  {
+    permission: "page:email-template",
+    href: "/dashboard/email/design",
+    iconKey: "smtpEmail",
+    prefixMatch: true,
+  },
+  {
+    permission: "page:email-template",
+    href: "/dashboard/email/form",
+    iconKey: "smtpEmail",
+    prefixMatch: true,
+  },
+  {
+    permission: "page:smtp-email",
+    href: "/dashboard/email/connection",
+    iconKey: "smtpEmail",
+    prefixMatch: true,
+  },
+  { permission: "page:smtp-email", href: "/dashboard/email", iconKey: "smtpEmail", prefixMatch: true },
   { permission: "page:smtp-email", href: "/dashboard/smtp-email-integration", iconKey: "smtpEmail", prefixMatch: true },
   { permission: "page:social-media", href: "/dashboard/integrations", iconKey: "socialMedia" },
   /** Alternate / legacy entry paths that share the same backend page permission. */
@@ -123,6 +142,7 @@ export const PAGE_PERMISSION_ORDER: readonly PagePermission[] = [
   "page:billing",
   "page:settings",
   "page:smtp-email",
+  "page:email-template",
   "page:social-media",
   "page:resellers",
 ] as const;
@@ -175,6 +195,7 @@ const DASHBOARD_URL_SEGMENT_TO_PAGE: Readonly<Record<string, PagePermission>> = 
   reports: "page:reports",
   billing: "page:billing",
   settings: "page:settings",
+  email: "page:smtp-email",
   "smtp-email-integration": "page:smtp-email",
   integrations: "page:social-media",
   "organization-user": "page:users",

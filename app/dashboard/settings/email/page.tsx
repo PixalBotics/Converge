@@ -3,13 +3,13 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { LoadingScreen } from "@/components/common";
-import { EMAIL_ROUTES } from "@/features/email/email.constants";
+import { EMAIL_BASE_PATH } from "@/features/email/email.constants";
 
-/** Legacy path — redirects to the Email module. */
-export default function LegacySmtpEmailRedirectPage() {
+/** Alias: `/dashboard/settings/email` → email module hub. */
+export default function SettingsEmailRedirectPage() {
   const router = useRouter();
   useEffect(() => {
-    router.replace(EMAIL_ROUTES.resellerMail);
+    router.replace(EMAIL_BASE_PATH);
   }, [router]);
   return <LoadingScreen message="Opening email settings…" />;
 }

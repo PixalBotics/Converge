@@ -139,6 +139,11 @@ export const OP = {
     update: "smtp-email:update",
     view: "smtp-email:view",
   },
+  emailTemplate: {
+    publish: "email-template:publish",
+    update: "email-template:update",
+    view: "email-template:view",
+  },
   socialMedia: {
     create: "social-media:create",
     delete: "social-media:delete",

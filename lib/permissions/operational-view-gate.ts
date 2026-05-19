@@ -137,6 +137,27 @@ const PREFIX_VIEW_RULES: readonly { prefix: string; anyOf: readonly string[] }[]
   },
   { prefix: "/dashboard/shifts/pool-shift", anyOf: [OP.hrms.shift.view, OP.hrms.shiftAssignment.view] },
   { prefix: "/dashboard/shifts", anyOf: [OP.hrms.shift.view, OP.hrms.shiftAssignment.view] },
+  {
+    prefix: "/dashboard/email/design",
+    anyOf: [OP.emailTemplate.view, OP.emailTemplate.update, OP.emailTemplate.publish],
+  },
+  {
+    prefix: "/dashboard/email/form",
+    anyOf: [OP.emailTemplate.view, OP.smtpEmail.view],
+  },
+  {
+    prefix: "/dashboard/email/connection",
+    anyOf: [OP.smtpEmail.view, OP.smtpEmail.update, OP.smtpEmail.test],
+  },
+  {
+    prefix: "/dashboard/email",
+    anyOf: [
+      OP.smtpEmail.view,
+      OP.emailTemplate.view,
+      OP.emailTemplate.update,
+      OP.emailTemplate.publish,
+    ],
+  },
 ].sort((a, b) => b.prefix.length - a.prefix.length);
 
 /** When no prefix rule matched: one of these operational strings is enough to “view” that module. */
@@ -167,6 +188,7 @@ const PAGE_PERMISSION_TO_VIEW_ANY: Readonly<Record<string, readonly string[]>> =
   "page:reports": [OP.report.view],
   "page:billing": [OP.billing.view],
   "page:smtp-email": [OP.smtpEmail.view],
+  "page:email-template": [OP.emailTemplate.view],
   "page:social-media": [OP.socialMedia.view],
 };
 
