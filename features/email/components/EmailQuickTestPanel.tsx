@@ -3,8 +3,8 @@
 import { useState } from "react";
 import Alert from "@mui/material/Alert";
 import { Button, InputField } from "@/components/common";
-import { extractApiErrorMessageForToast } from "@/lib/notify";
 import { EmailTestPanelCard } from "../styles/email-configuration.styled";
+import { extractEmailTestErrorMessage, validateTestToEmail } from "../utils/email-test.utils";
 
 /** Minimal test UI for reseller modal (no multi-step flow). */
 export function EmailQuickTestPanel({
@@ -17,9 +17,17 @@ export function EmailQuickTestPanel({
   disabled?: boolean;
 }) {
   const [toEmail, setToEmail] = useState("");
+  const [fieldError, setFieldError] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<{ message: string; success: boolean } | null>(null);
 
   const handleTest = async () => {
+    const validationError = validateTestToEmail(toEmail);
+    if (validationError) {
+      setFieldError(validationError);
+      setFeedback(null);
+      return;
+    }
+    setFieldError(null);
     setFeedback(null);
     try {
       const result = await onTest(toEmail.trim() || undefined);
@@ -28,8 +36,10 @@ export function EmailQuickTestPanel({
         success: result.success,
       });
     } catch (err) {
-      const message = extractApiErrorMessageForToast(err) ?? "Test email failed.";
-      setFeedback({ success: false, message });
+      setFeedback({
+        success: false,
+        message: extractEmailTestErrorMessage(err),
+      });
     }
   };
 
@@ -39,10 +49,15 @@ export function EmailQuickTestPanel({
         label="Test recipient (optional)"
         name="quickTestTo"
         type="email"
-        placeholder="Defaults to your login email"
+        placeholder="Leave empty to use your login email"
         value={toEmail}
-        onChange={(e) => setToEmail(e.target.value)}
+        onChange={(e) => {
+          setFieldError(null);
+          setToEmail(e.target.value);
+        }}
         disabled={disabled || testing}
+        error={Boolean(fieldError)}
+        helperText={fieldError ?? "Leave blank to send to your account email."}
       />
       <Button type="button" variant="secondary" onClick={() => void handleTest()} disabled={disabled || testing}>
         {testing ? "Sending…" : "Send test email"}

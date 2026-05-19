@@ -18,7 +18,7 @@ import {
 } from "../hooks/useEmailSettings";
 import { EmailDeleteConfirmModal } from "./EmailDeleteConfirmModal";
 import { EmailModalDangerZone } from "./EmailModalDangerZone";
-import { readTestMessage } from "../utils/email-test.utils";
+import { extractEmailTestErrorMessage, readTestMessage } from "../utils/email-test.utils";
 
 export function PlatformMailConfigModal({
   open,
@@ -37,9 +37,13 @@ export function PlatformMailConfigModal({
 
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [liveFeedback, setLiveFeedback] = useState<EmailTestFeedback | null>(null);
+  const [testFieldError, setTestFieldError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (open) setLiveFeedback(null);
+    if (open) {
+      setLiveFeedback(null);
+      setTestFieldError(null);
+    }
   }, [open]);
 
   const settingsQuery = usePlatformEmailSettingsQuery({ enabled: open && canView });
@@ -55,13 +59,23 @@ export function PlatformMailConfigModal({
       onSaved?.();
     },
     onTest: async (body) => {
-      const result = await testMutation.mutateAsync(body);
-      const message =
-        readTestMessage(result.message) ??
-        (result.success ? "Test email sent successfully." : "Test email failed.");
-      setLiveFeedback({ success: result.success, message });
-      onSaved?.();
-      return result;
+      setTestFieldError(null);
+      try {
+        const result = await testMutation.mutateAsync(body);
+        const message =
+          readTestMessage(result.message) ??
+          (result.success ? "Test email sent successfully." : "Test email failed.");
+        setLiveFeedback({ success: result.success, message });
+        onSaved?.();
+        return result;
+      } catch (err) {
+        const message = extractEmailTestErrorMessage(err);
+        setLiveFeedback({ success: false, message });
+        if (message.toLowerCase().includes("toemail")) {
+          setTestFieldError(message.replace(/^toEmail:\s*/i, ""));
+        }
+        return { success: false, message };
+      }
     },
   });
 
@@ -114,6 +128,7 @@ export function PlatformMailConfigModal({
               lastTestedAt={settings?.lastTestedAt}
               lastTestMessage={settings?.lastTestMessage}
               liveFeedback={liveFeedback}
+              fieldError={testFieldError}
               showAudit
               audit={{
                 updatedBy: settings?.updatedBy,

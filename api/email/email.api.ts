@@ -16,6 +16,7 @@ import type {
   ResellerOwnMailSettings,
   ResellerOwnMailSettingsBody,
 } from "../types/email.types";
+import { buildEmailTestRequestBody } from "./build-email-test-body";
 import { unwrapApiData } from "./unwrap-api-data";
 import { normalizeMailProviderSettings } from "./normalize-mail-settings";
 import {
@@ -46,7 +47,10 @@ export async function updatePlatformEmailSettings(body: PlatformEmailSettingsBod
 }
 
 export async function testPlatformEmailSettings(body: EmailTestBody = {}): Promise<EmailTestResult> {
-  const { data } = await apiClient.post("/platform/email-settings/test", body);
+  const { data } = await apiClient.post(
+    "/platform/email-settings/test",
+    buildEmailTestRequestBody(body.toEmail),
+  );
   return unwrapApiData<EmailTestResult>(data);
 }
 
@@ -84,7 +88,7 @@ export async function testResellerOwnMailSettings(
 ): Promise<EmailTestResult> {
   const { data } = await apiClient.post(
     `/resellers/${encodeURIComponent(resellerId)}/email-settings/test`,
-    body,
+    buildEmailTestRequestBody(body.toEmail),
   );
   return unwrapApiData<EmailTestResult>(data);
 }

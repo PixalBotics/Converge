@@ -32,6 +32,7 @@ export function MailConnectionForm({
   lastTestedAt,
   lastTestMessage,
   liveFeedback,
+  fieldError,
   showTestStep = true,
 }: {
   form: MailFormState;
@@ -49,6 +50,7 @@ export function MailConnectionForm({
   lastTestedAt?: string | null;
   lastTestMessage?: string | null;
   liveFeedback?: import("./SmtpTestPanel").EmailTestFeedback | null;
+  fieldError?: string | null;
   /** Reseller modal: hide step 3; use EmailQuickTestPanel instead. */
   showTestStep?: boolean;
 }) {
@@ -124,6 +126,7 @@ export function MailConnectionForm({
             lastTestedAt={lastTestedAt}
             lastTestMessage={lastTestMessage}
             liveFeedback={liveFeedback}
+            fieldError={fieldError}
           />
           {showAudit && audit ? (
             <AuditMeta

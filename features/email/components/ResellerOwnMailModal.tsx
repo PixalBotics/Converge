@@ -22,7 +22,7 @@ import { resellerOwnMailErrorMessage } from "../utils/reseller-mail-errors";
 import { EmailDeleteConfirmModal } from "./EmailDeleteConfirmModal";
 import { EmailLockedResellerBanner } from "./EmailLockedResellerBanner";
 import { EmailModalDangerZone } from "./EmailModalDangerZone";
-import { readTestMessage } from "../utils/email-test.utils";
+import { extractEmailTestErrorMessage, readTestMessage } from "../utils/email-test.utils";
 
 export function ResellerOwnMailModal({
   open,
@@ -153,16 +153,22 @@ export function ResellerOwnMailModal({
                 disabled={testDisabled || !canUpdate}
                 testing={testMutation.isPending}
                 onTest={async (toEmail) => {
-                  const result = await testMutation.mutateAsync({ toEmail });
-                  const message =
-                    readTestMessage(result.message) ??
-                    (result.success ? "Test email sent successfully." : "Test email failed.");
-                  publishAppToast({
-                    variant: result.success ? "success" : "error",
-                    message,
-                  });
-                  onSaved?.();
-                  return { success: result.success, message };
+                  try {
+                    const result = await testMutation.mutateAsync({ toEmail });
+                    const message =
+                      readTestMessage(result.message) ??
+                      (result.success ? "Test email sent successfully." : "Test email failed.");
+                    publishAppToast({
+                      variant: result.success ? "success" : "error",
+                      message,
+                    });
+                    onSaved?.();
+                    return { success: result.success, message };
+                  } catch (err) {
+                    const message = extractEmailTestErrorMessage(err);
+                    publishAppToast({ variant: "error", message });
+                    return { success: false, message };
+                  }
                 }}
               />
             ) : hasConfig ? (

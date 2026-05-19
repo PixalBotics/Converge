@@ -17,6 +17,10 @@ import {
   normalizeFieldValuesForDisplay,
   validateRequiredMailFields,
 } from "../utils/email-fields-payload";
+import {
+  extractEmailTestErrorMessage,
+  validateTestToEmail,
+} from "../utils/email-test.utils";
 import { useEmailProvidersQuery, useEmailProviderSchemaQuery } from "./useEmailProviders";
 export function useOwnMailProviderForm({
   enabled,
@@ -140,6 +144,11 @@ export function useOwnMailProviderForm({
   ]);
 
   const handleTest = useCallback(async () => {
+    const validationError = validateTestToEmail(testToEmail);
+    if (validationError) {
+      publishAppToast({ variant: "error", message: validationError });
+      throw new Error(validationError);
+    }
     try {
       const result = await onTest({ toEmail: testToEmail.trim() || undefined });
       const msg = result?.message?.trim() || (result?.success ? "Test email sent." : "Test failed.");
@@ -149,10 +158,8 @@ export function useOwnMailProviderForm({
       });
       return result;
     } catch (err) {
-      publishAppToast({
-        variant: "error",
-        message: extractApiErrorMessageForToast(err) ?? "Test email failed.",
-      });
+      const message = extractEmailTestErrorMessage(err);
+      publishAppToast({ variant: "error", message });
       throw err;
     }
   }, [onTest, testToEmail]);
