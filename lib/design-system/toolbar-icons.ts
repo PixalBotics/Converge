@@ -1,4 +1,5 @@
 import type { SxProps, Theme } from "@mui/material/styles";
+import { TOOLBAR_ICON_BUTTON_GLYPH, iconGlyphSx } from "@/lib/design-system/icons";
 import type { AppTheme } from "@/theme/theme";
 
 export type ToolbarIconButtonTone = "default" | "muted";
@@ -24,11 +25,7 @@ export function toolbarIconButtonSx(
     borderRadius: "10px",
     border: `1px solid ${app.dashboard.cardBorder}`,
     color,
-    "& .MuiSvgIcon-root": {
-      display: "block",
-      lineHeight: 0,
-      margin: 0,
-    },
+    "& .MuiSvgIcon-root": iconGlyphSx(TOOLBAR_ICON_BUTTON_GLYPH) as object,
     "&:hover": {
       backgroundColor: app.dashboard.overlayLight,
       borderColor: theme.palette.primary.main,

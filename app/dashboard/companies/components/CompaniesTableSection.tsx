@@ -188,7 +188,7 @@ export function CompaniesTableSection({
         <Box sx={departmentsCardHeader}>
           <Box sx={cardTitleRow}>
             <Box sx={cardTitleIconBox}>
-              <AttachMoneyIcon sx={attachMoneyIconSx(theme)} inheritViewBox />
+              <AttachMoneyIcon sx={attachMoneyIconSx(theme)} />
             </Box>
             <Typography
               variant="mediumLarge"

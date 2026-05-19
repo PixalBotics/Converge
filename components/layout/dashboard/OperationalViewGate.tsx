@@ -1,9 +1,8 @@
 "use client";
 
-import Box from "@mui/material/Box";
-import Alert from "@mui/material/Alert";
 import { useAuth } from "@/lib/auth";
 import { userSatisfiesOperationalViewForDashboardPath } from "@/lib/permissions";
+import { PermissionDeniedPanel } from "@/components/common/PermissionDeniedPanel";
 
 type OperationalViewGateProps = {
   pathname: string;
@@ -25,12 +24,5 @@ export function OperationalViewGate({ pathname, children }: OperationalViewGateP
     return children;
   }
 
-  return (
-    <Box sx={{ p: { xs: 2, sm: 3 }, maxWidth: 640 }}>
-      <Alert severity="warning" variant="outlined">
-        You do not have view permission for this area. Ask an administrator to assign the right operational
-        permission for this screen.
-      </Alert>
-    </Box>
-  );
+  return <PermissionDeniedPanel />;
 }

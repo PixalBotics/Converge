@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { useRouter } from "next/navigation";
+import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Stack from "@mui/material/Stack";
@@ -47,10 +48,12 @@ export default function LoginPage() {
   const theme = useTheme();
   const router = useRouter();
   const [safeNextPath, setSafeNextPath] = useState<string | null>(null);
+  const [sessionExpiredNotice, setSessionExpiredNotice] = useState(false);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     setSafeNextPath(parseSafeDashboardNextPath(params.get("next")));
+    setSessionExpiredNotice(params.get("session") === "expired");
   }, []);
 
   const {
@@ -139,6 +142,11 @@ export default function LoginPage() {
       sx={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}
     >
       <Stack direction="column" spacing={0} sx={loginFormStackStyles}>
+        {sessionExpiredNotice ? (
+          <Alert severity="warning" variant="outlined" sx={{ mb: 2 }}>
+            Your session expired. Sign in again to continue.
+          </Alert>
+        ) : null}
         <Controller
           name="email"
           control={control}

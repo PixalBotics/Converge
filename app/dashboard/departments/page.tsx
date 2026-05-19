@@ -7,6 +7,7 @@ import Apartment from "@mui/icons-material/Apartment";
 import { Edit as EditIcon, Delete as DeleteIcon } from "@mui/icons-material";
 import { useTheme } from "@mui/material/styles";
 import { useQueryClient } from "@tanstack/react-query";
+import { iconGlyphSx } from "@/lib/design-system";
 import type { AppTheme } from "@/theme/theme";
 import {
   Typography,
@@ -439,13 +440,8 @@ export default function DepartmentsPage() {
           <Box sx={cardTitleRow}>
             <Box sx={cardTitleIconBox}>
               <Apartment
-                inheritViewBox
                 sx={{
-                  fontSize: 18,
-                  width: 18,
-                  height: 18,
-                  display: "block",
-                  lineHeight: 0,
+                  ...(iconGlyphSx("sm") as object),
                   color: theme.app.dashboard.white95,
                 }}
               />

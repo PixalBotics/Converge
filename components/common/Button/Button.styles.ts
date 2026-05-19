@@ -1,5 +1,6 @@
 import { alpha } from "@mui/material/styles";
 import type { SxProps, Theme } from "@mui/material";
+import { ICON_SIZE, iconGlyphSx } from "@/lib/design-system/icons";
 import type { AppTheme } from "@/theme/theme";
 
 /** Shared chrome for all `Button` variants — pill, padding, min width, flex + gap. */
@@ -16,6 +17,16 @@ export const baseButtonStyles: SxProps<Theme> = {
   minWidth: 140,
   boxShadow: "none",
   lineHeight: 1.2,
+  "& .MuiButton-startIcon, & .MuiButton-endIcon": {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    lineHeight: 0,
+    margin: 0,
+  },
+  "& .MuiButton-startIcon .MuiSvgIcon-root, & .MuiButton-endIcon .MuiSvgIcon-root": iconGlyphSx(
+    ICON_SIZE.md,
+  ) as object,
   "& .MuiSvgIcon-root, & svg": {
     display: "block",
     lineHeight: 0,

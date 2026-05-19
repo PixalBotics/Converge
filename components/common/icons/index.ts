@@ -1,4 +1,6 @@
 export type { AppIconSvgProps } from "./app-icons";
+export { ICON_SIZE, iconGlyphSx, iconSlotSx, resolveIconPx } from "@/lib/design-system/icons";
+export type { IconSizeKey } from "@/lib/design-system/icons";
 export {
   AddCircleIcon,
   BellIcon,

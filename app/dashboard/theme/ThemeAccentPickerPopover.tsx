@@ -1,25 +1,20 @@
 "use client";
 
-import Box from "@mui/material/Box";
 import Popover from "@mui/material/Popover";
-import TextField from "@mui/material/TextField";
-import { Button, Typography } from "@/components/common";
-import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
-import type { AppTheme } from "@/theme/theme";
-import { resolveSx } from "@/utils/resolveSx";
 import {
-  hexFieldSx,
-  popoverFieldsRowSx,
-  popoverHelpSx,
-  popoverPaperSlotSx,
-  popoverTitleSx,
-  spectrumCaptionSx,
-  spectrumLabelColumnSx,
-  spectrumSwatchRingSx,
-} from "./styles";
+  ThemeAccentHexField,
+  ThemeAccentPopoverDoneButton,
+  ThemeAccentPopoverFieldsRow,
+  ThemeAccentPopoverHelp,
+  ThemeAccentPopoverPaper,
+  ThemeAccentPopoverTitle,
+  ThemeSpectrumCaption,
+  ThemeSpectrumInput,
+  ThemeSpectrumLabel,
+  ThemeSpectrumRing,
+} from "./styles/theme-customize.styled";
 
 export type ThemeAccentPickerPopoverProps = {
-  theme: AppTheme;
   open: boolean;
   anchorEl: HTMLElement | null;
   onClose: () => void;
@@ -31,7 +26,6 @@ export type ThemeAccentPickerPopoverProps = {
 };
 
 export function ThemeAccentPickerPopover({
-  theme,
   open,
   anchorEl,
   onClose,
@@ -50,39 +44,30 @@ export function ThemeAccentPickerPopover({
       transformOrigin={{ vertical: "top", horizontal: "left" }}
       slotProps={{
         paper: {
-          sx: popoverPaperSlotSx(theme),
+          component: ThemeAccentPopoverPaper,
+          elevation: 0,
         },
       }}
     >
-      <Typography component="h2" variant="medium16" sx={popoverTitleSx}>
+      <ThemeAccentPopoverTitle component="h2" variant="medium16">
         Accent color
-      </Typography>
-      <Typography variant="small" sx={popoverHelpSx}>
+      </ThemeAccentPopoverTitle>
+      <ThemeAccentPopoverHelp variant="small">
         Choose a hex or use the spectrum. Applies to the custom theme preset.
-      </Typography>
-      <Box sx={popoverFieldsRowSx}>
-        <Box component="label" sx={spectrumLabelColumnSx}>
-          <Box component="span" sx={spectrumSwatchRingSx(theme)}>
-            <input
+      </ThemeAccentPopoverHelp>
+      <ThemeAccentPopoverFieldsRow>
+        <ThemeSpectrumLabel>
+          <ThemeSpectrumRing>
+            <ThemeSpectrumInput
               type="color"
               value={customAccentHex}
               onChange={(e) => setCustomAccentHex(e.target.value)}
               aria-label="Choose accent color"
-              style={{
-                width: "160%",
-                height: "160%",
-                margin: "-30%",
-                padding: 0,
-                border: "none",
-                cursor: "pointer",
-              }}
             />
-          </Box>
-          <Typography variant="caption" sx={spectrumCaptionSx}>
-            Spectrum
-          </Typography>
-        </Box>
-        <TextField
+          </ThemeSpectrumRing>
+          <ThemeSpectrumCaption variant="caption">Spectrum</ThemeSpectrumCaption>
+        </ThemeSpectrumLabel>
+        <ThemeAccentHexField
           size="small"
           label="Hex"
           value={hexDraft}
@@ -91,15 +76,14 @@ export function ThemeAccentPickerPopover({
           onKeyDown={(e) => {
             if (e.key === "Enter") onHexBlur();
           }}
-          sx={hexFieldSx(theme)}
           slotProps={{
             htmlInput: { spellCheck: false },
           }}
         />
-      </Box>
-      <Button type="button" variant="primary" size="small" fullWidth onClick={onClose} sx={resolveSx(gradientPrimaryButtonSx, theme)}>
+      </ThemeAccentPopoverFieldsRow>
+      <ThemeAccentPopoverDoneButton type="button" variant="primary" size="small" onClick={onClose}>
         Done
-      </Button>
+      </ThemeAccentPopoverDoneButton>
     </Popover>
   );
 }

@@ -67,8 +67,11 @@ export function HoverTooltip({ label, children, fullWidth = true }: HoverTooltip
         component="span"
         sx={{
           width: fullWidth ? "100%" : "fit-content",
-          display: "flex",
+          display: "inline-flex",
           justifyContent: "center",
+          alignItems: "center",
+          overflow: "visible",
+          lineHeight: 0,
         }}
       >
         {children}

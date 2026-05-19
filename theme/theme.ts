@@ -297,6 +297,7 @@ export function createAppMuiTheme(
         styleOverrides: {
           root: {
             lineHeight: 0,
+            display: "inline-flex",
             alignItems: "center",
             justifyContent: "center",
             "& .MuiSvgIcon-root": {
@@ -310,6 +311,24 @@ export function createAppMuiTheme(
       MuiButton: {
         styleOverrides: {
           root: {
+            "& .MuiButton-startIcon, & .MuiButton-endIcon": {
+              margin: 0,
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              lineHeight: 0,
+            },
+            "& .MuiButton-startIcon > *:first-of-type, & .MuiButton-endIcon > *:first-of-type": {
+              margin: 0,
+            },
+            "& .MuiButton-startIcon .MuiSvgIcon-root, & .MuiButton-endIcon .MuiSvgIcon-root": {
+              display: "block",
+              lineHeight: 0,
+              flexShrink: 0,
+              fontSize: 20,
+              width: 20,
+              height: 20,
+            },
             "& .MuiSvgIcon-root": {
               display: "block",
               lineHeight: 0,

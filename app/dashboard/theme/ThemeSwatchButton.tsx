@@ -1,21 +1,22 @@
 "use client";
 
-import { ThemeSwatchButtonRoot } from "./styles";
+import { ThemeSwatchButtonRoot, ThemeSwatchFill } from "./styles/theme-customize.styled";
 
 export type ThemeSwatchButtonProps = {
-  children: React.ReactNode;
   selected: boolean;
   onClick: () => void;
   ariaLabel: string;
+  /** CSS `background` for the inner preview (gradient or solid). */
+  background: string;
   compact?: boolean;
   shape?: "tile" | "circle";
 };
 
 export function ThemeSwatchButton({
-  children,
   selected,
   onClick,
   ariaLabel,
+  background,
   compact,
   shape = "tile",
 }: ThemeSwatchButtonProps) {
@@ -29,7 +30,7 @@ export function ThemeSwatchButton({
       $shape={shape}
       $compact={compact}
     >
-      {children}
+      <ThemeSwatchFill $shape={shape} $background={background} />
     </ThemeSwatchButtonRoot>
   );
 }

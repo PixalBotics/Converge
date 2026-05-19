@@ -5,5 +5,8 @@ export const THEME_SWATCH = {
   circlePx: 120,
   /** Outer ring (conic) = inner fill + 2× ring padding. */
   pickerRingPx: 120,
-  popoverSpectrumPx: 64,
+  pickerRingPaddingPx: 5,
+  /** Palette icon inside the custom-color picker trigger. */
+  pickerIconPx: 22,
+  popoverSpectrumPx: 84,
 } as const;

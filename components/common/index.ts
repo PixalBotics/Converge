@@ -6,6 +6,8 @@ export type { DashboardFilterSectionProps } from "./DashboardFilterSection";
 export { Button } from "./Button";
 export { AppIconButton } from "./AppIconButton";
 export type { AppIconButtonProps } from "./AppIconButton";
+export { IconSlot } from "./IconSlot";
+export type { IconSlotProps } from "./IconSlot";
 export { ButtonOutline } from "./ButtonOutline";
 export type { ButtonOutlineProps } from "./ButtonOutline";
 export { Checkbox } from "./Checkbox";
@@ -63,6 +65,10 @@ export { SendLicenseConfirmModal } from "./SendLicenseConfirmModal/SendLicenseCo
 export { AddSocialMediaModal } from "./AddSocialMediaModal/AddSocialMediaModal";
 export { DisconnectConfirmModal } from "./DisconnectConfirmModal/DisconnectConfirmModal";
 export { ConfirmActionModal } from "./ConfirmActionModal";
+export { AppBoundaryModal } from "./AppBoundaryModal";
+export type { AppBoundaryModalProps } from "./AppBoundaryModal";
+export { PermissionDeniedPanel } from "./PermissionDeniedPanel";
+export type { PermissionDeniedPanelProps } from "./PermissionDeniedPanel";
 export {
   DeleteUserConfirmModal,
   USER_DELETE_CONFIRMATION_TOKEN,

@@ -15,7 +15,9 @@ import type { AppTheme } from "@/theme/theme";
 import { Typography, Button } from "@/components/common";
 import { ModalGlassShell } from "./ModalGlassShell";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
+import { iconGlyphSx, modalCloseIconButtonFilledSx, modalCloseIconButtonSx } from "@/lib/design-system";
 import { CloseCircleIcon } from "@/components/common/icons";
+import { IconSlot } from "@/components/common/IconSlot";
 
 export interface FormModalFieldConfig {
   id: string;
@@ -151,40 +153,17 @@ export function FormModal({
             aria-label="Close dialog"
             sx={
               closeButtonVariant === "filled"
-                ? {
-                    width: 35,
-                    height: 35,
-                    p: 0,
-                    flexShrink: 0,
-                    border: "none",
-                    borderRadius: "50%",
-                    bgcolor: theme.palette.error.main,
-                    color: theme.palette.common.white,
-                    "&:hover": {
-                      bgcolor: theme.palette.error.dark,
-                    },
-                  }
-                : {
-                    width: 35,
-                    height: 35,
-                    p: 0,
-                    flexShrink: 0,
-                    border: `1px solid ${theme.app.dashboard.textMuted}`,
-                    borderRadius: "50%",
-                    color: theme.app.dashboard.textMuted95,
-                    "&:hover": {
-                      bgcolor: theme.palette.action.hover,
-                      borderColor: theme.app.text.primary,
-                      color: theme.app.text.primary,
-                    },
-                  }
+                ? modalCloseIconButtonFilledSx(theme)
+                : modalCloseIconButtonSx(theme)
             }
           >
-            {closeButtonVariant === "filled" ? (
-              <Close sx={{ fontSize: 18 }} />
-            ) : (
-              <CloseCircleIcon width={18} height={18} />
-            )}
+            <IconSlot slot={36} glyph="md">
+              {closeButtonVariant === "filled" ? (
+                <Close sx={iconGlyphSx("md")} />
+              ) : (
+                <CloseCircleIcon />
+              )}
+            </IconSlot>
           </IconButton>
         </Box>
 

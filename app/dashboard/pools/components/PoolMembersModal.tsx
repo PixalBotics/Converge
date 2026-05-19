@@ -6,7 +6,8 @@ import Box from "@mui/material/Box";
 import IconButton from "@mui/material/IconButton";
 import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
-import { Typography } from "@/components/common";
+import { IconSlot, Typography } from "@/components/common";
+import { modalCloseIconButtonSx } from "@/lib/design-system";
 import { useBodyScrollLock } from "@/lib/ui/useBodyScrollLock";
 import { dialogBackdropBackground } from "@/lib/ui/dialogBackdrop";
 import { FORM_MODAL_PORTAL_Z_INDEX } from "@/lib/ui/dialogStacking";
@@ -75,17 +76,11 @@ export function PoolMembersModal({ open, onClose, pool, canAdd, canMove, canRemo
             onClick={onClose}
             size="small"
             aria-label="Close"
-            sx={{
-              width: 35,
-              height: 35,
-              p: 0,
-              flexShrink: 0,
-              border: `1px solid ${theme.app.dashboard.textMuted}`,
-              borderRadius: "50%",
-              color: theme.app.dashboard.textMuted95,
-            }}
+            sx={modalCloseIconButtonSx(theme)}
           >
-            <CloseCircleIcon width={18} height={18} />
+            <IconSlot slot={36} glyph="md">
+              <CloseCircleIcon />
+            </IconSlot>
           </IconButton>
         </Box>
 

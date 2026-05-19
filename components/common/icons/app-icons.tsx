@@ -44,29 +44,28 @@ import VpnKeyOutlined from "@mui/icons-material/VpnKeyOutlined";
 import WidgetsOutlined from "@mui/icons-material/WidgetsOutlined";
 
 import type { DashboardSidebarIconKey } from "@/lib/permissions";
+import {
+  ICON_SIZE,
+  iconGlyphSx,
+  iconSlotSx,
+  resolveIconPx,
+  type IconSizeKey,
+} from "@/lib/design-system/icons";
 import type { AppTheme } from "@/theme/theme";
 
 export type AppIconSvgProps = {
   sx?: SxProps<Theme>;
+  /** @deprecated Prefer `size` — kept for backward compatibility */
   width?: number;
+  /** @deprecated Prefer `size` — kept for backward compatibility */
   height?: number;
+  /** Token or px — default `md` (20) */
+  size?: number | IconSizeKey;
 };
 
-function sizedIconSx(
-  width: number,
-  height: number,
-  sx?: SxProps<Theme>,
-): SxProps<Theme> {
-  const base: SxProps<Theme> = {
-    width,
-    height,
-    fontSize: Math.min(width, height),
-    display: "block",
-    lineHeight: 0,
-    flexShrink: 0,
-    boxSizing: "border-box",
-  };
-  return sx ? ([base, sx] as SxProps<Theme>) : base;
+function glyphProps({ sx, width, height, size }: AppIconSvgProps) {
+  const { width: w, height: h } = resolveIconPx(size, width, height);
+  return { sx: iconGlyphSx(Math.min(w, h), sx) };
 }
 
 type SidebarGlyph = ComponentType<SvgIconProps>;
@@ -102,105 +101,62 @@ export const SIDEBAR_ICON_BY_KEY = {
   websiteAssignments: LanguageOutlined,
 } satisfies Record<DashboardSidebarIconKey, SidebarGlyph>;
 
-const SIDEBAR_ICON_SLOT_PX = 24;
-
-/** Wraps any MUI glyph in the same fixed box used beside sidebar labels (logout/login, etc.). */
+/** Wraps any MUI glyph in a fixed centered box (sidebar, toolbars, modals). */
 export function SidebarNavIconSlot({ children }: { children: ReactNode }) {
   return (
-    <Box
-      component="span"
-      sx={{
-        width: SIDEBAR_ICON_SLOT_PX,
-        height: SIDEBAR_ICON_SLOT_PX,
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
-        flexShrink: 0,
-        lineHeight: 0,
-        verticalAlign: "middle",
-      }}
-    >
+    <Box component="span" sx={iconSlotSx(ICON_SIZE.lg)}>
       {children}
     </Box>
   );
 }
 
-/** Fixed slot + default viewBox — avoids dense-nav optical drift from `inheritViewBox` in a narrow column. */
+/** Fixed slot + standard MUI viewBox — centered sidebar nav glyph. */
 export function SidebarReactIcon({
   iconKey,
-  size = 20,
+  size = ICON_SIZE.md,
 }: {
   iconKey: DashboardSidebarIconKey;
-  size?: number;
+  size?: number | IconSizeKey;
 }) {
   const Icon = SIDEBAR_ICON_BY_KEY[iconKey] ?? DashboardRounded;
   return (
     <SidebarNavIconSlot>
-      <Icon sx={sizedIconSx(size, size)} />
+      <Icon sx={iconGlyphSx(size)} />
     </SidebarNavIconSlot>
   );
 }
 
-export function SearchIcon({ sx, width = 24, height = 24 }: AppIconSvgProps) {
-  return (
-    <SearchOutlined
-      sx={sizedIconSx(width, height, sx)}
-      inheritViewBox
-    />
-  );
+export function SearchIcon(props: AppIconSvgProps) {
+  const { sx } = glyphProps({ size: ICON_SIZE.lg, ...props });
+  return <SearchOutlined sx={sx} />;
 }
 
-export function AddCircleIcon({ sx, width = 20, height = 20 }: AppIconSvgProps) {
-  return (
-    <AddCircleOutlineOutlined
-      sx={sizedIconSx(width, height, sx)}
-      inheritViewBox
-    />
-  );
+export function AddCircleIcon(props: AppIconSvgProps) {
+  const { sx } = glyphProps({ size: ICON_SIZE.md, ...props });
+  return <AddCircleOutlineOutlined sx={sx} />;
 }
 
-export function CloseCircleIcon({ sx, width = 18, height = 18 }: AppIconSvgProps) {
-  return (
-    <CancelOutlined
-      sx={sizedIconSx(width, height, sx)}
-      inheritViewBox
-    />
-  );
+export function CloseCircleIcon(props: AppIconSvgProps) {
+  const { sx } = glyphProps({ size: ICON_SIZE.md, ...props });
+  return <CancelOutlined sx={sx} />;
 }
 
-export function BellIcon({ sx, width = 30, height = 30 }: AppIconSvgProps) {
-  return (
-    <NotificationsNoneOutlined
-      sx={sizedIconSx(width, height, sx)}
-      inheritViewBox
-    />
-  );
+export function BellIcon(props: AppIconSvgProps) {
+  const { sx } = glyphProps({ size: ICON_SIZE.xl, ...props });
+  return <NotificationsNoneOutlined sx={sx} />;
 }
 
 /** Header/settings control — MUI outlined gear. */
-export function HeaderSettingsIcon({
-  sx,
-  width = 30,
-  height = 30,
-}: AppIconSvgProps) {
-  return (
-    <SettingsOutlined sx={sizedIconSx(width, height, sx)} inheritViewBox />
-  );
+export function HeaderSettingsIcon(props: AppIconSvgProps) {
+  const { sx } = glyphProps({ size: ICON_SIZE.xl, ...props });
+  return <SettingsOutlined sx={sx} />;
 }
 
 /** Delete POC / destructive — uses `color="error"` from MUI/theme. */
-export function DeleteCircleIcon({
-  sx,
-  width = 43,
-  height = 43,
-}: AppIconSvgProps) {
-  return (
-    <RemoveCircleOutlineOutlined
-      color="error"
-      sx={sizedIconSx(width, height, sx)}
-      inheritViewBox
-    />
-  );
+export function DeleteCircleIcon(props: AppIconSvgProps) {
+  const { width, height } = resolveIconPx(props.size ?? ICON_SIZE.xl, props.width, props.height);
+  const { sx } = glyphProps({ ...props, width, height });
+  return <RemoveCircleOutlineOutlined color="error" sx={sx} />;
 }
 
 /** “Chats by department” KPI tile — `theme.app` purple + badge. */
@@ -243,7 +199,7 @@ export function ChatsByDepartmentIcon({
             zIndex: 1,
             color: theme.app.dashboard.white95,
             fontWeight: 700,
-            fontSize: Math.max(14, Math.round(width * 0.42)),
+            fontSize: Math.max(14, Math.round((width ?? 40) * 0.42)),
             lineHeight: 1,
           }}
         >

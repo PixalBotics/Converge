@@ -1,43 +1,33 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import Alert from "@mui/material/Alert";
-import Box from "@mui/material/Box";
-import { PaletteOutlined } from "@mui/icons-material";
-import { useTheme, type SxProps, type Theme } from "@mui/material/styles";
-import { Button, HoverTooltip, Typography } from "@/components/common";
-import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
 import { useAppearance } from "@/lib/theme/appearance-context";
 import { PICK_COLOR_PRESET_ID } from "@/lib/theme/appearance-presets";
 import type { AppearancePreset } from "@/lib/theme/appearance-preset.types";
 import { getCustomAccentTheme } from "@/lib/theme/custom-accent-theme";
-import type { AppTheme } from "@/theme/theme";
-import { resolveSx } from "@/utils/resolveSx";
+import { HoverTooltip } from "@/components/common";
 import { ThemeAccentPickerPopover } from "./ThemeAccentPickerPopover";
 import { ThemeSwatchButton } from "./ThemeSwatchButton";
+import { getDefaultThemePresets, getSolidColorPresets } from "./styles/theme-appearance.presets";
 import {
-  getDefaultThemePresets,
-  getSolidColorPresets,
-  mutedStatusLineSx,
-  pageSubtitleSx,
-  pageTitleSx,
-  pickerPaletteOutlinedIconSx,
-  savedLineSx,
-  sectionLabelSx,
-  swatchFillInnerSx,
-  unsavedAlertSx,
-  saveActionButtonSx,
   ThemeColorPickerInner,
   ThemeColorPickerTrigger,
   ThemeCustomizeColorGrid,
   ThemeCustomizeDefaultRow,
   ThemeCustomizeRoot,
   ThemeCustomizeSwatchesRow,
-} from "./styles";
+  ThemePageSubtitle,
+  ThemePageTitle,
+  ThemePaletteIcon,
+  ThemeSaveAccountButton,
+  ThemeSavedLine,
+  ThemeSectionLabel,
+  ThemeStatusLine,
+  ThemeUnsavedAlert,
+} from "./styles/theme-customize.styled";
 import { useThemeAppearanceSave } from "./use-theme-appearance-save";
 
 export default function ThemeCustomizeClient() {
-  const theme = useTheme() as AppTheme;
   const { presetId, setPresetId, presets, customAccentHex, setCustomAccentHex } = useAppearance();
   const [hexDraft, setHexDraft] = useState(customAccentHex);
   const [colorPopoverAnchor, setColorPopoverAnchor] = useState<HTMLElement | null>(null);
@@ -64,12 +54,12 @@ export default function ThemeCustomizeClient() {
     onHexBlur();
   }, [onHexBlur]);
 
-  const swatchFill = useCallback(
+  const swatchBackground = useCallback(
     (p: AppearancePreset) => {
       if (p.id === PICK_COLOR_PRESET_ID) {
-        return { background: getCustomAccentTheme(customAccentHex).appBackground };
+        return getCustomAccentTheme(customAccentHex).appBackground;
       }
-      return { background: p.appBackground };
+      return p.appBackground;
     },
     [customAccentHex],
   );
@@ -78,58 +68,44 @@ export default function ThemeCustomizeClient() {
 
   return (
     <ThemeCustomizeRoot>
-      <Typography variant="boldLarge" sx={pageTitleSx}>
-        Customize appearance
-      </Typography>
-      <Typography variant="medium" sx={pageSubtitleSx}>
+      <ThemePageTitle variant="boldLarge">Customize appearance</ThemePageTitle>
+      <ThemePageSubtitle variant="medium">
         Choose a theme, then save so your accent syncs to your account (dashboard shell).
-      </Typography>
+      </ThemePageSubtitle>
 
       {platformThemeQuery.isLoading ? (
-        <Typography variant="small" sx={mutedStatusLineSx}>
-          Loading saved theme…
-        </Typography>
+        <ThemeStatusLine variant="small">Loading saved theme…</ThemeStatusLine>
       ) : platformThemeQuery.isError ? (
-        <Typography variant="small" sx={mutedStatusLineSx}>
-          Could not load saved theme; showing local settings.
-        </Typography>
+        <ThemeStatusLine variant="small">Could not load saved theme; showing local settings.</ThemeStatusLine>
       ) : null}
 
       {syncedHex !== undefined && needsSave && (
-        <Alert severity="warning" variant="outlined" sx={unsavedAlertSx}
+        <ThemeUnsavedAlert
+          severity="warning"
+          variant="outlined"
           action={
-            <Button
+            <ThemeSaveAccountButton
               type="button"
               variant="primary"
               size="small"
               disabled={isSavingTheme}
               onClick={handleSaveTheme}
-              sx={
-                {
-                  ...resolveSx(gradientPrimaryButtonSx, theme),
-                  ...resolveSx(saveActionButtonSx, theme),
-                } as SxProps<Theme>
-              }
             >
               {isSavingTheme ? "Saving…" : "Save to account"}
-            </Button>
+            </ThemeSaveAccountButton>
           }
         >
           Unsaved changes — your new colors are only on this device until you save.
-        </Alert>
+        </ThemeUnsavedAlert>
       )}
 
       {syncedHex !== undefined && !needsSave && !platformThemeQuery.isLoading && (
-        <Typography variant="small" sx={savedLineSx}>
-          Saved — dashboard matches your account.
-        </Typography>
+        <ThemeSavedLine variant="small">Saved — dashboard matches your account.</ThemeSavedLine>
       )}
 
       {defaultThemePresets.length > 0 && (
         <ThemeCustomizeDefaultRow>
-          <Typography variant="medium16" sx={sectionLabelSx}>
-            Default theme
-          </Typography>
+          <ThemeSectionLabel variant="medium16">Default theme</ThemeSectionLabel>
           <ThemeCustomizeSwatchesRow>
             {defaultThemePresets.map((p) => (
               <HoverTooltip key={p.id} label={p.label} fullWidth={false}>
@@ -139,18 +115,15 @@ export default function ThemeCustomizeClient() {
                   selected={presetId === p.id}
                   onClick={() => setPresetId(p.id)}
                   ariaLabel={p.label}
-                >
-                  <Box sx={swatchFillInnerSx(theme, { shape: "tile", fill: swatchFill(p) })} />
-                </ThemeSwatchButton>
+                  background={swatchBackground(p)}
+                />
               </HoverTooltip>
             ))}
           </ThemeCustomizeSwatchesRow>
         </ThemeCustomizeDefaultRow>
       )}
 
-      <Typography variant="medium16" sx={sectionLabelSx}>
-        Color themes
-      </Typography>
+      <ThemeSectionLabel variant="medium16">Color themes</ThemeSectionLabel>
 
       <ThemeCustomizeColorGrid>
         <HoverTooltip label="Custom color — open picker" fullWidth={false}>
@@ -162,28 +135,26 @@ export default function ThemeCustomizeClient() {
             onClick={(e) => setColorPopoverAnchor(e.currentTarget)}
             $selected={pickSelected}
           >
-            <ThemeColorPickerInner $hex={customAccentHex}>
-              <PaletteOutlined inheritViewBox sx={pickerPaletteOutlinedIconSx(theme)} />
+            <ThemeColorPickerInner>
+              <ThemePaletteIcon />
             </ThemeColorPickerInner>
           </ThemeColorPickerTrigger>
         </HoverTooltip>
 
         {solidColorPresets.map((p) => (
-          <HoverTooltip key={p.id} label={p.label}>
+          <HoverTooltip key={p.id} label={p.label} fullWidth={false}>
             <ThemeSwatchButton
               shape="circle"
               selected={p.id === presetId}
               onClick={() => setPresetId(p.id)}
               ariaLabel={p.label}
-            >
-              <Box sx={swatchFillInnerSx(theme, { shape: "circle", fill: swatchFill(p) })} />
-            </ThemeSwatchButton>
+              background={swatchBackground(p)}
+            />
           </HoverTooltip>
         ))}
       </ThemeCustomizeColorGrid>
 
       <ThemeAccentPickerPopover
-        theme={theme}
         open={Boolean(colorPopoverAnchor)}
         anchorEl={colorPopoverAnchor}
         onClose={closeColorPopover}

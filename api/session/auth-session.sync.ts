@@ -1,11 +1,22 @@
 import { isAxiosError } from "axios";
-import { clearTokens, getAccessToken, getRefreshToken } from "../storage/auth-cookies";
+import { getAccessToken, getRefreshToken } from "../storage/auth-cookies";
 import type { AuthSessionSyncResult } from "../types/auth.types";
 import { verifyBearer } from "../auth/auth.api";
 import { refreshSessionWithStoredRefresh } from "./refresh-access-token";
+import { terminateAuthSession } from "./terminate-auth-session";
 
 function isUnauthorized(err: unknown): boolean {
   return isAxiosError(err) && err.response?.status === 401;
+}
+
+function isNetworkFailure(err: unknown): boolean {
+  if (isAxiosError(err)) {
+    if (!err.response) {
+      const code = err.code?.toUpperCase() ?? "";
+      return code !== "ERR_CANCELED";
+    }
+  }
+  return false;
 }
 
 /**
@@ -27,7 +38,7 @@ export async function synchronizeAuthSession(): Promise<AuthSessionSyncResult> {
       await refreshSessionWithStoredRefresh();
       rotated = true;
     } catch {
-      clearTokens();
+      await terminateAuthSession("refresh_failed");
       return { status: "invalid" };
     }
   }
@@ -37,14 +48,17 @@ export async function synchronizeAuthSession(): Promise<AuthSessionSyncResult> {
     return { status: rotated ? "refreshed" : "valid" };
   } catch (err: unknown) {
     if (!isUnauthorized(err)) {
-      return { status: "error" };
+      if (isNetworkFailure(err)) {
+        return { status: "unreachable", error: err };
+      }
+      return { status: "error", error: err };
     }
     try {
       await refreshSessionWithStoredRefresh();
       await verifyBearer();
       return { status: "refreshed" };
     } catch {
-      clearTokens();
+      await terminateAuthSession("verify_failed");
       return { status: "invalid" };
     }
   }

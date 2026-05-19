@@ -7,10 +7,11 @@ import Box from "@mui/material/Box";
 import IconButton from "@mui/material/IconButton";
 import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
-import { Button, Divider, Typography } from "@/components/common";
+import { Button, Divider, IconSlot, Typography } from "@/components/common";
 import { ModalGlassShell } from "@/components/common/FormModal/ModalGlassShell";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
 import { CloseCircleIcon } from "@/components/common/icons";
+import { modalCloseIconButtonSx } from "@/lib/design-system";
 
 export interface VisitorInformationPreviewModalProps {
   open: boolean;
@@ -148,20 +149,17 @@ export function VisitorInformationPreviewModal({ open, onClose }: VisitorInforma
             size="small"
             aria-label="Close preview"
             sx={{
-              width: 35,
-              height: 35,
-              p: 0,
-              flexShrink: 0,
-              border: `1px solid ${theme.palette.error.main}`,
-              borderRadius: "50%",
+              ...(modalCloseIconButtonSx(theme) as object),
+              borderColor: theme.palette.error.main,
               color: theme.palette.error.main,
               "&:hover": {
-                bgcolor: theme.palette.action.hover,
                 borderColor: theme.palette.error.main,
               },
             }}
           >
-            <CloseCircleIcon width={18} height={18} />
+            <IconSlot slot={36} glyph="md">
+              <CloseCircleIcon />
+            </IconSlot>
           </IconButton>
         </Box>
 
