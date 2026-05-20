@@ -3,13 +3,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Box from "@mui/material/Box";
-import Alert from "@mui/material/Alert";
 import type { SxProps, Theme } from "@mui/material/styles";
-import { LoadingScreen } from "@/components/common";
+import { LoadingScreen, PermissionDeniedPanel } from "@/components/common";
 import { AUTH_PATHS, useAuth } from "@/lib/auth";
 import { PERMISSION_BUCKET_PAGE, toPermissionSet } from "@/lib/auth/permissions-model";
 import { canAccessDashboardPath, getFirstAccessibleDashboardPath } from "@/lib/permissions";
-import { DashboardSidebar, DashboardHeader, OperationalViewGate } from "@/components/dashboard";
+import { DashboardSidebar, DashboardHeader, OperationalViewGate } from "@/components/layout/dashboard";
 import { dashboardMainGlassSx, dashboardMainTextSx } from "./dashboard.styles";
 import { mainBackgroundGradient } from "@/theme/theme";
 
@@ -20,6 +19,7 @@ export default function DashboardLayoutClient({
 }) {
   const pathname = usePathname();
   const {
+    authGate,
     isAuthenticated,
     isLoading,
     rbacEnabled,
@@ -87,8 +87,20 @@ export default function DashboardLayoutClient({
     router,
   ]);
 
-  if (isLoading) {
+  if (authGate === "loading" || isLoading) {
     return <LoadingScreen message="Loading..." />;
+  }
+
+  if (authGate === "blocked") {
+    return (
+      <Box
+        sx={{
+          minHeight: "100vh",
+          background: (theme) =>
+            (theme as { appBackground?: string }).appBackground ?? mainBackgroundGradient,
+        }}
+      />
+    );
   }
 
   if (!isAuthenticated) {
@@ -108,9 +120,10 @@ export default function DashboardLayoutClient({
             (theme as { appBackground?: string }).appBackground ?? mainBackgroundGradient,
         }}
       >
-        <Alert severity="warning" sx={{ maxWidth: 480 }}>
-          You do not have access to this area. Ask an administrator to assign the matching page permission.
-        </Alert>
+        <PermissionDeniedPanel
+          title="No page access"
+          description="You do not have access to this area. Ask an administrator to assign the matching page permission."
+        />
       </Box>
     );
   }
@@ -138,8 +151,9 @@ export default function DashboardLayoutClient({
               {
                 flex: 1,
                 py: { xs: 2, sm: 3 },
-                px: { xs: 1.5, sm: 2, md: 0 },
+                px: { xs: 1.5, sm: 2, md: 2.5 },
                 overflow: "auto",
+                boxSizing: "border-box",
               },
               dashboardMainTextSx,
               dashboardMainGlassSx,

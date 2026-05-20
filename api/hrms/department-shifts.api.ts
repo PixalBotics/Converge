@@ -1,6 +1,7 @@
 import { apiClient } from "../http/axios-instance";
 import type { JsonRecord } from "../types/common.types";
 
+/** `GET /hrms/department-shifts` — query: `page`, `limit`, `all`, `departmentId`, `parentCompanyId`, `search`, `shiftScope`. */
 export async function listDepartmentShifts(params?: JsonRecord): Promise<unknown> {
   const { data } = await apiClient.get("/hrms/department-shifts", { params });
   return data;

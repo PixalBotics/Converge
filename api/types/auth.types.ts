@@ -87,8 +87,12 @@ export type AuthSessionSyncStatus =
   | "valid"
   | "refreshed"
   | "invalid"
+  /** Verify/refresh could not reach the server — do not treat cookies as a logged-in session. */
+  | "unreachable"
   | "error";
 
 export interface AuthSessionSyncResult {
   status: AuthSessionSyncStatus;
+  /** Set when `status` is `unreachable` or `error`. */
+  error?: unknown;
 }

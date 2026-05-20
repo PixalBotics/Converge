@@ -22,7 +22,7 @@ import {
   type PermissionGroup,
   type RoleRow,
 } from "../utils";
-import { isRecord, unwrapApiData } from "@/lib/utils";
+import { isRecord, unwrapApiData } from "@/lib/utils/core";
 
 function extractAssignedFromRoleDetail(payload: unknown): string[] {
   const data = unwrapApiData(payload);

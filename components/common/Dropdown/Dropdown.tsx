@@ -1,17 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import Button from "@mui/material/Button";
 import Menu from "@mui/material/Menu";
-import MenuItem from "@mui/material/MenuItem";
 import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import type { DropdownProps, DropdownOption } from "./Dropdown.types";
+import { DropdownMenuRow, DropdownTrigger } from "./Dropdown.styled";
 
 function normalizeOptions(options: string[] | DropdownOption[]): DropdownOption[] {
-  return options.map((opt) =>
-    typeof opt === "string" ? { label: opt, value: opt } : opt
-  );
+  return options.map((opt) => (typeof opt === "string" ? { label: opt, value: opt } : opt));
 }
 
 export function Dropdown({
@@ -34,19 +31,24 @@ export function Dropdown({
   const label = triggerLabel ?? selected?.label ?? value;
   const open = Boolean(anchorEl);
 
+  const blur = String(app.dashboard.cardBackdropBlur ?? "").trim();
   const defaultPaperSx = {
     mt: 1.5,
-    minWidth: 160,
+    minWidth: 180,
+    maxHeight: 320,
+    overflowY: "auto" as const,
     bgcolor: app.dashboard.menuSurfaceBg,
     border: `1px solid ${app.dashboard.cardBorder}`,
     borderRadius: 2,
-    "& .MuiMenuItem-root": {
-      color: app.text.primary,
-      fontSize: 14,
-    },
-    "& .MuiMenuItem-root:hover": {
-      bgcolor: app.dashboard.overlayMedium,
-    },
+    boxShadow:
+      theme.palette.mode === "dark"
+        ? "0 18px 48px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.06)"
+        : "0 12px 32px rgba(15,23,42,0.12)",
+    ...(blur && blur !== "none"
+      ? { backdropFilter: blur, WebkitBackdropFilter: blur }
+      : {}),
+    paddingBlock: theme.spacing(0.5),
+    "& .MuiList-root": { py: 0 },
   };
 
   const handleOpen = (event: React.MouseEvent<HTMLElement>) => {
@@ -68,18 +70,18 @@ export function Dropdown({
 
   return (
     <>
-      <Button
+      <DropdownTrigger
         variant={variant}
         size={size}
         sx={buttonSx}
         onClick={handleOpen}
-        endIcon={endIcon ? <span style={{ marginLeft: 4 }}>{endIcon}</span> : undefined}
+        endIcon={endIcon ? <span style={{ marginLeft: 4, opacity: 0.85 }}>{endIcon}</span> : undefined}
         aria-controls={open ? id : undefined}
         aria-haspopup="true"
         aria-expanded={open ? "true" : undefined}
       >
         {label}
-      </Button>
+      </DropdownTrigger>
       <Menu
         id={id}
         anchorEl={anchorEl}
@@ -88,13 +90,18 @@ export function Dropdown({
         anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
         transformOrigin={{ vertical: "top", horizontal: "right" }}
         slotProps={{
-          paper: { sx: paperSx },
+          paper: { sx: paperSx, elevation: 0 },
         }}
       >
         {items.map((option) => (
-          <MenuItem key={option.value} onClick={() => handleSelect(option.value)}>
+          <DropdownMenuRow
+            key={option.value}
+            onClick={() => handleSelect(option.value)}
+            selected={option.value === value}
+            disableRipple
+          >
             {option.label}
-          </MenuItem>
+          </DropdownMenuRow>
         ))}
       </Menu>
     </>

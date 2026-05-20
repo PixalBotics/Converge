@@ -12,12 +12,11 @@ import {
   DataTable,
   dataTableActionButton,
   SearchBar,
-  FilterButton,
   TablePagination,
   ButtonOutline,
 } from "@/components/common";
 import type { DataTableColumn } from "@/components/common";
-import { MetricCard } from "@/components/dashboard";
+import { MetricCard } from "@/components/common";
 import {
   ChatBubbleOutline as ChatBubbleOutlineIcon,
   Forum as ForumIcon,
@@ -197,7 +196,6 @@ export default function AgentDashboardOverview() {
             <Box sx={searchWrap}>
               <SearchBar value={search} onChange={setSearch} placeholder="Search anything..." />
             </Box>
-            <FilterButton />
           </Box>
         </Box>
 

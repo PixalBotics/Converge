@@ -3,14 +3,14 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { enableDepartmentShift, listDepartmentShifts, removeDepartmentShift } from "@/api";
 import type { JsonRecord } from "@/api";
+import {
+  buildHrmsDepartmentShiftsListQueryRecord,
+  type HrmsDepartmentShiftsListQueryInput,
+} from "@/lib/utils/hrms";
 import { hrmsDepartmentShiftsKeys } from "./keys";
 
-export type HrmsDepartmentShiftsListParams = {
-  departmentId?: string;
-  page?: number;
-  limit?: number;
-  all?: boolean;
-};
+/** `GET /hrms/department-shifts` — camelCase: `page`, `limit`, `all`, `departmentId`, `parentCompanyId`, `search`, `shiftScope`. */
+export type HrmsDepartmentShiftsListParams = HrmsDepartmentShiftsListQueryInput;
 
 export function useDepartmentShiftsListQuery(
   params: HrmsDepartmentShiftsListParams | undefined,
@@ -18,7 +18,7 @@ export function useDepartmentShiftsListQuery(
 ) {
   const scope = options?.scope ?? "default";
   const enabled = options?.enabled ?? true;
-  const req = params as unknown as JsonRecord | undefined;
+  const req = buildHrmsDepartmentShiftsListQueryRecord(params) as JsonRecord | undefined;
   return useQuery({
     queryKey: [...hrmsDepartmentShiftsKeys.list(req), scope] as const,
     queryFn: () => listDepartmentShifts(req),

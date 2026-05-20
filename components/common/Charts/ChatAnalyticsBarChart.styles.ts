@@ -29,9 +29,9 @@ export const chatAnalyticsBarChartYAxis = {
 
 export const chatAnalyticsBarChartTooltipContent: CSSProperties = {
   background: "radial-gradient(50% 50% at 50% 50%, #09013F 0%, #00011A 100%)",
-  border: "none",
+  border: "1px solid rgba(255,255,255,0.12)",
   borderRadius: 10,
-  boxShadow: "0 8px 32px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.06)",
+  boxShadow: "none",
   color: "#FFFFFF",
   padding: "4px 10px",
   fontWeight: 500,

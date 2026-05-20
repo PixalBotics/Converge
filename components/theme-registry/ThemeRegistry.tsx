@@ -17,16 +17,19 @@ import {
   getCustomAccentTheme,
   normalizeHex,
 } from "@/lib/theme/custom-accent-theme";
+import { useMounted } from "@/lib/ui/use-mounted";
 import { createAppMuiTheme, defaultAppColors } from "@/theme/theme";
 
 const STORAGE_KEY = "interchanges-appearance-preset";
 const CUSTOM_HEX_KEY = "interchanges-appearance-custom-hex";
 
 export default function ThemeRegistry({ children }: { children: React.ReactNode }) {
+  const mounted = useMounted();
   const [presetId, setPresetIdState] = useState(DEFAULT_APPEARANCE_PRESET_ID);
   const [customAccentHex, setCustomAccentHexState] = useState(DEFAULT_CUSTOM_ACCENT_HEX);
 
   useEffect(() => {
+    if (!mounted) return;
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored && APPEARANCE_PRESET_BY_ID[stored]) {
@@ -39,7 +42,7 @@ export default function ThemeRegistry({ children }: { children: React.ReactNode 
     } catch {
       /* ignore */
     }
-  }, []);
+  }, [mounted]);
 
   const setPresetId = useCallback((id: string) => {
     if (!APPEARANCE_PRESET_BY_ID[id]) return;
@@ -73,7 +76,11 @@ export default function ThemeRegistry({ children }: { children: React.ReactNode 
     setPresetId(resolved.id);
   }, [setCustomAccentHex, setPresetId]);
 
-  const preset = APPEARANCE_PRESET_BY_ID[presetId] ?? APPEARANCE_PRESET_BY_ID[DEFAULT_APPEARANCE_PRESET_ID];
+  const activePresetId = mounted ? presetId : DEFAULT_APPEARANCE_PRESET_ID;
+  const activeCustomHex = mounted ? customAccentHex : DEFAULT_CUSTOM_ACCENT_HEX;
+
+  const preset =
+    APPEARANCE_PRESET_BY_ID[activePresetId] ?? APPEARANCE_PRESET_BY_ID[DEFAULT_APPEARANCE_PRESET_ID];
 
   const muiTheme = useMemo(() => {
     let appBackground = preset.appBackground;
@@ -81,7 +88,7 @@ export default function ThemeRegistry({ children }: { children: React.ReactNode 
     let patch: Record<string, unknown> = preset.patch;
 
     if (preset.id === PICK_COLOR_PRESET_ID) {
-      const custom = getCustomAccentTheme(customAccentHex);
+      const custom = getCustomAccentTheme(activeCustomHex);
       appBackground = custom.appBackground;
       paletteMode = custom.paletteMode;
       patch = custom.patch;
@@ -89,16 +96,16 @@ export default function ThemeRegistry({ children }: { children: React.ReactNode 
 
     const app = mergeAppColors(defaultAppColors, patch);
     return createAppMuiTheme(app, appBackground, paletteMode);
-  }, [preset, customAccentHex]);
+  }, [preset, activeCustomHex]);
 
   useEffect(() => {
-    if (typeof document === "undefined") return;
+    if (!mounted || typeof document === "undefined") return;
     const bg =
       preset.id === PICK_COLOR_PRESET_ID
-        ? getCustomAccentTheme(customAccentHex).appBackground
+        ? getCustomAccentTheme(activeCustomHex).appBackground
         : preset.appBackground;
     document.body.style.background = bg;
-  }, [preset.id, preset.appBackground, customAccentHex]);
+  }, [mounted, preset.id, preset.appBackground, activeCustomHex]);
 
   const appearanceValue = useMemo(
     () => ({

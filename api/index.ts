@@ -54,3 +54,12 @@ export {
   attachAuthSessionLifecycleListeners,
 } from "./session/auth-session.sync";
 export { refreshSessionWithStoredRefresh } from "./session/refresh-access-token";
+export {
+  terminateAuthSession,
+  isAuthSessionTerminated,
+  resetAuthSessionTerminatedFlag,
+} from "./session/terminate-auth-session";
+export {
+  registerAuthSessionTeardown,
+  type AuthSessionTeardownReason,
+} from "./session/auth-session-teardown";

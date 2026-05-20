@@ -11,6 +11,8 @@ import { useCompaniesByResellerQuery } from "@/lib/hooks/query";
 import { extractApiErrorMessageForToast } from "@/lib/notify/extract-api-message";
 import { pageHeaderRow, pageWrapper } from "../overview.styles";
 import { departmentsCard } from "../../website-assigning/website-assigning.styles";
+import { useAuth } from "@/lib/auth";
+import { canCompaniesModuleAction } from "@/lib/permissions";
 
 function isTreeData(d: CompaniesData): d is PaginatedCompaniesTreeData {
   return "view" in d && d.view === "tree";
@@ -28,6 +30,9 @@ function detailCardSx(theme: AppTheme) {
 
 export function CompanyResellerDetailPageClient() {
   const theme = useTheme() as AppTheme;
+  const { hasPage, hasOperational } = useAuth();
+  const canViewDetail = canCompaniesModuleAction(hasPage, hasOperational, "detail");
+  const canEditCompany = canCompaniesModuleAction(hasPage, hasOperational, "update");
   const params = useParams<{ resellerId: string }>();
   const resellerId = decodeURIComponent(String(params?.resellerId ?? "")).trim();
 
@@ -134,12 +139,16 @@ export function CompanyResellerDetailPageClient() {
                       : `${childN} child companies`}
                 </Typography>
                 <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
-                  <Button component={Link} href={detailHref} variant="secondary" size="small">
-                    Detail
-                  </Button>
-                  <Button component={Link} href={editHref} variant="primary" size="small">
-                    Edit
-                  </Button>
+                  {canViewDetail ? (
+                    <Button component={Link} href={detailHref} variant="secondary" size="small">
+                      Detail
+                    </Button>
+                  ) : null}
+                  {canEditCompany ? (
+                    <Button component={Link} href={editHref} variant="primary" size="small">
+                      Edit
+                    </Button>
+                  ) : null}
                 </Box>
               </Box>
             );

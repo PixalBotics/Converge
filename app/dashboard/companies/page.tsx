@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Box from "@mui/material/Box";
 import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
-import { AddCircleIcon } from "@/components/dashboard/icons/AddCircleIcon";
+import { AddCircleIcon } from "@/components/common/icons";
 import { FormModal, InputField, Typography, Button } from "@/components/common";
 import {
   useCompaniesListQuery,
@@ -25,16 +25,18 @@ import { buildCompaniesTableRows } from "./utils";
 import { pageWrapper, pageHeaderRow } from "./overview.styles";
 import { departmentsAddButton } from "../website-assigning/website-assigning.styles";
 import { useAuth } from "@/lib/auth";
-import { canCompanyAction } from "@/lib/permissions";
+import { canCompaniesModuleAction } from "@/lib/permissions";
 
 export default function CompaniesPage() {
   const theme = useTheme() as AppTheme;
-  const { hasOperational } = useAuth();
-  const canCreateCompany = canCompanyAction(hasOperational, "create");
-  const canUpdateCompany = canCompanyAction(hasOperational, "update");
-  const canViewCompanyDetail = canCompanyAction(hasOperational, "detail");
-  const canViewCompanyList = canCompanyAction(hasOperational, "list");
+  const { hasPage, hasOperational } = useAuth();
+  const canCreateCompany = canCompaniesModuleAction(hasPage, hasOperational, "create");
+  const canUpdateCompany = canCompaniesModuleAction(hasPage, hasOperational, "update");
+  const canViewCompanyDetail = canCompaniesModuleAction(hasPage, hasOperational, "detail");
+  const canViewCompanyList = canCompaniesModuleAction(hasPage, hasOperational, "list");
   const canOpenCompanyDraft = canCreateCompany || canUpdateCompany;
+  const [searchInput, setSearchInput] = useState("");
+  /** Applied search sent to the companies list API (Search button). */
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const limit = 20;
@@ -63,6 +65,17 @@ export default function CompaniesPage() {
     setStoredCompanySetupDraftId(id);
     refreshStoredDraftFlag();
   }, [latestDraftQuery.isSuccess, latestDraftQuery.data, refreshStoredDraftFlag]);
+
+  useEffect(() => {
+    if (searchInput.trim().length > 0) return;
+    if (!search.trim()) return;
+    setSearch("");
+    setPage(1);
+  }, [searchInput, search]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [search]);
 
   const { data: companiesResponse, isLoading: isCompaniesLoading } = useCompaniesListQuery({
     page,
@@ -190,8 +203,13 @@ export default function CompaniesPage() {
 
       <CompaniesTableSection
         theme={theme}
-        search={search}
-        onSearchChange={setSearch}
+        searchInput={searchInput}
+        onSearchInputChange={setSearchInput}
+        appliedSearch={search}
+        onSearchSubmit={() => {
+          setSearch(searchInput.trim());
+          setPage(1);
+        }}
         rows={tableRows}
         isLoading={isCompaniesLoading}
         page={page}

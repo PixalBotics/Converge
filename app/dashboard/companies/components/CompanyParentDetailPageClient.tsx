@@ -13,6 +13,8 @@ import { extractApiErrorMessageForToast } from "@/lib/notify/extract-api-message
 import { CompanyPocSummaryBlock } from "./CompanyPocSummaryBlock";
 import { pageHeaderRow, pageWrapper } from "../overview.styles";
 import { departmentsCard } from "../../website-assigning/website-assigning.styles";
+import { useAuth } from "@/lib/auth";
+import { canCompaniesModuleAction } from "@/lib/permissions";
 
 function formatDate(iso?: string) {
   if (!iso?.trim()) return "—";
@@ -33,12 +35,14 @@ function detailCardSx(theme: AppTheme) {
     borderRadius: "16px",
     border: `1px solid ${alpha(theme.app.dashboard.cardBorder, 0.95)}`,
     bgcolor: alpha(theme.app.dashboard.white95, 0.035),
-    boxShadow: `0 12px 40px ${alpha("#000", 0.25)}`,
+    boxShadow: "none",
   };
 }
 
 export function CompanyParentDetailPageClient() {
   const theme = useTheme() as AppTheme;
+  const { hasPage, hasOperational } = useAuth();
+  const canEditCompany = canCompaniesModuleAction(hasPage, hasOperational, "update");
   const params = useParams<{ parentId: string }>();
   const parentId = decodeURIComponent(String(params?.parentId ?? "")).trim();
 
@@ -106,9 +110,11 @@ export function CompanyParentDetailPageClient() {
           </Box>
         </Box>
         <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1.25, alignItems: "center" }}>
-          <Button component={Link} href={editHref} variant="secondary" size="small">
-            Edit
-          </Button>
+          {canEditCompany ? (
+            <Button component={Link} href={editHref} variant="secondary" size="small">
+              Edit
+            </Button>
+          ) : null}
         </Box>
       </Box>
 
@@ -240,9 +246,11 @@ export function CompanyParentDetailPageClient() {
                 </Typography>
               </Box>
             </Box>
-            <Button component={Link} href={editHref} variant="primary" fullWidth sx={{ mt: 2.5 }}>
-              Edit company
-            </Button>
+            {canEditCompany ? (
+              <Button component={Link} href={editHref} variant="primary" fullWidth sx={{ mt: 2.5 }}>
+                Edit company
+              </Button>
+            ) : null}
           </Box>
         </Box>
       ) : null}

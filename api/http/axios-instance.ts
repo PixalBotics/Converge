@@ -3,8 +3,9 @@ import axios, {
   type InternalAxiosRequestConfig,
 } from "axios";
 import { getApiBaseUrl } from "../config";
-import { clearTokens, getAccessToken } from "../storage/auth-cookies";
+import { getAccessToken } from "../storage/auth-cookies";
 import { refreshSessionWithStoredRefresh } from "../session/refresh-access-token";
+import { terminateAuthSession } from "../session/terminate-auth-session";
 import { pathFromConfig } from "./http-path";
 import { isPublicAuthRoute } from "./public-routes";
 
@@ -45,7 +46,7 @@ apiClient.interceptors.response.use(
 
     const path = pathFromConfig(originalRequest);
     if (path.endsWith("/auth/refresh")) {
-      clearTokens();
+      await terminateAuthSession("refresh_failed");
       return Promise.reject(error);
     }
 
@@ -56,7 +57,7 @@ apiClient.interceptors.response.use(
       originalRequest.headers.Authorization = `Bearer ${tokens.accessToken}`;
       return apiClient(originalRequest);
     } catch {
-      clearTokens();
+      await terminateAuthSession("refresh_failed");
       return Promise.reject(error);
     }
   },

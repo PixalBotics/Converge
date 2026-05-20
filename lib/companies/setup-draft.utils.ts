@@ -54,6 +54,8 @@ export type DraftChildPayload = {
   /** API `designationTitle` — synced from designation dropdown label or typed for new title. */
   pocDesignationTitle: string;
   pocDesignationNewDetails: string;
+  /** External POC / user: sent on `pocInvite` when the API accepts it. */
+  pocWideResellerScope: boolean;
 };
 
 function emptyPocSlice(): Pick<
@@ -71,6 +73,7 @@ function emptyPocSlice(): Pick<
   | "pocDesignationId"
   | "pocDesignationTitle"
   | "pocDesignationNewDetails"
+  | "pocWideResellerScope"
 > {
   return {
     pocFirstName: "",
@@ -86,6 +89,7 @@ function emptyPocSlice(): Pick<
     pocDesignationId: "",
     pocDesignationTitle: "",
     pocDesignationNewDetails: "",
+    pocWideResellerScope: false,
   };
 }
 
@@ -104,6 +108,7 @@ function parsePocFromChildRow(c: Record<string, unknown>): Pick<
   | "pocDesignationId"
   | "pocDesignationTitle"
   | "pocDesignationNewDetails"
+  | "pocWideResellerScope"
 > {
   const poc = asRecord(c.pocInvite);
   if (!poc) return emptyPocSlice();
@@ -123,6 +128,7 @@ function parsePocFromChildRow(c: Record<string, unknown>): Pick<
     pocDesignationId: "",
     pocDesignationTitle: desTitle,
     pocDesignationNewDetails: String(poc.designationDetails ?? "").trim(),
+    pocWideResellerScope: Boolean(poc.wideResellerScope),
   };
 }
 
@@ -172,6 +178,9 @@ export function buildPocInviteForRow(c: DraftChildPayload): JsonRecord | null {
     invite.departmentDetails = c.pocDepartmentNewDescription.trim();
   }
   /** API rejects `designationDetails` on `pocInvite`; `designationTitle` carries the title. */
+  if (c.pocWideResellerScope) {
+    invite.wideResellerScope = true;
+  }
   return invite;
 }
 

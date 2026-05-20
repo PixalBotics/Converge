@@ -16,7 +16,7 @@ import {
 } from "@mui/icons-material";
 import type { AppTheme } from "@/theme/theme";
 import { userIconPath } from "@/assets";
-import { MetricCard } from "@/components/dashboard";
+import { MetricCard } from "@/components/common";
 import {
   DashboardCard,
   DataTable,

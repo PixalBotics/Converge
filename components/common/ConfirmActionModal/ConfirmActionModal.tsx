@@ -25,6 +25,8 @@ export type ConfirmActionModalProps = {
   onDismiss: () => void;
   onConfirm: () => void;
   isLoading?: boolean;
+  /** `danger` — red confirm (delete / remove). Default `primary` uses gradient CTA. */
+  confirmButtonVariant?: "primary" | "danger";
 };
 
 export function ConfirmActionModal({
@@ -36,6 +38,7 @@ export function ConfirmActionModal({
   onDismiss,
   onConfirm,
   isLoading = false,
+  confirmButtonVariant = "primary",
 }: ConfirmActionModalProps) {
   const theme = useTheme() as AppTheme;
   useBodyScrollLock(open);
@@ -108,9 +111,9 @@ export function ConfirmActionModal({
           </Button>
           <Button
             type="button"
-            variant="primary"
+            variant={confirmButtonVariant === "danger" ? "danger" : "primary"}
             onClick={onConfirm}
-            sx={gradientPrimaryButtonSx}
+            sx={confirmButtonVariant === "danger" ? undefined : gradientPrimaryButtonSx}
             disabled={isLoading}
           >
             {isLoading ? "Please wait…" : confirmLabel}

@@ -1,5 +1,5 @@
 {
-  "name": "interchanges",
+  "name": "converge",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -39,8 +39,11 @@
     "@types/node": "22.19.15",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^4.7.0",
     "eslint": "^9.0.0",
     "eslint-config-next": "^15.0.0",
-    "typescript": "^5.0.0"
+    "storybook": "^8.6.18",
+    "typescript": "^5.0.0",
+    "vitest": "^3.2.4"
   }
 }

@@ -167,6 +167,7 @@ export function PoolModals({
         description={deleteDescription}
         confirmLabel={isDeleting ? "Deleting…" : "Delete"}
         cancelLabel="Cancel"
+        confirmButtonVariant="danger"
         isLoading={isDeleting}
         onDismiss={onCloseDelete}
         onConfirm={onConfirmDelete}

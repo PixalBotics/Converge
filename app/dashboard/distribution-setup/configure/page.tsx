@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Box from "@mui/material/Box";
 import { Button, InputField, SelectField } from "@/components/common";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
-import { DistributionWizardShell } from "@/components/dashboard/DistributionWizardShell";
+import { DistributionWizardShell } from "@/features/distribution-setup";
 import { distributionWizardFormGrid3 } from "../wizard.styles";
 
 const CLIENT_OPTIONS = [{ label: "Jeera", value: "jeera" }];

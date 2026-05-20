@@ -133,7 +133,7 @@ export function ChildCompanyPocEditor({
 
       {mode === "existing" ? (
         <Box sx={{ mt: 2, display: "flex", flexDirection: "column", gap: 1.5, maxWidth: 520 }}>
-          <SelectField label="User under this parent" value={selectedUserId} onChange={setSelectedUserId} options={userOptions} menuMaxRows={8} />
+          <SelectField label="User under this parent" value={selectedUserId} onChange={setSelectedUserId} options={userOptions} menuMaxRows={8} disabled={disabled} />
           <Button type="button" variant="primary" size="small" sx={{ alignSelf: "flex-start" }} disabled={disabled} onClick={addExistingUserRow}>
             Add to save payload
           </Button>
@@ -148,6 +148,7 @@ export function ChildCompanyPocEditor({
             departmentOptions={departmentOptions}
             rolesLoading={rolesQuery.isLoading}
             departmentsLoading={departmentsQuery.isLoading}
+            controlsDisabled={Boolean(disabled)}
           />
           <Button type="button" variant="primary" size="small" sx={{ mt: 2 }} disabled={disabled} onClick={addInviteRow}>
             Add invite to save payload
