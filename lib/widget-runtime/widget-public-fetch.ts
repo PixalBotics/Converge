@@ -3,6 +3,7 @@ import type {
   AiVisitorRespondRequest,
   AiVisitorRespondResponse,
   WidgetConfigEnvelope,
+  WidgetFeatureFlagsDto,
   WidgetSessionRequest,
   WidgetSessionResponse,
   WidgetSurfacesDto,
@@ -75,6 +76,155 @@ function coerceSurfaces(input: unknown): WidgetSurfacesDto {
   return input !== null && typeof input === "object"
     ? (input as WidgetSurfacesDto)
     : {};
+}
+
+function isRecord(v: unknown): v is Record<string, unknown> {
+  return v !== null && typeof v === "object" && !Array.isArray(v);
+}
+
+/** Deep-merge `theme.designJson.chat` so partial publishes still apply launcher + chat box. */
+function mergeThemeDesignJson(
+  base: Record<string, unknown>,
+  next: Record<string, unknown>,
+): Record<string, unknown> {
+  const ta = isRecord(base.theme) ? base.theme : {};
+  const tb = isRecord(next.theme) ? next.theme : {};
+  const dja = isRecord(ta.designJson) ? ta.designJson : {};
+  const djb = isRecord(tb.designJson) ? tb.designJson : {};
+  const cha = isRecord(dja.chat) ? dja.chat : {};
+  const chb = isRecord(djb.chat) ? djb.chat : {};
+  const launchA = isRecord(cha.launcher) ? cha.launcher : {};
+  const launchB = isRecord(chb.launcher) ? chb.launcher : {};
+  const boxA = isRecord(cha.chatBox) ? cha.chatBox : {};
+  const boxB = isRecord(chb.chatBox) ? chb.chatBox : {};
+  const colorsA = isRecord(cha.colors) ? cha.colors : {};
+  const colorsB = isRecord(chb.colors) ? chb.colors : {};
+
+  return {
+    ...base,
+    ...next,
+    theme: {
+      ...ta,
+      ...tb,
+      designJson: {
+        ...dja,
+        ...djb,
+        chat: {
+          ...cha,
+          ...chb,
+          launcher: { ...launchA, ...launchB },
+          chatBox: { ...boxA, ...boxB },
+          colors: { ...colorsA, ...colorsB },
+        },
+      },
+    },
+  };
+}
+
+function mergeWidgetConfigParts(...parts: unknown[]): Record<string, unknown> {
+  let out: Record<string, unknown> = {};
+  for (const part of parts) {
+    if (!isRecord(part)) continue;
+    const settingsJson = part.settingsJson;
+    const withoutSettings = { ...part };
+    delete withoutSettings.settingsJson;
+    out = mergeThemeDesignJson(out, withoutSettings);
+    if (isRecord(settingsJson)) {
+      out = mergeThemeDesignJson(out, settingsJson);
+    }
+  }
+  return out;
+}
+
+/**
+ * Normalize public `/widget/config/:key` (and similar) into a full envelope with merged `config`.
+ */
+export function normalizePublicWidgetConfigEnvelope(
+  raw: unknown,
+  widgetKeyFallback: string,
+): WidgetConfigEnvelope {
+  const o = isRecord(raw) ? raw : {};
+
+  const configParts: unknown[] = [
+    o.config,
+    o.configSnapshot,
+    isRecord(o.latestVersion) ? o.latestVersion.config : null,
+    o.publishedConfig,
+    o.settingsJson,
+  ];
+
+  let mergedConfig = mergeWidgetConfigParts(...configParts);
+
+  if (Object.keys(mergedConfig).length === 0) {
+    const skip = new Set([
+      "widgetKey",
+      "widget_key",
+      "websiteId",
+      "website_id",
+      "widgetType",
+      "widget_type",
+      "surfaces",
+      "featureFlags",
+      "feature_flags",
+      "status",
+      "versionNo",
+      "version_no",
+      "embedAllowAnyOrigin",
+      "embed_allow_any_origin",
+      "allowedDomains",
+      "allowed_domains",
+      "chatMode",
+      "chat_mode",
+      "success",
+      "data",
+      "configSnapshot",
+      "latestVersion",
+      "publishedConfig",
+    ]);
+    const rest: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(o)) {
+      if (!skip.has(k)) rest[k] = v;
+    }
+    if (rest.theme || rest.ui || rest.form || rest.behavior || rest.mode) {
+      mergedConfig = mergeWidgetConfigParts(rest);
+    }
+  }
+
+  const chatMode =
+    (typeof o.chatMode === "string" ? o.chatMode : undefined) ??
+    (typeof o.chat_mode === "string" ? o.chat_mode : undefined) ??
+    (typeof mergedConfig.mode === "string" ? mergedConfig.mode : undefined) ??
+    (typeof mergedConfig.chatMode === "string" ? mergedConfig.chatMode : undefined);
+
+  const featureFlags = isRecord(o.featureFlags)
+    ? (o.featureFlags as WidgetFeatureFlagsDto)
+    : isRecord(o.feature_flags)
+      ? (o.feature_flags as WidgetFeatureFlagsDto)
+      : {};
+
+  return {
+    widgetKey: String(o.widgetKey ?? o.widget_key ?? widgetKeyFallback),
+    websiteId: String(o.websiteId ?? o.website_id ?? ""),
+    widgetType: String(o.widgetType ?? o.widget_type ?? "CHAT"),
+    surfaces: coerceSurfaces(o.surfaces),
+    featureFlags,
+    embedAllowAnyOrigin:
+      o.embedAllowAnyOrigin === true || o.embed_allow_any_origin === true,
+    versionNo:
+      typeof o.versionNo === "number"
+        ? o.versionNo
+        : typeof o.version_no === "number"
+          ? o.version_no
+          : undefined,
+    status: String(o.status ?? "active"),
+    allowedDomains: Array.isArray(o.allowedDomains)
+      ? (o.allowedDomains as string[])
+      : Array.isArray(o.allowed_domains)
+        ? (o.allowed_domains as string[])
+        : undefined,
+    chatMode,
+    config: Object.keys(mergedConfig).length > 0 ? mergedConfig : undefined,
+  };
 }
 
 /** Normalize POST /widget/session body — token field names vary by API version. */
@@ -159,8 +309,9 @@ export async function getWidgetRuntimeConfig(widgetKey: string) {
     { method: "GET" },
   );
   if (!result.ok) return result;
-  const peeled = peelSuccessEnvelope(result.data) as WidgetConfigEnvelope;
-  return { ok: true as const, data: peeled };
+  const peeled = peelSuccessEnvelope(result.data);
+  const normalized = normalizePublicWidgetConfigEnvelope(peeled, widgetKey);
+  return { ok: true as const, data: normalized };
 }
 
 export async function postWidgetSession(body: WidgetSessionRequest) {

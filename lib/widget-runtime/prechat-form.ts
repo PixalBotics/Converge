@@ -22,6 +22,58 @@ const defaultVisitorFields: PrechatFieldDto[] = [
   { key: "phone", type: "phone", label: "Phone", required: false },
 ];
 
+function formHasPrechatToggles(form: Record<string, unknown>): boolean {
+  return (
+    "prechatNameEnabled" in form ||
+    "prechatEmailEnabled" in form ||
+    "prechatPhoneEnabled" in form ||
+    "prechatMessageEnabled" in form
+  );
+}
+
+function boolFlag(v: unknown, defaultOn: boolean): boolean {
+  if (v === false || v === "false" || v === 0) return false;
+  if (v === true || v === "true" || v === 1) return true;
+  return defaultOn;
+}
+
+/** Build pre-chat fields from wizard `config.form` toggles (notifications step). */
+function prechatFieldsFromFormFlags(form: Record<string, unknown>): PrechatFieldDto[] {
+  if (!formHasPrechatToggles(form)) return [];
+
+  const nameOn = boolFlag(form.prechatNameEnabled, true);
+  const emailOn = boolFlag(form.prechatEmailEnabled, true);
+  const phoneOn = boolFlag(form.prechatPhoneEnabled, false);
+  const messageOn = boolFlag(form.prechatMessageEnabled, false);
+  const messageRequired = boolFlag(form.prechatMessageRequired, false);
+
+  const fields: PrechatFieldDto[] = [];
+  if (nameOn) {
+    fields.push({ key: "name", type: "text", label: "Name", required: true });
+  }
+  if (emailOn) {
+    fields.push({ key: "email", type: "email", label: "Email", required: true });
+  }
+  if (phoneOn) {
+    fields.push({ key: "phone", type: "phone", label: "Phone", required: false });
+  }
+  if (messageOn) {
+    fields.push({
+      key: "message",
+      type: "textarea",
+      label: "Message",
+      required: messageRequired,
+    });
+  }
+  return fields;
+}
+
+function isLegacyWizardPlaceholderFields(fields: PrechatFieldDto[]): boolean {
+  if (fields.length !== 2) return false;
+  const keys = new Set(fields.map((f) => f.key));
+  return keys.has("company") && keys.has("topic");
+}
+
 /** Extract field list from nested widget configuration blobs. */
 export function extractPrechatFieldsFromWidgetConfig(
   cfg: Record<string, unknown>,
@@ -29,6 +81,16 @@ export function extractPrechatFieldsFromWidgetConfig(
   const form = cfg.form as Record<string, unknown> | undefined;
   const settingsJson = cfg.settingsJson as Record<string, unknown> | undefined;
   const nestedForm = settingsJson?.form as Record<string, unknown> | undefined;
+  const formForFlags =
+    nestedForm && typeof nestedForm === "object"
+      ? nestedForm
+      : form && typeof form === "object"
+        ? form
+        : null;
+
+  const fromFlags = formForFlags ? prechatFieldsFromFormFlags(formForFlags) : [];
+  if (fromFlags.length > 0) return fromFlags;
+
   const fromForm = Array.isArray(form?.fields)
     ? (form?.fields as PrechatFieldDto[])
     : null;
@@ -37,7 +99,12 @@ export function extractPrechatFieldsFromWidgetConfig(
     Array.isArray(fromSettings) && fromSettings.length > 0
       ? fromSettings
       : fromForm;
-  if (Array.isArray(merged) && merged.length > 0) return merged;
+  if (Array.isArray(merged) && merged.length > 0) {
+    if (isLegacyWizardPlaceholderFields(merged)) {
+      return defaultVisitorFields;
+    }
+    return merged;
+  }
 
   const rootFields = cfg.preChatFields;
   return Array.isArray(rootFields)

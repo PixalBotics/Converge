@@ -21,6 +21,7 @@ import type { z } from "zod";
 import { Button, InputField, Typography } from "@/components/common";
 import { normalizeChatMessageText } from "@/lib/safe-markdown/text";
 import { useVisitorChat } from "@/lib/hooks/chat/useVisitorChat";
+import { LauncherPresetIcon } from "@/lib/chat-widget/launcherIcons";
 import {
   buildDefaultFormValues,
   buildDynamicPrechatZod,
@@ -28,6 +29,13 @@ import {
   extractPrechatFieldsFromWidgetConfig,
   type PrechatFieldDto,
 } from "@/lib/widget-runtime/prechat-form";
+import {
+  extractRuntimeChatAppearance,
+  launcherBorderRadius,
+  launcherFabPositionSx,
+  resolveRuntimeConfigRecord,
+  type RuntimeChatAppearance,
+} from "@/lib/widget-runtime/widget-runtime-appearance";
 import {
   getWidgetRuntimeConfig,
   postAiVisitorRespond,
@@ -218,6 +226,7 @@ function FloatingChatEmbed({
   mode,
   sessionToken,
   configRecord,
+  appearance,
   textUsBelow,
 }: {
   widgetKey: string;
@@ -227,6 +236,7 @@ function FloatingChatEmbed({
   mode: string;
   sessionToken: string;
   configRecord: Record<string, unknown>;
+  appearance: RuntimeChatAppearance;
   textUsBelow?: ReactNode;
 }) {
   const [launcherOpen, setLauncherOpen] = useState(false);
@@ -241,6 +251,15 @@ function FloatingChatEmbed({
     writeWelcomeAcknowledged(widgetKey);
   };
 
+  const { launcher, chatBox } = appearance;
+  const panelAlign =
+    launcher.position === "left"
+      ? "flex-start"
+      : launcher.position === "center"
+        ? "center"
+        : "flex-end";
+  const sidePad = launcher.insetSidePx * 2;
+
   return (
     <Box
       sx={{
@@ -248,49 +267,66 @@ function FloatingChatEmbed({
         inset: 0,
         pointerEvents: "none",
         zIndex: 2147483000,
-        fontFamily: (theme) => theme.typography.fontFamily,
+        fontFamily:
+          chatBox.fontFamily && chatBox.fontFamily !== "inherit"
+            ? chatBox.fontFamily
+            : (theme) => theme.typography.fontFamily,
       }}
     >
       <Box
         sx={{
           position: "absolute",
-          right: 16,
-          bottom: 16,
+          ...launcherFabPositionSx(launcher),
           display: "flex",
           flexDirection: "column",
-          alignItems: "flex-end",
+          alignItems: panelAlign,
           gap: 1,
           pointerEvents: "auto",
-          maxWidth: "calc(100vw - 32px)",
+          maxWidth: `calc(100vw - ${sidePad}px)`,
         }}
       >
         {launcherOpen ? (
           <Paper
             elevation={12}
             sx={{
-              width: "min(392px, calc(100vw - 32px))",
-              maxHeight: "min(580px, 85vh)",
+              width: `min(${chatBox.boxWidth}px, calc(100vw - ${sidePad}px))`,
+              maxHeight: `min(${chatBox.boxHeight}px, 85vh)`,
               display: "flex",
               flexDirection: "column",
               overflow: "hidden",
               borderRadius: 2,
-              bgcolor: "background.paper",
+              bgcolor: chatBox.backgroundColor,
             }}
           >
             <Stack
               direction="row"
               alignItems="center"
               justifyContent="space-between"
-              sx={{ px: 2, py: 1.25, borderBottom: 1, borderColor: "divider" }}
+              sx={{
+                px: 2,
+                py: 1.25,
+                bgcolor: chatBox.headerBg,
+                color: chatBox.headerTextColor,
+              }}
             >
-              <Typography variant="subtitle2" fontWeight={700} sx={{ letterSpacing: 0.02 }}>
-                Live chat
+              <Typography
+                variant="subtitle2"
+                fontWeight={700}
+                sx={{
+                  letterSpacing: 0.02,
+                  flex: 1,
+                  textAlign: chatBox.headerAlign,
+                  color: "inherit",
+                }}
+              >
+                {chatBox.headerTitle}
               </Typography>
               <IconButton
                 type="button"
                 aria-label="Minimize widget"
                 size="small"
                 onClick={() => setLauncherOpen(false)}
+                sx={{ color: "inherit", ml: 1 }}
               >
                 <CloseRounded fontSize="small" />
               </IconButton>
@@ -302,6 +338,7 @@ function FloatingChatEmbed({
                 minHeight: 0,
                 overflowY: "auto",
                 p: welcomeAck ? 0 : 2,
+                bgcolor: chatBox.backgroundColor,
               }}
             >
               {!welcomeAck ? (
@@ -328,6 +365,7 @@ function FloatingChatEmbed({
                       mode={mode}
                       sessionToken={sessionToken}
                       configRecord={configRecord}
+                      appearance={appearance}
                     />
                   </Box>
                   {textUsBelow ? (
@@ -349,14 +387,24 @@ function FloatingChatEmbed({
           sx={{
             width: 58,
             height: 58,
-            bgcolor: "primary.main",
-            color: "primary.contrastText",
+            borderRadius: launcherBorderRadius(launcher.shape),
+            bgcolor: launcher.buttonColor,
+            color: launcher.iconColor,
             boxShadow: "0 8px 28px rgba(0,0,0,0.28)",
-            "&:hover": { bgcolor: "primary.dark", color: "primary.contrastText" },
+            "&:hover": {
+              bgcolor: launcher.buttonHoverColor,
+              color: launcher.iconColor,
+            },
           }}
         >
           {launcherOpen ? (
             <CloseRounded sx={{ fontSize: 28 }} />
+          ) : launcher.iconPreset ? (
+            <LauncherPresetIcon
+              presetId={launcher.iconPreset}
+              color={launcher.iconColor}
+              fontSizePx={30}
+            />
           ) : (
             <ChatRounded sx={{ fontSize: 30 }} />
           )}
@@ -533,20 +581,14 @@ function WidgetSurfaces({
     envelope.surfaces?.textUsEnabled !== false &&
     envelope.featureFlags?.textUs !== false;
 
-  const configRecord =
-    envelope.config !== undefined && envelope.config !== null &&
-    typeof envelope.config === "object"
-      ? (envelope.config as Record<string, unknown>)
-      : {};
+  const configRecord = resolveRuntimeConfigRecord(envelope);
+  const appearance = extractRuntimeChatAppearance(configRecord);
 
   const mode = String(
     configRecord.mode ?? envelope.chatMode ?? "AGENT_ONLY",
   ).toUpperCase();
 
-  const welcome =
-    typeof configRecord.welcomeMessage === "string"
-      ? configRecord.welcomeMessage.trim()
-      : "";
+  const welcome = appearance.welcomeMessage;
   const websiteId = typeof envelope.websiteId === "string" ? envelope.websiteId : "";
   const textUsForm = resolveTextUsFormBinding(configRecord);
 
@@ -554,12 +596,13 @@ function WidgetSurfaces({
     return (
       <FloatingChatEmbed
         widgetKey={widgetKey}
-        welcomeText={welcome || "How can we help?"}
+        welcomeText={welcome}
         websiteId={websiteId}
         parentPageUrl={parentPageUrl}
         mode={mode}
         sessionToken={sessionToken}
         configRecord={configRecord}
+        appearance={appearance}
         textUsBelow={
           textOn ? (
             <WidgetTextUsPanel
@@ -606,6 +649,7 @@ function WidgetChatPanel({
   mode,
   sessionToken,
   configRecord,
+  appearance,
 }: {
   embedded?: boolean;
   widgetKey: string;
@@ -614,7 +658,12 @@ function WidgetChatPanel({
   mode: string;
   sessionToken: string;
   configRecord: Record<string, unknown>;
+  appearance?: RuntimeChatAppearance;
 }) {
+  const sendPlaceholder =
+    appearance?.chatBox.sendPlaceholder ?? "Write a message…";
+  const panelBg = appearance?.chatBox.backgroundColor;
+  const accentColor = appearance?.launcher.buttonColor;
   const siteKey = `${widgetKey}:${websiteId}`;
   const fields = useMemo(
     () => extractPrechatFieldsFromWidgetConfig(configRecord),
@@ -847,7 +896,7 @@ function WidgetChatPanel({
               borderColor: "divider",
               borderRadius: 2,
               p: 1.5,
-              bgcolor: "background.paper",
+              bgcolor: panelBg ?? "background.paper",
               display: "flex",
               flexDirection: "column",
               gap: 1,
@@ -907,11 +956,22 @@ function WidgetChatPanel({
             name="composer"
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
-            placeholder="Write a message…"
+            placeholder={sendPlaceholder}
             sx={{ "& .MuiFormHelperText-root": { display: "none" } }}
           />
         </Box>
-        <IconButton color="primary" onClick={() => void sendDraft()} aria-label="Send">
+        <IconButton
+          onClick={() => void sendDraft()}
+          aria-label="Send"
+          sx={
+            accentColor
+              ? {
+                  color: accentColor,
+                  "&:hover": { bgcolor: `${accentColor}14` },
+                }
+              : { color: "primary.main" }
+          }
+        >
           <Send />
         </IconButton>
       </Stack>
