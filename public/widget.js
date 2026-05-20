@@ -1,13 +1,6 @@
 /**
- * Unified widget loader — single script for CHAT / TEXT_US / BOTH.
- *
- * Embed on customer site:
- * <script src="https://YOUR_APP_ORIGIN/widget.js"
- *         data-widget-key="wgt_xxx"
- *         data-app-origin="https://YOUR_APP_ORIGIN"
- *         defer></script>
- *
- * Session JWT is obtained inside the embed iframe (POST /widget/session with widgetKey only).
+ * Unified widget loader — CHAT / TEXT_US / BOTH.
+ * Iframe is transparent and sized via postMessage from /embed/widget (no outer chrome).
  */
 (function widgetBootstrap() {
   var script =
@@ -19,6 +12,7 @@
 
   var widgetKey = script && script.getAttribute("data-widget-key");
   var appOriginAttr = script && script.getAttribute("data-app-origin");
+  var RESIZE_MSG = "converge-widget-embed-resize";
 
   function resolveAppOrigin() {
     if (appOriginAttr && appOriginAttr.indexOf("//") !== -1) {
@@ -28,7 +22,6 @@
         return "";
       }
     }
-    /** Same-origin fallback when loader is hosted on the SaaS domain */
     if (typeof location !== "undefined") return location.origin;
     return "";
   }
@@ -56,24 +49,22 @@
   var iframe = document.createElement("iframe");
   iframe.title = "Messaging widget";
   iframe.setAttribute("allow", "clipboard-write");
-  /** Sandboxed-but-functional: allow-scripts + same-origin navigations for SaaS-hosted UI only */
   iframe.setAttribute(
     "sandbox",
     "allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox",
   );
   iframe.style.position = "fixed";
   iframe.style.border = "0";
-  iframe.style.borderRadius = "12px";
-  iframe.style.boxShadow = "0 12px 32px rgba(15,23,42,0.35)";
-  iframe.style.width = "min(440px,calc(100vw - 32px))";
-  iframe.style.height = "560px";
-  iframe.style.maxHeight = "calc(100vh - 32px)";
+  iframe.style.background = "transparent";
+  iframe.style.colorScheme = "normal";
+  iframe.style.overflow = "hidden";
+  iframe.style.width = "58px";
+  iframe.style.height = "58px";
   iframe.style.bottom = "16px";
   iframe.style.right = "16px";
   iframe.style.zIndex = "2147483645";
-  iframe.style.opacity = "0";
-  iframe.style.pointerEvents = "none";
-  iframe.style.transition = "opacity .2s ease";
+  iframe.style.boxShadow = "none";
+  iframe.style.borderRadius = "0";
 
   var params = new URLSearchParams({
     widgetKey: widgetKey,
@@ -82,47 +73,80 @@
   });
   iframe.src = APP_ORIGIN + "/embed/widget?" + params.toString();
 
-  iframe.onload = function () {
-    iframe.style.opacity = "1";
-    iframe.style.pointerEvents = "auto";
-  };
+  function applyFramePosition(d) {
+    var bottom = typeof d.insetBottomPx === "number" ? d.insetBottomPx : 16;
+    var side = typeof d.insetSidePx === "number" ? d.insetSidePx : 16;
+    var pos = d.position || "right";
 
-  var toggle = document.createElement("button");
-  toggle.type = "button";
-  toggle.setAttribute("aria-label", "Open chat");
-  toggle.textContent = "Chat";
-  toggle.style.position = "fixed";
-  toggle.style.bottom = "20px";
-  toggle.style.right = "20px";
-  toggle.style.zIndex = "2147483646";
-  toggle.style.width = "56px";
-  toggle.style.height = "56px";
-  toggle.style.borderRadius = "50%";
-  toggle.style.border = "0";
-  toggle.style.cursor = "pointer";
-  toggle.style.boxShadow = "0 10px 24px rgba(2,12,43,0.45)";
-  toggle.style.background = "#1e63d5";
-  toggle.style.color = "#fff";
-  toggle.style.fontWeight = "700";
-  toggle.style.fontSize = "13px";
+    iframe.style.bottom = bottom + "px";
+    iframe.style.left = "auto";
+    iframe.style.right = "auto";
+    iframe.style.transform = "none";
 
-  var open = false;
-  toggle.addEventListener("click", function () {
-    open = !open;
-    iframe.style.opacity = open ? "1" : "0";
-    iframe.style.pointerEvents = open ? "auto" : "none";
-    toggle.style.opacity = open ? "0" : "1";
-    toggle.style.pointerEvents = open ? "none" : "auto";
-    if (!open) return;
-    if (iframe.parentNode) return;
-    document.body.appendChild(iframe);
+    if (pos === "left") {
+      iframe.style.left = side + "px";
+    } else if (pos === "center") {
+      iframe.style.left = "50%";
+      iframe.style.transform = "translateX(-50%)";
+    } else {
+      iframe.style.right = side + "px";
+    }
+  }
+
+  function iframeContentOrigin() {
+    try {
+      return new URL(iframe.src).origin;
+    } catch (e) {
+      return "";
+    }
+  }
+
+  function isTrustedMessageOrigin(origin) {
+    if (!origin) return false;
+    if (APP_ORIGIN && origin === APP_ORIGIN) return true;
+    var fromIframe = iframeContentOrigin();
+    return fromIframe && origin === fromIframe;
+  }
+
+  function applyFrameSize(d) {
+    var launcherMin = 58;
+    var w =
+      typeof d.width === "number" && d.width > 0 ? Math.ceil(d.width) : launcherMin;
+    var h =
+      typeof d.height === "number" && d.height > 0 ? Math.ceil(d.height) : launcherMin;
+
+    if (d.open) {
+      var hostMaxW =
+        typeof window !== "undefined" ? window.innerWidth - 32 : w;
+      var hostMaxH =
+        typeof window !== "undefined" ? window.innerHeight - 32 : h;
+      w = Math.min(w, hostMaxW);
+      h = Math.min(h, hostMaxH);
+    } else {
+      w = Math.max(launcherMin, w);
+      h = Math.max(launcherMin, h);
+    }
+
+    iframe.style.width = w + "px";
+    iframe.style.height = h + "px";
+    iframe.style.overflow = d.open ? "hidden" : "hidden";
+    applyFramePosition(d);
+  }
+
+  window.addEventListener("message", function (ev) {
+    if (!ev.data || ev.data.type !== RESIZE_MSG) return;
+    if (!isTrustedMessageOrigin(ev.origin)) return;
+    applyFrameSize(ev.data);
   });
 
+  function mount() {
+    if (iframe.parentNode) return;
+    document.body.appendChild(iframe);
+  }
+
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", function appendNodes() {
-      document.body.appendChild(toggle);
-    });
+    document.addEventListener("DOMContentLoaded", mount);
   } else {
-    document.body.appendChild(toggle);
+    mount();
   }
 })();

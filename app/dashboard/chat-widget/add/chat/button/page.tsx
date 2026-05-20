@@ -27,6 +27,15 @@ import {
   withChatEditQuery,
 } from "@/lib/chat-widget/chat-wizard-edit";
 import {
+  readWidgetChatColorsFromDraft,
+  widgetChatColorsDraftToPatch,
+} from "@/lib/chat-widget/widget-colors-draft";
+import { WidgetAccentDensityPreview } from "@/components/dashboard/chat-widget/WidgetAccentDensityPreview";
+import {
+  DESIGN_ACCENT_SELECT_OPTIONS,
+  DESIGN_DENSITY_SELECT_OPTIONS,
+} from "@/lib/chat-widget/design-accent-density";
+import {
   defaultWidgetDraft,
   type LauncherIconPresetId,
 } from "@/lib/chat-widget/widgetDraft";
@@ -192,6 +201,16 @@ export default function ChatWidgetButtonDesignPage() {
 
       setSaving(true);
       try {
+        const colorSeed = readWidgetChatColorsFromDraft({
+          ...prev,
+          buttonColor: selectedButtonColor || "#2AA9E0",
+          buttonHoverColor: selectedHoverColor || "#1C8DC2",
+          iconColor: selectedIconColor || "#FFFFFF",
+          textColor: prev.textColor ?? defaultWidgetDraft.textColor,
+          themeSecondaryColor: themeSecondaryColor.trim() || "#64748b",
+          backgroundColor: prev.backgroundColor ?? defaultWidgetDraft.backgroundColor,
+        });
+
         saveChatWizardDraft(editKey || undefined, {
           type: "chat",
           buttonShape,
@@ -206,8 +225,9 @@ export default function ChatWidgetButtonDesignPage() {
           completed: false,
           widgetId: prev.widgetId?.startsWith("wgt_") ? prev.widgetId : rk,
           themeName: themeName.trim() || "Brand Default",
-          themePrimaryColor: themePrimaryColor.trim() || undefined,
+          themePrimaryColor: themePrimaryColor.trim() || selectedButtonColor || undefined,
           themeSecondaryColor: themeSecondaryColor.trim() || "#64748b",
+          ...widgetChatColorsDraftToPatch(colorSeed),
           themeFontFamily: themeFontFamily.trim() || "Inter, system-ui, sans-serif",
           themeBubbleStyle: themeBubbleStyle.trim() || "rounded",
           themeBorderRadiusPx: clampNum(themeBorderRadiusPxStr, 0, 48, 12),
@@ -628,23 +648,20 @@ export default function ChatWidgetButtonDesignPage() {
           label="Design accent"
           value={themeDesignJsonAccent}
           onChange={setThemeDesignJsonAccent}
-          options={[
-            { label: "Blue", value: "blue" },
-            { label: "Green", value: "green" },
-            { label: "Purple", value: "purple" },
-            { label: "Orange", value: "orange" },
-          ]}
+          options={DESIGN_ACCENT_SELECT_OPTIONS}
         />
         <SelectField
           label="Design density"
           value={themeDesignJsonDensity}
           onChange={setThemeDesignJsonDensity}
-          options={[
-            { label: "Comfortable", value: "comfortable" },
-            { label: "Compact", value: "compact" },
-          ]}
+          options={DESIGN_DENSITY_SELECT_OPTIONS}
         />
       </Box>
+      <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, mt: -1, mb: 1 }}>
+        Step 1 PATCH sends <code>theme</code> scalars, <code>designJson.chat.colors</code>,{" "}
+        <code>designJson.theme</code>, <code>designJson.ui.backgroundColor</code>, and launcher fields on{" "}
+        <code>config.ui</code>. Design accent/density are preview-only until the API adds those keys.
+      </Typography>
 
       <Typography variant="mediumLarge" sx={{ color: theme.app.text.primary, mt: 0.5, mb: -0.5 }}>
         Live Preview
@@ -712,6 +729,12 @@ export default function ChatWidgetButtonDesignPage() {
             )}
           </Box>
         </Box>
+        <WidgetAccentDensityPreview
+          accent={themeDesignJsonAccent}
+          density={themeDesignJsonDensity}
+          launcherColor={selectedButtonColor || "#2AA9E0"}
+          headerTextColor="#0f172a"
+        />
       </Box>
     </WidgetFlowShell>
   );

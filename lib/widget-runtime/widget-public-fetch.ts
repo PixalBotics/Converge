@@ -100,25 +100,38 @@ function mergeThemeDesignJson(
   const colorsA = isRecord(cha.colors) ? cha.colors : {};
   const colorsB = isRecord(chb.colors) ? chb.colors : {};
 
-  return {
+  const mergedDj: Record<string, unknown> = {
+    ...dja,
+    ...djb,
+    chat: {
+      ...cha,
+      ...chb,
+      launcher: { ...launchA, ...launchB },
+      chatBox: { ...boxA, ...boxB },
+      colors: { ...colorsA, ...colorsB },
+    },
+  };
+
+  const merged: Record<string, unknown> = {
     ...base,
     ...next,
     theme: {
       ...ta,
       ...tb,
-      designJson: {
-        ...dja,
-        ...djb,
-        chat: {
-          ...cha,
-          ...chb,
-          launcher: { ...launchA, ...launchB },
-          chatBox: { ...boxA, ...boxB },
-          colors: { ...colorsA, ...colorsB },
-        },
-      },
+      designJson: mergedDj,
     },
   };
+
+  if (isRecord(mergedDj.ui)) merged.ui = { ...(isRecord(merged.ui) ? merged.ui : {}), ...mergedDj.ui };
+  if (isRecord(mergedDj.form)) merged.form = { ...(isRecord(merged.form) ? merged.form : {}), ...mergedDj.form };
+  if (isRecord(mergedDj.behavior)) {
+    merged.behavior = { ...(isRecord(merged.behavior) ? merged.behavior : {}), ...mergedDj.behavior };
+  }
+  if (isRecord(mergedDj.response)) {
+    merged.response = { ...(isRecord(merged.response) ? merged.response : {}), ...mergedDj.response };
+  }
+
+  return merged;
 }
 
 function mergeWidgetConfigParts(...parts: unknown[]): Record<string, unknown> {
@@ -154,6 +167,24 @@ export function normalizePublicWidgetConfigEnvelope(
   ];
 
   let mergedConfig = mergeWidgetConfigParts(...configParts);
+
+  if (isRecord(mergedConfig.theme)) {
+    const theme = mergedConfig.theme;
+    const dj = isRecord(theme.designJson) ? theme.designJson : null;
+    if (dj) {
+      const overlay = (key: string) => {
+        const fromDj = dj[key];
+        if (!isRecord(fromDj)) return;
+        const existing = mergedConfig[key];
+        mergedConfig[key] = isRecord(existing) ? { ...fromDj, ...existing } : { ...fromDj };
+      };
+      overlay("ui");
+      overlay("form");
+      overlay("behavior");
+      overlay("response");
+      overlay("session");
+    }
+  }
 
   if (Object.keys(mergedConfig).length === 0) {
     const skip = new Set([

@@ -88,6 +88,28 @@ export interface WidgetDraft {
   messagePlaceholder?: string;
   backgroundColor?: string;
   popupEnabled?: boolean;
+  /** `theme.designJson.chat.colors` — embed UI tokens (step 2). */
+  chatBodyText?: string;
+  chatMutedText?: string;
+  incomingMessageBg?: string;
+  incomingMessageText?: string;
+  outgoingMessageBg?: string;
+  outgoingMessageText?: string;
+  greetingBubbleBg?: string;
+  greetingBubbleText?: string;
+  inputBackground?: string;
+  inputText?: string;
+  inputBorderColor?: string;
+  inputPlaceholderColor?: string;
+  labelColor?: string;
+  inquiryPillBg?: string;
+  inquiryPillText?: string;
+  inquiryPillBorder?: string;
+  inquiryPillSelectedBg?: string;
+  inquiryPillSelectedText?: string;
+  handoverButtonBg?: string;
+  handoverButtonText?: string;
+  handoverButtonBorder?: string;
   /** Step 3 PATCH `config.behavior` */
   botEnabled?: boolean;
   notificationEnabled?: boolean;
@@ -95,6 +117,8 @@ export interface WidgetDraft {
   soundNotification?: boolean;
   fallbackNotificationText?: string;
   videoWelcomeOn?: boolean;
+  /** When false, inquiry topic pills are hidden (step 2 toggle). */
+  inquiryOn?: boolean;
   inquiryOptions?: string[];
   welcomeMessageBehavior?: string;
   autoOpenEnabled?: boolean;
@@ -215,6 +239,7 @@ export const defaultWidgetDraft: WidgetDraft = {
   responseAiPromptHint: "Be concise and helpful.",
   responseAgentHandoverEnabled: true,
   responseHandoverTriggerText: "talk to human",
+  inquiryOn: false,
   inquiryOptions: ["Billing", "Technical", "Sales"],
 };
 

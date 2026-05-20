@@ -12,34 +12,31 @@ export interface WidgetEmbedResizePayload {
   insetSidePx: number;
 }
 
-const FAB_PX = 58;
-const FRAME_PAD_PX = 12;
+export const EMBED_LAUNCHER_SIZE_PX = 58;
+const PANEL_FAB_GAP_PX = 8;
 
-/** Iframe dimensions for parent `widget.js` — closed = launcher only, open = panel + launcher. */
+/**
+ * Parent iframe size (transparent, tight fit).
+ * Page offsets (`insetBottomPx` / `insetSidePx`) are applied by `widget.js`, not here.
+ */
 export function computeEmbedHostFrameSize(
   open: boolean,
   appearance: RuntimeChatAppearance,
 ): { width: number; height: number } {
-  const { launcher, chatBox } = appearance;
-  const maxW =
-    typeof window !== "undefined"
-      ? window.innerWidth - launcher.insetSidePx * 2 - FRAME_PAD_PX
-      : chatBox.boxWidth;
-  const maxH =
-    typeof window !== "undefined" ? window.innerHeight * 0.9 : chatBox.boxHeight;
+  const { chatBox } = appearance;
 
   if (!open) {
-    return {
-      width: launcher.insetSidePx + FAB_PX + FRAME_PAD_PX,
-      height: launcher.insetBottomPx + FAB_PX + FRAME_PAD_PX,
-    };
+    return { width: EMBED_LAUNCHER_SIZE_PX, height: EMBED_LAUNCHER_SIZE_PX };
   }
 
-  const panelW = Math.min(chatBox.boxWidth, maxW);
-  const panelH = Math.min(chatBox.boxHeight, maxH);
+  /**
+   * Use wizard-configured size only. Do NOT use `window.innerWidth` here — while the
+   * parent iframe is still 58px wide, that would shrink the panel to ~40px and clip the UI.
+   * `widget.js` caps to the host page viewport on the parent window.
+   */
   return {
-    width: Math.max(panelW + launcher.insetSidePx + FRAME_PAD_PX, launcher.insetSidePx + FAB_PX + FRAME_PAD_PX),
-    height: panelH + FAB_PX + 16 + launcher.insetBottomPx + FRAME_PAD_PX,
+    width: chatBox.boxWidth,
+    height: chatBox.boxHeight + EMBED_LAUNCHER_SIZE_PX + PANEL_FAB_GAP_PX,
   };
 }
 

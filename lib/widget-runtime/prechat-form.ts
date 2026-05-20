@@ -10,10 +10,22 @@ export type PrechatFieldType =
 
 export interface PrechatFieldDto {
   key: string;
-  type: PrechatFieldType | string;
+  type?: PrechatFieldType | string;
+  fieldType?: PrechatFieldType | string;
   label?: string;
   required?: boolean;
   options?: Array<{ label: string; value: string }>;
+}
+
+function fieldKind(field: PrechatFieldDto): string {
+  const raw = field.fieldType ?? field.type ?? "text";
+  const low = String(raw).toLowerCase();
+  if (low === "textarea") return "textarea";
+  if (low === "email") return "email";
+  if (low === "phone") return "phone";
+  if (low === "select") return "select";
+  if (low === "checkbox") return "checkbox";
+  return "text";
 }
 
 const defaultVisitorFields: PrechatFieldDto[] = [
@@ -129,7 +141,7 @@ export function buildDynamicPrechatZod(
   const shape: Record<string, z.ZodTypeAny> = {};
   for (const raw of fields) {
     const key = String(raw.key || "field").trim();
-    const t = String(raw.type || "text").toLowerCase();
+    const t = fieldKind(raw);
     let s: z.ZodTypeAny;
     switch (t) {
       case "email":
