@@ -8,6 +8,7 @@ import {
   getCompanySetupDraftLatest,
   getParentCompany,
   listCompanies,
+  listCompaniesByReseller,
   submitCompanySetupDraft,
   updateCompany,
   updateCompanySetupDraft,
@@ -90,11 +91,7 @@ export function useCompaniesByResellerQuery(
   const rid = resellerId.trim();
   return useQuery({
     queryKey: companiesKeys.byReseller(resellerId, params),
-    queryFn: () =>
-      listCompanies({
-        ...params,
-        resellerId: rid,
-      }),
+    queryFn: () => listCompaniesByReseller(rid, params),
     enabled: (options?.enabled ?? true) && rid.length > 0,
   });
 }

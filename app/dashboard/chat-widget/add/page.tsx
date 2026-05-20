@@ -17,10 +17,12 @@ import {
 } from "@/app/dashboard/user-page/components/add-user-modal.utils";
 import { Button, Typography, SelectField } from "@/components/common";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
-import { WidgetFlowShell } from "@/components/dashboard/WidgetFlowShell";
+import { WidgetFlowShell } from "@/features/chat-widget";
+import { useResellerListScope } from "@/lib/auth";
 import {
-  useCompaniesByResellerQuery,
+  buildWebsitesInScopeParams,
   useCompaniesSetupResellersQuery,
+  useScopedCompanyTreeQuery,
   useWebsiteAssignmentsWebsitesQuery,
 } from "@/lib/hooks";
 import {
@@ -41,6 +43,7 @@ type WidgetType = "chat" | "text";
 export default function WidgetTypeSelectionPage() {
   const router = useRouter();
   const theme = useTheme() as AppTheme;
+  const { canFilterByResellerId, sessionResellerId } = useResellerListScope();
   const [selectedType, setSelectedType] = useState<WidgetType>("chat");
   /** Same as `selectedType`, updated synchronously on card click so Next never reads stale state. */
   const selectedTypeRef = useRef<WidgetType>("chat");
@@ -54,9 +57,16 @@ export default function WidgetTypeSelectionPage() {
   const [creatingDraft, setCreatingDraft] = useState(false);
 
   useEffect(() => {
+    if (!canFilterByResellerId && sessionResellerId) {
+      setResellerId(sessionResellerId);
+    }
+  }, [canFilterByResellerId, sessionResellerId]);
+
+  useEffect(() => {
     resetCreateWizardDraft();
     const d = readChatWizardDraft(null);
     if (d.tenantResellerId) setResellerId(d.tenantResellerId);
+    else if (!canFilterByResellerId && sessionResellerId) setResellerId(sessionResellerId);
     if (d.tenantParentCompanyId) setParentCompanyId(d.tenantParentCompanyId);
     if (d.tenantChildCompanyId) setChildCompanyId(d.tenantChildCompanyId);
     if (d.websiteId) setWebsiteId(d.websiteId);
@@ -65,38 +75,46 @@ export default function WidgetTypeSelectionPage() {
       selectedTypeRef.current = d.type;
     }
     setHydratedFromDraft(true);
-  }, []);
+  }, [canFilterByResellerId, sessionResellerId]);
 
   useEffect(() => {
     selectedTypeRef.current = selectedType;
   }, [selectedType]);
 
   const resellersQuery = useCompaniesSetupResellersQuery({
-    enabled: hydratedFromDraft,
+    enabled: hydratedFromDraft && canFilterByResellerId,
   });
 
-  const companiesByResellerQuery = useCompaniesByResellerQuery(
+  const companiesTreeQuery = useScopedCompanyTreeQuery(
     resellerId,
-    { view: "tree", sortBy: "name", sortOrder: "asc", all: true },
-    { enabled: hydratedFromDraft && resellerId.trim().length > 0 },
+    canFilterByResellerId,
+    sessionResellerId,
+    {
+      enabled:
+        hydratedFromDraft &&
+        (canFilterByResellerId ? resellerId.trim().length > 0 : true),
+    },
   );
 
   const websitesParams = useMemo(
-    () => ({
-      all: true as const,
-      resellerId: resellerId.trim() || undefined,
-      parentCompanyId: parentCompanyId.trim() || undefined,
-      childCompanyId: childCompanyId.trim() || undefined,
-    }),
-    [resellerId, parentCompanyId, childCompanyId],
+    () =>
+      buildWebsitesInScopeParams({
+        canFilterByResellerId,
+        all: true,
+        resellerId,
+        parentCompanyId,
+        childCompanyId,
+      }),
+    [canFilterByResellerId, resellerId, parentCompanyId, childCompanyId],
   );
 
   const websitesQuery = useWebsiteAssignmentsWebsitesQuery(websitesParams, {
+    allowResellerIdFilter: canFilterByResellerId,
     enabled:
       hydratedFromDraft &&
-      resellerId.trim().length > 0 &&
       parentCompanyId.trim().length > 0 &&
-      childCompanyId.trim().length > 0,
+      childCompanyId.trim().length > 0 &&
+      (canFilterByResellerId ? resellerId.trim().length > 0 : true),
   });
 
   const resellerOptions = useMemo(() => {
@@ -118,9 +136,11 @@ export default function WidgetTypeSelectionPage() {
   }, [resellerOptions, resellersQuery.isLoading]);
 
   const parentCompanyOptions = useMemo(() => {
-    if (!resellerId.trim()) return [{ value: "", label: "Select reseller first" }];
+    if (canFilterByResellerId && !resellerId.trim()) {
+      return [{ value: "", label: "Select reseller first" }];
+    }
     const extracted = extractParentCompaniesFromByResellerTree(
-      companiesByResellerQuery.data,
+      companiesTreeQuery.data,
     ).map((o) => ({ value: o.value, label: o.label }));
     if (extracted.length > 0) {
       return [{ value: "", label: "Select parent company" }, ...extracted];
@@ -128,23 +148,25 @@ export default function WidgetTypeSelectionPage() {
     return [
       {
         value: "",
-        label: companiesByResellerQuery.isLoading
+        label: companiesTreeQuery.isLoading
           ? "Loading parent companies…"
           : "No parent companies available",
       },
     ];
-  }, [resellerId, companiesByResellerQuery.data, companiesByResellerQuery.isLoading]);
+  }, [canFilterByResellerId, resellerId, companiesTreeQuery.data, companiesTreeQuery.isLoading]);
 
   const childCompanyRows = useMemo(() => {
-    if (!resellerId.trim() || !parentCompanyId.trim()) return [];
+    if ((canFilterByResellerId && !resellerId.trim()) || !parentCompanyId.trim()) return [];
     return extractChildCompanyOptionsForParentFromByResellerTree(
-      companiesByResellerQuery.data,
+      companiesTreeQuery.data,
       parentCompanyId,
     );
-  }, [resellerId, parentCompanyId, companiesByResellerQuery.data]);
+  }, [canFilterByResellerId, resellerId, parentCompanyId, companiesTreeQuery.data]);
 
   const childCompanyOptions = useMemo(() => {
-    if (!resellerId.trim()) return [{ value: "", label: "Select reseller first" }];
+    if (canFilterByResellerId && !resellerId.trim()) {
+      return [{ value: "", label: "Select reseller first" }];
+    }
     if (!parentCompanyId.trim()) return [{ value: "", label: "Select parent company first" }];
     if (childCompanyRows.length > 0) {
       return [{ value: "", label: "Select child company" }, ...childCompanyRows];
@@ -152,16 +174,17 @@ export default function WidgetTypeSelectionPage() {
     return [
       {
         value: "",
-        label: companiesByResellerQuery.isLoading
+        label: companiesTreeQuery.isLoading
           ? "Loading child companies…"
           : "No child companies for this parent",
       },
     ];
   }, [
+    canFilterByResellerId,
     resellerId,
     parentCompanyId,
     childCompanyRows,
-    companiesByResellerQuery.isLoading,
+    companiesTreeQuery.isLoading,
   ]);
 
   const websiteRows = useMemo(() => {
@@ -209,7 +232,7 @@ export default function WidgetTypeSelectionPage() {
       : null;
 
   const hierarchyReady =
-    Boolean(resellerId.trim()) &&
+    (canFilterByResellerId ? Boolean(resellerId.trim()) : true) &&
     Boolean(parentCompanyId.trim()) &&
     Boolean(childCompanyId.trim());
 
@@ -229,8 +252,10 @@ export default function WidgetTypeSelectionPage() {
   const subtitle = useMemo(() => {
     if (!hydratedFromDraft) return "Loading…";
     if (websitesLoading) return "Loading websites for the selected child company…";
-    return "Select reseller → parent company → child company, then choose a website.";
-  }, [hydratedFromDraft, websitesLoading]);
+    return canFilterByResellerId
+      ? "Select reseller → parent company → child company, then choose a website."
+      : "Select parent company → child company, then choose a website.";
+  }, [hydratedFromDraft, websitesLoading, canFilterByResellerId]);
 
   return (
     <WidgetFlowShell
@@ -277,7 +302,7 @@ export default function WidgetTypeSelectionPage() {
                   ...prev,
                   type: kind,
                   websiteId: wid,
-                  tenantResellerId: resellerId.trim(),
+                  tenantResellerId: (canFilterByResellerId ? resellerId : sessionResellerId).trim(),
                   tenantParentCompanyId: parentCompanyId.trim(),
                   tenantChildCompanyId: childCompanyId.trim(),
                   completed: false,
@@ -330,21 +355,23 @@ export default function WidgetTypeSelectionPage() {
       }
     >
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2, mb: 2 }}>
-        <SelectField
-          label="Reseller"
-          placeholder="Select reseller"
-          value={resellerId}
-          onChange={(v) => {
-            setResellerId(v);
-            setParentCompanyId("");
-            setChildCompanyId("");
-            setWebsiteId("");
-          }}
-          options={resellerSelectOptions}
-          disabled={!hydratedFromDraft || resellersQuery.isLoading}
-          searchPlaceholder="Search reseller…"
-          menuMaxRows={10}
-        />
+        {canFilterByResellerId ? (
+          <SelectField
+            label="Reseller"
+            placeholder="Select reseller"
+            value={resellerId}
+            onChange={(v) => {
+              setResellerId(v);
+              setParentCompanyId("");
+              setChildCompanyId("");
+              setWebsiteId("");
+            }}
+            options={resellerSelectOptions}
+            disabled={!hydratedFromDraft || resellersQuery.isLoading}
+            searchPlaceholder="Search reseller…"
+            menuMaxRows={10}
+          />
+        ) : null}
         <SelectField
           label="Parent company"
           placeholder="Select parent company"
@@ -355,7 +382,9 @@ export default function WidgetTypeSelectionPage() {
             setWebsiteId("");
           }}
           options={parentCompanyOptions}
-          disabled={!resellerId.trim() || companiesByResellerQuery.isLoading}
+          disabled={
+            (canFilterByResellerId && !resellerId.trim()) || companiesTreeQuery.isLoading
+          }
           searchPlaceholder="Search parent company…"
           menuMaxRows={10}
         />
@@ -368,7 +397,7 @@ export default function WidgetTypeSelectionPage() {
             setWebsiteId("");
           }}
           options={childCompanyOptions}
-          disabled={!parentCompanyId.trim() || companiesByResellerQuery.isLoading}
+          disabled={!parentCompanyId.trim() || companiesTreeQuery.isLoading}
           searchPlaceholder="Search child company…"
           menuMaxRows={10}
         />

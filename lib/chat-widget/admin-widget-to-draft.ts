@@ -1,4 +1,4 @@
-import { isRecord } from "@/lib/utils/records";
+import { isRecord } from "@/lib/utils/core";
 import type { JsonRecord } from "@/api/types/common.types";
 import { widgetResponseData } from "@/api/widgets/widgets.api";
 import type { WidgetDraft, WidgetInstallChatMode } from "./widgetDraft";

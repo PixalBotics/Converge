@@ -1,14 +1,7 @@
 "use client";
 
-
-
-import { ChatOperationsWorkspace } from "./ChatOperationsWorkspace";
-
-
+import { ChatOperationsWorkspace } from "@/features/chat-operations";
 
 export default function ChatOperationsPage() {
-
   return <ChatOperationsWorkspace />;
-
 }
-

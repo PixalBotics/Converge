@@ -29,7 +29,7 @@ import {
 import { publishAppToast } from "@/lib/notify";
 import { extractApiErrorMessageForToast } from "@/lib/notify/extract-api-message";
 import { parseSnapshotForPreview } from "@/lib/chat-widget/snapshot-preview-model";
-import { WidgetSnapshotPreview } from "@/components/dashboard/chat-widget/WidgetSnapshotPreview";
+import { WidgetSnapshotPreview } from "./WidgetSnapshotPreview";
 
 function safePrettyJson(value: unknown, maxChars = 24_000): string {
   try {

@@ -42,9 +42,11 @@ import {
   unwrapKbResponse,
   type KbSourceType,
 } from "@/api/kb/kb.api";
+import { useResellerListScope } from "@/lib/auth";
 import {
-  useCompaniesByResellerQuery,
+  buildWebsitesInScopeParams,
   useCompaniesSetupResellersQuery,
+  useScopedCompanyTreeQuery,
   useWebsiteAssignmentsWebsitesQuery,
 } from "@/lib/hooks";
 import { extractApiErrorMessageForToast } from "@/lib/notify/extract-api-message";
@@ -89,6 +91,7 @@ function isValidOptionalMetadataJson(raw: string): boolean {
 export default function AiTrainingPage() {
   const router = useRouter();
   const theme = useTheme() as AppTheme;
+  const { canFilterByResellerId, sessionResellerId } = useResellerListScope();
 
   const [resellerId, setResellerId] = useState("");
   const [parentCompanyId, setParentCompanyId] = useState("");
@@ -108,29 +111,41 @@ export default function AiTrainingPage() {
   const [reindexBusy, setReindexBusy] = useState(false);
   const [lastResult, setLastResult] = useState<unknown>(null);
 
-  const resellersQuery = useCompaniesSetupResellersQuery({ enabled: true });
-  const companiesByResellerQuery = useCompaniesByResellerQuery(
+  useEffect(() => {
+    if (!canFilterByResellerId && sessionResellerId) {
+      setResellerId(sessionResellerId);
+    }
+  }, [canFilterByResellerId, sessionResellerId]);
+
+  const resellersQuery = useCompaniesSetupResellersQuery({
+    enabled: canFilterByResellerId,
+  });
+  const companiesTreeQuery = useScopedCompanyTreeQuery(
     resellerId,
-    { view: "tree", sortBy: "name", sortOrder: "asc", all: true },
-    { enabled: resellerId.trim().length > 0 },
+    canFilterByResellerId,
+    sessionResellerId,
+    { enabled: canFilterByResellerId ? resellerId.trim().length > 0 : true },
   );
 
   const websitesParams = useMemo(
-    () => ({
-      all: true as const,
-      resellerId: resellerId.trim() || undefined,
-      parentCompanyId: parentCompanyId.trim() || undefined,
-      childCompanyId: childCompanyId.trim() || undefined,
-    }),
-    [resellerId, parentCompanyId, childCompanyId],
+    () =>
+      buildWebsitesInScopeParams({
+        canFilterByResellerId,
+        all: true,
+        resellerId,
+        parentCompanyId,
+        childCompanyId,
+      }),
+    [canFilterByResellerId, resellerId, parentCompanyId, childCompanyId],
   );
 
   const hierarchyReady =
-    Boolean(resellerId.trim()) &&
+    (canFilterByResellerId ? Boolean(resellerId.trim()) : true) &&
     Boolean(parentCompanyId.trim()) &&
     Boolean(childCompanyId.trim());
 
   const websitesQuery = useWebsiteAssignmentsWebsitesQuery(websitesParams, {
+    allowResellerIdFilter: canFilterByResellerId,
     enabled: hierarchyReady,
   });
 
@@ -153,9 +168,11 @@ export default function AiTrainingPage() {
   }, [resellerOptions, resellersQuery.isLoading]);
 
   const parentCompanyOptions = useMemo(() => {
-    if (!resellerId.trim()) return [{ value: "", label: "Select reseller first" }];
+    if (canFilterByResellerId && !resellerId.trim()) {
+      return [{ value: "", label: "Select reseller first" }];
+    }
     const extracted = extractParentCompaniesFromByResellerTree(
-      companiesByResellerQuery.data,
+      companiesTreeQuery.data,
     ).map((o) => ({ value: o.value, label: o.label }));
     if (extracted.length > 0) {
       return [{ value: "", label: "Select parent company" }, ...extracted];
@@ -163,23 +180,25 @@ export default function AiTrainingPage() {
     return [
       {
         value: "",
-        label: companiesByResellerQuery.isLoading
+        label: companiesTreeQuery.isLoading
           ? "Loading parent companies…"
           : "No parent companies available",
       },
     ];
-  }, [resellerId, companiesByResellerQuery.data, companiesByResellerQuery.isLoading]);
+  }, [canFilterByResellerId, resellerId, companiesTreeQuery.data, companiesTreeQuery.isLoading]);
 
   const childCompanyRows = useMemo(() => {
-    if (!resellerId.trim() || !parentCompanyId.trim()) return [];
+    if ((canFilterByResellerId && !resellerId.trim()) || !parentCompanyId.trim()) return [];
     return extractChildCompanyOptionsForParentFromByResellerTree(
-      companiesByResellerQuery.data,
+      companiesTreeQuery.data,
       parentCompanyId,
     );
-  }, [resellerId, parentCompanyId, companiesByResellerQuery.data]);
+  }, [canFilterByResellerId, resellerId, parentCompanyId, companiesTreeQuery.data]);
 
   const childCompanyOptions = useMemo(() => {
-    if (!resellerId.trim()) return [{ value: "", label: "Select reseller first" }];
+    if (canFilterByResellerId && !resellerId.trim()) {
+      return [{ value: "", label: "Select reseller first" }];
+    }
     if (!parentCompanyId.trim()) return [{ value: "", label: "Select parent company first" }];
     if (childCompanyRows.length > 0) {
       return [{ value: "", label: "Select child company" }, ...childCompanyRows];
@@ -187,16 +206,17 @@ export default function AiTrainingPage() {
     return [
       {
         value: "",
-        label: companiesByResellerQuery.isLoading
+        label: companiesTreeQuery.isLoading
           ? "Loading child companies…"
           : "No child companies for this parent",
       },
     ];
   }, [
+    canFilterByResellerId,
     resellerId,
     parentCompanyId,
     childCompanyRows,
-    companiesByResellerQuery.isLoading,
+    companiesTreeQuery.isLoading,
   ]);
 
   const websiteRows = useMemo(() => websitesQuery.data?.data?.items ?? [], [websitesQuery.data?.data?.items]);
@@ -386,21 +406,23 @@ export default function AiTrainingPage() {
             so retrieval matches the visitor&apos;s site.
           </Typography>
           <Stack spacing={1.75}>
-            <SelectField
-              label="Reseller"
-              placeholder="Select reseller"
-              value={resellerId}
-              onChange={(v) => {
-                setResellerId(v);
-                setParentCompanyId("");
-                setChildCompanyId("");
-                setWebsiteId("");
-              }}
-              options={resellerSelectOptions}
-              disabled={resellersQuery.isLoading}
-              searchPlaceholder="Search reseller…"
-              menuMaxRows={10}
-            />
+            {canFilterByResellerId ? (
+              <SelectField
+                label="Reseller"
+                placeholder="Select reseller"
+                value={resellerId}
+                onChange={(v) => {
+                  setResellerId(v);
+                  setParentCompanyId("");
+                  setChildCompanyId("");
+                  setWebsiteId("");
+                }}
+                options={resellerSelectOptions}
+                disabled={resellersQuery.isLoading}
+                searchPlaceholder="Search reseller…"
+                menuMaxRows={10}
+              />
+            ) : null}
             <SelectField
               label="Parent company"
               placeholder="Select parent company"
@@ -411,7 +433,9 @@ export default function AiTrainingPage() {
                 setWebsiteId("");
               }}
               options={parentCompanyOptions}
-              disabled={!resellerId.trim() || companiesByResellerQuery.isLoading}
+              disabled={
+                (canFilterByResellerId && !resellerId.trim()) || companiesTreeQuery.isLoading
+              }
               searchPlaceholder="Search parent company…"
               menuMaxRows={10}
             />
@@ -424,7 +448,7 @@ export default function AiTrainingPage() {
                 setWebsiteId("");
               }}
               options={childCompanyOptions}
-              disabled={!parentCompanyId.trim() || companiesByResellerQuery.isLoading}
+              disabled={!parentCompanyId.trim() || companiesTreeQuery.isLoading}
               searchPlaceholder="Search child company…"
               menuMaxRows={10}
             />

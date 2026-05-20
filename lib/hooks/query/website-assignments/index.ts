@@ -9,3 +9,4 @@ export type {
   WebsiteAssignmentsUserWebsitesParams,
   WebsiteAssignmentsWebsitesParams,
 } from "./hooks";
+export { buildWebsitesInScopeParams } from "./scope-params";

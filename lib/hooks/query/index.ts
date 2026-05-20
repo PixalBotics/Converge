@@ -21,6 +21,7 @@ export {
   useCompaniesByResellerQuery,
   useCompaniesListQuery,
   useCompaniesSetupResellersQuery,
+  useScopedCompanyTreeQuery,
   useCompanySetupDraftByIdQuery,
   useCompanySetupDraftLatestQuery,
   useCreateCompanySetupDraftMutation,
@@ -43,6 +44,7 @@ export {
 } from "./roles";
 export { websiteAssignmentsKeys } from "./website-assignments";
 export {
+  buildWebsitesInScopeParams,
   useAssignWebsiteTierMutation,
   useWebsiteAssignmentDetailQuery,
   useWebsiteAssignmentsUserWebsitesQuery,

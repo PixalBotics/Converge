@@ -1,4 +1,21 @@
 import type { AuthUserType } from "./types";
+
+/**
+ * Explicit `resellerId` query filter — only platform admins (per Companies / Website Assignments APIs).
+ * Reseller and tenant-scoped sessions use session scope via `GET /companies` or `GET /companies/by-reseller/{ownId}`.
+ */
+export function sessionCanFilterByResellerId(isPlatformAdmin: boolean): boolean {
+  return isPlatformAdmin;
+}
+
+/** Resolved tenant reseller id for draft payloads (not for list `resellerId` filters). */
+export function resolveSessionResellerId(
+  userResellerId?: string | null,
+  meResellerId?: string | null,
+): string {
+  return userResellerId?.trim() || meResellerId?.trim() || "";
+}
+
 /** When false, pool/head flows should only offer External (non–platform-admin with External session user). */
 export function sessionMayPickInternalUserScope(
   isPlatformAdmin: boolean,

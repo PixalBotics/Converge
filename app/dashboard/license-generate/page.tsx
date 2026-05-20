@@ -222,7 +222,7 @@ export default function LicenseGeneratePage() {
         open={generateModalOpen}
         onClose={() => setGenerateModalOpen(false)}
         onGenerated={() => {
-          // Page is still demo-data driven; modal handles server call + cache invalidation.
+          void licenseKeysQuery.refetch();
         }}
       />
 

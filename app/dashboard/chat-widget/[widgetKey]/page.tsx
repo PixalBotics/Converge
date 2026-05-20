@@ -1,7 +1,7 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import { ChatWidgetDetailClient } from "@/components/dashboard/chat-widget/ChatWidgetDetailClient";
+import { ChatWidgetDetailClient } from "@/features/chat-widget";
 
 /** Widget id in the URL is the API `widgetKey` (opaque string from GET /widgets). */
 export default function ChatWidgetDetailPage() {

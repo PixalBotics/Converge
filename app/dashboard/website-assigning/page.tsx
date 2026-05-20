@@ -22,7 +22,13 @@ import {
   ToolbarFilterPopoverPanel,
   Typography,
 } from "@/components/common";
-import { useCompaniesByResellerQuery, useCompaniesSetupResellersQuery, useWebsiteAssignmentsWebsitesQuery } from "@/lib/hooks";
+import { useResellerListScope } from "@/lib/auth";
+import {
+  buildWebsitesInScopeParams,
+  useCompaniesSetupResellersQuery,
+  useScopedCompanyTreeQuery,
+  useWebsiteAssignmentsWebsitesQuery,
+} from "@/lib/hooks";
 import type { DataTableColumn } from "@/components/common";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
 import { SearchIcon } from "@/components/common/icons";
@@ -69,6 +75,7 @@ type WebsiteRow = {
 
 export default function WebsiteAssigningPage() {
   const theme = useTheme() as AppTheme;
+  const { canFilterByResellerId, sessionResellerId } = useResellerListScope();
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [filterAssigned, setFilterAssigned] = useState<string>("");
@@ -79,11 +86,14 @@ export default function WebsiteAssigningPage() {
   const [isAssignOpen, setIsAssignOpen] = useState(false);
   const [page, setPage] = useState(1);
 
-  const resellersQuery = useCompaniesSetupResellersQuery({ enabled: true });
-  const companiesByResellerQuery = useCompaniesByResellerQuery(
+  const resellersQuery = useCompaniesSetupResellersQuery({
+    enabled: canFilterByResellerId,
+  });
+  const companiesTreeQuery = useScopedCompanyTreeQuery(
     filterResellerId,
-    { view: "tree", sortBy: "name", sortOrder: "asc", all: true },
-    { enabled: filterResellerId.trim().length > 0 },
+    canFilterByResellerId,
+    sessionResellerId,
+    { enabled: canFilterByResellerId ? filterResellerId.trim().length > 0 : true },
   );
 
   const resellerOptions = useMemo(() => {
@@ -99,28 +109,32 @@ export default function WebsiteAssigningPage() {
   }, [resellerOptions, resellersQuery.isLoading]);
 
   const parentCompanyFilterOptions = useMemo(() => {
-    if (!filterResellerId.trim()) return [{ value: "", label: "All parent companies" }];
-    const extracted = extractParentCompaniesFromByResellerTree(companiesByResellerQuery.data).map((o) => ({
+    if (canFilterByResellerId && !filterResellerId.trim()) {
+      return [{ value: "", label: "All parent companies" }];
+    }
+    const extracted = extractParentCompaniesFromByResellerTree(companiesTreeQuery.data).map((o) => ({
       value: o.value,
       label: o.label,
     }));
     if (extracted.length > 0) return [{ value: "", label: "All parent companies" }, ...extracted];
     return [
-      { value: "", label: companiesByResellerQuery.isLoading ? "Loading parent companies…" : "No parent companies available" },
+      { value: "", label: companiesTreeQuery.isLoading ? "Loading parent companies…" : "No parent companies available" },
     ];
-  }, [filterResellerId, companiesByResellerQuery.data, companiesByResellerQuery.isLoading]);
+  }, [canFilterByResellerId, filterResellerId, companiesTreeQuery.data, companiesTreeQuery.isLoading]);
 
   const childCompanyFilterOptions = useMemo(() => {
-    if (!filterResellerId.trim()) return [{ value: "", label: "All child companies" }];
+    if (canFilterByResellerId && !filterResellerId.trim()) {
+      return [{ value: "", label: "All child companies" }];
+    }
     if (!filterParentCompanyId.trim()) return [{ value: "", label: "All child companies" }];
     const children = extractChildCompanyOptionsForParentFromByResellerTree(
-      companiesByResellerQuery.data,
+      companiesTreeQuery.data,
       filterParentCompanyId,
     );
     const options = [{ value: "", label: "All child companies" }, ...(children.length ? children : [])];
     if (options.length > 1) return options;
-    return [{ value: "", label: companiesByResellerQuery.isLoading ? "Loading child companies…" : "No child companies available" }];
-  }, [filterResellerId, filterParentCompanyId, companiesByResellerQuery.data, companiesByResellerQuery.isLoading]);
+    return [{ value: "", label: companiesTreeQuery.isLoading ? "Loading child companies…" : "No child companies available" }];
+  }, [canFilterByResellerId, filterResellerId, filterParentCompanyId, companiesTreeQuery.data, companiesTreeQuery.isLoading]);
 
   const assignedParam = useMemo(() => {
     if (filterAssigned === "assigned") return true;
@@ -128,22 +142,34 @@ export default function WebsiteAssigningPage() {
     return undefined;
   }, [filterAssigned]);
 
-  const listParams = useMemo(() => {
-    const params: Record<string, string | number | boolean> = {
+  const listParams = useMemo(
+    () =>
+      buildWebsitesInScopeParams({
+        canFilterByResellerId,
+        page,
+        limit: WEBSITES_PAGE_LIMIT,
+        search,
+        assigned: assignedParam,
+        resellerId: filterResellerId,
+        parentCompanyId: filterParentCompanyId,
+        childCompanyId: filterChildCompanyId,
+      }),
+    [
+      canFilterByResellerId,
       page,
-      limit: WEBSITES_PAGE_LIMIT,
-    };
-    const q = search.trim();
-    if (q) params.search = q;
-    if (assignedParam !== undefined) params.assigned = assignedParam;
-    if (filterResellerId.trim()) params.resellerId = filterResellerId.trim();
-    if (filterParentCompanyId.trim()) params.parentCompanyId = filterParentCompanyId.trim();
-    if (filterChildCompanyId.trim()) params.childCompanyId = filterChildCompanyId.trim();
-    return params;
-  }, [page, search, assignedParam, filterResellerId, filterParentCompanyId, filterChildCompanyId]);
+      search,
+      assignedParam,
+      filterResellerId,
+      filterParentCompanyId,
+      filterChildCompanyId,
+    ],
+  );
 
   const { data: websitesResponse, isLoading: isWebsitesLoading, isFetching } =
-    useWebsiteAssignmentsWebsitesQuery(listParams, { enabled: true });
+    useWebsiteAssignmentsWebsitesQuery(listParams, {
+      allowResellerIdFilter: canFilterByResellerId,
+      enabled: true,
+    });
   const websitesData = websitesResponse?.data;
 
   const scopeItems = useMemo(() => websitesData?.items ?? [], [websitesData?.items]);
@@ -351,20 +377,22 @@ export default function WebsiteAssigningPage() {
                     onChange={setFilterAssigned}
                     options={[...ASSIGNED_FILTER_OPTIONS]}
                   />
-                  <SelectField
-                    label="Reseller"
-                    value={filterResellerId}
-                    onChange={setFilterResellerId}
-                    options={resellerFilterOptions}
-                    menuMaxRows={6}
-                  />
+                  {canFilterByResellerId ? (
+                    <SelectField
+                      label="Reseller"
+                      value={filterResellerId}
+                      onChange={setFilterResellerId}
+                      options={resellerFilterOptions}
+                      menuMaxRows={6}
+                    />
+                  ) : null}
                   <SelectField
                     label="Parent Company"
                     value={filterParentCompanyId}
                     onChange={setFilterParentCompanyId}
                     options={parentCompanyFilterOptions}
                     menuMaxRows={7}
-                    disabled={!filterResellerId.trim()}
+                    disabled={canFilterByResellerId && !filterResellerId.trim()}
                   />
                   <SelectField
                     label="Child Company"
@@ -372,7 +400,10 @@ export default function WebsiteAssigningPage() {
                     onChange={setFilterChildCompanyId}
                     options={childCompanyFilterOptions}
                     menuMaxRows={7}
-                    disabled={!filterResellerId.trim() || !filterParentCompanyId.trim()}
+                    disabled={
+                      (canFilterByResellerId && !filterResellerId.trim()) ||
+                      !filterParentCompanyId.trim()
+                    }
                   />
                 </Box>
               </ToolbarFilterPopoverPanel>

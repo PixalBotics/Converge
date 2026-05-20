@@ -9,6 +9,7 @@ import {
   sendAgentMessage,
 } from "@/services/chat/chatApi";
 import { createChatSocketClient } from "@/services/chat/chatSocket";
+import { normalizeServerMessage } from "@/services/chat/normalize-message";
 import type {
   ChatMessage,
   TypingPayload,
@@ -232,7 +233,8 @@ export function useAgentChat(params: UseAgentChatParams): UseAgentChatReturn {
       };
 
       upsertMessage(optimisticMessage);
-      await sendAgentMessage(
+
+      const response = await sendAgentMessage(
         selectedConversationId,
         {
           message: content,
@@ -240,13 +242,17 @@ export function useAgentChat(params: UseAgentChatParams): UseAgentChatReturn {
         },
         params.token,
       );
-      socketClient.sendAgentMessage({
-        conversationId: selectedConversationId,
-        message: content,
-        ...(params.agentId ? { agentId: params.agentId } : {}),
-      });
+
+      const persisted =
+        normalizeServerMessage(response) ??
+        (response &&
+        typeof response === "object" &&
+        "message" in response
+          ? normalizeServerMessage((response as { message: unknown }).message)
+          : null);
+      if (persisted) upsertMessage(persisted);
     },
-    [params.agentId, params.token, selectedConversationId, socketClient, upsertMessage],
+    [params.token, selectedConversationId, upsertMessage],
   );
 
   const closeSelectedConversation = useCallback(async () => {

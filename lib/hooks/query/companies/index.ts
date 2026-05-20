@@ -13,3 +13,4 @@ export {
   useUpdateParentCompanyMutation,
 } from "./hooks";
 export type { CompaniesListParams } from "./hooks";
+export { useScopedCompanyTreeQuery } from "./use-scoped-company-tree-query";

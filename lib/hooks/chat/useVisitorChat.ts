@@ -205,13 +205,8 @@ export function useVisitorChat(
         currentPageUrl: pageUrl,
         ...(sendOpts?.messageType ? { messageType: sendOpts.messageType } : {}),
       });
-      socketClient.sendVisitorMessage({
-        conversationId,
-        message: content,
-        currentPageUrl: pageUrl,
-      });
     },
-    [conversationId, resolvePageUrl, socketClient, upsertMessage],
+    [conversationId, resolvePageUrl, upsertMessage],
   );
 
   const emitTyping = useCallback(() => {

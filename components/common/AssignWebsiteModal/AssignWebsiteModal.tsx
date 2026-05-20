@@ -36,11 +36,14 @@ import {
   pickItemsArray,
   toIdNameOption,
 } from "@/app/dashboard/user-page/components/add-user-modal.utils";
+import type { UserRow } from "@/app/dashboard/user-page/types";
 import { extractUsersRows } from "@/app/dashboard/user-page/utils";
+import { useAuth, sessionMayPickInternalUserScope, useResellerListScope } from "@/lib/auth";
 import {
+  buildWebsitesInScopeParams,
   useAssignWebsiteTierMutation,
-  useCompaniesByResellerQuery,
   useCompaniesSetupResellersQuery,
+  useScopedCompanyTreeQuery,
   useUsersListQuery,
   useWebsiteAssignmentsWebsitesQuery,
 } from "@/lib/hooks";
@@ -102,6 +105,29 @@ function firstAvailableRank(keys: string[], ranks: Record<string, Rank>, newKey:
   return found?.value ?? "Primary";
 }
 
+function userRowToAssignRow(row: UserRow): AssignUserRow {
+  const userKind = row.type === "Internal" ? "Internal" : "External";
+  return {
+    rowKey: rowKeyForUser(userKind, row.id),
+    id: row.id,
+    displayName: row.user,
+    email: row.email,
+    department: row.department,
+    userKind,
+  };
+}
+
+function mergeAssignUserRows(...groups: UserRow[][]): AssignUserRow[] {
+  const byKey = new Map<string, AssignUserRow>();
+  for (const rows of groups) {
+    for (const row of rows) {
+      const assignRow = userRowToAssignRow(row);
+      if (!byKey.has(assignRow.rowKey)) byKey.set(assignRow.rowKey, assignRow);
+    }
+  }
+  return [...byKey.values()];
+}
+
 export interface AssignWebsiteModalProps {
   open: boolean;
   onClose: () => void;
@@ -110,6 +136,12 @@ export interface AssignWebsiteModalProps {
 
 export function AssignWebsiteModal({ open, onClose, onAssign }: AssignWebsiteModalProps) {
   const theme = useTheme() as AppTheme;
+  const { isPlatformAdmin, user: authUser } = useAuth();
+  const { canFilterByResellerId, sessionResellerId } = useResellerListScope();
+  const mayListInternalUsers = useMemo(
+    () => sessionMayPickInternalUserScope(isPlatformAdmin, authUser?.userType),
+    [isPlatformAdmin, authUser?.userType],
+  );
   const assignTierMutation = useAssignWebsiteTierMutation();
   /** Bumped when the assign modal closes so an in-flight assign does not toast after cancel. */
   const assignSaveGenerationRef = useRef(0);
@@ -123,6 +155,12 @@ export function AssignWebsiteModal({ open, onClose, onAssign }: AssignWebsiteMod
   const [userSearchApplied, setUserSearchApplied] = useState("");
 
   const [assignment, setAssignment] = useState<AssignmentState>({ keys: [], ranks: {} });
+
+  useEffect(() => {
+    if (open && !canFilterByResellerId && sessionResellerId) {
+      setResellerId(sessionResellerId);
+    }
+  }, [open, canFilterByResellerId, sessionResellerId]);
 
   useEffect(() => {
     if (!open) {
@@ -154,11 +192,14 @@ export function AssignWebsiteModal({ open, onClose, onAssign }: AssignWebsiteMod
 
   const searchParam = userSearchApplied.trim() || undefined;
 
-  const resellersQuery = useCompaniesSetupResellersQuery({ enabled: open });
-  const companiesByResellerQuery = useCompaniesByResellerQuery(
+  const resellersQuery = useCompaniesSetupResellersQuery({
+    enabled: open && canFilterByResellerId,
+  });
+  const companiesTreeQuery = useScopedCompanyTreeQuery(
     resellerId,
-    { view: "tree", sortBy: "name", sortOrder: "asc", all: true },
-    { enabled: open && resellerId.trim().length > 0 },
+    canFilterByResellerId,
+    sessionResellerId,
+    { enabled: open && (canFilterByResellerId ? resellerId.trim().length > 0 : true) },
   );
 
   const resellerOptions = useMemo(() => {
@@ -175,8 +216,10 @@ export function AssignWebsiteModal({ open, onClose, onAssign }: AssignWebsiteMod
   }, [resellerOptions, resellersQuery.isLoading]);
 
   const parentCompanyOptions = useMemo(() => {
-    if (!resellerId.trim()) return [{ value: "", label: "Select reseller first" }];
-    const extracted = extractParentCompaniesFromByResellerTree(companiesByResellerQuery.data).map((o) => ({
+    if (canFilterByResellerId && !resellerId.trim()) {
+      return [{ value: "", label: "Select reseller first" }];
+    }
+    const extracted = extractParentCompaniesFromByResellerTree(companiesTreeQuery.data).map((o) => ({
       value: o.value,
       label: o.label,
     }));
@@ -184,16 +227,18 @@ export function AssignWebsiteModal({ open, onClose, onAssign }: AssignWebsiteMod
     return [
       {
         value: "",
-        label: companiesByResellerQuery.isLoading ? "Loading parent companies…" : "No parent companies available",
+        label: companiesTreeQuery.isLoading ? "Loading parent companies…" : "No parent companies available",
       },
     ];
-  }, [resellerId, companiesByResellerQuery.data, companiesByResellerQuery.isLoading]);
+  }, [canFilterByResellerId, resellerId, companiesTreeQuery.data, companiesTreeQuery.isLoading]);
 
   const childCompanyOptions = useMemo(() => {
-    if (!resellerId.trim()) return [{ value: "", label: "Select reseller first" }];
+    if (canFilterByResellerId && !resellerId.trim()) {
+      return [{ value: "", label: "Select reseller first" }];
+    }
     if (!parentCompanyId.trim()) return [{ value: "", label: "Select parent company first" }];
     const children = extractChildCompanyOptionsForParentFromByResellerTree(
-      companiesByResellerQuery.data,
+      companiesTreeQuery.data,
       parentCompanyId,
     );
     const withAll = [{ value: "", label: "All child companies (optional)" }, ...children];
@@ -201,23 +246,29 @@ export function AssignWebsiteModal({ open, onClose, onAssign }: AssignWebsiteMod
     return [
       {
         value: "",
-        label: companiesByResellerQuery.isLoading ? "Loading child companies…" : "No child companies for this parent",
+        label: companiesTreeQuery.isLoading ? "Loading child companies…" : "No child companies for this parent",
       },
     ];
-  }, [resellerId, parentCompanyId, companiesByResellerQuery.data, companiesByResellerQuery.isLoading]);
+  }, [canFilterByResellerId, resellerId, parentCompanyId, companiesTreeQuery.data, companiesTreeQuery.isLoading]);
 
   const websitesParams = useMemo(
-    () => ({
-      all: true as const,
-      resellerId: resellerId.trim() || undefined,
-      parentCompanyId: parentCompanyId.trim() || undefined,
-      ...(childCompanyId.trim() ? { childCompanyId: childCompanyId.trim() } : {}),
-    }),
-    [resellerId, parentCompanyId, childCompanyId],
+    () =>
+      buildWebsitesInScopeParams({
+        canFilterByResellerId,
+        all: true,
+        resellerId,
+        parentCompanyId,
+        childCompanyId: childCompanyId.trim() || undefined,
+      }),
+    [canFilterByResellerId, resellerId, parentCompanyId, childCompanyId],
   );
 
   const websitesQuery = useWebsiteAssignmentsWebsitesQuery(websitesParams, {
-    enabled: open && resellerId.trim().length > 0 && parentCompanyId.trim().length > 0,
+    allowResellerIdFilter: canFilterByResellerId,
+    enabled:
+      open &&
+      parentCompanyId.trim().length > 0 &&
+      (canFilterByResellerId ? resellerId.trim().length > 0 : true),
   });
 
   const websiteSelectOptions = useMemo(() => {
@@ -241,55 +292,87 @@ export function AssignWebsiteModal({ open, onClose, onAssign }: AssignWebsiteMod
     ];
   }, [websitesQuery.data?.data?.items, websitesQuery.isFetching]);
 
+  const parentCompanyScopeId = parentCompanyId.trim();
+  const externalUsersEnabled = open && parentCompanyScopeId.length > 0;
+
+  /** Internal users: no reseller/parent line — load as soon as the modal opens. */
   const internalUsersQuery = useUsersListQuery(
     {
+      all: true,
       userType: "Internal",
       page: 1,
       limit: MODAL_USER_PAGE_LIMIT,
       search: searchParam,
     },
-    { enabled: open },
+    { enabled: open && mayListInternalUsers },
   );
 
+  /** External users: only after parent company is selected (scoped to that company). */
   const externalUsersQuery = useUsersListQuery(
     {
+      all: true,
       userType: "External",
-      parentCompanyId: parentCompanyId.trim() || undefined,
+      parentCompanyId: parentCompanyScopeId,
       page: 1,
       limit: MODAL_USER_PAGE_LIMIT,
       search: searchParam,
     },
-    { enabled: open && parentCompanyId.trim().length > 0 },
+    { enabled: externalUsersEnabled },
   );
 
   const mergedUserRows = useMemo((): AssignUserRow[] => {
-    const internal = extractUsersRows(internalUsersQuery.data).map((r) => ({
-      rowKey: rowKeyForUser("Internal", r.id),
-      id: r.id,
-      displayName: r.user,
-      email: r.email,
-      department: r.department,
-      userKind: "Internal" as const,
-    }));
-    const parentReady = parentCompanyId.trim().length > 0;
-    const external = parentReady
-      ? extractUsersRows(externalUsersQuery.data).map((r) => ({
-          rowKey: rowKeyForUser("External", r.id),
-          id: r.id,
-          displayName: r.user,
-          email: r.email,
-          department: r.department,
-          userKind: "External" as const,
-        }))
+    const internalRows = mayListInternalUsers
+      ? extractUsersRows(internalUsersQuery.data).filter((r) => r.type === "Internal")
       : [];
-    return [...internal, ...external];
-  }, [internalUsersQuery.data, externalUsersQuery.data, parentCompanyId]);
+    const externalRows = parentCompanyScopeId
+      ? extractUsersRows(externalUsersQuery.data).filter((r) => r.type === "External")
+      : [];
+    return mergeAssignUserRows(internalRows, externalRows).sort((a, b) => {
+      if (a.userKind !== b.userKind) return a.userKind === "Internal" ? -1 : 1;
+      return a.displayName.localeCompare(b.displayName, undefined, { sensitivity: "base" });
+    });
+  }, [externalUsersQuery.data, internalUsersQuery.data, parentCompanyScopeId, mayListInternalUsers]);
 
   const usersLoading =
-    internalUsersQuery.isLoading ||
-    internalUsersQuery.isFetching ||
-    externalUsersQuery.isLoading ||
-    externalUsersQuery.isFetching;
+    (mayListInternalUsers &&
+      (internalUsersQuery.isLoading || internalUsersQuery.isFetching)) ||
+    (externalUsersEnabled &&
+      (externalUsersQuery.isLoading || externalUsersQuery.isFetching));
+
+  const usersEmptyState = useMemo(() => {
+    if (usersLoading) {
+      return { title: "Loading users…", description: "Please wait." };
+    }
+    if (mayListInternalUsers && internalUsersQuery.isError) {
+      return {
+        title: "Could not load Internal users",
+        description: "Check your connection or permissions, then close and reopen this modal.",
+      };
+    }
+    if (!mayListInternalUsers) {
+      return {
+        title: "Select parent company",
+        description:
+          "Your login can assign client (External) users only. Choose parent company above — those users load after that selection.",
+      };
+    }
+    if (!parentCompanyScopeId) {
+      return {
+        title: "No Internal users found",
+        description:
+          "Type Internal = platform team (shown here without parent company). Add them from Dashboard → User page. Client company staff are type External — select parent company above to list them.",
+      };
+    }
+    return {
+      title: "No users in this list",
+      description: "Try Search, or add users from the User page, then open this modal again.",
+    };
+  }, [
+    usersLoading,
+    mayListInternalUsers,
+    parentCompanyScopeId,
+    internalUsersQuery.isError,
+  ]);
 
   const toggleRow = useCallback((rowKey: string) => {
     setAssignment((a) => {
@@ -490,20 +573,22 @@ export function AssignWebsiteModal({ open, onClose, onAssign }: AssignWebsiteMod
       }}
     >
       <Box sx={assignWebsiteFormGridSx}>
-        <SelectField
-          label="Reseller (client)"
-          value={resellerId}
-          onChange={setResellerId}
-          options={resellerSelectOptions}
-          menuMaxRows={8}
-        />
+        {canFilterByResellerId ? (
+          <SelectField
+            label="Reseller (client)"
+            value={resellerId}
+            onChange={setResellerId}
+            options={resellerSelectOptions}
+            menuMaxRows={8}
+          />
+        ) : null}
         <SelectField
           label="Parent company"
           value={parentCompanyId}
           onChange={setParentCompanyId}
           options={parentCompanyOptions}
           menuMaxRows={8}
-          disabled={!resellerId.trim()}
+          disabled={canFilterByResellerId && !resellerId.trim()}
         />
         <SelectField
           label="Child company"
@@ -511,7 +596,9 @@ export function AssignWebsiteModal({ open, onClose, onAssign }: AssignWebsiteMod
           onChange={setChildCompanyId}
           options={childCompanyOptions}
           menuMaxRows={8}
-          disabled={!resellerId.trim() || !parentCompanyId.trim()}
+          disabled={
+            (canFilterByResellerId && !resellerId.trim()) || !parentCompanyId.trim()
+          }
         />
         <SelectField
           label="Website"
@@ -519,7 +606,9 @@ export function AssignWebsiteModal({ open, onClose, onAssign }: AssignWebsiteMod
           onChange={setWebsiteId}
           options={websiteSelectOptions}
           menuMaxRows={10}
-          disabled={!resellerId.trim() || !parentCompanyId.trim()}
+          disabled={
+            !parentCompanyId.trim() || (canFilterByResellerId && !resellerId.trim())
+          }
         />
       </Box>
 
@@ -527,8 +616,10 @@ export function AssignWebsiteModal({ open, onClose, onAssign }: AssignWebsiteMod
         Users to assign
       </Typography>
       <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted, mb: 1, maxWidth: 800 }}>
-        Search internal and external lists. External users load after a parent company is selected. Maximum{" "}
-        {MAX_SELECTED_USERS} users; each rank tier can only belong to one selected user.
+        Assign here: tick users in the table below, set Rank, then Assign. Type Internal = platform team (no parent
+        company needed). Type External = client company users (select parent company first). Maximum{" "}
+        {MAX_SELECTED_USERS} users.
+        {!mayListInternalUsers ? " Your session can assign External users only." : null}
       </Typography>
 
       <DashboardCard sx={assignWebsiteUserListCardSx}>
@@ -580,6 +671,7 @@ export function AssignWebsiteModal({ open, onClose, onAssign }: AssignWebsiteMod
           columns={columns}
           rows={mergedUserRows}
           isLoading={usersLoading}
+          emptyState={usersEmptyState}
           getRowId={(row) => row.rowKey}
           minWidth={640}
           size="medium"

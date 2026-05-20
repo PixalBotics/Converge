@@ -26,11 +26,19 @@ export type WebsiteAssignmentsWebsitesParams = {
 
 export function useWebsiteAssignmentsWebsitesQuery(
   params?: WebsiteAssignmentsWebsitesParams,
-  options?: { enabled?: boolean },
+  options?: { enabled?: boolean; /** Only platform admins may pass `resellerId`. */ allowResellerIdFilter?: boolean },
 ) {
+  const safeParams =
+    options?.allowResellerIdFilter || !params?.resellerId
+      ? params
+      : (() => {
+          const { resellerId: _omit, ...rest } = params;
+          return rest;
+        })();
+
   return useQuery({
-    queryKey: websiteAssignmentsKeys.websites(params),
-    queryFn: () => listWebsitesInScope(params),
+    queryKey: websiteAssignmentsKeys.websites(safeParams),
+    queryFn: () => listWebsitesInScope(safeParams),
     enabled: options?.enabled ?? true,
   });
 }
