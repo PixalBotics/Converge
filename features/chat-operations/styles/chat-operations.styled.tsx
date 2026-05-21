@@ -536,6 +536,26 @@ export const CannedReplyGrid = styled(Box)(({ theme }) => ({
   padding: theme.spacing(1.25, 1.5, 1.5),
 }));
 
+export const CannedReplyCard = styled(Box)(({ theme }) => {
+  const d = dash(theme);
+  return {
+    display: "flex",
+    alignItems: "flex-start",
+    gap: theme.spacing(1),
+    width: "100%",
+    border: `1px solid ${alpha(d.cardBorder, 0.38)}`,
+    borderRadius: 10,
+    padding: theme.spacing(1, 1.25),
+    background: alpha(d.overlayLight, 0.28),
+    transition: "background-color 0.15s ease, border-color 0.15s ease",
+    "&:hover": {
+      background: alpha(d.accentBlue, 0.08),
+      borderColor: alpha(d.accentBlue, 0.35),
+    },
+  };
+});
+
+/** @deprecated Use CannedReplyCard — kept for any external imports */
 export const CannedReplyRow = styled("button")(({ theme }) => {
   const d = dash(theme);
   return {

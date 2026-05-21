@@ -25,6 +25,8 @@ interface ChatComposerProps {
   onStopTyping: () => void;
   disabled?: boolean;
   onInsertCanned: (text: string) => void;
+  websiteId?: string | null;
+  departmentId?: string | null;
   aiMessages: AiChatMessage[];
   aiPrompt: string;
   onAiPromptChange: (value: string) => void;
@@ -43,6 +45,8 @@ export function ChatComposer({
   onStopTyping,
   disabled = false,
   onInsertCanned,
+  websiteId = null,
+  departmentId = null,
   aiMessages,
   aiPrompt,
   onAiPromptChange,
@@ -74,6 +78,8 @@ export function ChatComposer({
     <ComposerWrap>
       <ComposerDrawerTabs
         onInsertCanned={onInsertCanned}
+        websiteId={websiteId}
+        departmentId={departmentId}
         aiMessages={aiMessages}
         aiPrompt={aiPrompt}
         onAiPromptChange={onAiPromptChange}

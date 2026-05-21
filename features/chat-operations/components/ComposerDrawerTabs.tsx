@@ -9,20 +9,20 @@ import Box from "@mui/material/Box";
 import Collapse from "@mui/material/Collapse";
 import IconButton from "@mui/material/IconButton";
 import InputAdornment from "@mui/material/InputAdornment";
-import { useTheme } from "@mui/material/styles";
+import { alpha, useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
-import { Typography } from "@/components/common";
+import { Button, Typography } from "@/components/common";
+import { extractApiErrorMessageForToast } from "@/lib/notify/extract-api-message";
+import Link from "next/link";
 import type { AgentAiAction } from "@/api/ai/agent-suggest.api";
-import type { CannedTabId } from "../constants/canned-messages";
-import {
-  CANNED_TAB_LABELS,
-  getCannedMessagesForTab,
-} from "../constants/canned-messages";
+import type { CannedResponseRow } from "@/services/chat/chat-settings.types";
+import { CANNED_PERSONAL } from "../constants/canned-messages";
 import type { AiChatMessage } from "../types/ai-chat";
+import { useAgentCannedResponses } from "../hooks/useAgentCannedResponses";
 import { AiAssistantDrawer } from "./AiAssistantDrawer";
 import {
+  CannedReplyCard,
   CannedReplyGrid,
-  CannedReplyRow,
   ComposerFooterInner,
   ComposerFooterShell,
   ComposerTextField,
@@ -36,12 +36,18 @@ import {
 } from "../styles/chat-operations.styled";
 
 type DrawerId = "canned" | "ai";
+type CannedTabId = "website" | "shortcuts";
 
-const CANNED_TABS: CannedTabId[] = ["personal", "website", "all"];
+const CANNED_TAB_LABELS: Record<CannedTabId, string> = {
+  website: "Website",
+  shortcuts: "Shortcuts",
+};
 
 interface ComposerDrawerTabsProps {
   children: ReactNode;
   onInsertCanned: (text: string) => void;
+  websiteId?: string | null;
+  departmentId?: string | null;
   aiMessages: AiChatMessage[];
   aiPrompt: string;
   onAiPromptChange: (value: string) => void;
@@ -56,6 +62,8 @@ interface ComposerDrawerTabsProps {
 export function ComposerDrawerTabs({
   children,
   onInsertCanned,
+  websiteId = null,
+  departmentId = null,
   aiMessages,
   aiPrompt,
   onAiPromptChange,
@@ -68,8 +76,11 @@ export function ComposerDrawerTabs({
 }: ComposerDrawerTabsProps) {
   const theme = useTheme() as AppTheme;
   const [openDrawer, setOpenDrawer] = useState<DrawerId | null>(null);
-  const [cannedTab, setCannedTab] = useState<CannedTabId>("personal");
+  const [cannedTab, setCannedTab] = useState<CannedTabId>("website");
   const [cannedFilter, setCannedFilter] = useState("");
+
+  const cannedQuery = useAgentCannedResponses(websiteId);
+  const websiteReady = Boolean(websiteId?.trim());
 
   const toggleDrawer = (id: DrawerId) => {
     setOpenDrawer((prev) => (prev === id ? null : id));
@@ -78,11 +89,22 @@ export function ComposerDrawerTabs({
   const closeDrawer = () => setOpenDrawer(null);
 
   const filteredCanned = useMemo(() => {
-    const base = getCannedMessagesForTab(cannedTab);
     const q = cannedFilter.trim().toLowerCase();
-    if (!q) return base;
-    return base.filter((line) => line.toLowerCase().includes(q));
-  }, [cannedTab, cannedFilter]);
+    if (cannedTab === "shortcuts") {
+      const lines = CANNED_PERSONAL;
+      if (!q) return lines.map((body) => ({ id: body, title: body, body }));
+      return lines
+        .filter((line) => line.toLowerCase().includes(q))
+        .map((body) => ({ id: body, title: body, body }));
+    }
+    const rows: CannedResponseRow[] = cannedQuery.data ?? [];
+    if (!q) return rows;
+    return rows.filter(
+      (r) =>
+        r.title.toLowerCase().includes(q) ||
+        r.body.toLowerCase().includes(q),
+    );
+  }, [cannedTab, cannedFilter, cannedQuery.data]);
 
   return (
     <ComposerFooterShell>
@@ -102,7 +124,7 @@ export function ComposerDrawerTabs({
                 </ComposerToolsHeader>
                 <ComposerToolsBody>
                   <SubTabRow sx={{ px: 1.5, pt: 1.25, mb: 0 }}>
-                    {CANNED_TABS.map((tab) => (
+                    {(["website", "shortcuts"] as CannedTabId[]).map((tab) => (
                       <SubTabButton
                         key={tab}
                         type="button"
@@ -113,6 +135,32 @@ export function ComposerDrawerTabs({
                       </SubTabButton>
                     ))}
                   </SubTabRow>
+                  {cannedTab === "website" && !websiteReady ? (
+                    <Box sx={{ px: 1.5, py: 1 }}>
+                      <Typography
+                        variant="caption"
+                        sx={{ color: theme.app.dashboard.textMuted, display: "block" }}
+                      >
+                        Open a conversation to load canned replies for that website (saved in Chat
+                        settings → Canned messages).
+                      </Typography>
+                    </Box>
+                  ) : null}
+                  {cannedTab === "website" && websiteReady && cannedQuery.isLoading ? (
+                    <Typography variant="caption" sx={{ px: 1.5, py: 1, color: theme.app.dashboard.textMuted }}>
+                      Loading website replies…
+                    </Typography>
+                  ) : null}
+                  {cannedTab === "website" && websiteReady && cannedQuery.isError ? (
+                    <Typography variant="caption" sx={{ px: 1.5, py: 1, color: theme.palette.error.main }}>
+                      {extractApiErrorMessageForToast(
+                        cannedQuery.error,
+                        "Could not load canned replies.",
+                      )}{" "}
+                      Ensure your role has chat:access, you are assigned to this website
+                      (Primary/Secondary/Backup), and canned messages exist in Chat settings.
+                    </Typography>
+                  ) : null}
                   <Box sx={{ px: 1.5, pb: 1 }}>
                     <ComposerTextField
                       fullWidth
@@ -131,21 +179,77 @@ export function ComposerDrawerTabs({
                   </Box>
                   <CannedReplyGrid>
                     {filteredCanned.length === 0 ? (
-                      <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, px: 0.5 }}>
-                        No matching replies
-                      </Typography>
+                      <Box sx={{ px: 0.5, py: 1 }}>
+                        <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, display: "block", mb: 1 }}>
+                          {cannedTab === "website" && websiteReady
+                            ? "No canned messages for this website yet."
+                            : "No matching replies"}
+                        </Typography>
+                        {cannedTab === "website" && websiteReady ? (
+                          <Button
+                            type="button"
+                            variant="outlined"
+                            size="small"
+                            component={Link}
+                            href="/dashboard/chat-settings?tab=canned"
+                          >
+                            Manage canned messages
+                          </Button>
+                        ) : null}
+                      </Box>
                     ) : (
-                      filteredCanned.map((line) => (
-                        <CannedReplyRow
-                          key={line}
-                          type="button"
-                          onClick={() => {
-                            onInsertCanned(line);
-                            closeDrawer();
-                          }}
-                        >
-                          {line}
-                        </CannedReplyRow>
+                      filteredCanned.map((item) => (
+                        <CannedReplyCard key={item.id}>
+                          <Box sx={{ flex: 1, minWidth: 0 }}>
+                            {item.title && item.title !== item.body ? (
+                              <Typography
+                                component="span"
+                                sx={{
+                                  display: "block",
+                                  fontWeight: 700,
+                                  fontSize: 12,
+                                  mb: 0.35,
+                                  color: theme.app.dashboard.accentBlue,
+                                }}
+                              >
+                                {item.title}
+                              </Typography>
+                            ) : null}
+                            <Typography
+                              component="span"
+                              sx={{
+                                fontSize: 13,
+                                lineHeight: 1.45,
+                                display: "block",
+                                whiteSpace: "pre-wrap",
+                                color: theme.app.text.primary,
+                              }}
+                            >
+                              {item.body}
+                            </Typography>
+                          </Box>
+                          <Button
+                            type="button"
+                            variant="outlined"
+                            size="small"
+                            sx={{
+                              flexShrink: 0,
+                              minWidth: 72,
+                              fontSize: 12,
+                              fontWeight: 600,
+                              py: 0.5,
+                              borderColor: alpha(theme.app.dashboard.accentBlue, 0.5),
+                              color: theme.app.dashboard.accentBlue,
+                              "&:hover": {
+                                borderColor: theme.app.dashboard.accentBlue,
+                                bgcolor: alpha(theme.app.dashboard.accentBlue, 0.12),
+                              },
+                            }}
+                            onClick={() => onInsertCanned(item.body)}
+                          >
+                            Insert
+                          </Button>
+                        </CannedReplyCard>
                       ))
                     )}
                   </CannedReplyGrid>

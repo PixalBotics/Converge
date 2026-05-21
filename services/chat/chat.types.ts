@@ -1,5 +1,18 @@
 export type ChatParticipantRole = "visitor" | "agent" | "system";
 
+/** Backend `AgentVisitorPresentation` — lists, popups, monitor rows. */
+export interface AgentVisitorPresentation {
+  visitorProfileComplete: boolean;
+  displayName: string;
+  subtitle: string | null;
+  originLabel: string;
+  locationLabel: string | null;
+  inboxTitle: string;
+  websiteName: string;
+  childCompanyName: string;
+  websiteUrl: string;
+}
+
 /** Unified client chat message shape (REST + realtime). */
 export interface ChatMessage {
   id?: string;
@@ -60,6 +73,7 @@ export interface ConversationSummary {
   id: string;
   conversationId?: string;
   websiteId?: string;
+  departmentId?: string | null;
   status?: "assigned" | "waiting" | "active" | "closed" | string;
   visitorId?: string;
   assignedAgentId?: string | null;
@@ -67,6 +81,7 @@ export interface ConversationSummary {
   lastMessageAt?: string;
   unreadCount?: number;
   visitor?: Record<string, unknown>;
+  visitorPresentation?: AgentVisitorPresentation;
   [key: string]: unknown;
 }
 

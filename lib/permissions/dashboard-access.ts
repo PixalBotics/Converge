@@ -24,6 +24,7 @@ export function getVisibleDashboardNavItems(opts: {
   section: DashboardNavSection;
   rbacEnabled: boolean;
   pagePermissionSet: Set<string>;
+  operationalPermissionSet?: Set<string>;
   isDemoUser: boolean;
   /** When true with RBAC on, show the full module tree (same as RBAC off) — aligned with `useAuth().hasPage` bypass. */
   isPlatformAdmin?: boolean;
@@ -47,6 +48,11 @@ export function getVisibleDashboardNavItems(opts: {
     if (!item.children?.length) return item;
     const children = item.children.filter((ch) => {
       if (!rbacFiltersNav) return true;
+      if (ch.operationalAny?.length) {
+        const ops = opts.operationalPermissionSet;
+        if (!ops?.size) return false;
+        return ch.operationalAny.some((p) => ops.has(p));
+      }
       if (!ch.permission) return true;
       return hasPagePermission(opts.pagePermissionSet, ch.permission);
     });

@@ -1,4 +1,5 @@
 import type {
+  AgentVisitorPresentation,
   ConversationHistoryResponse,
   ConversationSummary,
 } from "./chat.types";
@@ -17,11 +18,16 @@ export function normalizeConversationSummary(raw: unknown): ConversationSummary 
       : typeof o.website_id === "string"
         ? o.website_id
         : undefined;
+  const visitorPresentation =
+    typeof o.visitorPresentation === "object" && o.visitorPresentation !== null
+      ? (o.visitorPresentation as AgentVisitorPresentation)
+      : undefined;
   return {
     ...(o as ConversationSummary),
     id,
     conversationId: id || undefined,
     websiteId,
+    ...(visitorPresentation ? { visitorPresentation } : {}),
   };
 }
 

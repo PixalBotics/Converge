@@ -45,6 +45,11 @@ export type DashboardNavItem = {
    * Ignored when `permission` is set (flat items use `permission` only).
    */
   permissionsAny?: string[];
+  /**
+   * Child row only: show when user has any listed operational permission (OR).
+   * Used for Chat Monitor under `page:chat` without a separate page key.
+   */
+  operationalAny?: string[];
   /** Nested links (e.g. Departments + Designations under one sidebar dropdown). */
   children?: DashboardNavItem[];
 };

@@ -17,7 +17,7 @@ export const APP_PATHS = {
 } as const;
 
 /** Extra prefixes that skip `/auth/me` hydrate (not in `AUTH_PATHS`). */
-const EXTRA_SKIP_REMOTE_AUTH_PREFIXES = ["/signup"] as const;
+const EXTRA_SKIP_REMOTE_AUTH_PREFIXES = ["/signup", "/chat/guest"] as const;
 
 const SKIP_REMOTE_AUTH_PREFIXES: readonly string[] = [
   ...Object.values(AUTH_PATHS),

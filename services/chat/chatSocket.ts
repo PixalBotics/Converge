@@ -14,20 +14,38 @@ import type {
 } from "./chat.types";
 import { normalizeServerMessage } from "./normalize-message";
 
+export interface MonitorLiveUpdatePayload {
+  event: string;
+  conversationId: string;
+  payload: unknown;
+}
+
 type ChatEventMap = {
   connected: (payload: unknown) => void;
   joined_room: (payload: JoinLeaveRoomPayload) => void;
   left_room: (payload: JoinLeaveRoomPayload) => void;
   visitor_message: (payload: ChatMessage) => void;
   agent_message: (payload: ChatMessage) => void;
-  /** Server-persisted AI pipeline message (senderType ai). */
   ai_message: (payload: ChatMessage) => void;
+  ai_reply_delta: (payload: unknown) => void;
   typing: (payload: TypingPayload) => void;
   stop_typing: (payload: TypingPayload) => void;
   chat_assigned: (payload: unknown) => void;
+  chat_queued: (payload: unknown) => void;
+  chat_resumed: (payload: unknown) => void;
   chat_closed: (payload: unknown) => void;
-  agent_assignment_popup: (payload: unknown) => void;
+  chat_completed: (payload: unknown) => void;
   chat_transferred: (payload: unknown) => void;
+  chat_whisper: (payload: unknown) => void;
+  takeover_requested: (payload: unknown) => void;
+  takeover_update: (payload: unknown) => void;
+  agent_wrap_up_form: (payload: unknown) => void;
+  agent_wrap_up_required: (payload: unknown) => void;
+  agent_wrap_up_submitted: (payload: unknown) => void;
+  agent_assignment_popup: (payload: unknown) => void;
+  agent_queue_popup: (payload: unknown) => void;
+  monitor_live_update: (payload: MonitorLiveUpdatePayload) => void;
+  visitor_profile_updated: (payload: unknown) => void;
   chat_handover: (payload: unknown) => void;
 };
 
@@ -164,18 +182,70 @@ export class ChatSocketClient {
     return this.on("stop_typing", listener as (payload: unknown) => void);
   }
 
+  onAiReplyDelta(listener: ChatEventMap["ai_reply_delta"]): () => void {
+    return this.on("ai_reply_delta", listener);
+  }
+
   onChatAssigned(listener: ChatEventMap["chat_assigned"]): () => void {
     return this.on("chat_assigned", listener);
+  }
+
+  onChatQueued(listener: ChatEventMap["chat_queued"]): () => void {
+    return this.on("chat_queued", listener);
+  }
+
+  onChatResumed(listener: ChatEventMap["chat_resumed"]): () => void {
+    return this.on("chat_resumed", listener);
   }
 
   onChatClosed(listener: ChatEventMap["chat_closed"]): () => void {
     return this.on("chat_closed", listener);
   }
 
+  onChatCompleted(listener: ChatEventMap["chat_completed"]): () => void {
+    return this.on("chat_completed", listener);
+  }
+
+  onChatWhisper(listener: ChatEventMap["chat_whisper"]): () => void {
+    return this.on("chat_whisper", listener);
+  }
+
+  onTakeoverRequested(listener: ChatEventMap["takeover_requested"]): () => void {
+    return this.on("takeover_requested", listener);
+  }
+
+  onTakeoverUpdate(listener: ChatEventMap["takeover_update"]): () => void {
+    return this.on("takeover_update", listener);
+  }
+
+  onAgentWrapUpForm(listener: ChatEventMap["agent_wrap_up_form"]): () => void {
+    return this.on("agent_wrap_up_form", listener);
+  }
+
+  onAgentWrapUpRequired(listener: ChatEventMap["agent_wrap_up_required"]): () => void {
+    return this.on("agent_wrap_up_required", listener);
+  }
+
+  onAgentWrapUpSubmitted(listener: ChatEventMap["agent_wrap_up_submitted"]): () => void {
+    return this.on("agent_wrap_up_submitted", listener);
+  }
+
   onAgentAssignmentPopup(
     listener: ChatEventMap["agent_assignment_popup"],
   ): () => void {
     return this.on("agent_assignment_popup", listener);
+  }
+
+  onAgentQueuePopup(listener: ChatEventMap["agent_queue_popup"]): () => void {
+    return this.on("agent_queue_popup", listener);
+  }
+
+  onMonitorLiveUpdate(listener: ChatEventMap["monitor_live_update"]): () => void {
+    return this.on("monitor_live_update", listener);
+  }
+
+  onVisitorProfileUpdated(listener: ChatEventMap["visitor_profile_updated"]): () => void {
+    return this.on("visitor_profile_updated", listener);
   }
 
   onChatTransferred(listener: ChatEventMap["chat_transferred"]): () => void {

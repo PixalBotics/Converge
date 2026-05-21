@@ -14,15 +14,27 @@ type OperationalViewGateProps = {
  * for the current dashboard path; otherwise shows a single clear message instead of empty tables.
  */
 export function OperationalViewGate({ pathname, children }: OperationalViewGateProps) {
-  const { rbacEnabled, permissionsSyncing, hasOperational, isPlatformAdmin } = useAuth();
+  const { rbacEnabled, permissionsSyncing, hasOperational, hasPage, isPlatformAdmin } = useAuth();
 
   if (!rbacEnabled || permissionsSyncing || isPlatformAdmin) {
     return children;
   }
 
-  if (userSatisfiesOperationalViewForDashboardPath(hasOperational, pathname)) {
+  if (userSatisfiesOperationalViewForDashboardPath(hasOperational, pathname, hasPage)) {
     return children;
   }
 
-  return <PermissionDeniedPanel />;
+  const isAgentInbox =
+    pathname === "/dashboard/chat-operations" ||
+    pathname.startsWith("/dashboard/chat-operations/");
+
+  return (
+    <PermissionDeniedPanel
+      description={
+        isAgentInbox
+          ? "Agent inbox needs operational permission chat:access (or page:chat on your role). In Roles, add chat:access under Operational permissions, then sign out and back in."
+          : undefined
+      }
+    />
+  );
 }

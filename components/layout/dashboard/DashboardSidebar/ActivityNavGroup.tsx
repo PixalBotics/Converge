@@ -20,6 +20,7 @@ import {
   navTypographyBase,
 } from "./styles/sidebar.styles";
 import { sidebarNavLabel } from "./dashboard-sidebar.labels";
+import { NavItemBadge } from "./NavItemBadge";
 
 type NavTextProps = typeof navTypographyBase;
 
@@ -73,7 +74,15 @@ export function ActivityNavGroup({
                 <ListItemIcon sx={selected ? listIconSelectedSx : listIconDefaultSx}>
                   <SidebarReactIcon iconKey={ch.iconKey} />
                 </ListItemIcon>
-                <ListItemText primary={sidebarNavLabel(ch.label)} primaryTypographyProps={navTextProps} />
+                <ListItemText
+                  primary={
+                    <Box component="span" sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+                      {sidebarNavLabel(ch.label)}
+                      <NavItemBadge href={ch.href} />
+                    </Box>
+                  }
+                  primaryTypographyProps={navTextProps}
+                />
               </ListItemButton>
             );
           })}

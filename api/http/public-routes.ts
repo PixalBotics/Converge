@@ -5,9 +5,19 @@ import { pathFromConfig } from "./http-path";
  * Routes that must not send Bearer and must not trigger refresh-retry logic
  * (except refresh itself, which clears session on failure).
  */
+/** Guest link REST — uses guest JWT from the caller, not dashboard session. */
+export function isGuestChatRoute(config: InternalAxiosRequestConfig): boolean {
+  const path = pathFromConfig(config);
+  return path.startsWith("/chat/guest");
+}
+
 export function isPublicAuthRoute(config: InternalAxiosRequestConfig): boolean {
   const method = (config.method ?? "get").toLowerCase();
   const path = pathFromConfig(config);
+
+  if (isGuestChatRoute(config)) {
+    return true;
+  }
 
   if (method === "get" && (path === "/health" || path.endsWith("/health"))) {
     return true;

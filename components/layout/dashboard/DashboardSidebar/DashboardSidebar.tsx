@@ -10,7 +10,11 @@ import IconButton from "@mui/material/IconButton";
 import { Close as CloseIcon } from "@mui/icons-material";
 import { logoSvg } from "@/assets";
 import { useAuth } from "@/lib/auth";
-import { PERMISSION_BUCKET_PAGE, toPermissionSet } from "@/lib/auth/permissions-model";
+import {
+  PERMISSION_BUCKET_OPERATIONAL,
+  PERMISSION_BUCKET_PAGE,
+  toPermissionSet,
+} from "@/lib/auth/permissions-model";
 import { getVisibleDashboardNavItems } from "@/lib/permissions";
 import type { AppTheme } from "@/theme/theme";
 import {
@@ -45,12 +49,16 @@ export default function DashboardSidebar({ open = false, onClose }: { open?: boo
     ...navTypographyBase,
   };
   const pagePermissionSet = toPermissionSet(permissionsByType?.[PERMISSION_BUCKET_PAGE]);
+  const operationalPermissionSet = toPermissionSet(
+    permissionsByType?.[PERMISSION_BUCKET_OPERATIONAL],
+  );
   const pagePermsRaw = permissionsByType?.[PERMISSION_BUCKET_PAGE];
 
   const activityItems = getVisibleDashboardNavItems({
     section: "activity",
     rbacEnabled,
     pagePermissionSet,
+    operationalPermissionSet,
     isDemoUser,
     isPlatformAdmin,
   });
@@ -58,6 +66,7 @@ export default function DashboardSidebar({ open = false, onClose }: { open?: boo
     section: "footer",
     rbacEnabled,
     pagePermissionSet,
+    operationalPermissionSet,
     isDemoUser,
     isPlatformAdmin,
   });

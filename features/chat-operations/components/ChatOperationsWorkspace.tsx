@@ -1,13 +1,26 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import Box from "@mui/material/Box";
 import { getAccessToken, postAgentAiSuggestion, formatAgentSuggestResponse } from "@/api";
 import type { AgentAiAction } from "@/api/ai/agent-suggest.api";
 import { useAuth } from "@/lib/auth";
+import { canAccessChatInbox } from "@/lib/permissions/chat-access";
+import { useNotificationsContext } from "@/lib/notifications/NotificationsContext";
 import { useAgentChat } from "@/lib/hooks/chat/useAgentChat";
-import type { ConversationSummary } from "@/services/chat/chat.types";
-import { postAgentWebsiteAvailabilityCheck } from "@/services/chat/chatApi";
+import { useWebsiteChatDefaults } from "../hooks/useWebsiteChatDefaults";
+import {
+  ChatLivePageHeader,
+  ChatScopeFiltersPanel,
+  conversationMatchesScope,
+  useChatScopeFilters,
+} from "@/features/chat-shared";
+import { chatLiveFilterCardSx, chatLivePageStackSx } from "@/features/chat-shared/styles/chat-live.styles";
+import type { AgentVisitorPresentation, ConversationSummary } from "@/services/chat/chat.types";
+import { extractVisitorPresentation } from "@/services/chat/visitor-presentation";
+import type { ChatQueueTab } from "./ChatQueueSidebar";
+import { postAgentWebsiteAvailabilityCheck } from "@/services/chat/agent-inbox.api";
 import type { AiChatMessage } from "../types/ai-chat";
 import {
   getConversationAiState,
@@ -15,6 +28,7 @@ import {
   patchConversationAiState,
   patchConversationDraft,
 } from "../utils/conversation-scoped-state";
+import { AgentWrapUpModal } from "./AgentWrapUpModal";
 import { ChatConversationPanel } from "./ChatConversationPanel";
 import { ChatQueueSidebar } from "./ChatQueueSidebar";
 import { VisitorInfoPanel } from "./VisitorInfoPanel";
@@ -34,21 +48,43 @@ function needsWebsite(action: AgentAiAction): boolean {
 }
 
 export function ChatOperationsWorkspace() {
-  const { user } = useAuth();
+  const { user, hasOperational, hasPage } = useAuth();
+  const notifications = useNotificationsContext();
+  const searchParams = useSearchParams();
+  const inboxAllowed = canAccessChatInbox(hasOperational, hasPage);
   const accessToken = getAccessToken() ?? "";
+  const scopeFilters = useChatScopeFilters();
+  const conversationIdFromUrl = searchParams.get("conversationId")?.trim() ?? "";
+
+  useEffect(() => {
+    if (inboxAllowed) {
+      void notifications?.markAllRead("chat");
+    }
+  }, [inboxAllowed, notifications]);
 
   const agentChat = useAgentChat({
-    token: accessToken,
+    token: inboxAllowed ? accessToken : "",
     agentId: user?.id,
   });
 
-  const [queueTab, setQueueTab] = useState<"active" | "waiting">("active");
+  const [queueTab, setQueueTab] = useState<ChatQueueTab>("active");
   const [draftsByConversation, setDraftsByConversation] = useState<Record<string, string>>({});
   const [aiByConversation, setAiByConversation] = useState<
     Record<string, { messages: AiChatMessage[]; prompt: string; busy: boolean }>
   >({});
   const [fallbackWebsiteId, setFallbackWebsiteId] = useState("");
   const [availabilityHint, setAvailabilityHint] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!inboxAllowed || !conversationIdFromUrl) return;
+    if (agentChat.selectedConversationId === conversationIdFromUrl) return;
+    void agentChat.selectConversation(conversationIdFromUrl);
+  }, [
+    agentChat.selectConversation,
+    agentChat.selectedConversationId,
+    conversationIdFromUrl,
+    inboxAllowed,
+  ]);
 
   const composer = getConversationDraft(
     draftsByConversation,
@@ -62,19 +98,63 @@ export function ChatOperationsWorkspace() {
   const aiPrompt = aiState.prompt;
   const aiBusy = aiState.busy;
 
-  const list: ConversationSummary[] =
-    queueTab === "active" ? agentChat.activeChats : agentChat.waitingChats;
+  const filterByScope = useCallback(
+    (rows: ConversationSummary[]) =>
+      rows.filter((c) =>
+        conversationMatchesScope(c, scopeFilters.filters, scopeFilters.websiteIdsInScope),
+      ),
+    [scopeFilters.filters, scopeFilters.websiteIdsInScope],
+  );
 
-  const selectedSummary = list.find((c) => c.id === agentChat.selectedConversationId);
+  const activeFiltered = useMemo(
+    () => filterByScope(agentChat.activeChats),
+    [agentChat.activeChats, filterByScope],
+  );
+  const waitingFiltered = useMemo(
+    () => filterByScope(agentChat.waitingChats),
+    [agentChat.waitingChats, filterByScope],
+  );
+  const closedFiltered = useMemo(
+    () => filterByScope(agentChat.closedChats),
+    [agentChat.closedChats, filterByScope],
+  );
+
+  const list: ConversationSummary[] =
+    queueTab === "active"
+      ? activeFiltered
+      : queueTab === "waiting"
+        ? waitingFiltered
+        : closedFiltered;
+
+  const selectedSummary =
+    [...agentChat.activeChats, ...agentChat.waitingChats, ...agentChat.closedChats].find(
+      (c) => c.id === agentChat.selectedConversationId,
+    ) ?? list.find((c) => c.id === agentChat.selectedConversationId);
+
+  const visitorPresentation: AgentVisitorPresentation | null = selectedSummary
+    ? extractVisitorPresentation(selectedSummary)
+    : null;
   const conversationMeta =
     selectedSummary && typeof selectedSummary === "object"
       ? (selectedSummary as Record<string, unknown>)
       : null;
   const assignedAgentLabel = user?.displayName?.trim() || user?.email?.trim() || "You";
+  const assignedAgentId =
+    typeof selectedSummary?.assignedAgentId === "string"
+      ? selectedSummary.assignedAgentId
+      : null;
   const websiteIdEffective =
     (typeof selectedSummary?.websiteId === "string" ? selectedSummary.websiteId : "").trim() ||
     fallbackWebsiteId.trim() ||
     "";
+  const websiteDefaults = useWebsiteChatDefaults(websiteIdEffective || null);
+  const departmentIdEffective =
+    (typeof selectedSummary?.departmentId === "string"
+      ? selectedSummary.departmentId
+      : typeof conversationMeta?.departmentId === "string"
+        ? conversationMeta.departmentId
+        : ""
+    ).trim() || websiteDefaults.data?.defaultDepartmentId || null;
 
   useEffect(() => {
     if (!accessToken || !websiteIdEffective.trim()) {
@@ -221,14 +301,45 @@ export function ChatOperationsWorkspace() {
   };
 
   const handleSelectConversation = (id: string) => {
-    void agentChat.selectConversation(id);
+    void agentChat.selectConversation(id, { readOnly: queueTab === "closed" });
   };
 
-  const activeCount = agentChat.activeChats.length;
-  const waitingCount = agentChat.waitingChats.length;
+  if (!inboxAllowed) {
+    return (
+      <Box sx={chatOpsPageWrapper}>
+        <Typography sx={{ py: 4 }}>
+          You need chat access to use the agent inbox. Ask an administrator to grant operational{" "}
+          <code>chat:access</code> (or page <code>page:chat</code>) on your role, then sign out and
+          back in.
+        </Typography>
+      </Box>
+    );
+  }
+
+  const canPickWaiting = !agentChat.atActiveCap;
+  const canSend =
+    Boolean(agentChat.selectedConversationId && accessToken) &&
+    !agentChat.selectedIsClosed;
 
   return (
-    <Box sx={chatOpsPageWrapper}>
+    <Box sx={[chatOpsPageWrapper, chatLivePageStackSx]}>
+      <ChatLivePageHeader
+        title="Agent inbox"
+        subtitle="Reply to visitors, use department canned responses, and close chats with wrap-up when required."
+      />
+      <Box sx={chatLiveFilterCardSx}>
+        <ChatScopeFiltersPanel
+          filters={scopeFilters.filters}
+          onPatch={scopeFilters.patchFilters}
+          onReset={scopeFilters.resetFilters}
+          canFilterByResellerId={scopeFilters.canFilterByResellerId}
+          resellerOptions={scopeFilters.resellerOptions}
+          parentCompanyOptions={scopeFilters.parentCompanyOptions}
+          childCompanyOptions={scopeFilters.childCompanyOptions}
+          websiteOptions={scopeFilters.websiteOptions}
+          hint="Filter your queue by organization and website. Tabs show counts for the current filters."
+        />
+      </Box>
       <Box sx={chatOpsWorkspaceShell}>
         <Box sx={chatOpsWorkspaceGrid}>
           <Box data-chat-pane="inbox">
@@ -238,10 +349,13 @@ export function ChatOperationsWorkspace() {
               conversations={list}
               selectedConversationId={agentChat.selectedConversationId}
               onSelectConversation={handleSelectConversation}
-              activeCount={activeCount}
-              waitingCount={waitingCount}
+              activeCount={activeFiltered.length}
+              waitingCount={waitingFiltered.length}
+              closedCount={closedFiltered.length}
               connected={agentChat.isConnected}
               hasToken={Boolean(accessToken)}
+              atActiveCap={agentChat.atActiveCap}
+              canPickWaiting={canPickWaiting}
             />
           </Box>
 
@@ -251,16 +365,22 @@ export function ChatOperationsWorkspace() {
               messages={agentChat.messages}
               visitor={agentChat.visitorFromHistory}
               conversationMeta={conversationMeta}
+              visitorPresentation={visitorPresentation}
+              readOnly={agentChat.selectedIsClosed}
               assignedAgentLabel={assignedAgentLabel}
-              visitorTyping={agentChat.visitorTypingSelected}
+              visitorTyping={agentChat.visitorTypingSelected && !agentChat.selectedIsClosed}
               composer={composer}
               onComposerChange={setComposer}
               onSend={() => void sendNow()}
               onTyping={agentChat.emitTyping}
               onStopTyping={agentChat.emitStopTyping}
               onInsertCanned={pushCannedToComposer}
-              onCloseChat={() => void agentChat.closeSelectedConversation()}
-              canSend={Boolean(agentChat.selectedConversationId && accessToken)}
+              onCloseChat={
+                agentChat.selectedIsClosed
+                  ? undefined
+                  : () => void agentChat.closeSelectedConversation()
+              }
+              canSend={canSend}
               aiMessages={aiMessages}
               aiPrompt={aiPrompt}
               onAiPromptChange={setAiPrompt}
@@ -271,6 +391,11 @@ export function ChatOperationsWorkspace() {
               availabilityHint={
                 availabilityHint && websiteIdEffective ? availabilityHint : null
               }
+              websiteId={websiteIdEffective || null}
+              departmentId={departmentIdEffective}
+              activeWhisper={agentChat.activeWhisper}
+              onApplyWhisperToComposer={applyAiToComposer}
+              onDismissWhisper={agentChat.dismissWhisper}
             />
           </Box>
 
@@ -279,6 +404,12 @@ export function ChatOperationsWorkspace() {
               visitor={agentChat.visitorFromHistory}
               conversationId={agentChat.selectedConversationId}
               conversationMeta={conversationMeta}
+              visitorPresentation={visitorPresentation}
+              assignedAgentId={assignedAgentId}
+              currentUserId={user?.id}
+              hasOperational={hasOperational}
+              supervisorRefreshToken={agentChat.supervisorRefreshToken}
+              supervisorReadOnly={agentChat.selectedIsClosed}
               showWebsiteFallback={Boolean(
                 agentChat.selectedConversationId && !selectedSummary?.websiteId,
               )}
@@ -288,6 +419,16 @@ export function ChatOperationsWorkspace() {
           </Box>
         </Box>
       </Box>
+
+      <AgentWrapUpModal
+        open={Boolean(agentChat.pendingWrapUp)}
+        payload={agentChat.pendingWrapUp}
+        onClose={agentChat.dismissWrapUp}
+        onSubmitted={() => {
+          agentChat.dismissWrapUp();
+          void agentChat.refreshQueues();
+        }}
+      />
     </Box>
   );
 }

@@ -9,6 +9,7 @@ import { AUTH_PATHS, useAuth } from "@/lib/auth";
 import { PERMISSION_BUCKET_PAGE, toPermissionSet } from "@/lib/auth/permissions-model";
 import { canAccessDashboardPath, getFirstAccessibleDashboardPath } from "@/lib/permissions";
 import { DashboardSidebar, DashboardHeader, OperationalViewGate } from "@/components/layout/dashboard";
+import { AgentDashboardProviders } from "@/components/notifications/AgentDashboardProviders";
 import { dashboardMainGlassSx, dashboardMainTextSx } from "./dashboard.styles";
 import { mainBackgroundGradient } from "@/theme/theme";
 
@@ -129,6 +130,7 @@ export default function DashboardLayoutClient({
   }
 
   return (
+    <AgentDashboardProviders>
     <Box
       sx={{
         display: "flex",
@@ -164,5 +166,6 @@ export default function DashboardLayoutClient({
         </Box>
       </Box>
     </Box>
+    </AgentDashboardProviders>
   );
 }

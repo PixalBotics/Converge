@@ -1,10 +1,85 @@
 import type { DashboardNavItem } from "./dashboard-nav.types";
+import { OP } from "./operational-keys";
 import {
   COMMERCIAL_PAGE_PERMISSIONS,
   PAGE_PERMISSION_ORDER,
   firstCommercialPageInNavOrder,
   toNavItem,
 } from "./dashboard-route-table";
+
+const CHAT_MONITOR_OPERATIONAL_ANY = [
+  OP.chat.audit,
+  OP.chat.auditPlatform,
+  OP.chat.monitorPool,
+  OP.chat.monitorDepartment,
+  OP.chat.monitorParentCompany,
+] as const;
+
+const CHAT_QA_OPERATIONAL_ANY = [
+  OP.qa.chatReview,
+  OP.qa.chatReviewMessage,
+  OP.qa.chatReviewSession,
+  OP.qa.chatAssign,
+] as const;
+
+const CHAT_GROUP: DashboardNavItem = {
+  href: "/dashboard/chat-operations",
+  label: "Live chat",
+  section: "activity",
+  iconKey: "chat",
+  permission: null,
+  permissionsAny: ["page:chat", "page:chat-widget"],
+  children: [
+    {
+      ...toNavItem("page:chat")!,
+      label: "Agent inbox",
+      href: "/dashboard/chat-operations",
+      prefixMatch: true,
+      operationalAny: [OP.chat.access],
+    },
+    {
+      href: "/dashboard/chat-monitor",
+      label: "Monitor",
+      section: "activity",
+      iconKey: "chat",
+      permission: "page:chat",
+      prefixMatch: true,
+      operationalAny: [...CHAT_MONITOR_OPERATIONAL_ANY],
+    },
+    {
+      href: "/dashboard/chat-qa",
+      label: "QA inbox",
+      section: "activity",
+      iconKey: "chat",
+      permission: "page:chat",
+      prefixMatch: true,
+      operationalAny: [...CHAT_QA_OPERATIONAL_ANY],
+    },
+    {
+      href: "/dashboard/chat-reports",
+      label: "Chat reports",
+      section: "activity",
+      iconKey: "reports",
+      permission: "page:chat",
+      prefixMatch: true,
+      operationalAny: [OP.chat.reportView],
+    },
+    {
+      ...toNavItem("page:chat-widget")!,
+      label: "Widget",
+      href: "/dashboard/chat-widget",
+      prefixMatch: true,
+    },
+    {
+      href: "/dashboard/chat-settings",
+      label: "Chat settings",
+      section: "activity",
+      iconKey: "chatWidget",
+      permission: "page:chat-widget",
+      prefixMatch: true,
+    },
+  ],
+};
 
 export const ALWAYS_VISIBLE_NAV_ITEMS: readonly DashboardNavItem[] = [
   {
@@ -211,6 +286,8 @@ export const DASHBOARD_NAV_ITEMS: readonly DashboardNavItem[] = PAGE_PERMISSION_
   if (permission === "page:website-assignments") return [WEBSITE_GROUP];
   if (permission === "page:users") return [USERS_GROUP];
   if (permission === "page:hrms") return [HRMS_GROUP];
+  if (permission === "page:chat") return [CHAT_GROUP];
+  if (permission === "page:chat-widget") return [];
   if (permission === "page:pools") return [];
   if (permission === "page:shifts") return [SHIFTS_GROUP];
   if (COMMERCIAL_PAGE_PERMISSIONS.includes(permission)) {

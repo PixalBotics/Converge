@@ -293,6 +293,19 @@ export function hasPagePermission(pagePerms: Set<string>, required: string): boo
   return pagePerms.has(required);
 }
 
+/** Backend / legacy role payloads sometimes use alternate spellings for the same operational grant. */
+const OPERATIONAL_PERMISSION_ALIASES: Record<string, string> = {
+  "chat.access": "chat:access",
+  chat_access: "chat:access",
+  CHAT_ACCESS: "chat:access",
+  "chat-widget.view": "chat-widget:view",
+  "chat-widget.update": "chat-widget:update",
+};
+
 export function hasOperationalPermission(opPerms: Set<string>, required: string): boolean {
-  return opPerms.has(required);
+  if (opPerms.has(required)) return true;
+  for (const [alias, canonical] of Object.entries(OPERATIONAL_PERMISSION_ALIASES)) {
+    if (canonical === required && opPerms.has(alias)) return true;
+  }
+  return false;
 }

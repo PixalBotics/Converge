@@ -6,7 +6,6 @@ import type { AppTheme } from "@/theme/theme";
 import { Typography } from "@/components/common";
 import { chatOpsConnectionPillSx } from "../styles/chat-operations.styles";
 
-const QUEUE_POLL_SEC = 12;
 
 interface ConnectionStatusBarProps {
   connected: boolean;
@@ -38,7 +37,7 @@ export function ConnectionStatusBar({ connected, hasToken }: ConnectionStatusBar
         {connected ? "Live" : "Offline"}
       </Box>
       <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted }}>
-        {connected ? `Queue refreshes every ${QUEUE_POLL_SEC}s` : "Reconnecting…"}
+        {connected ? "Realtime updates on · backup sync ~60s" : "Reconnecting…"}
       </Typography>
     </Box>
   );

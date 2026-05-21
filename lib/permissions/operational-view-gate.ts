@@ -7,6 +7,37 @@ import { OP } from "./operational-keys";
  * Paths not listed fall back to {@link PAGE_PERMISSION_TO_VIEW_ANY} via page requirements.
  */
 const PREFIX_VIEW_RULES: readonly { prefix: string; anyOf: readonly string[] }[] = [
+  {
+    prefix: "/dashboard/chat-operations",
+    anyOf: [OP.chat.access],
+  },
+  {
+    prefix: "/dashboard/chat-monitor",
+    anyOf: [
+      OP.chat.audit,
+      OP.chat.auditPlatform,
+      OP.chat.monitorPool,
+      OP.chat.monitorDepartment,
+      OP.chat.monitorParentCompany,
+    ],
+  },
+  {
+    prefix: "/dashboard/chat-qa",
+    anyOf: [
+      OP.qa.chatReview,
+      OP.qa.chatReviewMessage,
+      OP.qa.chatReviewSession,
+      OP.qa.chatAssign,
+    ],
+  },
+  {
+    prefix: "/dashboard/chat-reports",
+    anyOf: [OP.chat.reportView],
+  },
+  {
+    prefix: "/dashboard/chat-settings",
+    anyOf: [OP.chatWidget.view, OP.chatWidget.update],
+  },
   { prefix: "/dashboard/leave/leave-type", anyOf: [OP.hrms.leave.typeManage, OP.hrms.leave.view] },
   {
     prefix: "/dashboard/leave/approve-leave",
@@ -237,7 +268,18 @@ export function getOperationalViewAnyOfForDashboardPath(pathname: string): reado
 export function userSatisfiesOperationalViewForDashboardPath(
   hasOperational: (permission: string) => boolean,
   pathname: string,
+  hasPage?: (pagePermission: string) => boolean,
 ): boolean {
+  const path = normalizePathname(pathname);
+
+  /** Roles often grant `page:chat` without listing `chat:access` in OPERATIONAL — still show agent inbox. */
+  if (
+    (path === "/dashboard/chat-operations" || path.startsWith("/dashboard/chat-operations/")) &&
+    hasPage?.("page:chat")
+  ) {
+    return true;
+  }
+
   const anyOf = getOperationalViewAnyOfForDashboardPath(pathname);
   if (!anyOf?.length) return true;
   return anyOf.some((op) => hasOperational(op));

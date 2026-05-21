@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import ComputerOutlined from "@mui/icons-material/ComputerOutlined";
 import EmailOutlined from "@mui/icons-material/EmailOutlined";
 import ExpandMore from "@mui/icons-material/ExpandMore";
@@ -19,8 +19,13 @@ import { alpha, useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import { InputField, Typography } from "@/components/common";
 import { chatOpsDetailLabelSx, chatOpsDetailValueSx } from "../styles/chat-operations.styles";
+import type { AgentVisitorPresentation } from "@/services/chat/chat.types";
 import { parseVisitorInfo } from "../utils/visitor-info";
 import { VisitorLocationMap } from "./VisitorLocationMap";
+import { SupervisorToolsPanel } from "./SupervisorToolsPanel";
+import { GuestLinkPanel } from "./GuestLinkPanel";
+import { useConversationSupervisor } from "../hooks/useConversationSupervisor";
+import { canUseSupervisorTools } from "@/lib/permissions/chat-access";
 import {
   EmptyState,
   JourneyStep,
@@ -35,9 +40,17 @@ interface VisitorInfoPanelProps {
   visitor: Record<string, unknown> | null;
   conversationId: string | null;
   conversationMeta?: Record<string, unknown> | null;
+  visitorPresentation?: AgentVisitorPresentation | null;
+  assignedAgentId?: string | null;
+  currentUserId?: string;
+  hasOperational: (p: string) => boolean;
+  supervisorRefreshToken?: number;
+  supervisorReadOnly?: boolean;
   showWebsiteFallback?: boolean;
   fallbackWebsiteId?: string;
   onFallbackWebsiteIdChange?: (value: string) => void;
+  onCloseChat?: () => void | Promise<void>;
+  closeDisabled?: boolean;
 }
 
 function DetailField({ label, value }: { label: string; value: string }) {
@@ -67,13 +80,32 @@ export function VisitorInfoPanel({
   visitor,
   conversationId,
   conversationMeta,
+  visitorPresentation = null,
+  assignedAgentId = null,
+  currentUserId,
+  hasOperational,
+  supervisorRefreshToken = 0,
+  supervisorReadOnly = false,
   showWebsiteFallback = false,
   fallbackWebsiteId = "",
   onFallbackWebsiteIdChange,
+  onCloseChat,
+  closeDisabled = false,
 }: VisitorInfoPanelProps) {
   const theme = useTheme() as AppTheme;
   const parsed = parseVisitorInfo(visitor, conversationMeta ?? undefined);
+  const displayName = visitorPresentation?.displayName?.trim() || parsed.displayName;
+  const originLine = visitorPresentation?.originLabel?.trim() || null;
+  const locationLine = visitorPresentation?.locationLabel?.trim() || parsed.location?.label || null;
   const [expanded, setExpanded] = useState<string | false>("contact");
+  const supervisorEnabled =
+    canUseSupervisorTools(hasOperational) && Boolean(conversationId) && !supervisorReadOnly;
+  const supervisor = useConversationSupervisor(conversationId, supervisorEnabled);
+
+  useEffect(() => {
+    if (!supervisorEnabled || supervisorRefreshToken === 0) return;
+    void supervisor.refresh();
+  }, [supervisorRefreshToken, supervisorEnabled, supervisor.refresh]);
 
   const journey =
     parsed.journey.length > 0
@@ -98,10 +130,20 @@ export function VisitorInfoPanel({
               <QueueAvatar sx={{ width: 52, height: 52, fontSize: 15 }}>{parsed.initials}</QueueAvatar>
               <Box sx={{ minWidth: 0 }}>
                 <Typography fontWeight={700} sx={{ fontSize: 15, color: theme.app.text.primary }}>
-                  {parsed.displayName}
+                  {displayName}
                 </Typography>
+                {originLine ? (
+                  <Typography sx={{ fontSize: 11, color: theme.app.dashboard.textMuted, mt: 0.5 }}>
+                    {originLine}
+                  </Typography>
+                ) : null}
+                {locationLine ? (
+                  <Typography sx={{ fontSize: 11, color: theme.app.dashboard.textMuted, mt: 0.25 }}>
+                    {locationLine}
+                  </Typography>
+                ) : null}
                 <Chip
-                  label="Active user"
+                  label={visitorPresentation?.visitorProfileComplete ? "Profile complete" : "Active user"}
                   size="small"
                   sx={{
                     mt: 0.75,
@@ -261,6 +303,26 @@ export function VisitorInfoPanel({
                 </JourneyTimeline>
               </AccordionDetails>
             </Accordion>
+          ) : null}
+
+          <Box sx={{ px: 2, pb: 1 }}>
+            <GuestLinkPanel
+              conversationId={conversationId}
+              hasOperational={hasOperational}
+              disabled={supervisorReadOnly || closeDisabled}
+            />
+          </Box>
+
+          {supervisorEnabled ? (
+            <Box sx={{ px: 2, pb: 1 }}>
+              <SupervisorToolsPanel
+                conversationId={conversationId}
+                assignedAgentId={assignedAgentId}
+                currentUserId={currentUserId}
+                hasOperational={hasOperational}
+                supervisor={supervisor}
+              />
+            </Box>
           ) : null}
 
           {showWebsiteFallback && onFallbackWebsiteIdChange ? (

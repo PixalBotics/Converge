@@ -12,13 +12,14 @@ import {
   KeyboardArrowDown as KeyboardArrowDownIcon,
 } from "@mui/icons-material";
 import { useAuth } from "@/lib/auth";
-import { BellIcon, HeaderSettingsIcon, SearchIcon } from "@/components/common/icons";
+import { HeaderSettingsIcon, SearchIcon } from "@/components/common/icons";
 import type { SxProps, Theme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import { createDashboardHeaderShellSx, dashboardHeaderCircleIconButtonSx } from "./styles/shell.styles";
 import { dashboardFirstWord, dashboardRoleLabel, dashboardUserInitials } from "./dashboard-header.labels";
 import { DashboardHeaderSearchBar } from "./DashboardHeaderSearchBar";
 import { DashboardHeaderMobileSearchTray } from "./DashboardHeaderMobileSearchTray";
+import { NotificationsBellDrawer } from "@/components/notifications/NotificationsBellDrawer";
 
 export default function DashboardHeader({ onMenuClick }: { onMenuClick?: () => void }) {
   const theme = useTheme() as AppTheme;
@@ -115,12 +116,7 @@ export default function DashboardHeader({ onMenuClick }: { onMenuClick?: () => v
           >
             <HeaderSettingsIcon width={22} height={22} />
           </IconButton>
-          <IconButton
-            sx={dashboardHeaderCircleIconButtonSx(app) as SxProps<Theme>}
-            aria-label="Notifications"
-          >
-            <BellIcon width={22} height={22} />
-          </IconButton>
+          <NotificationsBellDrawer />
           <Box sx={{ display: "flex", alignItems: "center", gap: { xs: 0.5, sm: 1.5 }, ml: { xs: 0, sm: 1 } }}>
             <Avatar
               sx={{

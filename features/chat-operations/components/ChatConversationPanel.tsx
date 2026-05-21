@@ -10,10 +10,12 @@ import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import { Typography } from "@/components/common";
 import type { AgentAiAction } from "@/api/ai/agent-suggest.api";
-import type { ChatMessage } from "@/services/chat/chat.types";
+import type { AgentVisitorPresentation, ChatMessage } from "@/services/chat/chat.types";
 import type { AiChatMessage } from "../types/ai-chat";
 import { chatOpsHeaderStatSx } from "../styles/chat-operations.styles";
 import { parseVisitorInfo } from "../utils/visitor-info";
+import type { ChatWhisperSocketPayload } from "@/services/chat/supervisor.types";
+import { AgentWhisperBanner } from "./AgentWhisperBanner";
 import { ChatComposer } from "./ChatComposer";
 import { ChatMessageList } from "./ChatMessageList";
 import { PanelColumn, PanelHeader, QueueAvatar } from "../styles/chat-operations.styled";
@@ -23,6 +25,8 @@ interface ChatConversationPanelProps {
   messages: ChatMessage[];
   visitor: Record<string, unknown> | null;
   conversationMeta?: Record<string, unknown> | null;
+  visitorPresentation?: AgentVisitorPresentation | null;
+  readOnly?: boolean;
   assignedAgentLabel?: string;
   visitorTyping: boolean;
   composer: string;
@@ -41,6 +45,11 @@ interface ChatConversationPanelProps {
   aiBusy: boolean;
   websiteRequiredDisabled?: boolean;
   availabilityHint?: string | null;
+  websiteId?: string | null;
+  departmentId?: string | null;
+  activeWhisper?: ChatWhisperSocketPayload | null;
+  onApplyWhisperToComposer?: (text: string) => void;
+  onDismissWhisper?: () => void;
 }
 
 function formatDuration(seconds: number): string {
@@ -54,6 +63,8 @@ export function ChatConversationPanel({
   messages,
   visitor,
   conversationMeta,
+  visitorPresentation = null,
+  readOnly = false,
   assignedAgentLabel = "You",
   visitorTyping,
   composer,
@@ -72,9 +83,24 @@ export function ChatConversationPanel({
   aiBusy,
   websiteRequiredDisabled = false,
   availabilityHint = null,
+  websiteId = null,
+  departmentId = null,
+  activeWhisper = null,
+  onApplyWhisperToComposer,
+  onDismissWhisper,
 }: ChatConversationPanelProps) {
   const theme = useTheme() as AppTheme;
   const visitorInfo = parseVisitorInfo(visitor, conversationMeta ?? undefined);
+  const headerTitle =
+    visitorPresentation?.inboxTitle?.trim() ||
+    visitorPresentation?.displayName?.trim() ||
+    visitorInfo.displayName;
+  const headerSubtitle =
+    visitorPresentation
+      ? [visitorPresentation.originLabel, visitorPresentation.locationLabel]
+          .filter(Boolean)
+          .join(" · ")
+      : null;
   const [elapsedSec, setElapsedSec] = useState(0);
   const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
 
@@ -115,16 +141,34 @@ export function ChatConversationPanel({
             <QueueAvatar sx={{ width: 44, height: 44, fontSize: 14 }}>{visitorInfo.initials}</QueueAvatar>
             <Box sx={{ minWidth: 0 }}>
               <Typography fontWeight={700} sx={{ fontSize: 15, color: theme.app.text.primary }}>
-                {visitorInfo.displayName}
+                {headerTitle}
               </Typography>
+              {headerSubtitle ? (
+                <Typography
+                  sx={{
+                    fontSize: 11,
+                    color: theme.app.dashboard.textMuted,
+                    mt: 0.25,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {headerSubtitle}
+                </Typography>
+              ) : null}
               <Typography
                 sx={{
                   fontSize: 12,
-                  color: visitorTyping ? theme.app.dashboard.accentCyan : theme.palette.success.light,
+                  color: readOnly
+                    ? theme.app.dashboard.textMuted
+                    : visitorTyping
+                      ? theme.app.dashboard.accentCyan
+                      : theme.palette.success.light,
                   mt: 0.25,
                 }}
               >
-                {visitorTyping ? "Typing…" : "Online"}
+                {readOnly ? "Closed · read-only" : visitorTyping ? "Typing…" : "Online"}
               </Typography>
             </Box>
           </Box>
@@ -185,7 +229,23 @@ export function ChatConversationPanel({
         </PanelHeader>
       ) : null}
 
-      {availabilityHint && hasConversation ? (
+      {readOnly && hasConversation ? (
+        <Box
+          sx={{
+            px: 2,
+            py: 0.75,
+            flexShrink: 0,
+            borderBottom: `1px solid ${theme.app.dashboard.cardBorder}`,
+            bgcolor: "rgba(148, 163, 184, 0.08)",
+          }}
+        >
+          <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, fontSize: 11 }}>
+            This conversation is closed. Transcript is read-only; new visitor messages may reopen it.
+          </Typography>
+        </Box>
+      ) : null}
+
+      {availabilityHint && hasConversation && !readOnly ? (
         <Box
           sx={{
             px: 2,
@@ -210,14 +270,24 @@ export function ChatConversationPanel({
         showEmptyPlaceholder={!hasConversation}
       />
 
+      {activeWhisper && onApplyWhisperToComposer && onDismissWhisper ? (
+        <AgentWhisperBanner
+          payload={activeWhisper}
+          onApplyToComposer={onApplyWhisperToComposer}
+          onDismiss={onDismissWhisper}
+        />
+      ) : null}
+
       <ChatComposer
         value={composer}
         onChange={onComposerChange}
         onSend={onSend}
         onTyping={onTyping}
         onStopTyping={onStopTyping}
-        disabled={!canSend}
+        disabled={!canSend || readOnly}
         onInsertCanned={onInsertCanned}
+        websiteId={websiteId}
+        departmentId={departmentId}
         aiMessages={aiMessages}
         aiPrompt={aiPrompt}
         onAiPromptChange={onAiPromptChange}
