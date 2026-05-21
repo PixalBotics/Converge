@@ -1,5 +1,7 @@
+import { isRecord } from "@/lib/utils/records";
 import type { JsonRecord } from "@/api/types/common.types";
 import type { WidgetChatModeApi, WidgetTypeApi } from "@/api/types/widgets.types";
+import { mergeWidgetConfigForEdit } from "./merge-widget-config-for-edit";
 
 export interface WidgetPatchEditorState {
   widgetType: WidgetTypeApi;
@@ -43,9 +45,28 @@ function parseChatMode(raw: unknown): WidgetChatModeApi {
     : "HYBRID";
 }
 
-/** Resolve snapshot payload: prefer `configSnapshot`, else whole snapshot root for nested config. */
+/** Resolve snapshot payload for edit: `latestVersion.config` + deep overlay of `draftConfig` (never published). */
 export function resolveSnapshotConfigRoot(snapshot: JsonRecord | null): JsonRecord {
   if (!snapshot || typeof snapshot !== "object") return {};
+  const latest = snapshot.latestVersion;
+  if (latest && typeof latest === "object" && !Array.isArray(latest)) {
+    const lv = latest as JsonRecord;
+    const versionConfig = isRecord(lv.config) ? lv.config : null;
+    const draftConfig = isRecord(lv.draftConfig) ? lv.draftConfig : null;
+    if (versionConfig) {
+      return mergeWidgetConfigForEdit(versionConfig, draftConfig);
+    }
+    if (draftConfig) return draftConfig;
+  }
+  const topDraft = snapshot.draftConfig;
+  if (
+    topDraft !== undefined &&
+    topDraft !== null &&
+    typeof topDraft === "object" &&
+    !Array.isArray(topDraft)
+  ) {
+    return topDraft as JsonRecord;
+  }
   const cs = snapshot.configSnapshot;
   if (cs !== undefined && cs !== null && typeof cs === "object" && !Array.isArray(cs)) {
     return cs as JsonRecord;

@@ -30,7 +30,15 @@ function EmbedWidgetPageInner() {
   }
 
   return (
-    <main style={{ padding: 0, margin: 0 }}>
+    <main
+      style={{
+        padding: 0,
+        margin: 0,
+        background: "transparent",
+        overflow: "hidden",
+        minHeight: 0,
+      }}
+    >
       <EmbedWidgetClient
         widgetKey={widgetKey}
         parentHost={parentHost}

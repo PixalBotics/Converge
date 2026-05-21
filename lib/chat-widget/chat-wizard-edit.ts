@@ -3,9 +3,9 @@
 import { useEffect, useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import type { JsonRecord } from "@/api/types/common.types";
-import { getAdminWidget, widgetResponseData } from "@/api/widgets/widgets.api";
+import { getWidgetSnapshot, widgetResponseData } from "@/api/widgets/widgets.api";
 import { extractApiErrorMessageForToast } from "@/lib/notify/extract-api-message";
-import { mapAdminWidgetResponseToWidgetDraft } from "./admin-widget-to-draft";
+import { mapWidgetSnapshotToWidgetDraft } from "./map-widget-snapshot-to-draft";
 import type { WidgetDraft } from "./widgetDraft";
 import {
   patchCreateWizardDraft,
@@ -65,7 +65,7 @@ export function resolveEditWidgetKeyForNavigation(preferred: string | undefined 
 export function useChatWidgetWizardEdit(): {
   editWidgetKey: string;
   isEdit: boolean;
-  /** False while GET /widgets/:widgetKey hydrates the in-memory edit draft. */
+  /** False while GET /widgets/:widgetKey/snapshot hydrates the in-memory edit draft. */
   draftReady: boolean;
   hydrateError: string | null;
   /** Re-fetch widget from API and refresh form state (edit flow). */
@@ -93,10 +93,10 @@ export function useChatWidgetWizardEdit(): {
 
     void (async () => {
       try {
-        const res = await getAdminWidget(editWidgetKey);
+        const res = await getWidgetSnapshot(editWidgetKey);
         if (cancelled) return;
         const data = widgetResponseData<JsonRecord>(res);
-        const mapped = mapAdminWidgetResponseToWidgetDraft(data, editWidgetKey);
+        const mapped = mapWidgetSnapshotToWidgetDraft(data, editWidgetKey);
         replaceEditWizardDraftFromApi(editWidgetKey, mapped);
       } catch (e) {
         if (!cancelled) {

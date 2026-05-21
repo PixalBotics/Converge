@@ -3,6 +3,7 @@ import type {
   WidgetChatModeApi,
   WidgetTypeApi,
 } from "@/api/types/widgets.types";
+import { buildChatColorsFromWidgetDraft } from "./widget-colors-draft";
 import { CHAT_WIZARD_PATCH_DEFAULTS } from "./chat-wizard-patch-defaults";
 import type { TextUsFormFieldDraft, WidgetDraft } from "./widgetDraft";
 
@@ -19,22 +20,22 @@ const defaultTextUsFormFields = (): JsonRecord[] => [
   { key: "phone", label: "Phone", fieldType: "phone", required: false },
 ];
 
-/** Chat panel body under `theme.designJson.chat.chatBox` (text, sizing, banner flags, optional media URLs). */
+/**
+ * Whitelisted `theme.designJson.chat.chatBox` only (backend rejects headerAlign,
+ * greetingMessage, bannerMediaType — those live on `config.ui` via buildChatShellUiFromDraft).
+ */
 function buildChatBoxPayloadFromDraft(
   draft: WidgetDraft,
   assetUrls?: WidgetInstallationAssetUrls,
 ): JsonRecord {
   const chatBox: JsonRecord = {
     headerTitle: draft.headerTitle,
-    headerAlign: draft.headerTitleAlign,
-    greetingMessage: draft.greetingMessage,
     sendPlaceholder: draft.sendPlaceholder,
     boxWidth: draft.boxWidth,
     boxHeight: draft.boxHeight,
     bannerEnabled: draft.bannerOn,
     bannerTitle: draft.bannerTitle,
     bannerDescription: draft.bannerDescription,
-    bannerMediaType: draft.bannerMediaType,
   };
 
   if (assetUrls?.bannerImagePublicUrl) chatBox.bannerImageUrl = assetUrls.bannerImagePublicUrl;
@@ -43,31 +44,96 @@ function buildChatBoxPayloadFromDraft(
   return chatBox;
 }
 
-/** Full `theme.designJson.chat` (launcher + chat box + colors) from draft — used by install + final publish PATCH. */
+function resolvePanelBackground(draft: WidgetDraft): string {
+  const def = CHAT_WIZARD_PATCH_DEFAULTS;
+  return draft.backgroundColor?.trim() || def.backgroundColor;
+}
+
+/** `theme.designJson.theme` — synced with `chat.colors.panelBackground` + `config.ui.backgroundColor`. */
+export function buildDesignJsonThemeTokensFromDraft(draft: WidgetDraft): JsonRecord {
+  const panel = resolvePanelBackground(draft);
+  const def = CHAT_WIZARD_PATCH_DEFAULTS;
+  return {
+    textColor: draft.textColor?.trim() || "#0f172a",
+    secondaryColor: draft.themeSecondaryColor?.trim() || def.themeSecondaryColor,
+    panelBackground: panel,
+    iconColor: draft.iconColor?.trim() || "#ffffff",
+  };
+}
+
+type DesignJsonPatchScope = "launcher_only" | "chat_surface" | "full";
+
+/**
+ * Partial `theme.designJson` per wizard step (backend deep-merges colors / chatBox / theme / ui).
+ */
+export function buildDesignJsonPatchFromDraft(
+  draft: WidgetDraft,
+  scope: DesignJsonPatchScope,
+  assetUrls?: WidgetInstallationAssetUrls,
+): JsonRecord {
+  const panel = resolvePanelBackground(draft);
+  const chat: JsonRecord = {
+    colors: buildChatColorsFromWidgetDraft(draft),
+  };
+  if (scope === "chat_surface" || scope === "full") {
+    chat.chatBox = buildChatBoxPayloadFromDraft(draft, assetUrls);
+  }
+  return {
+    chat,
+    theme: buildDesignJsonThemeTokensFromDraft(draft),
+    ui: { backgroundColor: panel },
+  };
+}
+
+/** `theme.designJson.chat` block (colors + optional chatBox). */
 export function buildChatDesignJsonFromDraft(
   draft: WidgetDraft,
   assetUrls?: WidgetInstallationAssetUrls,
 ): JsonRecord {
-  const chatLauncher: JsonRecord = {
-    shape: draft.buttonShape,
-    position: draft.buttonPosition,
-    insetBottomPx: draft.launcherInsetBottomPx,
-    insetSidePx: draft.launcherInsetSidePx,
-    iconPreset: draft.launcherIconPreset,
-  };
+  const patch = buildDesignJsonPatchFromDraft(draft, "full", assetUrls);
+  const chat = patch.chat;
+  return chat && typeof chat === "object" && !Array.isArray(chat) ? (chat as JsonRecord) : {};
+}
 
-  if (assetUrls?.buttonIconPublicUrl) chatLauncher.iconUrl = assetUrls.buttonIconPublicUrl;
-
+function buildThemeScalarsFromDraft(draft: WidgetDraft): JsonRecord {
+  const def = CHAT_WIZARD_PATCH_DEFAULTS;
+  const primary = draft.themePrimaryColor ?? draft.buttonColor ?? "#2563eb";
   return {
-    launcher: chatLauncher,
-    chatBox: buildChatBoxPayloadFromDraft(draft, assetUrls),
-    colors: {
-      button: draft.buttonColor,
-      buttonHover: draft.buttonHoverColor,
-      icon: draft.iconColor,
-      headerText: draft.textColor,
-    },
+    name: draft.themeName ?? def.themeName,
+    primaryColor: primary,
+    secondaryColor: draft.themeSecondaryColor ?? def.themeSecondaryColor,
+    buttonHoverColor: draft.buttonHoverColor,
+    iconColor: draft.iconColor,
+    textColor: draft.textColor,
+    fontFamily: draft.themeFontFamily ?? def.themeFontFamily,
+    bubbleStyle: draft.themeBubbleStyle ?? def.themeBubbleStyle,
+    buttonShape: themeButtonShapeForPatch(draft),
+    position: draft.buttonPosition,
+    borderRadiusPx: draft.themeBorderRadiusPx ?? def.themeBorderRadiusPx,
+    welcomeFontSizePx: draft.themeWelcomeFontSizePx ?? def.themeWelcomeFontSizePx,
+    bodyFontSizePx: draft.themeBodyFontSizePx ?? def.themeBodyFontSizePx,
+    inputFontSizePx: draft.themeInputFontSizePx ?? def.themeInputFontSizePx,
+    ctaFontSizePx: draft.themeCtaFontSizePx ?? def.themeCtaFontSizePx,
+    consentFontSizePx: draft.themeConsentFontSizePx ?? def.themeConsentFontSizePx,
+    lineHeightPx: draft.themeLineHeightPx ?? def.themeLineHeightPx,
   };
+}
+
+/** Launcher FAB fields allowed under PATCH `config.ui` (not `designJson.chat.launcher`). */
+export function buildLauncherUiFromDraft(
+  draft: WidgetDraft,
+  assetUrls?: WidgetInstallationAssetUrls,
+): JsonRecord {
+  const ui: JsonRecord = {
+    buttonShape: draft.buttonShape,
+    buttonPosition: draft.buttonPosition,
+    launcherInsetBottomPx: draft.launcherInsetBottomPx,
+    launcherInsetSidePx: draft.launcherInsetSidePx,
+    launcherIconPreset: draft.launcherIconPreset || "phosphor-chat-dots",
+    buttonHoverColor: draft.buttonHoverColor,
+  };
+  if (assetUrls?.buttonIconPublicUrl) ui.buttonIconUrl = assetUrls.buttonIconPublicUrl;
+  return ui;
 }
 
 /** Wizard step 2 (chat box UI): only `chatBox` — launcher + FAB `colors` were sent in step 1. */
@@ -78,87 +144,17 @@ export function buildChatBoxOnlyDesignJson(
   return { chatBox: buildChatBoxPayloadFromDraft(draft, assetUrls) };
 }
 
-/** Wizard step 1 (button): only launcher + FAB colors — no chat box, no chatMode, no empty config shells. */
-export function buildLauncherOnlyChatDesignJson(
-  draft: WidgetDraft,
-  assetUrls?: WidgetInstallationAssetUrls,
-): JsonRecord {
-  const chatLauncher: JsonRecord = {
-    shape: draft.buttonShape,
-    position: draft.buttonPosition,
-    insetBottomPx: draft.launcherInsetBottomPx,
-    insetSidePx: draft.launcherInsetSidePx,
-    iconPreset: draft.launcherIconPreset,
-  };
-  if (assetUrls?.buttonIconPublicUrl) chatLauncher.iconUrl = assetUrls.buttonIconPublicUrl;
-
-  return {
-    launcher: chatLauncher,
-    colors: {
-      button: draft.buttonColor,
-      buttonHover: draft.buttonHoverColor,
-      icon: draft.iconColor,
-    },
-  };
-}
-
-function themeButtonShapeForPatch(draft: WidgetDraft): string {
-  if (draft.buttonShape === "rounded") return "rounded";
-  if (draft.buttonShape === "square") return "square";
-  return "circle";
-}
-
-/** Step 1 PATCH `config`: full `theme` envelope + `designJson.chat` launcher only. */
-export function buildChatWizardStep1Config(
+/** `config.ui` chat shell + launcher (includes `backgroundColor` for panel sync). */
+export function buildChatShellUiFromDraft(
   draft: WidgetDraft,
   assetUrls?: WidgetInstallationAssetUrls,
 ): JsonRecord {
   const def = CHAT_WIZARD_PATCH_DEFAULTS;
-  const chat = buildLauncherOnlyChatDesignJson(draft, assetUrls);
-  const primary = draft.themePrimaryColor ?? draft.buttonColor ?? "#2563eb";
-  return {
-    theme: {
-      name: draft.themeName ?? def.themeName,
-      primaryColor: primary,
-      secondaryColor: draft.themeSecondaryColor ?? def.themeSecondaryColor,
-      buttonHoverColor: draft.buttonHoverColor,
-      iconColor: draft.iconColor,
-      textColor: draft.textColor,
-      fontFamily: draft.themeFontFamily ?? def.themeFontFamily,
-      bubbleStyle: draft.themeBubbleStyle ?? def.themeBubbleStyle,
-      buttonShape: themeButtonShapeForPatch(draft),
-      position: draft.buttonPosition,
-      borderRadiusPx: draft.themeBorderRadiusPx ?? def.themeBorderRadiusPx,
-      welcomeFontSizePx: draft.themeWelcomeFontSizePx ?? def.themeWelcomeFontSizePx,
-      bodyFontSizePx: draft.themeBodyFontSizePx ?? def.themeBodyFontSizePx,
-      inputFontSizePx: draft.themeInputFontSizePx ?? def.themeInputFontSizePx,
-      ctaFontSizePx: draft.themeCtaFontSizePx ?? def.themeCtaFontSizePx,
-      consentFontSizePx: draft.themeConsentFontSizePx ?? def.themeConsentFontSizePx,
-      lineHeightPx: draft.themeLineHeightPx ?? def.themeLineHeightPx,
-      designJson: {
-        accent: draft.themeDesignJsonAccent ?? def.designJsonAccent,
-        density: draft.themeDesignJsonDensity ?? def.designJsonDensity,
-        chat,
-      },
-    },
-  };
-}
-
-/** Step 2 PATCH `config`: `theme.designJson.chat` (chatBox + header text color) + `config.ui` chat shell. */
-export function buildChatWizardStep2Config(
-  draft: WidgetDraft,
-  assetUrls?: WidgetInstallationAssetUrls,
-): JsonRecord {
-  const def = CHAT_WIZARD_PATCH_DEFAULTS;
-  const chatBox = buildChatBoxPayloadFromDraft(draft, assetUrls);
   const headerAlign = (draft.headerTitleAlign ?? "Center").toLowerCase();
+  const panel = resolvePanelBackground(draft);
   const ui: JsonRecord = {
+    ...buildLauncherUiFromDraft(draft, assetUrls),
     buttonLabel: draft.buttonLabel ?? def.buttonLabel,
-    buttonShape: draft.buttonShape,
-    buttonPosition: draft.buttonPosition,
-    launcherInsetBottomPx: draft.launcherInsetBottomPx,
-    launcherInsetSidePx: draft.launcherInsetSidePx,
-    buttonHoverColor: draft.buttonHoverColor,
     headerTitle: draft.headerTitle,
     headerTitleAlign: headerAlign,
     header: { align: headerAlign, companyName: draft.headerTitle },
@@ -172,28 +168,69 @@ export function buildChatWizardStep2Config(
     bannerDescription: draft.bannerDescription,
     bannerMediaType: draft.bannerMediaType,
     backgroundImageUrl: "",
-    backgroundColor: draft.backgroundColor ?? def.backgroundColor,
+    backgroundColor: panel,
     boxWidth: draft.boxWidth,
     boxHeight: draft.boxHeight,
     width: draft.boxWidth,
     height: draft.boxHeight,
     popupEnabled: draft.popupEnabled ?? def.popupEnabled,
-    launcherIconPreset: draft.launcherIconPreset || "phosphor-chat-dots",
   };
-  if (assetUrls?.buttonIconPublicUrl) ui.buttonIconUrl = assetUrls.buttonIconPublicUrl;
   if (assetUrls?.bannerImagePublicUrl) ui.bannerImageUrl = assetUrls.bannerImagePublicUrl;
   if (assetUrls?.bannerVideoPublicUrl) ui.bannerVideoUrl = assetUrls.bannerVideoPublicUrl;
+  return ui;
+}
 
+function themeButtonShapeForPatch(draft: WidgetDraft): string {
+  if (draft.buttonShape === "rounded") return "rounded";
+  if (draft.buttonShape === "square") return "square";
+  return "circle";
+}
+
+/** Step 1 PATCH `config`: theme scalars + `designJson` (colors, theme tokens, ui.backgroundColor) + launcher `ui`. */
+export function buildChatWizardStep1Config(
+  draft: WidgetDraft,
+  assetUrls?: WidgetInstallationAssetUrls,
+): JsonRecord {
+  const panel = resolvePanelBackground(draft);
   return {
     theme: {
-      designJson: {
-        chat: {
-          chatBox,
-          colors: { headerText: draft.textColor ?? "#0f172a" },
-        },
-      },
+      ...buildThemeScalarsFromDraft(draft),
+      designJson: buildDesignJsonPatchFromDraft(draft, "launcher_only", assetUrls),
     },
-    ui,
+    ui: {
+      ...buildLauncherUiFromDraft(draft, assetUrls),
+      backgroundColor: panel,
+    },
+  };
+}
+
+/** Step 2 PATCH `config`: `designJson` (colors + chatBox + theme + ui.backgroundColor) + full `config.ui` shell. */
+export function buildChatWizardStep2Config(
+  draft: WidgetDraft,
+  assetUrls?: WidgetInstallationAssetUrls,
+): JsonRecord {
+  return {
+    theme: {
+      ...buildThemeScalarsFromDraft(draft),
+      designJson: buildDesignJsonPatchFromDraft(draft, "chat_surface", assetUrls),
+    },
+    ui: buildChatShellUiFromDraft(draft, assetUrls),
+  };
+}
+
+/** Merged CHAT config for final publish (all wizard steps). */
+export function buildFullChatConfigFromDraft(
+  draft: WidgetDraft,
+  assetUrls?: WidgetInstallationAssetUrls,
+): JsonRecord {
+  const routing = buildChatWizardStep3Config(draft);
+  return {
+    ...routing,
+    theme: {
+      ...buildThemeScalarsFromDraft(draft),
+      designJson: buildDesignJsonPatchFromDraft(draft, "full", assetUrls),
+    },
+    ui: buildChatShellUiFromDraft(draft, assetUrls),
   };
 }
 
@@ -210,9 +247,11 @@ export function buildChatWizardStep3Config(draft: WidgetDraft): JsonRecord {
       fallbackNotificationText:
         draft.fallbackNotificationText ?? "New message from support",
       inquiryOptions:
-        draft.inquiryOptions && draft.inquiryOptions.length > 0
-          ? draft.inquiryOptions
-          : [...def.inquiryOptions],
+        draft.inquiryOn === false
+          ? []
+          : draft.inquiryOptions && draft.inquiryOptions.length > 0
+            ? draft.inquiryOptions
+            : [...def.inquiryOptions],
       videoWelcomeOn: draft.videoWelcomeOn ?? false,
       welcomeMessage: draft.welcomeMessageBehavior ?? def.welcomeMessage,
       autoOpenEnabled: draft.autoOpenEnabled ?? def.autoOpenEnabled,
@@ -363,11 +402,10 @@ export function buildWidgetInstallationPayload(input: {
 
   const chatMode = (draft.chatMode ?? "HYBRID") as WidgetChatModeApi;
 
-  const themeDesign: JsonRecord = {};
-
-  if (widgetType === "CHAT" || widgetType === "BOTH") {
-    themeDesign.chat = buildChatDesignJsonFromDraft(draft, assetUrls);
-  }
+  const themeDesign: JsonRecord =
+    widgetType === "CHAT" || widgetType === "BOTH"
+      ? buildDesignJsonPatchFromDraft(draft, "full", assetUrls)
+      : {};
 
   if (widgetType === "TEXT_US" || widgetType === "BOTH") {
     themeDesign.textUs = {
@@ -382,8 +420,14 @@ export function buildWidgetInstallationPayload(input: {
     websiteId,
     widgetType,
     publishNow,
-    theme: { designJson: themeDesign },
-    ui: themeDesign,
+    theme:
+      widgetType === "CHAT" || widgetType === "BOTH"
+        ? { ...buildThemeScalarsFromDraft(draft), designJson: themeDesign }
+        : { designJson: themeDesign },
+    ui:
+      widgetType === "CHAT" || widgetType === "BOTH"
+        ? buildChatShellUiFromDraft(draft, assetUrls)
+        : {},
     behavior: {},
     form: {},
     response: {},
@@ -410,7 +454,7 @@ export function buildWidgetInstallationPayload(input: {
 
 /** Add-widget CHAT flow: PATCH `config` in three slices (~theme / ~ui+chatBox / ~routing+behavior+session+form+response). */
 export type ChatWidgetWizardPatchScope =
-  /** Step 1: `theme` (+ `designJson.chat` launcher only). */
+  /** Step 1: `theme` scalars + `ui` launcher + `designJson.chat.colors`. */
   | "launcher_only"
   /** Step 2: `theme.designJson.chat` (chatBox + header text color) + `config.ui`. */
   | "chat_surface"
@@ -515,28 +559,8 @@ export function buildWidgetPatchConfigurationBody(input: {
   if (install.allowedDomains !== undefined)
     config.allowedDomains = install.allowedDomains;
 
-  /** Publish / full PATCH: wizard step payloads are not in `install`; merge from draft (same builders as steps 1–3). */
   if (widgetType === "CHAT") {
-    const step3cfg = buildChatWizardStep3Config(draft);
-    config.behavior = step3cfg.behavior as JsonRecord;
-    config.session = step3cfg.session as JsonRecord;
-    config.form = step3cfg.form as JsonRecord;
-    config.response = step3cfg.response as JsonRecord;
-    if (step3cfg.chatMode !== undefined) config.chatMode = step3cfg.chatMode;
-    if (Array.isArray(step3cfg.allowedDomains) && step3cfg.allowedDomains.length > 0) {
-      config.allowedDomains = step3cfg.allowedDomains;
-    }
-    const step2cfg = buildChatWizardStep2Config(draft, assetUrls);
-    if (step2cfg.ui && typeof step2cfg.ui === "object") {
-      config.ui = step2cfg.ui as JsonRecord;
-    }
-    const step1cfg = buildChatWizardStep1Config(draft, assetUrls);
-    const t1 = step1cfg.theme;
-    if (t1 && typeof t1 === "object" && config.theme && typeof config.theme === "object") {
-      const cur = config.theme as JsonRecord;
-      const { designJson: _step1Dj, ...themeScalars } = t1 as JsonRecord;
-      Object.assign(cur, themeScalars);
-    }
+    Object.assign(config, buildFullChatConfigFromDraft(draft, assetUrls));
   }
 
   const body: JsonRecord = {

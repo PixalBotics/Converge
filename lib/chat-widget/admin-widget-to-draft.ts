@@ -3,6 +3,7 @@ import type { JsonRecord } from "@/api/types/common.types";
 import { widgetResponseData } from "@/api/widgets/widgets.api";
 import type { WidgetDraft, WidgetInstallChatMode } from "./widgetDraft";
 import { defaultWidgetDraft } from "./widgetDraft";
+import { mapApiChatColorsToDraft, widgetChatColorsDraftToPatch } from "./widget-colors-draft";
 
 function pickStr(obj: unknown, keys: string[]): string {
   if (!isRecord(obj)) return "";
@@ -64,6 +65,22 @@ function shapeToButtonShape(shape: string): WidgetDraft["buttonShape"] {
   return "circle";
 }
 
+function pickRecord(obj: unknown, keys: string[]): JsonRecord | null {
+  if (!isRecord(obj)) return null;
+  for (const k of keys) {
+    const v = obj[k];
+    if (isRecord(v)) return v as JsonRecord;
+  }
+  return null;
+}
+
+function firstRecord(...values: Array<JsonRecord | null | undefined>): JsonRecord | null {
+  for (const v of values) {
+    if (isRecord(v)) return v;
+  }
+  return null;
+}
+
 /**
  * Maps `GET /widgets/:widgetKey` (admin) payload into `WidgetDraft` fields used by the 3-step CHAT wizard + PATCH builders.
  */
@@ -76,23 +93,43 @@ export function mapAdminWidgetResponseToWidgetDraft(
 
   const config = isRecord(root.config) ? root.config : null;
   const theme = config && isRecord(config.theme) ? config.theme : null;
+  const settingsJson =
+    config && isRecord(config.settingsJson) ? (config.settingsJson as JsonRecord) : null;
   const dj =
     theme && isRecord(theme.designJson) ? (theme.designJson as JsonRecord) : null;
+  const djUi = pickRecord(dj, ["ui"]);
+  const djForm = pickRecord(dj, ["form"]);
+  const djBehavior = pickRecord(dj, ["behavior"]);
+  const djSession = pickRecord(dj, ["session"]);
+  const djResponse = pickRecord(dj, ["response"]);
+  const djTheme = pickRecord(dj, ["theme"]);
   const chat = dj && isRecord(dj.chat) ? (dj.chat as JsonRecord) : null;
   const launcher = chat && isRecord(chat.launcher) ? (chat.launcher as JsonRecord) : null;
   const chatBox = chat && isRecord(chat.chatBox) ? (chat.chatBox as JsonRecord) : null;
   const colors = chat && isRecord(chat.colors) ? (chat.colors as JsonRecord) : null;
 
-  const ui = config && isRecord(config.ui) ? (config.ui as JsonRecord) : null;
-  const behavior = config && isRecord(config.behavior) ? (config.behavior as JsonRecord) : null;
-  const session = config && isRecord(config.session) ? (config.session as JsonRecord) : null;
-  const form = config && isRecord(config.form) ? (config.form as JsonRecord) : null;
-  const response = config && isRecord(config.response) ? (config.response as JsonRecord) : null;
+  const ui = firstRecord(pickRecord(config, ["ui"]), pickRecord(settingsJson, ["ui"]), djUi);
+  const behavior = firstRecord(
+    pickRecord(config, ["behavior"]),
+    pickRecord(settingsJson, ["behavior"]),
+    djBehavior,
+  );
+  const session = firstRecord(
+    pickRecord(config, ["session"]),
+    pickRecord(settingsJson, ["session"]),
+    djSession,
+  );
+  const form = firstRecord(pickRecord(config, ["form"]), pickRecord(settingsJson, ["form"]), djForm);
+  const response = firstRecord(
+    pickRecord(config, ["response"]),
+    pickRecord(settingsJson, ["response"]),
+    djResponse,
+  );
 
   const websiteId = pickStr(root, ["websiteId", "website_id"]);
   const chatModeRaw =
-    pickStr(config ?? {}, ["chatMode", "chat_mode"]) ||
-    pickStr(root, ["chatMode", "chat_mode"]);
+    pickStr(config ?? {}, ["chatMode", "chat_mode", "mode"]) ||
+    pickStr(root, ["chatMode", "chat_mode", "mode"]);
   const allowedDomainsRaw = config?.allowedDomains ?? root.allowedDomains;
   const allowedDomains = Array.isArray(allowedDomainsRaw)
     ? allowedDomainsRaw.filter((x): x is string => typeof x === "string" && x.trim().length > 0).map((s) => s.trim())
@@ -145,7 +182,7 @@ export function mapAdminWidgetResponseToWidgetDraft(
       isRecord(dj) && typeof dj.density === "string" ? dj.density : defaultWidgetDraft.themeDesignJsonDensity,
     buttonShape: launcher ? shapeToButtonShape(pickStr(launcher, ["shape"]) || "circle") : defaultWidgetDraft.buttonShape,
     buttonPosition:
-      (pickStr(launcher ?? ui ?? {}, ["position", "buttonPosition"]) as WidgetDraft["buttonPosition"]) ||
+      (pickStr(launcher ?? ui ?? theme ?? {}, ["position", "buttonPosition"]) as WidgetDraft["buttonPosition"]) ||
       defaultWidgetDraft.buttonPosition,
     launcherInsetBottomPx:
       pickNum(launcher ?? ui ?? {}, ["insetBottomPx", "launcherInsetBottomPx"]) ??
@@ -156,6 +193,7 @@ export function mapAdminWidgetResponseToWidgetDraft(
     buttonColor: pickStr(colors ?? {}, ["button"]) || pickStr(theme ?? {}, ["primaryColor"]) || defaultWidgetDraft.buttonColor,
     buttonHoverColor:
       pickStr(colors ?? {}, ["buttonHover", "button_hover"]) ||
+      pickStr(ui ?? {}, ["buttonHoverColor", "button_hover_color"]) ||
       pickStr(theme ?? {}, ["buttonHoverColor", "button_hover_color"]) ||
       defaultWidgetDraft.buttonHoverColor,
     iconColor: pickStr(colors ?? {}, ["icon"]) || defaultWidgetDraft.iconColor,
@@ -169,15 +207,18 @@ export function mapAdminWidgetResponseToWidgetDraft(
       defaultWidgetDraft.headerTitle,
     textColor:
       pickStr(colors ?? {}, ["headerText", "header_text"]) ||
+      pickStr(djTheme ?? {}, ["textColor", "text_color"]) ||
       pickStr(theme ?? {}, ["textColor", "text_color"]) ||
       defaultWidgetDraft.textColor,
     greetingMessage:
       pickStr(chatBox ?? {}, ["greetingMessage"]) ||
       pickStr(ui ?? {}, ["greetingMessage"]) ||
+      pickStr(config ?? {}, ["greetingMessage"]) ||
       defaultWidgetDraft.greetingMessage,
     sendPlaceholder:
       pickStr(chatBox ?? {}, ["sendPlaceholder"]) ||
       pickStr(ui ?? {}, ["sendPlaceholder"]) ||
+      pickStr(config ?? {}, ["messagePlaceholder"]) ||
       defaultWidgetDraft.sendPlaceholder,
     bannerOn:
       pickBool(chatBox ?? {}, ["bannerEnabled", "bannerOn"]) ??
@@ -194,7 +235,12 @@ export function mapAdminWidgetResponseToWidgetDraft(
     buttonLabel: pickStr(ui ?? {}, ["buttonLabel"]) || defaultWidgetDraft.buttonLabel,
     firstMessage: pickStr(ui ?? {}, ["firstMessage"]) || defaultWidgetDraft.firstMessage,
     messagePlaceholder: pickStr(ui ?? {}, ["messagePlaceholder"]) || defaultWidgetDraft.messagePlaceholder,
-    backgroundColor: pickStr(ui ?? {}, ["backgroundColor"]) || defaultWidgetDraft.backgroundColor,
+    backgroundColor:
+      pickStr(colors ?? {}, ["panelBackground", "panel_background"]) ||
+      pickStr(djTheme ?? {}, ["panelBackground", "panel_background"]) ||
+      pickStr(djUi ?? {}, ["backgroundColor"]) ||
+      pickStr(ui ?? {}, ["backgroundColor"]) ||
+      defaultWidgetDraft.backgroundColor,
     popupEnabled: pickBool(ui ?? {}, ["popupEnabled"]) ?? defaultWidgetDraft.popupEnabled,
     botEnabled: pickBool(behavior ?? {}, ["botEnabled"]) ?? defaultWidgetDraft.botEnabled,
     notificationEnabled:
@@ -209,49 +255,99 @@ export function mapAdminWidgetResponseToWidgetDraft(
       pickStr(behavior ?? {}, ["welcomeMessage"]) || defaultWidgetDraft.welcomeMessageBehavior,
     autoOpenEnabled: pickBool(behavior ?? {}, ["autoOpenEnabled"]) ?? defaultWidgetDraft.autoOpenEnabled,
     autoOpenDelaySeconds:
-      pickNum(behavior ?? {}, ["autoOpenDelaySeconds"]) ?? defaultWidgetDraft.autoOpenDelaySeconds,
-    fileUploadEnabled: pickBool(behavior ?? {}, ["fileUploadEnabled"]) ?? defaultWidgetDraft.fileUploadEnabled,
-    emojiEnabled: pickBool(behavior ?? {}, ["emojiEnabled"]) ?? defaultWidgetDraft.emojiEnabled,
+      pickNum(behavior ?? {}, ["autoOpenDelaySeconds"]) ??
+      pickNum(config ?? {}, ["autoPopupDelaySeconds"]) ??
+      defaultWidgetDraft.autoOpenDelaySeconds,
+    fileUploadEnabled:
+      pickBool(behavior ?? {}, ["fileUploadEnabled"]) ??
+      pickBool(config ?? {}, ["fileUploadEnabled"]) ??
+      defaultWidgetDraft.fileUploadEnabled,
+    emojiEnabled:
+      pickBool(behavior ?? {}, ["emojiEnabled"]) ??
+      pickBool(config ?? {}, ["emojiEnabled"]) ??
+      defaultWidgetDraft.emojiEnabled,
     consentRequired: pickBool(behavior ?? {}, ["consentRequired"]) ?? defaultWidgetDraft.consentRequired,
-    consentText: pickStr(behavior ?? {}, ["consentText"]) || defaultWidgetDraft.consentText,
-    privacyPolicyUrl: pickStr(behavior ?? {}, ["privacyPolicyUrl"]) || defaultWidgetDraft.privacyPolicyUrl,
+    consentText:
+      pickStr(behavior ?? {}, ["consentText"]) ||
+      pickStr(config ?? {}, ["consentText"]) ||
+      defaultWidgetDraft.consentText,
+    privacyPolicyUrl:
+      pickStr(behavior ?? {}, ["privacyPolicyUrl"]) ||
+      pickStr(config ?? {}, ["privacyPolicyUrl"]) ||
+      defaultWidgetDraft.privacyPolicyUrl,
     privacyNotice: pickStr(behavior ?? {}, ["privacyNotice"]) || defaultWidgetDraft.privacyNotice,
     allowedDomainsText:
       pickStr(behavior ?? {}, ["allowedDomainsText"]) || defaultWidgetDraft.allowedDomainsText,
+    inquiryOn: inquiryOptions != null ? inquiryOptions.length > 0 : defaultWidgetDraft.inquiryOn,
     inquiryOptions: inquiryOptions?.length ? inquiryOptions : defaultWidgetDraft.inquiryOptions,
     persistVisitorSession:
       pickBool(session ?? {}, ["persistVisitorSession"]) ?? defaultWidgetDraft.persistVisitorSession,
     sessionTtlMinutes:
       pickNum(session ?? {}, ["sessionTtlMinutes", "session_ttl_minutes"]) ??
+      pickNum(config ?? {}, ["expiresInMinutes"]) ??
       defaultWidgetDraft.sessionTtlMinutes,
-    formEnabled: pickBool(form ?? {}, ["enabled"]) ?? defaultWidgetDraft.formEnabled,
-    formTitle: pickStr(form ?? {}, ["title"]) || defaultWidgetDraft.formTitle,
+    formEnabled:
+      pickBool(form ?? {}, ["enabled"]) ??
+      pickBool(config ?? {}, ["offlineFormEnabled"]) ??
+      defaultWidgetDraft.formEnabled,
+    formTitle:
+      pickStr(form ?? {}, ["title"]) ||
+      pickStr(config ?? {}, ["preChatFormText"]) ||
+      defaultWidgetDraft.formTitle,
     formSubtitle: pickStr(form ?? {}, ["subtitle"]) || defaultWidgetDraft.formSubtitle,
     formSubmitLabel: pickStr(form ?? {}, ["submitLabel", "submit_label"]) || defaultWidgetDraft.formSubmitLabel,
     prechatNameEnabled:
-      pickBool(form ?? {}, ["prechatNameEnabled"]) ?? defaultWidgetDraft.prechatNameEnabled,
+      pickBool(form ?? {}, ["prechatNameEnabled"]) ??
+      pickBool(config ?? {}, ["prechatNameEnabled"]) ??
+      defaultWidgetDraft.prechatNameEnabled,
     prechatEmailEnabled:
-      pickBool(form ?? {}, ["prechatEmailEnabled"]) ?? defaultWidgetDraft.prechatEmailEnabled,
+      pickBool(form ?? {}, ["prechatEmailEnabled"]) ??
+      pickBool(config ?? {}, ["prechatEmailEnabled"]) ??
+      defaultWidgetDraft.prechatEmailEnabled,
     prechatPhoneEnabled:
-      pickBool(form ?? {}, ["prechatPhoneEnabled"]) ?? defaultWidgetDraft.prechatPhoneEnabled,
+      pickBool(form ?? {}, ["prechatPhoneEnabled"]) ??
+      pickBool(config ?? {}, ["prechatPhoneEnabled"]) ??
+      defaultWidgetDraft.prechatPhoneEnabled,
     prechatMessageEnabled:
-      pickBool(form ?? {}, ["prechatMessageEnabled"]) ?? defaultWidgetDraft.prechatMessageEnabled,
+      pickBool(form ?? {}, ["prechatMessageEnabled"]) ??
+      pickBool(config ?? {}, ["prechatMessageEnabled"]) ??
+      defaultWidgetDraft.prechatMessageEnabled,
     prechatMessageRequired:
-      pickBool(form ?? {}, ["prechatMessageRequired"]) ?? defaultWidgetDraft.prechatMessageRequired,
+      pickBool(form ?? {}, ["prechatMessageRequired"]) ??
+      pickBool(config ?? {}, ["prechatMessageRequired"]) ??
+      defaultWidgetDraft.prechatMessageRequired,
     responseWelcomeMessage:
-      pickStr(response ?? {}, ["welcomeMessage"]) || defaultWidgetDraft.responseWelcomeMessage,
+      pickStr(response ?? {}, ["welcomeMessage"]) ||
+      pickStr(config ?? {}, ["welcomeMessage"]) ||
+      defaultWidgetDraft.responseWelcomeMessage,
     responseOfflineMessage:
-      pickStr(response ?? {}, ["offlineMessage"]) || defaultWidgetDraft.responseOfflineMessage,
+      pickStr(response ?? {}, ["offlineMessage"]) ||
+      pickStr(config ?? {}, ["offlineMessage"]) ||
+      defaultWidgetDraft.responseOfflineMessage,
     responseGreetingMessage:
-      pickStr(response ?? {}, ["greetingMessage"]) || defaultWidgetDraft.responseGreetingMessage,
+      pickStr(response ?? {}, ["greetingMessage"]) ||
+      pickStr(config ?? {}, ["greetingMessage"]) ||
+      defaultWidgetDraft.responseGreetingMessage,
     responseSendPlaceholder:
       pickStr(response ?? {}, ["sendPlaceholder"]) || defaultWidgetDraft.responseSendPlaceholder,
     responseAiPromptHint: pickStr(response ?? {}, ["aiPromptHint"]) || defaultWidgetDraft.responseAiPromptHint,
     responseAgentHandoverEnabled:
-      pickBool(response ?? {}, ["agentHandoverEnabled"]) ?? defaultWidgetDraft.responseAgentHandoverEnabled,
+      pickBool(response ?? {}, ["agentHandoverEnabled"]) ??
+      pickBool(config ?? {}, ["callHandoverEnabled"]) ??
+      defaultWidgetDraft.responseAgentHandoverEnabled,
     responseHandoverTriggerText:
       pickStr(response ?? {}, ["handoverTriggerText"]) || defaultWidgetDraft.responseHandoverTriggerText,
   };
+
+  if (colors) {
+    const headerFallback =
+      pickStr(colors, ["headerText", "header_text"]) || patch.textColor || defaultWidgetDraft.textColor;
+    Object.assign(patch, widgetChatColorsDraftToPatch(mapApiChatColorsToDraft(colors, headerFallback)));
+    const panelBg = pickStr(colors, ["panelBackground", "panel_background"]);
+    if (panelBg) patch.backgroundColor = panelBg;
+    const secondary = pickStr(colors, ["secondary"]);
+    if (secondary) patch.themeSecondaryColor = secondary;
+  }
 
   return patch;
 }

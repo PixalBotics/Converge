@@ -1,12 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState, type ChangeEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
 import CloudUploadOutlined from "@mui/icons-material/CloudUploadOutlined";
-import ChatRounded from "@mui/icons-material/ChatRounded";
-import SendRounded from "@mui/icons-material/SendRounded";
 import Box from "@mui/material/Box";
-import IconButton from "@mui/material/IconButton";
 import Switch from "@mui/material/Switch";
 import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
@@ -27,9 +24,14 @@ import {
   useChatWidgetWizardEdit,
   withChatEditQuery,
 } from "@/lib/chat-widget/chat-wizard-edit";
+import { WidgetChatBoxLivePreview } from "@/components/dashboard/chat-widget/WidgetChatBoxLivePreview";
+import { WidgetChatColorsSection } from "@/components/dashboard/chat-widget/WidgetChatColorsSection";
 import {
-  defaultWidgetDraft,
-} from "@/lib/chat-widget/widgetDraft";
+  readWidgetChatColorsFromDraft,
+  widgetChatColorsDraftToPatch,
+  type WidgetChatColorsDraft,
+} from "@/lib/chat-widget/widget-colors-draft";
+import { defaultWidgetDraft } from "@/lib/chat-widget/widgetDraft";
 
 const STEPS = ["Widget Button Design", "Chat Box Design", "Notifications & Advanced"];
 export default function ChatWidgetBoxDesignPage() {
@@ -38,7 +40,16 @@ export default function ChatWidgetBoxDesignPage() {
   const { editWidgetKey, draftReady, hydrateError } = useChatWidgetWizardEdit();
   const [headerTitle, setHeaderTitle] = useState("Center");
   const [bannerOn, setBannerOn] = useState(true);
+  const [bannerTitle, setBannerTitle] = useState(defaultWidgetDraft.bannerTitle ?? "Special Offer");
+  const [bannerDescription, setBannerDescription] = useState(
+    defaultWidgetDraft.bannerDescription ?? "",
+  );
   const [buttonColor, setButtonColor] = useState("#1ed760");
+  const [buttonHoverColor, setButtonHoverColor] = useState("#164EB0");
+  const [iconColor, setIconColor] = useState("#FFFFFF");
+  const [themeSecondaryColor, setThemeSecondaryColor] = useState(
+    defaultWidgetDraft.themeSecondaryColor ?? "#64748b",
+  );
   const [textColor, setTextColor] = useState("#d62cad");
   const [bannerFileName, setBannerFileName] = useState("");
   const [bannerDataUrl, setBannerDataUrl] = useState("");
@@ -59,6 +70,26 @@ export default function ChatWidgetBoxDesignPage() {
     defaultWidgetDraft.backgroundColor ?? "#f8fafc",
   );
   const [popupEnabled, setPopupEnabled] = useState(defaultWidgetDraft.popupEnabled ?? false);
+  const [inquiryOn, setInquiryOn] = useState(defaultWidgetDraft.inquiryOn ?? false);
+  const [inquiryOptionsInput, setInquiryOptionsInput] = useState(
+    (defaultWidgetDraft.inquiryOptions ?? []).join(", "),
+  );
+  const [chatColors, setChatColors] = useState<WidgetChatColorsDraft>(() =>
+    readWidgetChatColorsFromDraft(defaultWidgetDraft),
+  );
+  const [previewForm, setPreviewForm] = useState({
+    formEnabled: defaultWidgetDraft.formEnabled ?? true,
+    formTitle: defaultWidgetDraft.formTitle ?? "",
+    formSubtitle: defaultWidgetDraft.formSubtitle ?? "",
+    formSubmitLabel: defaultWidgetDraft.formSubmitLabel ?? "",
+    prechatNameEnabled: defaultWidgetDraft.prechatNameEnabled ?? true,
+    prechatEmailEnabled: defaultWidgetDraft.prechatEmailEnabled ?? true,
+    prechatPhoneEnabled: defaultWidgetDraft.prechatPhoneEnabled ?? false,
+    prechatMessageEnabled: defaultWidgetDraft.prechatMessageEnabled ?? true,
+    handoverEnabled: defaultWidgetDraft.responseAgentHandoverEnabled ?? true,
+    handoverTriggerText: defaultWidgetDraft.responseHandoverTriggerText ?? "",
+    chatMode: defaultWidgetDraft.chatMode ?? "HYBRID",
+  });
   const bannerUploadRef = useRef<HTMLInputElement | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -67,7 +98,12 @@ export default function ChatWidgetBoxDesignPage() {
     const d = readChatWizardDraft(resolveEditWidgetKeyForNavigation(editWidgetKey) || undefined);
     setHeaderTitle(d.headerTitleAlign === "Left" ? "Left" : "Center");
     setBannerOn(Boolean(d.bannerOn));
+    setBannerTitle(d.bannerTitle ?? defaultWidgetDraft.bannerTitle ?? "");
+    setBannerDescription(d.bannerDescription ?? defaultWidgetDraft.bannerDescription ?? "");
     setButtonColor(d.buttonColor || "#1ed760");
+    setButtonHoverColor(d.buttonHoverColor || d.buttonColor || "#164EB0");
+    setIconColor(d.iconColor || "#FFFFFF");
+    setThemeSecondaryColor(d.themeSecondaryColor ?? "#64748b");
     setTextColor(d.textColor || "#d62cad");
     setBannerDataUrl(d.bannerDataUrl || "");
     setBannerFileName(d.bannerDataUrl ? "Uploaded banner" : "");
@@ -82,6 +118,24 @@ export default function ChatWidgetBoxDesignPage() {
     setMessagePlaceholder(d.messagePlaceholder ?? "Write here…");
     setBackgroundColor(d.backgroundColor ?? "#f8fafc");
     setPopupEnabled(Boolean(d.popupEnabled));
+    setChatColors(readWidgetChatColorsFromDraft(d));
+    const def = defaultWidgetDraft;
+    const inquiryArr = Array.isArray(d.inquiryOptions) ? d.inquiryOptions : (def.inquiryOptions ?? []);
+    setInquiryOn(d.inquiryOn ?? inquiryArr.length > 0);
+    setInquiryOptionsInput(inquiryArr.join(", "));
+    setPreviewForm({
+      formEnabled: d.formEnabled ?? def.formEnabled ?? true,
+      formTitle: d.formTitle ?? def.formTitle ?? "",
+      formSubtitle: d.formSubtitle ?? def.formSubtitle ?? "",
+      formSubmitLabel: d.formSubmitLabel ?? def.formSubmitLabel ?? "",
+      prechatNameEnabled: d.prechatNameEnabled ?? def.prechatNameEnabled ?? true,
+      prechatEmailEnabled: d.prechatEmailEnabled ?? def.prechatEmailEnabled ?? true,
+      prechatPhoneEnabled: d.prechatPhoneEnabled ?? def.prechatPhoneEnabled ?? false,
+      prechatMessageEnabled: d.prechatMessageEnabled ?? def.prechatMessageEnabled ?? true,
+      handoverEnabled: d.responseAgentHandoverEnabled ?? def.responseAgentHandoverEnabled ?? true,
+      handoverTriggerText: d.responseHandoverTriggerText ?? def.responseHandoverTriggerText ?? "",
+      chatMode: d.chatMode ?? def.chatMode ?? "HYBRID",
+    });
   }, [draftReady, editWidgetKey]);
 
   const handleButtonColor = (event: ChangeEvent<HTMLInputElement>) => {
@@ -137,6 +191,8 @@ export default function ChatWidgetBoxDesignPage() {
           greetingMessage,
           sendPlaceholder,
           bannerOn,
+          bannerTitle: bannerTitle.trim(),
+          bannerDescription: bannerDescription.trim(),
           bannerDataUrl,
           bannerMediaType,
           boxWidth: safeWidth,
@@ -146,6 +202,14 @@ export default function ChatWidgetBoxDesignPage() {
           messagePlaceholder: messagePlaceholder.trim(),
           backgroundColor: backgroundColor.trim() || "#f8fafc",
           popupEnabled,
+          inquiryOn,
+          inquiryOptions: inquiryOn
+            ? inquiryOptionsInput
+                .split(",")
+                .map((s) => s.trim())
+                .filter(Boolean)
+            : [],
+          ...widgetChatColorsDraftToPatch(chatColors),
         });
         const latest = readChatWizardDraft(editKey || undefined);
         const patchInner = await patchRemoteWidgetConfiguration({
@@ -178,22 +242,79 @@ export default function ChatWidgetBoxDesignPage() {
     })();
   };
 
-  const renderAgentIcon = () => (
-    <Box
-      sx={{
-        width: 30,
-        height: 30,
-        borderRadius: "50%",
-        bgcolor: "#E5E7EB",
-        border: "1px solid #CBD5E1",
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
-        flexShrink: 0,
-      }}
-    >
-      <ChatRounded sx={{ color: "#64748B", fontSize: 18 }} />
-    </Box>
+  const parsedPreviewWidth = Number.parseInt(boxWidth, 10);
+  const parsedPreviewHeight = Number.parseInt(boxHeight, 10);
+
+  const inquiryOptionsList = useMemo(
+    () =>
+      inquiryOn
+        ? inquiryOptionsInput
+            .split(",")
+            .map((s) => s.trim())
+            .filter(Boolean)
+        : [],
+    [inquiryOn, inquiryOptionsInput],
+  );
+
+  const livePreviewModel = useMemo(
+    () => ({
+      headerTitle: companyLogo || "AI Sales Assistant",
+      headerAlign: (headerTitle === "Left" ? "Left" : "Center") as "Center" | "Left",
+      buttonColor: buttonColor || "#1ed760",
+      textColor: textColor || "#ffffff",
+      backgroundColor: backgroundColor.trim() || "#f8fafc",
+      bannerOn,
+      bannerTitle,
+      bannerDescription,
+      bannerDataUrl,
+      bannerMediaType,
+      greetingMessage,
+      firstMessage,
+      sendPlaceholder,
+      messagePlaceholder,
+      boxWidth: Number.isFinite(parsedPreviewWidth) ? parsedPreviewWidth : 350,
+      boxHeight: Number.isFinite(parsedPreviewHeight) ? parsedPreviewHeight : 430,
+      colors: {
+        ...chatColors,
+        inquiryPillBg: backgroundColor.trim() || chatColors.inquiryPillBg,
+        handoverButtonBg: backgroundColor.trim() || chatColors.handoverButtonBg,
+      },
+      inquiryOn,
+      inquiryOptions: inquiryOptionsList,
+      formEnabled: previewForm.formEnabled,
+      formTitle: previewForm.formTitle,
+      formSubtitle: previewForm.formSubtitle,
+      formSubmitLabel: previewForm.formSubmitLabel,
+      prechatNameEnabled: previewForm.prechatNameEnabled,
+      prechatEmailEnabled: previewForm.prechatEmailEnabled,
+      prechatPhoneEnabled: previewForm.prechatPhoneEnabled,
+      prechatMessageEnabled: previewForm.prechatMessageEnabled,
+      handoverEnabled: previewForm.handoverEnabled,
+      handoverTriggerText: previewForm.handoverTriggerText,
+      chatMode: previewForm.chatMode,
+    }),
+    [
+      companyLogo,
+      headerTitle,
+      buttonColor,
+      textColor,
+      backgroundColor,
+      bannerOn,
+      bannerTitle,
+      bannerDescription,
+      bannerDataUrl,
+      bannerMediaType,
+      greetingMessage,
+      firstMessage,
+      sendPlaceholder,
+      messagePlaceholder,
+      parsedPreviewWidth,
+      parsedPreviewHeight,
+      chatColors,
+      inquiryOn,
+      inquiryOptionsList,
+      previewForm,
+    ],
   );
 
   return (
@@ -223,6 +344,16 @@ export default function ChatWidgetBoxDesignPage() {
           {hydrateError}
         </Typography>
       ) : null}
+
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: { xs: "1fr", xl: "minmax(0, 1fr) minmax(300px, 360px)" },
+          gap: 3,
+          alignItems: "start",
+        }}
+      >
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 0 }}>
       <SelectField label="Header Title" value={headerTitle} onChange={setHeaderTitle} options={[{ label: "Center", value: "Center" }, { label: "Left", value: "Left" }]} />
 
       <Typography variant="mediumLarge" sx={{ color: theme.app.text.primary, mb: -1.25 }}>Button Color</Typography>
@@ -281,35 +412,69 @@ export default function ChatWidgetBoxDesignPage() {
       </Box>
 
       {bannerOn ? (
-        <Box
-          role="button"
-          tabIndex={0}
-          onClick={() => bannerUploadRef.current?.click()}
-          onKeyDown={(event) => {
-            if (event.key === "Enter" || event.key === " ") {
-              event.preventDefault();
-              bannerUploadRef.current?.click();
-            }
-          }}
-          sx={{
-            border: `1px dashed ${theme.app.dashboard.accentBlue}`,
-            borderRadius: 1.5,
-            py: 2,
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            bgcolor: "rgba(6, 12, 54, 0.4)",
-            gap: 0.75,
-            cursor: "pointer",
-          }}
-        >
-          <CloudUploadOutlined sx={{ color: theme.app.dashboard.accentBlue }} />
-          <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted }}>Click to upload banner</Typography>
-          <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted }}>{bannerFileName || "Max 10 MB files are allowed"}</Typography>
-        </Box>
+        <>
+          <InputField
+            label="Banner title"
+            name="banner-title"
+            value={bannerTitle}
+            onChange={(e) => setBannerTitle(e.target.value)}
+          />
+          <InputField
+            label="Banner description"
+            name="banner-description"
+            value={bannerDescription}
+            onChange={(e) => setBannerDescription(e.target.value)}
+          />
+          <Box
+            role="button"
+            tabIndex={0}
+            onClick={() => bannerUploadRef.current?.click()}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                bannerUploadRef.current?.click();
+              }
+            }}
+            sx={{
+              border: `1px dashed ${theme.app.dashboard.accentBlue}`,
+              borderRadius: 1.5,
+              py: 2,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              bgcolor: "rgba(6, 12, 54, 0.4)",
+              gap: 0.75,
+              cursor: "pointer",
+            }}
+          >
+            <CloudUploadOutlined sx={{ color: theme.app.dashboard.accentBlue }} />
+            <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted }}>
+              Click to upload banner
+            </Typography>
+            <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted }}>
+              {bannerFileName || "Max 10 MB files are allowed"}
+            </Typography>
+          </Box>
+        </>
       ) : null}
       <Box component="input" ref={bannerUploadRef} type="file" accept=".png,.jpg,.jpeg,.webp,.gif,.mp4,.webm,.ogg,.mov" onChange={handleBannerUpload} sx={{ display: "none" }} />
+
+      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mt: 1 }}>
+        <Typography variant="mediumLarge" sx={{ color: theme.app.text.primary }}>
+          Inquiry topics (optional)
+        </Typography>
+        <Switch checked={inquiryOn} onChange={(_, checked) => setInquiryOn(checked)} color="success" />
+      </Box>
+      {inquiryOn ? (
+        <InputField
+          label="Topic labels (comma-separated)"
+          name="inquiry-options"
+          value={inquiryOptionsInput}
+          onChange={(e) => setInquiryOptionsInput(e.target.value)}
+          placeholder="Billing, Technical, Sales"
+        />
+      ) : null}
 
       <Typography variant="mediumLarge" sx={{ color: theme.app.text.primary, mt: 1.5, mb: -1.25 }}>
         Launcher & panel shell (config.ui)
@@ -358,6 +523,19 @@ export default function ChatWidgetBoxDesignPage() {
         <Switch checked={popupEnabled} onChange={(_, c) => setPopupEnabled(c)} color="success" />
       </Box>
 
+      <WidgetChatColorsSection
+        colors={chatColors}
+        onChange={setChatColors}
+        brandScalars={{
+          buttonColor,
+          buttonHoverColor,
+          iconColor,
+          textColor,
+          themeSecondaryColor,
+          backgroundColor,
+        }}
+      />
+
       <Typography variant="mediumLarge" sx={{ color: theme.app.text.primary, mb: -1.25 }}>Text & Labels</Typography>
       <InputField label="Greeting Message" name="greeting-message" value={greetingMessage} onChange={(event) => setGreetingMessage(event.target.value)} />
 
@@ -380,107 +558,17 @@ export default function ChatWidgetBoxDesignPage() {
           inputProps={{ inputMode: "numeric", pattern: "[0-9]*", min: 320, max: 640 }}
         />
       </Box>
+        </Box>
 
-      <Typography variant="mediumLarge" sx={{ color: theme.app.text.primary, mt: 0.5, mb: -0.5 }}>
-        Live Preview
-      </Typography>
-      <Box
-        sx={{
-          border: `1px solid ${theme.app.dashboard.cardBorder}`,
-          borderRadius: 3,
-          p: 2,
-          bgcolor: "rgba(6, 12, 54, 0.45)",
-        }}
-      >
         <Box
           sx={{
-            borderRadius: 2.5,
-            overflow: "hidden",
-            border: `1px solid ${theme.app.dashboard.cardBorder}`,
-            bgcolor: backgroundColor?.trim() || "#EEF1F7",
-            width: `${Math.min(460, Math.max(280, Number.parseInt(boxWidth, 10) || 350))}px`,
-            minHeight: `${Math.min(560, Math.max(320, Number.parseInt(boxHeight, 10) || 430))}px`,
-            mx: "auto",
-            display: "flex",
-            flexDirection: "column",
+            position: { xl: "sticky" },
+            top: 16,
+            maxHeight: { xl: "calc(100vh - 120px)" },
+            overflowY: { xl: "auto" },
           }}
         >
-          <Box sx={{ px: 2, py: 1.5, bgcolor: buttonColor || "#1ed760", color: textColor || "#ffffff" }}>
-            <Box sx={{ display: "flex", alignItems: "center", justifyContent: headerTitle === "Left" ? "flex-start" : "center", gap: 1 }}>
-              {renderAgentIcon()}
-              <Box>
-                <Typography variant="mediumLarge" sx={{ color: "inherit", textAlign: headerTitle === "Left" ? "left" : "center" }}>
-                  {companyLogo || "AI Sales Assistant"}
-                </Typography>
-                <Typography variant="body2" sx={{ color: "inherit", opacity: 0.9, textAlign: headerTitle === "Left" ? "left" : "center" }}>
-                  Online now
-                </Typography>
-              </Box>
-            </Box>
-          </Box>
-
-          <Box sx={{ p: 1.5, display: "grid", gap: 1.1, flex: 1 }}>
-            {bannerOn && bannerDataUrl ? (
-              bannerMediaType === "video" ? (
-                <Box
-                  component="video"
-                  src={bannerDataUrl}
-                  muted
-                  autoPlay
-                  loop
-                  playsInline
-                  controls
-                  sx={{ width: "100%", height: 120, objectFit: "cover", borderRadius: 2, bgcolor: "#000000" }}
-                />
-              ) : (
-                <Box
-                  component="img"
-                  src={bannerDataUrl}
-                  alt="Uploaded banner"
-                  sx={{ width: "100%", height: 120, objectFit: "cover", borderRadius: 2 }}
-                />
-              )
-            ) : null}
-
-            <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1 }}>
-              {renderAgentIcon()}
-              <Box sx={{ bgcolor: "#DDE3EC", borderRadius: 2, p: 1.2 }}>
-                <Typography variant="body2" sx={{ color: "#1B2A3D" }}>
-                  {greetingMessage || "Welcome! How can we help you today?"}
-                </Typography>
-              </Box>
-            </Box>
-
-            <Box sx={{ alignSelf: "flex-end", bgcolor: "#0E60D5", borderRadius: 2, p: 1.1, maxWidth: "78%" }}>
-              <Typography variant="body2" sx={{ color: "#FFFFFF" }}>
-                Great! Please share your preferred location.
-              </Typography>
-            </Box>
-
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1, bgcolor: "#FFFFFF", border: "1px solid #CCD6E6", borderRadius: "22px", px: 1.2, py: 0.75, mt: "auto" }}>
-              <ChatRounded sx={{ color: buttonColor || "#1ed760", fontSize: 20 }} />
-              <Typography variant="body2" sx={{ color: "#5B6B82", flex: 1 }}>
-                {sendPlaceholder || "Type your message..."}
-              </Typography>
-              <IconButton
-                type="button"
-                aria-label="Send message"
-                size="small"
-                tabIndex={-1}
-                disableRipple
-                sx={{
-                  bgcolor: buttonColor || "#1ed760",
-                  color: "#FFFFFF",
-                  width: 42,
-                  height: 42,
-                  flexShrink: 0,
-                  "&:hover": { bgcolor: buttonColor || "#1ed760", filter: "brightness(1.06)" },
-                }}
-              >
-                <SendRounded sx={{ fontSize: 22 }} />
-              </IconButton>
-            </Box>
-          </Box>
+          <WidgetChatBoxLivePreview model={livePreviewModel} />
         </Box>
       </Box>
     </WidgetFlowShell>

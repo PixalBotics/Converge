@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type ChangeEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
 import CloudUploadOutlined from "@mui/icons-material/CloudUploadOutlined";
 import Box from "@mui/material/Box";
@@ -27,6 +27,8 @@ import {
   useChatWidgetWizardEdit,
   withChatEditQuery,
 } from "@/lib/chat-widget/chat-wizard-edit";
+import { WidgetBehaviorLivePreview } from "@/components/dashboard/chat-widget/WidgetBehaviorLivePreview";
+import { readWidgetChatColorsFromDraft } from "@/lib/chat-widget/widget-colors-draft";
 import {
   defaultWidgetDraft,
   type WidgetInstallChatMode,
@@ -56,6 +58,7 @@ export default function ChatWidgetNotificationsPage() {
   const [welcomeMessageBehavior, setWelcomeMessageBehavior] = useState(
     d0.welcomeMessageBehavior ?? "Thanks for reaching out.",
   );
+  const [inquiryOn, setInquiryOn] = useState(d0.inquiryOn ?? false);
   const [inquiryOptionsInput, setInquiryOptionsInput] = useState(
     (d0.inquiryOptions ?? ["Billing", "Technical", "Sales"]).join(", "),
   );
@@ -96,12 +99,7 @@ export default function ChatWidgetNotificationsPage() {
     const d = readChatWizardDraft(resolveEditWidgetKeyForNavigation(editWidgetKey) || undefined);
     const def = defaultWidgetDraft;
     setChatMode(d.chatMode ?? "HYBRID");
-    const rawAd = d.allowedDomains;
-    const adArr = Array.isArray(rawAd)
-      ? rawAd
-      : typeof rawAd === "string"
-        ? rawAd.split(",").map((s) => s.trim()).filter(Boolean)
-        : [];
+    const adArr = Array.isArray(d.allowedDomains) ? d.allowedDomains : (def.allowedDomains ?? []);
     setAllowedDomainsInput(adArr.join(", "));
     setBrowserNotification(d.browserNotification ?? def.browserNotification ?? true);
     setSoundNotification(d.soundNotification ?? def.soundNotification ?? false);
@@ -109,17 +107,9 @@ export default function ChatWidgetNotificationsPage() {
     setFallbackText(d.fallbackNotificationText ?? def.fallbackNotificationText ?? "");
     setBotEnabled(d.botEnabled ?? def.botEnabled ?? true);
     setWelcomeMessageBehavior(d.welcomeMessageBehavior ?? def.welcomeMessageBehavior ?? "");
-    setInquiryOptionsInput(
-      (() => {
-        const rawInq = d.inquiryOptions;
-        const inquiryArr = Array.isArray(rawInq)
-          ? rawInq
-          : typeof rawInq === "string"
-            ? rawInq.split(",").map((s) => s.trim()).filter(Boolean)
-            : def.inquiryOptions ?? [];
-        return inquiryArr.join(", ");
-      })(),
-    );
+    const inquiryArr = Array.isArray(d.inquiryOptions) ? d.inquiryOptions : (def.inquiryOptions ?? []);
+    setInquiryOn(d.inquiryOn ?? inquiryArr.length > 0);
+    setInquiryOptionsInput(inquiryArr.join(", "));
     setAutoOpenEnabled(d.autoOpenEnabled ?? false);
     setAutoOpenDelayStr(String(d.autoOpenDelaySeconds ?? def.autoOpenDelaySeconds ?? 10));
     setFileUploadEnabled(d.fileUploadEnabled ?? def.fileUploadEnabled ?? true);
@@ -154,6 +144,99 @@ export default function ChatWidgetNotificationsPage() {
     if (!file) return;
     setVideoFileName(file.name);
   };
+
+  const inquiryOptionsList = useMemo(
+    () =>
+      inquiryOn
+        ? inquiryOptionsInput
+            .split(",")
+            .map((s) => s.trim())
+            .filter(Boolean)
+        : [],
+    [inquiryOn, inquiryOptionsInput],
+  );
+
+  const behaviorPreviewModel = useMemo(() => {
+    const draft = draftReady
+      ? readChatWizardDraft(resolveEditWidgetKeyForNavigation(editWidgetKey) || undefined)
+      : defaultWidgetDraft;
+    const colors = readWidgetChatColorsFromDraft(draft);
+    const sessionTtl = Math.min(10080, Math.max(5, Number.parseInt(sessionTtlStr, 10) || 120));
+    const autoOpenDelay = Math.min(300, Math.max(0, Number.parseInt(autoOpenDelayStr, 10) || 10));
+    return {
+      chatMode,
+      buttonColor: draft.buttonColor || "#1ed760",
+      backgroundColor: draft.backgroundColor || "#f8fafc",
+      colors,
+      browserNotification,
+      soundNotification,
+      fallbackText: fallbackText.trim() || "New message from support",
+      botEnabled,
+      welcomeMessageBehavior: welcomeMessageBehavior.trim(),
+      inquiryOn,
+      inquiryOptions: inquiryOptionsList,
+      autoOpenEnabled,
+      autoOpenDelaySeconds: autoOpenDelay,
+      fileUploadEnabled,
+      emojiEnabled,
+      consentRequired,
+      consentText: consentText.trim(),
+      privacyNotice: privacyNotice.trim(),
+      persistVisitorSession,
+      sessionTtlMinutes: sessionTtl,
+      formEnabled,
+      formTitle: formTitle.trim(),
+      formSubtitle: formSubtitle.trim(),
+      formSubmitLabel: formSubmitLabel.trim(),
+      prechatNameEnabled,
+      prechatEmailEnabled,
+      prechatPhoneEnabled,
+      prechatMessageEnabled,
+      responseWelcomeMessage: responseWelcomeMessage.trim(),
+      responseGreetingMessage: responseGreetingMessage.trim(),
+      responseSendPlaceholder: responseSendPlaceholder.trim(),
+      responseOfflineMessage: responseOfflineMessage.trim(),
+      responseAiPromptHint: responseAiPromptHint.trim(),
+      handoverEnabled: responseAgentHandoverEnabled,
+      handoverTriggerText: responseHandoverTriggerText.trim(),
+      greetingMessage: (draft.greetingMessage ?? defaultWidgetDraft.greetingMessage) || "",
+    };
+  }, [
+    draftReady,
+    editWidgetKey,
+    chatMode,
+    browserNotification,
+    soundNotification,
+    fallbackText,
+    botEnabled,
+    welcomeMessageBehavior,
+    inquiryOn,
+    inquiryOptionsList,
+    autoOpenEnabled,
+    autoOpenDelayStr,
+    fileUploadEnabled,
+    emojiEnabled,
+    consentRequired,
+    consentText,
+    privacyNotice,
+    persistVisitorSession,
+    sessionTtlStr,
+    formEnabled,
+    formTitle,
+    formSubtitle,
+    formSubmitLabel,
+    prechatNameEnabled,
+    prechatEmailEnabled,
+    prechatPhoneEnabled,
+    prechatMessageEnabled,
+    responseWelcomeMessage,
+    responseGreetingMessage,
+    responseSendPlaceholder,
+    responseOfflineMessage,
+    responseAiPromptHint,
+    responseAgentHandoverEnabled,
+    responseHandoverTriggerText,
+  ]);
 
   return (
     <WidgetFlowShell
@@ -202,10 +285,13 @@ export default function ChatWidgetNotificationsPage() {
                     videoWelcomeOn,
                     botEnabled,
                     welcomeMessageBehavior: welcomeMessageBehavior.trim(),
-                    inquiryOptions: inquiryOptionsInput
-                      .split(",")
-                      .map((s) => s.trim())
-                      .filter(Boolean),
+                    inquiryOn,
+                    inquiryOptions: inquiryOn
+                      ? inquiryOptionsInput
+                          .split(",")
+                          .map((s) => s.trim())
+                          .filter(Boolean)
+                      : [],
                     autoOpenEnabled,
                     autoOpenDelaySeconds: Math.min(300, Math.max(0, Number.parseInt(autoOpenDelayStr, 10) || 10)),
                     fileUploadEnabled,
@@ -281,6 +367,15 @@ export default function ChatWidgetNotificationsPage() {
           {hydrateError}
         </Typography>
       ) : null}
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: { xs: "1fr", xl: "minmax(0, 1fr) minmax(300px, 360px)" },
+          gap: 3,
+          alignItems: "start",
+        }}
+      >
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 0 }}>
       <Typography variant="mediumLarge" sx={{ color: theme.app.text.primary, mb: -1.25 }}>Notification Settings</Typography>
       <Box sx={{ display: "flex", gap: 2.5 }}>
         <Checkbox checked={browserNotification} onChange={(e) => setBrowserNotification(e.target.checked)} />
@@ -388,13 +483,25 @@ export default function ChatWidgetNotificationsPage() {
         value={welcomeMessageBehavior}
         onChange={(e) => setWelcomeMessageBehavior(e.target.value)}
       />
-      <InputField
-        label="Inquiry options (comma-separated)"
-        name="inquiry-options"
-        value={inquiryOptionsInput}
-        onChange={(e) => setInquiryOptionsInput(e.target.value)}
-        placeholder="Billing, Technical, Sales"
-      />
+      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted }}>
+          Inquiry topic pills
+        </Typography>
+        <Switch checked={inquiryOn} onChange={(_, c) => setInquiryOn(c)} color="success" />
+      </Box>
+      {inquiryOn ? (
+        <InputField
+          label="Inquiry options (comma-separated)"
+          name="inquiry-options"
+          value={inquiryOptionsInput}
+          onChange={(e) => setInquiryOptionsInput(e.target.value)}
+          placeholder="Billing, Technical, Sales"
+        />
+      ) : (
+        <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, mb: 1 }}>
+          Topic pills are hidden. You can also configure them on the Chat Box step.
+        </Typography>
+      )}
       <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted }}>
           Auto-open widget
@@ -536,6 +643,19 @@ export default function ChatWidgetNotificationsPage() {
         value={responseHandoverTriggerText}
         onChange={(e) => setResponseHandoverTriggerText(e.target.value)}
       />
+        </Box>
+
+        <Box
+          sx={{
+            position: { xl: "sticky" },
+            top: 16,
+            maxHeight: { xl: "calc(100vh - 120px)" },
+            overflowY: { xl: "auto" },
+          }}
+        >
+          <WidgetBehaviorLivePreview model={behaviorPreviewModel} />
+        </Box>
+      </Box>
     </WidgetFlowShell>
   );
 }
