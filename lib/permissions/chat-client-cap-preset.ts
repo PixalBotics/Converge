@@ -12,6 +12,8 @@ export const CHAT_CLIENT_CAP_PRESET_NAMES: readonly string[] = [
   "chat-widget:view",
   "chat-widget:update",
   "chat:settings:manage",
+  "chat-widget:create",
+  "chat-widget:delete",
 ] as const;
 
 export const CHAT_CLIENT_CAP_PRESET_LABELS: Record<string, string> = {

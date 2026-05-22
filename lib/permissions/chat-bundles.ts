@@ -34,6 +34,11 @@ export const CHAT_BUNDLE_OPTIONS = [
     label: "Platform monitor",
     description: "Cross-tenant audit (reseller platform staff)",
   },
+  {
+    code: "chat:bundle:involvement-supervisor",
+    label: "Involvement supervisor",
+    description: "Dept-scoped monitor, guest links, whisper, takeover",
+  },
 ] as const;
 
 export type ChatBundleCode = (typeof CHAT_BUNDLE_OPTIONS)[number]["code"];

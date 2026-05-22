@@ -2,7 +2,6 @@
 
 import { useLayoutEffect, useMemo } from "react";
 import Box from "@mui/material/Box";
-import Checkbox from "@mui/material/Checkbox";
 import FormControl from "@mui/material/FormControl";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Radio from "@mui/material/Radio";
@@ -15,6 +14,8 @@ import { pickItemsArray, toIdNameOption } from "@/app/dashboard/user-page/compon
 import { childrenDraftFieldPath, getCompanySetupFieldError } from "@/lib/companies/company-setup-draft-field-paths";
 import type { DraftChildPayload } from "@/lib/companies/setup-draft.utils";
 import { sessionShowPocDeptDesignationPickFromList, useAuth } from "@/lib/auth";
+import { resolveExternalAdminScope, type ExternalAdminScope } from "@/lib/users/user-admin-scope";
+import { UserAdminScopeFields } from "@/app/dashboard/user-page/components/UserAdminScopeFields";
 
 export type CompanySetupFieldErrorScope = "wizardChild" | "parentPocInvite";
 
@@ -202,37 +203,27 @@ export function CompanySetupChildPocBlock({
         onChange={(e) => updateChildRow(childIndex, { pocEmail: e.target.value })}
       />
 
-      <FormControlLabel
-        sx={{ alignItems: "flex-start", m: 0 }}
-        control={
-          <Checkbox
-            size="small"
-            checked={row.pocWideResellerScope}
-            disabled={controlsDisabled}
-            onChange={(e) => updateChildRow(childIndex, { pocWideResellerScope: e.target.checked })}
-            sx={{ color: theme.app.dashboard.textMuted, py: 0.25 }}
-          />
-        }
-        label={
-          <Box data-setup-scroll-anchor={resolvePath("pocInvite.wideResellerScope")}>
-            <Typography variant="body2" color="white" fontWeight={600}>
-              Wide reseller scope
-            </Typography>
-            <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, display: "block", mt: 0.25 }}>
-              External POC: allow hierarchy-wide access when your API supports{" "}
-              <Box component="code" sx={{ fontSize: "0.7rem" }}>
-                wideResellerScope
-              </Box>
-              .
-            </Typography>
-            {apiMsg("pocInvite.wideResellerScope") ? (
-              <Typography variant="caption" sx={{ color: theme.palette.error.main, display: "block", mt: 0.5 }}>
-                {apiMsg("pocInvite.wideResellerScope")}
-              </Typography>
-            ) : null}
-          </Box>
-        }
-      />
+      <Box data-setup-scroll-anchor={resolvePath("pocInvite.wideResellerScope")}>
+        <UserAdminScopeFields
+          theme={theme}
+          userType="External"
+          internalScope="standard"
+          externalScope={resolveExternalAdminScope(row.pocWideResellerScope)}
+          onInternalScopeChange={() => {}}
+          onExternalScopeChange={(scope: ExternalAdminScope) =>
+            updateChildRow(childIndex, {
+              pocWideResellerScope: scope === "wide_reseller",
+            })
+          }
+          disabled={controlsDisabled}
+          showInternal={false}
+        />
+        {apiMsg("pocInvite.wideResellerScope") ? (
+          <Typography variant="caption" sx={{ color: theme.palette.error.main, display: "block", mt: 0.5 }}>
+            {apiMsg("pocInvite.wideResellerScope")}
+          </Typography>
+        ) : null}
+      </Box>
 
       <Box>
         <SelectField

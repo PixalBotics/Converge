@@ -3,8 +3,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Box from "@mui/material/Box";
 import CircularProgress from "@mui/material/CircularProgress";
-import Checkbox from "@mui/material/Checkbox";
-import FormControlLabel from "@mui/material/FormControlLabel";
 import Radio from "@mui/material/Radio";
 import { Typography, InputField, SelectField, FormModal, DashboardCard } from "@/components/common";
 import type { JsonRecord } from "@/api";
@@ -27,6 +25,14 @@ import {
 } from "./add-user-modal.utils";
 import { publishAppToast } from "@/lib/notify";
 import { useAuth, sessionMayPickInternalUserScope } from "@/lib/auth";
+import {
+  findPlatformAdminRoleId,
+  resolveExternalAdminScope,
+  resolveInternalAdminScope,
+  type ExternalAdminScope,
+  type InternalAdminScope,
+} from "@/lib/users/user-admin-scope";
+import { UserAdminScopeFields } from "./UserAdminScopeFields";
 
 export function AddUserModal({
   open,
@@ -63,7 +69,8 @@ export function AddUserModal({
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
-  const [wideResellerScope, setWideResellerScope] = useState(false);
+  const [internalAdminScope, setInternalAdminScope] = useState<InternalAdminScope>("standard");
+  const [externalAdminScope, setExternalAdminScope] = useState<ExternalAdminScope>("parent_company");
   const [editFormHydrated, setEditFormHydrated] = useState(false);
   const hydratedEditUserIdRef = useRef<string | null>(null);
 
@@ -242,7 +249,8 @@ export function AddUserModal({
     setLastName("");
     setEmail("");
     setPhone("");
-    setWideResellerScope(false);
+    setInternalAdminScope("standard");
+    setExternalAdminScope("parent_company");
     setEditFormHydrated(false);
     hydratedEditUserIdRef.current = null;
   }, [open, mayPickInternalSessionScope]);
@@ -276,7 +284,9 @@ export function AddUserModal({
     );
 
     const wrRaw = u.wideResellerScope ?? u.wide_reseller_scope;
-    setWideResellerScope(wrRaw === true || wrRaw === "true" || wrRaw === 1 || wrRaw === "1");
+    const wide =
+      wrRaw === true || wrRaw === "true" || wrRaw === 1 || wrRaw === "1";
+    setExternalAdminScope(resolveExternalAdminScope(wide));
 
     const typeRaw = u.userType ?? u.user_type;
     const nextType = String(typeRaw ?? "Internal") === "External" ? "External" : "Internal";
@@ -317,6 +327,41 @@ export function AddUserModal({
     setEditFormHydrated(true);
     hydratedEditUserIdRef.current = trimmedEditId;
   }, [open, mode, userDetailQuery.isSuccess, userDetailQuery.data, trimmedEditId]);
+
+  useEffect(() => {
+    if (!open || !roleOptions.length) return;
+    if (userType !== "Internal") return;
+    setInternalAdminScope(resolveInternalAdminScope(roleValue, roleOptions));
+  }, [open, userType, roleValue, roleOptions]);
+
+  useEffect(() => {
+    if (!open || !roleOptions.length || userType !== "Internal") return;
+    if (internalAdminScope !== "platform_admin") return;
+    const platformRoleId = findPlatformAdminRoleId(roleOptions);
+    if (platformRoleId && roleValue !== platformRoleId) {
+      setRoleValue(platformRoleId);
+    }
+  }, [open, internalAdminScope, roleOptions, roleValue, userType]);
+
+  const handleInternalAdminScopeChange = (scope: InternalAdminScope) => {
+    setInternalAdminScope(scope);
+    if (scope === "platform_admin") {
+      const platformRoleId = findPlatformAdminRoleId(roleOptions);
+      if (platformRoleId) setRoleValue(platformRoleId);
+    } else if (roleOptions.length) {
+      const platformRoleId = findPlatformAdminRoleId(roleOptions);
+      if (platformRoleId && roleValue === platformRoleId) {
+        const fallback = roleOptions.find((r) => r.value !== platformRoleId);
+        if (fallback) setRoleValue(fallback.value);
+      }
+    }
+  };
+
+  const handleExternalAdminScopeChange = (scope: ExternalAdminScope) => {
+    setExternalAdminScope(scope);
+  };
+
+  const wideResellerScope = externalAdminScope === "wide_reseller";
 
   useEffect(() => {
     if (mode === "edit" && !editFormHydrated) return;
@@ -372,6 +417,15 @@ export function AddUserModal({
         message: "Please select role, department, and designation.",
       });
       return;
+    }
+    if (userType === "Internal" && internalAdminScope === "platform_admin") {
+      if (!findPlatformAdminRoleId(roleOptions)) {
+        publishAppToast({
+          variant: "error",
+          message: "Platform Admin role is missing. Seed roles or pick standard internal staff.",
+        });
+        return;
+      }
     }
     if (userType === "External") {
       if (!resellerId.trim() || !parentCompanyId.trim()) {
@@ -506,7 +560,8 @@ export function AddUserModal({
               setUserType("Internal");
               setResellerId("");
               setParentCompanyId("");
-              setWideResellerScope(false);
+              setInternalAdminScope("standard");
+              setExternalAdminScope("parent_company");
               setDepartmentValue("");
               setDesignationValue("");
               setDesignationLabelHint("");
@@ -519,7 +574,8 @@ export function AddUserModal({
                   setUserType("Internal");
                   setResellerId("");
                   setParentCompanyId("");
-                  setWideResellerScope(false);
+                  setInternalAdminScope("standard");
+                  setExternalAdminScope("parent_company");
                   setDepartmentValue("");
                   setDesignationValue("");
                   setDesignationLabelHint("");
@@ -621,29 +677,32 @@ export function AddUserModal({
             />
           </Box>
 
-          <FormControlLabel
-            sx={{ alignItems: "flex-start", mb: 1, ml: 0 }}
-            control={
-              <Checkbox
-                size="small"
-                checked={wideResellerScope}
-                onChange={(e) => setWideResellerScope(e.target.checked)}
-                sx={{ color: theme.app.dashboard.textMuted, py: 0.25 }}
-              />
-            }
-            label={
-              <Box>
-                <Typography variant="body2" color="white" fontWeight={600}>
-                  Wide reseller scope
-                </Typography>
-                <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, display: "block", mt: 0.25 }}>
-                  External user: allow broader reseller access when your API supports this flag.
-                </Typography>
-              </Box>
-            }
+          <UserAdminScopeFields
+            theme={theme}
+            userType="External"
+            internalScope={internalAdminScope}
+            externalScope={externalAdminScope}
+            onInternalScopeChange={handleInternalAdminScopeChange}
+            onExternalScopeChange={handleExternalAdminScopeChange}
+            disabled={isSaving || (mode === "edit" && isEditLoading)}
+            selectionLocked={mode === "edit"}
+            showInternal={false}
           />
         </>
       )}
+
+      {userType === "Internal" && showInternalUserTypeCard ? (
+        <UserAdminScopeFields
+          theme={theme}
+          userType="Internal"
+          internalScope={internalAdminScope}
+          externalScope={externalAdminScope}
+          onInternalScopeChange={handleInternalAdminScopeChange}
+          onExternalScopeChange={handleExternalAdminScopeChange}
+          disabled={isSaving || (mode === "edit" && isEditLoading)}
+          selectionLocked={mode === "edit"}
+        />
+      ) : null}
 
       <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 2, mb: 2 }}>
         <SelectField
@@ -652,6 +711,11 @@ export function AddUserModal({
           onChange={setRoleValue}
           options={roleOptions.length ? roleOptions : emptySelect}
           menuMaxRows={3}
+          disabled={
+            isSaving ||
+            (mode === "edit" && isEditLoading) ||
+            (userType === "Internal" && internalAdminScope === "platform_admin")
+          }
         />
         <SelectField
           label="Department"
