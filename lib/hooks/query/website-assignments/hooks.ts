@@ -11,6 +11,8 @@ import {
   removeWebsiteSlotAssignment,
 } from "@/api";
 import type { AssignWebsiteTierBody, JsonRecord, PutDepartmentRosterBody } from "@/api";
+import { useAuth } from "@/lib/auth";
+import { buildWebsiteAssignmentsScopeParams } from "@/lib/companies/reseller-list-filter";
 import { websiteAssignmentsKeys } from "./keys";
 
 export type WebsiteAssignmentsWebsitesParams = {
@@ -33,17 +35,11 @@ export function useWebsiteAssignmentsWebsitesQuery(
   params?: WebsiteAssignmentsWebsitesParams,
   options?: { enabled?: boolean; /** Only platform admins may pass `resellerId`. */ allowResellerIdFilter?: boolean },
 ) {
-  const safeParams =
-    options?.allowResellerIdFilter || !params?.resellerId
-      ? params
-      : (() => {
-          const { resellerId: _omit, ...rest } = params;
-          return rest;
-        })();
-
+  const { user } = useAuth();
+  const scopedParams = buildWebsiteAssignmentsScopeParams(params, user);
   return useQuery({
-    queryKey: websiteAssignmentsKeys.websites(safeParams),
-    queryFn: () => listWebsitesInScope(safeParams),
+    queryKey: websiteAssignmentsKeys.websites(scopedParams),
+    queryFn: () => listWebsitesInScope(scopedParams),
     enabled: options?.enabled ?? true,
   });
 }

@@ -15,6 +15,9 @@ export * from "./platform";
 export * from "./platform-theme";
 export * from "./ai/agent-suggest.api";
 export * from "./kb/kb.api";
+export * from "./ai-knowledge/types";
+export * from "./ai-chatbot/ai-chatbot-knowledge.api";
+export * from "./ai-assistant/ai-assistant-kb.api";
 export {
   listAdminWidgets,
   createWidgetInstallation,

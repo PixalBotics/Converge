@@ -1,4 +1,4 @@
-import { isRecord } from "@/lib/utils/records";
+import { isRecord } from "@/lib/utils";
 
 export interface ResolvedWidgetColors {
   primary: string;

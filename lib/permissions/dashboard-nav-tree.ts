@@ -264,7 +264,33 @@ const COMMERCIAL_ACCOUNT_GROUP: DashboardNavItem = {
   ],
 };
 
-/** Workforce only — attendance, leave, shifts (no departments/pools admin). */
+const AI_TRAINING_GROUP: DashboardNavItem = {
+  href: "/dashboard/ai-training/assistant",
+  label: "AI Training",
+  section: "activity",
+  iconKey: "aiTraining",
+  permission: null,
+  permissionsAny: ["page:chat-widget", "page:chat"],
+  children: [
+    {
+      href: "/dashboard/ai-training/chatbot",
+      label: "AI Chatbot",
+      section: "activity",
+      iconKey: "aiTraining",
+      permission: "page:chat-widget",
+      prefixMatch: false,
+    },
+    {
+      href: "/dashboard/ai-training/assistant",
+      label: "AI Assistant",
+      section: "activity",
+      iconKey: "aiTraining",
+      permission: "page:chat",
+      prefixMatch: false,
+    },
+  ],
+};
+
 const HRMS_GROUP: DashboardNavItem = {
   href: "/dashboard/hrms",
   label: "HRMS",
@@ -344,10 +370,14 @@ export const DASHBOARD_NAV_ITEMS: readonly DashboardNavItem[] = PAGE_PERMISSION_
   }
   if (permission === "page:website-assignments") return [WEBSITE_GROUP];
   if (permission === "page:users") return [USERS_GROUP];
-  if (permission === "page:hrms") return [HRMS_GROUP, SHIFTS_GROUP];
-  if (permission === "page:chat") return [CHAT_GROUP];
-  if (permission === "page:chat-widget") return [];
-  if (permission === "page:shifts") return [];
+  if (permission === "page:hrms") return [HRMS_GROUP];
+  if (permission === "page:pools") return [];
+  if (permission === "page:shifts") return [SHIFTS_GROUP];
+  if (permission === "page:chat") return [CHAT_GROUP, AI_TRAINING_GROUP];
+  if (permission === "page:chat-widget") {
+    const widgetItem = toNavItem("page:chat-widget");
+    return widgetItem ? [widgetItem] : [];
+  }
   if (COMMERCIAL_PAGE_PERMISSIONS.includes(permission)) {
     const first = firstCommercialPageInNavOrder();
     if (!first || permission !== first) return [];

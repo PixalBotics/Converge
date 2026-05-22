@@ -1,4 +1,4 @@
-import { isRecord } from "@/lib/utils/records";
+import { isRecord } from "@/lib/utils";
 import type { JsonRecord } from "@/api/types/common.types";
 import { widgetResponseData } from "@/api/widgets/widgets.api";
 import { mapAdminWidgetResponseToWidgetDraft } from "./admin-widget-to-draft";
@@ -35,6 +35,11 @@ export function mapWidgetSnapshotToWidgetDraft(
     websiteId: snapshot.websiteId ?? snapshot.website_id,
     widgetType: snapshot.widgetType ?? snapshot.widget_type,
     chatMode: mergedConfig.chatMode ?? mergedConfig.chat_mode ?? mergedConfig.mode,
+    aiType:
+      mergedConfig.aiType ??
+      mergedConfig.ai_type ??
+      snapshot.aiType ??
+      snapshot.ai_type,
     allowedDomains:
       mergedConfig.allowedDomains ??
       snapshot.allowedDomains ??

@@ -1,12 +1,14 @@
-import { isRecord } from "@/lib/utils/records";
+import { isRecord } from "@/lib/utils";
 import type { JsonRecord } from "@/api/types/common.types";
-import type { WidgetChatModeApi, WidgetTypeApi } from "@/api/types/widgets.types";
+import type { WidgetAiTypeApi, WidgetChatModeApi, WidgetTypeApi } from "@/api/types/widgets.types";
 import { mergeWidgetConfigForEdit } from "./merge-widget-config-for-edit";
+import { applyAiTypeToWidgetConfig, parseAiTypeFromConfigRoot } from "./widget-ai-type";
 
 export interface WidgetPatchEditorState {
   widgetType: WidgetTypeApi;
   embedAllowAnyOrigin: boolean;
   chatMode: WidgetChatModeApi;
+  aiType: WidgetAiTypeApi;
   themeJson: string;
   uiJson: string;
   behaviorJson: string;
@@ -108,7 +110,8 @@ export function editorStateFromApis(
   return {
     widgetType: parseWidgetType(admin?.widgetType ?? admin?.widget_type),
     embedAllowAnyOrigin,
-    chatMode: parseChatMode(root.chatMode ?? root.chat_mode),
+    chatMode: parseChatMode(root.chatMode ?? root.chat_mode ?? root.mode),
+    aiType: parseAiTypeFromConfigRoot(root),
     themeJson: pretty(root.theme),
     uiJson: pretty(root.ui),
     behaviorJson: pretty(root.behavior),
@@ -174,6 +177,10 @@ export function buildPatchWidgetBody(
 
   if (state.widgetType === "CHAT" || state.widgetType === "BOTH") {
     config.chatMode = state.chatMode;
+    applyAiTypeToWidgetConfig(config, {
+      chatMode: state.chatMode,
+      aiType: state.aiType,
+    });
   }
 
   delete config.textUsFormConfig;

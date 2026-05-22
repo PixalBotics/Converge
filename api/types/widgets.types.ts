@@ -5,6 +5,8 @@ export type WidgetTypeApi = "CHAT" | "TEXT_US" | "BOTH";
 
 export type WidgetChatModeApi = "AI_ONLY" | "AGENT_ONLY" | "HYBRID";
 
+export type WidgetAiTypeApi = "AI_CHATBOT" | "AI_ASSISTANT";
+
 /** Query for `GET /widgets` (ListWidgetsQueryDto — align names with backend). */
 export interface ListWidgetsQuery {
   page?: number;

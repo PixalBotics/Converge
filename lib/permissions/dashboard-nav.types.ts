@@ -3,6 +3,7 @@ export type DashboardSidebarIconKey =
   | "billing"
   | "chat"
   | "chatWidget"
+  | "aiTraining"
   | "clients"
   | "Reseller-Management"
   | "crmIntegration"

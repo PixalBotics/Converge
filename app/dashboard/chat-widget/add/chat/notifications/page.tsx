@@ -29,10 +29,16 @@ import {
 } from "@/lib/chat-widget/chat-wizard-edit";
 import { WidgetBehaviorLivePreview } from "@/components/dashboard/chat-widget/WidgetBehaviorLivePreview";
 import { readWidgetChatColorsFromDraft } from "@/lib/chat-widget/widget-colors-draft";
+import { WidgetAiTypeField } from "@/components/dashboard/chat-widget/WidgetAiTypeField";
 import {
   defaultWidgetDraft,
   type WidgetInstallChatMode,
 } from "@/lib/chat-widget/widgetDraft";
+import {
+  normalizeWidgetAiType,
+  shouldShowWidgetAiType,
+  type WidgetAiType,
+} from "@/lib/chat-widget/widget-ai-type";
 import { normalizeWidgetInquiryOptions } from "@/lib/chat-widget/widget-inquiry.types";
 
 const STEPS = ["Widget Button Design", "Chat Box Design", "Notifications & Advanced"];
@@ -44,6 +50,7 @@ export default function ChatWidgetNotificationsPage() {
   const [browserNotification, setBrowserNotification] = useState(true);
   const [soundNotification, setSoundNotification] = useState(false);
   const [chatMode, setChatMode] = useState<WidgetInstallChatMode>("HYBRID");
+  const [aiType, setAiType] = useState<WidgetAiType>("AI_CHATBOT");
   const [allowedDomainsInput, setAllowedDomainsInput] = useState("");
   const [videoWelcomeOn, setVideoWelcomeOn] = useState(false);
   const [videoSource, setVideoSource] = useState("upload");
@@ -97,6 +104,7 @@ export default function ChatWidgetNotificationsPage() {
     const d = readChatWizardDraft(resolveEditWidgetKeyForNavigation(editWidgetKey) || undefined);
     const def = defaultWidgetDraft;
     setChatMode(d.chatMode ?? "HYBRID");
+    setAiType(normalizeWidgetAiType(d.aiType));
     const adArr = Array.isArray(d.allowedDomains) ? d.allowedDomains : (def.allowedDomains ?? []);
     setAllowedDomainsInput(adArr.join(", "));
     setBrowserNotification(d.browserNotification ?? def.browserNotification ?? true);
@@ -157,6 +165,7 @@ export default function ChatWidgetNotificationsPage() {
     const autoOpenDelay = Math.min(300, Math.max(0, Number.parseInt(autoOpenDelayStr, 10) || 10));
     return {
       chatMode,
+      aiType,
       buttonColor: draft.buttonColor || "#1ed760",
       backgroundColor: draft.backgroundColor || "#f8fafc",
       colors,
@@ -197,6 +206,7 @@ export default function ChatWidgetNotificationsPage() {
     draftReady,
     editWidgetKey,
     chatMode,
+    aiType,
     browserNotification,
     soundNotification,
     fallbackText,
@@ -266,6 +276,7 @@ export default function ChatWidgetNotificationsPage() {
                 try {
                   saveChatWizardDraft(editKey || undefined, {
                     chatMode,
+                    aiType: shouldShowWidgetAiType(chatMode) ? aiType : undefined,
                     allowedDomains: allowedDomainsInput
                       .split(",")
                       .map((s) => s.trim())
@@ -398,6 +409,9 @@ export default function ChatWidgetNotificationsPage() {
         searchable={false}
         menuMaxRows={6}
       />
+      {shouldShowWidgetAiType(chatMode) ? (
+        <WidgetAiTypeField value={aiType} onChange={setAiType} />
+      ) : null}
       <InputField
         label="Allowed domains (comma-separated hosts, optional)"
         name="allowed-domains"

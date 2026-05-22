@@ -15,6 +15,11 @@ import {
   updateParentCompany,
 } from "@/api";
 import type { JsonRecord } from "@/api";
+import { useAuth } from "@/lib/auth";
+import {
+  buildCompaniesTreeListParams,
+  mayPassResellerIdListFilter,
+} from "@/lib/companies/reseller-list-filter";
 import { companiesKeys } from "./keys";
 
 export type CompaniesListParams = {
@@ -88,11 +93,16 @@ export function useCompaniesByResellerQuery(
   params?: CompaniesListParams,
   options?: { enabled?: boolean },
 ) {
+  const { user } = useAuth();
   const rid = resellerId.trim();
+  const mayPassResellerId = mayPassResellerIdListFilter(user);
+  const listParams = buildCompaniesTreeListParams(resellerId, params, user);
+  const queryKeyReseller = mayPassResellerId ? rid : "__session__";
+  const enabledWhen = mayPassResellerId ? rid.length > 0 : (options?.enabled ?? true);
   return useQuery({
-    queryKey: companiesKeys.byReseller(resellerId, params),
-    queryFn: () => listCompaniesByReseller(rid, params),
-    enabled: (options?.enabled ?? true) && rid.length > 0,
+    queryKey: companiesKeys.byReseller(queryKeyReseller, listParams),
+    queryFn: () => listCompanies(listParams),
+    enabled: (options?.enabled ?? true) && enabledWhen,
   });
 }
 
