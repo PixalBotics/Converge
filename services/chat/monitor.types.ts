@@ -7,6 +7,7 @@ export interface MonitorListFilters {
   departmentId?: string;
   poolId?: string;
   status?: string;
+  agentId?: string;
 }
 
 export interface MonitorScopeSummary {
@@ -17,10 +18,77 @@ export interface MonitorScopeSummary {
   involvementAssignments?: Array<{ websiteId: string; departmentId: string }>;
 }
 
+export type MonitorUiMode =
+  | "platform"
+  | "parent_company"
+  | "department"
+  | "pool"
+  | "involvement";
+
 export interface MonitorCapabilities {
   scopes: MonitorScopeSummary[];
   socketRooms: string[];
   permissions: string[];
+  mode?: MonitorUiMode;
+  readOnly?: boolean;
+  canWhisper?: boolean;
+  canDirectControl?: boolean;
+  showResellerDirectory?: boolean;
+}
+
+export interface MonitorDirectoryResellerRow {
+  id: string;
+  name: string;
+  liveCount: number;
+}
+
+export interface MonitorDirectoryParentCompanyRow {
+  id: string;
+  name: string;
+  resellerId: string | null;
+  resellerName: string | null;
+  liveCount: number;
+}
+
+export interface MonitorDirectoryDepartmentRow {
+  id: string;
+  name: string;
+  type: string;
+}
+
+export interface MonitorDirectoryPoolRow {
+  id: string;
+  name: string;
+}
+
+export interface MonitorDirectoryAgentRow {
+  kind: "roster" | "involvement";
+  userId: string;
+  userType: string;
+  displayName: string;
+  email: string;
+  departmentId?: string | null;
+  departmentName?: string | null;
+  departmentType?: string | null;
+  serviceChannel?: string | null;
+  poolId?: string | null;
+  poolName?: string | null;
+  parentCompanyId?: string;
+  parentCompanyName?: string | null;
+  websiteId?: string;
+  websiteName?: string | null;
+  liveCount: number;
+  waitingCount: number;
+}
+
+export interface MonitorDirectoryAgentsResponse {
+  /** All website roster rows (internal + external). */
+  roster: MonitorDirectoryAgentRow[];
+  /** Internal users on client website roster under scope. */
+  platformAssigned: MonitorDirectoryAgentRow[];
+  /** External client agents on website roster. */
+  clientAgents: MonitorDirectoryAgentRow[];
+  involvement: MonitorDirectoryAgentRow[];
 }
 
 export interface MonitorAgentRef {

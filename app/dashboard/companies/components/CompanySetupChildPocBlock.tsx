@@ -1,6 +1,6 @@
 "use client";
 
-import { useLayoutEffect, useMemo } from "react";
+import { useEffect, useLayoutEffect, useMemo } from "react";
 import Box from "@mui/material/Box";
 import FormControl from "@mui/material/FormControl";
 import FormControlLabel from "@mui/material/FormControlLabel";
@@ -14,7 +14,10 @@ import { pickItemsArray, toIdNameOption } from "@/app/dashboard/user-page/compon
 import { childrenDraftFieldPath, getCompanySetupFieldError } from "@/lib/companies/company-setup-draft-field-paths";
 import type { DraftChildPayload } from "@/lib/companies/setup-draft.utils";
 import { sessionShowPocDeptDesignationPickFromList, useAuth } from "@/lib/auth";
-import { resolveExternalAdminScope, type ExternalAdminScope } from "@/lib/users/user-admin-scope";
+import {
+  resolveRoleIdForExternalAdminScope,
+  type ExternalAdminScope,
+} from "@/lib/users/user-admin-scope";
 import { UserAdminScopeFields } from "@/app/dashboard/user-page/components/UserAdminScopeFields";
 
 export type CompanySetupFieldErrorScope = "wizardChild" | "parentPocInvite";
@@ -115,6 +118,22 @@ export function CompanySetupChildPocBlock({
       ? roleOptions
       : [{ value: "", label: rolesLoading ? "Loading…" : "— Select role —" }];
 
+  useEffect(() => {
+    if (!roleOptions.length) return;
+    const scope = row.pocWideResellerScope ? "wide_reseller" : "parent_company";
+    const adminRoleId = resolveRoleIdForExternalAdminScope(scope, roleSelectOptions);
+    if (adminRoleId && row.roleId !== adminRoleId) {
+      updateChildRow(childIndex, { roleId: adminRoleId });
+    }
+  }, [
+    childIndex,
+    roleOptions.length,
+    row.pocWideResellerScope,
+    row.roleId,
+    roleSelectOptions,
+    updateChildRow,
+  ]);
+
   const departmentSelectOptions =
     departmentOptions.length > 0
       ? departmentOptions
@@ -208,13 +227,15 @@ export function CompanySetupChildPocBlock({
           theme={theme}
           userType="External"
           internalScope="standard"
-          externalScope={resolveExternalAdminScope(row.pocWideResellerScope)}
+          externalScope={row.pocWideResellerScope ? "wide_reseller" : "parent_company"}
           onInternalScopeChange={() => {}}
-          onExternalScopeChange={(scope: ExternalAdminScope) =>
+          onExternalScopeChange={(scope: ExternalAdminScope) => {
+            const adminRoleId = resolveRoleIdForExternalAdminScope(scope, roleSelectOptions);
             updateChildRow(childIndex, {
               pocWideResellerScope: scope === "wide_reseller",
-            })
-          }
+              ...(adminRoleId ? { roleId: adminRoleId } : {}),
+            });
+          }}
           disabled={controlsDisabled}
           showInternal={false}
         />
@@ -229,7 +250,7 @@ export function CompanySetupChildPocBlock({
         <SelectField
           label="Role"
           value={row.roleId}
-          disabled={controlsDisabled}
+          disabled
           scrollAnchorPath={resolvePath("pocInvite.roleId")}
           onChange={(id) => updateChildRow(childIndex, { roleId: id })}
           options={roleSelectOptions}

@@ -122,11 +122,11 @@ export function InvolvementAddSupervisorsModal({
       open={open}
       fitContent
       maxWidth={720}
-      title="Add involvement supervisors"
+      title="Add involvement users"
       description="Choose organization and website, then external department and users. Independent from table filters."
       onClose={onClose}
       onSave={() => void handleSave()}
-      primaryButtonLabel={saving ? "Saving…" : `Add ${selectedUserIds.length || ""} supervisor(s)`}
+      primaryButtonLabel={saving ? "Saving…" : `Add ${selectedUserIds.length || ""} user(s)`}
       primaryButtonDisabled={
         !canEdit ||
         saving ||

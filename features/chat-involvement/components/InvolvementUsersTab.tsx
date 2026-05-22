@@ -75,10 +75,10 @@ export function InvolvementUsersTab({
           sortOrder: index,
         }));
       await saveMutation.mutateAsync({ websiteId: row.websiteId, items });
-      publishAppToast({ message: "Supervisor removed.", variant: "success" });
+      publishAppToast({ message: "Involvement user removed.", variant: "success" });
     } catch (err) {
       publishAppToast({
-        message: extractApiErrorMessageForToast(err, "Could not remove supervisor."),
+        message: extractApiErrorMessageForToast(err, "Could not remove involvement user."),
         variant: "error",
       });
     }
@@ -119,7 +119,7 @@ export function InvolvementUsersTab({
       },
       {
         id: "user",
-        label: "Supervisor",
+        label: "User",
         render: (_, row) => row.user.name?.trim() || row.user.email || row.userId.slice(0, 8),
       },
       {
@@ -139,7 +139,7 @@ export function InvolvementUsersTab({
               render: (_: unknown, row: InvolvementListRow) => (
                 <IconButton
                   size="small"
-                  aria-label="Remove supervisor"
+                  aria-label="Remove involvement user"
                   disabled={saveMutation.isPending}
                   onClick={(e) => {
                     e.stopPropagation();
@@ -161,12 +161,12 @@ export function InvolvementUsersTab({
       <InvolvementTabToolbarCard
         icon={<GroupsOutlined />}
         iconColor={theme.app.dashboard.accentBlue}
-        title="Involvement supervisors"
+        title="Involvement users"
         description="Filter the table above. Add opens one modal (reseller → website → external department → users)."
         searchValue={tableSearch}
         onSearchChange={setTableSearch}
         searchPlaceholder="Search website, department, user, email…"
-        addLabel="Add supervisors"
+        addLabel="Add involvement users"
         onAdd={() => setAddOpen(true)}
         canAdd={canEdit}
       />
@@ -177,10 +177,10 @@ export function InvolvementUsersTab({
         getRowId={(row) => row.id}
         isLoading={listQuery.isLoading}
         emptyState={{
-          title: listQuery.isError ? "Could not load" : "No involvement supervisors",
+          title: listQuery.isError ? "Could not load" : "No involvement users",
           description: listQuery.isError
             ? "Check permissions and try again."
-            : "No rows in your scope yet. Use Add supervisors.",
+            : "No rows in your scope yet. Use Add involvement users.",
         }}
       />
 
@@ -194,7 +194,7 @@ export function InvolvementUsersTab({
             { websiteId, items },
             {
               onSuccess: () => {
-                publishAppToast({ message: "Involvement supervisors saved.", variant: "success" });
+                publishAppToast({ message: "Involvement users saved.", variant: "success" });
                 setAddOpen(false);
               },
               onError: (err) => {

@@ -39,6 +39,7 @@ interface MonitorQueueSidebarProps {
   connected: boolean;
   hasToken: boolean;
   loading: boolean;
+  agentLabel?: string | null;
 }
 
 function statusChipColor(
@@ -71,6 +72,7 @@ export function MonitorQueueSidebar({
   connected,
   hasToken,
   loading,
+  agentLabel = null,
 }: MonitorQueueSidebarProps) {
   const theme = useTheme() as AppTheme;
   const [searchQuery, setSearchQuery] = useState("");
@@ -89,9 +91,11 @@ export function MonitorQueueSidebar({
     <PanelColumn sx={{ height: "100%" }}>
       <Box sx={chatMonitorInboxToolbarSx}>
         <Box>
-          <Typography sx={chatOpsPaneTitleSx}>Monitor queue</Typography>
+          <Typography sx={chatOpsPaneTitleSx}>
+            {agentLabel ? `Monitoring · ${agentLabel}` : "Monitor queue"}
+          </Typography>
           <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, fontSize: 11 }}>
-            Read-only · scoped by your role
+            {agentLabel ? "Live and closed chats for this agent" : "Scoped by your monitor role"}
           </Typography>
         </Box>
         <ConnectionStatusBar connected={connected} hasToken={hasToken} compact />

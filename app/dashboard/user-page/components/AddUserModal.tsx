@@ -27,8 +27,11 @@ import { publishAppToast } from "@/lib/notify";
 import { useAuth, sessionMayPickInternalUserScope } from "@/lib/auth";
 import {
   findPlatformAdminRoleId,
+  PARENT_COMPANY_ADMIN_ROLE_NAME,
+  RESELLER_ADMIN_ROLE_NAME,
   resolveExternalAdminScope,
   resolveInternalAdminScope,
+  resolveRoleIdForExternalAdminScope,
   type ExternalAdminScope,
   type InternalAdminScope,
 } from "@/lib/users/user-admin-scope";
@@ -286,7 +289,14 @@ export function AddUserModal({
     const wrRaw = u.wideResellerScope ?? u.wide_reseller_scope;
     const wide =
       wrRaw === true || wrRaw === "true" || wrRaw === 1 || wrRaw === "1";
-    setExternalAdminScope(resolveExternalAdminScope(wide));
+    const roleNameHydrated = String(roleObj?.name ?? u.roleName ?? u.role_name ?? "").trim();
+    if (roleNameHydrated === RESELLER_ADMIN_ROLE_NAME) {
+      setExternalAdminScope("wide_reseller");
+    } else if (roleNameHydrated === PARENT_COMPANY_ADMIN_ROLE_NAME) {
+      setExternalAdminScope("parent_company");
+    } else {
+      setExternalAdminScope(wide ? "wide_reseller" : "parent_company");
+    }
 
     const typeRaw = u.userType ?? u.user_type;
     const nextType = String(typeRaw ?? "Internal") === "External" ? "External" : "Internal";
@@ -359,20 +369,31 @@ export function AddUserModal({
 
   const handleExternalAdminScopeChange = (scope: ExternalAdminScope) => {
     setExternalAdminScope(scope);
+    const adminRoleId = resolveRoleIdForExternalAdminScope(scope, roleOptions);
+    if (adminRoleId) setRoleValue(adminRoleId);
   };
 
   const wideResellerScope = externalAdminScope === "wide_reseller";
 
   useEffect(() => {
+    if (!open || !roleOptions.length || userType !== "External") return;
+    const adminRoleId = resolveRoleIdForExternalAdminScope(externalAdminScope, roleOptions);
+    if (adminRoleId && roleValue !== adminRoleId) {
+      setRoleValue(adminRoleId);
+    }
+  }, [open, externalAdminScope, roleOptions, roleValue, userType]);
+
+  useEffect(() => {
     if (mode === "edit" && !editFormHydrated) return;
     if (!roleOptions.length) return;
+    if (userType === "External") return;
     const inList = roleOptions.some((o) => o.value === roleValue);
     if (!roleValue) {
       setRoleValue(roleOptions[0].value);
     } else if (!inList && mode === "create") {
       setRoleValue(roleOptions[0].value);
     }
-  }, [roleOptions, roleValue, mode, editFormHydrated]);
+  }, [roleOptions, roleValue, mode, editFormHydrated, userType]);
 
   useEffect(() => {
     if (mode === "edit" && !editFormHydrated) return;
@@ -432,6 +453,20 @@ export function AddUserModal({
         publishAppToast({
           variant: "error",
           message: "Please select reseller and parent company for an external user.",
+        });
+        return;
+      }
+      const externalRoleId = resolveRoleIdForExternalAdminScope(
+        externalAdminScope,
+        roleOptions,
+      );
+      if (!externalRoleId) {
+        publishAppToast({
+          variant: "error",
+          message:
+            externalAdminScope === "wide_reseller"
+              ? `"${RESELLER_ADMIN_ROLE_NAME}" role is missing. Run API seed.`
+              : `"${PARENT_COMPANY_ADMIN_ROLE_NAME}" role is missing. Run API seed.`,
         });
         return;
       }
@@ -714,7 +749,8 @@ export function AddUserModal({
           disabled={
             isSaving ||
             (mode === "edit" && isEditLoading) ||
-            (userType === "Internal" && internalAdminScope === "platform_admin")
+            (userType === "Internal" && internalAdminScope === "platform_admin") ||
+            userType === "External"
           }
         />
         <SelectField

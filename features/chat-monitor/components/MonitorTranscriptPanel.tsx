@@ -17,7 +17,7 @@ import { agentDisplayName } from "@/services/chat/monitor-normalizers";
 import type { MonitorConversationRow } from "@/services/chat/monitor.types";
 import type { ChatMessage } from "@/services/chat/chat.types";
 import { chatMonitorReadOnlyBannerSx } from "../styles/chat-monitor.styles";
-import { MonitorSupervisorPanel } from "./MonitorSupervisorPanel";
+import { MonitorActionsPanel } from "./MonitorActionsPanel";
 
 interface MonitorTranscriptPanelProps {
   conversation: MonitorConversationRow | null;
@@ -26,6 +26,7 @@ interface MonitorTranscriptPanelProps {
   loading: boolean;
   currentUserId?: string | null;
   hasOperational?: (p: string) => boolean;
+  monitorReadOnly?: boolean;
   supervisorControlUserId?: string | null;
   onSupervisorAction?: () => void;
   onMessageSent?: () => void;
@@ -38,6 +39,7 @@ export function MonitorTranscriptPanel({
   loading,
   currentUserId = null,
   hasOperational = () => false,
+  monitorReadOnly = false,
   supervisorControlUserId = null,
   onSupervisorAction,
   onMessageSent,
@@ -59,9 +61,11 @@ export function MonitorTranscriptPanel({
     <PanelColumn sx={{ height: "100%", overflow: "hidden" }}>
       <Box sx={chatMonitorReadOnlyBannerSx}>
         <Typography variant="caption" sx={{ fontSize: 11, color: theme.app.dashboard.textMuted }}>
-          {activeSupervisorId
-            ? "Supervisor control active — assigned agent is read-only until control is released."
-            : "Monitor view — use supervisor actions below to whisper or take control."}
+          {monitorReadOnly
+            ? "Read-only monitor — you can view this chat but cannot whisper or take control."
+            : activeSupervisorId
+              ? "Monitor control active — assigned agent is read-only until control is released."
+              : "Monitor view — use monitor actions below to whisper or take control when allowed."}
         </Typography>
       </Box>
 
@@ -105,11 +109,12 @@ export function MonitorTranscriptPanel({
       )}
 
       {hasConversation && conversation?.status !== "closed" ? (
-        <MonitorSupervisorPanel
+        <MonitorActionsPanel
           conversationId={conversation.id}
           supervisorControlUserId={activeSupervisorId}
           currentUserId={currentUserId}
           hasOperational={hasOperational}
+          readOnly={monitorReadOnly}
           onActionComplete={onSupervisorAction}
           onMessageSent={onMessageSent}
         />

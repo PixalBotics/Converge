@@ -7,4 +7,16 @@ export const chatMonitorKeys = {
   closed: (filters: MonitorListFilters) => [...chatMonitorKeys.all, "closed", filters] as const,
   transcript: (conversationId: string) =>
     [...chatMonitorKeys.all, "transcript", conversationId] as const,
+  directoryResellers: () => [...chatMonitorKeys.all, "directory", "resellers"] as const,
+  directoryParents: (resellerId?: string) =>
+    [...chatMonitorKeys.all, "directory", "parents", resellerId ?? ""] as const,
+  directoryDepartments: (parentCompanyId: string) =>
+    [...chatMonitorKeys.all, "directory", "departments", parentCompanyId] as const,
+  directoryPools: (departmentId: string) =>
+    [...chatMonitorKeys.all, "directory", "pools", departmentId] as const,
+  directoryAgents: (params: {
+    parentCompanyId?: string;
+    departmentId?: string;
+    poolId?: string;
+  }) => [...chatMonitorKeys.all, "directory", "agents", params] as const,
 };

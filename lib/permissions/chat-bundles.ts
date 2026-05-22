@@ -32,12 +32,12 @@ export const CHAT_BUNDLE_OPTIONS = [
   {
     code: "chat:bundle:platform-monitor",
     label: "Platform monitor",
-    description: "Cross-tenant audit (reseller platform staff)",
+    description: "Cross-tenant chat monitor and audit (no agent inbox)",
   },
   {
     code: "chat:bundle:involvement-supervisor",
-    label: "Involvement supervisor",
-    description: "Dept-scoped monitor, guest links, whisper, takeover",
+    label: "Involvement monitor",
+    description: "Involvement user: website + dept monitor, guest link, whisper, takeover",
   },
 ] as const;
 

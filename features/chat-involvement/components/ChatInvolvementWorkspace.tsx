@@ -79,7 +79,7 @@ export function ChatInvolvementWorkspace() {
     <Box sx={chatLivePageStackSx}>
       <ChatLivePageHeader
         title="Chat involvement & QA setup"
-        subtitle="External involvement supervisors (email + monitor), QA roster, and link activity. Agents send links from the inbox."
+        subtitle="External involvement users (email + monitor), QA roster, and link activity. Agents send links from the inbox."
         navItems={chatNavItems}
       />
 

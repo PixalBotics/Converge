@@ -5,6 +5,11 @@ import { normalizeMonitorConversationList } from "./monitor-normalizers";
 import type {
   MonitorCapabilities,
   MonitorConversationRow,
+  MonitorDirectoryAgentsResponse,
+  MonitorDirectoryDepartmentRow,
+  MonitorDirectoryParentCompanyRow,
+  MonitorDirectoryPoolRow,
+  MonitorDirectoryResellerRow,
   MonitorListFilters,
   MonitorTranscriptResponse,
 } from "./monitor.types";
@@ -15,6 +20,7 @@ function compactMonitorQuery(filters: MonitorListFilters): Record<string, string
   if (filters.departmentId?.trim()) q.departmentId = filters.departmentId.trim();
   if (filters.poolId?.trim()) q.poolId = filters.poolId.trim();
   if (filters.status?.trim()) q.status = filters.status.trim();
+  if (filters.agentId?.trim()) q.agentId = filters.agentId.trim();
   return q;
 }
 
@@ -39,6 +45,51 @@ export async function fetchMonitorClosed(
     params: compactMonitorQuery(filters),
   });
   return normalizeMonitorConversationList(unwrapChatHttpData(data));
+}
+
+export async function fetchMonitorDirectoryResellers(): Promise<
+  MonitorDirectoryResellerRow[]
+> {
+  const { data } = await apiClient.get<unknown>("/chat/monitor/directory/resellers");
+  return unwrapChatHttpData<MonitorDirectoryResellerRow[]>(data);
+}
+
+export async function fetchMonitorDirectoryParentCompanies(
+  resellerId?: string,
+): Promise<MonitorDirectoryParentCompanyRow[]> {
+  const { data } = await apiClient.get<unknown>("/chat/monitor/directory/parent-companies", {
+    params: resellerId ? { resellerId } : {},
+  });
+  return unwrapChatHttpData<MonitorDirectoryParentCompanyRow[]>(data);
+}
+
+export async function fetchMonitorDirectoryDepartments(
+  parentCompanyId: string,
+): Promise<MonitorDirectoryDepartmentRow[]> {
+  const { data } = await apiClient.get<unknown>("/chat/monitor/directory/departments", {
+    params: { parentCompanyId },
+  });
+  return unwrapChatHttpData<MonitorDirectoryDepartmentRow[]>(data);
+}
+
+export async function fetchMonitorDirectoryPools(
+  departmentId: string,
+): Promise<MonitorDirectoryPoolRow[]> {
+  const { data } = await apiClient.get<unknown>("/chat/monitor/directory/pools", {
+    params: { departmentId },
+  });
+  return unwrapChatHttpData<MonitorDirectoryPoolRow[]>(data);
+}
+
+export async function fetchMonitorDirectoryAgents(params: {
+  parentCompanyId?: string;
+  departmentId?: string;
+  poolId?: string;
+}): Promise<MonitorDirectoryAgentsResponse> {
+  const { data } = await apiClient.get<unknown>("/chat/monitor/directory/agents", {
+    params,
+  });
+  return unwrapChatHttpData<MonitorDirectoryAgentsResponse>(data);
 }
 
 export async function fetchMonitorTranscript(
