@@ -30,6 +30,7 @@ import {
   getImpersonationSession,
   isImpersonatingSessionActive,
 } from "./impersonation-session";
+import { createPermissionCan } from "@/lib/permissions/access-helpers";
 import {
   extractIsPlatformAdmin,
   extractPermissionsByType,
@@ -257,6 +258,12 @@ interface AuthContextValue {
   isPlatformAdmin: boolean;
   hasPage: (permission: string) => boolean;
   hasOperational: (permission: string) => boolean;
+  /** Expanded PAGE bucket from `/auth/me` (do not use raw role codes). */
+  pagePermissions: readonly string[];
+  /** Expanded OPERATIONAL bucket from `/auth/me`. */
+  operationalPermissions: readonly string[];
+  /** `page` OR `operational` — mirrors backend expanded effective permissions. */
+  can: (code: string) => boolean;
   isImpersonating: boolean;
   revertImpersonation: () => Promise<boolean>;
   login: (credentials: LoginCredentials) => Promise<LoginResult>;
@@ -330,6 +337,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const operationalPermissionSet = useMemo(
     () => toPermissionSet(permissionsByType?.[PERMISSION_BUCKET_OPERATIONAL]),
     [permissionsByType],
+  );
+
+  const pagePermissions = useMemo(
+    () => permissionsByType?.[PERMISSION_BUCKET_PAGE] ?? [],
+    [permissionsByType],
+  );
+
+  const operationalPermissions = useMemo(
+    () => permissionsByType?.[PERMISSION_BUCKET_OPERATIONAL] ?? [],
+    [permissionsByType],
+  );
+
+  const can = useMemo(
+    () =>
+      createPermissionCan({
+        page: pagePermissions,
+        operational: operationalPermissions,
+        isPlatformAdmin,
+      }),
+    [pagePermissions, operationalPermissions, isPlatformAdmin],
   );
 
   const hasPage = useCallback(
@@ -797,6 +824,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isPlatformAdmin,
       hasPage,
       hasOperational,
+      pagePermissions,
+      operationalPermissions,
+      can,
       isImpersonating,
       revertImpersonation,
       login,
@@ -812,6 +842,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isPlatformAdmin,
       hasPage,
       hasOperational,
+      pagePermissions,
+      operationalPermissions,
+      can,
       isImpersonating,
       revertImpersonation,
       login,

@@ -127,15 +127,19 @@ export function useNotifications(enabled: boolean) {
   const markAllRead = useCallback(
     async (badgeGroup?: string) => {
       if (!tokenRef.current) return;
-      const counts = await markAllNotificationsRead(badgeGroup);
-      setBadgeCounts(counts);
-      if (badgeGroup) {
-        setItems((prev) => prev.filter((n) => n.badgeGroup !== badgeGroup));
-      } else {
-        setItems([]);
+      try {
+        const counts = await markAllNotificationsRead(badgeGroup);
+        setBadgeCounts(counts);
+        if (badgeGroup) {
+          setItems((prev) => prev.filter((n) => n.badgeGroup !== badgeGroup));
+        } else {
+          setItems([]);
+        }
+      } catch {
+        await refreshBadges();
       }
     },
-    [],
+    [refreshBadges],
   );
 
   const openDrawer = useCallback(() => {

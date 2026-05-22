@@ -1,5 +1,10 @@
 "use client";
 
+import {
+  normalizeWidgetInquiryOptions,
+  type WidgetInquiryOption,
+} from "./widget-inquiry.types";
+
 export type WidgetKind = "chat" | "text";
 
 /** Phosphor-style chat icons (`react-icons/pi` duotone), see https://phosphoricons.com/?q=chat */
@@ -119,7 +124,7 @@ export interface WidgetDraft {
   videoWelcomeOn?: boolean;
   /** When false, inquiry topic pills are hidden (step 2 toggle). */
   inquiryOn?: boolean;
-  inquiryOptions?: string[];
+  inquiryOptions?: WidgetInquiryOption[];
   welcomeMessageBehavior?: string;
   autoOpenEnabled?: boolean;
   autoOpenDelaySeconds?: number;
@@ -240,8 +245,10 @@ export const defaultWidgetDraft: WidgetDraft = {
   responseAgentHandoverEnabled: true,
   responseHandoverTriggerText: "talk to human",
   inquiryOn: false,
-  inquiryOptions: ["Billing", "Technical", "Sales"],
+  inquiryOptions: normalizeWidgetInquiryOptions(["Billing", "Technical", "Sales"]),
 };
+
+export { normalizeWidgetInquiryOptions };
 
 function canUseStorage() {
   return typeof window !== "undefined" && typeof window.localStorage !== "undefined";

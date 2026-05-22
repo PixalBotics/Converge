@@ -5,18 +5,26 @@ import { useSearchParams } from "next/navigation";
 import Box from "@mui/material/Box";
 import { getAccessToken, postAgentAiSuggestion, formatAgentSuggestResponse } from "@/api";
 import type { AgentAiAction } from "@/api/ai/agent-suggest.api";
-import { useAuth } from "@/lib/auth";
-import { canAccessChatInbox } from "@/lib/permissions/chat-access";
+import { useAuth, useResellerListScope } from "@/lib/auth";
+import { DashboardCard, PermissionDeniedPanel, Typography } from "@/components/common";
+import {
+  buildChatLiveNavItems,
+  needsChatScopeFilters,
+  useChatApiGates,
+} from "@/lib/permissions";
 import { useNotificationsContext } from "@/lib/notifications/NotificationsContext";
 import { useAgentChat } from "@/lib/hooks/chat/useAgentChat";
-import { useWebsiteChatDefaults } from "../hooks/useWebsiteChatDefaults";
 import {
   ChatLivePageHeader,
   ChatScopeFiltersPanel,
   conversationMatchesScope,
   useChatScopeFilters,
 } from "@/features/chat-shared";
-import { chatLiveFilterCardSx, chatLivePageStackSx } from "@/features/chat-shared/styles/chat-live.styles";
+import {
+  chatLiveAgentStackSx,
+  chatLivePageStackSx,
+  chatLiveQueueStatPillSx,
+} from "@/features/chat-shared/styles/chat-live.styles";
 import type { AgentVisitorPresentation, ConversationSummary } from "@/services/chat/chat.types";
 import { extractVisitorPresentation } from "@/services/chat/visitor-presentation";
 import type { ChatQueueTab } from "./ChatQueueSidebar";
@@ -48,12 +56,19 @@ function needsWebsite(action: AgentAiAction): boolean {
 }
 
 export function ChatOperationsWorkspace() {
-  const { user, hasOperational, hasPage } = useAuth();
+  const { user, hasOperational, hasPage, permissionsSyncing } = useAuth();
+  const gates = useChatApiGates();
+  const { canFilterByResellerId } = useResellerListScope();
   const notifications = useNotificationsContext();
   const searchParams = useSearchParams();
-  const inboxAllowed = canAccessChatInbox(hasOperational, hasPage);
-  const accessToken = getAccessToken() ?? "";
-  const scopeFilters = useChatScopeFilters();
+  const inboxAllowed = gates.agentInbox;
+  const showScopeFilters = needsChatScopeFilters(hasOperational, canFilterByResellerId);
+  const chatNavItems = useMemo(
+    () => buildChatLiveNavItems(hasPage, hasOperational),
+    [hasPage, hasOperational],
+  );
+  const accessToken = inboxAllowed ? getAccessToken() ?? "" : "";
+  const scopeFilters = useChatScopeFilters(undefined, { apiEnabled: showScopeFilters });
   const conversationIdFromUrl = searchParams.get("conversationId")?.trim() ?? "";
 
   useEffect(() => {
@@ -63,8 +78,9 @@ export function ChatOperationsWorkspace() {
   }, [inboxAllowed, notifications]);
 
   const agentChat = useAgentChat({
-    token: inboxAllowed ? accessToken : "",
+    token: accessToken,
     agentId: user?.id,
+    apiEnabled: inboxAllowed,
   });
 
   const [queueTab, setQueueTab] = useState<ChatQueueTab>("active");
@@ -107,16 +123,16 @@ export function ChatOperationsWorkspace() {
   );
 
   const activeFiltered = useMemo(
-    () => filterByScope(agentChat.activeChats),
-    [agentChat.activeChats, filterByScope],
+    () => (showScopeFilters ? filterByScope(agentChat.activeChats) : agentChat.activeChats),
+    [agentChat.activeChats, filterByScope, showScopeFilters],
   );
   const waitingFiltered = useMemo(
-    () => filterByScope(agentChat.waitingChats),
-    [agentChat.waitingChats, filterByScope],
+    () => (showScopeFilters ? filterByScope(agentChat.waitingChats) : agentChat.waitingChats),
+    [agentChat.waitingChats, filterByScope, showScopeFilters],
   );
   const closedFiltered = useMemo(
-    () => filterByScope(agentChat.closedChats),
-    [agentChat.closedChats, filterByScope],
+    () => (showScopeFilters ? filterByScope(agentChat.closedChats) : agentChat.closedChats),
+    [agentChat.closedChats, filterByScope, showScopeFilters],
   );
 
   const list: ConversationSummary[] =
@@ -147,17 +163,17 @@ export function ChatOperationsWorkspace() {
     (typeof selectedSummary?.websiteId === "string" ? selectedSummary.websiteId : "").trim() ||
     fallbackWebsiteId.trim() ||
     "";
-  const websiteDefaults = useWebsiteChatDefaults(websiteIdEffective || null);
   const departmentIdEffective =
-    (typeof selectedSummary?.departmentId === "string"
-      ? selectedSummary.departmentId
-      : typeof conversationMeta?.departmentId === "string"
-        ? conversationMeta.departmentId
-        : ""
-    ).trim() || websiteDefaults.data?.defaultDepartmentId || null;
+    (
+      typeof selectedSummary?.departmentId === "string"
+        ? selectedSummary.departmentId
+        : typeof conversationMeta?.departmentId === "string"
+          ? conversationMeta.departmentId
+          : ""
+    ).trim() || null;
 
   useEffect(() => {
-    if (!accessToken || !websiteIdEffective.trim()) {
+    if (!inboxAllowed || !accessToken || !websiteIdEffective.trim()) {
       setAvailabilityHint(null);
       return;
     }
@@ -183,7 +199,7 @@ export function ChatOperationsWorkspace() {
     return () => {
       cancelled = true;
     };
-  }, [accessToken, websiteIdEffective]);
+  }, [inboxAllowed, accessToken, websiteIdEffective]);
 
   const setComposer = useCallback(
     (value: string | ((prev: string) => string)) => {
@@ -304,14 +320,21 @@ export function ChatOperationsWorkspace() {
     void agentChat.selectConversation(id, { readOnly: queueTab === "closed" });
   };
 
+  if (permissionsSyncing) {
+    return (
+      <Box sx={chatOpsPageWrapper}>
+        <Typography sx={{ py: 4, color: "text.secondary" }}>Loading permissions…</Typography>
+      </Box>
+    );
+  }
+
   if (!inboxAllowed) {
     return (
       <Box sx={chatOpsPageWrapper}>
-        <Typography sx={{ py: 4 }}>
-          You need chat access to use the agent inbox. Ask an administrator to grant operational{" "}
-          <code>chat:access</code> (or page <code>page:chat</code>) on your role, then sign out and
-          back in.
-        </Typography>
+        <PermissionDeniedPanel
+          title="Agent inbox not available"
+          description="Requires page:chat and chat:access on GET /auth/me (from a chat bundle on the role). Sign out and back in after role changes."
+        />
       </Box>
     );
   }
@@ -322,24 +345,38 @@ export function ChatOperationsWorkspace() {
     !agentChat.selectedIsClosed;
 
   return (
-    <Box sx={[chatOpsPageWrapper, chatLivePageStackSx]}>
+    <Box sx={[chatOpsPageWrapper, showScopeFilters ? chatLivePageStackSx : chatLiveAgentStackSx]}>
       <ChatLivePageHeader
         title="Agent inbox"
-        subtitle="Reply to visitors, use department canned responses, and close chats with wrap-up when required."
+        subtitle={
+          showScopeFilters
+            ? "Reply to visitors in your scoped queue. Use filters to narrow by organization or website."
+            : "Your assigned queue — reply, insert canned responses, and wrap up when required."
+        }
+        navItems={chatNavItems}
+        trailing={
+          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75, justifyContent: "flex-end" }}>
+            <Box sx={chatLiveQueueStatPillSx("active")}>Active {activeFiltered.length}</Box>
+            <Box sx={chatLiveQueueStatPillSx("waiting")}>Waiting {waitingFiltered.length}</Box>
+            <Box sx={chatLiveQueueStatPillSx("closed")}>Closed {closedFiltered.length}</Box>
+          </Box>
+        }
       />
-      <Box sx={chatLiveFilterCardSx}>
-        <ChatScopeFiltersPanel
-          filters={scopeFilters.filters}
-          onPatch={scopeFilters.patchFilters}
-          onReset={scopeFilters.resetFilters}
-          canFilterByResellerId={scopeFilters.canFilterByResellerId}
-          resellerOptions={scopeFilters.resellerOptions}
-          parentCompanyOptions={scopeFilters.parentCompanyOptions}
-          childCompanyOptions={scopeFilters.childCompanyOptions}
-          websiteOptions={scopeFilters.websiteOptions}
-          hint="Filter your queue by organization and website. Tabs show counts for the current filters."
-        />
-      </Box>
+      {showScopeFilters ? (
+        <DashboardCard sx={{ flexShrink: 0, p: { xs: 1.5, md: 2 }, height: "auto", minHeight: 0 }}>
+          <ChatScopeFiltersPanel
+            filters={scopeFilters.filters}
+            onPatch={scopeFilters.patchFilters}
+            onReset={scopeFilters.resetFilters}
+            canFilterByResellerId={scopeFilters.canFilterByResellerId}
+            resellerOptions={scopeFilters.resellerOptions}
+            parentCompanyOptions={scopeFilters.parentCompanyOptions}
+            childCompanyOptions={scopeFilters.childCompanyOptions}
+            websiteOptions={scopeFilters.websiteOptions}
+            hint="Supervisors and leads: narrow the queue by reseller, company, or website."
+          />
+        </DashboardCard>
+      ) : null}
       <Box sx={chatOpsWorkspaceShell}>
         <Box sx={chatOpsWorkspaceGrid}>
           <Box data-chat-pane="inbox">

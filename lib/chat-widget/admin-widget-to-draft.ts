@@ -3,6 +3,7 @@ import type { JsonRecord } from "@/api/types/common.types";
 import { widgetResponseData } from "@/api/widgets/widgets.api";
 import type { WidgetDraft, WidgetInstallChatMode } from "./widgetDraft";
 import { defaultWidgetDraft } from "./widgetDraft";
+import { normalizeWidgetInquiryOptions } from "./widget-inquiry.types";
 import { mapApiChatColorsToDraft, widgetChatColorsDraftToPatch } from "./widget-colors-draft";
 
 function pickStr(obj: unknown, keys: string[]): string {
@@ -136,9 +137,9 @@ export function mapAdminWidgetResponseToWidgetDraft(
     : undefined;
 
   const inquiryRaw = behavior?.inquiryOptions;
-  const inquiryOptions = Array.isArray(inquiryRaw)
-    ? inquiryRaw.filter((x): x is string => typeof x === "string").map((s) => s.trim())
-    : defaultWidgetDraft.inquiryOptions;
+  const inquiryOptions = normalizeWidgetInquiryOptions(
+    inquiryRaw ?? defaultWidgetDraft.inquiryOptions,
+  );
 
   const headerAlignRaw =
     pickStr(chatBox ?? {}, ["headerAlign", "headerTitleAlign"]) ||

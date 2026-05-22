@@ -9,6 +9,7 @@ import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
 import Select from "@mui/material/Select";
 import Slider from "@mui/material/Slider";
+import Rating from "@mui/material/Rating";
 import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import { Button, InputField, Typography } from "@/components/common";
@@ -37,12 +38,16 @@ function readChecklist(json?: Record<string, unknown> | null): Record<string, bo
   return out;
 }
 
+type AssignOption = { id: string; label: string };
+
 interface QaSessionReviewPanelProps {
   bundle: QaReviewBundle | null;
   canEdit: boolean;
   canAssign: boolean;
+  rosterAssignOptions?: AssignOption[];
   onSave: (body: UpsertQaSessionReviewBody) => Promise<void>;
   onClaim: () => Promise<void>;
+  onAssignTo?: (qaUserId: string) => Promise<void>;
   saving?: boolean;
 }
 
@@ -50,14 +55,19 @@ export function QaSessionReviewPanel({
   bundle,
   canEdit,
   canAssign,
+  rosterAssignOptions = [],
   onSave,
   onClaim,
+  onAssignTo,
   saving = false,
 }: QaSessionReviewPanelProps) {
   const theme = useTheme() as AppTheme;
   const review = bundle?.review ?? null;
 
   const [status, setStatus] = useState<QaReviewStatus>("pending");
+  const [starRating, setStarRating] = useState<number | null>(3);
+  const [failureReason, setFailureReason] = useState("");
+  const [assignToId, setAssignToId] = useState("");
   const [overallScore, setOverallScore] = useState(80);
   const [summary, setSummary] = useState("");
   const [coachingNotes, setCoachingNotes] = useState("");
@@ -66,6 +76,8 @@ export function QaSessionReviewPanel({
   useEffect(() => {
     if (!review) {
       setStatus("in_progress");
+      setStarRating(3);
+      setFailureReason("");
       setOverallScore(80);
       setSummary("");
       setCoachingNotes("");
@@ -73,11 +85,33 @@ export function QaSessionReviewPanel({
       return;
     }
     setStatus(review.status);
+    setStarRating(review.starRating ?? null);
+    setFailureReason(review.failureReason ?? "");
     setOverallScore(review.overallScore ?? 80);
     setSummary(review.summary ?? "");
     setCoachingNotes(review.coachingNotes ?? "");
     setChecklist(readChecklist(review.checklistJson ?? null));
-  }, [review?.id, review?.status, review?.overallScore, review?.summary, review?.coachingNotes, review?.checklistJson]);
+  }, [
+    review?.id,
+    review?.status,
+    review?.starRating,
+    review?.failureReason,
+    review?.overallScore,
+    review?.summary,
+    review?.coachingNotes,
+    review?.checklistJson,
+  ]);
+
+  const transcriptMeta = bundle?.transcript as Record<string, unknown> | undefined;
+  const channel =
+    review?.serviceChannel ??
+    (typeof transcriptMeta?.serviceChannel === "string" ? transcriptMeta.serviceChannel : null);
+  const agentName =
+    typeof transcriptMeta?.agent === "object" && transcriptMeta.agent
+      ? [String((transcriptMeta.agent as Record<string, unknown>).firstName ?? ""), String((transcriptMeta.agent as Record<string, unknown>).lastName ?? "")]
+          .filter(Boolean)
+          .join(" ")
+      : null;
 
   if (!bundle) {
     return (
@@ -99,6 +133,8 @@ export function QaSessionReviewPanel({
     }
     void onSave({
       status,
+      starRating: starRating ?? undefined,
+      failureReason: failureReason.trim() || undefined,
       overallScore,
       summary: summary.trim() || undefined,
       coachingNotes: coachingNotes.trim() || undefined,
@@ -112,11 +148,49 @@ export function QaSessionReviewPanel({
         Session review
       </Typography>
 
+      {channel || agentName ? (
+        <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, display: "block", mb: 1 }}>
+          {channel ? `Channel: ${channel}` : ""}
+          {agentName ? ` · Agent: ${agentName}` : ""}
+        </Typography>
+      ) : null}
+
       {review ? (
         <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, display: "block", mb: 1 }}>
           Assigned: {qaUserLabel(review.assignedQa)}
           {review.assignSource ? ` · ${review.assignSource}` : ""}
         </Typography>
+      ) : null}
+
+      {canAssign && rosterAssignOptions.length > 0 && onAssignTo ? (
+        <Box sx={{ display: "flex", gap: 1, mb: 2, flexWrap: "wrap" }}>
+          <FormControl size="small" sx={{ flex: 1, minWidth: 160 }}>
+            <InputLabel>Assign to QA</InputLabel>
+            <Select
+              label="Assign to QA"
+              value={assignToId}
+              onChange={(e) => setAssignToId(e.target.value)}
+            >
+              <MenuItem value="">
+                <em>Select reviewer</em>
+              </MenuItem>
+              {rosterAssignOptions.map((o) => (
+                <MenuItem key={o.id} value={o.id}>
+                  {o.label}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          <Button
+            type="button"
+            variant="outlined"
+            size="small"
+            disabled={saving || !assignToId}
+            onClick={() => void onAssignTo(assignToId)}
+          >
+            Assign
+          </Button>
+        </Box>
       ) : null}
 
       {slaDue ? (
@@ -158,8 +232,27 @@ export function QaSessionReviewPanel({
         </Select>
       </FormControl>
 
+      <Typography variant="caption" sx={{ fontWeight: 600, display: "block", mb: 0.5 }}>
+        Session stars (1–5)
+      </Typography>
+      <Rating
+        value={starRating}
+        onChange={(_, v) => setStarRating(v)}
+        disabled={!canEdit || saving}
+        sx={{ mb: 1.5 }}
+      />
+
+      <InputField
+        label="QA reason / what went wrong"
+        value={failureReason}
+        onChange={(e) => setFailureReason(e.target.value)}
+        disabled={!canEdit || saving}
+        placeholder="e.g. Wrong policy, rude tone, missed SLA…"
+        sx={{ mb: 1.5 }}
+      />
+
       <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted }}>
-        Overall score: {overallScore}
+        Overall score (1–100): {overallScore}
       </Typography>
       <Slider
         value={overallScore}

@@ -5,6 +5,10 @@ export interface CatalogOption {
   label: string;
 }
 
+export interface DepartmentCatalogOption extends CatalogOption {
+  departmentType: "Internal" | "External";
+}
+
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null;
 }
@@ -20,24 +24,42 @@ function pickArray(payload: unknown): Record<string, unknown>[] {
   return [];
 }
 
-export function parseDepartmentOptions(payload: unknown): CatalogOption[] {
+function readDepartmentType(row: Record<string, unknown>): "Internal" | "External" {
+  const raw = String(row.type ?? row.departmentType ?? "Internal").trim().toLowerCase();
+  return raw === "external" ? "External" : "Internal";
+}
+
+export function parseDepartmentCatalog(payload: unknown): DepartmentCatalogOption[] {
   return pickArray(payload)
     .map((row) => {
       const id = String(row.id ?? "").trim();
       const name = String(row.name ?? row.departmentName ?? "").trim();
       if (!id) return null;
-      return { id, label: name || id };
+      return {
+        id,
+        label: name || id,
+        departmentType: readDepartmentType(row),
+      };
     })
-    .filter((x): x is CatalogOption => Boolean(x));
+    .filter((x): x is DepartmentCatalogOption => Boolean(x));
 }
 
-export function parsePoolOptions(payload: unknown): CatalogOption[] {
+export function parseDepartmentOptions(payload: unknown): CatalogOption[] {
+  return parseDepartmentCatalog(payload);
+}
+
+export interface PoolCatalogOption extends CatalogOption {
+  departmentId: string | null;
+}
+
+export function parsePoolOptions(payload: unknown): PoolCatalogOption[] {
   return pickArray(payload)
     .map((row) => {
       const id = String(row.id ?? "").trim();
       const name = String(row.name ?? row.poolName ?? "").trim();
+      const departmentId = String(row.departmentId ?? row.department_id ?? "").trim() || null;
       if (!id) return null;
-      return { id, label: name || id };
+      return { id, label: name || id, departmentId };
     })
-    .filter((x): x is CatalogOption => Boolean(x));
+    .filter((x): x is PoolCatalogOption => Boolean(x));
 }

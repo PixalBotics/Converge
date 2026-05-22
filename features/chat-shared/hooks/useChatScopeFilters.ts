@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useResellerListScope } from "@/lib/auth";
+import { useAuth, useResellerListScope } from "@/lib/auth";
+import { needsChatScopeFilters } from "@/lib/permissions/chat-access";
 import {
   buildWebsitesInScopeParams,
   useCompaniesSetupResellersQuery,
@@ -15,6 +16,7 @@ import {
   toIdNameOption,
 } from "@/app/dashboard/user-page/components/add-user-modal.utils";
 import { canFetchWebsitesInOrgScope } from "../utils/website-scope-options";
+import { formatWebsiteSelectLabel } from "@/lib/websites/format-website-select-label";
 import { emptyChatScopeFilters, type ChatScopeFilterState } from "../types";
 
 function asRecord(value: unknown): Record<string, unknown> | null {
@@ -24,8 +26,23 @@ function asRecord(value: unknown): Record<string, unknown> | null {
   return null;
 }
 
-export function useChatScopeFilters(initial?: Partial<ChatScopeFilterState>) {
+export type UseChatScopeFiltersOptions = {
+  /**
+   * When false, skips reseller / company tree / website-assignments APIs.
+   * Default: derived from /auth/me via {@link needsChatScopeFilters} (agents = false).
+   */
+  apiEnabled?: boolean;
+};
+
+export function useChatScopeFilters(
+  initial?: Partial<ChatScopeFilterState>,
+  options?: UseChatScopeFiltersOptions,
+) {
+  const { hasOperational } = useAuth();
   const { canFilterByResellerId, sessionResellerId } = useResellerListScope();
+  const scopeApiEnabled =
+    options?.apiEnabled ?? needsChatScopeFilters(hasOperational, canFilterByResellerId);
+
   const [filters, setFilters] = useState<ChatScopeFilterState>(() => ({
     ...emptyChatScopeFilters(),
     ...initial,
@@ -36,12 +53,14 @@ export function useChatScopeFilters(initial?: Partial<ChatScopeFilterState>) {
     canFilterByResellerId,
     sessionResellerId,
     {
-      enabled: canFilterByResellerId ? filters.resellerId.trim().length > 0 : true,
+      enabled:
+        scopeApiEnabled &&
+        (canFilterByResellerId ? filters.resellerId.trim().length > 0 : true),
     },
   );
 
   const resellersQuery = useCompaniesSetupResellersQuery({
-    enabled: canFilterByResellerId,
+    enabled: scopeApiEnabled && canFilterByResellerId,
   });
 
   const websitesQuery = useWebsiteAssignmentsWebsitesQuery(
@@ -53,12 +72,14 @@ export function useChatScopeFilters(initial?: Partial<ChatScopeFilterState>) {
       childCompanyId: filters.childCompanyId,
     }),
     {
-      enabled: canFetchWebsitesInOrgScope({
-        canFilterByResellerId,
-        resellerId: filters.resellerId,
-        parentCompanyId: filters.parentCompanyId,
-        childCompanyId: filters.childCompanyId,
-      }),
+      enabled:
+        scopeApiEnabled &&
+        canFetchWebsitesInOrgScope({
+          canFilterByResellerId,
+          resellerId: filters.resellerId,
+          parentCompanyId: filters.parentCompanyId,
+          childCompanyId: filters.childCompanyId,
+        }),
       allowResellerIdFilter: canFilterByResellerId,
     },
   );
@@ -114,8 +135,10 @@ export function useChatScopeFilters(initial?: Partial<ChatScopeFilterState>) {
         if (!id) return null;
         const name = String(o.websiteName ?? o.name ?? "").trim();
         const url = String(o.websiteUrl ?? o.url ?? "").trim();
-        const label = name || url || id.slice(0, 8);
-        return { value: id, label: url ? `${label} · ${url}` : label };
+        return {
+          value: id,
+          label: formatWebsiteSelectLabel(name, url, id),
+        };
       })
       .filter((o): o is { value: string; label: string } => o !== null);
     return [{ value: "", label: "All websites" }, ...fromApi];
@@ -150,6 +173,7 @@ export function useChatScopeFilters(initial?: Partial<ChatScopeFilterState>) {
     setFilters,
     patchFilters,
     resetFilters,
+    scopeApiEnabled,
     canFilterByResellerId,
     resellerOptions,
     parentCompanyOptions,

@@ -34,7 +34,7 @@ export interface WidgetConfigEnvelope {
     textUsFormConfig?: Record<string, unknown>;
     form?: Record<string, unknown>;
     behavior?: {
-      inquiryOptions?: Array<{ label: string; value?: string }>;
+      inquiryOptions?: import("@/lib/chat-widget/widget-inquiry.types").WidgetInquiryOption[];
       [key: string]: unknown;
     };
     [key: string]: unknown;

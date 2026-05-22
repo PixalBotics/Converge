@@ -14,7 +14,7 @@ import {
   sendDepartmentGuestLink,
 } from "@/services/chat/guest-link.api";
 import type { GuestLinkRow } from "@/services/chat/guest.types";
-import { CloseChatPanel } from "../styles/chat-operations.styled";
+import { ChatSideToolCard } from "@/features/chat-shared";
 
 function formatWhen(iso: string | null): string {
   if (!iso) return "—";
@@ -97,20 +97,17 @@ export function GuestLinkPanel({
   };
 
   return (
-    <CloseChatPanel sx={{ mt: 2 }}>
-      <Typography fontWeight={700} sx={{ fontSize: 14, mb: 0.5 }}>
-        Department guest links
-      </Typography>
-      <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, display: "block", mb: 1.5 }}>
-        Email one-time secure links to department notify addresses (or one extra recipient).
-      </Typography>
-
+    <ChatSideToolCard
+      accent="guest"
+      title="Send involvement link"
+      subtitle="Emails all involvement supervisors for this chat's department (same one-time URL). First opener gets the session; whisper and takeover available without login."
+    >
       <InputField
         label="Extra recipient email (optional)"
         value={extraEmail}
         onChange={(e) => setExtraEmail(e.target.value)}
         disabled={busy || disabled}
-        placeholder="Leave blank to use saved dept emails"
+        placeholder="Leave blank to use involvement roster emails"
       />
 
       <Button
@@ -122,7 +119,7 @@ export function GuestLinkPanel({
         disabled={busy || disabled}
         onClick={() => void runSend()}
       >
-        {busy ? "Sending…" : "Send department guest links"}
+        {busy ? "Sending…" : "Send involvement link"}
       </Button>
 
       {status ? (
@@ -162,6 +159,6 @@ export function GuestLinkPanel({
           })}
         </Box>
       ) : null}
-    </CloseChatPanel>
+    </ChatSideToolCard>
   );
 }

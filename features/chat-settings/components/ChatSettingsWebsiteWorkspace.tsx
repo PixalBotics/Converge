@@ -9,6 +9,7 @@ import type { AppTheme } from "@/theme/theme";
 import { DashboardCard, Typography } from "@/components/common";
 import { useAuth } from "@/lib/auth";
 import { OP } from "@/lib/permissions/operational-keys";
+import { useChatApiGates } from "@/lib/permissions";
 import { publishAppToast } from "@/lib/notify";
 import { extractApiErrorMessageForToast } from "@/lib/notify/extract-api-message";
 import {
@@ -39,23 +40,31 @@ export function ChatSettingsWebsiteWorkspace({
 }) {
   const theme = useTheme() as AppTheme;
   const { hasOperational } = useAuth();
+  const gates = useChatApiGates();
   const canEdit = hasOperational(OP.chatWidget.update);
 
   const [tab, setTab] = useState<SettingsTab>("general");
 
-  const settingsQuery = useWebsiteChatSettingsQuery(websiteId);
+  const settingsQuery = useWebsiteChatSettingsQuery(websiteId, gates.widgetSettings);
   const bundle = settingsQuery.data;
   const parentCompanyId = bundle?.parentCompanyId ?? websiteMeta?.parentCompanyId ?? "";
 
-  const departmentsQuery = useDepartmentCatalogQuery(parentCompanyId, Boolean(parentCompanyId));
-  const poolsQuery = usePoolCatalogQuery(parentCompanyId, Boolean(parentCompanyId));
+  const departmentsQuery = useDepartmentCatalogQuery(
+    parentCompanyId,
+    gates.widgetSettings && Boolean(parentCompanyId),
+  );
+  const poolsQuery = usePoolCatalogQuery(
+    parentCompanyId,
+    gates.widgetSettings && Boolean(parentCompanyId),
+  );
 
   const saveSettings = useSaveWebsiteChatSettingsMutation(websiteId);
   const createRoute = useCreateChatRouteMutation(websiteId);
   const patchRoute = usePatchChatRouteMutation(websiteId);
   const deleteRoute = useDeleteChatRouteMutation(websiteId);
   const saveEmails = useReplaceDepartmentEmailsMutation(websiteId);
-  const departments = departmentsQuery.data ?? [];
+  const departmentCatalog = departmentsQuery.data ?? [];
+  const departments = departmentCatalog;
   const pools = poolsQuery.data ?? [];
 
   const busy =

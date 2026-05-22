@@ -2,6 +2,7 @@ import { alpha } from "@mui/material/styles";
 import type { SxProps, Theme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import {
+  chatOpsAlertBannerSx,
   chatOpsInboxHeaderSx,
   chatOpsInboxSearchWrap,
   chatOpsInboxTabSx,
@@ -55,10 +56,4 @@ export const chatMonitorWorkspaceGrid: SxProps<Theme> = (theme) => {
   };
 };
 
-export const chatMonitorReadOnlyBannerSx: SxProps<Theme> = (theme) => ({
-  px: 2,
-  py: 0.75,
-  flexShrink: 0,
-  borderBottom: `1px solid ${alpha(dash(theme).cardBorder, 0.2)}`,
-  bgcolor: alpha(theme.palette.info.main, 0.08),
-});
+export const chatMonitorReadOnlyBannerSx = chatOpsAlertBannerSx("info");

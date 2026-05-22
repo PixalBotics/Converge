@@ -59,7 +59,7 @@ export function AgentWhisperBanner({
         >
           {payload.agentMustClickSend ? "Add to reply" : "Copy to composer"}
         </Button>
-        <Button type="button" variant="text" size="small" onClick={onDismiss}>
+        <Button type="button" variant="secondary" size="small" onClick={onDismiss}>
           Dismiss
         </Button>
       </Box>

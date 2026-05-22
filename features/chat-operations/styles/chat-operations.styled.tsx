@@ -29,12 +29,15 @@ export const PanelColumn = styled(Box)(({ theme }) => ({
 /** @deprecated Use PanelColumn inside separate panel cards. */
 export const PanelDividerColumn = styled(PanelColumn)({});
 
-export const PanelHeader = styled(Box)(({ theme }) => ({
-  padding: theme.spacing(1.5, 2),
-  borderBottom: `1px solid ${alpha(dash(theme).cardBorder, 0.32)}`,
-  flexShrink: 0,
-  background: "transparent",
-}));
+export const PanelHeader = styled(Box)(({ theme }) => {
+  const d = dash(theme);
+  return {
+    padding: theme.spacing(1.5, 2),
+    borderBottom: `1px solid ${alpha(d.cardBorder, 0.28)}`,
+    flexShrink: 0,
+    background: alpha(d.headerBg, 0.5),
+  };
+});
 
 export const ScrollRegion = styled(Box)({
   flex: 1,
@@ -42,6 +45,17 @@ export const ScrollRegion = styled(Box)({
   overflowY: "auto",
   overflowX: "hidden",
   scrollbarWidth: "thin",
+});
+
+export const ProfileHeroCard = styled(Box)(({ theme }) => {
+  const d = dash(theme);
+  return {
+    margin: theme.spacing(0, 1.5, 1.5),
+    padding: theme.spacing(1.5),
+    borderRadius: 10,
+    border: `1px solid ${alpha(d.cardBorder, 0.32)}`,
+    background: `linear-gradient(165deg, ${alpha(d.accentIndigo, 0.12)} 0%, ${alpha(d.overlayLight, 0.2)} 100%)`,
+  };
 });
 
 export const QueueItemRow = styled(Box, {
@@ -54,10 +68,11 @@ export const QueueItemRow = styled(Box, {
     alignItems: "center",
     gap: theme.spacing(1.5),
     margin: 0,
-    padding: theme.spacing(1.25, 1.75),
-    paddingLeft: theme.spacing(2),
+    padding: theme.spacing(1.35, 2),
+    paddingLeft: theme.spacing(2.25),
     borderRadius: 0,
     cursor: "pointer",
+    borderBottom: `1px solid ${alpha(d.cardBorder, 0.12)}`,
     background: active ? d.navActiveBg : "transparent",
     transition: "background-color 0.12s ease, border-color 0.12s ease",
     "&::before": active
@@ -263,6 +278,9 @@ export const ComposerFooterShell = styled(Box)({
 
 export const ComposerFooterInner = styled(Box)(({ theme }) => ({
   padding: theme.spacing(1.25, 2, 1.25),
+  display: "flex",
+  flexDirection: "column",
+  gap: theme.spacing(1.5),
 }));
 
 /** In-flow tools panel — stays inside the thread column (no floating outside the shell). */
@@ -274,7 +292,8 @@ export const ComposerToolsPanel = styled(Box)(({ theme }) => {
     flexShrink: 0,
     maxHeight: "min(36vh, 280px)",
     overflow: "hidden",
-    borderBottom: `1px solid ${alpha(d.cardBorder, 0.22)}`,
+    borderRadius: 12,
+    border: `1px solid ${alpha(d.cardBorder, 0.28)}`,
     background: alpha(d.surfaceDark, 0.5),
   };
 });
@@ -285,11 +304,12 @@ export const ComposerToolsHeader = styled(Box)(({ theme }) => {
     display: "flex",
     alignItems: "center",
     gap: theme.spacing(1),
-    px: 1.75,
-    py: 1.25,
+    padding: theme.spacing(1.25, 1.75),
     flexShrink: 0,
     borderBottom: `1px solid ${alpha(d.cardBorder, 0.35)}`,
     background: alpha(d.overlayLight, 0.35),
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
   };
 });
 
@@ -360,7 +380,7 @@ export const ComposerTextField = styled(TextField)(({ theme }) => ({
 export const DrawerTabBar = styled(Box)(({ theme }) => ({
   display: "flex",
   gap: theme.spacing(0.75),
-  mt: 1.25,
+  paddingTop: theme.spacing(0.25),
 }));
 
 export const DrawerTabButton = styled("button", {
@@ -503,7 +523,7 @@ export const AiQuickChip = styled("button", {
 
 export const AiInputFooter = styled(Box)(({ theme }) => ({
   flexShrink: 0,
-  padding: theme.spacing(0.85, 1.25, 1),
+  padding: theme.spacing(1.25, 1.5, 1.25),
   borderTop: `1px solid ${alpha(dash(theme).cardBorder, 0.35)}`,
   background: alpha(dash(theme).overlayLight, 0.12),
 }));
@@ -780,7 +800,7 @@ export const JourneyTimeline = styled(Box)(({ theme }) => ({
   display: "flex",
   flexDirection: "column",
   gap: 0,
-  pl: theme.spacing(1.25),
+  paddingLeft: theme.spacing(1.25),
   borderLeft: `2px solid ${alpha(dash(theme).accentPurple, 0.35)}`,
 }));
 

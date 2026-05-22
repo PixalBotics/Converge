@@ -57,6 +57,8 @@ interface ComposerDrawerTabsProps {
   aiDisabled?: boolean;
   websiteRequiredDisabled?: boolean;
   hasConversation: boolean;
+  /** When false, skips GET /chat/canned-responses/agent */
+  agentInboxEnabled?: boolean;
 }
 
 export function ComposerDrawerTabs({
@@ -73,13 +75,14 @@ export function ComposerDrawerTabs({
   aiDisabled = false,
   websiteRequiredDisabled = false,
   hasConversation,
+  agentInboxEnabled = true,
 }: ComposerDrawerTabsProps) {
   const theme = useTheme() as AppTheme;
   const [openDrawer, setOpenDrawer] = useState<DrawerId | null>(null);
   const [cannedTab, setCannedTab] = useState<CannedTabId>("website");
   const [cannedFilter, setCannedFilter] = useState("");
 
-  const cannedQuery = useAgentCannedResponses(websiteId);
+  const cannedQuery = useAgentCannedResponses(websiteId, agentInboxEnabled);
   const websiteReady = Boolean(websiteId?.trim());
 
   const toggleDrawer = (id: DrawerId) => {
@@ -123,7 +126,7 @@ export function ComposerDrawerTabs({
                   </IconButton>
                 </ComposerToolsHeader>
                 <ComposerToolsBody>
-                  <SubTabRow sx={{ px: 1.5, pt: 1.25, mb: 0 }}>
+                  <SubTabRow sx={{ px: 1.5, pt: 1.5, pb: 0.25 }}>
                     {(["website", "shortcuts"] as CannedTabId[]).map((tab) => (
                       <SubTabButton
                         key={tab}
@@ -141,8 +144,8 @@ export function ComposerDrawerTabs({
                         variant="caption"
                         sx={{ color: theme.app.dashboard.textMuted, display: "block" }}
                       >
-                        Open a conversation to load canned replies for that website (saved in Chat
-                        settings → Canned messages).
+                        Open a conversation to load canned replies for that website (manage under
+                        Canned in the live chat nav).
                       </Typography>
                     </Box>
                   ) : null}
@@ -158,7 +161,7 @@ export function ComposerDrawerTabs({
                         "Could not load canned replies.",
                       )}{" "}
                       Ensure your role has chat:access, you are assigned to this website
-                      (Primary/Secondary/Backup), and canned messages exist in Chat settings.
+                      (Primary/Secondary/Backup), and canned messages exist under Canned.
                     </Typography>
                   ) : null}
                   <Box sx={{ px: 1.5, pb: 1 }}>
@@ -191,7 +194,7 @@ export function ComposerDrawerTabs({
                             variant="outlined"
                             size="small"
                             component={Link}
-                            href="/dashboard/chat-settings?tab=canned"
+                            href="/dashboard/chat-settings"
                           >
                             Manage canned messages
                           </Button>

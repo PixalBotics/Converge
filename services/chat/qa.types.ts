@@ -59,6 +59,9 @@ export type QaSessionReview = {
   conversationId: string;
   websiteId: string;
   status: QaReviewStatus;
+  serviceChannel?: string | null;
+  starRating?: number | null;
+  failureReason?: string | null;
   overallScore?: number | null;
   summary?: string | null;
   coachingNotes?: string | null;
@@ -106,6 +109,8 @@ export type QaReviewBundle = {
 
 export type UpsertQaSessionReviewBody = {
   status: QaReviewStatus;
+  starRating?: number;
+  failureReason?: string;
   overallScore?: number;
   summary?: string;
   coachingNotes?: string;

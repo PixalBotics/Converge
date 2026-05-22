@@ -16,8 +16,14 @@ export function DevConsoleFilter() {
 
     const previousError = console.error;
     console.error = (...args: unknown[]) => {
-      const first = args[0];
-      if (typeof first === "string" && first.includes(REACT_DEVTOOLS_SUSPENSE_NOISE)) {
+      const text = args
+        .map((a) => {
+          if (typeof a === "string") return a;
+          if (a instanceof Error) return a.message;
+          return "";
+        })
+        .join(" ");
+      if (text.includes(REACT_DEVTOOLS_SUSPENSE_NOISE)) {
         return;
       }
       previousError.apply(console, args);

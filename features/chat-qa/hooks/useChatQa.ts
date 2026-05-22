@@ -23,8 +23,12 @@ import { chatQaKeys } from "./keys";
 
 export type QaStatusTab = QaReviewStatus | "all";
 
-export function useChatQa(initialConversationId?: string | null) {
-  const token = getAccessToken() ?? "";
+export function useChatQa(
+  initialConversationId?: string | null,
+  options?: { apiEnabled?: boolean },
+) {
+  const apiEnabled = options?.apiEnabled !== false;
+  const token = apiEnabled ? getAccessToken() ?? "" : "";
   const queryClient = useQueryClient();
 
   const [statusTab, setStatusTab] = useState<QaStatusTab>("pending");
@@ -45,7 +49,7 @@ export function useChatQa(initialConversationId?: string | null) {
   const queueQuery = useQuery({
     queryKey: chatQaKeys.queue(queueFilters),
     queryFn: () => fetchQaMyQueue(queueFilters, token),
-    enabled: Boolean(token),
+    enabled: apiEnabled && Boolean(token),
   });
 
   const countFilters = useMemo((): QaQueueFilters => {
@@ -56,13 +60,13 @@ export function useChatQa(initialConversationId?: string | null) {
   const countQuery = useQuery({
     queryKey: chatQaKeys.queue({ ...countFilters, status: "all-counts" }),
     queryFn: () => fetchQaMyQueue(countFilters, token),
-    enabled: Boolean(token),
+    enabled: apiEnabled && Boolean(token),
   });
 
   const bundleQuery = useQuery({
     queryKey: chatQaKeys.bundle(selectedConversationId ?? ""),
     queryFn: () => fetchQaReviewBundle(selectedConversationId!, token),
-    enabled: Boolean(token && selectedConversationId),
+    enabled: apiEnabled && Boolean(token && selectedConversationId),
   });
 
   const messages: ChatMessage[] = useMemo(() => {
@@ -148,6 +152,21 @@ export function useChatQa(initialConversationId?: string | null) {
     }
   }, [refreshBundle, refreshQueue, selectedConversationId, token]);
 
+  const assignReviewTo = useCallback(
+    async (qaUserId: string) => {
+      if (!selectedConversationId || !token || !qaUserId.trim()) return;
+      setBundleLoading(true);
+      try {
+        await assignQaReview(selectedConversationId, { qaUserId: qaUserId.trim() }, token);
+        refreshBundle();
+        refreshQueue();
+      } finally {
+        setBundleLoading(false);
+      }
+    },
+    [refreshBundle, refreshQueue, selectedConversationId, token],
+  );
+
   const websiteOptions = useMemo(() => {
     const map = new Map<string, string>();
     for (const row of queueQuery.data ?? []) {
@@ -180,6 +199,7 @@ export function useChatQa(initialConversationId?: string | null) {
     saveSessionReview,
     saveMessageAnnotation,
     claimReview,
+    assignReviewTo,
     refreshBundle,
     websiteOptions,
     statusCounts: {

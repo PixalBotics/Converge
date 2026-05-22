@@ -12,7 +12,13 @@ export const chatLivePageStackSx: SxProps<Theme> = {
   flex: 1,
   minHeight: 0,
   minWidth: 0,
-  gap: { xs: 1.5, md: 2 },
+  gap: { xs: 1.25, md: 1.75 },
+};
+
+/** Agent inbox without scope filters — tighter header-to-workspace rhythm. */
+export const chatLiveAgentStackSx: SxProps<Theme> = {
+  ...chatLivePageStackSx,
+  gap: { xs: 1, md: 1.25 },
 };
 
 export const chatLiveFilterCardSx: SxProps<Theme> = (theme) => {
@@ -46,11 +52,25 @@ export const chatLiveFilterGridSx: SxProps<Theme> = {
   alignItems: "start",
 };
 
+export const chatLiveNavStripSx: SxProps<Theme> = (theme) => {
+  const d = dash(theme);
+  return {
+    display: "inline-flex",
+    flexWrap: "wrap",
+    gap: 0.5,
+    p: 0.4,
+    borderRadius: "10px",
+    border: `1px solid ${alpha(d.cardBorder, 0.28)}`,
+    bgcolor: alpha(d.overlayLight, 0.22),
+  };
+};
+
 export const chatLiveNavRowSx: SxProps<Theme> = {
   display: "flex",
   flexWrap: "wrap",
-  gap: 1.25,
+  gap: 1,
   alignItems: "center",
+  mt: 1.25,
 };
 
 export const chatLiveNavLinkSx =
@@ -60,15 +80,82 @@ export const chatLiveNavLinkSx =
     return {
       fontSize: 13,
       fontWeight: active ? 700 : 500,
-      color: active ? d.accentBlue : theme.app.dashboard.textMuted,
+      color: active ? (theme as AppTheme).app.text.primary : d.textMuted,
       textDecoration: "none",
-      px: 1,
-      py: 0.35,
-      borderRadius: 1,
-      borderBottom: active ? `2px solid ${d.accentBlue}` : "2px solid transparent",
-      "&:hover": { color: theme.app.text.primary },
+      px: 1.35,
+      py: 0.55,
+      borderRadius: "8px",
+      border: "none",
+      background: active
+        ? `linear-gradient(135deg, ${alpha(d.accentBlue, 0.32)} 0%, ${alpha(d.accentIndigo, 0.24)} 100%)`
+        : "transparent",
+      boxShadow: active ? `inset 0 1px 0 ${alpha(theme.palette.common.white, 0.08)}` : "none",
+      transition: "background-color 0.15s ease, color 0.15s ease",
+      "&:hover": {
+        color: (theme as AppTheme).app.text.primary,
+        background: active
+          ? `linear-gradient(135deg, ${alpha(d.accentBlue, 0.36)} 0%, ${alpha(d.accentIndigo, 0.28)} 100%)`
+          : alpha(d.overlayLight, 0.35),
+      },
     };
   };
+
+export const chatLiveHeaderCardSx: SxProps<Theme> = (theme) => {
+  const d = dash(theme);
+  const isLight = theme.palette.mode === "light";
+  return {
+    flexShrink: 0,
+    px: { xs: 1.5, md: 2 },
+    py: { xs: 1.25, md: 1.5 },
+    borderRadius: "9.32px",
+    border: `1px solid ${alpha(d.cardBorder, 0.3)}`,
+    bgcolor: isLight ? "rgba(255, 255, 255, 0.12)" : "rgba(8, 12, 22, 0.2)",
+    backdropFilter: d.cardBackdropBlur,
+    WebkitBackdropFilter: d.cardBackdropBlur,
+  };
+};
+
+export const chatLiveScopeChipSx: SxProps<Theme> = (theme) => {
+  const d = dash(theme);
+  return {
+    display: "inline-flex",
+    alignItems: "center",
+    px: 1,
+    py: 0.35,
+    borderRadius: "6px",
+    fontSize: 11,
+    fontWeight: 600,
+    color: d.accentBlue,
+    border: `1px solid ${alpha(d.accentBlue, 0.35)}`,
+    bgcolor: alpha(d.accentBlue, 0.12),
+    textTransform: "capitalize",
+  };
+};
+
+export const chatLiveQueueStatPillSx = (
+  variant: "active" | "waiting" | "closed",
+): SxProps<Theme> => (theme) => {
+  const d = dash(theme);
+  const accent =
+    variant === "waiting"
+      ? d.accentOrange
+      : variant === "closed"
+        ? d.textMuted
+        : d.accentBlue;
+  return {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 0.5,
+    px: 1.15,
+    py: 0.4,
+    borderRadius: 999,
+    fontSize: 12,
+    fontWeight: 600,
+    color: (theme as AppTheme).app.text.primary,
+    border: `1px solid ${alpha(accent, 0.35)}`,
+    bgcolor: alpha(accent, 0.12),
+  };
+};
 
 export const chatLivePaneHeaderSx: SxProps<Theme> = (theme) => {
   const d = dash(theme);

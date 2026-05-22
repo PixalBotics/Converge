@@ -38,6 +38,10 @@ export type DashboardNavItem = {
   permission: string | null;
   /** Prefix match for dynamic routes such as `/dashboard/website-assigning/website/[websiteId]`. */
   prefixMatch?: boolean;
+  /** Also highlight when pathname contains this substring (e.g. per-website scheduling editor). */
+  pathIncludes?: string;
+  /** With prefixMatch, do not highlight when pathname contains any of these substrings. */
+  pathExcludes?: string[];
   /** Demo-only items (kept for existing seed/demo account behavior). */
   demoOnly?: boolean;
   /**
@@ -68,6 +72,7 @@ export type PagePermission =
   | "page:hrms"
   | "page:ip-blocklist"
   | "page:licenses"
+  | "page:pool"
   | "page:pools"
   | "page:reports"
   | "page:resellers"

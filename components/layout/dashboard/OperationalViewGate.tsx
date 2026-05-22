@@ -32,7 +32,7 @@ export function OperationalViewGate({ pathname, children }: OperationalViewGateP
     <PermissionDeniedPanel
       description={
         isAgentInbox
-          ? "Agent inbox needs operational permission chat:access (or page:chat on your role). In Roles, add chat:access under Operational permissions, then sign out and back in."
+          ? "Agent inbox requires page:chat and expanded chat:access from /auth/me. Assign a chat bundle (e.g. chat:bundle:agent) on the role, then sign out and back in."
           : undefined
       }
     />

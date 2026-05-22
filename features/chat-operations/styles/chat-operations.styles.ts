@@ -18,18 +18,25 @@ export const chatOpsPageWrapper: SxProps<Theme> = {
   minWidth: 0,
 };
 
-/** Single shell — no nested card; columns split inside. */
+/** Single shell — glass workstation matching DashboardCard. */
 export const chatOpsWorkspaceShell: SxProps<Theme> = (theme) => {
   const d = dash(theme);
+  const isLight = theme.palette.mode === "light";
+  const glassFill = isLight ? "rgba(255, 255, 255, 0.14)" : "rgba(8, 12, 22, 0.22)";
   return {
     flex: 1,
     minHeight: 0,
     display: "flex",
     flexDirection: "column",
     overflow: "hidden",
-    borderRadius: { xs: 0, md: 10 },
-    border: { xs: "none", md: `1px solid ${alpha(d.cardBorder, 0.22)}` },
-    bgcolor: alpha(d.headerBg, 0.55),
+    borderRadius: { xs: 0, md: "9.32px" },
+    border: { xs: "none", md: `1px solid ${alpha(d.cardBorder, 0.32)}` },
+    bgcolor: glassFill,
+    backgroundImage:
+      "linear-gradient(180deg, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.02) 100%)",
+    backdropFilter: d.cardBackdropBlur,
+    WebkitBackdropFilter: d.cardBackdropBlur,
+    boxShadow: isLight ? "0 8px 32px rgba(15, 23, 42, 0.06)" : "0 12px 40px rgba(0, 0, 0, 0.28)",
   };
 };
 
@@ -41,10 +48,46 @@ export const chatOpsInboxToolbarSx: SxProps<Theme> = (theme) => {
     alignItems: "center",
     justifyContent: "space-between",
     gap: 1,
-    px: 1.75,
-    py: 1.25,
+    px: 2,
+    py: 1.5,
     flexShrink: 0,
-    borderBottom: `1px solid ${alpha(d.cardBorder, 0.2)}`,
+    borderBottom: `1px solid ${alpha(d.cardBorder, 0.22)}`,
+    bgcolor: alpha(d.headerBg, 0.45),
+  };
+};
+
+export const chatOpsPaneTitleSx: SxProps<Theme> = (theme) => ({
+  fontSize: 15,
+  fontWeight: 700,
+  letterSpacing: "-0.02em",
+  color: (theme as AppTheme).app.text.primary,
+});
+
+export const chatOpsPaneSubtitleSx: SxProps<Theme> = (theme) => ({
+  fontSize: 11,
+  color: dash(theme).textMuted,
+  mt: 0.25,
+});
+
+export const chatOpsAlertBannerSx = (
+  tone: "info" | "muted" | "warning",
+): SxProps<Theme> => (theme) => {
+  const d = dash(theme);
+  const accent =
+    tone === "warning"
+      ? theme.palette.warning.main
+      : tone === "info"
+        ? d.accentBlue
+        : d.textMuted;
+  return {
+    px: 2,
+    py: 1,
+    flexShrink: 0,
+    borderBottom: `1px solid ${alpha(d.cardBorder, 0.22)}`,
+    bgcolor: alpha(accent, tone === "muted" ? 0.06 : 0.1),
+    display: "flex",
+    alignItems: "center",
+    gap: 1,
   };
 };
 
@@ -92,7 +135,7 @@ export const chatOpsWorkspaceGrid: SxProps<Theme> = (theme) => {
       background: paneBg,
     },
     "& > [data-chat-pane='thread']": {
-      background: threadBg,
+      background: `linear-gradient(180deg, ${threadBg} 0%, ${alpha(d.sidebarBg, 0.4)} 100%)`,
       borderLeft: { lg: `1px solid ${divider}` },
       borderRight: { lg: `1px solid ${divider}` },
     },
@@ -150,18 +193,21 @@ export const chatOpsInboxTabSx = (active: boolean): SxProps<Theme> => (theme) =>
   };
 };
 
-export const chatOpsInboxSearchWrap: SxProps<Theme> = {
-  px: 1.75,
+export const chatOpsInboxSearchWrap: SxProps<Theme> = (theme) => ({
+  px: 2,
   py: 1.25,
-  "& > div": { width: "100%", minWidth: "100%" },
-};
-
-export const chatOpsInboxHeaderSx: SxProps<Theme> = {
-  px: 1.75,
-  pt: 1.5,
-  pb: 1,
   flexShrink: 0,
-};
+  borderBottom: `1px solid ${alpha(dash(theme).cardBorder, 0.12)}`,
+  "& > div": { width: "100%", minWidth: "100%" },
+});
+
+export const chatOpsInboxHeaderSx: SxProps<Theme> = (theme) => ({
+  px: 2,
+  pt: 1.25,
+  pb: 1.25,
+  flexShrink: 0,
+  borderBottom: `1px solid ${alpha(dash(theme).cardBorder, 0.15)}`,
+});
 
 export const chatOpsConnectionPillSx = (connected: boolean): SxProps<Theme> => (theme) => ({
   display: "inline-flex",

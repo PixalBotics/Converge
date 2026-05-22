@@ -1,5 +1,23 @@
 export type ChatDepartmentType = "Internal" | "External";
 
+export type ServiceScheduleChannel = "Internal" | "External";
+
+export interface ServiceScheduleWindow {
+  channel: ServiceScheduleChannel;
+  daysOfWeek: string[];
+  startTime: string;
+  endTime: string;
+  crossesMidnight?: boolean;
+}
+
+export interface ServiceSchedule {
+  timezone: string;
+  gapPolicy: string;
+  windows: ServiceScheduleWindow[];
+  /** Enriched on GET — optional labels for weekday chips. */
+  daysOfWeekLabels?: Record<string, string>;
+}
+
 export interface ChatOperationsJson {
   guestAccess?: Record<string, unknown>;
   takeover?: Record<string, unknown>;

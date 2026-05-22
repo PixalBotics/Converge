@@ -1,3 +1,4 @@
+import { API_MAX_PAGE_LIMIT, clampApiPageLimit } from "@/lib/constants/pagination";
 import type { WebsiteAssignmentsWebsitesParams } from "./hooks";
 
 /** Build `/website-assignments/websites` query — omits `resellerId` when session is tenant-scoped. */
@@ -12,11 +13,18 @@ export function buildWebsitesInScopeParams(input: {
   parentCompanyId?: string;
   childCompanyId?: string;
   userId?: string;
+  serviceSchedulingConfigured?: boolean;
+  fullyAssigned?: boolean;
 }): WebsiteAssignmentsWebsitesParams {
   const params: WebsiteAssignmentsWebsitesParams = {};
-  if (input.all) params.all = true;
-  if (input.page != null) params.page = input.page;
-  if (input.limit != null) params.limit = input.limit;
+  if (input.all) {
+    params.all = true;
+  } else {
+    if (input.page != null) params.page = input.page;
+    const capped = clampApiPageLimit(input.limit);
+    if (capped != null) params.limit = capped;
+    else if (input.limit != null) params.limit = API_MAX_PAGE_LIMIT;
+  }
   const q = input.search?.trim();
   if (q) params.search = q;
   if (input.assigned !== undefined) params.assigned = input.assigned;
@@ -27,5 +35,11 @@ export function buildWebsitesInScopeParams(input: {
   if (input.childCompanyId?.trim()) params.childCompanyId = input.childCompanyId.trim();
   const uid = input.userId?.trim();
   if (uid) params.userId = uid;
+  if (input.serviceSchedulingConfigured !== undefined) {
+    params.serviceSchedulingConfigured = input.serviceSchedulingConfigured;
+  }
+  if (input.fullyAssigned !== undefined) {
+    params.fullyAssigned = input.fullyAssigned;
+  }
   return params;
 }

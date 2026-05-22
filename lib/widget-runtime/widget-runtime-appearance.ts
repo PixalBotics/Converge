@@ -19,6 +19,11 @@ import {
   runtimeBoolFlag,
   runtimeNumFlag,
 } from "./widget-config-flags";
+import {
+  normalizeWidgetInquiryOptions,
+  toRuntimeInquiryOptions,
+  type RuntimeInquiryOption,
+} from "@/lib/chat-widget/widget-inquiry.types";
 import type { WidgetConfigEnvelope } from "./widget-types";
 
 export interface RuntimeLauncherAppearance {
@@ -78,7 +83,7 @@ export interface RuntimeChatAppearance {
   form: RuntimeFormAppearance;
   formEnabled: boolean;
   banner: RuntimeBannerAppearance;
-  inquiryOptions: Array<{ label: string; value?: string }>;
+  inquiryOptions: RuntimeInquiryOption[];
   handoverTriggerText: string;
   agentHandoverEnabled: boolean;
   botEnabled: boolean;
@@ -199,21 +204,8 @@ function hoistDesignJsonSections(cfg: Record<string, unknown>): Record<string, u
 
 function parseInquiryOptions(
   behavior: Record<string, unknown> | null,
-): RuntimeChatAppearance["inquiryOptions"] {
-  const raw = behavior?.inquiryOptions;
-  if (!Array.isArray(raw)) return [];
-  return raw
-    .map((item) => {
-      if (typeof item === "string") return { label: item, value: item };
-      if (isObj(item) && typeof item.label === "string") {
-        return {
-          label: item.label,
-          value: typeof item.value === "string" ? item.value : item.label,
-        };
-      }
-      return null;
-    })
-    .filter((x): x is NonNullable<typeof x> => x !== null);
+): RuntimeInquiryOption[] {
+  return toRuntimeInquiryOptions(normalizeWidgetInquiryOptions(behavior?.inquiryOptions));
 }
 
 /** Merge config from public config / snapshot-like shapes into one record for appearance + prechat. */

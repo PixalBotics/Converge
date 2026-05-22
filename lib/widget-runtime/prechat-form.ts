@@ -196,11 +196,27 @@ export function buildVisitorPayloadParts(
   }
   firstMessageTail = lines.join("\n");
 
-  let firstMessage = inquiryLabel ? `[Topic: ${inquiryLabel}]` : "Chat started.";
-  firstMessage += `\nVisitor: ${nameCoerced}`;
-  if (email) firstMessage += `\nEmail: ${email}`;
-  if (phone) firstMessage += `\nPhone: ${phone}`;
-  if (firstMessageTail) firstMessage += `\n${firstMessageTail}`;
+  const messageField = coerceField(values.message ?? values.Message, "");
+  const metaLines: string[] = [];
+  if (inquiryLabel) metaLines.push(`Inquiry: ${inquiryLabel}`);
+  metaLines.push(`Visitor: ${nameCoerced}`);
+  if (email) metaLines.push(`Email: ${email}`);
+  if (phone) metaLines.push(`Phone: ${phone}`);
+  if (firstMessageTail) {
+    for (const line of firstMessageTail.split("\n")) {
+      if (line.trim()) metaLines.push(line);
+    }
+  }
+
+  let firstMessage: string;
+  if (messageField) {
+    firstMessage = messageField;
+    const meta = metaLines.join("\n");
+    if (meta) firstMessage += `\n\n${meta}`;
+  } else {
+    firstMessage =
+      metaLines.join("\n") || (inquiryLabel ? `Inquiry: ${inquiryLabel}` : "Chat started.");
+  }
 
   return {
     visitor: {

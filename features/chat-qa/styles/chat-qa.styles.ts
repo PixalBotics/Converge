@@ -9,6 +9,7 @@ import {
   chatOpsInboxTabsRow,
   chatOpsInboxToolbarSx,
   chatOpsInboxSearchWrap,
+  chatOpsPaneTitleSx,
 } from "@/features/chat-operations/styles/chat-operations.styles";
 
 export {
@@ -19,6 +20,7 @@ export {
   chatOpsInboxTabsRow as chatQaInboxTabsRow,
   chatOpsInboxTabSx as chatQaInboxTabSx,
   chatOpsInboxSearchWrap as chatQaFilterWrap,
+  chatOpsPaneTitleSx as chatQaPaneTitleSx,
 };
 
 function dash(theme: Theme) {

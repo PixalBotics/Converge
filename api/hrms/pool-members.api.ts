@@ -37,6 +37,17 @@ export async function addPoolMember(poolId: string, input: AddPoolMemberInput): 
   return data;
 }
 
+export async function addPoolMembersBulk(
+  poolId: string,
+  userIds: string[],
+): Promise<unknown> {
+  const { data } = await apiClient.post(
+    `/hrms/pools/${encodeURIComponent(poolId)}/members/bulk`,
+    { userIds },
+  );
+  return data;
+}
+
 export async function getPoolMember(poolId: string, userId: string): Promise<unknown> {
   const { data } = await apiClient.get(
     `/hrms/pools/${encodeURIComponent(poolId)}/members/${encodeURIComponent(userId)}`,

@@ -14,6 +14,7 @@ import {
   chatOpsInboxTabSx,
   chatOpsInboxTabsRow,
   chatOpsInboxToolbarSx,
+  chatOpsPaneTitleSx,
 } from "../styles/chat-operations.styles";
 import { ConnectionStatusBar } from "./ConnectionStatusBar";
 import { getConversationPreview } from "../utils/conversation-preview";
@@ -82,7 +83,13 @@ export function ChatQueueSidebar({
   return (
     <PanelColumn sx={{ height: "100%" }}>
       <Box sx={chatOpsInboxToolbarSx}>
-        <ConnectionStatusBar connected={connected} hasToken={hasToken} />
+        <Box>
+          <Typography sx={chatOpsPaneTitleSx}>Conversations</Typography>
+          <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, fontSize: 11 }}>
+            Your queue
+          </Typography>
+        </Box>
+        <ConnectionStatusBar connected={connected} hasToken={hasToken} compact />
       </Box>
       <Box sx={chatOpsInboxHeaderSx}>
         <Box sx={chatOpsInboxTabsRow}>

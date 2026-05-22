@@ -15,7 +15,7 @@ import {
 } from "@/lib/permissions/chat-access";
 import type { ChatTakeoverRequest } from "@/services/chat/supervisor.types";
 import type { useConversationSupervisor } from "../hooks/useConversationSupervisor";
-import { CloseChatPanel } from "../styles/chat-operations.styled";
+import { ChatSideToolCard } from "@/features/chat-shared";
 
 function userLabel(u?: { firstName?: string | null; lastName?: string | null; email?: string }): string {
   if (!u) return "User";
@@ -64,14 +64,11 @@ export function SupervisorToolsPanel({
   };
 
   return (
-    <CloseChatPanel sx={{ mt: 2 }}>
-      <Typography fontWeight={700} sx={{ fontSize: 14, mb: 1 }}>
-        Supervisor tools
-      </Typography>
-      <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, display: "block", mb: 1.5 }}>
-        Whispers are never visible to visitors.
-      </Typography>
-
+    <ChatSideToolCard
+      accent="supervisor"
+      title="Supervisor tools"
+      subtitle="Whispers are never visible to visitors. Takeover transfers assignment when approved."
+    >
       {showWhisper && assignedAgentId && assignedAgentId !== currentUserId ? (
         <Box sx={{ mb: 2 }}>
           <InputField
@@ -197,6 +194,6 @@ export function SupervisorToolsPanel({
           {supervisor.whispers.length} whisper(s) on record
         </Typography>
       ) : null}
-    </CloseChatPanel>
+    </ChatSideToolCard>
   );
 }

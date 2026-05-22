@@ -36,7 +36,13 @@ export function ActivityNavGroup({
   onNavigate: () => void;
 }) {
   const children = item.children ?? [];
-  const isChildActive = children.some((ch) => isNavPathSelected(pathname, ch.href, ch.prefixMatch));
+  const navExtras = (ch: DashboardNavItem) => ({
+    pathIncludes: ch.pathIncludes,
+    pathExcludes: ch.pathExcludes,
+  });
+  const isChildActive = children.some((ch) =>
+    isNavPathSelected(pathname, ch.href, ch.prefixMatch, navExtras(ch)),
+  );
   const [open, setOpen] = useState(isChildActive);
   const nestedNavItemSx = (theme: Theme): SystemStyleObject<Theme> => ({
     ...(navItemSx as (t: Theme) => SystemStyleObject<Theme>)(theme),
@@ -61,7 +67,7 @@ export function ActivityNavGroup({
       <Collapse in={open} timeout="auto" unmountOnExit>
         <List component="div" disablePadding>
           {children.map((ch) => {
-            const selected = isNavPathSelected(pathname, ch.href, ch.prefixMatch);
+            const selected = isNavPathSelected(pathname, ch.href, ch.prefixMatch, navExtras(ch));
             return (
               <ListItemButton
                 key={ch.href}

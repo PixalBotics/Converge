@@ -17,12 +17,18 @@ import { agentDisplayName } from "@/services/chat/monitor-normalizers";
 import type { MonitorConversationRow } from "@/services/chat/monitor.types";
 import type { ChatMessage } from "@/services/chat/chat.types";
 import { chatMonitorReadOnlyBannerSx } from "../styles/chat-monitor.styles";
+import { MonitorSupervisorPanel } from "./MonitorSupervisorPanel";
 
 interface MonitorTranscriptPanelProps {
   conversation: MonitorConversationRow | null;
   messages: ChatMessage[];
   visitor: Record<string, unknown> | null;
   loading: boolean;
+  currentUserId?: string | null;
+  hasOperational?: (p: string) => boolean;
+  supervisorControlUserId?: string | null;
+  onSupervisorAction?: () => void;
+  onMessageSent?: () => void;
 }
 
 export function MonitorTranscriptPanel({
@@ -30,7 +36,14 @@ export function MonitorTranscriptPanel({
   messages,
   visitor,
   loading,
+  currentUserId = null,
+  hasOperational = () => false,
+  supervisorControlUserId = null,
+  onSupervisorAction,
+  onMessageSent,
 }: MonitorTranscriptPanelProps) {
+  const activeSupervisorId =
+    supervisorControlUserId ?? conversation?.supervisorControlUserId ?? null;
   const theme = useTheme() as AppTheme;
   const vp = conversation ? extractVisitorPresentation(conversation) : null;
   const visitorInfo = parseVisitorInfo(visitor);
@@ -46,7 +59,9 @@ export function MonitorTranscriptPanel({
     <PanelColumn sx={{ height: "100%", overflow: "hidden" }}>
       <Box sx={chatMonitorReadOnlyBannerSx}>
         <Typography variant="caption" sx={{ fontSize: 11, color: theme.app.dashboard.textMuted }}>
-          Read-only monitor — you cannot send messages or take chats from this view.
+          {activeSupervisorId
+            ? "Supervisor control active — assigned agent is read-only until control is released."
+            : "Monitor view — use supervisor actions below to whisper or take control."}
         </Typography>
       </Box>
 
@@ -88,6 +103,17 @@ export function MonitorTranscriptPanel({
           showEmptyPlaceholder={!hasConversation}
         />
       )}
+
+      {hasConversation && conversation?.status !== "closed" ? (
+        <MonitorSupervisorPanel
+          conversationId={conversation.id}
+          supervisorControlUserId={activeSupervisorId}
+          currentUserId={currentUserId}
+          hasOperational={hasOperational}
+          onActionComplete={onSupervisorAction}
+          onMessageSent={onMessageSent}
+        />
+      ) : null}
     </PanelColumn>
   );
 }

@@ -15,8 +15,19 @@ import {
 } from "./dashboard-route-table";
 import { ALWAYS_VISIBLE_NAV_ITEMS, DASHBOARD_NAV_ITEMS } from "./dashboard-nav-tree";
 
-export function isNavPathSelected(pathname: string, href: string, prefixMatch?: boolean): boolean {
-  if (prefixMatch) return pathname === href || pathname.startsWith(`${href}/`);
+export function isNavPathSelected(
+  pathname: string,
+  href: string,
+  prefixMatch?: boolean,
+  extras?: { pathIncludes?: string; pathExcludes?: string[] },
+): boolean {
+  if (extras?.pathIncludes && pathname.includes(extras.pathIncludes)) return true;
+  if (prefixMatch) {
+    const matches = pathname === href || pathname.startsWith(`${href}/`);
+    if (!matches) return false;
+    if (extras?.pathExcludes?.some((ex) => pathname.includes(ex))) return false;
+    return true;
+  }
   return pathname === href;
 }
 

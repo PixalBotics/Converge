@@ -40,7 +40,12 @@ export interface VisitorCreateConversationPayload {
   firstMessage: string;
   currentPageUrl: string;
   referrerUrl?: string;
-  /** Attached from topic / inquiry selection (stored in conversation metadata server-side when supported). */
+  routingKey?: string;
+  serviceChannel?: "Internal" | "External";
+  inquiryDepartmentId?: string;
+  inquiryPoolId?: string;
+  inquiryLabel?: string;
+  /** @deprecated Use routingKey + inquiryDepartmentId from widget inquire config */
   topic?: string;
 }
 

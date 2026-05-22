@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import Box from "@mui/material/Box";
-import Chip from "@mui/material/Chip";
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
 import { Groups as GroupsIcon } from "@mui/icons-material";
@@ -161,20 +160,8 @@ export function UnifiedPoolMembersCard({
       { id: "departmentName", label: "Department" },
       { id: "memberName", label: "Member" },
       { id: "email", label: "Email" },
-      {
-        id: "isPoolHead",
-        label: "Role",
-        render: (_v, row) =>
-          row.isPoolHead ? (
-            <Chip size="small" label="Pool head" color="primary" variant="outlined" sx={{ borderColor: "rgba(255,255,255,0.35)" }} />
-          ) : (
-            <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted }}>
-              Member
-            </Typography>
-          ),
-      },
     ],
-    [theme],
+    [],
   );
 
   const openMove = (row: MergedPoolMemberRow) => {

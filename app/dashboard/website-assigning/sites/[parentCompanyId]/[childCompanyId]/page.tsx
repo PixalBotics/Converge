@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import ArrowBack from "@mui/icons-material/ArrowBack";
 import Box from "@mui/material/Box";
-import Link from "@mui/material/Link";
+import Chip from "@mui/material/Chip";
 import NextLink from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import type { SxProps, Theme } from "@mui/material/styles";
@@ -13,11 +13,18 @@ import {
   Button,
   DashboardCard,
   DataTable,
+  FormModal,
   Typography,
 } from "@/components/common";
 import type { DataTableColumn } from "@/components/common";
 import type { WebsiteAssignmentScopeItem } from "@/api/types/website-assignments.types";
+import { WebsiteAssignmentTableActions } from "@/features/website-assignments/components/WebsiteAssignmentTableActions";
+import { clearAllDepartmentRosters } from "@/features/website-assignments/utils/clear-website-roster";
+import { extractApiErrorMessageForToast, publishAppToast } from "@/lib/notify";
+import { useWebsiteAssignmentGates } from "@/lib/permissions/use-website-assignment-gates";
 import { useWebsiteAssignmentsWebsitesQuery } from "@/lib/hooks";
+import { useQueryClient } from "@tanstack/react-query";
+import { websiteAssignmentsKeys } from "@/lib/hooks/query/website-assignments/keys";
 import {
   websiteAssignmentFooterRow,
   websiteAssignmentHeaderActions,
@@ -34,8 +41,14 @@ type SiteRow = {
   id: string;
   websiteName: string;
   websiteUrl: string;
-  assignedCount: number;
+  filledSlots: number;
+  uniqueMemberCount: number;
+  expectedRosterSlots: number;
+  serviceSchedulingConfigured: boolean;
   isFullyAssigned: boolean;
+  parentCompanyId: string;
+  childCompanyId: string;
+  resellerId: string;
 };
 
 function itemToRow(item: WebsiteAssignmentScopeItem): SiteRow {
@@ -43,15 +56,25 @@ function itemToRow(item: WebsiteAssignmentScopeItem): SiteRow {
     id: item.websiteId,
     websiteName: item.name || "—",
     websiteUrl: item.url || "—",
-    assignedCount: item.assignedCount ?? 0,
+    filledSlots: item.filledSlots ?? item.assignedCount ?? 0,
+    uniqueMemberCount: item.uniqueMemberCount ?? 0,
+    expectedRosterSlots: item.expectedRosterSlots ?? 0,
+    serviceSchedulingConfigured: Boolean(item.serviceSchedulingConfigured),
     isFullyAssigned: Boolean(item.isFullyAssigned),
+    parentCompanyId: item.parentCompanyId,
+    childCompanyId: item.childCompanyId,
+    resellerId: item.resellerId ?? "",
   };
 }
 
 export default function WebsiteSitesByOrgPage() {
   const theme = useTheme() as AppTheme;
   const router = useRouter();
+  const queryClient = useQueryClient();
+  const assignmentGates = useWebsiteAssignmentGates();
   const [page, setPage] = useState(1);
+  const [clearTarget, setClearTarget] = useState<SiteRow | null>(null);
+  const [clearing, setClearing] = useState(false);
   const params = useParams<{ parentCompanyId: string; childCompanyId: string }>();
   const parentRaw = typeof params?.parentCompanyId === "string" ? params.parentCompanyId : "";
   const childRaw = typeof params?.childCompanyId === "string" ? params.childCompanyId : "";
@@ -95,6 +118,34 @@ export default function WebsiteSitesByOrgPage() {
 
   const rows = useMemo(() => items.map(itemToRow), [items]);
 
+  const openAssign = (row: SiteRow) => {
+    setAssignPreset({
+      websiteId: row.id,
+      parentCompanyId: row.parentCompanyId,
+      childCompanyId: row.childCompanyId,
+      resellerId: row.resellerId || undefined,
+    });
+    setIsAssignOpen(true);
+  };
+
+  const handleClearAgents = async () => {
+    if (!clearTarget || !assignmentGates.assign) return;
+    setClearing(true);
+    try {
+      await clearAllDepartmentRosters(clearTarget.id);
+      void queryClient.invalidateQueries({ queryKey: websiteAssignmentsKeys.all });
+      publishAppToast({ message: "All agent slots cleared.", variant: "success" });
+      setClearTarget(null);
+    } catch (e) {
+      publishAppToast({
+        message: extractApiErrorMessageForToast(e, "Could not clear assignments"),
+        variant: "error",
+      });
+    } finally {
+      setClearing(false);
+    }
+  };
+
   const columns = useMemo<DataTableColumn<SiteRow>[]>(
     () => [
       {
@@ -115,11 +166,47 @@ export default function WebsiteSitesByOrgPage() {
         ),
       },
       {
-        id: "assignedCount",
-        label: "Agents",
-        render: (value) => (
-          <Typography variant="body2" fontWeight={600} sx={{ color: theme.app.text.primary }}>
-            {String(value ?? 0)}
+        id: "status",
+        label: "Status",
+        render: (_, row) => {
+          if (!row.serviceSchedulingConfigured) {
+            return (
+              <Chip
+                label="Please add schedule"
+                size="small"
+                sx={{
+                  height: 24,
+                  fontSize: 11,
+                  fontWeight: 600,
+                  bgcolor: `${theme.palette.warning.main}22`,
+                  color: theme.palette.warning.light,
+                }}
+              />
+            );
+          }
+          if (row.isFullyAssigned) {
+            return <Chip label="Roster complete" size="small" color="success" sx={{ height: 24, fontSize: 11, fontWeight: 600 }} />;
+          }
+          return <Chip label="Assign agents" size="small" sx={{ height: 24, fontSize: 11, fontWeight: 600 }} />;
+        },
+      },
+      {
+        id: "roster",
+        label: "Roster",
+        render: (_, row) => (
+          <Typography variant="body2" fontWeight={600}>
+            {row.expectedRosterSlots > 0
+              ? `${row.filledSlots} / ${row.expectedRosterSlots}`
+              : row.filledSlots}
+          </Typography>
+        ),
+      },
+      {
+        id: "members",
+        label: "Team",
+        render: (_, row) => (
+          <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted }}>
+            {row.uniqueMemberCount} member{row.uniqueMemberCount === 1 ? "" : "s"}
           </Typography>
         ),
       },
@@ -167,21 +254,19 @@ export default function WebsiteSitesByOrgPage() {
           getRowId={(row) => row.id}
           minWidth={640}
           actionColumn={{
-            label: "Detail",
+            label: "Actions",
             render: (row) => (
-              <Link
-                component={NextLink}
-                href={`/dashboard/website-assigning/website/${encodeURIComponent(row.id)}`}
-                sx={{
-                  color: theme.palette.primary.main,
-                  textDecoration: "none",
-                  fontSize: 14,
-                  fontWeight: 500,
-                  "&:hover": { textDecoration: "underline" },
-                }}
-              >
-                Website detail
-              </Link>
+              <WebsiteAssignmentTableActions
+                row={{ websiteId: row.id, websiteName: row.websiteName }}
+                canAssign={assignmentGates.assign}
+                onSchedule={(r) =>
+                  router.push(
+                    `/dashboard/website-assigning/website/${encodeURIComponent(r.websiteId)}/service-scheduling`,
+                  )
+                }
+                onEdit={() => openRosterEdit(row)}
+                onClearAgents={() => setClearTarget(row)}
+              />
             ),
           }}
         />
@@ -209,6 +294,23 @@ export default function WebsiteSitesByOrgPage() {
           </Box>
         </Box>
       </DashboardCard>
+
+      <FormModal
+        open={Boolean(clearTarget)}
+        title="Clear all agent slots?"
+        description={
+          clearTarget
+            ? `Remove all roster assignments for ${clearTarget.websiteName}. Service scheduling stays unchanged.`
+            : undefined
+        }
+        onClose={() => !clearing && setClearTarget(null)}
+        onSave={() => void handleClearAgents()}
+        primaryButtonLabel={clearing ? "Clearing…" : "Clear all agents"}
+        primaryButtonVariant="danger"
+        primaryButtonDisabled={clearing}
+        cancelButtonLabel="Cancel"
+        maxWidth={480}
+      />
     </Box>
   );
 }

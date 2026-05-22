@@ -30,7 +30,8 @@ export async function markNotificationRead(notificationId: string): Promise<void
 }
 
 export async function markAllNotificationsRead(badgeGroup?: string): Promise<BadgeCounts> {
-  const { data } = await apiClient.post<unknown>("/notifications/me/mark-all-read", null, {
+  // Must send `{}` — axios serializes `null` as the literal "null", which express.json rejects (400).
+  const { data } = await apiClient.post<unknown>("/notifications/me/mark-all-read", {}, {
     params: badgeGroup ? { badgeGroup } : undefined,
   });
   const raw = unwrapChatHttpData<BadgeCounts | { badgeCounts?: BadgeCounts }>(data);

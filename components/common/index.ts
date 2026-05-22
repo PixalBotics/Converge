@@ -60,7 +60,11 @@ export { TablePagination } from "./TablePagination/TablePagination";
 export { FormModal } from "./FormModal/FormModal";
 export { EditIpBlockModal } from "./EditIpBlockModal/EditIpBlockModal";
 export { UnblockIpConfirmModal } from "./UnblockIpConfirmModal/UnblockIpConfirmModal";
-export { AssignWebsiteModal } from "./AssignWebsiteModal/AssignWebsiteModal";
+export {
+  AssignWebsiteModal,
+  type AssignWebsiteModalPreset,
+} from "./AssignWebsiteModal/AssignWebsiteModal";
+export { ShiftCoverageBanner, ShiftCoverageOkHint } from "./ShiftCoverageBanner/ShiftCoverageBanner";
 export { SendLicenseConfirmModal } from "./SendLicenseConfirmModal/SendLicenseConfirmModal";
 export { AddSocialMediaModal } from "./AddSocialMediaModal/AddSocialMediaModal";
 export { DisconnectConfirmModal } from "./DisconnectConfirmModal/DisconnectConfirmModal";

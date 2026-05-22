@@ -15,6 +15,7 @@ export default function ChatSettingsWebsiteRedirectPage({
   useEffect(() => {
     router.replace(
       `/dashboard/chat-settings?website=${encodeURIComponent(websiteId)}`,
+      { scroll: false },
     );
   }, [router, websiteId]);
 

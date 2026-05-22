@@ -1,4 +1,5 @@
 import type { JsonRecord } from "@/api/types/common.types";
+import { normalizeWidgetInquiryOptions } from "./widget-inquiry.types";
 
 /** Defaults for PATCH slices not yet exposed in the add-widget UI (aligned with backend BOTH example). */
 export const CHAT_WIZARD_PATCH_DEFAULTS = {
@@ -22,7 +23,7 @@ export const CHAT_WIZARD_PATCH_DEFAULTS = {
   popupEnabled: false,
   botEnabled: true,
   notificationEnabled: true,
-  inquiryOptions: ["Billing", "Technical", "Sales"] as string[],
+  inquiryOptions: normalizeWidgetInquiryOptions(["Billing", "Technical", "Sales"]),
   welcomeMessage: "Thanks for reaching out.",
   autoOpenEnabled: false,
   autoOpenDelaySeconds: 10,

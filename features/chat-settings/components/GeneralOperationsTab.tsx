@@ -155,6 +155,23 @@ export function GeneralOperationsTab({
         />
       </Section>
 
+      <Section title="Chat assignment (HRMS)">
+        <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, display: "block", mb: 1 }}>
+          HRMS shift templates are for workforce coverage only — not live chat on/off. Configure
+          operating hours and topics under Website assignment → Service scheduling.
+        </Typography>
+        <FormControlLabel
+          disabled={!canEdit}
+          control={
+            <Switch
+              checked={readBool((ops.assignment ?? {}) as Record<string, unknown>, "requireHrmsShiftForInternal")}
+              onChange={(_, v) => patchSection("assignment", { requireHrmsShiftForInternal: v })}
+            />
+          }
+          label="Require HRMS shift for internal agents (roster warning only)"
+        />
+      </Section>
+
       <Section title="Canned responses">
         <FormControlLabel
           disabled={!canEdit}

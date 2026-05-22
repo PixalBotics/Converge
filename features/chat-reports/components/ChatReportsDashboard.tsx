@@ -1,13 +1,14 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import Box from "@mui/material/Box";
 import { useRouter } from "next/navigation";
 import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import { useAuth } from "@/lib/auth";
-import { canViewChatReports } from "@/lib/permissions/chat-access";
-import { Button, Typography } from "@/components/common";
+import { PermissionDeniedPanel } from "@/components/common";
+import { buildChatLiveNavItems, useChatApiGates } from "@/lib/permissions";
+import { Button, DashboardCard, Typography } from "@/components/common";
 import {
   Bar,
   BarChart,
@@ -25,7 +26,7 @@ import {
   isoToCalendarDate,
   useChatScopeFilters,
 } from "@/features/chat-shared";
-import { chatLiveFilterCardSx, chatLivePageStackSx } from "@/features/chat-shared/styles/chat-live.styles";
+import { chatLivePageStackSx } from "@/features/chat-shared/styles/chat-live.styles";
 import { useChatReports } from "../hooks/useChatReports";
 import { ReportBucketTable } from "./ReportBucketTable";
 import { defaultReportRange } from "../utils/format-metric";
@@ -57,17 +58,25 @@ const defaultRange = defaultReportRange();
 export function ChatReportsDashboard() {
   const router = useRouter();
   const theme = useTheme() as AppTheme;
-  const { hasOperational } = useAuth();
-  const allowed = canViewChatReports(hasOperational);
-  const reports = useChatReports();
-  const scopeFilters = useChatScopeFilters({
-    dateFrom: isoToCalendarDate(defaultRange.from),
-    dateTo: isoToCalendarDate(defaultRange.to),
-  });
+  const { hasOperational, hasPage, permissionsSyncing } = useAuth();
+  const gates = useChatApiGates();
+  const allowed = gates.reports;
+  const chatNavItems = useMemo(
+    () => buildChatLiveNavItems(hasPage, hasOperational),
+    [hasPage, hasOperational],
+  );
+  const reports = useChatReports({ apiEnabled: allowed });
+  const scopeFilters = useChatScopeFilters(
+    {
+      dateFrom: isoToCalendarDate(defaultRange.from),
+      dateTo: isoToCalendarDate(defaultRange.to),
+    },
+    { apiEnabled: allowed },
+  );
 
   useEffect(() => {
-    if (!allowed) router.replace("/dashboard/chat-operations");
-  }, [allowed, router]);
+    if (!permissionsSyncing && !allowed) router.replace("/dashboard/chat-operations");
+  }, [allowed, permissionsSyncing, router]);
 
   useEffect(() => {
     const from =
@@ -86,8 +95,17 @@ export function ChatReportsDashboard() {
     reports.setDepartmentId,
   ]);
 
-  if (!allowed) {
-    return <Typography sx={{ py: 4 }}>You do not have chat report access. Redirecting…</Typography>;
+  if (!permissionsSyncing && !allowed) {
+    return (
+      <PermissionDeniedPanel
+        title="Chat reports not available"
+        description="Requires page:chat and chat:report:view from /auth/me."
+      />
+    );
+  }
+
+  if (permissionsSyncing || !allowed) {
+    return <Typography sx={{ py: 4 }}>Loading permissions…</Typography>;
   }
 
   if (!reports.token) {
@@ -107,6 +125,7 @@ export function ChatReportsDashboard() {
         <ChatLivePageHeader
           title="Live chat reports"
           subtitle="Scoped metrics from closed and active conversations in your monitor access."
+          navItems={chatNavItems}
           trailing={
             <Button type="button" variant="outlined" onClick={() => void reports.refresh()}>
               Refresh
@@ -114,7 +133,7 @@ export function ChatReportsDashboard() {
           }
         />
 
-        <Box sx={chatLiveFilterCardSx}>
+        <DashboardCard sx={{ flexShrink: 0, p: { xs: 1.5, md: 2 }, height: "auto", minHeight: 0 }}>
           <ChatScopeFiltersPanel
             filters={scopeFilters.filters}
             onPatch={scopeFilters.patchFilters}
@@ -134,7 +153,7 @@ export function ChatReportsDashboard() {
             showDateRange
             hint="Pick reseller, parent, and child company to narrow websites. Use the calendar for the report period."
           />
-        </Box>
+        </DashboardCard>
 
         {reports.loading ? (
           <Typography sx={{ color: theme.app.dashboard.textMuted }}>Loading report…</Typography>

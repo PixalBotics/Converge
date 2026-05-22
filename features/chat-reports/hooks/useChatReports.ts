@@ -8,8 +8,9 @@ import type { ChatReportQuery } from "@/services/chat/reports.types";
 import { defaultReportRange } from "../utils/format-metric";
 import { chatReportKeys } from "./keys";
 
-export function useChatReports() {
-  const token = getAccessToken() ?? "";
+export function useChatReports(options?: { apiEnabled?: boolean }) {
+  const apiEnabled = options?.apiEnabled !== false;
+  const token = apiEnabled ? getAccessToken() ?? "" : "";
   const [range, setRange] = useState(defaultReportRange);
   const [websiteId, setWebsiteId] = useState<string>("");
   const [departmentId, setDepartmentId] = useState<string>("");
@@ -24,7 +25,7 @@ export function useChatReports() {
   const overviewQuery = useQuery({
     queryKey: chatReportKeys.overview(query),
     queryFn: () => fetchChatReportOverview(query, token),
-    enabled: Boolean(token),
+    enabled: apiEnabled && Boolean(token),
   });
 
   return {

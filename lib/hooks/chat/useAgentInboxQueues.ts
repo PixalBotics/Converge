@@ -18,13 +18,13 @@ export interface AgentInboxQueuesState {
   refreshQueues: () => Promise<void>;
 }
 
-export function useAgentInboxQueues(token: string): AgentInboxQueuesState {
+export function useAgentInboxQueues(token: string, apiEnabled = true): AgentInboxQueuesState {
   const [activeChats, setActiveChats] = useState<ConversationSummary[]>([]);
   const [waitingChats, setWaitingChats] = useState<ConversationSummary[]>([]);
   const [closedChats, setClosedChats] = useState<ConversationSummary[]>([]);
 
   const refreshQueues = useCallback(async () => {
-    if (!token) {
+    if (!apiEnabled || !token) {
       setActiveChats([]);
       setWaitingChats([]);
       setClosedChats([]);
@@ -38,20 +38,26 @@ export function useAgentInboxQueues(token: string): AgentInboxQueuesState {
     setActiveChats(active);
     setWaitingChats(waiting);
     setClosedChats(closed);
-  }, [token]);
+  }, [apiEnabled, token]);
 
   const atActiveCap = activeChats.length >= MAX_ACTIVE_CHATS_PER_AGENT;
 
   useEffect(() => {
+    if (!apiEnabled) {
+      setActiveChats([]);
+      setWaitingChats([]);
+      setClosedChats([]);
+      return;
+    }
     void refreshQueues();
-  }, [refreshQueues]);
+  }, [apiEnabled, refreshQueues]);
 
   useEffect(() => {
-    if (!token) return undefined;
+    if (!apiEnabled || !token) return undefined;
     return subscribeAgentInboxRefresh(() => {
       void refreshQueues();
     });
-  }, [refreshQueues, token]);
+  }, [apiEnabled, refreshQueues, token]);
 
   return {
     activeChats,

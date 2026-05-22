@@ -19,7 +19,9 @@ import {
   QueueItemRow,
   ScrollRegion,
 } from "@/features/chat-operations/styles/chat-operations.styled";
+import { chatOpsPaneTitleSx } from "@/features/chat-operations/styles/chat-operations.styles";
 import {
+  chatMonitorFilterWrap,
   chatMonitorInboxHeaderSx,
   chatMonitorInboxTabsRow,
   chatMonitorInboxTabSx,
@@ -86,7 +88,13 @@ export function MonitorQueueSidebar({
   return (
     <PanelColumn sx={{ height: "100%" }}>
       <Box sx={chatMonitorInboxToolbarSx}>
-        <ConnectionStatusBar connected={connected} hasToken={hasToken} />
+        <Box>
+          <Typography sx={chatOpsPaneTitleSx}>Monitor queue</Typography>
+          <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, fontSize: 11 }}>
+            Read-only · scoped by your role
+          </Typography>
+        </Box>
+        <ConnectionStatusBar connected={connected} hasToken={hasToken} compact />
       </Box>
 
       <Box sx={chatMonitorInboxHeaderSx}>
@@ -110,7 +118,7 @@ export function MonitorQueueSidebar({
         </Box>
       </Box>
 
-      <Box sx={{ px: 1.5, pb: 1, flexShrink: 0 }}>
+      <Box sx={chatMonitorFilterWrap}>
         <SearchBar
           value={searchQuery}
           onChange={setSearchQuery}

@@ -24,7 +24,7 @@ import { useQaRosterQuery, useSaveQaRosterMutation } from "../hooks/useChatSetti
 
 type UserOption = { id: string; label: string };
 
-function pickUsers(payload: unknown): UserOption[] {
+function pickUsers(payload: unknown, scope: "internal" | "external"): UserOption[] {
   const data = unwrapApiData(payload);
   const items = Array.isArray(data)
     ? data
@@ -37,6 +37,11 @@ function pickUsers(payload: unknown): UserOption[] {
       const o = row as Record<string, unknown>;
       const id = String(o.id ?? "").trim();
       if (!id) return null;
+      const userType = String(o.userType ?? o.user_type ?? "")
+        .trim()
+        .toLowerCase();
+      if (scope === "internal" && userType && userType !== "internal") return null;
+      if (scope === "external" && userType !== "external") return null;
       const name = String(o.displayName ?? o.name ?? "").trim();
       const email = String(o.email ?? "").trim();
       return { id, label: name ? `${name}${email ? ` · ${email}` : ""}` : email || id.slice(0, 8) };
@@ -52,26 +57,35 @@ export function QaRosterTab({ websiteId }: { websiteId: string }) {
   const rosterQuery = useQaRosterQuery(websiteId);
   const saveRoster = useSaveQaRosterMutation(websiteId);
 
-  const [selected, setSelected] = useState<string[]>([]);
+  const [internalSelected, setInternalSelected] = useState<string[]>([]);
+  const [externalSelected, setExternalSelected] = useState<string[]>([]);
   const [search, setSearch] = useState("");
-  const [userOptions, setUserOptions] = useState<UserOption[]>([]);
+  const [internalOptions, setInternalOptions] = useState<UserOption[]>([]);
+  const [externalOptions, setExternalOptions] = useState<UserOption[]>([]);
   const [usersLoading, setUsersLoading] = useState(true);
 
   useEffect(() => {
-    if (rosterQuery.data?.userIds) {
-      setSelected(rosterQuery.data.userIds);
+    if (rosterQuery.data) {
+      setInternalSelected(rosterQuery.data.internal.map((r) => r.userId));
+      setExternalSelected(rosterQuery.data.external.map((r) => r.userId));
     }
-  }, [rosterQuery.data?.userIds]);
+  }, [rosterQuery.data]);
 
   useEffect(() => {
     let cancelled = false;
     void (async () => {
       setUsersLoading(true);
       try {
-        const res = await listUsers({ limit: 300, page: 1 });
-        if (!cancelled) setUserOptions(pickUsers(res));
+        const res = await listUsers({ all: true });
+        if (!cancelled) {
+          setInternalOptions(pickUsers(res, "internal"));
+          setExternalOptions(pickUsers(res, "external"));
+        }
       } catch {
-        if (!cancelled) setUserOptions([]);
+        if (!cancelled) {
+          setInternalOptions([]);
+          setExternalOptions([]);
+        }
       } finally {
         if (!cancelled) setUsersLoading(false);
       }
@@ -81,20 +95,34 @@ export function QaRosterTab({ websiteId }: { websiteId: string }) {
     };
   }, []);
 
-  const filteredUsers = useMemo(() => {
+  const filterList = (options: UserOption[], selected: string[]) => {
     const q = search.trim().toLowerCase();
     const merged = new Map<string, UserOption>();
-    for (const u of userOptions) merged.set(u.id, u);
+    for (const u of options) merged.set(u.id, u);
     for (const id of selected) {
       if (!merged.has(id)) merged.set(id, { id, label: id.slice(0, 8) });
     }
     const all = [...merged.values()];
     if (!q) return all.sort((a, b) => a.label.localeCompare(b.label));
     return all.filter((u) => u.label.toLowerCase().includes(q) || u.id.toLowerCase().includes(q));
-  }, [search, selected, userOptions]);
+  };
 
-  const toggle = (userId: string) => {
-    setSelected((prev) =>
+  const internalFiltered = useMemo(
+    () => filterList(internalOptions, internalSelected),
+    [search, internalOptions, internalSelected],
+  );
+  const externalFiltered = useMemo(
+    () => filterList(externalOptions, externalSelected),
+    [search, externalOptions, externalSelected],
+  );
+
+  const toggleInternal = (userId: string) => {
+    setInternalSelected((prev) =>
+      prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId],
+    );
+  };
+  const toggleExternal = (userId: string) => {
+    setExternalSelected((prev) =>
       prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId],
     );
   };
@@ -127,16 +155,8 @@ export function QaRosterTab({ websiteId }: { websiteId: string }) {
                   QA roster (this website)
                 </Typography>
                 <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, lineHeight: 1.5 }}>
-                  When QA is enabled and &quot;Auto-assign on close&quot; is on (General tab), the backend
-                  picks a reviewer from this roster using{" "}
-                  <Typography component="span" variant="caption" sx={{ fontFamily: "monospace" }}>
-                    assignMode: least_pending
-                  </Typography>
-                  . Manual assign uses{" "}
-                  <Typography component="span" variant="caption" sx={{ fontFamily: "monospace" }}>
-                    POST /chat/qa/conversations/:id/assign
-                  </Typography>
-                  .
+                  Internal-channel chats auto-assign to <strong>Internal QA</strong>. External-channel
+                  chats assign to <strong>External QA</strong>. Match roster to agent channel.
                 </Typography>
               </Box>
             </Box>
@@ -156,61 +176,79 @@ export function QaRosterTab({ websiteId }: { websiteId: string }) {
                 variant="primary"
                 disabled={saveRoster.isPending}
                 onClick={() =>
-                  saveRoster.mutate(selected, {
-                    onSuccess: () =>
-                      publishAppToast({ message: "QA roster saved", variant: "success" }),
-                    onError: (e) =>
-                      publishAppToast({
-                        message: extractApiErrorMessageForToast(e, "Could not save QA roster"),
-                        variant: "error",
-                      }),
-                  })
+                  saveRoster.mutate(
+                    {
+                      internalUserIds: internalSelected,
+                      externalUserIds: externalSelected,
+                    },
+                    {
+                      onSuccess: () =>
+                        publishAppToast({ message: "QA roster saved", variant: "success" }),
+                      onError: (e) =>
+                        publishAppToast({
+                          message: extractApiErrorMessageForToast(e, "Could not save QA roster"),
+                          variant: "error",
+                        }),
+                    },
+                  )
                 }
               >
-                {saveRoster.isPending ? "Saving…" : `Save (${selected.length})`}
+                {saveRoster.isPending
+                  ? "Saving…"
+                  : `Save (${internalSelected.length + externalSelected.length})`}
               </Button>
             ) : null
           }
           belowSlot={
             <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, pt: 1 }}>
-              {selected.length} reviewer{selected.length === 1 ? "" : "s"} selected for website{" "}
+              Internal {internalSelected.length} · External {externalSelected.length} · website{" "}
               {websiteId.slice(0, 8)}…
             </Typography>
           }
         />
       </DashboardCard>
 
-      <DashboardCard sx={{ p: 2, maxHeight: 420, overflow: "auto" }}>
-        {usersLoading ? (
-          <Typography sx={{ color: theme.app.dashboard.textMuted, fontSize: 13 }}>
-            Loading users…
-          </Typography>
-        ) : filteredUsers.length === 0 ? (
-          <Typography sx={{ color: theme.app.dashboard.textMuted, fontSize: 13 }}>
-            No users match your search.
-          </Typography>
-        ) : (
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 0.25 }}>
-            {filteredUsers.map((u) => (
-              <FormControlLabel
-                key={u.id}
-                sx={{ alignItems: "flex-start", mx: 0 }}
-                control={
-                  <Checkbox
-                    size="small"
-                    checked={selected.includes(u.id)}
-                    onChange={() => toggle(u.id)}
-                    disabled={!canEdit || saveRoster.isPending}
+      {(["internal", "external"] as const).map((scope) => {
+        const filtered = scope === "internal" ? internalFiltered : externalFiltered;
+        const selected = scope === "internal" ? internalSelected : externalSelected;
+        const toggle = scope === "internal" ? toggleInternal : toggleExternal;
+        return (
+          <DashboardCard key={scope} sx={{ p: 2, maxHeight: 280, overflow: "auto" }}>
+            <Typography fontWeight={700} sx={{ fontSize: 14, mb: 1, textTransform: "capitalize" }}>
+              {scope} QA reviewers
+            </Typography>
+            {usersLoading ? (
+              <Typography sx={{ color: theme.app.dashboard.textMuted, fontSize: 13 }}>
+                Loading users…
+              </Typography>
+            ) : filtered.length === 0 ? (
+              <Typography sx={{ color: theme.app.dashboard.textMuted, fontSize: 13 }}>
+                No {scope} users match your search.
+              </Typography>
+            ) : (
+              <Box sx={{ display: "flex", flexDirection: "column", gap: 0.25 }}>
+                {filtered.map((u) => (
+                  <FormControlLabel
+                    key={u.id}
+                    sx={{ alignItems: "flex-start", mx: 0 }}
+                    control={
+                      <Checkbox
+                        size="small"
+                        checked={selected.includes(u.id)}
+                        onChange={() => toggle(u.id)}
+                        disabled={!canEdit || saveRoster.isPending}
+                      />
+                    }
+                    label={
+                      <Typography sx={{ fontSize: 13, pt: 0.35 }}>{u.label}</Typography>
+                    }
                   />
-                }
-                label={
-                  <Typography sx={{ fontSize: 13, pt: 0.35 }}>{u.label}</Typography>
-                }
-              />
-            ))}
-          </Box>
-        )}
-      </DashboardCard>
+                ))}
+              </Box>
+            )}
+          </DashboardCard>
+        );
+      })}
     </Box>
   );
 }

@@ -1,13 +1,14 @@
+import { hasAnyOperational } from "./access-helpers";
+import { HRMS, ORG } from "./permission-constants";
+
 /**
  * Operational permission strings from the auth API (`data.permission.operational`).
  *
- * - **Route / menu / “can open this screen”:** use `useAuth().hasPage("page:...")` and
- *   `lib/permissions/dashboard-access` (`getDashboardPathPageRequirements`, `canAccessDashboardPath`).
- * - **In-page controls (create / edit / delete / approve / etc.):** use `useAuth().hasOperational(OP....)`
- *   or helpers such as `canCompanyAction` from this module.
+ * - **Route / menu:** `useAuth().hasPage(PAGE.*)` + `lib/permissions/dashboard-access`.
+ * - **Actions:** `hasAnyOperational(hasOperational, ORG.*)` or helpers below.
+ * - **Org vs HRMS:** Departments/Pools use {@link ORG}; shifts/leave/attendance use {@link HRMS}.
  */
-export const OP = {
-  accountSetup: {
+export const OP = {  accountSetup: {
     create: "account-setup:create",
     delete: "account-setup:delete",
     update: "account-setup:update",
@@ -21,6 +22,7 @@ export const OP = {
     monitorPool: "chat:monitor:pool",
     monitorDepartment: "chat:monitor:department",
     monitorParentCompany: "chat:monitor:parent-company",
+    monitorInvolvement: "chat:monitor:involvement",
     whisper: "chat:whisper",
     takeoverRequest: "chat:takeover:request",
     takeoverApprove: "chat:takeover:approve",
@@ -49,7 +51,6 @@ export const OP = {
     update: "crm-integration:update",
     view: "crm-integration:view",
   },
-  department: { create: "department:create" },
   distributionSetup: {
     create: "distribution-setup:create",
     delete: "distribution-setup:delete",
@@ -65,7 +66,6 @@ export const OP = {
       view: "hrms:attendance:view",
     },
     department: {
-      create: "hrms:department:create",
       delete: "hrms:department:delete",
       update: "hrms:department:update",
       view: "hrms:department:view",
@@ -213,56 +213,80 @@ export function canRemoveDepartmentHead(hasOperational: (p: string) => boolean):
 
 type H = (permission: string) => boolean;
 
-/** `hrms:org:*:manage` / `hrms:org:manage` imply full HRMS org mutations. */
-export function canDepartmentAction(h: H, op: "create" | "update" | "delete" | "view"): boolean {
-  if (h(OP.hrms.org.manage) || h(OP.hrms.org.departmentManage)) return true;
-  if (op === "create") return h(OP.hrms.department.create);
-  if (op === "update") return h(OP.hrms.department.update);
-  if (op === "delete") return h(OP.hrms.department.delete);
-  return h(OP.hrms.department.view);
+function canOrgDepartmentAction(h: H, op: "create" | "update" | "delete" | "view"): boolean {
+  if (hasAnyOperational(h, [ORG.ORG_MANAGE, ORG.DEPT_MANAGE])) return true;
+  if (op === "create") return hasAnyOperational(h, [ORG.DEPT_MANAGE]);
+  if (op === "update") return hasAnyOperational(h, [ORG.DEPT_MANAGE]) || h(OP.hrms.department.update);
+  if (op === "delete") return hasAnyOperational(h, [ORG.DEPT_MANAGE]) || h(OP.hrms.department.delete);
+  return hasAnyOperational(h, [ORG.DEPT_VIEW, ORG.DEPT_MANAGE, ORG.ORG_MANAGE]) || h(OP.hrms.department.view);
 }
 
-export function canDesignationAction(h: H, op: "create" | "update" | "delete" | "view"): boolean {
-  if (h(OP.hrms.org.manage) || h(OP.hrms.org.designationManage)) return true;
-  if (op === "create") return h(OP.hrms.designation.create);
-  if (op === "update") return h(OP.hrms.designation.update);
-  if (op === "delete") return h(OP.hrms.designation.delete);
-  return h(OP.hrms.designation.view);
+/** @deprecated Use `canOrgDepartmentAction` — kept for existing imports. */
+export const canDepartmentAction = canOrgDepartmentAction;
+
+function canOrgDesignationAction(h: H, op: "create" | "update" | "delete" | "view"): boolean {
+  if (hasAnyOperational(h, [ORG.ORG_MANAGE, ORG.DESIGNATION_MANAGE])) return true;
+  if (op === "create") return hasAnyOperational(h, [ORG.DESIGNATION_MANAGE]) || h(OP.hrms.designation.create);
+  if (op === "update") return hasAnyOperational(h, [ORG.DESIGNATION_MANAGE]) || h(OP.hrms.designation.update);
+  if (op === "delete") return hasAnyOperational(h, [ORG.DESIGNATION_MANAGE]) || h(OP.hrms.designation.delete);
+  return (
+    hasAnyOperational(h, [ORG.DESIGNATION_VIEW, ORG.DESIGNATION_MANAGE, ORG.ORG_MANAGE]) ||
+    h(OP.hrms.designation.view)
+  );
 }
 
-export function canPoolAction(h: H, op: "create" | "update" | "delete" | "view"): boolean {
-  if (h(OP.hrms.org.manage) || h(OP.hrms.org.poolManage)) return true;
-  if (op === "create") return h(OP.hrms.pool.create);
-  if (op === "update") return h(OP.hrms.pool.update);
-  if (op === "delete") return h(OP.hrms.pool.delete);
-  return h(OP.hrms.pool.view);
+/** @deprecated Use `canOrgDesignationAction`. */
+export const canDesignationAction = canOrgDesignationAction;
+
+function canOrgPoolAction(h: H, op: "create" | "update" | "delete" | "view"): boolean {
+  if (hasAnyOperational(h, [ORG.ORG_MANAGE, ORG.POOL_MANAGE])) return true;
+  if (op === "create") return hasAnyOperational(h, [ORG.POOL_MANAGE]) || h(OP.hrms.pool.create);
+  if (op === "update") return hasAnyOperational(h, [ORG.POOL_MANAGE]) || h(OP.hrms.pool.update);
+  if (op === "delete") return hasAnyOperational(h, [ORG.POOL_MANAGE]) || h(OP.hrms.pool.delete);
+  return hasAnyOperational(h, [ORG.POOL_VIEW, ORG.POOL_MANAGE, ORG.ORG_MANAGE]) || h(OP.hrms.pool.view);
 }
 
-/** List / GET pool members (`hrms:pool:view` or org pool bundles). Requires `page:hrms` in the API — check with `hasPage("page:hrms")`. */
+/** @deprecated Use `canOrgPoolAction`. */
+export const canPoolAction = canOrgPoolAction;
+
+/** List pool members — gate with {@link hasPoolPage} (`page:pool`), not `page:hrms`. */
 export function canPoolMemberList(h: H): boolean {
-  return h(OP.hrms.org.manage) || h(OP.hrms.org.poolManage) || h(OP.hrms.pool.view);
+  return (
+    hasAnyOperational(h, [ORG.ORG_MANAGE, ORG.POOL_MANAGE, ORG.POOL_VIEW]) || h(OP.hrms.pool.view)
+  );
 }
 
-/** POST add/move into pool. */
 export function canPoolMemberAdd(h: H): boolean {
-  return h(OP.hrms.org.manage) || h(OP.hrms.org.poolManage) || h(OP.hrms.pool.memberAdd);
+  return (
+    hasAnyOperational(h, [ORG.ORG_MANAGE, ORG.POOL_MANAGE, ORG.POOL_MEMBER_ADD]) ||
+    h(OP.hrms.pool.memberAdd)
+  );
 }
 
-/** PATCH move to another pool in the same department. */
 export function canPoolMemberMove(h: H): boolean {
-  return h(OP.hrms.org.manage) || h(OP.hrms.org.poolManage) || h(OP.hrms.pool.memberUpdate);
+  return (
+    hasAnyOperational(h, [ORG.ORG_MANAGE, ORG.POOL_MANAGE, ORG.POOL_MEMBER_UPDATE]) ||
+    h(OP.hrms.pool.memberUpdate)
+  );
 }
 
-/** DELETE remove from pool. */
 export function canPoolMemberRemove(h: H): boolean {
-  return h(OP.hrms.org.manage) || h(OP.hrms.org.poolManage) || h(OP.hrms.pool.memberRemove);
+  return (
+    hasAnyOperational(h, [ORG.ORG_MANAGE, ORG.POOL_MANAGE, ORG.POOL_MEMBER_REMOVE]) ||
+    h(OP.hrms.pool.memberRemove)
+  );
 }
 
+/** Shifts are workforce-only — never `hrms:org:manage`. */
 export function canShiftAction(h: H, op: "create" | "update" | "delete" | "view"): boolean {
-  if (op === "create") return h(OP.hrms.shift.create);
-  if (op === "update") return h(OP.hrms.shift.update);
-  if (op === "delete") return h(OP.hrms.shift.delete);
-  return h(OP.hrms.shift.view);
+  if (op === "create") return h(HRMS.SHIFT_CREATE) || h(OP.hrms.shift.create);
+  if (op === "update") return h(HRMS.SHIFT_UPDATE) || h(OP.hrms.shift.update);
+  if (op === "delete") return h(HRMS.SHIFT_DELETE) || h(OP.hrms.shift.delete);
+  return h(HRMS.SHIFT_VIEW) || h(OP.hrms.shift.view);
+}
+
+export function canOrgManageAny(h: H): boolean {
+  return hasAnyOperational(h, [ORG.ORG_MANAGE]);
 }
 
 export function canCompanyAction(h: H, op: "create" | "update" | "detail" | "list" | "view"): boolean {

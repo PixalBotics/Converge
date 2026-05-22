@@ -72,3 +72,32 @@ export async function rejectTakeoverRequest(
   );
   return unwrapChatHttpData(data);
 }
+
+export async function startDirectSupervisorControl(
+  conversationId: string,
+): Promise<{ mode: string; supervisorControlUserId: string; agentReadOnly: boolean }> {
+  const { data } = await apiClient.post<unknown>(
+    `${conversationPath(conversationId)}/supervisor/control/start`,
+  );
+  return unwrapChatHttpData(data);
+}
+
+export async function releaseDirectSupervisorControl(
+  conversationId: string,
+): Promise<{ released: boolean }> {
+  const { data } = await apiClient.post<unknown>(
+    `${conversationPath(conversationId)}/supervisor/control/release`,
+  );
+  return unwrapChatHttpData(data);
+}
+
+export async function sendSupervisorControlMessage(
+  conversationId: string,
+  message: string,
+): Promise<unknown> {
+  const { data } = await apiClient.post<unknown>(
+    `${conversationPath(conversationId)}/supervisor/messages`,
+    { message },
+  );
+  return unwrapChatHttpData(data);
+}

@@ -20,9 +20,11 @@ import type { QaStatusTab } from "../hooks/useChatQa";
 import { queueRowTitle } from "../utils/qa-labels";
 import {
   chatQaFilterWrap,
+  chatQaInboxHeaderSx,
   chatQaInboxTabsRow,
   chatQaInboxTabSx,
   chatQaInboxToolbarSx,
+  chatQaPaneTitleSx,
 } from "../styles/chat-qa.styles";
 
 const STATUS_TABS: Array<{ id: QaStatusTab; label: string }> = [
@@ -96,8 +98,16 @@ export function QaQueueSidebar({
   }, [queue, searchQuery]);
 
   return (
-    <PanelColumn>
+    <PanelColumn sx={{ height: "100%" }}>
       <Box sx={chatQaInboxToolbarSx}>
+        <Box>
+          <Typography sx={chatQaPaneTitleSx}>QA reviews</Typography>
+          <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, fontSize: 11 }}>
+            Closed conversations for scoring
+          </Typography>
+        </Box>
+      </Box>
+      <Box sx={chatQaInboxHeaderSx}>
         <Box sx={chatQaInboxTabsRow}>
           {STATUS_TABS.map((tab) => {
             const count = statusCounts[tab.id as keyof typeof statusCounts] ?? 0;
@@ -115,6 +125,7 @@ export function QaQueueSidebar({
             );
           })}
         </Box>
+      </Box>
         <Box sx={chatQaFilterWrap}>
           <SearchBar
             value={searchQuery}
@@ -139,9 +150,8 @@ export function QaQueueSidebar({
             }
           />
         </Box>
-      </Box>
 
-      <ScrollRegion>
+      <ScrollRegion sx={{ flex: 1 }}>
         {loading ? (
           <Typography sx={{ p: 2, color: theme.app.dashboard.textMuted, fontSize: 13 }}>
             Loading queue…
@@ -159,7 +169,7 @@ export function QaQueueSidebar({
             return (
               <QueueItemRow
                 key={row.id}
-                selected={selected}
+                active={selected}
                 onClick={() => onSelectConversation(row.conversationId)}
               >
                 <Box sx={{ minWidth: 0, flex: 1 }}>

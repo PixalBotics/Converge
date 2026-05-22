@@ -1,5 +1,6 @@
 import type { DashboardNavItem } from "./dashboard-nav.types";
 import { OP } from "./operational-keys";
+import { ORG, PAGE } from "./permission-constants";
 import {
   COMMERCIAL_PAGE_PERMISSIONS,
   PAGE_PERMISSION_ORDER,
@@ -13,6 +14,7 @@ const CHAT_MONITOR_OPERATIONAL_ANY = [
   OP.chat.monitorPool,
   OP.chat.monitorDepartment,
   OP.chat.monitorParentCompany,
+  OP.chat.monitorInvolvement,
 ] as const;
 
 const CHAT_QA_OPERATIONAL_ANY = [
@@ -28,10 +30,10 @@ const CHAT_GROUP: DashboardNavItem = {
   section: "activity",
   iconKey: "chat",
   permission: null,
-  permissionsAny: ["page:chat", "page:chat-widget"],
+  permissionsAny: [PAGE.CHAT, PAGE.CHAT_WIDGET],
   children: [
     {
-      ...toNavItem("page:chat")!,
+      ...toNavItem(PAGE.CHAT)!,
       label: "Agent inbox",
       href: "/dashboard/chat-operations",
       prefixMatch: true,
@@ -42,7 +44,7 @@ const CHAT_GROUP: DashboardNavItem = {
       label: "Monitor",
       section: "activity",
       iconKey: "chat",
-      permission: "page:chat",
+      permission: PAGE.CHAT,
       prefixMatch: true,
       operationalAny: [...CHAT_MONITOR_OPERATIONAL_ANY],
     },
@@ -51,7 +53,7 @@ const CHAT_GROUP: DashboardNavItem = {
       label: "QA inbox",
       section: "activity",
       iconKey: "chat",
-      permission: "page:chat",
+      permission: PAGE.CHAT,
       prefixMatch: true,
       operationalAny: [...CHAT_QA_OPERATIONAL_ANY],
     },
@@ -60,22 +62,30 @@ const CHAT_GROUP: DashboardNavItem = {
       label: "Chat reports",
       section: "activity",
       iconKey: "reports",
-      permission: "page:chat",
+      permission: PAGE.CHAT,
       prefixMatch: true,
       operationalAny: [OP.chat.reportView],
     },
     {
-      ...toNavItem("page:chat-widget")!,
+      ...toNavItem(PAGE.CHAT_WIDGET)!,
       label: "Widget",
       href: "/dashboard/chat-widget",
       prefixMatch: true,
     },
     {
-      href: "/dashboard/chat-settings",
-      label: "Chat settings",
+      href: "/dashboard/chat-involvement",
+      label: "Chat involvement",
       section: "activity",
       iconKey: "chatWidget",
-      permission: "page:chat-widget",
+      permission: PAGE.CHAT_WIDGET,
+      prefixMatch: true,
+    },
+    {
+      href: "/dashboard/chat-settings",
+      label: "Canned messages",
+      section: "activity",
+      iconKey: "chatWidget",
+      permission: PAGE.CHAT_WIDGET,
       prefixMatch: true,
     },
   ],
@@ -91,16 +101,68 @@ export const ALWAYS_VISIBLE_NAV_ITEMS: readonly DashboardNavItem[] = [
   },
 ] as const;
 
-const DEPARTMENTS_AND_DESIGNATIONS_GROUP: DashboardNavItem = {
+/** User Management → org structure (not under HRMS). */
+const DEPARTMENTS_GROUP: DashboardNavItem = {
   href: "/dashboard/departments",
-  label: "Department",
+  label: "Departments",
   section: "activity",
   iconKey: "departments",
-  permission: null,
-  permissionsAny: ["page:departments", "page:designations"],
+  permission: PAGE.DEPARTMENTS,
+  prefixMatch: true,
   children: [
-    { ...toNavItem("page:departments")!, label: "Department List" },
-    { ...toNavItem("page:designations")!, label: "Designation" },
+    { ...toNavItem(PAGE.DEPARTMENTS)!, label: "Department list" },
+    {
+      href: "/dashboard/designations",
+      label: "Designations",
+      section: "activity",
+      iconKey: "designations",
+      permission: PAGE.DEPARTMENTS,
+      prefixMatch: true,
+    },
+    {
+      href: "/dashboard/hrms/department-heads",
+      label: "Department heads",
+      section: "activity",
+      iconKey: "departments",
+      permission: PAGE.DEPARTMENTS,
+      prefixMatch: true,
+    },
+  ],
+};
+
+const POOLS_GROUP: DashboardNavItem = {
+  href: "/dashboard/pools",
+  label: "Pools",
+  section: "activity",
+  iconKey: "pools",
+  permission: null,
+  permissionsAny: [PAGE.POOL, PAGE.POOLS],
+  children: [
+    {
+      href: "/dashboard/pools",
+      label: "Pool list",
+      section: "activity",
+      iconKey: "pools",
+      permission: null,
+      permissionsAny: [PAGE.POOL, PAGE.POOLS],
+      prefixMatch: true,
+    },
+    {
+      href: "/dashboard/hrms/pool-members",
+      label: "Pool members",
+      section: "activity",
+      iconKey: "pools",
+      permission: PAGE.POOL,
+      prefixMatch: true,
+    },
+    {
+      href: "/dashboard/hrms/pool-heads",
+      label: "Pool heads",
+      section: "activity",
+      iconKey: "pools",
+      permission: PAGE.POOL,
+      prefixMatch: true,
+    },
   ],
 };
 
@@ -109,30 +171,30 @@ const SHIFTS_GROUP: DashboardNavItem = {
   label: "Shifts",
   section: "activity",
   iconKey: "shifts",
-  permission: null,
-  permissionsAny: ["page:shifts"],
+  permission: PAGE.SHIFTS,
+  prefixMatch: true,
   children: [
-    { ...toNavItem("page:shifts")!, label: "Shift List", prefixMatch: false },
+    { ...toNavItem(PAGE.SHIFTS)!, label: "Shift list", prefixMatch: false },
     {
       href: "/dashboard/shifts/department-shift",
-      label: "Department Shift",
+      label: "Department shift",
       section: "activity",
       iconKey: "shifts",
-      permission: "page:shifts",
+      permission: PAGE.SHIFTS,
     },
     {
       href: "/dashboard/shifts/pool-shift",
-      label: "Pool Shift",
+      label: "Pool shift",
       section: "activity",
       iconKey: "shifts",
-      permission: "page:shifts",
+      permission: PAGE.SHIFTS,
     },
     {
       href: "/dashboard/shifts/user-shift",
-      label: "User Shift",
+      label: "User shift",
       section: "activity",
       iconKey: "shifts",
-      permission: "page:shifts",
+      permission: PAGE.SHIFTS,
     },
   ],
 };
@@ -143,12 +205,22 @@ const WEBSITE_GROUP: DashboardNavItem = {
   section: "activity",
   iconKey: "websiteAssignments",
   permission: null,
-  permissionsAny: ["page:website-assignments"],
+  permissionsAny: [PAGE.WEBSITE_ASSIGNMENTS],
   children: [
     {
-      ...toNavItem("page:website-assignments")!,
-      label: "Website Assign",
-      prefixMatch: false,
+      ...toNavItem(PAGE.WEBSITE_ASSIGNMENTS)!,
+      label: "Website assign",
+      prefixMatch: true,
+      pathExcludes: ["/service-schedules", "/service-scheduling"],
+    },
+    {
+      href: "/dashboard/website-assigning/service-schedules",
+      label: "Service scheduling",
+      section: "activity",
+      iconKey: "websiteAssignments",
+      permission: PAGE.WEBSITE_ASSIGNMENTS,
+      prefixMatch: true,
+      pathIncludes: "/service-scheduling",
     },
   ],
 };
@@ -159,21 +231,20 @@ const USERS_GROUP: DashboardNavItem = {
   section: "activity",
   iconKey: "users",
   permission: null,
-  permissionsAny: ["page:users"],
+  permissionsAny: [PAGE.USERS],
   children: [
-    { ...toNavItem("page:users")!, label: "User List", prefixMatch: false },
+    { ...toNavItem(PAGE.USERS)!, label: "User list", prefixMatch: false },
     {
       href: "/dashboard/user-page/permissions",
-      label: "User Permissions",
+      label: "User permissions",
       section: "activity",
       iconKey: "users",
-      permission: "page:users",
+      permission: PAGE.USERS,
       prefixMatch: false,
     },
   ],
 };
 
-/** One sidebar row for account-setup + clients + resellers API keys (same app route). */
 const COMMERCIAL_ACCOUNT_GROUP: DashboardNavItem = {
   href: "/dashboard/companies",
   label: "Clients & resellers",
@@ -193,103 +264,90 @@ const COMMERCIAL_ACCOUNT_GROUP: DashboardNavItem = {
   ],
 };
 
+/** Workforce only — attendance, leave, shifts (no departments/pools admin). */
 const HRMS_GROUP: DashboardNavItem = {
   href: "/dashboard/hrms",
   label: "HRMS",
   section: "activity",
   iconKey: "hrms",
-  permission: null,
-  permissionsAny: ["page:hrms"],
+  permission: PAGE.HRMS,
+  prefixMatch: true,
   children: [
     {
-      ...toNavItem("page:hrms")!,
       href: "/dashboard/hrms",
       label: "Overview",
+      section: "activity",
+      iconKey: "hrms",
+      permission: PAGE.HRMS,
       prefixMatch: false,
     },
     {
-      href: "/dashboard/hrms/pool-members",
-      label: "Pool members",
-      section: "activity",
-      iconKey: "pools",
-      permission: "page:hrms",
-    },
-    {
-      href: "/dashboard/hrms/pool-heads",
-      label: "Pool Heads",
-      section: "activity",
-      iconKey: "hrms",
-      permission: "page:hrms",
-    },
-    {
-      href: "/dashboard/hrms/department-heads",
-      label: "Department Heads",
-      section: "activity",
-      iconKey: "hrms",
-      permission: "page:hrms",
-    },
-    {
       href: "/dashboard/attendance/my-attendance",
-      label: "My Attendance",
+      label: "My attendance",
       section: "activity",
       iconKey: "reports",
-      permission: "page:hrms",
+      permission: PAGE.HRMS,
     },
     {
       href: "/dashboard/attendance/team-attendance",
-      label: "Team Attendance",
+      label: "Team attendance",
       section: "activity",
       iconKey: "reports",
-      permission: "page:hrms",
+      permission: PAGE.HRMS,
+      operationalAny: [OP.hrms.attendance.view],
     },
     {
       href: "/dashboard/attendance/mark-attendance",
-      label: "Mark Attendance",
+      label: "Mark attendance",
       section: "activity",
       iconKey: "reports",
-      permission: "page:hrms",
+      permission: PAGE.HRMS,
     },
     {
       href: "/dashboard/leave/leave-type",
-      label: "Leave Type",
+      label: "Leave type",
       section: "activity",
       iconKey: "leave",
-      permission: "page:hrms",
+      permission: PAGE.HRMS,
     },
     {
       href: "/dashboard/leave/apply-leave",
-      label: "Apply Leave",
+      label: "Apply leave",
       section: "activity",
       iconKey: "leave",
-      permission: "page:hrms",
+      permission: PAGE.HRMS,
     },
     {
       href: "/dashboard/leave/approval-inbox",
-      label: "Approval Inbox",
+      label: "Approval inbox",
       section: "activity",
       iconKey: "leave",
-      permission: "page:hrms",
+      permission: PAGE.HRMS,
+      operationalAny: [OP.hrms.leave.approve, OP.hrms.leave.approvePool, OP.hrms.leave.approveDepartment],
     },
-    /* Sidebar: Approve Leave hidden for now — restore child linking to /dashboard/leave/approve-leave */
     {
       href: "/dashboard/leave/leave-balance",
-      label: "Leave Balance",
+      label: "Leave balance",
       section: "activity",
       iconKey: "leave",
-      permission: "page:hrms",
+      permission: PAGE.HRMS,
     },
   ],
 };
 
 export const DASHBOARD_NAV_ITEMS: readonly DashboardNavItem[] = PAGE_PERMISSION_ORDER.flatMap((permission) => {
-  if (permission === "page:departments") return [DEPARTMENTS_AND_DESIGNATIONS_GROUP];
+  if (permission === "page:departments" || permission === "page:designations") {
+    return permission === "page:departments" ? [DEPARTMENTS_GROUP] : [];
+  }
+  if (permission === "page:pool" || permission === "page:pools") {
+    return permission === "page:pool" ? [POOLS_GROUP] : [];
+  }
   if (permission === "page:website-assignments") return [WEBSITE_GROUP];
   if (permission === "page:users") return [USERS_GROUP];
-  if (permission === "page:hrms") return [HRMS_GROUP];
+  if (permission === "page:hrms") return [HRMS_GROUP, SHIFTS_GROUP];
   if (permission === "page:chat") return [CHAT_GROUP];
   if (permission === "page:chat-widget") return [];
-  if (permission === "page:pools") return [];
-  if (permission === "page:shifts") return [SHIFTS_GROUP];
+  if (permission === "page:shifts") return [];
   if (COMMERCIAL_PAGE_PERMISSIONS.includes(permission)) {
     const first = firstCommercialPageInNavOrder();
     if (!first || permission !== first) return [];

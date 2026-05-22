@@ -46,6 +46,7 @@ export { websiteAssignmentsKeys } from "./website-assignments";
 export {
   buildWebsitesInScopeParams,
   useAssignWebsiteTierMutation,
+  usePutDepartmentRosterMutation,
   useWebsiteAssignmentDetailQuery,
   useWebsiteAssignmentsUserWebsitesQuery,
   useWebsiteAssignmentsWebsitesQuery,

@@ -1,4 +1,25 @@
-import type { ChatOperationsJson } from "./chat-settings.types";
+import type { ChatOperationsJson, ServiceSchedule } from "./chat-settings.types";
+
+export const DEFAULT_SERVICE_SCHEDULE: ServiceSchedule = {
+  timezone: "Asia/Karachi",
+  gapPolicy: "queue_until_next_window",
+  windows: [
+    {
+      channel: "Internal",
+      daysOfWeek: ["Mon", "Tue", "Wed", "Thu", "Fri"],
+      startTime: "09:00",
+      endTime: "18:00",
+      crossesMidnight: false,
+    },
+    {
+      channel: "External",
+      daysOfWeek: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
+      startTime: "10:00",
+      endTime: "22:00",
+      crossesMidnight: false,
+    },
+  ],
+};
 
 /** Mirrors backend `DEFAULT_CHAT_OPERATIONS` — merged on save (unknown keys preserved). */
 export const DEFAULT_CHAT_OPERATIONS: ChatOperationsJson = {
@@ -42,8 +63,9 @@ export const DEFAULT_CHAT_OPERATIONS: ChatOperationsJson = {
     reopenClosedWithinMinutes: 1440,
   },
   assignment: {
-    requireHrmsShiftForInternal: true,
+    requireHrmsShiftForInternal: false,
     skipShiftWhenUnconfigured: true,
+    serviceSchedule: DEFAULT_SERVICE_SCHEDULE,
   },
   reporting: {
     enabled: true,

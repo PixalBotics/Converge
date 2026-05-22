@@ -33,6 +33,7 @@ import {
   defaultWidgetDraft,
   type WidgetInstallChatMode,
 } from "@/lib/chat-widget/widgetDraft";
+import { normalizeWidgetInquiryOptions } from "@/lib/chat-widget/widget-inquiry.types";
 
 const STEPS = ["Widget Button Design", "Chat Box Design", "Notifications & Advanced"];
 
@@ -59,9 +60,6 @@ export default function ChatWidgetNotificationsPage() {
     d0.welcomeMessageBehavior ?? "Thanks for reaching out.",
   );
   const [inquiryOn, setInquiryOn] = useState(d0.inquiryOn ?? false);
-  const [inquiryOptionsInput, setInquiryOptionsInput] = useState(
-    (d0.inquiryOptions ?? ["Billing", "Technical", "Sales"]).join(", "),
-  );
   const [autoOpenEnabled, setAutoOpenEnabled] = useState(d0.autoOpenEnabled ?? false);
   const [autoOpenDelayStr, setAutoOpenDelayStr] = useState(String(d0.autoOpenDelaySeconds ?? 10));
   const [fileUploadEnabled, setFileUploadEnabled] = useState(d0.fileUploadEnabled ?? true);
@@ -107,9 +105,8 @@ export default function ChatWidgetNotificationsPage() {
     setFallbackText(d.fallbackNotificationText ?? def.fallbackNotificationText ?? "");
     setBotEnabled(d.botEnabled ?? def.botEnabled ?? true);
     setWelcomeMessageBehavior(d.welcomeMessageBehavior ?? def.welcomeMessageBehavior ?? "");
-    const inquiryArr = Array.isArray(d.inquiryOptions) ? d.inquiryOptions : (def.inquiryOptions ?? []);
+    const inquiryArr = normalizeWidgetInquiryOptions(d.inquiryOptions ?? def.inquiryOptions);
     setInquiryOn(d.inquiryOn ?? inquiryArr.length > 0);
-    setInquiryOptionsInput(inquiryArr.join(", "));
     setAutoOpenEnabled(d.autoOpenEnabled ?? false);
     setAutoOpenDelayStr(String(d.autoOpenDelaySeconds ?? def.autoOpenDelaySeconds ?? 10));
     setFileUploadEnabled(d.fileUploadEnabled ?? def.fileUploadEnabled ?? true);
@@ -145,16 +142,11 @@ export default function ChatWidgetNotificationsPage() {
     setVideoFileName(file.name);
   };
 
-  const inquiryOptionsList = useMemo(
-    () =>
-      inquiryOn
-        ? inquiryOptionsInput
-            .split(",")
-            .map((s) => s.trim())
-            .filter(Boolean)
-        : [],
-    [inquiryOn, inquiryOptionsInput],
-  );
+  const inquiryOptionsList = useMemo(() => {
+    if (!inquiryOn || !draftReady) return [];
+    const d = readChatWizardDraft(resolveEditWidgetKeyForNavigation(editWidgetKey) || undefined);
+    return normalizeWidgetInquiryOptions(d.inquiryOptions).map((o) => o.label);
+  }, [inquiryOn, draftReady, editWidgetKey]);
 
   const behaviorPreviewModel = useMemo(() => {
     const draft = draftReady
@@ -287,10 +279,9 @@ export default function ChatWidgetNotificationsPage() {
                     welcomeMessageBehavior: welcomeMessageBehavior.trim(),
                     inquiryOn,
                     inquiryOptions: inquiryOn
-                      ? inquiryOptionsInput
-                          .split(",")
-                          .map((s) => s.trim())
-                          .filter(Boolean)
+                      ? normalizeWidgetInquiryOptions(
+                          readChatWizardDraft(editKey || undefined).inquiryOptions,
+                        )
                       : [],
                     autoOpenEnabled,
                     autoOpenDelaySeconds: Math.min(300, Math.max(0, Number.parseInt(autoOpenDelayStr, 10) || 10)),
@@ -490,16 +481,15 @@ export default function ChatWidgetNotificationsPage() {
         <Switch checked={inquiryOn} onChange={(_, c) => setInquiryOn(c)} color="success" />
       </Box>
       {inquiryOn ? (
-        <InputField
-          label="Inquiry options (comma-separated)"
-          name="inquiry-options"
-          value={inquiryOptionsInput}
-          onChange={(e) => setInquiryOptionsInput(e.target.value)}
-          placeholder="Billing, Technical, Sales"
-        />
+        <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, mb: 1 }}>
+          Inquire labels and department routing are configured on the{" "}
+          <strong>Chat Box Design</strong> step ({inquiryOptionsList.length} option
+          {inquiryOptionsList.length === 1 ? "" : "s"}
+          {inquiryOptionsList.length ? `: ${inquiryOptionsList.join(", ")}` : ""}).
+        </Typography>
       ) : (
         <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, mb: 1 }}>
-          Topic pills are hidden. You can also configure them on the Chat Box step.
+          Topic pills are hidden. Enable them on the Chat Box Design step.
         </Typography>
       )}
       <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>

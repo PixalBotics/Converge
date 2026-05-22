@@ -30,6 +30,10 @@ import { normalizeChatMessageText } from "@/lib/safe-markdown/text";
 import { useVisitorChat } from "@/lib/hooks/chat/useVisitorChat";
 import { LauncherPresetIcon } from "@/lib/chat-widget/launcherIcons";
 import {
+  resolveInquiryRoutingTargets,
+  type RuntimeInquiryOption,
+} from "@/lib/chat-widget/widget-inquiry.types";
+import {
   buildDefaultFormValues,
   buildDynamicPrechatZod,
   buildVisitorPayloadParts,
@@ -787,30 +791,27 @@ function WidgetChatPanel({
   });
 
   const formEnabled = appearance?.formEnabled ?? true;
+  const inquiryOptions: RuntimeInquiryOption[] = appearance?.inquiryOptions ?? [];
+  const hasInquiryStep = inquiryOptions.length > 0;
   const [prechatDone, setPrechatDone] = useState(!formEnabled);
+  const [prechatStep, setPrechatStep] = useState<"inquiry" | "form">(
+    hasInquiryStep ? "inquiry" : "form",
+  );
   const [consentAccepted, setConsentAccepted] = useState(false);
-  const [selectedTopic, setSelectedTopic] = useState<string | undefined>();
+  const [selectedInquiry, setSelectedInquiry] = useState<RuntimeInquiryOption | null>(
+    null,
+  );
 
   useEffect(() => {
     setPrechatDone(!formEnabled);
+    setPrechatStep(hasInquiryStep ? "inquiry" : "form");
+    setSelectedInquiry(null);
     if (!appearance?.consentRequired) setConsentAccepted(true);
-  }, [formEnabled, appearance?.consentRequired]);
+  }, [formEnabled, hasInquiryStep, appearance?.consentRequired]);
   const [aiPending, setAiPending] = useState(false);
   /** HYBRID only: set true when visitor taps "Talk to a human" — never from API shouldEscalate (that was forcing queue UI + repeated handoff replies). */
   const [escalated, setEscalated] = useState(false);
   const [localAiMessages, setLocalAiMessages] = useState<ChatMessage[]>([]);
-
-  const inquiryOptions = useMemo(() => {
-    if (appearance?.inquiryOptions?.length) return appearance.inquiryOptions;
-    const behavior = configRecord.behavior as
-      | { inquiryOptions?: Array<{ label: string; value?: string }> }
-      | undefined;
-    const raw = behavior?.inquiryOptions;
-    if (!Array.isArray(raw)) return [];
-    return raw.map((item) =>
-      typeof item === "string" ? { label: item, value: item } : item,
-    );
-  }, [appearance, configRecord]);
 
   const visitorSessionId = useMemo(() => {
     const existing = readVisitorSessionId(siteKey);
@@ -861,19 +862,28 @@ function WidgetChatPanel({
   };
 
   const onPrechatSubmit = form.handleSubmit(async (values) => {
+    if (hasInquiryStep && !selectedInquiry) return;
     const { visitor, firstMessage } = buildVisitorPayloadParts(
       values as Record<string, unknown>,
       fields,
       visitorSessionId,
-      selectedTopic,
+      selectedInquiry?.label,
     );
+    const routingTargets = selectedInquiry
+      ? resolveInquiryRoutingTargets(selectedInquiry)
+      : { departmentId: null, poolId: null };
     const created = await chat.startConversation({
       websiteId,
       visitor,
       firstMessage,
       currentPageUrl: parentPageUrl,
       referrerUrl: typeof document !== "undefined" ? document.referrer : "",
-      topic: selectedTopic,
+      routingKey: selectedInquiry?.routingKey,
+      serviceChannel:
+        selectedInquiry?.serviceChannel === "external" ? "External" : "Internal",
+      inquiryDepartmentId: routingTargets.departmentId ?? undefined,
+      inquiryPoolId: routingTargets.poolId ?? undefined,
+      inquiryLabel: selectedInquiry?.label,
     });
     persistConversationId(siteKey, created.conversationId);
 
@@ -963,6 +973,64 @@ function WidgetChatPanel({
       };
 
   if (!prechatDone) {
+    const welcomeLine =
+      appearance?.welcomeMessage?.trim() ||
+      appearance?.panelGreetingMessage?.trim() ||
+      appearance?.firstMessage?.trim() ||
+      "";
+
+    if (prechatStep === "inquiry" && hasInquiryStep) {
+      return (
+        <Box sx={{ ...embedContainerSx, color: appearance?.colors.bodyText }}>
+          {appearance ? (
+            <EmbedWidgetBanner banner={appearance.banner} appearance={appearance} />
+          ) : null}
+          {welcomeLine ? (
+            <Typography
+              variant="body2"
+              sx={{ mb: 1.5, ...(appearance ? embedGreetingBubbleSx(appearance) : {}) }}
+            >
+              {welcomeLine}
+            </Typography>
+          ) : null}
+          <Typography
+            variant="subtitle2"
+            sx={{ mb: 0.5, ...(appearance ? embedBodyTextSx(appearance) : {}) }}
+          >
+            What would you like help with?
+          </Typography>
+          <Stack
+            direction="row"
+            spacing={appearance?.densityTokens.stackGapMultiplier ?? 1}
+            flexWrap="wrap"
+            sx={{ mb: 1 }}
+          >
+            {inquiryOptions.map((opt) => (
+              <MuiButton
+                key={`${opt.routingKey}-${opt.label}`}
+                type="button"
+                variant="outlined"
+                onClick={() => {
+                  setSelectedInquiry(opt);
+                  setPrechatStep("form");
+                }}
+                sx={
+                  appearance
+                    ? embedInquiryPillSx(
+                        appearance,
+                        selectedInquiry?.routingKey === opt.routingKey,
+                      )
+                    : undefined
+                }
+              >
+                {opt.label}
+              </MuiButton>
+            ))}
+          </Stack>
+        </Box>
+      );
+    }
+
     return (
       <Box sx={{ ...embedContainerSx, color: appearance?.colors.bodyText }}>
         {appearance ? (
@@ -979,29 +1047,24 @@ function WidgetChatPanel({
             {appearance.form.subtitle}
           </Typography>
         ) : null}
-        {inquiryOptions.length ? (
-          <Stack
-            direction="row"
-            spacing={appearance?.densityTokens.stackGapMultiplier ?? 1}
-            flexWrap="wrap"
-            sx={{ mb: 1 }}
-          >
-            {inquiryOptions.map((opt) => (
-              <MuiButton
-                key={opt.label}
-                type="button"
-                variant="outlined"
-                onClick={() => setSelectedTopic(opt.label)}
-                sx={
-                  appearance
-                    ? embedInquiryPillSx(appearance, selectedTopic === opt.label)
-                    : undefined
-                }
-              >
-                {opt.label}
-              </MuiButton>
-            ))}
-          </Stack>
+        {selectedInquiry ? (
+          <Typography variant="caption" sx={{ mb: 1, ...embedMutedTextSx(appearance) }}>
+            Topic: {selectedInquiry.label}
+            {hasInquiryStep ? (
+              <>
+                {" · "}
+                <Link
+                  component="button"
+                  type="button"
+                  underline="hover"
+                  sx={{ color: appearance?.launcher.buttonColor, font: "inherit" }}
+                  onClick={() => setPrechatStep("inquiry")}
+                >
+                  Change
+                </Link>
+              </>
+            ) : null}
+          </Typography>
         ) : null}
 
         <Stack

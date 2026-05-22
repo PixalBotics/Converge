@@ -52,33 +52,9 @@ import { useAuth, sessionMayPickInternalUserScope } from "@/lib/auth";
 import { canShiftAction } from "@/lib/permissions";
 import { extractParentCompaniesFromByResellerTree, pickItemsArray, toIdNameOption } from "@/app/dashboard/user-page/components/add-user-modal.utils";
 import type { JsonRecord } from "@/api";
+import { buildTimezoneSelectOptions } from "@/lib/utils/core/timezone-options";
 
 const PAGE_LIMIT = 8;
-
-function getTimezoneOptions(): { value: string; label: string }[] {
-  const fallback = [
-    "Asia/Karachi",
-    "Asia/Dubai",
-    "Asia/Riyadh",
-    "Asia/Kolkata",
-    "Asia/Bangkok",
-    "Asia/Singapore",
-    "Europe/London",
-    "Europe/Berlin",
-    "Europe/Istanbul",
-    "America/New_York",
-    "America/Chicago",
-    "America/Los_Angeles",
-    "Australia/Sydney",
-  ];
-  try {
-    const supported = (Intl as unknown as { supportedValuesOf?: (key: "timeZone") => string[] }).supportedValuesOf?.("timeZone");
-    const list = Array.isArray(supported) && supported.length > 0 ? supported : fallback;
-    return list.map((tz) => ({ value: tz, label: tz }));
-  } catch {
-    return fallback.map((tz) => ({ value: tz, label: tz }));
-  }
-}
 
 export default function ShiftsPage() {
   const theme = useTheme() as AppTheme;
@@ -225,9 +201,10 @@ export default function ShiftsPage() {
     }
   }, [createCatalogScope]);
 
-  const timezoneOptions = useMemo(() => {
-    return [{ value: "", label: "— Select timezone —" }, ...getTimezoneOptions()];
-  }, []);
+  const timezoneOptions = useMemo(
+    () => buildTimezoneSelectOptions(timezoneField || editTimezone),
+    [timezoneField, editTimezone],
+  );
 
   const shiftsQuery = useShiftsListQuery(
     {

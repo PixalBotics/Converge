@@ -15,8 +15,8 @@ export const chatSettingsKeys = {
       q.childCompanyId ?? "",
     ] as const,
   website: (websiteId: string) => [...chatSettingsKeys.all, "website", websiteId] as const,
-  departments: (parentCompanyId: string) =>
-    [...chatSettingsKeys.all, "departments", parentCompanyId] as const,
+  departments: (parentCompanyId: string, resellerId?: string) =>
+    [...chatSettingsKeys.all, "departments", parentCompanyId, resellerId ?? ""] as const,
   pools: (parentCompanyId: string) =>
     [...chatSettingsKeys.all, "pools", parentCompanyId] as const,
   qaRoster: (websiteId: string) =>

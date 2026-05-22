@@ -83,6 +83,7 @@ export type { HrmsPoolsListParams } from "./pools";
 export { hrmsPoolMembersKeys } from "./pool-members/keys";
 export {
   useAddPoolMemberMutation,
+  useAddPoolMembersBulkMutation,
   useMovePoolMemberMutation,
   usePoolMembersListQuery,
   useRemovePoolMemberMutation,

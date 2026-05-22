@@ -27,12 +27,17 @@ import { GuestLinkPanel } from "./GuestLinkPanel";
 import { useConversationSupervisor } from "../hooks/useConversationSupervisor";
 import { canUseSupervisorTools } from "@/lib/permissions/chat-access";
 import {
+  chatOpsPaneTitleSx,
+} from "../styles/chat-operations.styles";
+import {
   EmptyState,
   JourneyStep,
   JourneyTimeline,
   PanelColumn,
+  PanelHeader,
   ProfileAccordion,
   ProfileDetailRow,
+  ProfileHeroCard,
   QueueAvatar,
 } from "../styles/chat-operations.styled";
 
@@ -124,8 +129,12 @@ export function VisitorInfoPanel({
           </Typography>
         </EmptyState>
       ) : (
-        <ProfileAccordion sx={{ px: 1 }}>
-          <Box sx={{ px: 1.5, pt: 1, pb: 2 }}>
+        <>
+          <PanelHeader sx={{ py: 1.25, px: 2 }}>
+            <Typography sx={chatOpsPaneTitleSx}>Visitor profile</Typography>
+          </PanelHeader>
+          <ProfileAccordion sx={{ px: 0 }}>
+          <ProfileHeroCard>
             <Box sx={{ display: "flex", gap: 1.5, alignItems: "center" }}>
               <QueueAvatar sx={{ width: 52, height: 52, fontSize: 15 }}>{parsed.initials}</QueueAvatar>
               <Box sx={{ minWidth: 0 }}>
@@ -174,7 +183,7 @@ export function VisitorInfoPanel({
                 <Typography sx={{ fontSize: 13 }}>{parsed.location.label}</Typography>
               </Box>
             ) : null}
-          </Box>
+          </ProfileHeroCard>
 
           <Accordion
             expanded={expanded === "contact"}
@@ -336,6 +345,7 @@ export function VisitorInfoPanel({
             </Box>
           ) : null}
         </ProfileAccordion>
+        </>
       )}
     </PanelColumn>
   );

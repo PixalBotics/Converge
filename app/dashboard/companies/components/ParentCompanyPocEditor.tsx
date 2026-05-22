@@ -76,7 +76,7 @@ export function ParentCompanyPocEditor({ parentId, resellerId, parentCompany }: 
   const displayRows = useMemo(() => normalizePocsFromCarrier(parentCompany), [parentCompany]);
 
   const usersQuery = useUsersListQuery(
-    { parentCompanyId: parentId.trim(), page: 1, limit: 200 },
+    { parentCompanyId: parentId.trim(), all: true },
     { enabled: parentId.trim().length > 0 },
   );
   const userRows = useMemo(() => extractUsersRows(usersQuery.data), [usersQuery.data]);

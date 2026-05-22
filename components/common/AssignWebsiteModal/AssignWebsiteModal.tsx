@@ -1,160 +1,75 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import AutoAwesome from "@mui/icons-material/AutoAwesome";
-import PeopleOutline from "@mui/icons-material/PeopleOutline";
+import { useEffect, useMemo, useRef, useState } from "react";
+import NextLink from "next/link";
+import Language from "@mui/icons-material/Language";
+import OpenInNew from "@mui/icons-material/OpenInNew";
+import Schedule from "@mui/icons-material/Schedule";
 import Box from "@mui/material/Box";
-import MenuItem from "@mui/material/MenuItem";
-import TextField from "@mui/material/TextField";
+import Chip from "@mui/material/Chip";
 import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
-import { FORM_MODAL_MUI_OVERLAY_Z_INDEX } from "@/lib/ui/dialogStacking";
-import {
-  applyOutlineFieldCursorPosition,
-  resetOutlineFieldCursorPosition,
-} from "@/components/common/InputField/outlineFieldCursor";
-import { textFieldStyles } from "@/components/common/InputField/InputField.styles";
-import {
-  selectFieldStyles,
-  selectMenuItemSx,
-  selectMenuPaperSx,
-} from "@/components/common/SelectField/SelectField.styles";
-import {
-  Button,
-  Checkbox,
-  DashboardCard,
-  DataTable,
-  FormModal,
-  SearchBar,
-  SelectField,
-  Typography,
-} from "@/components/common";
-import type { DataTableColumn } from "@/components/common";
+import { Button, FormModal, SelectField, Typography } from "@/components/common";
 import {
   extractChildCompanyOptionsForParentFromByResellerTree,
   extractParentCompaniesFromByResellerTree,
   pickItemsArray,
   toIdNameOption,
 } from "@/app/dashboard/user-page/components/add-user-modal.utils";
-import type { UserRow } from "@/app/dashboard/user-page/types";
-import { extractUsersRows } from "@/app/dashboard/user-page/utils";
-import { useAuth, sessionMayPickInternalUserScope, useResellerListScope } from "@/lib/auth";
+import { useResellerListScope } from "@/lib/auth";
 import {
   buildWebsitesInScopeParams,
-  useAssignWebsiteTierMutation,
   useCompaniesSetupResellersQuery,
   useScopedCompanyTreeQuery,
-  useUsersListQuery,
+  useWebsiteAssignmentDetailQuery,
   useWebsiteAssignmentsWebsitesQuery,
 } from "@/lib/hooks";
-import { extractApiErrorMessageForToast, publishAppToast } from "@/lib/notify";
-import { SearchIcon } from "@/components/common/icons";
+import { useServiceSchedulingQuery } from "@/features/chat-settings/hooks/useServiceScheduling";
+import { isServiceSchedulingReady } from "@/features/website-assignments/utils/scheduling-ready.utils";
+import { useWebsiteAssignmentGates } from "@/lib/permissions/use-website-assignment-gates";
+import { parseWebsiteAssignmentDetail } from "@/lib/website-assignments/roster-payload";
+import { TopicAgentRosterPanel } from "@/features/website-assignments/components/TopicAgentRosterPanel";
 import {
-  assignWebsiteFormGridSx,
-  assignWebsiteUserListCardSx,
-  assignWebsiteUserListIconSx,
-} from "./assign-website-modal.styles";
+  assignmentStepChipSx,
+  assignmentStepRowSx,
+  emptyStatePanelSx,
+} from "@/features/website-assignments/styles/website-assignment-ui.styles";
+import { SchedulingSectionCard } from "@/features/website-assignments/components/ServiceSchedulingSections";
+import { assignWebsiteFormGridSx } from "./assign-website-modal.styles";
+import { formatWebsiteSelectLabel } from "@/lib/websites/format-website-select-label";
 
-const MODAL_USER_PAGE_LIMIT = 100;
-const MAX_SELECTED_USERS = 3;
-
-const RANK_OPTIONS = [
-  { label: "Primary", value: "Primary" },
-  { label: "Secondary", value: "Secondary" },
-  { label: "Backup", value: "Backup" },
-] as const;
-
-type Rank = (typeof RANK_OPTIONS)[number]["value"];
-
-type AssignUserRow = {
-  rowKey: string;
-  id: string;
-  displayName: string;
-  email: string;
-  department: string;
-  userKind: "Internal" | "External";
+export type AssignWebsiteModalPreset = {
+  websiteId: string;
+  parentCompanyId: string;
+  childCompanyId?: string;
+  resellerId?: string;
 };
-
-type AssignmentState = {
-  keys: string[];
-  ranks: Record<string, Rank>;
-};
-
-function rowKeyForUser(kind: "Internal" | "External", id: string) {
-  return `${kind}:${id}`;
-}
-
-/** Row keys are `Internal:<userId>` / `External:<userId>` — API only needs `userId`. */
-function userIdFromAssignRowKey(rowKey: string): string {
-  const i = rowKey.indexOf(":");
-  return i === -1 ? rowKey : rowKey.slice(i + 1);
-}
-
-function ranksTakenByOthers(rowKey: string, keys: string[], ranks: Record<string, Rank>): Set<Rank> {
-  const used = new Set<Rank>();
-  for (const k of keys) {
-    if (k === rowKey) continue;
-    used.add(ranks[k] ?? "Primary");
-  }
-  return used;
-}
-
-function firstAvailableRank(keys: string[], ranks: Record<string, Rank>, newKey: string): Rank {
-  const used = ranksTakenByOthers(newKey, keys, ranks);
-  const found = RANK_OPTIONS.find((o) => !used.has(o.value));
-  return found?.value ?? "Primary";
-}
-
-function userRowToAssignRow(row: UserRow): AssignUserRow {
-  const userKind = row.type === "Internal" ? "Internal" : "External";
-  return {
-    rowKey: rowKeyForUser(userKind, row.id),
-    id: row.id,
-    displayName: row.user,
-    email: row.email,
-    department: row.department,
-    userKind,
-  };
-}
-
-function mergeAssignUserRows(...groups: UserRow[][]): AssignUserRow[] {
-  const byKey = new Map<string, AssignUserRow>();
-  for (const rows of groups) {
-    for (const row of rows) {
-      const assignRow = userRowToAssignRow(row);
-      if (!byKey.has(assignRow.rowKey)) byKey.set(assignRow.rowKey, assignRow);
-    }
-  }
-  return [...byKey.values()];
-}
 
 export interface AssignWebsiteModalProps {
   open: boolean;
   onClose: () => void;
   onAssign?: () => void;
+  /** Pre-fill filters when opening from table Edit action. */
+  preset?: AssignWebsiteModalPreset | null;
 }
 
-export function AssignWebsiteModal({ open, onClose, onAssign }: AssignWebsiteModalProps) {
+const MODE_LABELS: Record<string, string> = {
+  internal_only: "Internal only",
+  external_only: "External only",
+  both: "Internal + External",
+};
+
+export function AssignWebsiteModal({ open, onClose, onAssign, preset }: AssignWebsiteModalProps) {
   const theme = useTheme() as AppTheme;
-  const { isPlatformAdmin, user: authUser } = useAuth();
+  const gates = useWebsiteAssignmentGates();
   const { canFilterByResellerId, sessionResellerId } = useResellerListScope();
-  const mayListInternalUsers = useMemo(
-    () => sessionMayPickInternalUserScope(isPlatformAdmin, authUser?.userType),
-    [isPlatformAdmin, authUser?.userType],
-  );
-  const assignTierMutation = useAssignWebsiteTierMutation();
-  /** Bumped when the assign modal closes so an in-flight assign does not toast after cancel. */
-  const assignSaveGenerationRef = useRef(0);
 
   const [resellerId, setResellerId] = useState("");
   const [parentCompanyId, setParentCompanyId] = useState("");
   const [childCompanyId, setChildCompanyId] = useState("");
   const [websiteId, setWebsiteId] = useState("");
-
-  const [userSearchInput, setUserSearchInput] = useState("");
-  const [userSearchApplied, setUserSearchApplied] = useState("");
-
-  const [assignment, setAssignment] = useState<AssignmentState>({ keys: [], ranks: {} });
+  const skipCascadeRef = useRef(false);
+  const isEditMode = Boolean(open && preset?.websiteId);
 
   useEffect(() => {
     if (open && !canFilterByResellerId && sessionResellerId) {
@@ -164,33 +79,48 @@ export function AssignWebsiteModal({ open, onClose, onAssign }: AssignWebsiteMod
 
   useEffect(() => {
     if (!open) {
-      assignSaveGenerationRef.current += 1;
+      skipCascadeRef.current = false;
       setResellerId("");
       setParentCompanyId("");
       setChildCompanyId("");
       setWebsiteId("");
-      setUserSearchInput("");
-      setUserSearchApplied("");
-      setAssignment({ keys: [], ranks: {} });
+      return;
     }
-  }, [open]);
+    if (preset?.websiteId) {
+      skipCascadeRef.current = true;
+      setResellerId(preset.resellerId ?? "");
+      setParentCompanyId(preset.parentCompanyId);
+      setChildCompanyId(preset.childCompanyId ?? "");
+      setWebsiteId(preset.websiteId);
+    }
+  }, [open, preset]);
 
   useEffect(() => {
+    if (skipCascadeRef.current) {
+      skipCascadeRef.current = false;
+      return;
+    }
     setParentCompanyId("");
     setChildCompanyId("");
     setWebsiteId("");
   }, [resellerId]);
 
   useEffect(() => {
+    if (skipCascadeRef.current) {
+      skipCascadeRef.current = false;
+      return;
+    }
     setChildCompanyId("");
     setWebsiteId("");
   }, [parentCompanyId]);
 
   useEffect(() => {
+    if (skipCascadeRef.current) {
+      skipCascadeRef.current = false;
+      return;
+    }
     setWebsiteId("");
   }, [childCompanyId]);
-
-  const searchParam = userSearchApplied.trim() || undefined;
 
   const resellersQuery = useCompaniesSetupResellersQuery({
     enabled: open && canFilterByResellerId,
@@ -209,10 +139,10 @@ export function AssignWebsiteModal({ open, onClose, onAssign }: AssignWebsiteMod
   }, [resellersQuery.data]);
 
   const resellerSelectOptions = useMemo(() => {
-    if (resellerOptions.length === 0) {
-      return [{ value: "", label: resellersQuery.isLoading ? "Loading resellers…" : "No resellers available" }];
-    }
-    return [{ value: "", label: "Select reseller" }, ...resellerOptions];
+    if (resellerOptions.length > 0) return [{ value: "", label: "All resellers" }, ...resellerOptions];
+    return [
+      { value: "", label: resellersQuery.isLoading ? "Loading resellers…" : "No resellers available" },
+    ];
   }, [resellerOptions, resellersQuery.isLoading]);
 
   const parentCompanyOptions = useMemo(() => {
@@ -227,29 +157,25 @@ export function AssignWebsiteModal({ open, onClose, onAssign }: AssignWebsiteMod
     return [
       {
         value: "",
-        label: companiesTreeQuery.isLoading ? "Loading parent companies…" : "No parent companies available",
+        label: companiesTreeQuery.isLoading ? "Loading parent companies…" : "No parent companies",
       },
     ];
   }, [canFilterByResellerId, resellerId, companiesTreeQuery.data, companiesTreeQuery.isLoading]);
 
   const childCompanyOptions = useMemo(() => {
-    if (canFilterByResellerId && !resellerId.trim()) {
-      return [{ value: "", label: "Select reseller first" }];
-    }
     if (!parentCompanyId.trim()) return [{ value: "", label: "Select parent company first" }];
     const children = extractChildCompanyOptionsForParentFromByResellerTree(
       companiesTreeQuery.data,
       parentCompanyId,
     );
-    const withAll = [{ value: "", label: "All child companies (optional)" }, ...children];
-    if (children.length > 0) return withAll;
+    if (children.length > 0) return [{ value: "", label: "All child companies (optional)" }, ...children];
     return [
       {
         value: "",
-        label: companiesTreeQuery.isLoading ? "Loading child companies…" : "No child companies for this parent",
+        label: companiesTreeQuery.isLoading ? "Loading child companies…" : "No child companies",
       },
     ];
-  }, [canFilterByResellerId, resellerId, parentCompanyId, companiesTreeQuery.data, companiesTreeQuery.isLoading]);
+  }, [parentCompanyId, companiesTreeQuery.data, companiesTreeQuery.isLoading]);
 
   const websitesParams = useMemo(
     () =>
@@ -286,398 +212,301 @@ export function AssignWebsiteModal({ open, onClose, onAssign }: AssignWebsiteMod
       ...items.map((w) => {
         const name = (w.name ?? "").trim() || "Website";
         const url = (w.url ?? "").trim();
-        const label = url ? `${name} — ${url}` : name;
-        return { value: w.websiteId, label };
+        return {
+          value: w.websiteId,
+          label: formatWebsiteSelectLabel(name, url, w.websiteId),
+        };
       }),
     ];
   }, [websitesQuery.data?.data?.items, websitesQuery.isFetching]);
 
-  const parentCompanyScopeId = parentCompanyId.trim();
-  const externalUsersEnabled = open && parentCompanyScopeId.length > 0;
-
-  /** Internal users: no reseller/parent line — load as soon as the modal opens. */
-  const internalUsersQuery = useUsersListQuery(
-    {
-      all: true,
-      userType: "Internal",
-      page: 1,
-      limit: MODAL_USER_PAGE_LIMIT,
-      search: searchParam,
-    },
-    { enabled: open && mayListInternalUsers },
+  const wid = websiteId.trim();
+  const detailQuery = useWebsiteAssignmentDetailQuery(wid, {
+    enabled: open && wid.length > 0 && gates.view,
+  });
+  const detail = useMemo(
+    () => parseWebsiteAssignmentDetail(detailQuery.data),
+    [detailQuery.data],
   );
 
-  /** External users: only after parent company is selected (scoped to that company). */
-  const externalUsersQuery = useUsersListQuery(
-    {
-      all: true,
-      userType: "External",
-      parentCompanyId: parentCompanyScopeId,
-      page: 1,
-      limit: MODAL_USER_PAGE_LIMIT,
-      search: searchParam,
-    },
-    { enabled: externalUsersEnabled },
-  );
+  const schedulingQuery = useServiceSchedulingQuery(wid, open && wid.length > 0);
+  const schedulingReady =
+    detail?.serviceSchedulingConfigured === true ||
+    isServiceSchedulingReady(schedulingQuery.data);
+  const schedulingLoading = Boolean(wid) && (schedulingQuery.isLoading || detailQuery.isLoading);
 
-  const mergedUserRows = useMemo((): AssignUserRow[] => {
-    const internalRows = mayListInternalUsers
-      ? extractUsersRows(internalUsersQuery.data).filter((r) => r.type === "Internal")
-      : [];
-    const externalRows = parentCompanyScopeId
-      ? extractUsersRows(externalUsersQuery.data).filter((r) => r.type === "External")
-      : [];
-    return mergeAssignUserRows(internalRows, externalRows).sort((a, b) => {
-      if (a.userKind !== b.userKind) return a.userKind === "Internal" ? -1 : 1;
-      return a.displayName.localeCompare(b.displayName, undefined, { sensitivity: "base" });
-    });
-  }, [externalUsersQuery.data, internalUsersQuery.data, parentCompanyScopeId, mayListInternalUsers]);
+  const operatingChannels = detail?.operatingChannels ?? "internal_only";
+  const allowedChannels = detail?.allowedAssignmentChannels ?? [];
+  const schedulingTopics = schedulingQuery.data?.topics ?? [];
 
-  const usersLoading =
-    (mayListInternalUsers &&
-      (internalUsersQuery.isLoading || internalUsersQuery.isFetching)) ||
-    (externalUsersEnabled &&
-      (externalUsersQuery.isLoading || externalUsersQuery.isFetching));
+  const defaultTopicKey = useMemo(() => {
+    const active = schedulingTopics.filter(
+      (t) =>
+        t.isActive !== false &&
+        t.routingKey.trim() &&
+        t.internalDepartmentId.trim() &&
+        t.externalDepartmentId.trim(),
+    );
+    return active[0]?.routingKey.trim() ?? schedulingTopics[0]?.routingKey.trim() ?? "";
+  }, [schedulingTopics]);
 
-  const usersEmptyState = useMemo(() => {
-    if (usersLoading) {
-      return { title: "Loading users…", description: "Please wait." };
-    }
-    if (mayListInternalUsers && internalUsersQuery.isError) {
-      return {
-        title: "Could not load Internal users",
-        description: "Check your connection or permissions, then close and reopen this modal.",
-      };
-    }
-    if (!mayListInternalUsers) {
-      return {
-        title: "Select parent company",
-        description:
-          "Your login can assign client (External) users only. Choose parent company above — those users load after that selection.",
-      };
-    }
-    if (!parentCompanyScopeId) {
-      return {
-        title: "No Internal users found",
-        description:
-          "Type Internal = platform team (shown here without parent company). Add them from Dashboard → User page. Client company staff are type External — select parent company above to list them.",
-      };
-    }
-    return {
-      title: "No users in this list",
-      description: "Try Search, or add users from the User page, then open this modal again.",
-    };
-  }, [
-    usersLoading,
-    mayListInternalUsers,
-    parentCompanyScopeId,
-    internalUsersQuery.isError,
-  ]);
+  const defaultChannel = useMemo((): "Internal" | "External" => {
+    if (operatingChannels === "external_only") return "External";
+    return "Internal";
+  }, [operatingChannels]);
 
-  const toggleRow = useCallback((rowKey: string) => {
-    setAssignment((a) => {
-      const set = new Set(a.keys);
-      if (set.has(rowKey)) {
-        set.delete(rowKey);
-        const restRanks = { ...a.ranks };
-        delete restRanks[rowKey];
-        return { keys: [...set], ranks: restRanks };
-      }
-      if (set.size >= MAX_SELECTED_USERS) return a;
-      set.add(rowKey);
-      const nextKeys = [...set];
-      const pick = firstAvailableRank(nextKeys, a.ranks, rowKey);
-      return { keys: nextKeys, ranks: { ...a.ranks, [rowKey]: pick } };
-    });
-  }, []);
+  const step = !wid ? 1 : !schedulingReady ? 2 : 3;
 
-  const selectedSet = useMemo(() => new Set(assignment.keys), [assignment.keys]);
+  const schedulingHref = wid
+    ? `/dashboard/website-assigning/website/${encodeURIComponent(wid)}/service-scheduling`
+    : "";
+  const rosterHref = wid
+    ? `/dashboard/website-assigning/website/${encodeURIComponent(wid)}`
+    : "";
 
-  const changeRank = useCallback((rowKey: string, rank: Rank) => {
-    setAssignment((a) => {
-      if (!a.keys.includes(rowKey)) return a;
-      for (const k of a.keys) {
-        if (k === rowKey) continue;
-        if ((a.ranks[k] ?? "Primary") === rank) return a;
-      }
-      return { ...a, ranks: { ...a.ranks, [rowKey]: rank } };
-    });
-  }, []);
-
-  const rankSelectSx = useMemo(
-    () => [
-      textFieldStyles(theme),
-      ...selectFieldStyles(theme),
-      {
-        "& .MuiOutlinedInput-root": {
-          minHeight: 40,
-        },
-        "& .MuiSelect-select": {
-          color: theme.app.text.primary,
-          fontFamily: "Manrope",
-          fontWeight: 500,
-          fontSize: "14px",
-          py: 1,
-          display: "flex",
-          alignItems: "center",
-        },
-        "& .MuiSelect-icon": {
-          color: theme.app.text.iconMuted,
-        },
-      },
-    ],
-    [theme],
-  );
-
-  const columns = useMemo<DataTableColumn<AssignUserRow>[]>(
-    () => [
-      {
-        id: "select",
-        label: "Select",
-        render: (_, row) => {
-          const isSelected = selectedSet.has(row.rowKey);
-          const atCap = assignment.keys.length >= MAX_SELECTED_USERS && !isSelected;
-          return (
-            <Checkbox
-              checked={isSelected}
-              disabled={atCap}
-              onChange={() => toggleRow(row.rowKey)}
-              inputProps={{ "aria-label": `Select ${row.displayName}` }}
-            />
-          );
-        },
-      },
-      { id: "displayName", label: "User" },
-      { id: "email", label: "Email", cellVariant: "muted" },
-      { id: "userKind", label: "Type" },
-      { id: "department", label: "Department", cellVariant: "muted" },
-      {
-        id: "rank",
-        label: "Rank",
-        render: (_, row) => {
-          const isSelected = selectedSet.has(row.rowKey);
-          const current = assignment.ranks[row.rowKey] ?? "Primary";
-          const takenByOthers = ranksTakenByOthers(row.rowKey, assignment.keys, assignment.ranks);
-          return (
-            <TextField
-              id={`rank-select-${row.rowKey}`}
-              select
-              size="small"
-              fullWidth
-              disabled={!isSelected}
-              value={current}
-              onChange={(e) => changeRank(row.rowKey, e.target.value as Rank)}
-              onMouseMove={applyOutlineFieldCursorPosition}
-              onMouseLeave={resetOutlineFieldCursorPosition}
-              sx={rankSelectSx}
-              SelectProps={{
-                MenuProps: {
-                  sx: { zIndex: FORM_MODAL_MUI_OVERLAY_Z_INDEX },
-                  PaperProps: { sx: selectMenuPaperSx(theme) },
-                },
-              }}
-            >
-              {RANK_OPTIONS.map((opt) => {
-                const blocked = takenByOthers.has(opt.value) && opt.value !== current;
-                return (
-                  <MenuItem
-                    key={opt.value}
-                    value={opt.value}
-                    disabled={blocked}
-                    sx={selectMenuItemSx(theme)}
-                  >
-                    {opt.label}
-                    {blocked ? " (taken)" : ""}
-                  </MenuItem>
-                );
-              })}
-            </TextField>
-          );
-        },
-      },
-    ],
-    [toggleRow, selectedSet, assignment.keys, assignment.ranks, changeRank, rankSelectSx, theme],
-  );
-
-  const canSubmitAssignment =
-    websiteId.trim().length > 0 && assignment.keys.length > 0 && !assignTierMutation.isPending;
-
-  const handleModalClose = useCallback(() => {
-    assignSaveGenerationRef.current += 1;
-    onClose();
-  }, [onClose]);
-
-  const handleAssignClick = () => {
-    if (!websiteId.trim()) {
-      publishAppToast({ variant: "error", message: "Please select a website." });
-      return;
-    }
-    if (assignment.keys.length === 0) {
-      publishAppToast({ variant: "error", message: "Select at least one user to assign." });
-      return;
-    }
-    const generation = ++assignSaveGenerationRef.current;
-    void (async () => {
-      const wid = websiteId.trim();
-      if (!wid || assignment.keys.length === 0) return;
-      try {
-        for (const rowKey of assignment.keys) {
-          const userId = userIdFromAssignRowKey(rowKey);
-          const assignmentType = assignment.ranks[rowKey] ?? "Primary";
-          await assignTierMutation.mutateAsync({
-            websiteId: wid,
-            userId,
-            assignmentType,
-          });
-        }
-        if (generation !== assignSaveGenerationRef.current) return;
-        publishAppToast({ variant: "success", message: "Users assigned to the website." });
-        onAssign?.();
-        onClose();
-      } catch (e) {
-        if (generation !== assignSaveGenerationRef.current) return;
-        publishAppToast({
-          variant: "error",
-          message: extractApiErrorMessageForToast(e) ?? "Could not assign users.",
-        });
-      }
-    })();
-  };
-
-  const runUserSearch = () => {
-    setUserSearchApplied(userSearchInput);
-  };
-
-  useEffect(() => {
-    if (userSearchInput.trim().length > 0) return;
-    if (!userSearchApplied.trim()) return;
-    setUserSearchApplied("");
-  }, [userSearchInput, userSearchApplied]);
+  const websiteLabel =
+    websiteSelectOptions.find((o) => o.value === websiteId)?.label ?? detail?.name ?? "";
 
   return (
     <FormModal
       open={open}
       fitContent
-      title="Assign website"
-      description="Choose reseller and companies, pick a website, then pick up to three users. Primary, Secondary, and Backup can each be used only once among selected users."
       maxWidth={920}
-      onClose={handleModalClose}
-      onSave={handleAssignClick}
-      primaryButtonDisabled={!canSubmitAssignment}
+      title="Assign website agents"
+      description="Pick the website, then assign agents by channel (Internal/External) and visitor topic — matching service scheduling."
+      onClose={onClose}
+      onSave={onClose}
+      primaryButtonLabel="Done"
+      primaryButtonDisabled={!wid || detailQuery.isLoading}
       cancelButtonLabel="Cancel"
-      primaryButtonLabel={assignTierMutation.isPending ? "Assigning…" : "Assign"}
-      primaryStartIcon={<AutoAwesome sx={{ fontSize: 18 }} />}
-      sx={{
-        borderRadius: 3,
-        p: { xs: 2, sm: 3 },
-      }}
     >
-      <Box sx={assignWebsiteFormGridSx}>
-        {canFilterByResellerId ? (
-          <SelectField
-            label="Reseller (client)"
-            value={resellerId}
-            onChange={setResellerId}
-            options={resellerSelectOptions}
-            menuMaxRows={8}
-          />
-        ) : null}
-        <SelectField
-          label="Parent company"
-          value={parentCompanyId}
-          onChange={setParentCompanyId}
-          options={parentCompanyOptions}
-          menuMaxRows={8}
-          disabled={canFilterByResellerId && !resellerId.trim()}
-        />
-        <SelectField
-          label="Child company"
-          value={childCompanyId}
-          onChange={setChildCompanyId}
-          options={childCompanyOptions}
-          menuMaxRows={8}
-          disabled={
-            (canFilterByResellerId && !resellerId.trim()) || !parentCompanyId.trim()
-          }
-        />
-        <SelectField
-          label="Website"
-          value={websiteId}
-          onChange={setWebsiteId}
-          options={websiteSelectOptions}
-          menuMaxRows={10}
-          disabled={
-            !parentCompanyId.trim() || (canFilterByResellerId && !resellerId.trim())
-          }
-        />
+      <Box sx={assignmentStepRowSx}>
+        {[
+          { n: 1, label: "Website" },
+          { n: 2, label: "Scheduling" },
+          { n: 3, label: "Assign agents" },
+        ].map(({ n, label }) => (
+          <Chip key={n} label={`${n}. ${label}`} size="small" sx={assignmentStepChipSx(step >= n)} />
+        ))}
       </Box>
 
-      <Typography variant="mediumLarge" fontWeight={600} sx={{ color: theme.app.text.primary, mt: 0.5 }}>
-        Users to assign
-      </Typography>
-      <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted, mb: 1, maxWidth: 800 }}>
-        Assign here: tick users in the table below, set Rank, then Assign. Type Internal = platform team (no parent
-        company needed). Type External = client company users (select parent company first). Maximum{" "}
-        {MAX_SELECTED_USERS} users.
-        {!mayListInternalUsers ? " Your session can assign External users only." : null}
-      </Typography>
-
-      <DashboardCard sx={assignWebsiteUserListCardSx}>
-        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2, flexWrap: "wrap" }}>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-            <Box sx={assignWebsiteUserListIconSx} aria-hidden>
-              <PeopleOutline sx={{ fontSize: 24 }} />
-            </Box>
-            <Box>
-              <Typography variant="mediumLarge" color="white" fontWeight={600}>
-                User list
-              </Typography>
-              <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted }}>
-                Selected {assignment.keys.length} / {MAX_SELECTED_USERS}
-              </Typography>
-            </Box>
-          </Box>
-          <Box
-            sx={{
-              display: "flex",
-              flexDirection: { xs: "column", sm: "row" },
-              alignItems: { xs: "stretch", sm: "center" },
-              gap: 1.5,
-              flex: 1,
-              minWidth: { xs: "100%", sm: 280 },
-              maxWidth: 480,
-            }}
-          >
-            <SearchBar
-              value={userSearchInput}
-              onChange={setUserSearchInput}
-              placeholder="Search name, email, department…"
-              sx={{ minWidth: 0, flex: 1 }}
-            />
-            <Button
-              type="button"
-              variant="primary"
-              disabled={userSearchInput.trim() === userSearchApplied.trim()}
-              onClick={runUserSearch}
-              sx={{ minWidth: 100, whiteSpace: "nowrap" }}
-              startIcon={<SearchIcon sx={{ fontSize: 18 }} width={18} height={18} />}
-            >
-              Search
-            </Button>
-          </Box>
+      {isEditMode && wid ? (
+        <Box
+          sx={{
+            mb: 2,
+            p: 1.5,
+            borderRadius: 2,
+            border: `1px solid ${theme.app.dashboard.cardBorder}`,
+            bgcolor: `${theme.palette.primary.main}10`,
+          }}
+        >
+          <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, display: "block" }}>
+            Editing assignments for
+          </Typography>
+          <Typography variant="body2" fontWeight={700}>
+            {websiteLabel || detail?.url || "Website"}
+          </Typography>
+          <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted }}>
+            Child: {childCompanyOptions.find((o) => o.value === childCompanyId)?.label || "—"} · Parent:{" "}
+            {parentCompanyOptions.find((o) => o.value === parentCompanyId)?.label || "—"}
+          </Typography>
         </Box>
+      ) : null}
 
-        <DataTable<AssignUserRow>
-          columns={columns}
-          rows={mergedUserRows}
-          isLoading={usersLoading}
-          emptyState={usersEmptyState}
-          getRowId={(row) => row.rowKey}
-          minWidth={640}
-          size="medium"
-          scrollY={false}
-        />
-      </DashboardCard>
+      {!isEditMode ? (
+        <SchedulingSectionCard
+          step={1}
+          title="Organization & website"
+          subtitle="Select reseller, parent company, child company, then the website."
+        >
+          <Box sx={assignWebsiteFormGridSx}>
+            {canFilterByResellerId ? (
+              <SelectField
+                label="Reseller"
+                value={resellerId}
+                onChange={setResellerId}
+                options={resellerSelectOptions}
+                menuMaxRows={8}
+              />
+            ) : null}
+            <SelectField
+              label="Parent company"
+              value={parentCompanyId}
+              onChange={setParentCompanyId}
+              options={parentCompanyOptions}
+              menuMaxRows={8}
+              disabled={canFilterByResellerId && !resellerId.trim()}
+            />
+            <SelectField
+              label="Child company"
+              value={childCompanyId}
+              onChange={setChildCompanyId}
+              options={childCompanyOptions}
+              menuMaxRows={8}
+              disabled={!parentCompanyId.trim()}
+            />
+            <SelectField
+              label="Website"
+              value={websiteId}
+              onChange={setWebsiteId}
+              options={websiteSelectOptions}
+              menuMaxRows={10}
+              disabled={!parentCompanyId.trim()}
+            />
+          </Box>
+        </SchedulingSectionCard>
+      ) : null}
+
+      {wid && detailQuery.isLoading ? (
+        <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, mt: 2 }}>
+          Loading website details…
+        </Typography>
+      ) : null}
+
+      {wid && detailQuery.isError ? (
+        <Typography variant="body2" sx={{ color: theme.palette.error.main, mt: 2 }}>
+          Could not load this website. Try again or open the agent roster page.
+        </Typography>
+      ) : null}
+
+      {wid && detail && !detailQuery.isLoading ? (
+        <Box sx={{ mt: 2 }}>
+          <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, mb: 1.5 }}>
+            {websiteLabel}
+            {detail.url ? ` · ${detail.url}` : ""}
+            {" · "}
+            {MODE_LABELS[detail.operatingChannels] ?? detail.operatingChannels}
+          </Typography>
+
+          {schedulingLoading ? (
+            <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, mt: 1 }}>
+              Checking service scheduling…
+            </Typography>
+          ) : null}
+
+          {!schedulingReady && !schedulingLoading ? (
+            <SchedulingSectionCard step={2} title="Service scheduling" subtitle="Required before assigning agents.">
+            <Box sx={emptyStatePanelSx}>
+              <Typography variant="body2" fontWeight={600} sx={{ mb: 1 }}>
+                Step 2: Complete service scheduling
+              </Typography>
+              <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, mb: 1.5 }}>
+                Set operating mode, service hours, and visitor topics before choosing a department.
+                Visitor topics are saved per website. Assignment unlocks after you save scheduling for
+                the selected site.
+              </Typography>
+              {schedulingHref ? (
+                <Button
+                  type="button"
+                  variant="primary"
+                  size="small"
+                  component={NextLink}
+                  href={schedulingHref}
+                  startIcon={<Schedule sx={{ fontSize: 18 }} />}
+                  onClick={onClose}
+                >
+                  Configure service scheduling here
+                </Button>
+              ) : null}
+            </Box>
+            </SchedulingSectionCard>
+          ) : schedulingReady && (detail.departmentRoster?.length ?? 0) === 0 ? (
+            <SchedulingSectionCard step={2} title="Service scheduling" subtitle="Topics still needed.">
+            <Box sx={emptyStatePanelSx}>
+              <Typography variant="body2" sx={{ mb: 1.5 }}>
+                Scheduling is saved but no departments are linked yet. Add at least one complete topic
+                (internal + external department) in service scheduling.
+              </Typography>
+              {schedulingHref ? (
+                <Button
+                  type="button"
+                  variant="primary"
+                  size="small"
+                  component={NextLink}
+                  href={schedulingHref}
+                  startIcon={<Schedule sx={{ fontSize: 18 }} />}
+                  onClick={onClose}
+                >
+                  Open service scheduling
+                </Button>
+              ) : null}
+            </Box>
+            </SchedulingSectionCard>
+          ) : (
+            <SchedulingSectionCard
+              step={3}
+              title="Assign agents"
+              subtitle="Channel → visitor topic → Primary / Secondary / Backup (table)."
+            >
+              <TopicAgentRosterPanel
+                websiteId={wid}
+                operatingChannels={operatingChannels}
+                allowedChannels={allowedChannels}
+                departmentRoster={detail.departmentRoster}
+                topics={schedulingTopics}
+                canEdit={gates.assign}
+                initialChannel={defaultChannel}
+                initialTopicKey={defaultTopicKey || undefined}
+                onSaved={() => {
+                  onAssign?.();
+                  void detailQuery.refetch();
+                }}
+              />
+            </SchedulingSectionCard>
+          )}
+
+          {wid ? (
+            <Box
+              sx={{
+                display: "flex",
+                flexWrap: "wrap",
+                gap: 1.5,
+                mt: 2.5,
+                pt: 2,
+                borderTop: `1px solid ${theme.app.dashboard.cardBorder}`,
+              }}
+            >
+              <Typography variant="caption" sx={{ width: "100%", color: theme.app.dashboard.textMuted }}>
+                Need more context? Open the full pages:
+              </Typography>
+              {schedulingHref ? (
+                <Button
+                  type="button"
+                  variant="outlined"
+                  size="small"
+                  component={NextLink}
+                  href={schedulingHref}
+                  startIcon={<Schedule sx={{ fontSize: 16 }} />}
+                  endIcon={<OpenInNew sx={{ fontSize: 14 }} />}
+                  onClick={onClose}
+                >
+                  Service scheduling
+                </Button>
+              ) : null}
+              {rosterHref ? (
+                <Button
+                  type="button"
+                  variant="outlined"
+                  size="small"
+                  component={NextLink}
+                  href={rosterHref}
+                  startIcon={<Language sx={{ fontSize: 16 }} />}
+                  endIcon={<OpenInNew sx={{ fontSize: 14 }} />}
+                  onClick={onClose}
+                >
+                  Full agent roster
+                </Button>
+              ) : null}
+            </Box>
+          ) : null}
+        </Box>
+      ) : null}
+
+      {!gates.assign && gates.ready ? (
+        <Typography variant="body2" sx={{ color: theme.palette.warning.main, mt: 2 }}>
+          You can view assignments but do not have permission to change them.
+        </Typography>
+      ) : null}
     </FormModal>
   );
 }

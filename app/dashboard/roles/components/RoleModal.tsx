@@ -6,6 +6,13 @@ import CircularProgress from "@mui/material/CircularProgress";
 import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import { Checkbox, Divider, FormModal, InputField, Typography } from "@/components/common";
+import {
+  CHAT_BUNDLE_OPTIONS,
+  isChatBundleCode,
+  isGranularChatPermissionCode,
+  pickAssignedChatBundle,
+  type ChatBundleCode,
+} from "@/lib/permissions/chat-bundles";
 import { extractApiErrorMessageForToast, publishAppToast } from "@/lib/notify";
 import {
   useCreateRoleMutation,
@@ -61,6 +68,8 @@ export function RoleModal({ open, onClose, onSaved, editRole = null }: RoleModal
   const [roleName, setRoleName] = useState("");
   const [permissionSearch, setPermissionSearch] = useState("");
   const [permissions, setPermissions] = useState<Record<string, boolean>>({});
+  const [chatBundle, setChatBundle] = useState<ChatBundleCode | null>(null);
+  const [showAdvancedChat, setShowAdvancedChat] = useState(false);
 
   const hydratedKeyRef = useRef<string | null>(null);
   const hydratedPermsForRoleIdRef = useRef<string | null>(null);
@@ -103,10 +112,25 @@ export function RoleModal({ open, onClose, onSaved, editRole = null }: RoleModal
     [permissionsCatalogQuery.data],
   );
 
+  const { standardPermissionGroups, advancedChatPermissions } = useMemo(() => {
+    const standard: PermissionGroup[] = [];
+    const advanced: PermissionGroup["permissions"] = [];
+    for (const g of permissionGroups) {
+      const stdPerms = g.permissions.filter(
+        (p) => !isGranularChatPermissionCode(p.code) && !isChatBundleCode(p.code),
+      );
+      const advPerms = g.permissions.filter((p) => isGranularChatPermissionCode(p.code));
+      if (stdPerms.length > 0) standard.push({ title: g.title, permissions: stdPerms });
+      advanced.push(...advPerms);
+    }
+    return { standardPermissionGroups: standard, advancedChatPermissions: advanced };
+  }, [permissionGroups]);
+
   const filteredPermissionGroups: PermissionGroup[] = useMemo(() => {
     const q = permissionSearch.trim().toLowerCase();
-    if (!q) return permissionGroups;
-    return permissionGroups
+    const base = standardPermissionGroups;
+    if (!q) return base;
+    return base
       .map((g) => ({
         ...g,
         permissions: g.permissions.filter(
@@ -115,7 +139,15 @@ export function RoleModal({ open, onClose, onSaved, editRole = null }: RoleModal
         ),
       }))
       .filter((g) => g.permissions.length > 0);
-  }, [permissionGroups, permissionSearch]);
+  }, [standardPermissionGroups, permissionSearch]);
+
+  const filteredAdvancedChat = useMemo(() => {
+    const q = permissionSearch.trim().toLowerCase();
+    if (!q) return advancedChatPermissions;
+    return advancedChatPermissions.filter(
+      (p) => p.code.toLowerCase().includes(q) || p.label.toLowerCase().includes(q),
+    );
+  }, [advancedChatPermissions, permissionSearch]);
 
   const allCodes = useMemo(() => {
     const set = new Set<string>();
@@ -139,8 +171,19 @@ export function RoleModal({ open, onClose, onSaved, editRole = null }: RoleModal
     setRoleName(isEdit ? (editRole?.name ?? "") : "");
     setPermissionSearch("");
     setPermissions({});
+    setChatBundle(null);
+    setShowAdvancedChat(false);
     hydratedPermsForRoleIdRef.current = null;
   }, [open, isEdit, editId, editRole]);
+
+  const handleSelectChatBundle = (code: ChatBundleCode) => {
+    setChatBundle(code);
+    setPermissions((prev) => {
+      const next = { ...prev };
+      for (const opt of CHAT_BUNDLE_OPTIONS) next[opt.code] = opt.code === code;
+      return next;
+    });
+  };
 
   useEffect(() => {
     if (!open) return;
@@ -179,6 +222,7 @@ export function RoleModal({ open, onClose, onSaved, editRole = null }: RoleModal
       .filter((c) => c.length > 0);
 
     setPermissions((prev) => ({ ...prev, ...buildPermissionsMap(mapped) }));
+    setChatBundle(pickAssignedChatBundle(mapped));
     hydratedPermsForRoleIdRef.current = editId;
   }, [
     open,
@@ -213,6 +257,7 @@ export function RoleModal({ open, onClose, onSaved, editRole = null }: RoleModal
       .filter((c) => c.length > 0);
 
     setPermissions((prev) => ({ ...prev, ...buildPermissionsMap(mapped) }));
+    setChatBundle(pickAssignedChatBundle(mapped));
     hydratedPermsForRoleIdRef.current = editId;
   }, [open, isEdit, editId, roleDetailQuery.isSuccess, roleDetailQuery.data, allCodes, permissionGroups]);
 
@@ -366,6 +411,64 @@ export function RoleModal({ open, onClose, onSaved, editRole = null }: RoleModal
             </Box>
             <Divider />
 
+            <Box
+              sx={{
+                mt: 1.5,
+                p: 1.5,
+                borderRadius: 1.5,
+                border: `1px solid ${theme.app.dashboard.cardBorder}`,
+                background: theme.app.dashboard.glassGradient,
+              }}
+            >
+              <Typography variant="medium" fontWeight={700} sx={{ color: theme.app.text.primary, mb: 0.5 }}>
+                Chat access (pick one bundle)
+              </Typography>
+              <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, display: "block", mb: 1.25 }}>
+                Backend expands bundles on <code>/auth/me</code>. Add <code>page:hrms</code> or org pages separately
+                below — do not assign granular chat codes unless needed.
+              </Typography>
+              <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                {CHAT_BUNDLE_OPTIONS.map((opt) => {
+                  const selected = chatBundle === opt.code || Boolean(permissions[opt.code]);
+                  return (
+                    <Box
+                      key={opt.code}
+                      component="label"
+                      sx={{
+                        display: "flex",
+                        alignItems: "flex-start",
+                        gap: 1,
+                        p: 1,
+                        borderRadius: 1,
+                        cursor: "pointer",
+                        border: `1px solid ${selected ? theme.app.dashboard.accentBlue : theme.app.dashboard.cardBorder}`,
+                        bgcolor: selected ? "rgba(96,165,250,0.08)" : "transparent",
+                      }}
+                    >
+                      <input
+                        type="radio"
+                        name="chat-bundle"
+                        checked={selected}
+                        onChange={() => handleSelectChatBundle(opt.code)}
+                        style={{ marginTop: 4 }}
+                      />
+                      <Box sx={{ minWidth: 0 }}>
+                        <Typography variant="body2" fontWeight={700} sx={{ fontSize: 13 }}>
+                          {opt.label}
+                        </Typography>
+                        <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted }}>
+                          {opt.description}
+                        </Typography>
+                        <Typography variant="caption" sx={{ display: "block", fontFamily: "monospace", mt: 0.25 }}>
+                          {opt.code}
+                        </Typography>
+                      </Box>
+                    </Box>
+                  );
+                })}
+              </Box>
+            </Box>
+
             <Box sx={{ mt: 1.5 }}>
               <InputField
                 label="Search permissions"
@@ -438,6 +541,59 @@ export function RoleModal({ open, onClose, onSaved, editRole = null }: RoleModal
                 </Box>
               ))}
             </Box>
+
+            {filteredAdvancedChat.length > 0 ? (
+              <Box sx={{ mt: 1.5 }}>
+                <Box
+                  component="button"
+                  type="button"
+                  onClick={() => setShowAdvancedChat((v) => !v)}
+                  sx={{
+                    color: theme.app.dashboard.textMuted95,
+                    cursor: "pointer",
+                    background: "none",
+                    border: "none",
+                    textDecoration: "underline",
+                    fontSize: 14,
+                    fontFamily: "inherit",
+                    mb: showAdvancedChat ? 1 : 0,
+                  }}
+                >
+                  {showAdvancedChat ? "Hide" : "Show"} advanced chat permissions ({filteredAdvancedChat.length})
+                </Box>
+                {showAdvancedChat ? (
+                  <Box
+                    sx={{
+                      p: 1.5,
+                      borderRadius: 1.5,
+                      border: `1px dashed ${theme.app.dashboard.cardBorder}`,
+                    }}
+                  >
+                    <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, display: "block", mb: 1 }}>
+                      Prefer bundles above. Granular codes are expanded by the server — use only for exceptions.
+                    </Typography>
+                    <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
+                      {filteredAdvancedChat.map((perm) => (
+                        <Box key={perm.code} sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                          <Checkbox
+                            checked={Boolean(permissions[perm.code])}
+                            onChange={(_, checked) =>
+                              setPermissions((p) => ({ ...p, [perm.code]: checked }))
+                            }
+                          />
+                          <Typography variant="body2" sx={{ fontSize: 12 }}>
+                            {perm.label}{" "}
+                            <Typography component="span" variant="caption" sx={{ fontFamily: "monospace" }}>
+                              {perm.code}
+                            </Typography>
+                          </Typography>
+                        </Box>
+                      ))}
+                    </Box>
+                  </Box>
+                ) : null}
+              </Box>
+            ) : null}
           </Box>
         </>
       )}

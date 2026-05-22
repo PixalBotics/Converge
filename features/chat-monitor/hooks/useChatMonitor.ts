@@ -26,8 +26,12 @@ import { chatMonitorKeys } from "./keys";
 
 const LIVE_REFRESH_DEBOUNCE_MS = 350;
 
-export function useChatMonitor(initialConversationId?: string | null) {
-  const token = getAccessToken() ?? "";
+export function useChatMonitor(
+  initialConversationId?: string | null,
+  options?: { apiEnabled?: boolean },
+) {
+  const apiEnabled = options?.apiEnabled !== false;
+  const token = apiEnabled ? getAccessToken() ?? "" : "";
   const queryClient = useQueryClient();
   const socketClient = useMemo(() => getSharedAgentChatSocket(), []);
 
@@ -39,6 +43,9 @@ export function useChatMonitor(initialConversationId?: string | null) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [visitorFromHistory, setVisitorFromHistory] =
     useState<Record<string, unknown> | null>(null);
+  const [supervisorControlUserId, setSupervisorControlUserId] = useState<string | null>(
+    null,
+  );
   const [isConnected, setIsConnected] = useState(false);
   const [transcriptLoading, setTranscriptLoading] = useState(false);
 
@@ -53,19 +60,22 @@ export function useChatMonitor(initialConversationId?: string | null) {
   const capabilitiesQuery = useQuery({
     queryKey: chatMonitorKeys.capabilities(),
     queryFn: fetchMonitorCapabilities,
-    enabled: Boolean(token),
+    enabled: apiEnabled && Boolean(token),
   });
+
+  const capabilitiesReady =
+    apiEnabled && Boolean(token) && capabilitiesQuery.isSuccess && !capabilitiesQuery.isError;
 
   const liveQuery = useQuery({
     queryKey: chatMonitorKeys.live(filters),
     queryFn: () => fetchMonitorLive(filters),
-    enabled: Boolean(token),
+    enabled: capabilitiesReady,
   });
 
   const closedQuery = useQuery({
     queryKey: chatMonitorKeys.closed(filters),
     queryFn: () => fetchMonitorClosed(filters),
-    enabled: Boolean(token),
+    enabled: capabilitiesReady,
   });
 
   const liveList = liveQuery.data ?? [];
@@ -82,7 +92,7 @@ export function useChatMonitor(initialConversationId?: string | null) {
 
   const loadTranscript = useCallback(
     async (conversationId: string, opts?: { silent?: boolean }) => {
-      if (!token) return;
+      if (!apiEnabled || !token) return;
       if (!opts?.silent) setTranscriptLoading(true);
       try {
         const history = await fetchMonitorTranscript(conversationId);
@@ -95,11 +105,14 @@ export function useChatMonitor(initialConversationId?: string | null) {
         setVisitorFromHistory(
           typeof v === "object" && v !== null ? (v as Record<string, unknown>) : null,
         );
+        const sc = (history as { supervisorControlUserId?: string | null })
+          .supervisorControlUserId;
+        setSupervisorControlUserId(sc ?? null);
       } finally {
         if (!opts?.silent) setTranscriptLoading(false);
       }
     },
-    [syncMessagesFromMap, token],
+    [apiEnabled, syncMessagesFromMap, token],
   );
 
   const scheduleListRefresh = useCallback(() => {
@@ -142,20 +155,21 @@ export function useChatMonitor(initialConversationId?: string | null) {
     messageMapRef.current.clear();
     setMessages([]);
     setVisitorFromHistory(null);
+    setSupervisorControlUserId(null);
   }, [socketClient]);
 
   const initialAppliedRef = useRef(false);
   useEffect(() => {
-    if (!initialConversationId || !token || initialAppliedRef.current) return;
+    if (!apiEnabled || !initialConversationId || !token || initialAppliedRef.current) return;
     initialAppliedRef.current = true;
     void selectConversation(initialConversationId);
-  }, [initialConversationId, selectConversation, token]);
+  }, [apiEnabled, initialConversationId, selectConversation, token]);
 
   const scheduleListRefreshRef = useRef(scheduleListRefresh);
   scheduleListRefreshRef.current = scheduleListRefresh;
 
   useAgentChatSocket(
-    token,
+    apiEnabled ? token : "",
     socketClient,
     {
       onVisitorMessage: upsertMessage,
@@ -242,6 +256,7 @@ export function useChatMonitor(initialConversationId?: string | null) {
     selectedRow,
     messages,
     visitorFromHistory,
+    supervisorControlUserId,
     transcriptLoading,
     isConnected,
     selectConversation,

@@ -31,7 +31,12 @@ import {
   widgetChatColorsDraftToPatch,
   type WidgetChatColorsDraft,
 } from "@/lib/chat-widget/widget-colors-draft";
+import { WidgetInquiryOptionsEditor } from "@/components/dashboard/chat-widget/WidgetInquiryOptionsEditor";
 import { defaultWidgetDraft } from "@/lib/chat-widget/widgetDraft";
+import {
+  normalizeWidgetInquiryOptions,
+  type WidgetInquiryOption,
+} from "@/lib/chat-widget/widget-inquiry.types";
 
 const STEPS = ["Widget Button Design", "Chat Box Design", "Notifications & Advanced"];
 export default function ChatWidgetBoxDesignPage() {
@@ -71,8 +76,11 @@ export default function ChatWidgetBoxDesignPage() {
   );
   const [popupEnabled, setPopupEnabled] = useState(defaultWidgetDraft.popupEnabled ?? false);
   const [inquiryOn, setInquiryOn] = useState(defaultWidgetDraft.inquiryOn ?? false);
-  const [inquiryOptionsInput, setInquiryOptionsInput] = useState(
-    (defaultWidgetDraft.inquiryOptions ?? []).join(", "),
+  const [inquiryOptions, setInquiryOptions] = useState<WidgetInquiryOption[]>(
+    defaultWidgetDraft.inquiryOptions ?? [],
+  );
+  const [wizardWebsiteId, setWizardWebsiteId] = useState<string | undefined>(
+    defaultWidgetDraft.websiteId,
   );
   const [chatColors, setChatColors] = useState<WidgetChatColorsDraft>(() =>
     readWidgetChatColorsFromDraft(defaultWidgetDraft),
@@ -120,9 +128,10 @@ export default function ChatWidgetBoxDesignPage() {
     setPopupEnabled(Boolean(d.popupEnabled));
     setChatColors(readWidgetChatColorsFromDraft(d));
     const def = defaultWidgetDraft;
-    const inquiryArr = Array.isArray(d.inquiryOptions) ? d.inquiryOptions : (def.inquiryOptions ?? []);
+    const inquiryArr = normalizeWidgetInquiryOptions(d.inquiryOptions ?? def.inquiryOptions);
     setInquiryOn(d.inquiryOn ?? inquiryArr.length > 0);
-    setInquiryOptionsInput(inquiryArr.join(", "));
+    setInquiryOptions(inquiryArr);
+    setWizardWebsiteId(d.websiteId);
     setPreviewForm({
       formEnabled: d.formEnabled ?? def.formEnabled ?? true,
       formTitle: d.formTitle ?? def.formTitle ?? "",
@@ -203,12 +212,7 @@ export default function ChatWidgetBoxDesignPage() {
           backgroundColor: backgroundColor.trim() || "#f8fafc",
           popupEnabled,
           inquiryOn,
-          inquiryOptions: inquiryOn
-            ? inquiryOptionsInput
-                .split(",")
-                .map((s) => s.trim())
-                .filter(Boolean)
-            : [],
+          inquiryOptions: inquiryOn ? inquiryOptions : [],
           ...widgetChatColorsDraftToPatch(chatColors),
         });
         const latest = readChatWizardDraft(editKey || undefined);
@@ -246,14 +250,8 @@ export default function ChatWidgetBoxDesignPage() {
   const parsedPreviewHeight = Number.parseInt(boxHeight, 10);
 
   const inquiryOptionsList = useMemo(
-    () =>
-      inquiryOn
-        ? inquiryOptionsInput
-            .split(",")
-            .map((s) => s.trim())
-            .filter(Boolean)
-        : [],
-    [inquiryOn, inquiryOptionsInput],
+    () => (inquiryOn ? inquiryOptions.map((o) => o.label).filter(Boolean) : []),
+    [inquiryOn, inquiryOptions],
   );
 
   const livePreviewModel = useMemo(
@@ -467,12 +465,11 @@ export default function ChatWidgetBoxDesignPage() {
         <Switch checked={inquiryOn} onChange={(_, checked) => setInquiryOn(checked)} color="success" />
       </Box>
       {inquiryOn ? (
-        <InputField
-          label="Topic labels (comma-separated)"
-          name="inquiry-options"
-          value={inquiryOptionsInput}
-          onChange={(e) => setInquiryOptionsInput(e.target.value)}
-          placeholder="Billing, Technical, Sales"
+        <WidgetInquiryOptionsEditor
+          websiteId={wizardWebsiteId}
+          value={inquiryOptions}
+          onChange={setInquiryOptions}
+          disabled={saving}
         />
       ) : null}
 

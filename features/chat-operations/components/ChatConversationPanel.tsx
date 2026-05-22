@@ -8,17 +8,22 @@ import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
 import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
-import { Typography } from "@/components/common";
+import { Button, Typography } from "@/components/common";
 import type { AgentAiAction } from "@/api/ai/agent-suggest.api";
 import type { AgentVisitorPresentation, ChatMessage } from "@/services/chat/chat.types";
 import type { AiChatMessage } from "../types/ai-chat";
-import { chatOpsHeaderStatSx } from "../styles/chat-operations.styles";
+import { chatOpsAlertBannerSx } from "../styles/chat-operations.styles";
 import { parseVisitorInfo } from "../utils/visitor-info";
 import type { ChatWhisperSocketPayload } from "@/services/chat/supervisor.types";
 import { AgentWhisperBanner } from "./AgentWhisperBanner";
 import { ChatComposer } from "./ChatComposer";
 import { ChatMessageList } from "./ChatMessageList";
-import { PanelColumn, PanelHeader, QueueAvatar } from "../styles/chat-operations.styled";
+import {
+  ChatHeaderMetaChip,
+  PanelColumn,
+  PanelHeader,
+  QueueAvatar,
+} from "../styles/chat-operations.styled";
 
 interface ChatConversationPanelProps {
   conversationId: string | null;
@@ -157,46 +162,89 @@ export function ChatConversationPanel({
                   {headerSubtitle}
                 </Typography>
               ) : null}
-              <Typography
+              <Box
+                component="span"
                 sx={{
-                  fontSize: 12,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 0.5,
+                  mt: 0.5,
+                  px: 0.85,
+                  py: 0.2,
+                  borderRadius: 999,
+                  fontSize: 11,
+                  fontWeight: 600,
                   color: readOnly
                     ? theme.app.dashboard.textMuted
                     : visitorTyping
                       ? theme.app.dashboard.accentCyan
                       : theme.palette.success.light,
-                  mt: 0.25,
+                  bgcolor: readOnly
+                    ? "rgba(148,163,184,0.12)"
+                    : visitorTyping
+                      ? "rgba(34,211,238,0.12)"
+                      : "rgba(34,197,94,0.12)",
                 }}
               >
-                {readOnly ? "Closed · read-only" : visitorTyping ? "Typing…" : "Online"}
-              </Typography>
+                <Box
+                  component="span"
+                  sx={{
+                    width: 6,
+                    height: 6,
+                    borderRadius: "50%",
+                    bgcolor: readOnly
+                      ? theme.app.dashboard.textMuted
+                      : visitorTyping
+                        ? theme.app.dashboard.accentCyan
+                        : theme.palette.success.main,
+                  }}
+                />
+                {readOnly ? "Closed" : visitorTyping ? "Typing" : "Online"}
+              </Box>
             </Box>
           </Box>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexShrink: 0 }}>
             <Box
               sx={{
                 display: { xs: "none", sm: "flex" },
-                gap: 1,
+                gap: 0.75,
                 flexWrap: "wrap",
                 justifyContent: "flex-end",
               }}
             >
-              <Box sx={{ textAlign: "right" }}>
-                <Typography component="span" sx={chatOpsHeaderStatSx}>
-                  Time<strong>{formatDuration(elapsedSec)}</strong>
+              <ChatHeaderMetaChip>
+                <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, fontSize: 10 }}>
+                  Session
                 </Typography>
-                <Typography component="span" sx={{ ...chatOpsHeaderStatSx, display: "block" }}>
-                  Pages<strong>{pageCount}</strong>
+                <Typography sx={{ fontSize: 13, fontWeight: 700, color: theme.app.text.primary }}>
+                  {formatDuration(elapsedSec)}
                 </Typography>
-              </Box>
+              </ChatHeaderMetaChip>
+              <ChatHeaderMetaChip>
+                <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, fontSize: 10 }}>
+                  Pages
+                </Typography>
+                <Typography sx={{ fontSize: 13, fontWeight: 700, color: theme.app.text.primary }}>
+                  {pageCount}
+                </Typography>
+              </ChatHeaderMetaChip>
             </Box>
             {onCloseChat ? (
               <>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="compact"
+                  onClick={() => void onCloseChat()}
+                  sx={{ display: { xs: "none", md: "inline-flex" }, minWidth: 0, px: 1.5 }}
+                >
+                  Close chat
+                </Button>
                 <IconButton
                   size="small"
                   aria-label="More actions"
                   onClick={(e) => setMenuAnchor(e.currentTarget)}
-                  sx={{ color: theme.app.dashboard.iconMuted }}
+                  sx={{ color: theme.app.dashboard.iconMuted, display: { md: "none" } }}
                 >
                   <MoreVert />
                 </IconButton>
@@ -230,33 +278,17 @@ export function ChatConversationPanel({
       ) : null}
 
       {readOnly && hasConversation ? (
-        <Box
-          sx={{
-            px: 2,
-            py: 0.75,
-            flexShrink: 0,
-            borderBottom: `1px solid ${theme.app.dashboard.cardBorder}`,
-            bgcolor: "rgba(148, 163, 184, 0.08)",
-          }}
-        >
+        <Box sx={chatOpsAlertBannerSx("muted")}>
           <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, fontSize: 11 }}>
-            This conversation is closed. Transcript is read-only; new visitor messages may reopen it.
+            Closed conversation — transcript is read-only. New visitor messages may reopen the chat.
           </Typography>
         </Box>
       ) : null}
 
       {availabilityHint && hasConversation && !readOnly ? (
-        <Box
-          sx={{
-            px: 2,
-            py: 0.75,
-            flexShrink: 0,
-            borderBottom: `1px solid ${theme.app.dashboard.cardBorder}`,
-            bgcolor: "rgba(88, 101, 242, 0.08)",
-          }}
-        >
+        <Box sx={chatOpsAlertBannerSx("info")}>
           <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, fontSize: 11 }}>
-            Website · {availabilityHint}
+            Service window · {availabilityHint}
           </Typography>
         </Box>
       ) : null}

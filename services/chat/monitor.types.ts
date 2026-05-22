@@ -10,10 +10,11 @@ export interface MonitorListFilters {
 }
 
 export interface MonitorScopeSummary {
-  kind: "platform" | "parent_company" | "department" | "pool";
+  kind: "platform" | "parent_company" | "department" | "pool" | "involvement";
   parentCompanyIds?: string[];
   departmentIds?: string[];
   poolIds?: string[];
+  involvementAssignments?: Array<{ websiteId: string; departmentId: string }>;
 }
 
 export interface MonitorCapabilities {
@@ -34,6 +35,7 @@ export interface MonitorConversationRow {
   websiteId: string;
   visitorId: string;
   agentId: string | null;
+  supervisorControlUserId?: string | null;
   status: string;
   routingKey?: string | null;
   serviceChannel?: string | null;

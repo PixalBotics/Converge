@@ -90,7 +90,7 @@ export default function TeamAttendancePage() {
   const [poolDate, setPoolDate] = useState(today);
   const [poolPage, setPoolPage] = useState(1);
 
-  const usersQuery = useUsersListQuery({ page: 1, limit: 200 }, { enabled: view === "user" });
+  const usersQuery = useUsersListQuery({ all: true }, { enabled: view === "user" });
   const userRows = useMemo(() => extractUsersRows(usersQuery.data), [usersQuery.data]);
   const userOptions = useMemo(() => {
     const base = userRows.map((u) => ({ value: u.id, label: `${u.user} · ${u.email}` }));

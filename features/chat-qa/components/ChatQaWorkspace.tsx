@@ -4,25 +4,31 @@ import { useEffect, useMemo } from "react";
 import Box from "@mui/material/Box";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
+import { PermissionDeniedPanel } from "@/components/common";
 import {
-  canAccessChatQa,
+  buildChatLiveNavItems,
   canAnnotateQaMessage,
   canAssignQaReview,
   canReviewQaSession,
-} from "@/lib/permissions/chat-access";
-import { Button, Typography } from "@/components/common";
+  useChatApiGates,
+} from "@/lib/permissions";
+import { Button, DashboardCard, Typography } from "@/components/common";
 import {
   ChatLivePageHeader,
   ChatScopeFiltersPanel,
   qaRowMatchesScope,
   useChatScopeFilters,
 } from "@/features/chat-shared";
-import { chatLiveFilterCardSx, chatLivePageStackSx } from "@/features/chat-shared/styles/chat-live.styles";
+import {
+  chatLivePageStackSx,
+  chatLiveQueueStatPillSx,
+} from "@/features/chat-shared/styles/chat-live.styles";
 import { useChatQa } from "../hooks/useChatQa";
 import { QaQueueSidebar } from "./QaQueueSidebar";
 import { QaAnnotatedTranscript } from "./QaAnnotatedTranscript";
 import { QaSessionReviewPanel } from "./QaSessionReviewPanel";
 import { QaTimelinePanel } from "./QaTimelinePanel";
+import { useQaRosterQuery } from "@/features/chat-settings/hooks/useChatSettings";
 import {
   chatQaPageWrapper,
   chatQaWorkspaceGrid,
@@ -35,17 +41,22 @@ export function ChatQaWorkspace({
   initialConversationId?: string | null;
 }) {
   const router = useRouter();
-  const { hasOperational } = useAuth();
-  const allowed = canAccessChatQa(hasOperational);
-  const scopeFilters = useChatScopeFilters();
+  const { hasOperational, hasPage, permissionsSyncing } = useAuth();
+  const gates = useChatApiGates();
+  const allowed = gates.qa;
+  const chatNavItems = useMemo(
+    () => buildChatLiveNavItems(hasPage, hasOperational),
+    [hasPage, hasOperational],
+  );
+  const scopeFilters = useChatScopeFilters(undefined, { apiEnabled: allowed });
 
-  const qa = useChatQa(initialConversationId);
+  const qa = useChatQa(initialConversationId, { apiEnabled: allowed });
 
   useEffect(() => {
-    if (!allowed) {
+    if (!permissionsSyncing && !allowed) {
       router.replace("/dashboard/chat-operations");
     }
-  }, [allowed, router]);
+  }, [allowed, permissionsSyncing, router]);
 
   useEffect(() => {
     qa.setFilters((prev) => ({
@@ -62,15 +73,35 @@ export function ChatQaWorkspace({
     [qa.queue, scopeFilters.filters, scopeFilters.websiteIdsInScope],
   );
 
-  if (!allowed) {
+  if (!permissionsSyncing && !allowed) {
     return (
-      <Typography sx={{ py: 4 }}>You do not have QA permissions. Redirecting…</Typography>
+      <PermissionDeniedPanel
+        title="QA inbox not available"
+        description="Requires page:chat and qa:chat:review (or related QA codes) from /auth/me."
+      />
     );
+  }
+
+  if (permissionsSyncing || !allowed) {
+    return <Typography sx={{ py: 4 }}>Loading permissions…</Typography>;
   }
 
   if (!qa.token) {
     return <Typography sx={{ py: 4 }}>Sign in to open the QA inbox.</Typography>;
   }
+
+  const rosterWebsiteId = qa.bundle?.review?.websiteId?.trim() ?? "";
+  const rosterQuery = useQaRosterQuery(rosterWebsiteId, Boolean(rosterWebsiteId) && canAssignQaReview(hasOperational));
+
+  const rosterAssignOptions = useMemo(() => {
+    const channel = String(qa.bundle?.review?.serviceChannel ?? qa.bundle?.transcript?.serviceChannel ?? "internal")
+      .toLowerCase();
+    const list = channel === "external" ? rosterQuery.data?.external : rosterQuery.data?.internal;
+    return (list ?? []).map((r) => ({
+      id: r.userId,
+      label: [r.user?.firstName, r.user?.lastName].filter(Boolean).join(" ").trim() || r.user?.email || r.userId.slice(0, 8),
+    }));
+  }, [qa.bundle?.review?.serviceChannel, qa.bundle?.transcript, rosterQuery.data]);
 
   const handleSelect = (id: string) => {
     qa.selectConversation(id);
@@ -82,8 +113,22 @@ export function ChatQaWorkspace({
       <ChatLivePageHeader
         title="QA inbox"
         subtitle="Review closed conversations, annotate messages, and score sessions."
+        navItems={chatNavItems}
+        trailing={
+          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75, justifyContent: "flex-end" }}>
+            <Box sx={chatLiveQueueStatPillSx("waiting")}>
+              Pending {qa.statusCounts.pending}
+            </Box>
+            <Box sx={chatLiveQueueStatPillSx("active")}>
+              In progress {qa.statusCounts.in_progress}
+            </Box>
+            <Box sx={chatLiveQueueStatPillSx("closed")}>
+              Done {qa.statusCounts.completed}
+            </Box>
+          </Box>
+        }
       />
-      <Box sx={chatLiveFilterCardSx}>
+      <DashboardCard sx={{ flexShrink: 0, p: { xs: 1.5, md: 2 }, height: "auto", minHeight: 0 }}>
         <ChatScopeFiltersPanel
           filters={scopeFilters.filters}
           onPatch={scopeFilters.patchFilters}
@@ -95,7 +140,7 @@ export function ChatQaWorkspace({
           websiteOptions={scopeFilters.websiteOptions}
           hint="Filter reviews by organization and website. Status tabs apply on top of these filters."
         />
-      </Box>
+      </DashboardCard>
       <Box sx={chatQaWorkspaceShell}>
         {qa.queueError ? (
           <Box sx={{ p: 2, display: "flex", alignItems: "center", gap: 2 }}>
@@ -138,8 +183,10 @@ export function ChatQaWorkspace({
               bundle={qa.bundle}
               canEdit={canReviewQaSession(hasOperational)}
               canAssign={canAssignQaReview(hasOperational)}
+              rosterAssignOptions={rosterAssignOptions}
               onSave={qa.saveSessionReview}
               onClaim={qa.claimReview}
+              onAssignTo={qa.assignReviewTo}
               saving={qa.bundleLoading}
             />
             <QaTimelinePanel bundle={qa.bundle} />

@@ -4,15 +4,22 @@ import { useEffect, useMemo } from "react";
 import Box from "@mui/material/Box";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
-import { canAccessChatMonitor } from "@/lib/permissions/chat-access";
-import { Button, Typography } from "@/components/common";
+import { PermissionDeniedPanel } from "@/components/common";
+import { buildChatLiveNavItems, useChatApiGates } from "@/lib/permissions";
+import { PAGE } from "@/lib/permissions/permission-constants";
+import { OP } from "@/lib/permissions/operational-keys";
+import { Button, DashboardCard, Typography } from "@/components/common";
 import {
   ChatLivePageHeader,
   ChatScopeFiltersPanel,
   monitorRowMatchesScope,
   useChatScopeFilters,
 } from "@/features/chat-shared";
-import { chatLiveFilterCardSx, chatLivePageStackSx } from "@/features/chat-shared/styles/chat-live.styles";
+import {
+  chatLivePageStackSx,
+  chatLiveQueueStatPillSx,
+  chatLiveScopeChipSx,
+} from "@/features/chat-shared/styles/chat-live.styles";
 import { useChatMonitor } from "../hooks/useChatMonitor";
 import { MonitorQueueSidebar } from "./MonitorQueueSidebar";
 import { MonitorTranscriptPanel } from "./MonitorTranscriptPanel";
@@ -28,19 +35,28 @@ export function ChatMonitorWorkspace({
   initialConversationId?: string | null;
 }) {
   const router = useRouter();
-  const { hasOperational } = useAuth();
-  const allowed = canAccessChatMonitor(hasOperational);
-  const scopeFilters = useChatScopeFilters();
+  const { user, hasOperational, hasPage, permissionsSyncing } = useAuth();
+  const gates = useChatApiGates();
+  const hasChatPage = hasPage(PAGE.CHAT);
+  const hasMonitorPerm =
+    gates.monitor ||
+    hasOperational(OP.chat.monitorInvolvement) ||
+    hasOperational(OP.chat.monitorPool) ||
+    hasOperational(OP.chat.monitorDepartment) ||
+    hasOperational(OP.chat.monitorParentCompany);
+  const chatNavItems = useMemo(
+    () => buildChatLiveNavItems(hasPage, hasOperational),
+    [hasPage, hasOperational],
+  );
+  const monitorApiEnabled = gates.ready && hasChatPage;
+  const scopeFilters = useChatScopeFilters(undefined, { apiEnabled: monitorApiEnabled });
 
-  const monitor = useChatMonitor(initialConversationId);
+  const monitor = useChatMonitor(initialConversationId, { apiEnabled: monitorApiEnabled });
+
+  const hasMonitorScope = (monitor.capabilities?.scopes?.length ?? 0) > 0;
 
   useEffect(() => {
-    if (!allowed) {
-      router.replace("/dashboard/chat-operations");
-    }
-  }, [allowed, router]);
-
-  useEffect(() => {
+    if (!monitorApiEnabled) return;
     monitor.setFilters({
       websiteId: scopeFilters.filters.websiteId.trim() || undefined,
       departmentId: scopeFilters.filters.departmentId.trim() || undefined,
@@ -48,6 +64,7 @@ export function ChatMonitorWorkspace({
       status: scopeFilters.filters.status.trim() || undefined,
     });
   }, [
+    monitorApiEnabled,
     scopeFilters.filters.departmentId,
     scopeFilters.filters.poolId,
     scopeFilters.filters.status,
@@ -96,11 +113,31 @@ export function ChatMonitorWorkspace({
     [monitor.filterOptions.statuses],
   );
 
-  if (!allowed) {
+  if (permissionsSyncing) {
+    return <Typography sx={{ py: 4 }}>Loading permissions…</Typography>;
+  }
+
+  if (!hasChatPage) {
     return (
-      <Typography sx={{ py: 4 }}>
-        You do not have monitor permissions. Redirecting to inbox…
-      </Typography>
+      <PermissionDeniedPanel
+        title="Chat monitor not available"
+        description="Requires page:chat."
+      />
+    );
+  }
+
+  if (
+    !permissionsSyncing &&
+    gates.ready &&
+    !monitor.capabilitiesLoading &&
+    !hasMonitorPerm &&
+    !hasMonitorScope
+  ) {
+    return (
+      <PermissionDeniedPanel
+        title="No monitor scope"
+        description="Assign pool/department head roles, add yourself on Chat involvement (Involvement users), or grant chat:monitor:involvement / chat:bundle:involvement-supervisor."
+      />
     );
   }
 
@@ -117,29 +154,47 @@ export function ChatMonitorWorkspace({
     <Box sx={[chatMonitorPageWrapper, chatLivePageStackSx]}>
       <ChatLivePageHeader
         title="Chat monitor"
-        subtitle="Read-only view of live and closed conversations across your assigned scope."
+        subtitle="Scoped live and closed chats — pool/dept head, involvement roster, or platform monitor. Whisper or take direct control below."
+        navItems={chatNavItems}
+        trailing={
+          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75, justifyContent: "flex-end" }}>
+            <Box sx={chatLiveQueueStatPillSx("active")}>Live {scopedLive.length}</Box>
+            <Box sx={chatLiveQueueStatPillSx("closed")}>Closed {scopedClosed.length}</Box>
+          </Box>
+        }
       />
-      {monitor.capabilities?.scopes?.length ? (
-        <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75, px: 0.5 }}>
-          {monitor.capabilities.scopes.map((scope) => (
-            <Typography
-              key={`${scope.kind}-${(scope.departmentIds ?? scope.poolIds ?? scope.parentCompanyIds ?? []).join(",")}`}
-              variant="caption"
-              sx={{
-                px: 1,
-                py: 0.25,
-                borderRadius: 1,
-                bgcolor: "rgba(96,165,250,0.12)",
-                color: "primary.main",
-                fontSize: 11,
-              }}
-            >
-              {scope.kind}
-            </Typography>
-          ))}
-        </Box>
+      {monitor.capabilitiesLoading ? (
+        <Typography variant="caption" sx={{ color: "text.secondary", px: 0.5 }}>
+          Loading monitor scope…
+        </Typography>
       ) : null}
-      <Box sx={chatLiveFilterCardSx}>
+      {!monitor.capabilitiesLoading && !monitor.capabilities?.scopes?.length ? (
+        <DashboardCard sx={{ p: 1.5, height: "auto", minHeight: 0, flexShrink: 0 }}>
+          <Typography variant="caption" sx={{ color: "warning.main" }}>
+            No monitor scope from the server yet. Assign pool/dept head, involvement supervisors on Chat involvement, or monitor permissions.
+          </Typography>
+        </DashboardCard>
+      ) : null}
+      {monitor.capabilities?.scopes?.length ? (
+        <DashboardCard sx={{ p: 1.25, height: "auto", minHeight: 0, flexShrink: 0 }}>
+          <Typography variant="caption" sx={{ color: "text.secondary", display: "block", mb: 0.75 }}>
+            Your monitor scopes
+          </Typography>
+          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75 }}>
+            {monitor.capabilities.scopes.map((scope) => (
+              <Typography
+                key={`${scope.kind}-${(scope.departmentIds ?? scope.poolIds ?? scope.parentCompanyIds ?? []).join(",")}`}
+                component="span"
+                variant="caption"
+                sx={chatLiveScopeChipSx}
+              >
+                {scope.kind}
+              </Typography>
+            ))}
+          </Box>
+        </DashboardCard>
+      ) : null}
+      <DashboardCard sx={{ flexShrink: 0, p: { xs: 1.5, md: 2 }, height: "auto", minHeight: 0 }}>
         <ChatScopeFiltersPanel
           filters={scopeFilters.filters}
           onPatch={scopeFilters.patchFilters}
@@ -157,7 +212,7 @@ export function ChatMonitorWorkspace({
           statusOptions={statusOptions}
           hint="Reseller → parent → child → website narrows the monitor queue. Department, pool, and status sync to the server."
         />
-      </Box>
+      </DashboardCard>
       <Box sx={chatMonitorWorkspaceShell}>
         {monitor.listsError ? (
           <Box sx={{ p: 2, display: "flex", alignItems: "center", gap: 2 }}>
@@ -188,6 +243,20 @@ export function ChatMonitorWorkspace({
               messages={monitor.messages}
               visitor={monitor.visitorFromHistory}
               loading={monitor.transcriptLoading}
+              currentUserId={user?.id ?? null}
+              hasOperational={hasOperational}
+              supervisorControlUserId={monitor.supervisorControlUserId}
+              onSupervisorAction={() => {
+                if (monitor.selectedConversationId) {
+                  void monitor.selectConversation(monitor.selectedConversationId);
+                }
+                void monitor.refreshLists();
+              }}
+              onMessageSent={() => {
+                if (monitor.selectedConversationId) {
+                  void monitor.selectConversation(monitor.selectedConversationId);
+                }
+              }}
             />
           </Box>
         </Box>

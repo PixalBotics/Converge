@@ -1,4 +1,5 @@
 import { pickItemsArray } from "@/app/dashboard/user-page/components/add-user-modal.utils";
+import { formatWebsiteSelectLabel } from "@/lib/websites/format-website-select-label";
 
 export function parseWebsitesFromAssignmentsPayload(data: unknown): Array<{
   websiteId: string;
@@ -11,8 +12,10 @@ export function parseWebsitesFromAssignmentsPayload(data: unknown): Array<{
       if (!websiteId) return null;
       const name = String(rec.websiteName ?? rec.name ?? "").trim();
       const url = String(rec.websiteUrl ?? rec.url ?? rec.hostname ?? "").trim();
-      const label = name || url || websiteId.slice(0, 8);
-      return { websiteId, label: url ? `${label} · ${url}` : label };
+      return {
+        websiteId,
+        label: formatWebsiteSelectLabel(name, url, websiteId),
+      };
     })
     .filter((o): o is { websiteId: string; label: string } => o !== null);
 }

@@ -35,6 +35,7 @@ interface ChatComposerProps {
   aiBusy: boolean;
   websiteRequiredDisabled?: boolean;
   hasConversation: boolean;
+  agentInboxEnabled?: boolean;
 }
 
 export function ChatComposer({
@@ -55,6 +56,7 @@ export function ChatComposer({
   aiBusy,
   websiteRequiredDisabled = false,
   hasConversation,
+  agentInboxEnabled = true,
 }: ChatComposerProps) {
   const theme = useTheme() as AppTheme;
 
@@ -89,6 +91,7 @@ export function ChatComposer({
         aiDisabled={disabled}
         websiteRequiredDisabled={websiteRequiredDisabled}
         hasConversation={hasConversation}
+        agentInboxEnabled={agentInboxEnabled}
       >
         <ComposerRow>
           <ComposerInputShell>

@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import Box from "@mui/material/Box";
 import IconButton from "@mui/material/IconButton";
-import Chip from "@mui/material/Chip";
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
 import DriveFileMoveOutlined from "@mui/icons-material/DriveFileMoveOutlined";
@@ -62,7 +61,6 @@ type MemberRow = {
   id: string;
   displayName: string;
   email: string;
-  isPoolHead: boolean;
 };
 
 function extractItems(data: unknown): Record<string, unknown>[] {
@@ -147,15 +145,10 @@ export function PoolMembersPanel({
       .map((r) => {
         const id = pickStr(r, ["id", "userId"]) || "";
         if (!id) return null;
-        const head =
-          r["isPoolHead"] === true ||
-          r["isPoolHead"] === "true" ||
-          pickStr(r, ["isPoolHead"]) === "1";
         return {
           id,
           displayName: memberDisplayName(r),
           email: pickStr(r, ["email"]) || "—",
-          isPoolHead: Boolean(head),
         };
       })
       .filter((x): x is MemberRow => x !== null);
@@ -177,7 +170,14 @@ export function PoolMembersPanel({
 
   const addViaModal = memberActionsVariant === "edit-delete";
   const usersQuery = useUsersListQuery(
-    active && departmentId ? { all: true, limit: 250, departmentId, unassignedPoolOnly: true } : undefined,
+    active && departmentId
+      ? {
+          all: true,
+          departmentId,
+          unassignedPoolOnly: true,
+          ...(poolId ? { excludePoolHeadOfPoolId: poolId } : {}),
+        }
+      : undefined,
     {
       enabled:
         active &&
@@ -229,20 +229,8 @@ export function PoolMembersPanel({
     () => [
       { id: "displayName", label: "Name" },
       { id: "email", label: "Email" },
-      {
-        id: "isPoolHead",
-        label: "Role",
-        render: (_value, row) =>
-          row.isPoolHead ? (
-            <Chip size="small" label="Pool head" color="primary" variant="outlined" sx={{ borderColor: "rgba(255,255,255,0.35)" }} />
-          ) : (
-            <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted }}>
-              Member
-            </Typography>
-          ),
-      },
     ],
-    [theme],
+    [],
   );
 
   const handleAddMember = () => {

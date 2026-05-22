@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
 import Paper from "@mui/material/Paper";
+import LockOutlined from "@mui/icons-material/LockOutlined";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
@@ -14,7 +15,7 @@ import { parseVisitorInfo } from "@/features/chat-operations/utils/visitor-info"
 import { extractVisitorPresentation } from "@/services/chat/visitor-presentation";
 import { useGuestChatSession } from "../hooks/useGuestChatSession";
 import { GuestSupervisorActions } from "./GuestSupervisorActions";
-import { guestBannerSx, guestCardSx, guestPageShellSx } from "../styles/chat-guest.styles";
+import { guestBannerSx, guestCardSx, guestHeaderCardSx, guestPageShellSx } from "../styles/chat-guest.styles";
 
 export function GuestChatPage() {
   const theme = useTheme() as AppTheme;
@@ -44,23 +45,21 @@ export function GuestChatPage() {
 
   return (
     <Box sx={guestPageShellSx}>
-      <Box sx={{ width: "100%", maxWidth: 960, mb: 1.5 }}>
-        <Typography fontWeight={700} sx={{ fontSize: 18, color: theme.app.text.primary }}>
-          Secure chat view
-        </Typography>
-        <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted }}>
-          Department guest access — read-only unless supervisor actions are enabled for your link.
-        </Typography>
+      <Box sx={guestHeaderCardSx}>
+        <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1.25 }}>
+          <LockOutlined sx={{ fontSize: 22, color: theme.app.dashboard.accentBlue, mt: 0.25 }} />
+          <Box>
+            <Typography fontWeight={700} sx={{ fontSize: 18, color: theme.app.text.primary }}>
+              Secure chat view
+            </Typography>
+            <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, lineHeight: 1.45 }}>
+              Department guest access — read-only transcript unless your link allows whisper or takeover.
+            </Typography>
+          </Box>
+        </Box>
       </Box>
 
-      <Paper
-        elevation={0}
-        sx={{
-          ...guestCardSx,
-          bgcolor: theme.app.dashboard.cardBg,
-          border: `1px solid ${theme.app.dashboard.cardBorder}`,
-        }}
-      >
+      <Paper elevation={0} sx={[guestCardSx, { bgcolor: theme.app.dashboard.cardBg }]}>
         {guest.phase === "loading" ? (
           <Box sx={{ p: 4, flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
             <Typography sx={{ color: theme.app.dashboard.textMuted }}>Opening secure session…</Typography>
@@ -82,7 +81,7 @@ export function GuestChatPage() {
         {guest.phase === "ready" && guest.session ? (
           <>
             <Box sx={guestBannerSx}>
-              <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1 }}>
+              <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1, width: "100%" }}>
                 <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, fontSize: 11 }}>
                   Read-only transcript
                   {guest.transcript?.chatCompleted ? " · chat completed" : ""}
@@ -90,14 +89,14 @@ export function GuestChatPage() {
                 <Box sx={{ display: "flex", gap: 0.75 }}>
                   <Button
                     type="button"
-                    variant="text"
+                    variant="secondary"
                     size="small"
                     disabled={guest.refreshing}
                     onClick={() => void guest.refreshTranscript()}
                   >
                     {guest.refreshing ? "Refreshing…" : "Refresh"}
                   </Button>
-                  <Button type="button" variant="text" size="small" onClick={guest.signOutGuest}>
+                  <Button type="button" variant="secondary" size="small" onClick={guest.signOutGuest}>
                     End session
                   </Button>
                 </Box>

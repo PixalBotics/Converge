@@ -6,6 +6,7 @@ import Divider from "@mui/material/Divider";
 import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import { Button, InputField, Typography } from "@/components/common";
+import { ChatSideToolCard } from "@/features/chat-shared";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
 import {
   createGuestWhisper,
@@ -55,6 +56,8 @@ export function GuestSupervisorActions({
     }
   };
 
+  const sessionLabel = `${session.websiteLabel ? `${session.websiteLabel} · ` : ""}${session.departmentName ?? "Department"} guest session`;
+
   return (
     <Box
       sx={{
@@ -65,14 +68,7 @@ export function GuestSupervisorActions({
         bgcolor: theme.app.dashboard.cardBg,
       }}
     >
-      <Typography fontWeight={700} sx={{ fontSize: 13, mb: 1 }}>
-        Supervisor actions
-      </Typography>
-      <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, display: "block", mb: 1 }}>
-        {session.websiteLabel ? `${session.websiteLabel} · ` : ""}
-        {session.departmentName ?? "Department"} guest session
-      </Typography>
-
+      <ChatSideToolCard accent="supervisor" title="Supervisor actions" subtitle={sessionLabel}>
       {whisper ? (
         <Box sx={{ mb: 1.5 }}>
           <InputField
@@ -152,6 +148,7 @@ export function GuestSupervisorActions({
           </Typography>
         </>
       ) : null}
+      </ChatSideToolCard>
     </Box>
   );
 }

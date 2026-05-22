@@ -543,7 +543,6 @@ export default function PoolHeadsPage() {
   const assignUsersQuery = useUsersListQuery(
     assignOpen &&
       assignDepartmentId.trim() &&
-      assignPoolId.trim() &&
       (assignUserTypeFilter === "Internal" ||
         (Boolean(assignExternalResellerId.trim()) && Boolean(assignExternalParentCompanyId.trim())))
       ? {
@@ -553,14 +552,12 @@ export default function PoolHeadsPage() {
             ? { resellerId: assignExternalResellerId.trim(), parentCompanyId: assignExternalParentCompanyId.trim() }
             : {}),
           departmentId: assignDepartmentId.trim(),
-          poolId: assignPoolId.trim(),
         }
       : undefined,
     {
       enabled:
         assignOpen &&
         Boolean(assignDepartmentId.trim()) &&
-        Boolean(assignPoolId.trim()) &&
         (assignUserTypeFilter === "Internal" ||
           (Boolean(assignExternalResellerId.trim()) && Boolean(assignExternalParentCompanyId.trim()))),
     },
@@ -1057,8 +1054,8 @@ export default function PoolHeadsPage() {
         title="Assign pool head"
         description={
           mayPickInternalScope
-            ? "Choose user type first, then department and pool (all required). For External, select reseller and parent company before department. Users load after pool is selected."
-            : "External only: select reseller, parent company, department, pool, then one user."
+            ? "Choose user type, department, and pool (all required). Users load by department only — assigning a head does not change pool membership. For External, select reseller and parent company first."
+            : "External only: reseller, parent company, department, pool, then one user from the department list."
         }
         onClose={() => {
           if (assignMutation.isPending) return;
@@ -1221,7 +1218,7 @@ export default function PoolHeadsPage() {
                   User List
                 </Typography>
                 <Typography variant="caption" sx={{ display: "block", color: theme.app.dashboard.textMuted }}>
-                  Loads after department and pool are selected. Click a row to pick one user (poolId + userId).
+                  Loads after department is selected. Pick a pool above, then one user (pool head only — not pool membership).
                 </Typography>
               </Box>
             </Box>

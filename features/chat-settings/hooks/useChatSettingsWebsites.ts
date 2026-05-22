@@ -18,8 +18,6 @@ export function useChatSettingsWebsites(params: ChatSettingsWebsitesQuery, enabl
     queryKey: chatSettingsKeys.widgetsList(params),
     queryFn: async () => {
       const envelope = await listAdminWidgets({
-        page: 1,
-        limit: 200,
         all: true,
         widgetType: "CHAT",
         search: params.search?.trim() || undefined,

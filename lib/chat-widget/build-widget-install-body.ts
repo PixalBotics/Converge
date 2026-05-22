@@ -250,7 +250,15 @@ export function buildChatWizardStep3Config(draft: WidgetDraft): JsonRecord {
         draft.inquiryOn === false
           ? []
           : draft.inquiryOptions && draft.inquiryOptions.length > 0
-            ? draft.inquiryOptions
+            ? draft.inquiryOptions.map((row) => ({
+                label: row.label,
+                routingKey: row.routingKey,
+                serviceChannel: row.serviceChannel,
+                internalDepartmentId: row.internalDepartmentId,
+                externalDepartmentId: row.externalDepartmentId,
+                internalPoolId: row.internalPoolId,
+                externalPoolId: row.externalPoolId,
+              }))
             : [...def.inquiryOptions],
       videoWelcomeOn: draft.videoWelcomeOn ?? false,
       welcomeMessage: draft.welcomeMessageBehavior ?? def.welcomeMessage,

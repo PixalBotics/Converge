@@ -22,6 +22,8 @@ import { useAgentChatSocket } from "./useAgentChatSocket";
 interface UseAgentChatParams {
   token: string;
   agentId?: string;
+  /** False when user lacks `page:chat` + `chat:access` — no agent APIs or socket. */
+  apiEnabled?: boolean;
 }
 
 export interface UseAgentChatReturn {
@@ -50,8 +52,9 @@ export interface UseAgentChatReturn {
 }
 
 export function useAgentChat(params: UseAgentChatParams): UseAgentChatReturn {
+  const apiEnabled = params.apiEnabled !== false && Boolean(params.token);
   const socketClient = useMemo(() => getSharedAgentChatSocket(), []);
-  const queues = useAgentInboxQueues(params.token);
+  const queues = useAgentInboxQueues(params.token, apiEnabled);
 
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
   const [selectedIsClosed, setSelectedIsClosed] = useState(false);
@@ -207,7 +210,7 @@ export function useAgentChat(params: UseAgentChatParams): UseAgentChatReturn {
   );
 
   useAgentChatSocket(
-    params.token,
+    apiEnabled ? params.token : "",
     socketClient,
     {
       onVisitorMessage: upsertMessage,
@@ -252,6 +255,7 @@ export function useAgentChat(params: UseAgentChatParams): UseAgentChatReturn {
         socketClient.joinRoom({ conversationId });
       }
 
+      if (!apiEnabled || !params.token) return;
       const history = await getConversationHistory(conversationId, params.token);
       messageMapRef.current.clear();
       for (const msg of history.messages) {
@@ -264,7 +268,7 @@ export function useAgentChat(params: UseAgentChatParams): UseAgentChatReturn {
         typeof v === "object" && v !== null ? (v as Record<string, unknown>) : null,
       );
     },
-    [closedIdSet, params.token, socketClient, syncMessagesFromMap],
+    [apiEnabled, closedIdSet, params.token, socketClient, syncMessagesFromMap],
   );
 
   useEffect(() => {

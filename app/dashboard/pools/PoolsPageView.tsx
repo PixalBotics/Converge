@@ -39,7 +39,7 @@ import { publishAppToast } from "@/lib/notify";
 import { isRecord, pickNum, pickStr, unwrapApiData } from "@/lib/utils/core";
 import {
   type HrmsPoolsListParams,
-  useAddPoolMemberMutation,
+  useAddPoolMembersBulkMutation,
   useCompaniesByResellerQuery,
   useCompaniesSetupResellersQuery,
   useCreatePoolMutation,
@@ -65,6 +65,7 @@ import {
   canPoolMemberList,
   canPoolMemberMove,
   canPoolMemberRemove,
+  hasPoolPage,
 } from "@/lib/permissions";
 
 const PAGE_LIMIT = 8;
@@ -86,11 +87,11 @@ export function PoolsPageView({ mode }: PoolsPageViewProps) {
   const canCreatePool = canPoolAction(hasOperational, "create");
   const canUpdatePool = canPoolAction(hasOperational, "update");
   const canDeletePool = canPoolAction(hasOperational, "delete");
-  const hasHrmsPage = hasPage("page:hrms");
-  const canListPoolMembers = hasHrmsPage && canPoolMemberList(hasOperational);
-  const canAddPoolMember = hasHrmsPage && canPoolMemberAdd(hasOperational);
-  const canMovePoolMember = hasHrmsPage && canPoolMemberMove(hasOperational);
-  const canRemovePoolMember = hasHrmsPage && canPoolMemberRemove(hasOperational);
+  const hasPoolPageAccess = hasPoolPage(hasPage);
+  const canListPoolMembers = hasPoolPageAccess && canPoolMemberList(hasOperational);
+  const canAddPoolMember = hasPoolPageAccess && canPoolMemberAdd(hasOperational);
+  const canMovePoolMember = hasPoolPageAccess && canPoolMemberMove(hasOperational);
+  const canRemovePoolMember = hasPoolPageAccess && canPoolMemberRemove(hasOperational);
 
   const [filterDeptKind, setFilterDeptKind] = useState<"Internal" | "External">("Internal");
   const effectiveFilterDeptKind: "Internal" | "External" = mayPickInternalDeptType ? filterDeptKind : "External";
@@ -117,7 +118,7 @@ export function PoolsPageView({ mode }: PoolsPageViewProps) {
   const [hubParentCompanyId, setHubParentCompanyId] = useState("");
   const [hubDepartmentId, setHubDepartmentId] = useState("");
   const [hubPoolId, setHubPoolId] = useState("");
-  const [hubUserId, setHubUserId] = useState("");
+  const [hubUserIds, setHubUserIds] = useState<string[]>([]);
   const [hubUserSearchInput, setHubUserSearchInput] = useState("");
   const [hubUserSearchApplied, setHubUserSearchApplied] = useState("");
 
@@ -324,7 +325,7 @@ export function PoolsPageView({ mode }: PoolsPageViewProps) {
   const createMutation = useCreatePoolMutation();
   const updateMutation = useUpdatePoolMutation();
   const deleteMutation = useDeletePoolMutation();
-  const addPoolMemberMutation = useAddPoolMemberMutation();
+  const addPoolMembersBulkMutation = useAddPoolMembersBulkMutation();
 
   const addMemberHubQueriesActive = isMembersHub && canAddPoolMember && hubAddOpen;
 
@@ -363,6 +364,10 @@ export function PoolsPageView({ mode }: PoolsPageViewProps) {
   );
 
   /** Department narrows list when set; without it we still load all internal users (same idea as pool-heads assign). */
+  const hubExcludePoolHeadParams = hubPoolId.trim()
+    ? { excludePoolHeadOfPoolId: hubPoolId.trim() }
+    : {};
+
   const hubInternalUsersQuery = useUsersListQuery(
     addMemberHubQueriesActive && hubDeptKind === "Internal"
       ? {
@@ -370,6 +375,7 @@ export function PoolsPageView({ mode }: PoolsPageViewProps) {
           userType: "Internal",
           unassignedPoolOnly: true,
           ...(hubDepartmentId.trim() ? { departmentId: hubDepartmentId.trim() } : {}),
+          ...hubExcludePoolHeadParams,
         }
       : undefined,
     { enabled: addMemberHubQueriesActive && hubDeptKind === "Internal" },
@@ -386,6 +392,7 @@ export function PoolsPageView({ mode }: PoolsPageViewProps) {
           unassignedPoolOnly: true,
           parentCompanyId: hubParentCompanyId.trim(),
           ...(hubDepartmentId.trim() ? { departmentId: hubDepartmentId.trim() } : {}),
+          ...hubExcludePoolHeadParams,
         }
       : undefined,
     {
@@ -594,9 +601,9 @@ export function PoolsPageView({ mode }: PoolsPageViewProps) {
     hubDeptKind === "Internal" ? hubInternalUsersQuery.isError : hubExternalUsersQuery.isError;
 
   useEffect(() => {
-    if (!hubUserId.trim()) return;
-    if (!hubFilteredUserRows.some((r) => r.id === hubUserId)) setHubUserId("");
-  }, [hubFilteredUserRows, hubUserId]);
+    const visible = new Set(hubFilteredUserRows.map((r) => r.id));
+    setHubUserIds((prev) => prev.filter((id) => visible.has(id)));
+  }, [hubFilteredUserRows]);
 
   const resetHubAddMemberForm = () => {
     setHubDeptKind(mayPickInternalDeptType ? "Internal" : "External");
@@ -604,27 +611,43 @@ export function PoolsPageView({ mode }: PoolsPageViewProps) {
     setHubParentCompanyId("");
     setHubDepartmentId("");
     setHubPoolId("");
-    setHubUserId("");
+    setHubUserIds([]);
     setHubUserSearchInput("");
     setHubUserSearchApplied("");
   };
 
+  const toggleHubUserSelection = useCallback((userId: string) => {
+    setHubUserIds((prev) =>
+      prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId],
+    );
+  }, []);
+
   const handleHubAddMemberSave = () => {
     const pid = hubPoolId.trim();
-    const uid = hubUserId.trim();
-    if (!pid || !uid) {
-      publishAppToast({ variant: "error", message: "Select both pool and user." });
+    const ids = hubUserIds.map((id) => id.trim()).filter(Boolean);
+    if (!pid) {
+      publishAppToast({ variant: "error", message: "Select a pool." });
       return;
     }
-    addPoolMemberMutation.mutate(
-      { poolId: pid, userId: uid },
+    if (ids.length === 0) {
+      publishAppToast({ variant: "error", message: "Select at least one user." });
+      return;
+    }
+    addPoolMembersBulkMutation.mutate(
+      { poolId: pid, userIds: ids },
       {
         onSuccess: () => {
-          publishAppToast({ variant: "success", message: "Member added to pool." });
+          publishAppToast({
+            variant: "success",
+            message:
+              ids.length === 1
+                ? "Member added to pool."
+                : `${ids.length} members added to pool.`,
+          });
           setHubAddOpen(false);
           resetHubAddMemberForm();
         },
-        onError: () => publishAppToast({ variant: "error", message: "Could not add member." }),
+        onError: () => publishAppToast({ variant: "error", message: "Could not add members." }),
       },
     );
   };
@@ -682,7 +705,7 @@ export function PoolsPageView({ mode }: PoolsPageViewProps) {
           <Button
             variant="primary"
             sx={gradientPrimaryButtonSx}
-            disabled={addPoolMemberMutation.isPending}
+            disabled={addPoolMembersBulkMutation.isPending}
             onClick={() => {
               resetHubAddMemberForm();
               setHubAddOpen(true);
@@ -840,17 +863,25 @@ export function PoolsPageView({ mode }: PoolsPageViewProps) {
           title="Add pool member"
           description={
             mayPickInternalDeptType
-              ? "Choose the target pool, pick one user from the list, then confirm. Internal users load by default; external flows need reseller and parent company first."
-              : "Choose the target pool (external departments), pick one user from the list, then confirm. Select reseller and parent company first to load users."
+              ? "Choose the target pool, select one or more users, then confirm. Pool heads are excluded. Internal users load by default; external flows need reseller and parent company first."
+              : "Choose the target pool, select one or more users, then confirm. Pool heads are excluded. Select reseller and parent company first to load users."
           }
           onClose={() => {
-            if (addPoolMemberMutation.isPending) return;
+            if (addPoolMembersBulkMutation.isPending) return;
             setHubAddOpen(false);
             resetHubAddMemberForm();
           }}
           onSave={handleHubAddMemberSave}
-          primaryButtonLabel={addPoolMemberMutation.isPending ? "Adding…" : "Add to pool"}
-          primaryButtonDisabled={addPoolMemberMutation.isPending || !hubPoolId.trim() || !hubUserId.trim()}
+          primaryButtonLabel={
+            addPoolMembersBulkMutation.isPending
+              ? "Adding…"
+              : hubUserIds.length > 1
+                ? `Add ${hubUserIds.length} to pool`
+                : "Add to pool"
+          }
+          primaryButtonDisabled={
+            addPoolMembersBulkMutation.isPending || !hubPoolId.trim() || hubUserIds.length === 0
+          }
           cancelButtonLabel="Cancel"
           maxWidth={760}
           fitContent
@@ -860,7 +891,7 @@ export function PoolsPageView({ mode }: PoolsPageViewProps) {
               <Button
                 variant="outlined"
                 size="small"
-                disabled={addPoolMemberMutation.isPending}
+                disabled={addPoolMembersBulkMutation.isPending}
                 onClick={resetHubAddMemberForm}
                 sx={{
                   minWidth: 0,
@@ -912,7 +943,7 @@ export function PoolsPageView({ mode }: PoolsPageViewProps) {
                     setHubParentCompanyId("");
                     setHubDepartmentId("");
                     setHubPoolId("");
-                    setHubUserId("");
+                    setHubUserIds([]);
                     setHubUserSearchInput("");
                     setHubUserSearchApplied("");
                   }}
@@ -937,7 +968,7 @@ export function PoolsPageView({ mode }: PoolsPageViewProps) {
                         setHubParentCompanyId("");
                         setHubDepartmentId("");
                         setHubPoolId("");
-                        setHubUserId("");
+                        setHubUserIds([]);
                         setHubUserSearchApplied("");
                       }}
                       options={resellerOptions}
@@ -950,7 +981,7 @@ export function PoolsPageView({ mode }: PoolsPageViewProps) {
                         setHubParentCompanyId(v);
                         setHubDepartmentId("");
                         setHubPoolId("");
-                        setHubUserId("");
+                        setHubUserIds([]);
                         setHubUserSearchApplied("");
                       }}
                       options={hubModalParentCompanyOptions}
@@ -966,7 +997,7 @@ export function PoolsPageView({ mode }: PoolsPageViewProps) {
                   onChange={(v) => {
                     setHubDepartmentId(v);
                     setHubPoolId("");
-                    setHubUserId("");
+                    setHubUserIds([]);
                     setHubUserSearchApplied("");
                   }}
                   options={hubDepartmentOptions}
@@ -977,7 +1008,10 @@ export function PoolsPageView({ mode }: PoolsPageViewProps) {
                 <SelectField
                   label="Pool"
                   value={hubPoolId}
-                  onChange={setHubPoolId}
+                  onChange={(v) => {
+                    setHubPoolId(v);
+                    setHubUserIds([]);
+                  }}
                   options={hubAddPoolOptions}
                   menuMaxRows={12}
                   disabled={!hubDepartmentId.trim()}
@@ -1013,7 +1047,7 @@ export function PoolsPageView({ mode }: PoolsPageViewProps) {
                     User
                   </Typography>
                   <Typography variant="body2" sx={{ mt: 1, color: theme.app.text.secondary, maxWidth: 560 }}>
-                    Click a row to select one person. Search narrows the list.
+                    Click rows to select one or more people. Pool heads are not listed. Search narrows the list.
                   </Typography>
                 </Box>
                 {hubUserSourceRows.length > 0 && !hubUsersLoading ? (
@@ -1046,7 +1080,7 @@ export function PoolsPageView({ mode }: PoolsPageViewProps) {
                   disabled={hubUsersLoading}
                   onClick={() => {
                     setHubUserSearchApplied(hubUserSearchInput);
-                    setHubUserId("");
+                    setHubUserIds([]);
                   }}
                 >
                   Search
@@ -1151,13 +1185,13 @@ export function PoolsPageView({ mode }: PoolsPageViewProps) {
                     </TableHead>
                     <TableBody>
                       {hubFilteredUserRows.map((row) => {
-                        const checked = hubUserId === row.id;
+                        const checked = hubUserIds.includes(row.id);
                         return (
                           <TableRow
                             key={row.id}
                             hover
                             selected={checked}
-                            onClick={() => setHubUserId(checked ? "" : row.id)}
+                            onClick={() => toggleHubUserSelection(row.id)}
                             sx={{
                               cursor: "pointer",
                               "& td": { fontSize: 13, py: 0.85 },

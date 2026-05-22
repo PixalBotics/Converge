@@ -21,6 +21,8 @@ import type {
   AgentWrapUpPayload,
   SubmitAgentWrapUpBody,
 } from "@/services/chat/wrap-up.types";
+import { useAuth } from "@/lib/auth";
+import { canWidgetSettingsFromArrays } from "@/lib/permissions/chat-access";
 import { DEFAULT_CHAT_OPERATIONS, mergeChatOperationsJson } from "@/services/chat/chat-settings.defaults";
 import { fetchWebsiteChatSettings } from "@/services/chat/chat-settings.api";
 
@@ -41,6 +43,12 @@ interface AgentWrapUpModalProps {
 
 export function AgentWrapUpModal({ open, payload, onClose, onSubmitted }: AgentWrapUpModalProps) {
   const theme = useTheme() as AppTheme;
+  const { pagePermissions, operationalPermissions, isPlatformAdmin } = useAuth();
+  const canLoadWidgetSettings = canWidgetSettingsFromArrays({
+    page: pagePermissions,
+    operational: operationalPermissions,
+    isPlatformAdmin,
+  });
   const [disposition, setDisposition] = useState<AgentWrapUpDisposition>("resolved");
   const [agentNotes, setAgentNotes] = useState("");
   const [outcomeTag, setOutcomeTag] = useState("");
@@ -58,6 +66,16 @@ export function AgentWrapUpModal({ open, payload, onClose, onSubmitted }: AgentW
   useEffect(() => {
     if (!open || !payload?.websiteId) return;
     let cancelled = false;
+    const applyCsatFromOps = (ops: ReturnType<typeof mergeChatOperationsJson>) => {
+      const csat = (ops.csat ?? {}) as Record<string, unknown>;
+      setCsatEnabled(Boolean(csat.enabled));
+      setCsatRequired(Boolean(csat.required));
+      setCsatScaleMax(typeof csat.scaleMax === "number" && csat.scaleMax > 0 ? csat.scaleMax : 5);
+    };
+    if (!canLoadWidgetSettings) {
+      applyCsatFromOps(DEFAULT_CHAT_OPERATIONS);
+      return;
+    }
     void (async () => {
       try {
         const bundle = await fetchWebsiteChatSettings(payload.websiteId!);
@@ -65,25 +83,15 @@ export function AgentWrapUpModal({ open, payload, onClose, onSubmitted }: AgentW
           DEFAULT_CHAT_OPERATIONS,
           bundle.settings?.operationsJson ?? DEFAULT_CHAT_OPERATIONS,
         );
-        const csat = (ops.csat ?? {}) as Record<string, unknown>;
-        if (!cancelled) {
-          setCsatEnabled(Boolean(csat.enabled));
-          setCsatRequired(Boolean(csat.required));
-          setCsatScaleMax(
-            typeof csat.scaleMax === "number" && csat.scaleMax > 0 ? csat.scaleMax : 5,
-          );
-        }
+        if (!cancelled) applyCsatFromOps(ops);
       } catch {
-        if (!cancelled) {
-          setCsatEnabled(false);
-          setCsatRequired(false);
-        }
+        if (!cancelled) applyCsatFromOps(DEFAULT_CHAT_OPERATIONS);
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [open, payload?.websiteId]);
+  }, [canLoadWidgetSettings, open, payload?.websiteId]);
 
   useEffect(() => {
     if (!open) {
