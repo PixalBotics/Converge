@@ -1,7 +1,9 @@
 "use client";
 
+import Box from "@mui/material/Box";
+import Chip from "@mui/material/Chip";
 import type { EmailProvider } from "../../types";
-import { PROVIDER_CODE_LABELS } from "../../email.constants";
+import { EMAIL_RECOMMENDED_PROVIDER_CODE, PROVIDER_CODE_LABELS } from "../../email.constants";
 import {
   EmailConfigProviderCard,
   EmailConfigProviderGrid,
@@ -48,9 +50,19 @@ export function ConfigurationProviderCards({
               aria-checked={selected}
               onClick={() => onSelect(provider)}
             >
-              <Typography variant="medium" fontWeight={600} sx={{ color: theme.app.text.primary }}>
-                {provider.name}
-              </Typography>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
+                <Typography variant="medium" fontWeight={600} sx={{ color: theme.app.text.primary }}>
+                  {provider.name}
+                </Typography>
+                {provider.code === EMAIL_RECOMMENDED_PROVIDER_CODE ? (
+                  <Chip
+                    label="Recommended"
+                    size="small"
+                    color="primary"
+                    sx={{ height: 20, fontSize: 10, fontWeight: 700 }}
+                  />
+                ) : null}
+              </Box>
               <Typography
                 variant="small"
                 sx={{

@@ -8,7 +8,7 @@ import { extractApiErrorMessageForToast, publishAppToast } from "@/lib/notify";
 import { useAuth } from "@/lib/auth";
 import { OP } from "@/lib/permissions/operational-keys";
 import { MailConnectionForm } from "./MailConnectionForm";
-import type { EmailTestFeedback } from "./SmtpTestPanel";
+import { EmailConnectionTestSection } from "./EmailConnectionTestSection";
 import { useOwnMailProviderForm } from "../hooks/useOwnMailProviderForm";
 import {
   useDeletePlatformEmailSettingsMutation,
@@ -18,7 +18,7 @@ import {
 } from "../hooks/useEmailSettings";
 import { EmailDeleteConfirmModal } from "./EmailDeleteConfirmModal";
 import { EmailModalDangerZone } from "./EmailModalDangerZone";
-import { extractEmailTestErrorMessage, readTestMessage } from "../utils/email-test.utils";
+import { readTestMessage } from "../utils/email-test.utils";
 
 export function PlatformMailConfigModal({
   open,
@@ -36,15 +36,6 @@ export function PlatformMailConfigModal({
   const canDelete = hasOperational(OP.smtpEmail.delete);
 
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
-  const [liveFeedback, setLiveFeedback] = useState<EmailTestFeedback | null>(null);
-  const [testFieldError, setTestFieldError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (open) {
-      setLiveFeedback(null);
-      setTestFieldError(null);
-    }
-  }, [open]);
 
   const settingsQuery = usePlatformEmailSettingsQuery({ enabled: open && canView });
   const updateMutation = useUpdatePlatformEmailSettingsMutation();
@@ -59,23 +50,12 @@ export function PlatformMailConfigModal({
       onSaved?.();
     },
     onTest: async (body) => {
-      setTestFieldError(null);
-      try {
-        const result = await testMutation.mutateAsync(body);
-        const message =
-          readTestMessage(result.message) ??
-          (result.success ? "Test email sent successfully." : "Test email failed.");
-        setLiveFeedback({ success: result.success, message });
-        onSaved?.();
-        return result;
-      } catch (err) {
-        const message = extractEmailTestErrorMessage(err);
-        setLiveFeedback({ success: false, message });
-        if (message.toLowerCase().includes("toemail")) {
-          setTestFieldError(message.replace(/^toEmail:\s*/i, ""));
-        }
-        return { success: false, message };
-      }
+      const result = await testMutation.mutateAsync(body);
+      const message =
+        readTestMessage(result.message) ??
+        (result.success ? "Test email sent successfully." : "Test email failed.");
+      onSaved?.();
+      return { success: result.success, message };
     },
   });
 
@@ -96,18 +76,20 @@ export function PlatformMailConfigModal({
 
   const hasConfig = Boolean(settingsQuery.data?.emailProviderId);
   const settings = settingsQuery.data;
+  const testReady = form.savedOnce && form.isEnabled && hasConfig;
+  const testDisabled = !canTest || !testReady || updateMutation.isPending;
 
   return (
     <>
       <FormModal
         open={open}
         title="Platform email configuration"
-        description="SMTP or API used as the platform default. Resellers on “Use platform mail” inherit this connection unless they override the from address."
+        description="Default outbound mail for the platform and for resellers assigned to platform mail."
         onClose={onClose}
         onSave={() => {
           if (canUpdate) void form.handleSave();
         }}
-        primaryButtonLabel={updateMutation.isPending ? "Saving…" : "Save changes"}
+        primaryButtonLabel={updateMutation.isPending ? "Saving…" : "Save configuration"}
         primaryButtonDisabled={updateMutation.isPending || !canUpdate}
         maxWidth={760}
         fitContent
@@ -117,18 +99,11 @@ export function PlatformMailConfigModal({
         {settingsQuery.isLoading ? (
           <Skeleton variant="rounded" height={320} />
         ) : (
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 0 }}>
             <MailConnectionForm
               form={form}
               disabled={!canUpdate}
               existingFields={settings?.fields}
-              canTest={canTest}
-              testing={testMutation.isPending}
-              lastTestStatus={settings?.lastTestStatus}
-              lastTestedAt={settings?.lastTestedAt}
-              lastTestMessage={settings?.lastTestMessage}
-              liveFeedback={liveFeedback}
-              fieldError={testFieldError}
               showAudit
               audit={{
                 updatedBy: settings?.updatedBy,
@@ -137,14 +112,36 @@ export function PlatformMailConfigModal({
               }}
             />
 
-            {canDelete && hasConfig ? (
-              <EmailModalDangerZone
-                title="Remove platform configuration"
-                description="Resellers on platform mail will not be able to send until you configure platform email again."
-                buttonLabel="Remove configuration"
-                onRemove={() => setDeleteConfirmOpen(true)}
-                removing={deleteMutation.isPending}
+            {hasConfig ? (
+              <EmailConnectionTestSection
+                ready={testReady}
+                disabled={testDisabled}
+                testing={testMutation.isPending}
+                lastTestStatus={settings?.lastTestStatus}
+                lastTestedAt={settings?.lastTestedAt}
+                lastTestMessage={settings?.lastTestMessage}
+                onTest={async (toEmail) => {
+                  const result = await form.handleTest({ toEmail });
+                  return {
+                    success: result.success,
+                    message:
+                      readTestMessage(result.message) ??
+                      (result.success ? "Test email sent." : "Test failed."),
+                  };
+                }}
               />
+            ) : null}
+
+            {canDelete && hasConfig ? (
+              <Box sx={{ mt: 2 }}>
+                <EmailModalDangerZone
+                  title="Remove platform configuration"
+                  description="Resellers on platform mail cannot send until platform email is configured again."
+                  buttonLabel="Remove configuration"
+                  onRemove={() => setDeleteConfirmOpen(true)}
+                  removing={deleteMutation.isPending}
+                />
+              </Box>
             ) : null}
           </Box>
         )}

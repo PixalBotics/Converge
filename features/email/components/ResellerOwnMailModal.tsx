@@ -10,7 +10,7 @@ import { useAuth } from "@/lib/auth";
 import { OP } from "@/lib/permissions/operational-keys";
 import { ConfigurationResellerSelect } from "./configuration/ConfigurationResellerSelect";
 import { MailConnectionForm } from "./MailConnectionForm";
-import { EmailQuickTestPanel } from "./EmailQuickTestPanel";
+import { EmailConnectionTestSection } from "./EmailConnectionTestSection";
 import { useOwnMailProviderForm } from "../hooks/useOwnMailProviderForm";
 import {
   useDeleteResellerOwnMailMutation,
@@ -22,7 +22,7 @@ import { resellerOwnMailErrorMessage } from "../utils/reseller-mail-errors";
 import { EmailDeleteConfirmModal } from "./EmailDeleteConfirmModal";
 import { EmailLockedResellerBanner } from "./EmailLockedResellerBanner";
 import { EmailModalDangerZone } from "./EmailModalDangerZone";
-import { extractEmailTestErrorMessage, readTestMessage } from "../utils/email-test.utils";
+import { readTestMessage } from "../utils/email-test.utils";
 
 export function ResellerOwnMailModal({
   open,
@@ -99,20 +99,21 @@ export function ResellerOwnMailModal({
   };
 
   const hasConfig = Boolean(settingsQuery.data?.emailProviderId);
-  const lockedLabel = resellerLabel?.trim() || activeId;
-  const testDisabled = !canTest || !hasConfig || !form.isEnabled || updateMutation.isPending;
+  const settings = settingsQuery.data;
+  const testReady = form.savedOnce && form.isEnabled && hasConfig;
+  const testDisabled = !canTest || !testReady || updateMutation.isPending;
 
   return (
     <>
       <FormModal
         open={open}
         title={title}
-        description="SMTP or API credentials for this reseller. Does not include platform mail assignment."
+        description="This reseller’s own SMTP or API credentials. Parent-company mail uses this when not on platform mail."
         onClose={onClose}
         onSave={() => {
           if (canUpdate) void form.handleSave();
         }}
-        primaryButtonLabel={updateMutation.isPending ? "Saving…" : "Save settings"}
+        primaryButtonLabel={updateMutation.isPending ? "Saving…" : "Save configuration"}
         primaryButtonDisabled={updateMutation.isPending || !activeId || !canUpdate}
         maxWidth={760}
         fitContent
@@ -120,7 +121,7 @@ export function ResellerOwnMailModal({
         cancelButtonLabel={hasConfig ? "Close" : "Cancel"}
       >
         {lockedResellerId ? (
-          <EmailLockedResellerBanner label={lockedLabel} />
+          <EmailLockedResellerBanner label={resellerLabel?.trim() || activeId} />
         ) : (
           <ConfigurationResellerSelect
             value={resellerId}
@@ -140,49 +141,42 @@ export function ResellerOwnMailModal({
             {loadErrorMessage}
           </Alert>
         ) : (
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 0.5 }}>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 0, mt: 0.5 }}>
             <MailConnectionForm
               form={form}
               disabled={!canUpdate}
-              existingFields={settingsQuery.data?.fields}
-              showTestStep={false}
+              existingFields={settings?.fields}
             />
 
-            {hasConfig && form.savedOnce ? (
-              <EmailQuickTestPanel
-                disabled={testDisabled || !canUpdate}
+            {hasConfig ? (
+              <EmailConnectionTestSection
+                ready={testReady}
+                disabled={testDisabled}
                 testing={testMutation.isPending}
+                lastTestStatus={settings?.lastTestStatus}
+                lastTestedAt={settings?.lastTestedAt}
+                lastTestMessage={settings?.lastTestMessage}
                 onTest={async (toEmail) => {
-                  try {
-                    const result = await testMutation.mutateAsync({ toEmail });
-                    const message =
-                      readTestMessage(result.message) ??
-                      (result.success ? "Test email sent successfully." : "Test email failed.");
-                    publishAppToast({
-                      variant: result.success ? "success" : "error",
-                      message,
-                    });
-                    onSaved?.();
-                    return { success: result.success, message };
-                  } catch (err) {
-                    const message = extractEmailTestErrorMessage(err);
-                    publishAppToast({ variant: "error", message });
-                    return { success: false, message };
-                  }
+                  const result = await form.handleTest({ toEmail });
+                  const message =
+                    readTestMessage(result.message) ??
+                    (result.success ? "Test email sent successfully." : "Test email failed.");
+                  if (result.success) onSaved?.();
+                  return { success: result.success, message };
                 }}
               />
-            ) : hasConfig ? (
-              <TypographyMuted>Save settings once to send a test email.</TypographyMuted>
             ) : null}
 
             {canDelete && hasConfig ? (
-              <EmailModalDangerZone
-                title="Remove reseller mail"
-                description="This reseller will no longer send with their own SMTP/API until configured again."
-                buttonLabel="Remove own mail settings"
-                onRemove={() => setDeleteConfirmOpen(true)}
-                removing={deleteMutation.isPending}
-              />
+              <Box sx={{ mt: 2 }}>
+                <EmailModalDangerZone
+                  title="Remove reseller mail"
+                  description="This reseller will not send with their own credentials until configured again."
+                  buttonLabel="Remove own mail settings"
+                  onRemove={() => setDeleteConfirmOpen(true)}
+                  removing={deleteMutation.isPending}
+                />
+              </Box>
             ) : null}
           </Box>
         )}
@@ -192,8 +186,8 @@ export function ResellerOwnMailModal({
         open={deleteConfirmOpen}
         title="Remove reseller mail settings?"
         description={
-          lockedLabel
-            ? `SMTP/API settings for "${lockedLabel}" will be deleted.`
+          resellerLabel?.trim()
+            ? `SMTP/API settings for "${resellerLabel.trim()}" will be deleted.`
             : "SMTP/API settings for this reseller will be deleted."
         }
         confirmLabel="Remove settings"
@@ -202,13 +196,5 @@ export function ResellerOwnMailModal({
         isLoading={deleteMutation.isPending}
       />
     </>
-  );
-}
-
-function TypographyMuted({ children }: { children: React.ReactNode }) {
-  return (
-    <Box component="span" sx={{ fontSize: 13, color: "rgba(255,255,255,0.6)" }}>
-      {children}
-    </Box>
   );
 }

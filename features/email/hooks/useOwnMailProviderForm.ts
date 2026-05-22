@@ -143,24 +143,18 @@ export function useOwnMailProviderForm({
     onSave,
   ]);
 
-  const handleTest = useCallback(async () => {
-    const validationError = validateTestToEmail(testToEmail);
+  const handleTest = useCallback(async (opts?: { toEmail?: string }) => {
+    const recipient = opts?.toEmail ?? testToEmail;
+    const validationError = validateTestToEmail(recipient);
     if (validationError) {
       publishAppToast({ variant: "error", message: validationError });
       throw new Error(validationError);
     }
     try {
-      const result = await onTest({ toEmail: testToEmail.trim() || undefined });
-      const msg = result?.message?.trim() || (result?.success ? "Test email sent." : "Test failed.");
-      publishAppToast({
-        variant: result?.success ? "success" : "error",
-        message: msg,
-      });
-      return result;
+      return await onTest({ toEmail: recipient.trim() || undefined });
     } catch (err) {
       const message = extractEmailTestErrorMessage(err);
-      publishAppToast({ variant: "error", message });
-      throw err;
+      return { success: false, message };
     }
   }, [onTest, testToEmail]);
 
@@ -187,6 +181,6 @@ export function useOwnMailProviderForm({
     handleSave,
     handleTest,
     savedOnce,
-    showGmailTip: selectedProvider?.code === "smtp",
+    showGmailTip: selectedProvider?.code === "custom_smtp",
   };
 }

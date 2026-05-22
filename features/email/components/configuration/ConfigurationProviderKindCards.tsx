@@ -14,8 +14,8 @@ import type { AppTheme } from "@/theme/theme";
 import { iconGlyphSx } from "@/lib/design-system";
 
 const KIND_HINTS: Record<EmailProviderKind, string> = {
-  api: "SendGrid, Mailgun, and similar API keys",
-  smtp: "Gmail, Microsoft 365, or custom mail server",
+  api: "SendGrid, Resend, or Mailgun — API key only",
+  smtp: "Microsoft 365, Gmail, or your mail server",
 };
 
 export function ConfigurationProviderKindCards({

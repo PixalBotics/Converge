@@ -3,12 +3,13 @@
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Switch from "@mui/material/Switch";
 import Chip from "@mui/material/Chip";
+import Skeleton from "@mui/material/Skeleton";
 import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import type { MailProviderSettings } from "../types";
 import { InputField, Typography } from "@/components/common";
 import { OwnMailProviderForm } from "./own-mail/OwnMailProviderForm";
-import { SmtpTestPanel } from "./SmtpTestPanel";
+import { DynamicSmtpFieldsForm } from "./DynamicSmtpFieldsForm";
 import { AuditMeta } from "./AuditMeta";
 import { EmailFormStepBlock } from "./EmailFormStepBlock";
 import type { useOwnMailProviderForm } from "../hooks/useOwnMailProviderForm";
@@ -26,14 +27,6 @@ export function MailConnectionForm({
   disabled,
   showAudit,
   audit,
-  canTest,
-  testing,
-  lastTestStatus,
-  lastTestedAt,
-  lastTestMessage,
-  liveFeedback,
-  fieldError,
-  showTestStep = true,
 }: {
   form: MailFormState;
   existingFields?: MailProviderSettings["fields"];
@@ -44,34 +37,48 @@ export function MailConnectionForm({
     updatedAt?: string | null;
     lastTestedBy?: string | null;
   };
-  canTest?: boolean;
-  testing?: boolean;
-  lastTestStatus?: "success" | "failed" | null;
-  lastTestedAt?: string | null;
-  lastTestMessage?: string | null;
-  liveFeedback?: import("./SmtpTestPanel").EmailTestFeedback | null;
-  fieldError?: string | null;
-  /** Reseller modal: hide step 3; use EmailQuickTestPanel instead. */
-  showTestStep?: boolean;
 }) {
   const theme = useTheme() as AppTheme;
-  const testDisabled = disabled || !canTest || !form.savedOnce || !form.isEnabled;
 
   return (
     <EmailFormStepsStack>
       <EmailFormStepBlock
         step={1}
-        title="Choose email provider"
-        description="Pick SMTP for mailbox servers or API for services like SendGrid or Mailgun."
+        title="Delivery method"
+        description="SendGrid API is recommended. Use SMTP for Microsoft 365 or a custom mail server."
       >
-        <OwnMailProviderForm form={form} disabled={disabled} existingFields={existingFields} />
+        <OwnMailProviderForm form={form} disabled={disabled} />
       </EmailFormStepBlock>
 
       {form.providerId ? (
         <EmailFormStepBlock
           step={2}
-          title="Sender details"
-          description="This name and address appear in the From field of outgoing emails."
+          title="Connection credentials"
+          description="Secrets are encrypted. Leave password or API key blank to keep the saved value."
+        >
+          {form.schemaQuery.isLoading ? (
+            <Skeleton variant="rounded" height={120} />
+          ) : form.schemaQuery.data ? (
+            <DynamicSmtpFieldsForm
+              fields={form.schemaQuery.data.fields}
+              schema={form.schemaQuery.data}
+              values={form.fieldValues}
+              existingFields={existingFields}
+              onChange={(key, value) => {
+                form.setFieldValues((prev) => ({ ...prev, [key]: value }));
+              }}
+              disabled={disabled}
+              showGmailTip={form.showGmailTip}
+            />
+          ) : null}
+        </EmailFormStepBlock>
+      ) : null}
+
+      {form.providerId ? (
+        <EmailFormStepBlock
+          step={3}
+          title="Sender identity"
+          description="The From name and address recipients see on outgoing mail."
         >
           <EmailConfigFormGrid2>
             <InputField
@@ -110,36 +117,12 @@ export function MailConnectionForm({
         </EmailFormStepBlock>
       ) : null}
 
-      {showTestStep && form.providerId && form.savedOnce ? (
-        <EmailFormStepBlock
-          step={3}
-          title="Test your setup"
-          description="Send a test message to confirm credentials work before going live."
-        >
-          <SmtpTestPanel
-            toEmail={form.testToEmail}
-            onToEmailChange={form.setTestToEmail}
-            onTest={form.handleTest}
-            testing={testing}
-            disabled={testDisabled}
-            lastTestStatus={lastTestStatus}
-            lastTestedAt={lastTestedAt}
-            lastTestMessage={lastTestMessage}
-            liveFeedback={liveFeedback}
-            fieldError={fieldError}
-          />
-          {showAudit && audit ? (
-            <AuditMeta
-              updatedBy={audit.updatedBy}
-              updatedAt={audit.updatedAt}
-              lastTestedBy={audit.lastTestedBy}
-            />
-          ) : null}
-        </EmailFormStepBlock>
-      ) : showTestStep && form.providerId ? (
-        <Typography variant="small" sx={{ color: theme.app.dashboard.textMuted, pl: { md: 5.25 } }}>
-          Save once to unlock the test email option.
-        </Typography>
+      {showAudit && audit ? (
+        <AuditMeta
+          updatedBy={audit.updatedBy}
+          updatedAt={audit.updatedAt}
+          lastTestedBy={audit.lastTestedBy}
+        />
       ) : null}
     </EmailFormStepsStack>
   );
@@ -162,7 +145,7 @@ function BoxCopy({
       <Typography variant="small" sx={{ color: theme.app.dashboard.textMuted, display: "block", mt: 0.25 }}>
         {enabled
           ? "Outgoing email is active for this configuration."
-          : "Turn on when you are ready to send mail."}
+          : "Turn on when credentials are saved and tested."}
       </Typography>
       {savedOnce ? (
         <Chip

@@ -18,6 +18,7 @@ import type {
 } from "../types/email.types";
 import { buildEmailTestRequestBody } from "./build-email-test-body";
 import { unwrapApiData } from "./unwrap-api-data";
+import { normalizeEmailTestResult } from "./normalize-email-test-result";
 import { normalizeMailProviderSettings } from "./normalize-mail-settings";
 import {
   normalizePlatformMailAssignment,
@@ -51,7 +52,7 @@ export async function testPlatformEmailSettings(body: EmailTestBody = {}): Promi
     "/platform/email-settings/test",
     buildEmailTestRequestBody(body.toEmail),
   );
-  return unwrapApiData<EmailTestResult>(data);
+  return normalizeEmailTestResult(unwrapApiData<unknown>(data));
 }
 
 export async function deletePlatformEmailSettings(): Promise<void> {
@@ -90,7 +91,7 @@ export async function testResellerOwnMailSettings(
     `/resellers/${encodeURIComponent(resellerId)}/email-settings/test`,
     buildEmailTestRequestBody(body.toEmail),
   );
-  return unwrapApiData<EmailTestResult>(data);
+  return normalizeEmailTestResult(unwrapApiData<unknown>(data));
 }
 
 export async function deleteResellerOwnMailSettings(resellerId: string): Promise<void> {

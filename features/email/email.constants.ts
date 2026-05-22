@@ -20,13 +20,16 @@ export function resellerOwnMailEditPath(resellerId: string): string {
   return `${EMAIL_ROUTES.resellerMail}?edit=${encodeURIComponent(resellerId.trim())}`;
 }
 
+export const EMAIL_RECOMMENDED_PROVIDER_CODE = "sendgrid_api";
+
 export const PROVIDER_CODE_LABELS: Record<string, string> = {
+  resend_api: "Resend",
+  sendgrid_api: "SendGrid",
   sendgrid: "SendGrid",
-  sendgrid_api: "SendGrid API",
-  sendgrid_smtp: "SendGrid SMTP",
+  mailgun_api: "Mailgun",
   microsoft365: "Microsoft 365",
+  custom_smtp: "Custom SMTP",
   smtp: "Custom SMTP",
-  mailgun: "Mailgun",
 };
 
 export const PROVIDER_KIND_LABELS: Record<string, string> = {
