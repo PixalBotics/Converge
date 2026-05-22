@@ -1,4 +1,4 @@
-import { isRecord } from "@/lib/utils/records";
+import { isRecord } from "@/lib/utils";
 import type { JsonRecord } from "@/api/types/common.types";
 
 const NESTED_SECTION_KEYS = ["ui", "behavior", "session", "form", "response"] as const;

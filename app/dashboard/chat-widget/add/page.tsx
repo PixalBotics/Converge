@@ -17,7 +17,7 @@ import {
 } from "@/app/dashboard/user-page/components/add-user-modal.utils";
 import { Button, Typography, SelectField } from "@/components/common";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
-import { WidgetFlowShell } from "@/components/dashboard/WidgetFlowShell";
+import { WidgetFlowShell } from "@/features/chat-widget";
 import {
   useCompaniesByResellerQuery,
   useCompaniesSetupResellersQuery,

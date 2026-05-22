@@ -13,7 +13,7 @@ import type { AppTheme } from "@/theme/theme";
 import { getWidgetEmbedSnippet } from "@/api/widgets/widgets.api";
 import { Button, Typography } from "@/components/common";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
-import { WidgetFlowShell } from "@/components/dashboard/WidgetFlowShell";
+import { WidgetFlowShell } from "@/features/chat-widget";
 import { LauncherPresetIcon } from "@/lib/chat-widget/launcherIcons";
 import { buildUnifiedWidgetEmbedScript, type WidgetDraft } from "@/lib/chat-widget/widgetDraft";
 import {

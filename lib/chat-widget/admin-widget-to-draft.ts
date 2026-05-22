@@ -1,9 +1,10 @@
-import { isRecord } from "@/lib/utils/records";
+import { isRecord } from "@/lib/utils";
 import type { JsonRecord } from "@/api/types/common.types";
 import { widgetResponseData } from "@/api/widgets/widgets.api";
 import type { WidgetDraft, WidgetInstallChatMode } from "./widgetDraft";
 import { defaultWidgetDraft } from "./widgetDraft";
 import { mapApiChatColorsToDraft, widgetChatColorsDraftToPatch } from "./widget-colors-draft";
+import { normalizeWidgetAiType, parseAiTypeFromConfigRoot } from "./widget-ai-type";
 
 function pickStr(obj: unknown, keys: string[]): string {
   if (!isRecord(obj)) return "";
@@ -152,6 +153,10 @@ export function mapAdminWidgetResponseToWidgetDraft(
     websiteId: websiteId || undefined,
     completed: false,
     chatMode: normalizeChatMode(chatModeRaw) ?? defaultWidgetDraft.chatMode,
+    aiType: parseAiTypeFromConfigRoot({
+      ...(config ?? {}),
+      ...(root as Record<string, unknown>),
+    }),
     allowedDomains: allowedDomains?.length ? allowedDomains : undefined,
     themeName: pickStr(theme ?? {}, ["name"]) || defaultWidgetDraft.themeName,
     themePrimaryColor: pickStr(theme ?? {}, ["primaryColor", "primary_color"]) || undefined,

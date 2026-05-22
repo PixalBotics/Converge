@@ -62,6 +62,20 @@ export const ROUTE_RULES: readonly RouteRule[] = [
   { permission: "page:shifts", href: "/dashboard/shifts", iconKey: "shifts", label: "Shifts", prefixMatch: true },
   { permission: "page:chat", href: "/dashboard/chat-operations", iconKey: "chat" },
   { permission: "page:chat-widget", href: "/dashboard/chat-widget", iconKey: "chatWidget", prefixMatch: true },
+  {
+    permission: "page:chat",
+    href: "/dashboard/ai-training/assistant",
+    iconKey: "aiTraining",
+    label: "AI Assistant",
+    prefixMatch: true,
+  },
+  {
+    permission: "page:chat-widget",
+    href: "/dashboard/ai-training/chatbot",
+    iconKey: "aiTraining",
+    label: "AI Chatbot",
+    prefixMatch: true,
+  },
   { permission: "page:crm-integration", href: "/dashboard/crm-integration", iconKey: "crmIntegration", prefixMatch: true },
   {
     permission: "page:distribution-setup",
@@ -186,6 +200,7 @@ const DASHBOARD_URL_SEGMENT_TO_PAGE: Readonly<Record<string, PagePermission>> = 
   shifts: "page:shifts",
   "chat-operations": "page:chat",
   "chat-widget": "page:chat-widget",
+  "ai-training": "page:chat-widget",
   "crm-integration": "page:crm-integration",
   "crm-integrator": "page:crm-integration",
   "distribution-setup": "page:distribution-setup",

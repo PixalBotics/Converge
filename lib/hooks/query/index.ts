@@ -55,4 +55,5 @@ export type {
 export { platformKeys } from "./platform";
 export { useGeneratePlatformLicenseKeyMutation, usePlatformLicenseKeysQuery } from "./platform";
 export { platformThemeKeys, usePlatformThemeMeQuery, useUpdatePlatformThemeMutation } from "./platform-theme";
+export * from "./ai-knowledge";
 export * from "./hrms";

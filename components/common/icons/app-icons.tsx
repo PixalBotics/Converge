@@ -38,6 +38,7 @@ import SearchOutlined from "@mui/icons-material/SearchOutlined";
 import SettingsOutlined from "@mui/icons-material/SettingsOutlined";
 import ShareOutlined from "@mui/icons-material/ShareOutlined";
 import ShieldOutlined from "@mui/icons-material/ShieldOutlined";
+import PsychologyOutlined from "@mui/icons-material/PsychologyOutlined";
 import SmartToyOutlined from "@mui/icons-material/SmartToyOutlined";
 import StorefrontOutlined from "@mui/icons-material/StorefrontOutlined";
 import VpnKeyOutlined from "@mui/icons-material/VpnKeyOutlined";
@@ -76,6 +77,7 @@ export const SIDEBAR_ICON_BY_KEY = {
   billing: ReceiptLongOutlined,
   chat: ChatBubbleOutlineRounded,
   chatWidget: WidgetsOutlined,
+  aiTraining: PsychologyOutlined,
   clients: BusinessOutlined,
   "Reseller-Management": StorefrontOutlined,
   crmIntegration: HubOutlined,

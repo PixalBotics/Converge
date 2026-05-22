@@ -6,6 +6,7 @@ import type {
 import { buildChatColorsFromWidgetDraft } from "./widget-colors-draft";
 import { CHAT_WIZARD_PATCH_DEFAULTS } from "./chat-wizard-patch-defaults";
 import type { TextUsFormFieldDraft, WidgetDraft } from "./widgetDraft";
+import { applyAiTypeToWidgetConfig } from "./widget-ai-type";
 
 export interface WidgetInstallationAssetUrls {
   buttonIconPublicUrl?: string;
@@ -291,6 +292,7 @@ export function buildChatWizardStep3Config(draft: WidgetDraft): JsonRecord {
     },
   };
   if (draft.allowedDomains?.length) config.allowedDomains = draft.allowedDomains;
+  applyAiTypeToWidgetConfig(config, draft);
   return config;
 }
 

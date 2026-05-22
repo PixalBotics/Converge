@@ -8,6 +8,8 @@ import {
   listWebsitesInScope,
 } from "@/api";
 import type { AssignWebsiteTierBody, JsonRecord } from "@/api";
+import { useAuth } from "@/lib/auth";
+import { buildWebsiteAssignmentsScopeParams } from "@/lib/companies/reseller-list-filter";
 import { websiteAssignmentsKeys } from "./keys";
 
 export type WebsiteAssignmentsWebsitesParams = {
@@ -28,9 +30,11 @@ export function useWebsiteAssignmentsWebsitesQuery(
   params?: WebsiteAssignmentsWebsitesParams,
   options?: { enabled?: boolean },
 ) {
+  const { user } = useAuth();
+  const scopedParams = buildWebsiteAssignmentsScopeParams(params, user);
   return useQuery({
-    queryKey: websiteAssignmentsKeys.websites(params),
-    queryFn: () => listWebsitesInScope(params),
+    queryKey: websiteAssignmentsKeys.websites(scopedParams),
+    queryFn: () => listWebsitesInScope(scopedParams),
     enabled: options?.enabled ?? true,
   });
 }

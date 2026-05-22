@@ -1,5 +1,8 @@
 "use client";
 
+import type { WidgetAiType } from "./widget-ai-type";
+import { normalizeWidgetAiType } from "./widget-ai-type";
+
 export type WidgetKind = "chat" | "text";
 
 /** Phosphor-style chat icons (`react-icons/pi` duotone), see https://phosphoricons.com/?q=chat */
@@ -11,6 +14,8 @@ export type LauncherIconPresetId =
   | "phosphor-chat-teardrop";
 
 export type WidgetInstallChatMode = "AI_ONLY" | "AGENT_ONLY" | "HYBRID";
+
+export type { WidgetAiType } from "./widget-ai-type";
 
 export interface TextUsFormFieldDraft {
   key: string;
@@ -33,6 +38,8 @@ export interface WidgetDraft {
   requiresPublishBeforeEmbed?: boolean;
   /** Chat routing mode stored as WidgetWebsiteConfig.mode. */
   chatMode?: WidgetInstallChatMode;
+  /** `config.aiType` when chatMode is AI_ONLY or HYBRID (AI_CHATBOT | AI_ASSISTANT). */
+  aiType?: WidgetAiType;
   /** Allowed embedding domains (hostname strings). */
   allowedDomains?: string[];
   widgetId: string;
@@ -159,6 +166,7 @@ export const defaultWidgetDraft: WidgetDraft = {
   type: "chat",
   websiteId: undefined,
   chatMode: "HYBRID",
+  aiType: "AI_CHATBOT",
   allowedDomains: undefined,
   widgetId: "12345",
   completed: false,
@@ -283,6 +291,7 @@ export function mergePartialWidgetDraft(parsed: Partial<WidgetDraft>): WidgetDra
     ...defaultWidgetDraft,
     ...parsed,
     chatMode: normalizeChatMode(parsed.chatMode) ?? defaultWidgetDraft.chatMode,
+    aiType: normalizeWidgetAiType(parsed.aiType ?? defaultWidgetDraft.aiType),
     launcherIconPreset: normalizeLauncherIconPreset(parsed.launcherIconPreset),
     launcherInsetBottomPx: clampLauncherInsetPx(
       parsed.launcherInsetBottomPx,

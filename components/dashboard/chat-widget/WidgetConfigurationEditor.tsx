@@ -14,7 +14,7 @@ import TextField from "@mui/material/TextField";
 import { alpha, useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import type { JsonRecord } from "@/api/types/common.types";
-import type { WidgetChatModeApi, WidgetTypeApi } from "@/api/types/widgets.types";
+import type { WidgetAiTypeApi, WidgetChatModeApi, WidgetTypeApi } from "@/api/types/widgets.types";
 import {
   deleteWidget,
   getAdminWidget,
@@ -29,6 +29,8 @@ import {
   editorStateFromApis,
   type WidgetPatchEditorState,
 } from "@/lib/chat-widget/widget-patch-editor-model";
+import { shouldShowWidgetAiType } from "@/lib/chat-widget/widget-ai-type";
+import { WidgetAiTypeField } from "./WidgetAiTypeField";
 import { unwrapWidgetInstallEnvelope } from "@/lib/chat-widget/widget-install-response";
 import { publishAppToast } from "@/lib/notify";
 import { extractApiErrorMessageForToast } from "@/lib/notify/extract-api-message";
@@ -242,6 +244,14 @@ export function WidgetConfigurationEditor({ widgetKey }: { widgetKey: string }) 
                 searchable={false}
               />
             </Box>
+            {(state.widgetType === "CHAT" || state.widgetType === "BOTH") &&
+            shouldShowWidgetAiType(state.chatMode) ? (
+              <WidgetAiTypeField
+                value={state.aiType as WidgetAiTypeApi}
+                onChange={(v) => update("aiType", v)}
+                disabled={state.widgetType !== "CHAT" && state.widgetType !== "BOTH"}
+              />
+            ) : null}
             <FormControlLabel
               control={
                 <Switch
@@ -268,21 +278,21 @@ export function WidgetConfigurationEditor({ widgetKey }: { widgetKey: string }) 
             </Typography>
             {(
               [
-                ["theme", "theme"],
-                ["ui", "ui"],
-                ["behavior", "behavior"],
-                ["session", "session"],
-                ["form", "form"],
-                ["response", "response"],
+                ["themeJson", "theme"],
+                ["uiJson", "ui"],
+                ["behaviorJson", "behavior"],
+                ["sessionJson", "session"],
+                ["formJson", "form"],
+                ["responseJson", "response"],
               ] as const
-            ).map(([key, label]) => (
+            ).map(([stateKey, label]) => (
               <TextField
-                key={key}
+                key={stateKey}
                 label={label}
-                value={state[key]}
-                onChange={(e) => update(key, e.target.value)}
+                value={state[stateKey]}
+                onChange={(e) => update(stateKey, e.target.value)}
                 multiline
-                minRows={key === "theme" || key === "ui" ? 10 : 6}
+                minRows={stateKey === "themeJson" || stateKey === "uiJson" ? 10 : 6}
                 fullWidth
                 sx={jsonFieldSx}
               />
