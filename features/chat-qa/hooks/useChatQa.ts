@@ -58,7 +58,7 @@ export function useChatQa(
   }, [queueFilters]);
 
   const countQuery = useQuery({
-    queryKey: chatQaKeys.queue({ ...countFilters, status: "all-counts" }),
+    queryKey: chatQaKeys.countQueue(countFilters),
     queryFn: () => fetchQaMyQueue(countFilters, token),
     enabled: apiEnabled && Boolean(token),
   });

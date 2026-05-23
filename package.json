@@ -40,6 +40,7 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@types/estree": "^1.0.9",
     "@types/node": "22.19.15",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
@@ -47,6 +48,10 @@
     "cross-env": "^10.1.0",
     "eslint": "^9.0.0",
     "eslint-config-next": "^15.0.0",
+    "fdir": "^6.5.0",
+    "is-number": "^7.0.0",
+    "queue-microtask": "^1.2.3",
+    "set-function-length": "^1.2.2",
     "storybook": "^8.6.18",
     "typescript": "^5.0.0",
     "vitest": "^3.2.4"

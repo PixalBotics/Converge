@@ -345,7 +345,7 @@ export default function ServiceSchedulesPage() {
           isLoading={isLoading || isFetching}
           getRowId={(row) => row.id}
           minWidth={720}
-          emptyMessage="No websites match your filters."
+          emptyState={{ description: "No websites match your filters." }}
           actionColumn={{
             label: "Actions",
             render: (row) => (

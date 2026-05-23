@@ -126,11 +126,6 @@ function strFirst(...candidates: unknown[]): string {
   return "";
 }
 
-function num(v: unknown, fallback: number): number {
-  const n = typeof v === "number" ? v : typeof v === "string" ? Number.parseFloat(v) : NaN;
-  return Number.isFinite(n) ? n : fallback;
-}
-
 function numFirst(...candidates: unknown[]): number | undefined {
   for (const c of candidates) {
     const n = typeof c === "number" ? c : typeof c === "string" ? Number.parseFloat(c) : NaN;

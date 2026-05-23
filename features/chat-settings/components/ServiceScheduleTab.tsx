@@ -113,7 +113,7 @@ function ScheduleWindowsEditor({
 
   const patchWindowTimes = (
     index: number,
-    patch: Pick<ServiceScheduleWindow, "startTime" | "endTime">,
+    patch: Partial<Pick<ServiceScheduleWindow, "startTime" | "endTime">>,
   ) => {
     const current = windows[index];
     if (!current) return;

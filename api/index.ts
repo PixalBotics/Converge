@@ -39,7 +39,11 @@ export type {
 } from "./types/widgets.types";
 export * from "./types/auth.types";
 export type { JsonRecord } from "./types/common.types";
-export type { AssignWebsiteTierBody, WebsiteAssignmentTier } from "./types/website-assignments.types";
+export type {
+  AssignWebsiteTierBody,
+  PutDepartmentRosterBody,
+  WebsiteAssignmentTier,
+} from "./types/website-assignments.types";
 export type {
   PlatformThemeMeData,
   PlatformThemeMeEnvelope,

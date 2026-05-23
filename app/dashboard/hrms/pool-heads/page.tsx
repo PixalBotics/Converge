@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
 import Checkbox from "@mui/material/Checkbox";
@@ -747,7 +747,7 @@ export default function PoolHeadsPage() {
     [],
   );
 
-  const clearPageFilters = () => {
+  const clearPageFilters = useCallback(() => {
     setFilterDeptKind(mayPickInternalScope ? "Internal" : "External");
     setFilterResellerId("");
     setFilterParentCompanyId("");
@@ -759,7 +759,7 @@ export default function PoolHeadsPage() {
     setAttendanceDate(today);
     setHeadsUserTypeFilter("all");
     setFilterPanelOpen(false);
-  };
+  }, [mayPickInternalScope, today]);
 
   const clearAssignFilters = () => {
     setAssignDepartmentId("");
@@ -906,6 +906,7 @@ export default function PoolHeadsPage() {
     headsUserTypeFilter,
     headsUserTypeSegmentOptions,
     filterToolbarActive,
+    clearPageFilters,
   ]);
 
   useEffect(() => {

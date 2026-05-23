@@ -44,16 +44,16 @@ export function useAgentSessionSockets(enabled: boolean): void {
       const cid = conversationIdFromSocketPayload(payload);
       publishAppToast({
         message: cid ? `New chat assigned · ${cid.slice(0, 8)}` : "New chat assigned",
-        severity: "success",
+        variant: "success",
       });
       scheduleRefresh();
     });
 
-    const offQueue = socketClient.onAgentQueuePopup((payload) => {
+    const offQueue = socketClient.onAgentQueuePopup(() => {
       playNotificationSound("chat");
       publishAppToast({
         message: "Visitor waiting in queue",
-        severity: "success",
+        variant: "success",
       });
       scheduleRefresh();
     });

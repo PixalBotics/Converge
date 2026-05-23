@@ -71,7 +71,7 @@ export function WebsiteServiceSchedulingWorkspace({ websiteId }: { websiteId: st
     return (
       <PermissionDeniedPanel
         title="Service scheduling"
-        message="You need page:website-assignments and website:assign (or website-assignment:view)."
+        description="You need page:website-assignments and website:assign (or website-assignment:view)."
       />
     );
   }
@@ -80,7 +80,7 @@ export function WebsiteServiceSchedulingWorkspace({ websiteId }: { websiteId: st
     return (
       <PermissionDeniedPanel
         title="Service scheduling"
-        message="You need chat-widget:view or chat-widget:update to load and save service scheduling for this website."
+        description="You need chat-widget:view or chat-widget:update to load and save service scheduling for this website."
       />
     );
   }
@@ -249,4 +249,4 @@ export function WebsiteServiceSchedulingWorkspace({ websiteId }: { websiteId: st
     </Box>
   );
 }
-
+

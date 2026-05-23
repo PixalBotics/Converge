@@ -10,7 +10,7 @@ export function normalizeMonitorConversationRow(raw: unknown): MonitorConversati
   if (!id) return null;
 
   return {
-    ...(raw as MonitorConversationRow),
+    ...(raw as unknown as MonitorConversationRow),
     id,
     websiteId: String(raw.websiteId ?? ""),
     visitorId: String(raw.visitorId ?? ""),

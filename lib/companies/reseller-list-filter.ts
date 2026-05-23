@@ -53,6 +53,7 @@ export function buildWebsiteAssignmentsScopeParams(
 ): WebsiteScopeListParams | undefined {
   if (!params) return params;
   if (mayPassResellerIdListFilter(user)) return params;
-  const { resellerId: _omit, ...rest } = params;
+  const rest = { ...params };
+  delete rest.resellerId;
   return rest;
 }

@@ -3,6 +3,7 @@
 import SendRounded from "@mui/icons-material/SendRounded";
 import IconButton from "@mui/material/IconButton";
 import { useTheme } from "@mui/material/styles";
+import { mergeSx } from "@/lib/mui/merge-sx";
 import type { AppTheme } from "@/theme/theme";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
 import type { AgentAiAction } from "@/api/ai/agent-suggest.api";
@@ -119,7 +120,7 @@ export function ChatComposer({
             aria-label="Send message"
             disabled={!value.trim() || disabled}
             onClick={handleSend}
-            sx={[
+            sx={mergeSx(
               {
                 width: 44,
                 height: 44,
@@ -128,7 +129,7 @@ export function ChatComposer({
                 minWidth: 44,
               },
               gradientPrimaryButtonSx,
-            ]}
+            )}
           >
             <SendRounded sx={{ fontSize: 20 }} />
           </IconButton>

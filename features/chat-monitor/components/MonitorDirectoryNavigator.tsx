@@ -468,13 +468,13 @@ function DirectoryTable<T>({
       <Typography variant="subtitle2" sx={{ mb: 0.75, fontWeight: 600 }}>
         {title}
       </Typography>
-      <DataTable<T>
-        columns={columns}
-        rows={rows}
-        getRowId={getRowId}
+      <DataTable
+        columns={columns as DataTableColumn<Record<string, unknown>>[]}
+        rows={rows as Record<string, unknown>[]}
+        getRowId={(row, index) => getRowId(row as T, index)}
         selectedRowId={selectedRowId}
         isLoading={loading}
-        onRowClick={(row) => onSelect(row)}
+        onRowClick={(row) => onSelect(row as T)}
         emptyState={{ title: "None in scope", description: "" }}
       />
     </Box>

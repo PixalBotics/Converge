@@ -80,16 +80,17 @@ export function ChatLivePageHeader({
               const active =
                 pathname === item.href || pathname.startsWith(`${item.href}/`);
               return (
-                <Typography
+                <NextLink
                   key={item.href}
-                  component={NextLink}
                   href={item.href}
                   role="tab"
                   aria-selected={active}
-                  sx={chatLiveNavLinkSx(active)}
+                  style={{ textDecoration: "none" }}
                 >
-                  {item.label}
-                </Typography>
+                  <Typography component="span" sx={chatLiveNavLinkSx(active)}>
+                    {item.label}
+                  </Typography>
+                </NextLink>
               );
             })}
           </Box>

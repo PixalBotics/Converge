@@ -288,17 +288,41 @@ export function NotificationsBellDrawer() {
     }
   }, [ctx?.drawerOpen]);
 
-  if (!ctx) return null;
-
-  const { badgeCounts, items, loading, drawerOpen, openDrawer, closeDrawer, markRead, markAllRead } =
-    ctx;
-  const unreadTotal = totalUnread(badgeCounts);
-  const popoverOpen = drawerOpen && Boolean(anchorEl);
+  const badgeCounts = ctx?.badgeCounts ?? { chat: 0, qa: 0, hrms_leave: 0 };
+  const items = useMemo(() => ctx?.items ?? [], [ctx?.items]);
+  const loading = ctx?.loading ?? false;
+  const drawerOpen = ctx?.drawerOpen ?? false;
+  const openDrawer = ctx?.openDrawer ?? (() => {});
+  const closeDrawer = ctx?.closeDrawer ?? (() => {});
+  const markRead = ctx?.markRead ?? (async () => {});
+  const markAllRead = ctx?.markAllRead ?? (async () => {});
 
   const filteredItems = useMemo(() => {
     if (filter === "all") return items;
     return items.filter((n) => n.badgeGroup === filter);
   }, [filter, items]);
+
+  const paperSx = useMemo(
+    () => ({
+      mt: 1.25,
+      width: 360,
+      maxWidth: "calc(100vw - 24px)",
+      overflow: "hidden",
+      borderRadius: 2.5,
+      bgcolor: theme.app.dashboard.menuSurfaceBg,
+      border: `1px solid ${theme.app.dashboard.cardBorder}`,
+      boxShadow: "0 20px 56px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.06)",
+      display: "flex",
+      flexDirection: "column",
+      maxHeight: "min(480px, calc(100vh - 96px))",
+    }),
+    [theme.app.dashboard.cardBorder, theme.app.dashboard.menuSurfaceBg],
+  );
+
+  if (!ctx) return null;
+
+  const unreadTotal = totalUnread(badgeCounts);
+  const popoverOpen = drawerOpen && Boolean(anchorEl);
 
   const handleBellClick = (event: React.MouseEvent<HTMLButtonElement>) => {
     setAnchorEl(event.currentTarget);
@@ -325,23 +349,6 @@ export function NotificationsBellDrawer() {
     filter === "all"
       ? "New chat, QA, and leave updates appear here."
       : `No ${GROUP_LABELS[filter as NotificationBadgeGroup].toLowerCase()} notifications right now.`;
-
-  const paperSx = useMemo(
-    () => ({
-      mt: 1.25,
-      width: 360,
-      maxWidth: "calc(100vw - 24px)",
-      overflow: "hidden",
-      borderRadius: 2.5,
-      bgcolor: theme.app.dashboard.menuSurfaceBg,
-      border: `1px solid ${theme.app.dashboard.cardBorder}`,
-      boxShadow: "0 20px 56px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.06)",
-      display: "flex",
-      flexDirection: "column",
-      maxHeight: "min(480px, calc(100vh - 96px))",
-    }),
-    [theme.app.dashboard.cardBorder, theme.app.dashboard.menuSurfaceBg],
-  );
 
   return (
     <>

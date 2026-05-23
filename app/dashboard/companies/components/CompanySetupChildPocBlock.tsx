@@ -113,10 +113,13 @@ export function CompanySetupChildPocBlock({
     designationsQuery.isLoading,
   ]);
 
-  const roleSelectOptions =
-    roleOptions.length > 0
-      ? roleOptions
-      : [{ value: "", label: rolesLoading ? "Loading…" : "— Select role —" }];
+  const roleSelectOptions = useMemo(
+    () =>
+      roleOptions.length > 0
+        ? roleOptions
+        : [{ value: "", label: rolesLoading ? "Loading…" : "— Select role —" }],
+    [roleOptions, rolesLoading],
+  );
 
   useEffect(() => {
     if (!roleOptions.length) return;

@@ -1,6 +1,6 @@
 import type { DashboardNavItem } from "./dashboard-nav.types";
 import { OP } from "./operational-keys";
-import { ORG, PAGE } from "./permission-constants";
+import { PAGE } from "./permission-constants";
 import {
   COMMERCIAL_PAGE_PERMISSIONS,
   PAGE_PERMISSION_ORDER,
@@ -371,7 +371,6 @@ export const DASHBOARD_NAV_ITEMS: readonly DashboardNavItem[] = PAGE_PERMISSION_
   if (permission === "page:website-assignments") return [WEBSITE_GROUP];
   if (permission === "page:users") return [USERS_GROUP];
   if (permission === "page:hrms") return [HRMS_GROUP];
-  if (permission === "page:pools") return [];
   if (permission === "page:shifts") return [SHIFTS_GROUP];
   if (permission === "page:chat") return [CHAT_GROUP, AI_TRAINING_GROUP];
   if (permission === "page:chat-widget") {

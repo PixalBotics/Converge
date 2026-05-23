@@ -67,7 +67,7 @@ export default function WebsiteAssignmentDetailPage() {
     return (
       <PermissionDeniedPanel
         title="Website assignment"
-        message="You need page:website-assignments and website:assign (or website-assignment:view) from GET /auth/me."
+        description="You need page:website-assignments and website:assign (or website-assignment:view) from GET /auth/me."
       />
     );
   }

@@ -2,7 +2,6 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  assignWebsiteTier,
   getWebsiteAssignmentDetail,
   listWebsitesForUser,
   listWebsitesInScope,

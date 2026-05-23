@@ -163,9 +163,9 @@ export function RoutingRulesTab({
       ) : null}
 
       <DataTable
-        columns={columns}
-        rows={routes}
-        getRowId={(r) => r.id}
+        columns={columns as unknown as DataTableColumn<Record<string, unknown>>[]}
+        rows={routes as unknown as Record<string, unknown>[]}
+        getRowId={(r) => String(r.id)}
         emptyState={{ title: "No routing rules", description: "Add a rule to map visitor topics to departments." }}
       />
 

@@ -56,7 +56,6 @@ import {
   embedBodyTextSx,
   embedGreetingBubbleSx,
   embedHandoverButtonSx,
-  embedIconButtonAccentSx,
   embedInputFieldSx,
   embedInquiryPillSx,
   embedLabelTextSx,
@@ -64,7 +63,6 @@ import {
   embedMutedTextSx,
   embedNativeInputStyle,
   embedPanelPaperSx,
-  embedPrimaryButtonSx,
   embedSendButtonSx,
   resolveEmbedMessageBubbleRole,
 } from "@/lib/widget-runtime/embed-theme-sx";
@@ -1048,7 +1046,7 @@ function WidgetChatPanel({
           </Typography>
         ) : null}
         {selectedInquiry ? (
-          <Typography variant="caption" sx={{ mb: 1, ...embedMutedTextSx(appearance) }}>
+          <Typography variant="caption" sx={{ mb: 1, ...(appearance ? embedMutedTextSx(appearance) : {}) }}>
             Topic: {selectedInquiry.label}
             {hasInquiryStep ? (
               <>

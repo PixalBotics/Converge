@@ -42,7 +42,7 @@ export const processPaymentMethodGridSx: SxProps<Theme> = {
   gap: 1.5,
 };
 
-export const processPaymentMethodItemSx: SxProps<Theme> = (theme) => ({
+export const processPaymentMethodItemSx: SxProps<Theme> = () => ({
   p: 1.5,
   display: "flex",
   flexDirection: "column",

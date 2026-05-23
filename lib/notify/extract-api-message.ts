@@ -163,7 +163,9 @@ export function extractApiSuccessMessageForToast(data: unknown): string | null {
  * payload looks like **only** per-field validation errors (no top-level message),
  * so forms can keep showing those on inputs instead of duplicating in a toast.
  */
-export function extractApiErrorMessageForToast(error: unknown): string | null {
+export function extractApiErrorMessageForToast(error: unknown, fallback: string): string;
+export function extractApiErrorMessageForToast(error: unknown): string | null;
+export function extractApiErrorMessageForToast(error: unknown, fallback?: string): string | null {
   if (isAxiosError(error)) {
     const data = error.response?.data;
 
@@ -212,5 +214,5 @@ export function extractApiErrorMessageForToast(error: unknown): string | null {
     return error.message.trim();
   }
 
-  return null;
+  return fallback ?? null;
 }

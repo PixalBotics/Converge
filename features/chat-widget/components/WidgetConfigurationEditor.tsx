@@ -30,7 +30,7 @@ import {
   type WidgetPatchEditorState,
 } from "@/lib/chat-widget/widget-patch-editor-model";
 import { shouldShowWidgetAiType } from "@/lib/chat-widget/widget-ai-type";
-import { WidgetAiTypeField } from "./WidgetAiTypeField";
+import { WidgetAiTypeField } from "@/components/dashboard/chat-widget/WidgetAiTypeField";
 import { unwrapWidgetInstallEnvelope } from "@/lib/chat-widget/widget-install-response";
 import { publishAppToast } from "@/lib/notify";
 import { extractApiErrorMessageForToast } from "@/lib/notify/extract-api-message";

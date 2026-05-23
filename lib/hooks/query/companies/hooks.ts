@@ -8,7 +8,6 @@ import {
   getCompanySetupDraftLatest,
   getParentCompany,
   listCompanies,
-  listCompaniesByReseller,
   submitCompanySetupDraft,
   updateCompany,
   updateCompanySetupDraft,

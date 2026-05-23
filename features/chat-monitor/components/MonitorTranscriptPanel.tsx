@@ -108,7 +108,7 @@ export function MonitorTranscriptPanel({
         />
       )}
 
-      {hasConversation && conversation?.status !== "closed" ? (
+      {conversation && conversation.status !== "closed" ? (
         <MonitorActionsPanel
           conversationId={conversation.id}
           supervisorControlUserId={activeSupervisorId}

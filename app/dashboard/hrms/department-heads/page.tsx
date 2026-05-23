@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
 import Checkbox from "@mui/material/Checkbox";
@@ -782,16 +782,16 @@ export default function DepartmentHeadsPage() {
     setHeadsDepartmentId("");
   }, [isPlatformAdmin, authUser?.userType, headsUserTypeFilter]);
 
-  const applyHeadsFilters = () => {
+  const applyHeadsFilters = useCallback(() => {
     setAppliedHeadsUserTypeFilter(headsUserTypeFilter);
     setAppliedHeadsResellerId(headsResellerId.trim());
     setAppliedHeadsParentCompanyId(headsParentCompanyId.trim());
     setAppliedHeadsDepartmentId(headsDepartmentId.trim());
     setHeadsFiltersApplied(true);
     setFilterPanelOpen(false);
-  };
+  }, [headsUserTypeFilter, headsResellerId, headsParentCompanyId, headsDepartmentId]);
 
-  const clearHeadsFilters = () => {
+  const clearHeadsFilters = useCallback(() => {
     setHeadsUserTypeFilter(
       sessionMayPickInternalUserScope(isPlatformAdmin, authUser?.userType) ? "Internal" : "External",
     );
@@ -805,7 +805,7 @@ export default function DepartmentHeadsPage() {
     setAppliedHeadsDepartmentId("");
     setHeadsFiltersApplied(false);
     setFilterPanelOpen(false);
-  };
+  }, [authUser?.userType, isPlatformAdmin]);
 
   const applyHeadsSearch = () => {
     setAppliedHeadsSearch(headsSearch.trim());
@@ -852,7 +852,7 @@ export default function DepartmentHeadsPage() {
     Boolean(headsDepartmentId.trim()) ||
     Boolean(headsSearch.trim());
 
-  const clearAttendanceListFilters = () => {
+  const clearAttendanceListFilters = useCallback(() => {
     setDepartmentId("");
     setAttendancePoolId("");
     setAttendanceDate(today);
@@ -861,7 +861,7 @@ export default function DepartmentHeadsPage() {
     setAttendanceFilterResellerId("");
     setAttendanceFilterParentCompanyId("");
     setFilterPanelOpen(false);
-  };
+  }, [mayPickInternalScope, today]);
 
   const canClearAttendanceDraft =
     Boolean(departmentId.trim()) ||
@@ -1052,7 +1052,9 @@ export default function DepartmentHeadsPage() {
     poolOptions,
     canClearHeadsDraft,
     canClearAttendanceDraft,
-    today,
+    applyHeadsFilters,
+    clearHeadsFilters,
+    clearAttendanceListFilters,
   ]);
 
   useEffect(() => {

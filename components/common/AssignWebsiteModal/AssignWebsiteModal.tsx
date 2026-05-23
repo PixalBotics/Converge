@@ -237,7 +237,10 @@ export function AssignWebsiteModal({ open, onClose, onAssign, preset }: AssignWe
 
   const operatingChannels = detail?.operatingChannels ?? "internal_only";
   const allowedChannels = detail?.allowedAssignmentChannels ?? [];
-  const schedulingTopics = schedulingQuery.data?.topics ?? [];
+  const schedulingTopics = useMemo(
+    () => schedulingQuery.data?.topics ?? [],
+    [schedulingQuery.data?.topics],
+  );
 
   const defaultTopicKey = useMemo(() => {
     const active = schedulingTopics.filter(
