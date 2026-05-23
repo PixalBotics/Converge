@@ -29,7 +29,6 @@ import {
   findPlatformAdminRoleId,
   PARENT_COMPANY_ADMIN_ROLE_NAME,
   RESELLER_ADMIN_ROLE_NAME,
-  resolveExternalAdminScope,
   resolveInternalAdminScope,
   resolveRoleIdForExternalAdminScope,
   type ExternalAdminScope,

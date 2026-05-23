@@ -3,7 +3,6 @@
 import { useState } from "react";
 import Box from "@mui/material/Box";
 import BlurOnRounded from "@mui/icons-material/BlurOnRounded";
-import type { SxProps, Theme } from "@mui/material/styles";
 import { useTheme } from "@mui/material/styles";
 import Link from "next/link";
 import type { AppTheme } from "@/theme/theme";

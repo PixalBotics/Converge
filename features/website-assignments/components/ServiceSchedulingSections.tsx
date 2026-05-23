@@ -13,6 +13,8 @@ import {
   crossMidnightCardSx,
 } from "../styles/website-assignment-ui.styles";
 import type { DepartmentCatalogOption } from "@/features/chat-settings/utils/catalog";
+import { mergeSx } from "@/lib/mui/merge-sx";
+import type { KeyboardEvent } from "react";
 
 export function CrossMidnightToggle({
   checked,
@@ -30,11 +32,11 @@ export function CrossMidnightToggle({
       role="button"
       tabIndex={disabled ? -1 : 0}
       aria-pressed={checked}
-      sx={[crossMidnightCardSx(checked), { opacity: disabled ? 0.55 : 1 }]}
+      sx={mergeSx(crossMidnightCardSx(checked), { opacity: disabled ? 0.55 : 1 })}
       onClick={() => {
         if (!disabled) onChange(!checked);
       }}
-      onKeyDown={(e) => {
+      onKeyDown={(e: KeyboardEvent<HTMLDivElement>) => {
         if (disabled || (e.key !== "Enter" && e.key !== " ")) return;
         e.preventDefault();
         onChange(!checked);

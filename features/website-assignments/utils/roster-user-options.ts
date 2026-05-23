@@ -85,7 +85,7 @@ export function buildRosterUserOptions(
         disabledReason: reason,
       };
     })
-    .filter((o): o is RosterUserOption => o !== null);
+    .filter((o) => o != null) as RosterUserOption[];
 
   if (fromList.length > 0) return fromList;
 

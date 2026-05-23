@@ -13,12 +13,5 @@ export function useEmbedHostResize(
     postEmbedHostResize(open, appearance);
     const id = window.setTimeout(() => postEmbedHostResize(open, appearance), 0);
     return () => window.clearTimeout(id);
-  }, [
-    open,
-    appearance.launcher.position,
-    appearance.launcher.insetBottomPx,
-    appearance.launcher.insetSidePx,
-    appearance.chatBox.boxWidth,
-    appearance.chatBox.boxHeight,
-  ]);
+  }, [open, appearance]);
 }

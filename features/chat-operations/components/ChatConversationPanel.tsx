@@ -255,7 +255,7 @@ export function ChatConversationPanel({
                   slotProps={{
                     paper: {
                       sx: {
-                        bgcolor: theme.app.menuSurfaceBg,
+                        bgcolor: theme.app.dashboard.menuSurfaceBg,
                         border: `1px solid ${theme.app.dashboard.cardBorder}`,
                       },
                     },

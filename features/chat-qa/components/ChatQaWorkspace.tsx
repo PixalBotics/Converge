@@ -4,6 +4,7 @@ import { useEffect, useMemo } from "react";
 import Box from "@mui/material/Box";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
+import { mergeSx } from "@/lib/mui/merge-sx";
 import { PermissionDeniedPanel } from "@/components/common";
 import {
   buildChatLiveNavItems,
@@ -109,7 +110,7 @@ export function ChatQaWorkspace({
   };
 
   return (
-    <Box sx={[chatQaPageWrapper, chatLivePageStackSx]}>
+    <Box sx={mergeSx(chatQaPageWrapper, chatLivePageStackSx)}>
       <ChatLivePageHeader
         title="QA inbox"
         subtitle="Review closed conversations, annotate messages, and score sessions."

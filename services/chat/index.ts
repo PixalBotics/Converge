@@ -18,7 +18,6 @@ export * from "./reports.api";
 export * from "./reports.types";
 export * from "./canned-responses.types";
 export * from "./canned-responses.api";
-export * from "./agent-canned.api";
 export * from "./agent-inbox.api";
 export * from "./visitor-presentation";
 export { unwrapChatHttpData, chatAuthHeaders } from "./http";

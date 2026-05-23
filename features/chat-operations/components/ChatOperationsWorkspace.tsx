@@ -14,6 +14,7 @@ import {
 } from "@/lib/permissions";
 import { useNotificationsContext } from "@/lib/notifications/NotificationsContext";
 import { useAgentChat } from "@/lib/hooks/chat/useAgentChat";
+import { mergeSx } from "@/lib/mui/merge-sx";
 import {
   ChatLivePageHeader,
   ChatScopeFiltersPanel,
@@ -345,7 +346,7 @@ export function ChatOperationsWorkspace() {
     !agentChat.selectedIsClosed;
 
   return (
-    <Box sx={[chatOpsPageWrapper, showScopeFilters ? chatLivePageStackSx : chatLiveAgentStackSx]}>
+    <Box sx={mergeSx(chatOpsPageWrapper, showScopeFilters ? chatLivePageStackSx : chatLiveAgentStackSx)}>
       <ChatLivePageHeader
         title="Agent inbox"
         subtitle={

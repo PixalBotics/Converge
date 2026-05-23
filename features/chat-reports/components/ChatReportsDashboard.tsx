@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import { useAuth } from "@/lib/auth";
+import { mergeSx } from "@/lib/mui/merge-sx";
 import { PermissionDeniedPanel } from "@/components/common";
 import { buildChatLiveNavItems, useChatApiGates } from "@/lib/permissions";
 import { Button, DashboardCard, Typography } from "@/components/common";
@@ -120,7 +121,7 @@ export function ChatReportsDashboard() {
   }));
 
   return (
-    <Box sx={[chatReportsPageWrapper, chatLivePageStackSx]}>
+    <Box sx={mergeSx(chatReportsPageWrapper, chatLivePageStackSx)}>
       <Box sx={chatReportsContentSx}>
         <ChatLivePageHeader
           title="Live chat reports"

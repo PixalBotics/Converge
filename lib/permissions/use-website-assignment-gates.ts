@@ -32,5 +32,5 @@ export function useWebsiteAssignmentGates() {
     const view = ready && (rbacOff || canViewWebsiteAssignmentsFromArrays(perms));
     const assign = ready && (rbacOff || canAssignWebsiteFromArrays(perms));
     return { ready, view, assign, perms };
-  }, [perms, permissionsSyncing, rbacEnabled, rbacOff]);
+  }, [perms, permissionsSyncing, rbacOff]);
 }

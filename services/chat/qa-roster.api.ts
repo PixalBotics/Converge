@@ -106,7 +106,7 @@ function mapRoster(raw: unknown, websiteId: string): QaRosterResponse {
         if (!userId) return null;
         return { userId, user: r.user as QaRosterUser["user"] };
       })
-      .filter((x): x is QaRosterUser => x !== null);
+      .filter((x) => x != null) as QaRosterUser[];
   };
   const internal = mapList("internal");
   const external = mapList("external");

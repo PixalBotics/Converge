@@ -25,7 +25,7 @@ export function PermissionDeniedPanel({
 }: PermissionDeniedPanelProps) {
   const theme = useTheme() as AppTheme;
   const router = useRouter();
-  const { rbacEnabled, permissionsByType, isPlatformAdmin, user } = useAuth();
+  const { permissionsByType, isPlatformAdmin, user } = useAuth();
   const isDemoUser = user?.email?.trim().toLowerCase() === "demo@gmail.com";
 
   const homeHref = resolveDashboardLandingHref({

@@ -118,14 +118,8 @@ export default function WebsiteSitesByOrgPage() {
 
   const rows = useMemo(() => items.map(itemToRow), [items]);
 
-  const openAssign = (row: SiteRow) => {
-    setAssignPreset({
-      websiteId: row.id,
-      parentCompanyId: row.parentCompanyId,
-      childCompanyId: row.childCompanyId,
-      resellerId: row.resellerId || undefined,
-    });
-    setIsAssignOpen(true);
+  const openRosterEdit = (row: SiteRow) => {
+    router.push(`/dashboard/website-assigning/website/${encodeURIComponent(row.id)}`);
   };
 
   const handleClearAgents = async () => {

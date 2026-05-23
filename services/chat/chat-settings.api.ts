@@ -76,5 +76,3 @@ export async function replaceCannedResponses(
   return unwrapChatHttpData(data);
 }
 
-/** @deprecated Import from `@/services/chat/agent-canned.api`. */
-export { fetchAgentCannedResponses } from "./agent-canned.api";

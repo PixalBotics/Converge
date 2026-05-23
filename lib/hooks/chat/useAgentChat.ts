@@ -155,7 +155,7 @@ export function useAgentChat(params: UseAgentChatParams): UseAgentChatReturn {
         }
       }
     },
-    [clearSelection, extractWrapUp, queues.refreshQueues],
+    [clearSelection, extractWrapUp, queues],
   );
 
   const handleChatWhisper = useCallback(
@@ -176,7 +176,7 @@ export function useAgentChat(params: UseAgentChatParams): UseAgentChatReturn {
     setSupervisorTick((n) => n + 1);
     const cid = selectedConversationIdRef.current;
     if (cid) void selectConversationRef.current(cid, { readOnly: selectedIsClosedRef.current });
-  }, [queues.refreshQueues]);
+  }, [queues]);
 
   const handleChatResumed = useCallback(
     async (payload: unknown) => {
@@ -192,7 +192,7 @@ export function useAgentChat(params: UseAgentChatParams): UseAgentChatReturn {
         socketClient.joinRoom({ conversationId: resumedId });
       }
     },
-    [queues.refreshQueues, socketClient],
+    [queues, socketClient],
   );
 
   const refreshQueuesRef = useRef(queues.refreshQueues);

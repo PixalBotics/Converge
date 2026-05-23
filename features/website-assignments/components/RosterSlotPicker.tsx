@@ -13,6 +13,7 @@ import { Typography } from "@/components/common";
 import type { ServiceChannel, WebsiteAssignmentTier } from "@/api/types/website-assignments.types";
 import { useUsersListQuery } from "@/lib/hooks";
 import { buildRosterUserOptions } from "../utils/roster-user-options";
+import { mergeSx } from "@/lib/mui/merge-sx";
 import {
   rosterChannelPanelSx,
   rosterRankBannerSx,
@@ -91,7 +92,7 @@ export function RosterSlotPicker({
   const findLabel = (userId: string) => userOptions.find((o) => o.id === userId)?.label;
 
   return (
-    <Box sx={[rosterChannelPanelSx, { opacity: disabled ? 0.5 : 1 }]}>
+    <Box sx={mergeSx(rosterChannelPanelSx, { opacity: disabled ? 0.5 : 1 })}>
       <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1.5, flexWrap: "wrap" }}>
         <Typography fontWeight={700} sx={{ fontSize: 15 }}>
           {title}

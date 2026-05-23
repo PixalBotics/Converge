@@ -75,6 +75,7 @@ export function useChatWidgetWizardEdit(): {
   const searchParams = useSearchParams();
   const editWidgetKey = (searchParams.get(CHAT_WIDGET_EDIT_QUERY_PARAM) ?? "").trim();
   const isEdit = Boolean(editWidgetKey);
+  const searchParamsKey = searchParams.toString();
 
   const [draftReady, setDraftReady] = useState(!isEdit);
   const [hydrateError, setHydrateError] = useState<string | null>(null);
@@ -110,7 +111,7 @@ export function useChatWidgetWizardEdit(): {
     return () => {
       cancelled = true;
     };
-  }, [editWidgetKey, pathname, searchParams.toString(), reloadToken]);
+  }, [editWidgetKey, pathname, searchParamsKey, reloadToken]);
 
   return {
     editWidgetKey,

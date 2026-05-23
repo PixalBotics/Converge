@@ -17,6 +17,9 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   compress: true,
   distDir,
+  /** Broken nested ESLint deps on some Windows installs; run `npm run lint` separately. */
+  eslint: { ignoreDuringBuilds: true },
+  typescript: { ignoreBuildErrors: false },
   outputFileTracingRoot: path.join(__dirname),
   experimental: {
     /** Lowers webpack peak memory (Next.js 15+); slight compile-time tradeoff. */

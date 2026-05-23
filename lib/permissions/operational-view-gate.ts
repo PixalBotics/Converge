@@ -265,10 +265,7 @@ export function getOperationalViewAnyOfForDashboardPath(pathname: string): reado
 export function userSatisfiesOperationalViewForDashboardPath(
   hasOperational: (permission: string) => boolean,
   pathname: string,
-  hasPage?: (pagePermission: string) => boolean,
 ): boolean {
-  const path = normalizePathname(pathname);
-
   const anyOf = getOperationalViewAnyOfForDashboardPath(pathname);
   if (!anyOf?.length) return true;
   return hasAnyOperational(hasOperational, anyOf);

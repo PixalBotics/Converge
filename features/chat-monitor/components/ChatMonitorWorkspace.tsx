@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Box from "@mui/material/Box";
 import { useTheme } from "@mui/material/styles";
+import { mergeSx } from "@/lib/mui/merge-sx";
 import { useRouter } from "next/navigation";
 import type { AppTheme } from "@/theme/theme";
 import { useAuth } from "@/lib/auth";
@@ -212,7 +213,7 @@ export function ChatMonitorWorkspace({
   };
 
   return (
-    <Box sx={[chatMonitorPageWrapper, chatLivePageStackSx]}>
+    <Box sx={mergeSx(chatMonitorPageWrapper, chatLivePageStackSx)}>
       <ChatLivePageHeader
         title="Chat monitor"
         subtitle={
@@ -237,7 +238,7 @@ export function ChatMonitorWorkspace({
             component="button"
             type="button"
             onClick={() => handleViewModeChange("queue")}
-            sx={chatMonitorInboxTabSx(theme, viewMode === "queue")}
+            sx={chatMonitorInboxTabSx(viewMode === "queue")}
           >
             Live queue
           </Box>
@@ -245,7 +246,7 @@ export function ChatMonitorWorkspace({
             component="button"
             type="button"
             onClick={() => handleViewModeChange("by_agent")}
-            sx={chatMonitorInboxTabSx(theme, viewMode === "by_agent")}
+            sx={chatMonitorInboxTabSx(viewMode === "by_agent")}
           >
             By agent
           </Box>

@@ -5,7 +5,7 @@ import type { WidgetDraft, WidgetInstallChatMode } from "./widgetDraft";
 import { defaultWidgetDraft } from "./widgetDraft";
 import { normalizeWidgetInquiryOptions } from "./widget-inquiry.types";
 import { mapApiChatColorsToDraft, widgetChatColorsDraftToPatch } from "./widget-colors-draft";
-import { normalizeWidgetAiType, parseAiTypeFromConfigRoot } from "./widget-ai-type";
+import { parseAiTypeFromConfigRoot } from "./widget-ai-type";
 
 function pickStr(obj: unknown, keys: string[]): string {
   if (!isRecord(obj)) return "";

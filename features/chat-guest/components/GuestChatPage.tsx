@@ -7,6 +7,7 @@ import Paper from "@mui/material/Paper";
 import LockOutlined from "@mui/icons-material/LockOutlined";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTheme } from "@mui/material/styles";
+import { mergeSx } from "@/lib/mui/merge-sx";
 import type { AppTheme } from "@/theme/theme";
 import { Button, Typography } from "@/components/common";
 import { ChatMessageList } from "@/features/chat-operations/components/ChatMessageList";
@@ -59,7 +60,10 @@ export function GuestChatPage() {
         </Box>
       </Box>
 
-      <Paper elevation={0} sx={[guestCardSx, { bgcolor: theme.app.dashboard.cardBg }]}>
+      <Paper
+        elevation={0}
+        sx={mergeSx(guestCardSx, { bgcolor: theme.app.dashboard.cardBg })}
+      >
         {guest.phase === "loading" ? (
           <Box sx={{ p: 4, flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
             <Typography sx={{ color: theme.app.dashboard.textMuted }}>Opening secure session…</Typography>

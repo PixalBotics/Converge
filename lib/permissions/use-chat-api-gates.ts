@@ -51,5 +51,5 @@ export function useChatApiGates() {
       widgetSettings,
       perms,
     };
-  }, [perms, permissionsSyncing, rbacEnabled, rbacOff]);
+  }, [perms, permissionsSyncing, rbacOff]);
 }

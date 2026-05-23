@@ -105,35 +105,39 @@ export function MultiUserCheckboxPicker({
         />
         {canEdit && !disabled ? (
           <>
-            <Typography
+            <Box
               component="button"
               type="button"
-              variant="caption"
               onClick={pickAllVisible}
               sx={{
                 border: "none",
                 bgcolor: "transparent",
                 cursor: "pointer",
-                color: theme.palette.primary.main,
-                fontWeight: 600,
+                p: 0,
               }}
             >
-              Select all shown
-            </Typography>
-            <Typography
+              <Typography
+                variant="caption"
+                sx={{ color: theme.palette.primary.main, fontWeight: 600 }}
+              >
+                Select all shown
+              </Typography>
+            </Box>
+            <Box
               component="button"
               type="button"
-              variant="caption"
               onClick={clearVisible}
               sx={{
                 border: "none",
                 bgcolor: "transparent",
                 cursor: "pointer",
-                color: theme.app.dashboard.textMuted,
+                p: 0,
               }}
             >
-              Clear shown
-            </Typography>
+              <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted }}>
+                Clear shown
+              </Typography>
+            </Box>
           </>
         ) : null}
       </Box>

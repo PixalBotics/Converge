@@ -27,7 +27,7 @@ export default function DashboardHeader({ onMenuClick }: { onMenuClick?: () => v
 
   const headerSx = useMemo<SxProps<Theme>>(
     () => createDashboardHeaderShellSx(theme),
-    [theme, app.dashboard.shellBorder, app.dashboard.shellRadius, app.dashboard.headerBackdropBlur],
+    [theme],
   );
 
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
