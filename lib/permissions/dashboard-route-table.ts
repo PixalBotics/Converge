@@ -154,7 +154,6 @@ export const ROUTE_RULES: readonly RouteRule[] = [
     permission: "page:email-agent-feedback",
     href: "/dashboard/email/feedback",
     iconKey: "smtpEmail",
-    internalOnly: true,
   },
   {
     permission: "page:smtp-email",

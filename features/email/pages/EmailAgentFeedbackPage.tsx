@@ -272,6 +272,7 @@ export function EmailAgentFeedbackPage() {
               onChange={(e) => patch({ notesPlaceholder: e.target.value })}
               disabled={!canUpdate || !preview.notesEnabled}
               multiline
+              minRows={2}
             />
             <EmailBuilderInputField
               label="Submit button label"

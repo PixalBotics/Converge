@@ -28,6 +28,25 @@ export function sessionMayPickInternalUserScope(
  * Company setup POC step: show "Pick from list" for department and designation.
  * Internal platform admins creating a **new** reseller should only create new dept/designation rows (no prior host lists).
  */
+/**
+ * May assign `wideResellerScope` / "Reseller admin" when creating external users or POC invites.
+ * Parent-company–scoped external users must not see or set portfolio-wide access.
+ */
+export function sessionMayAssignWideResellerScope(
+  isPlatformAdmin: boolean,
+  sessionUserType: AuthUserType | undefined,
+  wideResellerScope: boolean | undefined,
+  resellerId: string | undefined | null,
+): boolean {
+  if (isPlatformAdmin) return true;
+  const rid = resellerId?.trim();
+  if (sessionUserType === "Internal" && rid) return true;
+  if (sessionUserType === "External" && wideResellerScope === true && rid) {
+    return true;
+  }
+  return false;
+}
+
 export function sessionShowPocDeptDesignationPickFromList(
   isPlatformAdmin: boolean,
   sessionUserType: AuthUserType | undefined,

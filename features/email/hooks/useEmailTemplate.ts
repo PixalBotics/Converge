@@ -29,6 +29,8 @@ import {
   uploadResellerEmailLogo,
   listPlatformEmailTemplateVersions,
   restorePlatformEmailTemplateVersion,
+  listResellerEmailTemplateVersions,
+  restoreResellerEmailTemplateVersion,
   listPlatformTemplateAssignments,
   assignPlatformEmailTemplate,
   removePlatformEmailTemplateAssignment,

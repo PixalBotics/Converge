@@ -1,4 +1,4 @@
-import type { EmailTemplateBlockKey } from "./email-template-blocks";
+import type { EmailTemplateBlockKey } from "../constants/email-template-blocks";
 
 export type EmailHeaderLayout =
   | "hero_banner"

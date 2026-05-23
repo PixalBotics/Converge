@@ -52,6 +52,13 @@ const EXTERNAL_SCOPE_OPTIONS: ScopeOption<ExternalAdminScope>[] = [
   },
 ];
 
+function externalScopeOptionsForSession(
+  allowWideResellerScope: boolean,
+): ScopeOption<ExternalAdminScope>[] {
+  if (allowWideResellerScope) return EXTERNAL_SCOPE_OPTIONS;
+  return EXTERNAL_SCOPE_OPTIONS.filter((o) => o.value !== "wide_reseller");
+}
+
 type UserAdminScopeFieldsProps = {
   theme: AppTheme;
   userType: "Internal" | "External";
@@ -62,6 +69,8 @@ type UserAdminScopeFieldsProps = {
   disabled?: boolean;
   selectionLocked?: boolean;
   showInternal?: boolean;
+  /** Parent-company external users must not offer portfolio-wide access. */
+  allowWideResellerScope?: boolean;
 };
 
 export function UserAdminScopeFields({
@@ -74,12 +83,13 @@ export function UserAdminScopeFields({
   disabled = false,
   selectionLocked = false,
   showInternal = true,
+  allowWideResellerScope = true,
 }: UserAdminScopeFieldsProps) {
   const options =
     userType === "Internal" && showInternal
       ? INTERNAL_SCOPE_OPTIONS
       : userType === "External"
-        ? EXTERNAL_SCOPE_OPTIONS
+        ? externalScopeOptionsForSession(allowWideResellerScope)
         : null;
 
   if (!options) return null;

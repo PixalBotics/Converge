@@ -13,6 +13,8 @@ export interface User {
   poolName?: string;
   /** Tenant reseller scope (`/auth/me` user or JWT). */
   resellerId?: string;
+  /** External portfolio admin (`/auth/me` or JWT). */
+  wideResellerScope?: boolean;
 }
 
 export interface LoginCredentials {

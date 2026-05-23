@@ -24,7 +24,11 @@ import {
   toIdNameOption,
 } from "./add-user-modal.utils";
 import { publishAppToast } from "@/lib/notify";
-import { useAuth, sessionMayPickInternalUserScope } from "@/lib/auth";
+import {
+  useAuth,
+  sessionMayAssignWideResellerScope,
+  sessionMayPickInternalUserScope,
+} from "@/lib/auth";
 import {
   externalScopeUsesWideReseller,
   findDefaultStandardExternalRoleId,
@@ -62,6 +66,21 @@ export function AddUserModal({
   const mayPickInternalSessionScope = useMemo(
     () => sessionMayPickInternalUserScope(isPlatformAdmin, authUser?.userType),
     [isPlatformAdmin, authUser?.userType],
+  );
+  const mayAssignWideResellerScope = useMemo(
+    () =>
+      sessionMayAssignWideResellerScope(
+        isPlatformAdmin,
+        authUser?.userType,
+        authUser?.wideResellerScope,
+        authUser?.resellerId,
+      ),
+    [
+      isPlatformAdmin,
+      authUser?.userType,
+      authUser?.wideResellerScope,
+      authUser?.resellerId,
+    ],
   );
 
   const [userType, setUserType] = useState<"Internal" | "External">("Internal");
@@ -384,6 +403,12 @@ export function AddUserModal({
   };
 
   const wideResellerScope = externalScopeUsesWideReseller(externalAdminScope);
+
+  useEffect(() => {
+    if (!open || userType !== "External" || mayAssignWideResellerScope) return;
+    if (externalAdminScope !== "wide_reseller") return;
+    setExternalAdminScope("standard");
+  }, [open, userType, mayAssignWideResellerScope, externalAdminScope]);
 
   useEffect(() => {
     if (!open || !roleOptions.length || userType !== "External") return;
@@ -710,6 +735,7 @@ export function AddUserModal({
             disabled={isSaving || (mode === "edit" && isEditLoading)}
             selectionLocked={mode === "edit"}
             showInternal={false}
+            allowWideResellerScope={mayAssignWideResellerScope}
           />
         </>
       )}
@@ -724,6 +750,7 @@ export function AddUserModal({
           onExternalScopeChange={handleExternalAdminScopeChange}
           disabled={isSaving || (mode === "edit" && isEditLoading)}
           selectionLocked={mode === "edit"}
+          allowWideResellerScope={mayAssignWideResellerScope}
         />
       ) : null}
 
