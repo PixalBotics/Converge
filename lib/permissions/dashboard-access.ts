@@ -39,6 +39,7 @@ export function getVisibleDashboardNavItems(opts: {
   isDemoUser: boolean;
   /** When true with RBAC on, show the full module tree (same as RBAC off) — aligned with `useAuth().hasPage` bypass. */
   isPlatformAdmin?: boolean;
+  isInternalUser?: boolean;
 }): DashboardNavItem[] {
   const rbacFiltersNav = opts.rbacEnabled && !opts.isPlatformAdmin;
   const permissionDriven = rbacFiltersNav
@@ -50,6 +51,9 @@ export function getVisibleDashboardNavItems(opts: {
           }
           return true;
         }
+        if (item.permissionsAny?.length) {
+          return item.permissionsAny.some((p) => hasPagePermission(opts.pagePermissionSet, p));
+        }
         if (!item.permission) return true;
         return hasPagePermission(opts.pagePermissionSet, item.permission);
       })
@@ -58,7 +62,11 @@ export function getVisibleDashboardNavItems(opts: {
   const withFilteredChildren = permissionDriven.map((item) => {
     if (!item.children?.length) return item;
     const children = item.children.filter((ch) => {
-      if (!rbacFiltersNav) return true;
+      if (!rbacFiltersNav) {
+        if (ch.internalOnly && !opts.isInternalUser) return false;
+        return true;
+      }
+      if (ch.internalOnly && !opts.isInternalUser) return false;
       if (ch.operationalAny?.length) {
         const ops = opts.operationalPermissionSet;
         if (!ops?.size) return false;
@@ -183,6 +191,7 @@ export function getFirstAccessibleDashboardPath(opts: {
   pagePermissionSet: Set<string>;
   isDemoUser: boolean;
   isPlatformAdmin?: boolean;
+  isInternalUser?: boolean;
 }): string | null {
   const visible = getVisibleDashboardNavItems({
     section: "activity",
@@ -190,6 +199,7 @@ export function getFirstAccessibleDashboardPath(opts: {
     pagePermissionSet: opts.pagePermissionSet,
     isDemoUser: opts.isDemoUser,
     isPlatformAdmin: opts.isPlatformAdmin,
+    isInternalUser: opts.isInternalUser,
   });
   const candidates = deprioritizeDashboardShell(collectNavLeafHrefsInOrder(visible));
   for (const href of candidates) {

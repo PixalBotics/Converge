@@ -20,7 +20,7 @@ import {
   useDeleteResellerOwnMailMutation,
   useResellerOwnMailListQuery,
 } from "../hooks/useEmailSettings";
-import { PROVIDER_CODE_LABELS } from "../email.constants";
+import { EMAIL_ROUTES, PROVIDER_CODE_LABELS } from "../email.constants";
 import { EmailConfigTableCard } from "../styles/email-configuration.styled";
 import { departmentsFooterRow, footerMutedText, gradientPrimaryButtonSx } from "../styles/email-page.styles";
 import { emailResellerMailTableSx } from "../styles/email-table.styles";
@@ -85,7 +85,7 @@ export function ResellerOwnMailPage() {
     setEditResellerId("");
     setEditResellerLabel("");
     if (searchParams.get("edit")) {
-      router.replace("/dashboard/email/connection/reseller");
+      router.replace(EMAIL_ROUTES.setupReseller);
     }
   }, [router, searchParams]);
 

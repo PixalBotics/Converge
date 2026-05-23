@@ -77,7 +77,13 @@ export function DataTable<T extends Record<string, unknown>>({
               <Box
                 key={col.id}
                 component="th"
-                sx={[dataTableHeaderCell, sizeCellSx] as SxProps<Theme>}
+                sx={
+                  [
+                    dataTableHeaderCell,
+                    sizeCellSx,
+                    col.align ? { textAlign: col.align } : null,
+                  ] as SxProps<Theme>
+                }
               >
                 {col.headerRender ? col.headerRender() : col.label}
               </Box>
@@ -85,7 +91,13 @@ export function DataTable<T extends Record<string, unknown>>({
             {actionColumn && (
               <Box
                 component="th"
-                sx={[dataTableHeaderCell, sizeCellSx] as SxProps<Theme>}
+                sx={
+                  [
+                    dataTableHeaderCell,
+                    sizeCellSx,
+                    { textAlign: actionColumn.align ?? "right", width: 96 },
+                  ] as SxProps<Theme>
+                }
               >
                 {actionColumn.label}
               </Box>
@@ -195,6 +207,7 @@ export function DataTable<T extends Record<string, unknown>>({
                     [
                       col.cellVariant === "muted" ? dataTableCellMuted : dataTableCellDefault,
                       sizeCellSx,
+                      col.align ? { textAlign: col.align } : null,
                     ] as SxProps<Theme>
                   }
                 >
@@ -213,7 +226,11 @@ export function DataTable<T extends Record<string, unknown>>({
                 </Box>
               ))}
               {actionColumn && (
-                <Box component="td" sx={sizeCellSx} onClick={(e) => e.stopPropagation()}>
+                <Box
+                  component="td"
+                  sx={[sizeCellSx, { textAlign: actionColumn.align ?? "right", width: 96 }] as SxProps<Theme>}
+                  onClick={(e) => e.stopPropagation()}
+                >
                   {isLoading ? (
                     <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
                       <Skeleton variant="rounded" sx={skeletonBaseSx} height={28} width={72} />

@@ -30,6 +30,7 @@ export function InputField({
   inputProps,
   sx,
   scrollAnchorPath,
+  dense = false,
   ...rest
 }: InputFieldProps) {
   const theme = useTheme();
@@ -53,28 +54,31 @@ export function InputField({
   const hasHelperMessage = Boolean(helperText?.trim());
   const helperSlot = hasHelperMessage ? helperText : "\u00a0";
   const hideEmptyHelper = !hasHelperMessage && !error;
+  const showLabel = Boolean(label.trim());
 
   return (
     <Box
       sx={{ width: fullWidth ? "100%" : "auto" }}
       {...(scrollAnchorPath ? { "data-setup-scroll-anchor": scrollAnchorPath } : {})}
     >
-      <Label
-        htmlFor={fieldId}
-        variant="mediumLarge"
-        sx={{
-          mb: 0.75,
-          ...(error ? { color: theme.palette.error.main } : {}),
-        }}
-      >
-        {label}
-      </Label>
+      {showLabel ? (
+        <Label
+          htmlFor={fieldId}
+          variant={dense ? "mediumSmall" : "mediumLarge"}
+          sx={{
+            mb: dense ? 0.5 : 0.75,
+            ...(error ? { color: theme.palette.error.main } : {}),
+          }}
+        >
+          {label}
+        </Label>
+      ) : null}
       <TextField
         id={fieldId}
         name={name}
         placeholder={placeholder}
         inputProps={{
-          "aria-label": label,
+          "aria-label": showLabel ? label : name ?? fieldId,
           maxLength: 40,
           ...inputProps,
         }}

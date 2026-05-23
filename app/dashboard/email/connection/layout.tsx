@@ -1,7 +1,6 @@
-"use client";
+import type { ReactNode } from "react";
 
-import Box from "@mui/material/Box";
-
-export default function EmailConnectionLayout({ children }: { children: React.ReactNode }) {
-  return <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>{children}</Box>;
+/** Legacy `/connection/*` — hub layout handles chrome; no extra header. */
+export default function LegacyConnectionLayout({ children }: { children: ReactNode }) {
+  return children;
 }

@@ -22,7 +22,7 @@ import {
   usePlatformMailAssignmentListQuery,
 } from "../hooks/useEmailSettings";
 import { EmailTestStatusCell } from "./EmailTestStatusCell";
-import { PROVIDER_CODE_LABELS } from "../email.constants";
+import { PROVIDER_CODE_LABELS, EMAIL_ROUTES } from "../email.constants";
 import { EmailConfigTableCard, EmailHelpAlert } from "../styles/email-configuration.styled";
 import { departmentsFooterRow, footerMutedText, gradientPrimaryButtonSx } from "../styles/email-page.styles";
 import { emailAssignmentsTableSx } from "../styles/email-table.styles";
@@ -77,7 +77,7 @@ export function PlatformMailAssignmentsTable({
     setEditResellerId("");
     setEditResellerLabel("");
     if (syncEditQueryParam && searchParams.get("edit")) {
-      router.replace("/dashboard/email/connection/assignment");
+      router.replace(EMAIL_ROUTES.setupAssignment);
     }
   }, [router, searchParams, syncEditQueryParam]);
 

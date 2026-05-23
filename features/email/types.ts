@@ -10,6 +10,7 @@ export type {
   EmailProviderFieldSchema,
   EmailProviderFormSchema,
   EmailProviderKind,
+  EmailTemplateAssignment,
   EmailTemplateBlock,
   EmailTemplateBlockKey,
   EmailTemplateDraft,

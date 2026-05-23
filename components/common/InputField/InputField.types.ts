@@ -23,4 +23,6 @@ export interface InputFieldProps
   sx?: SxProps<Theme>;
   /** For scroll-to-error: sets `data-setup-scroll-anchor` (comma-separated paths allowed). */
   scrollAnchorPath?: string;
+  /** Smaller label + tighter spacing (side panels, dense forms). */
+  dense?: boolean;
 }

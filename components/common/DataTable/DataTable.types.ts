@@ -11,6 +11,8 @@ export interface DataTableColumn<T = Record<string, unknown>> {
   headerRender?: () => ReactNode;
   /** Cell text style: default (white) or muted (gray) */
   cellVariant?: "default" | "muted";
+  /** Header and body horizontal alignment */
+  align?: "left" | "center" | "right";
   /** Optional custom cell render: (value, row, index) => ReactNode */
   render?: (value: unknown, row: T, index: number) => React.ReactNode;
 }
@@ -33,6 +35,7 @@ export interface DataTableProps<T = Record<string, unknown>> {
   /** Optional action column: label and render function for each row */
   actionColumn?: {
     label: string;
+    align?: "left" | "center" | "right";
     render: (row: T, index: number) => React.ReactNode;
   };
   /** Minimum table width (for horizontal scroll on small screens) */

@@ -161,6 +161,10 @@ export const OP = {  accountSetup: {
     update: "email-template:update",
     view: "email-template:view",
   },
+  agentFeedback: {
+    update: "email-agent-feedback:update",
+    view: "email-agent-feedback:view",
+  },
   socialMedia: {
     create: "social-media:create",
     delete: "social-media:delete",
