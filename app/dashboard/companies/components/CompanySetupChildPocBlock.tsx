@@ -1,8 +1,7 @@
 "use client";
 
-import { useLayoutEffect, useMemo } from "react";
+import { useEffect, useLayoutEffect, useMemo } from "react";
 import Box from "@mui/material/Box";
-import Checkbox from "@mui/material/Checkbox";
 import FormControl from "@mui/material/FormControl";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Radio from "@mui/material/Radio";
@@ -15,6 +14,11 @@ import { pickItemsArray, toIdNameOption } from "@/app/dashboard/user-page/compon
 import { childrenDraftFieldPath, getCompanySetupFieldError } from "@/lib/companies/company-setup-draft-field-paths";
 import type { DraftChildPayload } from "@/lib/companies/setup-draft.utils";
 import { sessionShowPocDeptDesignationPickFromList, useAuth } from "@/lib/auth";
+import {
+  resolveRoleIdForExternalAdminScope,
+  type ExternalAdminScope,
+} from "@/lib/users/user-admin-scope";
+import { UserAdminScopeFields } from "@/app/dashboard/user-page/components/UserAdminScopeFields";
 
 export type CompanySetupFieldErrorScope = "wizardChild" | "parentPocInvite";
 
@@ -26,6 +30,10 @@ export type CompanySetupChildPocBlockProps = {
   departmentOptions: { value: string; label: string }[];
   rolesLoading: boolean;
   departmentsLoading: boolean;
+  /** When true, POC fields are read-only (e.g. no update permission). */
+  controlsDisabled?: boolean;
+  /** Which API error map shape to use for `scrollAnchorPath` / `fieldErrors` keys. */
+  fieldErrorScope?: CompanySetupFieldErrorScope;
   /** API paths → message, e.g. `childrenDraft.children.0.pocInvite.pocEmail`. */
   fieldErrors?: Record<string, string>;
   /** Wizard only: drives whether "Pick from list" is offered for POC dept/designation. */
@@ -40,6 +48,8 @@ export function CompanySetupChildPocBlock({
   departmentOptions,
   rolesLoading,
   departmentsLoading,
+  controlsDisabled = false,
+  fieldErrorScope = "wizardChild",
   fieldErrors,
   companySetupKind = "existing_reseller",
 }: CompanySetupChildPocBlockProps) {
@@ -103,10 +113,29 @@ export function CompanySetupChildPocBlock({
     designationsQuery.isLoading,
   ]);
 
-  const roleSelectOptions =
-    roleOptions.length > 0
-      ? roleOptions
-      : [{ value: "", label: rolesLoading ? "Loading…" : "— Select role —" }];
+  const roleSelectOptions = useMemo(
+    () =>
+      roleOptions.length > 0
+        ? roleOptions
+        : [{ value: "", label: rolesLoading ? "Loading…" : "— Select role —" }],
+    [roleOptions, rolesLoading],
+  );
+
+  useEffect(() => {
+    if (!roleOptions.length) return;
+    const scope = row.pocWideResellerScope ? "wide_reseller" : "parent_company";
+    const adminRoleId = resolveRoleIdForExternalAdminScope(scope, roleSelectOptions);
+    if (adminRoleId && row.roleId !== adminRoleId) {
+      updateChildRow(childIndex, { roleId: adminRoleId });
+    }
+  }, [
+    childIndex,
+    roleOptions.length,
+    row.pocWideResellerScope,
+    row.roleId,
+    roleSelectOptions,
+    updateChildRow,
+  ]);
 
   const departmentSelectOptions =
     departmentOptions.length > 0
@@ -196,43 +225,35 @@ export function CompanySetupChildPocBlock({
         onChange={(e) => updateChildRow(childIndex, { pocEmail: e.target.value })}
       />
 
-      <FormControlLabel
-        sx={{ alignItems: "flex-start", m: 0 }}
-        control={
-          <Checkbox
-            size="small"
-            checked={row.pocWideResellerScope}
-            disabled={controlsDisabled}
-            onChange={(e) => updateChildRow(childIndex, { pocWideResellerScope: e.target.checked })}
-            sx={{ color: theme.app.dashboard.textMuted, py: 0.25 }}
-          />
-        }
-        label={
-          <Box data-setup-scroll-anchor={resolvePath("pocInvite.wideResellerScope")}>
-            <Typography variant="body2" color="white" fontWeight={600}>
-              Wide reseller scope
-            </Typography>
-            <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, display: "block", mt: 0.25 }}>
-              External POC: allow hierarchy-wide access when your API supports{" "}
-              <Box component="code" sx={{ fontSize: "0.7rem" }}>
-                wideResellerScope
-              </Box>
-              .
-            </Typography>
-            {apiMsg("pocInvite.wideResellerScope") ? (
-              <Typography variant="caption" sx={{ color: theme.palette.error.main, display: "block", mt: 0.5 }}>
-                {apiMsg("pocInvite.wideResellerScope")}
-              </Typography>
-            ) : null}
-          </Box>
-        }
-      />
+      <Box data-setup-scroll-anchor={resolvePath("pocInvite.wideResellerScope")}>
+        <UserAdminScopeFields
+          theme={theme}
+          userType="External"
+          internalScope="standard"
+          externalScope={row.pocWideResellerScope ? "wide_reseller" : "parent_company"}
+          onInternalScopeChange={() => {}}
+          onExternalScopeChange={(scope: ExternalAdminScope) => {
+            const adminRoleId = resolveRoleIdForExternalAdminScope(scope, roleSelectOptions);
+            updateChildRow(childIndex, {
+              pocWideResellerScope: scope === "wide_reseller",
+              ...(adminRoleId ? { roleId: adminRoleId } : {}),
+            });
+          }}
+          disabled={controlsDisabled}
+          showInternal={false}
+        />
+        {apiMsg("pocInvite.wideResellerScope") ? (
+          <Typography variant="caption" sx={{ color: theme.palette.error.main, display: "block", mt: 0.5 }}>
+            {apiMsg("pocInvite.wideResellerScope")}
+          </Typography>
+        ) : null}
+      </Box>
 
       <Box>
         <SelectField
           label="Role"
           value={row.roleId}
-          disabled={controlsDisabled}
+          disabled
           scrollAnchorPath={resolvePath("pocInvite.roleId")}
           onChange={(id) => updateChildRow(childIndex, { roleId: id })}
           options={roleSelectOptions}

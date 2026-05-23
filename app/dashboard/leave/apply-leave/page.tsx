@@ -18,12 +18,12 @@ import {
   FormModal,
 } from "@/components/common";
 import type { DataTableColumn } from "@/components/common";
-import { AddCircleIcon } from "@/components/dashboard/icons/AddCircleIcon";
+import { AddCircleIcon } from "@/components/common/icons";
 import { rolesCard, rolesFooterRow, rolesIconBox, rolesPageWrapper, rolesPaginationWrapper } from "../../roles/roles.styles";
 import { footerMutedText, pageHeaderRow, pageWrapper } from "../../companies/overview.styles";
 import { departmentsAddButton } from "../../website-assigning/website-assigning.styles";
 import { publishAppToast } from "@/lib/notify";
-import { formatIsoDate, isRecord, pickNum, pickStr, unwrapApiData } from "@/lib/utils";
+import { formatIsoDate, isRecord, pickNum, pickStr, unwrapApiData } from "@/lib/utils/core";
 import {
   useLeaveTypesForApplyQuery,
   useMyLeaveApplicationsQuery,

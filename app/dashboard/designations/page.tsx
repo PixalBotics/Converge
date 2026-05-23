@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Box from "@mui/material/Box";
 import IconButton from "@mui/material/IconButton";
 import { AttachMoney as AttachMoneyIcon } from "@mui/icons-material";
@@ -17,9 +17,11 @@ import {
   Button,
   SearchBar,
   SelectField,
+  ToolbarFilterPopover,
+  ToolbarFilterPopoverPanel,
 } from "@/components/common";
 import type { DataTableColumn } from "@/components/common";
-import { AddCircleIcon } from "@/components/dashboard/icons/AddCircleIcon";
+import { AddCircleIcon, SearchIcon } from "@/components/common/icons";
 import {
   hrmsDesignationsKeys,
   useCompaniesSetupResellersQuery,
@@ -29,16 +31,21 @@ import {
 } from "@/lib/hooks";
 import { pickItemsArray, toIdNameOption } from "@/app/dashboard/user-page/components/add-user-modal.utils";
 import {
-  rolesHeader,
-  rolesAddButtonWrapper,
+  departmentsCardHeader,
+  departmentsSearchFieldWrapper,
+  departmentsSearchRow,
+  footerMutedText,
+  gradientPrimaryButtonSx,
+  pageWrapper,
   rolesAddButton,
+  rolesAddButtonWrapper,
   rolesCard,
   rolesFooterRow,
+  rolesHeader,
   rolesIconBox,
   rolesPageWrapper,
   rolesPaginationWrapper,
-} from "../roles/roles.styles";
-import { footerMutedText, pageWrapper } from "../companies/overview.styles";
+} from "./styles";
 import {
   type DesignationRow,
   extractDesignationsRows,
@@ -48,7 +55,6 @@ import {
 } from "./utils";
 import { AddDesignationModal } from "./components/AddDesignationModal";
 import { DeleteDesignationConfirmModal } from "./components/DeleteDesignationConfirmModal";
-import { SearchIcon } from "@/components/dashboard/icons/SearchIcon";
 import { useAuth } from "@/lib/auth";
 import { canDesignationAction } from "@/lib/permissions";
 
@@ -82,6 +88,7 @@ export default function DesignationsPage() {
   const [filterResellerId, setFilterResellerId] = useState("");
   const [filterDepartmentId, setFilterDepartmentId] = useState("");
   const [page, setPage] = useState(1);
+  const [filterPanelOpen, setFilterPanelOpen] = useState(false);
 
   const softDeleteDesignationMutation = useSoftDeleteDesignationMutation();
 
@@ -191,13 +198,64 @@ export default function DesignationsPage() {
     void queryClient.invalidateQueries({ queryKey: hrmsDesignationsKeys.all });
   };
 
-  const clearFilters = () => {
+  const clearFilters = useCallback(() => {
     setSearchInput("");
     setSearch("");
     setFilterResellerId("");
     setFilterDepartmentId("");
     setPage(1);
-  };
+    setFilterPanelOpen(false);
+  }, []);
+
+  const handleResellerFilterChange = useCallback((v: string) => {
+    setFilterResellerId(v);
+    setFilterDepartmentId("");
+  }, []);
+
+  const designationsFilterPanel = useMemo(() => {
+    return (
+      <ToolbarFilterPopoverPanel
+        footer={
+          <>
+            <Button type="button" variant="secondary" disabled={!hasActiveFilters} onClick={clearFilters}>
+              Clear filters
+            </Button>
+            <Button type="button" variant="primary" sx={gradientPrimaryButtonSx} onClick={() => setFilterPanelOpen(false)}>
+              Done
+            </Button>
+          </>
+        }
+      >
+        <Typography variant="medium" fontWeight={700} sx={{ mb: 1.5 }}>
+          Filters
+        </Typography>
+        <Box sx={{ display: "grid", gap: 1.75 }}>
+          <SelectField
+            label="Reseller"
+            value={filterResellerId}
+            onChange={handleResellerFilterChange}
+            options={resellerFilterOptions}
+            menuMaxRows={6}
+          />
+          <SelectField
+            label="Department"
+            value={filterDepartmentId}
+            onChange={setFilterDepartmentId}
+            options={departmentFilterOptions}
+            menuMaxRows={6}
+          />
+        </Box>
+      </ToolbarFilterPopoverPanel>
+    );
+  }, [
+    filterResellerId,
+    filterDepartmentId,
+    resellerFilterOptions,
+    departmentFilterOptions,
+    hasActiveFilters,
+    handleResellerFilterChange,
+    clearFilters,
+  ]);
 
   const handleConfirmDeleteDesignation = () => {
     const rowId = deleteTarget?.id?.trim() ?? "";
@@ -251,15 +309,7 @@ export default function DesignationsPage() {
       />
 
       <DashboardCard sx={rolesCard}>
-        <Box
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 2,
-            flexWrap: { xs: "wrap", lg: "nowrap" },
-          }}
-        >
+        <Box sx={departmentsCardHeader}>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexShrink: 0 }}>
             <Box sx={rolesIconBox}>
               <AttachMoneyIcon sx={{ fontSize: 20, color: theme.app.dashboard.iconMuted }} />
@@ -273,17 +323,8 @@ export default function DesignationsPage() {
             </Typography>
           </Box>
 
-          <Box
-            sx={{
-              display: "flex",
-              gap: 1.25,
-              alignItems: "center",
-              width: { xs: "100%", lg: "auto" },
-              minWidth: 0,
-              justifyContent: { xs: "stretch", lg: "flex-end" },
-            }}
-          >
-            <Box sx={{ width: { xs: "100%", lg: 320 } }}>
+          <Box sx={departmentsSearchRow}>
+            <Box sx={departmentsSearchFieldWrapper}>
               <SearchBar
                 value={searchInput}
                 onChange={setSearchInput}
@@ -295,61 +336,21 @@ export default function DesignationsPage() {
               type="button"
               variant="primary"
               disabled={searchInput.trim() === search.trim()}
-              onClick={() => setSearch(searchInput)}
-              sx={{ minWidth: 120, whiteSpace: "nowrap" }}
+              onClick={() => {
+                setSearch(searchInput.trim());
+                setPage(1);
+              }}
+              sx={{ minWidth: 132, whiteSpace: "nowrap", alignSelf: { xs: "stretch", sm: "center" } }}
             >
-              <Box component="span" sx={{ display: "inline-flex", lineHeight: 0 }}>
+              <Box component="span" sx={{ display: "inline-flex", lineHeight: 0, mr: 0.75 }}>
                 <SearchIcon width={18} height={18} sx={{ color: "inherit" }} />
               </Box>
               Search
             </Button>
+            <ToolbarFilterPopover open={filterPanelOpen} onOpenChange={setFilterPanelOpen} active={hasActiveFilters}>
+              {designationsFilterPanel}
+            </ToolbarFilterPopover>
           </Box>
-        </Box>
-
-        <Box
-          sx={{
-            display: "grid",
-            gridTemplateColumns: {
-              xs: "1fr",
-              sm: "repeat(2, minmax(0, 1fr))",
-              lg: "220px 320px auto",
-            },
-            gap: 1.5,
-            alignItems: "end",
-            width: "100%",
-          }}
-        >
-          <SelectField
-            label="Reseller"
-            value={filterResellerId}
-            onChange={(v) => {
-              setFilterResellerId(v);
-              setFilterDepartmentId("");
-            }}
-            options={resellerFilterOptions}
-            menuMaxRows={6}
-          />
-          <SelectField
-            label="Department"
-            value={filterDepartmentId}
-            onChange={setFilterDepartmentId}
-            options={departmentFilterOptions}
-            menuMaxRows={6}
-          />
-          <Button
-            type="button"
-            variant="secondary"
-            disabled={!hasActiveFilters}
-            onClick={clearFilters}
-            sx={{
-              minWidth: 140,
-              whiteSpace: "nowrap",
-              width: "auto",
-              justifySelf: { xs: "stretch", sm: "start" },
-            }}
-          >
-            Clear filters
-          </Button>
         </Box>
 
         <DataTable<DesignationRow>

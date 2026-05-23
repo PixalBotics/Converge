@@ -29,7 +29,7 @@ export const revenueLineChartYAxis = {
 
 export const revenueLineChartTooltipContent: CSSProperties = {
   background: "radial-gradient(50% 50% at 50% 50%, #09013F 0%, #00011A 100%)",
-  boxShadow: "0px 2.55px 12.74px 0px #7C8DB51F",
+  boxShadow: "none",
   border: "0.51px solid #FFFFFF0F",
   borderRadius: 12,
 };

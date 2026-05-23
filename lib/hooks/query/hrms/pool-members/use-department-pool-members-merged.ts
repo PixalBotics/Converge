@@ -4,7 +4,7 @@ import { useMemo } from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { listHrmsPoolMembers } from "@/api";
 import type { JsonRecord } from "@/api";
-import { isRecord, pickNum, pickStr, unwrapApiData } from "@/lib/utils";
+import { isRecord, pickNum, pickStr, unwrapApiData } from "@/lib/utils/core";
 import { hrmsPoolMembersKeys } from "./keys";
 
 function rowsFromAggregatePayload(data: unknown): Record<string, unknown>[] {
@@ -69,7 +69,6 @@ export type MergedPoolMemberRow = {
   userId: string;
   memberName: string;
   email: string;
-  isPoolHead: boolean;
 };
 
 export type DepartmentPoolMembersMergedOptions = {
@@ -121,12 +120,6 @@ function toMergedPoolMemberRow(r: Record<string, unknown>): MergedPoolMemberRow 
   const memberName = memberDisplayName(nameSource as Record<string, unknown>);
   const email = pickStr(r, ["email"]) || pickStr(userObj, ["email"]) || "—";
 
-  const head =
-    r["isPoolHead"] === true ||
-    r["isPoolHead"] === "true" ||
-    pickStr(r, ["isPoolHead"]) === "1" ||
-    (userObj && (userObj["isPoolHead"] === true || userObj["isPoolHead"] === "true"));
-
   return {
     rowKey: `${poolId}:${userId}`,
     poolId,
@@ -136,7 +129,6 @@ function toMergedPoolMemberRow(r: Record<string, unknown>): MergedPoolMemberRow 
     userId,
     memberName,
     email,
-    isPoolHead: Boolean(head),
   };
 }
 

@@ -1,47 +1,57 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import Assignment from "@mui/icons-material/Assignment";
 import FilterList from "@mui/icons-material/FilterList";
 import IosShare from "@mui/icons-material/IosShare";
 import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
-import Link from "@mui/material/Link";
 import NextLink from "next/link";
 import type { SxProps, Theme } from "@mui/material/styles";
 import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import { filterChromeButtonSx } from "@/components/common/FilterButton/filter-button.styles";
-import { resolveSx } from "@/utils/resolveSx";
 import {
   AssignWebsiteModal,
+  type AssignWebsiteModalPreset,
   Button,
   DashboardCard,
   DataTable,
-  FilterButton,
+  FormModal,
   SearchBar,
-  SelectField,
+  TablePagination,
+  ToolbarFilterPopover,
   Typography,
 } from "@/components/common";
-import { useCompaniesByResellerQuery, useCompaniesSetupResellersQuery, useWebsiteAssignmentsWebsitesQuery } from "@/lib/hooks";
+import { WebsiteAssignmentScopeFilterPanel } from "@/features/website-assignments/components/WebsiteAssignmentScopeFilterPanel";
+import { WebsiteAssignmentJourneyStepper } from "@/features/website-assignments/components/WebsiteAssignmentJourneyStepper";
+import { WebsiteAssignmentTableActions } from "@/features/website-assignments/components/WebsiteAssignmentTableActions";
+import { useWebsiteAssignmentScopeFilters } from "@/features/website-assignments/hooks/useWebsiteAssignmentScopeFilters";
+import {
+  ASSIGNED_FILTER_OPTIONS,
+  ROSTER_FILTER_OPTIONS,
+  parseAssignedFilter,
+  parseRosterFilter,
+} from "@/features/website-assignments/utils/list-filter-params";
+import { clearAllDepartmentRosters } from "@/features/website-assignments/utils/clear-website-roster";
+import { extractApiErrorMessageForToast, publishAppToast } from "@/lib/notify";
+import { useQueryClient } from "@tanstack/react-query";
+import { websiteAssignmentsKeys } from "@/lib/hooks/query/website-assignments/keys";
+import { useWebsiteAssignmentGates } from "@/lib/permissions/use-website-assignment-gates";
+import { buildWebsitesInScopeParams, useWebsiteAssignmentsWebsitesQuery } from "@/lib/hooks";
 import type { DataTableColumn } from "@/components/common";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
-import { SearchIcon } from "@/components/dashboard/icons/SearchIcon";
-import {
-  extractChildCompanyOptionsForParentFromByResellerTree,
-  extractParentCompaniesFromByResellerTree,
-  pickItemsArray,
-  toIdNameOption,
-} from "@/app/dashboard/user-page/components/add-user-modal.utils";
+import { SearchIcon } from "@/components/common/icons";
 import {
   websiteAssignmentFilterCard,
-  websiteAssignmentFilterGrid,
   websiteAssignmentFilterIconBox,
   websiteAssignmentFilterTitleRow,
   websiteAssignmentFooterRow,
   websiteAssignmentHeaderActions,
   websiteAssignmentPageHeader,
   websiteAssignmentPageWrapper,
+  websiteAssignmentPaginationWrapper,
   websiteAssignmentSearchFieldWrapper,
   websiteAssignmentSearchRow,
   websiteAssignmentTableCard,
@@ -54,99 +64,75 @@ import { groupWebsitesByParentChild, sitesListHref } from "./group-websites-by-o
 /** One API page size — avoids loading thousands of rows at once. */
 const WEBSITES_PAGE_LIMIT = 50;
 
-const ASSIGNED_FILTER_OPTIONS = [
-  { value: "", label: "All" },
-  { value: "assigned", label: "Assigned" },
-  { value: "unassigned", label: "Unassigned" },
-] as const;
-
 type WebsiteRow = {
   id: string;
   reseller: string;
+  resellerId: string;
   parentCompany: string;
+  parentCompanyId: string;
   childCompany: string;
+  childCompanyId: string;
   websiteName: string;
   websiteUrl: string;
   assignedCount: number;
+  filledSlots: number;
+  uniqueMemberCount: number;
+  expectedRosterSlots: number;
+  serviceSchedulingConfigured: boolean;
   isFullyAssigned: boolean;
 };
 
 export default function WebsiteAssigningPage() {
+  const router = useRouter();
+  const queryClient = useQueryClient();
   const theme = useTheme() as AppTheme;
+  const assignmentGates = useWebsiteAssignmentGates();
+  const scope = useWebsiteAssignmentScopeFilters();
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
-  const [filterAssigned, setFilterAssigned] = useState<string>("");
-  const [filterResellerId, setFilterResellerId] = useState("");
-  const [filterParentCompanyId, setFilterParentCompanyId] = useState("");
-  const [filterChildCompanyId, setFilterChildCompanyId] = useState("");
+  const [filterAssigned, setFilterAssigned] = useState("");
+  const [filterRoster, setFilterRoster] = useState("");
+  const [filterPopoverOpen, setFilterPopoverOpen] = useState(false);
   const [isAssignOpen, setIsAssignOpen] = useState(false);
+  const [assignPreset, setAssignPreset] = useState<AssignWebsiteModalPreset | null>(null);
+  const [clearTarget, setClearTarget] = useState<WebsiteRow | null>(null);
+  const [clearing, setClearing] = useState(false);
   const [page, setPage] = useState(1);
 
-  const resellersQuery = useCompaniesSetupResellersQuery({ enabled: true });
-  const companiesByResellerQuery = useCompaniesByResellerQuery(
-    filterResellerId,
-    { view: "tree", sortBy: "name", sortOrder: "asc", all: true },
-    { enabled: filterResellerId.trim().length > 0 },
+  const assignedParam = useMemo(() => parseAssignedFilter(filterAssigned), [filterAssigned]);
+  const rosterParams = useMemo(() => parseRosterFilter(filterRoster), [filterRoster]);
+
+  const listParams = useMemo(
+    () =>
+      buildWebsitesInScopeParams({
+        canFilterByResellerId: scope.canFilterByResellerId,
+        page,
+        limit: WEBSITES_PAGE_LIMIT,
+        search,
+        assigned: rosterParams.assigned ?? assignedParam,
+        resellerId: scope.filterResellerId,
+        parentCompanyId: scope.filterParentCompanyId,
+        childCompanyId: scope.filterChildCompanyId,
+        serviceSchedulingConfigured: rosterParams.serviceSchedulingConfigured,
+        fullyAssigned: rosterParams.fullyAssigned,
+      }),
+    [
+      scope.canFilterByResellerId,
+      scope.filterResellerId,
+      scope.filterParentCompanyId,
+      scope.filterChildCompanyId,
+      page,
+      search,
+      assignedParam,
+      rosterParams,
+    ],
   );
 
-  const resellerOptions = useMemo(() => {
-    return pickItemsArray(resellersQuery.data)
-      .map((row) => toIdNameOption(row))
-      .filter((o): o is { value: string; label: string } => o !== null);
-  }, [resellersQuery.data]);
-
-  const resellerFilterOptions = useMemo(() => {
-    const all = { value: "", label: "All resellers" };
-    if (resellerOptions.length > 0) return [all, ...resellerOptions];
-    return [{ value: "", label: resellersQuery.isLoading ? "Loading resellers…" : "No resellers available" }];
-  }, [resellerOptions, resellersQuery.isLoading]);
-
-  const parentCompanyFilterOptions = useMemo(() => {
-    if (!filterResellerId.trim()) return [{ value: "", label: "All parent companies" }];
-    const extracted = extractParentCompaniesFromByResellerTree(companiesByResellerQuery.data).map((o) => ({
-      value: o.value,
-      label: o.label,
-    }));
-    if (extracted.length > 0) return [{ value: "", label: "All parent companies" }, ...extracted];
-    return [
-      { value: "", label: companiesByResellerQuery.isLoading ? "Loading parent companies…" : "No parent companies available" },
-    ];
-  }, [filterResellerId, companiesByResellerQuery.data, companiesByResellerQuery.isLoading]);
-
-  const childCompanyFilterOptions = useMemo(() => {
-    if (!filterResellerId.trim()) return [{ value: "", label: "All child companies" }];
-    if (!filterParentCompanyId.trim()) return [{ value: "", label: "All child companies" }];
-    const children = extractChildCompanyOptionsForParentFromByResellerTree(
-      companiesByResellerQuery.data,
-      filterParentCompanyId,
-    );
-    const options = [{ value: "", label: "All child companies" }, ...(children.length ? children : [])];
-    if (options.length > 1) return options;
-    return [{ value: "", label: companiesByResellerQuery.isLoading ? "Loading child companies…" : "No child companies available" }];
-  }, [filterResellerId, filterParentCompanyId, companiesByResellerQuery.data, companiesByResellerQuery.isLoading]);
-
-  const assignedParam = useMemo(() => {
-    if (filterAssigned === "assigned") return true;
-    if (filterAssigned === "unassigned") return false;
-    return undefined;
-  }, [filterAssigned]);
-
-  const listParams = useMemo(() => {
-    const params: Record<string, string | number | boolean> = {
-      page,
-      limit: WEBSITES_PAGE_LIMIT,
-    };
-    const q = search.trim();
-    if (q) params.search = q;
-    if (assignedParam !== undefined) params.assigned = assignedParam;
-    if (filterResellerId.trim()) params.resellerId = filterResellerId.trim();
-    if (filterParentCompanyId.trim()) params.parentCompanyId = filterParentCompanyId.trim();
-    if (filterChildCompanyId.trim()) params.childCompanyId = filterChildCompanyId.trim();
-    return params;
-  }, [page, search, assignedParam, filterResellerId, filterParentCompanyId, filterChildCompanyId]);
-
   const { data: websitesResponse, isLoading: isWebsitesLoading, isFetching } =
-    useWebsiteAssignmentsWebsitesQuery(listParams, { enabled: true });
+    useWebsiteAssignmentsWebsitesQuery(listParams, {
+      allowResellerIdFilter: scope.canFilterByResellerId,
+      enabled: assignmentGates.view,
+    });
   const websitesData = websitesResponse?.data;
 
   const scopeItems = useMemo(() => websitesData?.items ?? [], [websitesData?.items]);
@@ -163,14 +149,51 @@ export default function WebsiteAssigningPage() {
     return {
       id: item.websiteId,
       reseller: item.resellerName || "-",
+      resellerId: item.resellerId ?? "",
       parentCompany: item.parentCompanyName || "-",
+      parentCompanyId: item.parentCompanyId,
       childCompany: item.childCompanyName || "-",
-      websiteName: item.name || "-",
-      websiteUrl: item.url || "-",
-      assignedCount: item.assignedCount ?? 0,
+      childCompanyId: item.childCompanyId,
+      websiteName: (item.name ?? "").trim() || (item.url ?? "").trim() || "Website",
+      websiteUrl: (item.url ?? "").trim() || "—",
+      assignedCount: item.filledSlots ?? item.assignedCount ?? 0,
+      filledSlots: item.filledSlots ?? item.assignedCount ?? 0,
+      uniqueMemberCount: item.uniqueMemberCount ?? 0,
+      expectedRosterSlots: item.expectedRosterSlots ?? 0,
+      serviceSchedulingConfigured: Boolean(item.serviceSchedulingConfigured),
       isFullyAssigned: Boolean(item.isFullyAssigned),
     };
   }
+
+  const rosterHref = (websiteId: string) =>
+    `/dashboard/website-assigning/website/${encodeURIComponent(websiteId)}`;
+
+  const openAssign = () => {
+    setAssignPreset(null);
+    setIsAssignOpen(true);
+  };
+
+  const openRosterEdit = (row: WebsiteRow) => {
+    router.push(rosterHref(row.id));
+  };
+
+  const handleClearAgents = async () => {
+    if (!clearTarget || !assignmentGates.assign) return;
+    setClearing(true);
+    try {
+      await clearAllDepartmentRosters(clearTarget.id);
+      void queryClient.invalidateQueries({ queryKey: websiteAssignmentsKeys.all });
+      publishAppToast({ message: "All agent slots cleared for this website.", variant: "success" });
+      setClearTarget(null);
+    } catch (e) {
+      publishAppToast({
+        message: extractApiErrorMessageForToast(e, "Could not clear agent assignments"),
+        variant: "error",
+      });
+    } finally {
+      setClearing(false);
+    }
+  };
 
   const childCompanyPillSx = useMemo(
     () => ({
@@ -209,28 +232,72 @@ export default function WebsiteAssigningPage() {
         ),
       },
       {
-        id: "agents",
-        label: "Agents",
-        render: (_, row) => (
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
-            <Typography variant="body2" fontWeight={600} sx={{ color: theme.app.text.primary }}>
-              {row.assignedCount}
-            </Typography>
-            {row.isFullyAssigned ? (
+        id: "status",
+        label: "Status",
+        render: (_, row) => {
+          if (!row.serviceSchedulingConfigured) {
+            return (
               <Chip
-                label="Full"
+                label="Please add schedule"
                 size="small"
                 sx={{
-                  height: 22,
-                  fontSize: 11,
+                  height: 24,
                   fontWeight: 600,
-                  bgcolor: `${theme.palette.success.main}22`,
-                  color: theme.palette.success.main,
-                  border: `1px solid ${theme.palette.success.main}55`,
+                  fontSize: 11,
+                  bgcolor: `${theme.palette.warning.main}22`,
+                  color: theme.palette.warning.light,
                 }}
               />
-            ) : null}
-          </Box>
+            );
+          }
+          if (row.isFullyAssigned) {
+            return (
+              <Chip
+                label="Roster complete"
+                size="small"
+                sx={{
+                  height: 24,
+                  fontWeight: 600,
+                  fontSize: 11,
+                  bgcolor: `${theme.palette.success.main}22`,
+                  color: theme.palette.success.main,
+                }}
+              />
+            );
+          }
+          return (
+            <Chip
+              label="Assign agents"
+              size="small"
+              sx={{
+                height: 24,
+                fontWeight: 600,
+                fontSize: 11,
+                bgcolor: `${theme.palette.primary.main}18`,
+                color: theme.palette.primary.light,
+              }}
+            />
+          );
+        },
+      },
+      {
+        id: "roster",
+        label: "Roster",
+        render: (_, row) => (
+          <Typography variant="body2" fontWeight={600} sx={{ color: theme.app.text.primary }}>
+            {row.expectedRosterSlots > 0
+              ? `${row.filledSlots} / ${row.expectedRosterSlots} slots`
+              : `${row.filledSlots} slots`}
+          </Typography>
+        ),
+      },
+      {
+        id: "members",
+        label: "Team",
+        render: (_, row) => (
+          <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted }}>
+            {row.uniqueMemberCount} member{row.uniqueMemberCount === 1 ? "" : "s"}
+          </Typography>
         ),
       },
     ],
@@ -244,19 +311,32 @@ export default function WebsiteAssigningPage() {
     setSearch("");
   }, [searchInput, search]);
 
+  const hasActiveFilters = Boolean(
+    filterAssigned ||
+      filterRoster ||
+      scope.hasScopeFilters ||
+      search.trim(),
+  );
+
+  const clearAllFilters = () => {
+    setFilterAssigned("");
+    setFilterRoster("");
+    scope.clearScopeFilters();
+    setSearchInput("");
+    setSearch("");
+    setPage(1);
+  };
+
   useEffect(() => {
     setPage(1);
-  }, [search, filterAssigned, filterResellerId, filterParentCompanyId, filterChildCompanyId]);
-
-  useEffect(() => {
-    // Reset dependent filters
-    setFilterParentCompanyId("");
-    setFilterChildCompanyId("");
-  }, [filterResellerId]);
-
-  useEffect(() => {
-    setFilterChildCompanyId("");
-  }, [filterParentCompanyId]);
+  }, [
+    search,
+    filterAssigned,
+    filterRoster,
+    scope.filterResellerId,
+    scope.filterParentCompanyId,
+    scope.filterChildCompanyId,
+  ]);
 
   return (
     <Box sx={websiteAssignmentPageWrapper}>
@@ -266,91 +346,79 @@ export default function WebsiteAssigningPage() {
             Website Assignment
           </Typography>
           <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted, maxWidth: 560 }}>
-            Websites you can manage in your scope. Open one to see the full assignment breakdown for that site.
+            Complete service scheduling first, then assign Primary → Secondary → Backup per department.
           </Typography>
         </Box>
         <Box sx={websiteAssignmentHeaderActions}>
           <Button type="button" variant="outlined" startIcon={<IosShare sx={{ fontSize: 18 }} />} sx={filterChromeButtonSx}>
             Export Data
           </Button>
-          <Button
-            type="button"
-            variant="primary"
-            sx={gradientPrimaryButtonSx}
-            startIcon={<Assignment sx={{ fontSize: 18 }} />}
-            onClick={() => setIsAssignOpen(true)}
-          >
-            Assign Website
-          </Button>
+          {assignmentGates.assign ? (
+            <Button
+              type="button"
+              variant="primary"
+              sx={gradientPrimaryButtonSx}
+              startIcon={<Assignment sx={{ fontSize: 18 }} />}
+              onClick={() => openAssign()}
+            >
+              Assign Website
+            </Button>
+          ) : null}
         </Box>
       </Box>
+
+      <WebsiteAssignmentJourneyStepper variant="hub" activeStep={2} schedulingComplete />
 
       <DashboardCard sx={websiteAssignmentFilterCard}>
         <Box sx={websiteAssignmentFilterTitleRow}>
           <Box sx={websiteAssignmentFilterIconBox}>
             <FilterList sx={{ fontSize: 20 }} />
           </Box>
-          <Typography variant="mediumLarge" color="white" fontWeight={600}>
-            Select Filter
+          <Typography variant="mediumLarge" fontWeight={600}>
+            Filters
           </Typography>
         </Box>
-        <Box sx={websiteAssignmentFilterGrid}>
-          <SelectField
-            label="Assigned"
-            value={filterAssigned}
-            onChange={setFilterAssigned}
-            options={[...ASSIGNED_FILTER_OPTIONS]}
-          />
-          <SelectField
-            label="Reseller"
-            value={filterResellerId}
-            onChange={setFilterResellerId}
-            options={resellerFilterOptions}
-            menuMaxRows={6}
-          />
-          <SelectField
-            label="Parent Company"
-            value={filterParentCompanyId}
-            onChange={setFilterParentCompanyId}
-            options={parentCompanyFilterOptions}
-            menuMaxRows={7}
-            disabled={!filterResellerId.trim()}
-          />
-          <SelectField
-            label="Child Company"
-            value={filterChildCompanyId}
-            onChange={setFilterChildCompanyId}
-            options={childCompanyFilterOptions}
-            menuMaxRows={7}
-            disabled={!filterResellerId.trim() || !filterParentCompanyId.trim()}
-          />
-          <Box
-            sx={{
-              display: "flex",
-              justifyContent: { xs: "stretch", lg: "flex-end" },
-              gridColumn: { xs: "auto", sm: "2 / 3" },
-            }}
-          >
-            <Button
-              type="button"
-              variant="outlined"
-              sx={{
-                ...resolveSx(filterChromeButtonSx, theme),
-                width: { xs: "100%", lg: "auto" },
-              }}
-              onClick={() => {
-                setFilterAssigned("");
-                setFilterResellerId("");
-                setFilterParentCompanyId("");
-                setFilterChildCompanyId("");
-                setSearchInput("");
-                setSearch("");
-                setPage(1);
-              }}
-            >
-              Clear filters
-            </Button>
+        <Box sx={websiteAssignmentSearchRow}>
+          <Box sx={websiteAssignmentSearchFieldWrapper}>
+            <SearchBar
+              value={searchInput}
+              onChange={setSearchInput}
+              placeholder="Search URL, website, company, reseller, or assigned user…"
+              sx={{ minWidth: "100%" }}
+            />
           </Box>
+          <Button
+            type="button"
+            variant="primary"
+            disabled={searchInput.trim() === search.trim()}
+            onClick={() => {
+              setSearch(searchInput.trim());
+              setPage(1);
+            }}
+            sx={{ minWidth: 132, whiteSpace: "nowrap", alignSelf: { xs: "stretch", sm: "center" } }}
+          >
+            Search
+          </Button>
+          <ToolbarFilterPopover
+            open={filterPopoverOpen}
+            onOpenChange={setFilterPopoverOpen}
+            active={hasActiveFilters}
+          >
+            <WebsiteAssignmentScopeFilterPanel
+              {...scope}
+              showAssignedFilter
+              filterAssigned={filterAssigned}
+              onFilterAssignedChange={setFilterAssigned}
+              assignedOptions={[...ASSIGNED_FILTER_OPTIONS]}
+              showRosterFilter
+              filterRoster={filterRoster}
+              onFilterRosterChange={setFilterRoster}
+              rosterOptions={[...ROSTER_FILTER_OPTIONS]}
+              hasActiveFilters={hasActiveFilters}
+              onClearAll={clearAllFilters}
+              onClose={() => setFilterPopoverOpen(false)}
+            />
+          </ToolbarFilterPopover>
         </Box>
       </DashboardCard>
 
@@ -363,29 +431,6 @@ export default function WebsiteAssigningPage() {
             <Typography variant="mediumLarge" color="white" fontWeight={600}>
               Websites ({totalEntries})
             </Typography>
-          </Box>
-          <Box sx={websiteAssignmentSearchRow}>
-            <Box sx={websiteAssignmentSearchFieldWrapper}>
-              <SearchBar
-                value={searchInput}
-                onChange={setSearchInput}
-                placeholder="Search URL, website, company, reseller, or assigned user…"
-                sx={{ minWidth: "100%" }}
-              />
-            </Box>
-            <Button
-              type="button"
-              variant="primary"
-              disabled={searchInput.trim() === search.trim()}
-              onClick={() => {
-                setSearch(searchInput);
-                setPage(1);
-              }}
-              sx={{ minWidth: 132, whiteSpace: "nowrap", alignSelf: { xs: "stretch", sm: "center" } }}
-            >
-              Search
-            </Button>
-            <FilterButton sx={{ whiteSpace: "nowrap", alignSelf: { xs: "stretch", sm: "center" } }} />
           </Box>
         </Box>
 
@@ -464,22 +509,19 @@ export default function WebsiteAssigningPage() {
                       getRowId={(row) => row.id}
                       minWidth={560}
                       actionColumn={{
-                        label: "Detail",
+                        label: "Actions",
                         render: (row) => (
-                          <Link
-                            component={NextLink}
-                            href={`/dashboard/website-assigning/website/${encodeURIComponent(row.id)}`}
-                            sx={{
-                              color: theme.palette.primary.main,
-                              textDecoration: "none",
-                              cursor: "pointer",
-                              fontSize: 14,
-                              fontWeight: 500,
-                              "&:hover": { textDecoration: "underline" },
-                            }}
-                          >
-                            Website detail
-                          </Link>
+                          <WebsiteAssignmentTableActions
+                            row={{ websiteId: row.id, websiteName: row.websiteName }}
+                            canAssign={assignmentGates.assign}
+                            onSchedule={(r) =>
+                              router.push(
+                                `/dashboard/website-assigning/website/${encodeURIComponent(r.websiteId)}/service-scheduling`,
+                              )
+                            }
+                            onEdit={() => openRosterEdit(row)}
+                            onClearAgents={() => setClearTarget(row)}
+                          />
                         ),
                       }}
                     />
@@ -502,29 +544,47 @@ export default function WebsiteAssigningPage() {
         >
           <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted }}>
             {isLoading
-              ? ""
+              ? "Loading…"
               : totalEntries === 0
                 ? "No results."
-                : `${rangeStart}–${rangeEnd} of ${totalEntries} · page ${page} / ${totalPages} (${WEBSITES_PAGE_LIMIT} per page). Parent/child blocks = this page only.`}
+                : `${rangeStart}–${rangeEnd} of ${totalEntries} · page ${page} of ${totalPages}`}
           </Typography>
-          <Box sx={{ display: "flex", gap: 1, flexShrink: 0 }}>
-            <Button type="button" variant="outlined" size="small" disabled={page <= 1 || isLoading} onClick={() => setPage((p) => Math.max(1, p - 1))}>
-              Previous
-            </Button>
-            <Button
-              type="button"
-              variant="outlined"
-              size="small"
-              disabled={page >= totalPages || isLoading}
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-            >
-              Next
-            </Button>
+          <Box sx={websiteAssignmentPaginationWrapper}>
+            <TablePagination page={page} pageCount={totalPages} onPageChange={setPage} />
           </Box>
         </Box>
       </DashboardCard>
 
-      <AssignWebsiteModal open={isAssignOpen} onClose={() => setIsAssignOpen(false)} />
+      <AssignWebsiteModal
+        open={isAssignOpen}
+        preset={assignPreset}
+        onClose={() => {
+          setIsAssignOpen(false);
+          setAssignPreset(null);
+        }}
+        onAssign={() => void queryClient.invalidateQueries({ queryKey: websiteAssignmentsKeys.all })}
+      />
+
+      <FormModal
+        open={Boolean(clearTarget)}
+        title="Clear all agent slots?"
+        description={
+          clearTarget
+            ? `Remove every Primary, Secondary, and Backup assignment for ${
+                clearTarget.websiteName && clearTarget.websiteName !== "—"
+                  ? clearTarget.websiteName
+                  : clearTarget.websiteUrl
+              }. Service scheduling is kept.`
+            : undefined
+        }
+        onClose={() => !clearing && setClearTarget(null)}
+        onSave={() => void handleClearAgents()}
+        primaryButtonLabel={clearing ? "Clearing…" : "Clear all agents"}
+        primaryButtonVariant="danger"
+        primaryButtonDisabled={clearing}
+        cancelButtonLabel="Cancel"
+        maxWidth={480}
+      />
     </Box>
   );
 }

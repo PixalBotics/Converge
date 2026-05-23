@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
 import Checkbox from "@mui/material/Checkbox";
@@ -12,8 +12,7 @@ import TableContainer from "@mui/material/TableContainer";
 import TableHead from "@mui/material/TableHead";
 import TableRow from "@mui/material/TableRow";
 import { Person as PersonIcon, Delete as DeleteIcon, AccessTime as AccessTimeIcon } from "@mui/icons-material";
-import type { SxProps, Theme } from "@mui/material/styles";
-import { useTheme } from "@mui/material/styles";
+import { useTheme, type SxProps, type Theme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import {
   Button,
@@ -25,6 +24,8 @@ import {
   SegmentedControl,
   SelectField,
   TablePagination,
+  ToolbarFilterPopover,
+  ToolbarFilterPopoverPanel,
   Typography,
   dataTableActionButton,
 } from "@/components/common";
@@ -38,7 +39,7 @@ import {
 } from "../../roles/roles.styles";
 import { footerMutedText, pageWrapper } from "../../companies/overview.styles";
 import { publishAppToast } from "@/lib/notify";
-import { isRecord, pickNum, pickStr, unwrapApiData } from "@/lib/utils";
+import { isRecord, pickNum, pickStr, unwrapApiData } from "@/lib/utils/core";
 import {
   useAssignDepartmentHeadMutation,
   useCompaniesByResellerQuery,
@@ -58,7 +59,13 @@ import {
 import { extractUsersRows } from "@/app/dashboard/user-page/utils";
 import { useAuth, sessionMayPickInternalUserScope } from "@/lib/auth";
 import { canManageDepartmentHeads, canRemoveDepartmentHead } from "@/lib/permissions";
-import { SearchIcon } from "@/components/dashboard/icons/SearchIcon";
+import { SearchIcon } from "@/components/common/icons";
+import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
+import {
+  departmentsCardHeader,
+  departmentsSearchFieldWrapper,
+  departmentsSearchRow,
+} from "@/app/dashboard/website-assigning/website-assigning.styles";
 
 const PAGE_LIMIT = 12;
 const ASSIGN_USER_TABLE_MAX_PX = 340;
@@ -159,6 +166,7 @@ export default function DepartmentHeadsPage() {
         : [{ value: "External", label: "External" }],
     [isPlatformAdmin, authUser?.userType],
   );
+  const mayPickInternalScope = sessionMayPickInternalUserScope(isPlatformAdmin, authUser?.userType);
   const canAssignDeptHead = canManageDepartmentHeads(hasOperational);
   const canRemoveDeptHeadRow = canRemoveDepartmentHead(hasOperational);
   const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
@@ -188,14 +196,160 @@ export default function DepartmentHeadsPage() {
   const [attendancePoolId, setAttendancePoolId] = useState("");
   const [attendanceDate, setAttendanceDate] = useState(today);
   const [attendancePage, setAttendancePage] = useState(1);
+  const [filterPanelOpen, setFilterPanelOpen] = useState(false);
+  /** Attendance tab: department dropdown API slice (Internal / External / All). */
+  const [attendanceDeptKind, setAttendanceDeptKind] = useState<"Internal" | "External" | "all">(() =>
+    mayPickInternalScope ? "Internal" : "External",
+  );
+  const [attendanceFilterResellerId, setAttendanceFilterResellerId] = useState("");
+  const [attendanceFilterParentCompanyId, setAttendanceFilterParentCompanyId] = useState("");
 
-  const departmentsQuery = useDepartmentsListQuery({ all: true }, { enabled: true, scope: "department-heads" });
-  const departmentOptions = useMemo(() => {
-    const base = pickItemsArray(departmentsQuery.data)
+  const attendanceAllDeptsQuery = useDepartmentsListQuery(
+    mode === "attendance" && attendanceDeptKind === "all" ? { all: true } : undefined,
+    { enabled: mode === "attendance" && attendanceDeptKind === "all", scope: "department-heads-attn-all-dept" },
+  );
+  const attendanceInternalDeptsQuery = useDepartmentsListQuery(
+    mode === "attendance" && attendanceDeptKind === "Internal" ? { all: true, type: "Internal" } : undefined,
+    { enabled: mode === "attendance" && attendanceDeptKind === "Internal", scope: "department-heads-attn-int-dept" },
+  );
+  const attendanceFilterResellersQuery = useCompaniesSetupResellersQuery({
+    enabled: mode === "attendance" && attendanceDeptKind === "External",
+  });
+  const attendanceFilterParentCompaniesQuery = useCompaniesByResellerQuery(
+    attendanceFilterResellerId.trim(),
+    { view: "tree", sortBy: "name", sortOrder: "asc", all: true },
+    {
+      enabled:
+        mode === "attendance" &&
+        attendanceDeptKind === "External" &&
+        Boolean(attendanceFilterResellerId.trim()),
+    },
+  );
+  const attendanceExternalDeptsQuery = useDepartmentsListQuery(
+    mode === "attendance" &&
+      attendanceDeptKind === "External" &&
+      attendanceFilterResellerId.trim() &&
+      attendanceFilterParentCompanyId.trim()
+      ? {
+          all: true,
+          type: "External",
+          resellerId: attendanceFilterResellerId.trim(),
+          parentCompanyId: attendanceFilterParentCompanyId.trim(),
+        }
+      : undefined,
+    {
+      enabled:
+        mode === "attendance" &&
+        attendanceDeptKind === "External" &&
+        Boolean(attendanceFilterResellerId.trim()) &&
+        Boolean(attendanceFilterParentCompanyId.trim()),
+      scope: "department-heads-attn-ext-dept",
+    },
+  );
+
+  const attendanceDeptKindSegmentOptions = useMemo(
+    () =>
+      mayPickInternalScope
+        ? [
+            { value: "Internal", label: "Internal" },
+            { value: "External", label: "External" },
+            { value: "all", label: "All" },
+          ]
+        : [
+            { value: "External", label: "External" },
+            { value: "all", label: "All" },
+          ],
+    [mayPickInternalScope],
+  );
+
+  const attendanceFilterResellerOptions = useMemo(() => {
+    const base = pickItemsArray(attendanceFilterResellersQuery.data)
       .map(toIdNameOption)
       .filter((o): o is { value: string; label: string } => o !== null);
-    return [{ value: "", label: departmentsQuery.isLoading ? "Loading departments…" : "— Select department —" }, ...base];
-  }, [departmentsQuery.data, departmentsQuery.isLoading]);
+    return [
+      { value: "", label: attendanceFilterResellersQuery.isLoading ? "Loading resellers…" : "— Select reseller —" },
+      ...base,
+    ];
+  }, [attendanceFilterResellersQuery.data, attendanceFilterResellersQuery.isLoading]);
+
+  const attendanceFilterParentCompanyOptions = useMemo(() => {
+    const base = extractParentCompaniesFromByResellerTree(attendanceFilterParentCompaniesQuery.data);
+    return [
+      {
+        value: "",
+        label:
+          !attendanceFilterResellerId.trim()
+            ? "Select reseller first"
+            : attendanceFilterParentCompaniesQuery.isLoading
+              ? "Loading parent companies…"
+              : "— Select parent company —",
+      },
+      ...base,
+    ];
+  }, [attendanceFilterParentCompaniesQuery.data, attendanceFilterParentCompaniesQuery.isLoading, attendanceFilterResellerId]);
+
+  const attendanceDepartmentOptions = useMemo(() => {
+    if (attendanceDeptKind === "all") {
+      const base = pickItemsArray(attendanceAllDeptsQuery.data)
+        .map(toIdNameOption)
+        .filter((o): o is { value: string; label: string } => o !== null);
+      return [{ value: "", label: attendanceAllDeptsQuery.isLoading ? "Loading departments…" : "— Select department —" }, ...base];
+    }
+    if (attendanceDeptKind === "Internal") {
+      const base = pickItemsArray(attendanceInternalDeptsQuery.data)
+        .map(toIdNameOption)
+        .filter((o): o is { value: string; label: string } => o !== null);
+      return [
+        { value: "", label: attendanceInternalDeptsQuery.isLoading ? "Loading departments…" : "— Select department —" },
+        ...base,
+      ];
+    }
+    const loading = attendanceExternalDeptsQuery.isLoading;
+    const base = pickItemsArray(attendanceExternalDeptsQuery.data)
+      .map(toIdNameOption)
+      .filter((o): o is { value: string; label: string } => o !== null);
+    const prompt =
+      !attendanceFilterResellerId.trim() || !attendanceFilterParentCompanyId.trim()
+        ? "Select reseller and parent company first"
+        : loading
+          ? "Loading departments…"
+          : "— Select department —";
+    return [{ value: "", label: prompt }, ...base];
+  }, [
+    attendanceDeptKind,
+    attendanceAllDeptsQuery.data,
+    attendanceAllDeptsQuery.isLoading,
+    attendanceInternalDeptsQuery.data,
+    attendanceInternalDeptsQuery.isLoading,
+    attendanceExternalDeptsQuery.data,
+    attendanceExternalDeptsQuery.isLoading,
+    attendanceFilterResellerId,
+    attendanceFilterParentCompanyId,
+  ]);
+
+  useEffect(() => {
+    if (!mayPickInternalScope && attendanceDeptKind === "Internal") {
+      setAttendanceDeptKind("External");
+    }
+  }, [mayPickInternalScope, attendanceDeptKind]);
+
+  useEffect(() => {
+    setAttendanceFilterResellerId("");
+    setAttendanceFilterParentCompanyId("");
+    setDepartmentId("");
+    setAttendancePoolId("");
+  }, [attendanceDeptKind]);
+
+  useEffect(() => {
+    setAttendanceFilterParentCompanyId("");
+    setDepartmentId("");
+    setAttendancePoolId("");
+  }, [attendanceFilterResellerId]);
+
+  useEffect(() => {
+    setDepartmentId("");
+    setAttendancePoolId("");
+  }, [attendanceFilterParentCompanyId]);
 
   const headsInternalDepartmentsQuery = useDepartmentsListQuery(
     mode === "heads" && headsUserTypeFilter === "Internal" ? { all: true, type: "Internal" } : undefined,
@@ -628,15 +782,16 @@ export default function DepartmentHeadsPage() {
     setHeadsDepartmentId("");
   }, [isPlatformAdmin, authUser?.userType, headsUserTypeFilter]);
 
-  const applyHeadsFilters = () => {
+  const applyHeadsFilters = useCallback(() => {
     setAppliedHeadsUserTypeFilter(headsUserTypeFilter);
     setAppliedHeadsResellerId(headsResellerId.trim());
     setAppliedHeadsParentCompanyId(headsParentCompanyId.trim());
     setAppliedHeadsDepartmentId(headsDepartmentId.trim());
     setHeadsFiltersApplied(true);
-  };
+    setFilterPanelOpen(false);
+  }, [headsUserTypeFilter, headsResellerId, headsParentCompanyId, headsDepartmentId]);
 
-  const clearHeadsFilters = () => {
+  const clearHeadsFilters = useCallback(() => {
     setHeadsUserTypeFilter(
       sessionMayPickInternalUserScope(isPlatformAdmin, authUser?.userType) ? "Internal" : "External",
     );
@@ -649,7 +804,8 @@ export default function DepartmentHeadsPage() {
     setAppliedHeadsParentCompanyId("");
     setAppliedHeadsDepartmentId("");
     setHeadsFiltersApplied(false);
-  };
+    setFilterPanelOpen(false);
+  }, [authUser?.userType, isPlatformAdmin]);
 
   const applyHeadsSearch = () => {
     setAppliedHeadsSearch(headsSearch.trim());
@@ -667,6 +823,243 @@ export default function DepartmentHeadsPage() {
       setHeadsFiltersApplied(false);
     }
   };
+
+  const defaultHeadsUserTypeForActive: "Internal" | "External" = mayPickInternalScope ? "Internal" : "External";
+  const headsListFiltersActive =
+    mode === "heads" &&
+    (headsFiltersApplied ||
+      Boolean(appliedHeadsSearch.trim()) ||
+      headsUserTypeFilter !== defaultHeadsUserTypeForActive ||
+      Boolean(headsResellerId.trim()) ||
+      Boolean(headsParentCompanyId.trim()) ||
+      Boolean(headsDepartmentId.trim()));
+  const defaultAttendanceDeptKind: "Internal" | "External" | "all" = mayPickInternalScope ? "Internal" : "External";
+  const attendanceListFiltersActive =
+    mode === "attendance" &&
+    (Boolean(departmentId.trim()) ||
+      Boolean(attendancePoolId.trim()) ||
+      attendanceDate !== today ||
+      attendanceDeptKind !== defaultAttendanceDeptKind ||
+      Boolean(attendanceFilterResellerId.trim()) ||
+      Boolean(attendanceFilterParentCompanyId.trim()));
+  const filterToolbarActive = headsListFiltersActive || attendanceListFiltersActive;
+
+  const canClearHeadsDraft =
+    headsFiltersApplied ||
+    headsUserTypeFilter !== defaultHeadsUserTypeForActive ||
+    Boolean(headsResellerId.trim()) ||
+    Boolean(headsParentCompanyId.trim()) ||
+    Boolean(headsDepartmentId.trim()) ||
+    Boolean(headsSearch.trim());
+
+  const clearAttendanceListFilters = useCallback(() => {
+    setDepartmentId("");
+    setAttendancePoolId("");
+    setAttendanceDate(today);
+    setAttendancePage(1);
+    setAttendanceDeptKind(mayPickInternalScope ? "Internal" : "External");
+    setAttendanceFilterResellerId("");
+    setAttendanceFilterParentCompanyId("");
+    setFilterPanelOpen(false);
+  }, [mayPickInternalScope, today]);
+
+  const canClearAttendanceDraft =
+    Boolean(departmentId.trim()) ||
+    Boolean(attendancePoolId.trim()) ||
+    attendanceDate !== today ||
+    attendanceDeptKind !== defaultAttendanceDeptKind ||
+    Boolean(attendanceFilterResellerId.trim()) ||
+    Boolean(attendanceFilterParentCompanyId.trim());
+
+  const departmentHeadsFilterPanel = useMemo(() => {
+    return (
+      <ToolbarFilterPopoverPanel
+        footer={
+          <Box
+            sx={{
+              display: "flex",
+              width: "100%",
+              flexDirection: { xs: "column", md: "row" },
+              alignItems: { md: "center" },
+              justifyContent: { md: "space-between" },
+              gap: 1.5,
+            }}
+          >
+            {mode === "heads" ? (
+              <>
+                <Button type="button" variant="secondary" disabled={!canClearHeadsDraft} onClick={clearHeadsFilters}>
+                  Clear filters
+                </Button>
+                <Box
+                  sx={{
+                    display: "flex",
+                    flexDirection: { xs: "column", sm: "row" },
+                    gap: 1.5,
+                    width: { md: "auto" },
+                    flex: { md: "1 1 auto" },
+                    justifyContent: "flex-end",
+                  }}
+                >
+                  <Button type="button" variant="secondary" onClick={applyHeadsFilters}>
+                    Apply
+                  </Button>
+                  <Button type="button" variant="primary" sx={gradientPrimaryButtonSx} onClick={() => setFilterPanelOpen(false)}>
+                    Done
+                  </Button>
+                </Box>
+              </>
+            ) : (
+              <>
+                <Button type="button" variant="secondary" disabled={!canClearAttendanceDraft} onClick={clearAttendanceListFilters}>
+                  Clear filters
+                </Button>
+                <Button type="button" variant="primary" sx={gradientPrimaryButtonSx} onClick={() => setFilterPanelOpen(false)}>
+                  Done
+                </Button>
+              </>
+            )}
+          </Box>
+        }
+      >
+        <Typography variant="medium" fontWeight={700} sx={{ color: theme.app.text.primary, mb: 1.5 }}>
+          Filters
+        </Typography>
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: { xs: "1fr", md: "repeat(2, minmax(0, 1fr))" },
+            gap: 1.75,
+          }}
+        >
+            {mode === "heads" ? (
+              <>
+                <SelectField
+                  label="Users — type"
+                  value={headsUserTypeFilter}
+                  onChange={(v) => setHeadsUserTypeFilter(v as "Internal" | "External")}
+                  options={headsFilterUserTypeOptions}
+                  menuMaxRows={4}
+                />
+                {headsUserTypeFilter === "External" ? (
+                  <>
+                    <SelectField
+                      label="Reseller"
+                      value={headsResellerId}
+                      onChange={setHeadsResellerId}
+                      options={headsResellerOptions}
+                      menuMaxRows={8}
+                    />
+                    <SelectField
+                      label="Parent company"
+                      value={headsParentCompanyId}
+                      onChange={setHeadsParentCompanyId}
+                      options={headsParentCompanyOptions}
+                      menuMaxRows={8}
+                      disabled={!headsResellerId.trim()}
+                    />
+                  </>
+                ) : null}
+                <Box sx={{ gridColumn: { md: headsUserTypeFilter === "External" ? "1 / -1" : undefined } }}>
+                  <SelectField
+                    label="Department"
+                    value={headsDepartmentId}
+                    onChange={setHeadsDepartmentId}
+                    options={headsDepartmentOptions}
+                    menuMaxRows={8}
+                    disabled={headsUserTypeFilter === "External" && !headsParentCompanyId.trim()}
+                  />
+                </Box>
+              </>
+            ) : (
+              <>
+                <Box sx={{ gridColumn: { md: "1 / -1" } }}>
+                  <Typography variant="caption" sx={{ display: "block", mb: 0.75, fontWeight: 600, color: theme.app.text.primary }}>
+                    Department list (API)
+                  </Typography>
+                  <SegmentedControl
+                    options={attendanceDeptKindSegmentOptions}
+                    value={attendanceDeptKind}
+                    onChange={(v) => setAttendanceDeptKind(v as "Internal" | "External" | "all")}
+                    size="small"
+                  />
+                </Box>
+                {attendanceDeptKind === "External" ? (
+                  <>
+                    <SelectField
+                      label="Reseller"
+                      value={attendanceFilterResellerId}
+                      onChange={setAttendanceFilterResellerId}
+                      options={attendanceFilterResellerOptions}
+                      menuMaxRows={8}
+                    />
+                    <SelectField
+                      label="Parent company"
+                      value={attendanceFilterParentCompanyId}
+                      onChange={setAttendanceFilterParentCompanyId}
+                      options={attendanceFilterParentCompanyOptions}
+                      menuMaxRows={8}
+                      disabled={!attendanceFilterResellerId.trim()}
+                    />
+                  </>
+                ) : null}
+                <SelectField
+                  label="Department"
+                  value={departmentId}
+                  onChange={setDepartmentId}
+                  options={attendanceDepartmentOptions}
+                  menuMaxRows={8}
+                  disabled={
+                    attendanceDeptKind === "External" &&
+                    (!attendanceFilterResellerId.trim() || !attendanceFilterParentCompanyId.trim())
+                  }
+                />
+                <SelectField
+                  label="Pool (optional)"
+                  value={attendancePoolId}
+                  onChange={setAttendancePoolId}
+                  options={poolOptions}
+                  menuMaxRows={8}
+                />
+                <Box sx={{ gridColumn: { md: "1 / -1" } }}>
+                  <Calendar label="Date (UTC)" value={attendanceDate} onChange={setAttendanceDate} />
+                </Box>
+              </>
+            )}
+        </Box>
+      </ToolbarFilterPopoverPanel>
+    );
+  }, [
+    theme,
+    mode,
+    headsUserTypeFilter,
+    headsResellerId,
+    headsParentCompanyId,
+    headsDepartmentId,
+    headsFilterUserTypeOptions,
+    headsResellerOptions,
+    headsParentCompanyOptions,
+    headsDepartmentOptions,
+    departmentId,
+    attendanceDeptKind,
+    attendanceFilterResellerId,
+    attendanceFilterParentCompanyId,
+    attendanceDeptKindSegmentOptions,
+    attendanceFilterResellerOptions,
+    attendanceFilterParentCompanyOptions,
+    attendanceDepartmentOptions,
+    attendancePoolId,
+    attendanceDate,
+    poolOptions,
+    canClearHeadsDraft,
+    canClearAttendanceDraft,
+    applyHeadsFilters,
+    clearHeadsFilters,
+    clearAttendanceListFilters,
+  ]);
+
+  useEffect(() => {
+    setFilterPanelOpen(false);
+  }, [mode]);
 
   return (
     <Box sx={[pageWrapper, rolesPageWrapper] as SxProps<Theme>}>
@@ -704,111 +1097,8 @@ export default function DepartmentHeadsPage() {
       </Box>
 
       <DashboardCard sx={rolesCard}>
-        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2, flexWrap: "wrap" }}>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-            <Box sx={rolesIconBox}>
-              <PersonIcon sx={{ fontSize: 20, color: theme.app.dashboard.white95 }} />
-            </Box>
-            <Typography variant="mediumLarge" fontWeight={600} color="white">
-              Filters
-            </Typography>
-          </Box>
-        </Box>
-
-        <Box
-          sx={{
-            display: "grid",
-            gridTemplateColumns: {
-              xs: "1fr",
-              md:
-                mode === "heads"
-                  ? "minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr)"
-                  : "minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) 180px",
-            },
-            gap: 1.5,
-            mt: 2,
-            alignItems: "end",
-          }}
-        >
-          {mode === "heads" ? (
-            <>
-              <SelectField
-                label="Users — type"
-                value={headsUserTypeFilter}
-                onChange={(v) => setHeadsUserTypeFilter(v as "Internal" | "External")}
-                options={headsFilterUserTypeOptions}
-                menuMaxRows={4}
-              />
-              {headsUserTypeFilter === "External" ? (
-                <>
-                  <SelectField
-                    label="Reseller"
-                    value={headsResellerId}
-                    onChange={setHeadsResellerId}
-                    options={headsResellerOptions}
-                    menuMaxRows={8}
-                  />
-                  <SelectField
-                    label="Parent company"
-                    value={headsParentCompanyId}
-                    onChange={setHeadsParentCompanyId}
-                    options={headsParentCompanyOptions}
-                    menuMaxRows={8}
-                    disabled={!headsResellerId.trim()}
-                  />
-                </>
-              ) : null}
-              <SelectField
-                label="Department"
-                value={headsDepartmentId}
-                onChange={setHeadsDepartmentId}
-                options={headsDepartmentOptions}
-                menuMaxRows={8}
-                disabled={headsUserTypeFilter === "External" && !headsParentCompanyId.trim()}
-              />
-              <Box sx={{ display: "flex", gap: 1, justifyContent: "flex-end" }}>
-                <Button
-                  variant="secondary"
-                  onClick={applyHeadsFilters}
-                >
-                  Apply
-                </Button>
-                <Button variant="outlined" onClick={clearHeadsFilters}>
-                  Clear
-                </Button>
-              </Box>
-            </>
-          ) : (
-            <>
-              <SelectField
-                label="Department"
-                value={departmentId}
-                onChange={setDepartmentId}
-                options={departmentOptions}
-                menuMaxRows={8}
-              />
-              <SelectField
-                label="Pool (optional)"
-                value={attendancePoolId}
-                onChange={setAttendancePoolId}
-                options={poolOptions}
-                menuMaxRows={8}
-              />
-              <Calendar label="Date (UTC)" value={attendanceDate} onChange={setAttendanceDate} />
-              <Button
-                variant="secondary"
-                onClick={() => publishAppToast({ variant: "success", message: "Attendance filters are applied to the table." })}
-              >
-                Apply
-              </Button>
-            </>
-          )}
-        </Box>
-      </DashboardCard>
-
-      <DashboardCard sx={rolesCard}>
-        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2, flexWrap: "wrap" }}>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+        <Box sx={[departmentsCardHeader, { pb: 1.25 }] as SxProps<Theme>}>
+          <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1.5, minWidth: 0 }}>
             <Box sx={rolesIconBox}>
               {mode === "heads" ? (
                 <PersonIcon sx={{ fontSize: 20, color: theme.app.dashboard.white95 }} />
@@ -816,13 +1106,20 @@ export default function DepartmentHeadsPage() {
                 <AccessTimeIcon sx={{ fontSize: 20, color: theme.app.dashboard.white95 }} />
               )}
             </Box>
-            <Typography variant="mediumLarge" fontWeight={600} color="white">
-              {mode === "heads" ? "Department head assignments" : "Department attendance"}
-            </Typography>
+            <Box sx={{ minWidth: 0 }}>
+              <Typography variant="mediumLarge" fontWeight={600} color="white">
+                {mode === "heads" ? "Department head assignments" : "Department attendance"}
+              </Typography>
+              <Typography variant="body2" sx={{ mt: 0.5, color: theme.app.dashboard.textMuted }}>
+                {mode === "heads"
+                  ? "Use Filter for list scope (user type, reseller, company, department). Search applies after you press Search."
+                  : "Use Filter: pick Internal / External / All for departments API, then department and optional pool."}
+              </Typography>
+            </Box>
           </Box>
           {mode === "heads" ? (
-            <Box sx={{ display: "flex", alignItems: "end", gap: 1, minWidth: { xs: "100%", md: 420 } }}>
-              <Box sx={{ flex: 1 }}>
+            <Box sx={departmentsSearchRow}>
+              <Box sx={departmentsSearchFieldWrapper}>
                 <SearchBar
                   placeholder="Name, email, department, reseller..."
                   value={headsSearch}
@@ -835,15 +1132,31 @@ export default function DepartmentHeadsPage() {
                 variant="primary"
                 disabled={headsSearch.trim() === appliedHeadsSearch.trim()}
                 onClick={applyHeadsSearch}
-                sx={{ minWidth: 120, whiteSpace: "nowrap" }}
+                sx={{ minWidth: 120, whiteSpace: "nowrap", alignSelf: { xs: "stretch", sm: "center" } }}
               >
                 <Box component="span" sx={{ display: "inline-flex", lineHeight: 0 }}>
                   <SearchIcon width={18} height={18} sx={{ color: "inherit" }} />
                 </Box>
                 Search
               </Button>
+              <ToolbarFilterPopover open={filterPanelOpen} onOpenChange={setFilterPanelOpen} active={filterToolbarActive}>
+                {departmentHeadsFilterPanel}
+              </ToolbarFilterPopover>
             </Box>
-          ) : null}
+          ) : (
+            <Box
+              sx={
+                [
+                  departmentsSearchRow,
+                  { justifyContent: "flex-end", width: { xs: "100%", md: "auto" } },
+                ] as SxProps<Theme>
+              }
+            >
+              <ToolbarFilterPopover open={filterPanelOpen} onOpenChange={setFilterPanelOpen} active={filterToolbarActive}>
+                {departmentHeadsFilterPanel}
+              </ToolbarFilterPopover>
+            </Box>
+          )}
         </Box>
 
         {mode === "heads" ? (

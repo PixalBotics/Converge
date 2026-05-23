@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type ChangeEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
 import CloudUploadOutlined from "@mui/icons-material/CloudUploadOutlined";
 import Box from "@mui/material/Box";
@@ -10,27 +10,235 @@ import RadioGroup from "@mui/material/RadioGroup";
 import Switch from "@mui/material/Switch";
 import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
-import { Button, Checkbox, InputField, Typography } from "@/components/common";
+import { Button, Checkbox, InputField, SelectField, Typography } from "@/components/common";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
-import { WidgetFlowShell } from "@/components/dashboard/WidgetFlowShell";
+import { WidgetFlowShell } from "@/features/chat-widget";
+import {
+  patchRemoteWidgetConfiguration,
+  summarizePatchResult,
+} from "@/lib/chat-widget/widget-remote-sync";
+import { extractApiErrorMessageForToast } from "@/lib/notify/extract-api-message";
+import { publishAppToast } from "@/lib/notify";
+import {
+  readChatWizardDraft,
+  resolveEditWidgetKeyForNavigation,
+  resolveRemoteWidgetKeyForChatWizard,
+  saveChatWizardDraft,
+  useChatWidgetWizardEdit,
+  withChatEditQuery,
+} from "@/lib/chat-widget/chat-wizard-edit";
+import { WidgetBehaviorLivePreview } from "@/components/dashboard/chat-widget/WidgetBehaviorLivePreview";
+import { readWidgetChatColorsFromDraft } from "@/lib/chat-widget/widget-colors-draft";
+import { WidgetAiTypeField } from "@/components/dashboard/chat-widget/WidgetAiTypeField";
+import {
+  defaultWidgetDraft,
+  type WidgetInstallChatMode,
+} from "@/lib/chat-widget/widgetDraft";
+import {
+  normalizeWidgetAiType,
+  shouldShowWidgetAiType,
+  type WidgetAiType,
+} from "@/lib/chat-widget/widget-ai-type";
+import { normalizeWidgetInquiryOptions } from "@/lib/chat-widget/widget-inquiry.types";
 
 const STEPS = ["Widget Button Design", "Chat Box Design", "Notifications & Advanced"];
 
 export default function ChatWidgetNotificationsPage() {
   const router = useRouter();
   const theme = useTheme() as AppTheme;
+  const { editWidgetKey, draftReady, hydrateError } = useChatWidgetWizardEdit();
   const [browserNotification, setBrowserNotification] = useState(true);
   const [soundNotification, setSoundNotification] = useState(false);
+  const [chatMode, setChatMode] = useState<WidgetInstallChatMode>("HYBRID");
+  const [aiType, setAiType] = useState<WidgetAiType>("AI_CHATBOT");
+  const [allowedDomainsInput, setAllowedDomainsInput] = useState("");
   const [videoWelcomeOn, setVideoWelcomeOn] = useState(false);
   const [videoSource, setVideoSource] = useState("upload");
   const [videoFileName, setVideoFileName] = useState("");
   const videoUploadRef = useRef<HTMLInputElement | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [fallbackText, setFallbackText] = useState(
+    "You have a new message from support.",
+  );
+
+  const d0 = defaultWidgetDraft;
+  const [botEnabled, setBotEnabled] = useState(d0.botEnabled ?? true);
+  const [welcomeMessageBehavior, setWelcomeMessageBehavior] = useState(
+    d0.welcomeMessageBehavior ?? "Thanks for reaching out.",
+  );
+  const [inquiryOn, setInquiryOn] = useState(d0.inquiryOn ?? false);
+  const [autoOpenEnabled, setAutoOpenEnabled] = useState(d0.autoOpenEnabled ?? false);
+  const [autoOpenDelayStr, setAutoOpenDelayStr] = useState(String(d0.autoOpenDelaySeconds ?? 10));
+  const [fileUploadEnabled, setFileUploadEnabled] = useState(d0.fileUploadEnabled ?? true);
+  const [emojiEnabled, setEmojiEnabled] = useState(d0.emojiEnabled ?? true);
+  const [consentRequired, setConsentRequired] = useState(d0.consentRequired ?? true);
+  const [consentText, setConsentText] = useState(d0.consentText ?? "");
+  const [privacyPolicyUrl, setPrivacyPolicyUrl] = useState(d0.privacyPolicyUrl ?? "");
+  const [privacyNotice, setPrivacyNotice] = useState(d0.privacyNotice ?? "");
+  const [allowedDomainsText, setAllowedDomainsText] = useState(d0.allowedDomainsText ?? "");
+  const [persistVisitorSession, setPersistVisitorSession] = useState(d0.persistVisitorSession ?? true);
+  const [sessionTtlStr, setSessionTtlStr] = useState(String(d0.sessionTtlMinutes ?? 120));
+  const [formEnabled, setFormEnabled] = useState(d0.formEnabled ?? true);
+  const [formTitle, setFormTitle] = useState(d0.formTitle ?? "");
+  const [formSubtitle, setFormSubtitle] = useState(d0.formSubtitle ?? "");
+  const [formSubmitLabel, setFormSubmitLabel] = useState(d0.formSubmitLabel ?? "");
+  const [prechatNameEnabled, setPrechatNameEnabled] = useState(d0.prechatNameEnabled ?? true);
+  const [prechatEmailEnabled, setPrechatEmailEnabled] = useState(d0.prechatEmailEnabled ?? true);
+  const [prechatPhoneEnabled, setPrechatPhoneEnabled] = useState(d0.prechatPhoneEnabled ?? false);
+  const [prechatMessageEnabled, setPrechatMessageEnabled] = useState(d0.prechatMessageEnabled ?? true);
+  const [prechatMessageRequired, setPrechatMessageRequired] = useState(d0.prechatMessageRequired ?? false);
+  const [responseWelcomeMessage, setResponseWelcomeMessage] = useState(d0.responseWelcomeMessage ?? "");
+  const [responseOfflineMessage, setResponseOfflineMessage] = useState(d0.responseOfflineMessage ?? "");
+  const [responseGreetingMessage, setResponseGreetingMessage] = useState(d0.responseGreetingMessage ?? "");
+  const [responseSendPlaceholder, setResponseSendPlaceholder] = useState(d0.responseSendPlaceholder ?? "");
+  const [responseAiPromptHint, setResponseAiPromptHint] = useState(d0.responseAiPromptHint ?? "");
+  const [responseAgentHandoverEnabled, setResponseAgentHandoverEnabled] = useState(
+    d0.responseAgentHandoverEnabled ?? true,
+  );
+  const [responseHandoverTriggerText, setResponseHandoverTriggerText] = useState(
+    d0.responseHandoverTriggerText ?? "talk to human",
+  );
+
+  useEffect(() => {
+    if (!draftReady) return;
+    const d = readChatWizardDraft(resolveEditWidgetKeyForNavigation(editWidgetKey) || undefined);
+    const def = defaultWidgetDraft;
+    setChatMode(d.chatMode ?? "HYBRID");
+    setAiType(normalizeWidgetAiType(d.aiType));
+    const adArr = Array.isArray(d.allowedDomains) ? d.allowedDomains : (def.allowedDomains ?? []);
+    setAllowedDomainsInput(adArr.join(", "));
+    setBrowserNotification(d.browserNotification ?? def.browserNotification ?? true);
+    setSoundNotification(d.soundNotification ?? def.soundNotification ?? false);
+    setVideoWelcomeOn(d.videoWelcomeOn ?? false);
+    setFallbackText(d.fallbackNotificationText ?? def.fallbackNotificationText ?? "");
+    setBotEnabled(d.botEnabled ?? def.botEnabled ?? true);
+    setWelcomeMessageBehavior(d.welcomeMessageBehavior ?? def.welcomeMessageBehavior ?? "");
+    const inquiryArr = normalizeWidgetInquiryOptions(d.inquiryOptions ?? def.inquiryOptions);
+    setInquiryOn(d.inquiryOn ?? inquiryArr.length > 0);
+    setAutoOpenEnabled(d.autoOpenEnabled ?? false);
+    setAutoOpenDelayStr(String(d.autoOpenDelaySeconds ?? def.autoOpenDelaySeconds ?? 10));
+    setFileUploadEnabled(d.fileUploadEnabled ?? def.fileUploadEnabled ?? true);
+    setEmojiEnabled(d.emojiEnabled ?? def.emojiEnabled ?? true);
+    setConsentRequired(d.consentRequired ?? def.consentRequired ?? true);
+    setConsentText(d.consentText ?? def.consentText ?? "");
+    setPrivacyPolicyUrl(d.privacyPolicyUrl ?? def.privacyPolicyUrl ?? "");
+    setPrivacyNotice(d.privacyNotice ?? def.privacyNotice ?? "");
+    setAllowedDomainsText(d.allowedDomainsText ?? def.allowedDomainsText ?? "");
+    setPersistVisitorSession(d.persistVisitorSession ?? def.persistVisitorSession ?? true);
+    setSessionTtlStr(String(d.sessionTtlMinutes ?? def.sessionTtlMinutes ?? 120));
+    setFormEnabled(d.formEnabled ?? def.formEnabled ?? true);
+    setFormTitle(d.formTitle ?? def.formTitle ?? "");
+    setFormSubtitle(d.formSubtitle ?? def.formSubtitle ?? "");
+    setFormSubmitLabel(d.formSubmitLabel ?? def.formSubmitLabel ?? "");
+    setPrechatNameEnabled(d.prechatNameEnabled ?? def.prechatNameEnabled ?? true);
+    setPrechatEmailEnabled(d.prechatEmailEnabled ?? def.prechatEmailEnabled ?? true);
+    setPrechatPhoneEnabled(d.prechatPhoneEnabled ?? def.prechatPhoneEnabled ?? false);
+    setPrechatMessageEnabled(d.prechatMessageEnabled ?? def.prechatMessageEnabled ?? true);
+    setPrechatMessageRequired(d.prechatMessageRequired ?? def.prechatMessageRequired ?? false);
+    setResponseWelcomeMessage(d.responseWelcomeMessage ?? def.responseWelcomeMessage ?? "");
+    setResponseOfflineMessage(d.responseOfflineMessage ?? def.responseOfflineMessage ?? "");
+    setResponseGreetingMessage(d.responseGreetingMessage ?? def.responseGreetingMessage ?? "");
+    setResponseSendPlaceholder(d.responseSendPlaceholder ?? def.responseSendPlaceholder ?? "");
+    setResponseAiPromptHint(d.responseAiPromptHint ?? def.responseAiPromptHint ?? "");
+    setResponseAgentHandoverEnabled(d.responseAgentHandoverEnabled ?? def.responseAgentHandoverEnabled ?? true);
+    setResponseHandoverTriggerText(d.responseHandoverTriggerText ?? def.responseHandoverTriggerText ?? "");
+  }, [draftReady, editWidgetKey]);
 
   const handleVideoUpload = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
     setVideoFileName(file.name);
   };
+
+  const inquiryOptionsList = useMemo(() => {
+    if (!inquiryOn || !draftReady) return [];
+    const d = readChatWizardDraft(resolveEditWidgetKeyForNavigation(editWidgetKey) || undefined);
+    return normalizeWidgetInquiryOptions(d.inquiryOptions).map((o) => o.label);
+  }, [inquiryOn, draftReady, editWidgetKey]);
+
+  const behaviorPreviewModel = useMemo(() => {
+    const draft = draftReady
+      ? readChatWizardDraft(resolveEditWidgetKeyForNavigation(editWidgetKey) || undefined)
+      : defaultWidgetDraft;
+    const colors = readWidgetChatColorsFromDraft(draft);
+    const sessionTtl = Math.min(10080, Math.max(5, Number.parseInt(sessionTtlStr, 10) || 120));
+    const autoOpenDelay = Math.min(300, Math.max(0, Number.parseInt(autoOpenDelayStr, 10) || 10));
+    return {
+      chatMode,
+      aiType,
+      buttonColor: draft.buttonColor || "#1ed760",
+      backgroundColor: draft.backgroundColor || "#f8fafc",
+      colors,
+      browserNotification,
+      soundNotification,
+      fallbackText: fallbackText.trim() || "New message from support",
+      botEnabled,
+      welcomeMessageBehavior: welcomeMessageBehavior.trim(),
+      inquiryOn,
+      inquiryOptions: inquiryOptionsList,
+      autoOpenEnabled,
+      autoOpenDelaySeconds: autoOpenDelay,
+      fileUploadEnabled,
+      emojiEnabled,
+      consentRequired,
+      consentText: consentText.trim(),
+      privacyNotice: privacyNotice.trim(),
+      persistVisitorSession,
+      sessionTtlMinutes: sessionTtl,
+      formEnabled,
+      formTitle: formTitle.trim(),
+      formSubtitle: formSubtitle.trim(),
+      formSubmitLabel: formSubmitLabel.trim(),
+      prechatNameEnabled,
+      prechatEmailEnabled,
+      prechatPhoneEnabled,
+      prechatMessageEnabled,
+      responseWelcomeMessage: responseWelcomeMessage.trim(),
+      responseGreetingMessage: responseGreetingMessage.trim(),
+      responseSendPlaceholder: responseSendPlaceholder.trim(),
+      responseOfflineMessage: responseOfflineMessage.trim(),
+      responseAiPromptHint: responseAiPromptHint.trim(),
+      handoverEnabled: responseAgentHandoverEnabled,
+      handoverTriggerText: responseHandoverTriggerText.trim(),
+      greetingMessage: (draft.greetingMessage ?? defaultWidgetDraft.greetingMessage) || "",
+    };
+  }, [
+    draftReady,
+    editWidgetKey,
+    chatMode,
+    aiType,
+    browserNotification,
+    soundNotification,
+    fallbackText,
+    botEnabled,
+    welcomeMessageBehavior,
+    inquiryOn,
+    inquiryOptionsList,
+    autoOpenEnabled,
+    autoOpenDelayStr,
+    fileUploadEnabled,
+    emojiEnabled,
+    consentRequired,
+    consentText,
+    privacyNotice,
+    persistVisitorSession,
+    sessionTtlStr,
+    formEnabled,
+    formTitle,
+    formSubtitle,
+    formSubmitLabel,
+    prechatNameEnabled,
+    prechatEmailEnabled,
+    prechatPhoneEnabled,
+    prechatMessageEnabled,
+    responseWelcomeMessage,
+    responseGreetingMessage,
+    responseSendPlaceholder,
+    responseOfflineMessage,
+    responseAiPromptHint,
+    responseAgentHandoverEnabled,
+    responseHandoverTriggerText,
+  ]);
 
   return (
     <WidgetFlowShell
@@ -43,12 +251,133 @@ export default function ChatWidgetNotificationsPage() {
           <Button type="button" variant="secondary" onClick={() => router.push("/dashboard/chat-widget")}>
             Cancel
           </Button>
-          <Button type="button" variant="primary" sx={gradientPrimaryButtonSx} onClick={() => router.push("/dashboard/chat-widget/add/chat/script")}>
-            Next
+          <Button
+            type="button"
+            variant="primary"
+            sx={gradientPrimaryButtonSx}
+            disabled={saving || !draftReady}
+            onClick={() => {
+              if (saving) return;
+              void (async () => {
+                const editKey = resolveEditWidgetKeyForNavigation(editWidgetKey);
+                const prev = readChatWizardDraft(editKey || undefined);
+                const rk = resolveRemoteWidgetKeyForChatWizard(editKey || undefined, prev);
+                if (!rk) {
+                  publishAppToast({
+                    variant: "error",
+                    message:
+                      "Missing server widget draft. Go back to the first step and save again.",
+                  });
+                  router.push("/dashboard/chat-widget/add");
+                  return;
+                }
+
+                setSaving(true);
+                try {
+                  saveChatWizardDraft(editKey || undefined, {
+                    chatMode,
+                    aiType: shouldShowWidgetAiType(chatMode) ? aiType : undefined,
+                    allowedDomains: allowedDomainsInput
+                      .split(",")
+                      .map((s) => s.trim())
+                      .filter(Boolean),
+                    browserNotification,
+                    soundNotification,
+                    notificationEnabled: browserNotification || soundNotification,
+                    fallbackNotificationText: fallbackText.trim() || "New message from support",
+                    videoWelcomeOn,
+                    botEnabled,
+                    welcomeMessageBehavior: welcomeMessageBehavior.trim(),
+                    inquiryOn,
+                    inquiryOptions: inquiryOn
+                      ? normalizeWidgetInquiryOptions(
+                          readChatWizardDraft(editKey || undefined).inquiryOptions,
+                        )
+                      : [],
+                    autoOpenEnabled,
+                    autoOpenDelaySeconds: Math.min(300, Math.max(0, Number.parseInt(autoOpenDelayStr, 10) || 10)),
+                    fileUploadEnabled,
+                    emojiEnabled,
+                    consentRequired,
+                    consentText: consentText.trim(),
+                    privacyPolicyUrl: privacyPolicyUrl.trim(),
+                    privacyNotice: privacyNotice.trim(),
+                    allowedDomainsText: allowedDomainsText.trim(),
+                    persistVisitorSession,
+                    sessionTtlMinutes: Math.min(10080, Math.max(5, Number.parseInt(sessionTtlStr, 10) || 120)),
+                    formEnabled,
+                    formTitle: formTitle.trim(),
+                    formSubtitle: formSubtitle.trim(),
+                    formSubmitLabel: formSubmitLabel.trim(),
+                    prechatNameEnabled,
+                    prechatEmailEnabled,
+                    prechatPhoneEnabled,
+                    prechatMessageEnabled,
+                    prechatMessageRequired,
+                    responseWelcomeMessage: responseWelcomeMessage.trim(),
+                    responseOfflineMessage: responseOfflineMessage.trim(),
+                    responseGreetingMessage: responseGreetingMessage.trim(),
+                    responseSendPlaceholder: responseSendPlaceholder.trim(),
+                    responseAiPromptHint: responseAiPromptHint.trim(),
+                    responseAgentHandoverEnabled,
+                    responseHandoverTriggerText: responseHandoverTriggerText.trim(),
+                  });
+                  const latest = readChatWizardDraft(editKey || undefined);
+                  const patchInner = await patchRemoteWidgetConfiguration({
+                    widgetKey: rk,
+                    widgetKind: "chat",
+                    draft: latest,
+                    publishNow: false,
+                    embedAllowAnyOrigin: false,
+                    chatWizardPatchScope: "notifications_only",
+                  });
+                  const sum = summarizePatchResult(patchInner);
+                  saveChatWizardDraft(editKey || undefined, {
+                    requiresPublishBeforeEmbed: sum.requiresPublishBeforeEmbed,
+                  });
+                  router.push(
+                    withChatEditQuery(
+                      "/dashboard/chat-widget/add/chat/script",
+                      resolveEditWidgetKeyForNavigation(editKey),
+                    ),
+                  );
+                } catch (e) {
+                  publishAppToast({
+                    variant: "error",
+                    message:
+                      extractApiErrorMessageForToast(e) ??
+                      "Could not save advanced settings to the server.",
+                  });
+                } finally {
+                  setSaving(false);
+                }
+              })();
+            }}
+          >
+            {saving ? "Saving…" : "Next"}
           </Button>
         </>
       }
     >
+      {!draftReady ? (
+        <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, mb: 1 }}>
+          Loading widget…
+        </Typography>
+      ) : null}
+      {hydrateError ? (
+        <Typography variant="body2" sx={{ color: theme.palette.error.main, mb: 1 }}>
+          {hydrateError}
+        </Typography>
+      ) : null}
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: { xs: "1fr", xl: "minmax(0, 1fr) minmax(300px, 360px)" },
+          gap: 3,
+          alignItems: "start",
+        }}
+      >
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 0 }}>
       <Typography variant="mediumLarge" sx={{ color: theme.app.text.primary, mb: -1.25 }}>Notification Settings</Typography>
       <Box sx={{ display: "flex", gap: 2.5 }}>
         <Checkbox checked={browserNotification} onChange={(e) => setBrowserNotification(e.target.checked)} />
@@ -57,7 +386,39 @@ export default function ChatWidgetNotificationsPage() {
         <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted, ml: -1.5 }}>Sound Notification</Typography>
       </Box>
 
-      <InputField label="Fallback Notification Text" name="fallback" value="You have a new message from support." inputProps={{ maxLength: 120 }} />
+      <InputField
+        label="Fallback Notification Text"
+        name="fallback"
+        value={fallbackText}
+        onChange={(e) => setFallbackText(e.target.value)}
+        inputProps={{ maxLength: 120 }}
+      />
+
+      <Typography variant="mediumLarge" sx={{ color: theme.app.text.primary, mb: -1.25, mt: 0.5 }}>
+        Chat routing (backend mode)
+      </Typography>
+      <SelectField
+        label="Chat mode"
+        value={chatMode}
+        onChange={(v) => setChatMode(v as WidgetInstallChatMode)}
+        options={[
+          { label: "Hybrid (AI then agent handoff)", value: "HYBRID" },
+          { label: "AI only", value: "AI_ONLY" },
+          { label: "Agent only", value: "AGENT_ONLY" },
+        ]}
+        searchable={false}
+        menuMaxRows={6}
+      />
+      {shouldShowWidgetAiType(chatMode) ? (
+        <WidgetAiTypeField value={aiType} onChange={setAiType} />
+      ) : null}
+      <InputField
+        label="Allowed domains (comma-separated hosts, optional)"
+        name="allowed-domains"
+        value={allowedDomainsInput}
+        onChange={(e) => setAllowedDomainsInput(e.target.value)}
+        placeholder="example.com, app.example.com"
+      />
 
       <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <Typography variant="mediumLarge" sx={{ color: theme.app.text.primary }}>
@@ -108,6 +469,197 @@ export default function ChatWidgetNotificationsPage() {
           <Box component="input" ref={videoUploadRef} type="file" accept=".mp4,.webm,.mov" onChange={handleVideoUpload} sx={{ display: "none" }} />
         </>
       ) : null}
+
+      <Typography variant="mediumLarge" sx={{ color: theme.app.text.primary, mt: 2.5, mb: 0.5 }}>
+        Behavior (config.behavior)
+      </Typography>
+      <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, mb: 1 }}>
+        Bot, routing copy, inquiry chips, auto-open, uploads, consent — saved on this step.
+      </Typography>
+      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted }}>
+          Bot enabled
+        </Typography>
+        <Switch checked={botEnabled} onChange={(_, c) => setBotEnabled(c)} color="success" />
+      </Box>
+      <InputField
+        label="Welcome message (behavior)"
+        name="welcome-behavior"
+        value={welcomeMessageBehavior}
+        onChange={(e) => setWelcomeMessageBehavior(e.target.value)}
+      />
+      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted }}>
+          Inquiry topic pills
+        </Typography>
+        <Switch checked={inquiryOn} onChange={(_, c) => setInquiryOn(c)} color="success" />
+      </Box>
+      {inquiryOn ? (
+        <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, mb: 1 }}>
+          Inquire labels and department routing are configured on the{" "}
+          <strong>Chat Box Design</strong> step ({inquiryOptionsList.length} option
+          {inquiryOptionsList.length === 1 ? "" : "s"}
+          {inquiryOptionsList.length ? `: ${inquiryOptionsList.join(", ")}` : ""}).
+        </Typography>
+      ) : (
+        <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, mb: 1 }}>
+          Topic pills are hidden. Enable them on the Chat Box Design step.
+        </Typography>
+      )}
+      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted }}>
+          Auto-open widget
+        </Typography>
+        <Switch checked={autoOpenEnabled} onChange={(_, c) => setAutoOpenEnabled(c)} color="success" />
+      </Box>
+      <InputField
+        label="Auto-open delay (seconds)"
+        name="auto-open-delay"
+        value={autoOpenDelayStr}
+        onChange={(e) => setAutoOpenDelayStr(e.target.value)}
+        inputProps={{ inputMode: "numeric" }}
+      />
+      <Box sx={{ display: "flex", gap: 3, flexWrap: "wrap", alignItems: "center" }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          <Switch checked={fileUploadEnabled} onChange={(_, c) => setFileUploadEnabled(c)} color="success" />
+          <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted }}>
+            File upload
+          </Typography>
+        </Box>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          <Switch checked={emojiEnabled} onChange={(_, c) => setEmojiEnabled(c)} color="success" />
+          <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted }}>
+            Emoji
+          </Typography>
+        </Box>
+      </Box>
+      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted }}>
+          Consent required
+        </Typography>
+        <Switch checked={consentRequired} onChange={(_, c) => setConsentRequired(c)} color="success" />
+      </Box>
+      <InputField label="Consent text" name="consent-text" value={consentText} onChange={(e) => setConsentText(e.target.value)} />
+      <InputField label="Privacy policy URL" name="privacy-url" value={privacyPolicyUrl} onChange={(e) => setPrivacyPolicyUrl(e.target.value)} />
+      <InputField label="Privacy notice" name="privacy-notice" value={privacyNotice} onChange={(e) => setPrivacyNotice(e.target.value)} />
+      <InputField
+        label="Allowed domains helper text"
+        name="allowed-domains-text"
+        value={allowedDomainsText}
+        onChange={(e) => setAllowedDomainsText(e.target.value)}
+      />
+
+      <Typography variant="mediumLarge" sx={{ color: theme.app.text.primary, mt: 2, mb: 0.5 }}>
+        Session (config.session)
+      </Typography>
+      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted }}>
+          Persist visitor session
+        </Typography>
+        <Switch checked={persistVisitorSession} onChange={(_, c) => setPersistVisitorSession(c)} color="success" />
+      </Box>
+      <InputField
+        label="Session TTL (minutes)"
+        name="session-ttl"
+        value={sessionTtlStr}
+        onChange={(e) => setSessionTtlStr(e.target.value)}
+        inputProps={{ inputMode: "numeric" }}
+      />
+
+      <Typography variant="mediumLarge" sx={{ color: theme.app.text.primary, mt: 2, mb: 0.5 }}>
+        Pre-chat form (config.form)
+      </Typography>
+      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted }}>
+          Form enabled
+        </Typography>
+        <Switch checked={formEnabled} onChange={(_, c) => setFormEnabled(c)} color="success" />
+      </Box>
+      <InputField label="Form title" name="form-title" value={formTitle} onChange={(e) => setFormTitle(e.target.value)} />
+      <InputField label="Form subtitle" name="form-subtitle" value={formSubtitle} onChange={(e) => setFormSubtitle(e.target.value)} />
+      <InputField label="Submit button label" name="form-submit" value={formSubmitLabel} onChange={(e) => setFormSubmitLabel(e.target.value)} />
+      <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, mb: 0.5 }}>
+        Field toggles
+      </Typography>
+      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 2 }}>
+        {[
+          ["Name", prechatNameEnabled, setPrechatNameEnabled] as const,
+          ["Email", prechatEmailEnabled, setPrechatEmailEnabled] as const,
+          ["Phone", prechatPhoneEnabled, setPrechatPhoneEnabled] as const,
+          ["Message", prechatMessageEnabled, setPrechatMessageEnabled] as const,
+          ["Message required", prechatMessageRequired, setPrechatMessageRequired] as const,
+        ].map(([label, val, setter]) => (
+          <Box key={label} sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <Switch checked={val} onChange={(_, c) => setter(c)} color="success" />
+            <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted }}>
+              {label}
+            </Typography>
+          </Box>
+        ))}
+      </Box>
+
+      <Typography variant="mediumLarge" sx={{ color: theme.app.text.primary, mt: 2, mb: 0.5 }}>
+        Responses (config.response)
+      </Typography>
+      <InputField
+        label="Welcome message (response)"
+        name="resp-welcome"
+        value={responseWelcomeMessage}
+        onChange={(e) => setResponseWelcomeMessage(e.target.value)}
+      />
+      <InputField
+        label="Offline message"
+        name="resp-offline"
+        value={responseOfflineMessage}
+        onChange={(e) => setResponseOfflineMessage(e.target.value)}
+      />
+      <InputField
+        label="Greeting (response)"
+        name="resp-greeting"
+        value={responseGreetingMessage}
+        onChange={(e) => setResponseGreetingMessage(e.target.value)}
+      />
+      <InputField
+        label="Send placeholder (response)"
+        name="resp-send-ph"
+        value={responseSendPlaceholder}
+        onChange={(e) => setResponseSendPlaceholder(e.target.value)}
+      />
+      <InputField
+        label="AI prompt hint"
+        name="resp-ai-hint"
+        value={responseAiPromptHint}
+        onChange={(e) => setResponseAiPromptHint(e.target.value)}
+      />
+      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted }}>
+          Agent handover enabled
+        </Typography>
+        <Switch
+          checked={responseAgentHandoverEnabled}
+          onChange={(_, c) => setResponseAgentHandoverEnabled(c)}
+          color="success"
+        />
+      </Box>
+      <InputField
+        label="Handover trigger text"
+        name="resp-handover"
+        value={responseHandoverTriggerText}
+        onChange={(e) => setResponseHandoverTriggerText(e.target.value)}
+      />
+        </Box>
+
+        <Box
+          sx={{
+            position: { xl: "sticky" },
+            top: 16,
+            maxHeight: { xl: "calc(100vh - 120px)" },
+            overflowY: { xl: "auto" },
+          }}
+        >
+          <WidgetBehaviorLivePreview model={behaviorPreviewModel} />
+        </Box>
+      </Box>
     </WidgetFlowShell>
   );
 }

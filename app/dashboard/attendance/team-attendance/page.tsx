@@ -27,7 +27,7 @@ import {
   usePoolsListQuery,
   useUsersListQuery,
 } from "@/lib/hooks/query";
-import { isRecord, pickStr, unwrapApiData } from "@/lib/utils";
+import { isRecord, pickStr, unwrapApiData } from "@/lib/utils/core";
 import { extractUsersRows } from "@/app/dashboard/user-page/utils";
 import { pickItemsArray, toIdNameOption } from "@/app/dashboard/user-page/components/add-user-modal.utils";
 import { EmptyAttendanceState } from "../components/EmptyAttendanceState";
@@ -90,7 +90,7 @@ export default function TeamAttendancePage() {
   const [poolDate, setPoolDate] = useState(today);
   const [poolPage, setPoolPage] = useState(1);
 
-  const usersQuery = useUsersListQuery({ page: 1, limit: 200 }, { enabled: view === "user" });
+  const usersQuery = useUsersListQuery({ all: true }, { enabled: view === "user" });
   const userRows = useMemo(() => extractUsersRows(usersQuery.data), [usersQuery.data]);
   const userOptions = useMemo(() => {
     const base = userRows.map((u) => ({ value: u.id, label: `${u.user} · ${u.email}` }));

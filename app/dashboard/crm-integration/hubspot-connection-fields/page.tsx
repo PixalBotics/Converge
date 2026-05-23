@@ -10,7 +10,7 @@ import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import { Button, InputField, Typography } from "@/components/common";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
-import { CrmIntegrationWizardShell } from "@/components/dashboard/CrmIntegrationWizardShell";
+import { CrmIntegrationWizardShell } from "@/features/crm-integration";
 import { smtpWizardFormGrid2 } from "../../smtp-email-integration/wizard.styles";
 
 type SyncOption = "objectTypeSync" | "deal" | "token";

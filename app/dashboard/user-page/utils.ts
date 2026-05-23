@@ -1,5 +1,5 @@
 import type { UnknownRecord, UserRow, UserSuggestion } from "./types";
-import { unwrapApiData } from "@/lib/utils/api-payload";
+import { unwrapApiData } from "@/lib/utils/core";
 
 export function asRecord(value: unknown): UnknownRecord | null {
   return value && typeof value === "object" && !Array.isArray(value)
@@ -21,6 +21,24 @@ export function pickArray(payload: unknown, candidates: string[]): unknown[] {
     if (Array.isArray(nested)) return nested;
   }
   return [];
+}
+
+/** Normalize GET /users row `userType` / `isInternal` (mixed casing from API). */
+export function parseUserListType(row: UnknownRecord): "Internal" | "External" {
+  if (typeof row.isInternal === "boolean") {
+    return row.isInternal ? "Internal" : "External";
+  }
+  const nested = asRecord(row.user);
+  if (nested && typeof nested.isInternal === "boolean") {
+    return nested.isInternal ? "Internal" : "External";
+  }
+  const raw = row.userType ?? row.user_type ?? row.type;
+  const normalized = String(raw ?? "")
+    .trim()
+    .toLowerCase();
+  if (normalized === "internal") return "Internal";
+  if (normalized === "external") return "External";
+  return "External";
 }
 
 function toUserRow(value: unknown): UserRow | null {
@@ -61,7 +79,7 @@ function toUserRow(value: unknown): UserRow | null {
     licenseKey: licenseKey || undefined,
     user: fullName || String(row.name ?? row.fullName ?? row.email ?? "—"),
     email: String(row.email ?? "—"),
-    type: String(row.userType ?? "External") === "Internal" ? "Internal" : "External",
+    type: parseUserListType(row),
     department: departmentName || "—",
     role: roleName || "—",
     reseller: resellerName || "-",

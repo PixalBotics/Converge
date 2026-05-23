@@ -1,4 +1,5 @@
 import { apiClient } from "../http/axios-instance";
+import { sanitizePaginationQueryParams } from "@/lib/constants/pagination";
 import type { JsonRecord } from "../types/common.types";
 
 /** Drop empty strings so axios does not send `resellerId=` / `parentCompanyId=` and confuse the API. */
@@ -15,7 +16,9 @@ function compactDepartmentListParams(params?: JsonRecord): JsonRecord | undefine
 
 export async function listDepartments(params?: JsonRecord): Promise<unknown> {
   const { data } = await apiClient.get("/hrms/departments", {
-    params: compactDepartmentListParams(params),
+    params: compactDepartmentListParams(
+      sanitizePaginationQueryParams(params) as JsonRecord | undefined,
+    ),
   });
   return data;
 }

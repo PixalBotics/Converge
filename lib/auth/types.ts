@@ -11,6 +11,8 @@ export interface User {
   /** From `/auth/me` when the backend attaches HRMS pool scope to the user. */
   poolId?: string;
   poolName?: string;
+  /** Tenant reseller scope (`/auth/me` user or JWT). */
+  resellerId?: string;
 }
 
 export interface LoginCredentials {

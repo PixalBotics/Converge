@@ -60,7 +60,7 @@ export const teamAttendanceGenerateLicenseButtonSx: SxProps<Theme> = (theme) => 
   background: (theme as AppTheme).app.dashboard.gradientButton,
   color: (theme as AppTheme).app.dashboard.gradientButtonText,
   border: `1px solid ${(theme as AppTheme).app.dashboard.overlayBorder}`,
-  boxShadow: "0 10px 25px rgba(0,0,0,0.28)",
+  boxShadow: "none",
   "&:hover": {
     background: (theme as AppTheme).app.dashboard.gradientButton,
     color: (theme as AppTheme).app.dashboard.gradientButtonText,
@@ -94,7 +94,7 @@ export const teamAttendanceApplyButtonSx: SxProps<Theme> = (theme) => ({
   background: (theme as AppTheme).app.dashboard.gradientButton,
   color: (theme as AppTheme).app.dashboard.gradientButtonText,
   border: `1px solid ${(theme as AppTheme).app.dashboard.overlayBorder}`,
-  boxShadow: "0 10px 25px rgba(0,0,0,0.28)",
+  boxShadow: "none",
   "&:hover": {
     background: (theme as AppTheme).app.dashboard.gradientButton,
     color: (theme as AppTheme).app.dashboard.gradientButtonText,

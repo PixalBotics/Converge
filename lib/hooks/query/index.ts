@@ -21,6 +21,7 @@ export {
   useCompaniesByResellerQuery,
   useCompaniesListQuery,
   useCompaniesSetupResellersQuery,
+  useScopedCompanyTreeQuery,
   useCompanySetupDraftByIdQuery,
   useCompanySetupDraftLatestQuery,
   useCreateCompanySetupDraftMutation,
@@ -43,7 +44,9 @@ export {
 } from "./roles";
 export { websiteAssignmentsKeys } from "./website-assignments";
 export {
+  buildWebsitesInScopeParams,
   useAssignWebsiteTierMutation,
+  usePutDepartmentRosterMutation,
   useWebsiteAssignmentDetailQuery,
   useWebsiteAssignmentsUserWebsitesQuery,
   useWebsiteAssignmentsWebsitesQuery,
@@ -55,4 +58,5 @@ export type {
 export { platformKeys } from "./platform";
 export { useGeneratePlatformLicenseKeyMutation, usePlatformLicenseKeysQuery } from "./platform";
 export { platformThemeKeys, usePlatformThemeMeQuery, useUpdatePlatformThemeMutation } from "./platform-theme";
+export * from "./ai-knowledge";
 export * from "./hrms";

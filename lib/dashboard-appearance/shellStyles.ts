@@ -39,7 +39,7 @@ export function glassChromeLayerSx(chrome: GlassChrome, edges: GlassPanelEdges =
       WebkitBackdropFilter: backdrop,
       border: `1px solid ${rim}`,
       borderRadius: br,
-      boxShadow: `0 24px 56px rgba(0,0,0,0.42), 0 0 0 1px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255, ${highlight}), ${innerRim}`,
+      boxShadow: `0 0 0 1px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255, ${highlight}), ${innerRim}`,
     } as const;
   }
 
@@ -50,6 +50,6 @@ export function glassChromeLayerSx(chrome: GlassChrome, edges: GlassPanelEdges =
     WebkitBackdropFilter: backdrop,
     ...(edges.borderRight ? { borderRight: edge } : {}),
     ...(edges.borderBottom ? { borderBottom: edge } : {}),
-    boxShadow: `${edges.borderBottom ? "0 8px 28px rgba(0,0,0,0.22), " : ""}inset 0 1px 0 rgba(255,255,255, ${Math.min(0.2, highlight)}), ${innerRim}`,
+    boxShadow: `inset 0 1px 0 rgba(255,255,255, ${Math.min(0.2, highlight)}), ${innerRim}`,
   } as const;
 }

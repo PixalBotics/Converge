@@ -5,4 +5,9 @@ export interface LoadingScreenProps {
   size?: number;
   /** Use full-page dark gradient layout. Default true. */
   fullPage?: boolean;
+  /**
+   * Transparent surface for in-shell loading (e.g. Next.js `app/dashboard/loading.tsx`).
+   * Avoids the auth-style blue gradient flash when only the page segment is suspending.
+   */
+  embedded?: boolean;
 }

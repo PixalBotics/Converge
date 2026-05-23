@@ -1,4 +1,3 @@
-import { alpha } from "@mui/material/styles";
 import type { SxProps, Theme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import { cardPadding } from "../dashboard.styles";
@@ -32,7 +31,7 @@ export const accountSetupSectionIconSx: SxProps<Theme> = (theme) => {
     fontWeight: 700,
     fontSize: "1.25rem",
     fontFamily: theme.typography.fontFamily,
-    boxShadow: `0 8px 24px ${alpha(d.accentPurple, 0.45)}`,
+    boxShadow: "none",
   };
 };
 

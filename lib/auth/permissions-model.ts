@@ -38,9 +38,10 @@ export function mergePermissionsByType(
   return applyPageSlugAliases(out);
 }
 
-/** Backend sometimes sends singular pool slug; app routes use `page:pools`. */
+/** Backend may send `page:pool` or legacy `page:pools` — treat as equivalent. */
 const PAGE_SLUG_ALIASES: Record<string, string> = {
   "page:pool": "page:pools",
+  "page:pools": "page:pool",
 };
 
 /**
@@ -61,7 +62,12 @@ export function toPermissionSet(perms: string[] | undefined): Set<string> {
 function applyPageSlugAliases(perms: PermissionsByType): PermissionsByType {
   const page = perms[PERMISSION_BUCKET_PAGE];
   if (!page?.length) return perms;
-  const mapped = page.map((p) => PAGE_SLUG_ALIASES[p] ?? p);
+  const mapped: string[] = [];
+  for (const p of page) {
+    mapped.push(p);
+    const alias = PAGE_SLUG_ALIASES[p];
+    if (alias) mapped.push(alias);
+  }
   return { ...perms, [PERMISSION_BUCKET_PAGE]: [...new Set(mapped)] };
 }
 
@@ -293,6 +299,19 @@ export function hasPagePermission(pagePerms: Set<string>, required: string): boo
   return pagePerms.has(required);
 }
 
+/** Backend / legacy role payloads sometimes use alternate spellings for the same operational grant. */
+const OPERATIONAL_PERMISSION_ALIASES: Record<string, string> = {
+  "chat.access": "chat:access",
+  chat_access: "chat:access",
+  CHAT_ACCESS: "chat:access",
+  "chat-widget.view": "chat-widget:view",
+  "chat-widget.update": "chat-widget:update",
+};
+
 export function hasOperationalPermission(opPerms: Set<string>, required: string): boolean {
-  return opPerms.has(required);
+  if (opPerms.has(required)) return true;
+  for (const [alias, canonical] of Object.entries(OPERATIONAL_PERMISSION_ALIASES)) {
+    if (canonical === required && opPerms.has(alias)) return true;
+  }
+  return false;
 }

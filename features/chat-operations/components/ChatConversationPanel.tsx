@@ -1,0 +1,334 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import MoreVert from "@mui/icons-material/MoreVert";
+import Box from "@mui/material/Box";
+import IconButton from "@mui/material/IconButton";
+import Menu from "@mui/material/Menu";
+import MenuItem from "@mui/material/MenuItem";
+import { useTheme } from "@mui/material/styles";
+import type { AppTheme } from "@/theme/theme";
+import { Button, Typography } from "@/components/common";
+import type { AgentAiAction } from "@/api/ai/agent-suggest.api";
+import type { AgentVisitorPresentation, ChatMessage } from "@/services/chat/chat.types";
+import type { AiChatMessage } from "../types/ai-chat";
+import { chatOpsAlertBannerSx } from "../styles/chat-operations.styles";
+import { parseVisitorInfo } from "../utils/visitor-info";
+import type { ChatWhisperSocketPayload } from "@/services/chat/supervisor.types";
+import { AgentWhisperBanner } from "./AgentWhisperBanner";
+import { ChatComposer } from "./ChatComposer";
+import { ChatMessageList } from "./ChatMessageList";
+import {
+  ChatHeaderMetaChip,
+  PanelColumn,
+  PanelHeader,
+  QueueAvatar,
+} from "../styles/chat-operations.styled";
+
+interface ChatConversationPanelProps {
+  conversationId: string | null;
+  messages: ChatMessage[];
+  visitor: Record<string, unknown> | null;
+  conversationMeta?: Record<string, unknown> | null;
+  visitorPresentation?: AgentVisitorPresentation | null;
+  readOnly?: boolean;
+  assignedAgentLabel?: string;
+  visitorTyping: boolean;
+  composer: string;
+  onComposerChange: (value: string) => void;
+  onSend: () => void;
+  onTyping: () => void;
+  onStopTyping: () => void;
+  onInsertCanned: (text: string) => void;
+  onCloseChat?: () => void;
+  canSend: boolean;
+  aiMessages: AiChatMessage[];
+  aiPrompt: string;
+  onAiPromptChange: (value: string) => void;
+  onSendAiPrompt: (prompt: string, action?: AgentAiAction) => void;
+  onApplyAiToComposer: (text: string) => void;
+  aiBusy: boolean;
+  websiteRequiredDisabled?: boolean;
+  availabilityHint?: string | null;
+  websiteId?: string | null;
+  departmentId?: string | null;
+  activeWhisper?: ChatWhisperSocketPayload | null;
+  onApplyWhisperToComposer?: (text: string) => void;
+  onDismissWhisper?: () => void;
+}
+
+function formatDuration(seconds: number): string {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+}
+
+export function ChatConversationPanel({
+  conversationId,
+  messages,
+  visitor,
+  conversationMeta,
+  visitorPresentation = null,
+  readOnly = false,
+  assignedAgentLabel = "You",
+  visitorTyping,
+  composer,
+  onComposerChange,
+  onSend,
+  onTyping,
+  onStopTyping,
+  onInsertCanned,
+  onCloseChat,
+  canSend,
+  aiMessages,
+  aiPrompt,
+  onAiPromptChange,
+  onSendAiPrompt,
+  onApplyAiToComposer,
+  aiBusy,
+  websiteRequiredDisabled = false,
+  availabilityHint = null,
+  websiteId = null,
+  departmentId = null,
+  activeWhisper = null,
+  onApplyWhisperToComposer,
+  onDismissWhisper,
+}: ChatConversationPanelProps) {
+  const theme = useTheme() as AppTheme;
+  const visitorInfo = parseVisitorInfo(visitor, conversationMeta ?? undefined);
+  const headerTitle =
+    visitorPresentation?.inboxTitle?.trim() ||
+    visitorPresentation?.displayName?.trim() ||
+    visitorInfo.displayName;
+  const headerSubtitle =
+    visitorPresentation
+      ? [visitorPresentation.originLabel, visitorPresentation.locationLabel]
+          .filter(Boolean)
+          .join(" · ")
+      : null;
+  const [elapsedSec, setElapsedSec] = useState(0);
+  const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
+
+  const sessionStartMs = visitorInfo.sessionStartedAt
+    ? new Date(visitorInfo.sessionStartedAt).getTime()
+    : messages[0]?.createdAt
+      ? new Date(messages[0].createdAt).getTime()
+      : null;
+
+  useEffect(() => {
+    if (!conversationId || !sessionStartMs || Number.isNaN(sessionStartMs)) {
+      setElapsedSec(0);
+      return;
+    }
+    const tick = () => setElapsedSec(Math.max(0, Math.floor((Date.now() - sessionStartMs) / 1000)));
+    tick();
+    const id = window.setInterval(tick, 1000);
+    return () => window.clearInterval(id);
+  }, [conversationId, sessionStartMs]);
+
+  const pageCount = Math.max(visitorInfo.journey.length, visitorInfo.currentPageUrl ? 1 : 0);
+
+  const hasConversation = Boolean(conversationId);
+
+  return (
+    <PanelColumn sx={{ height: "100%", overflow: "hidden" }}>
+      {hasConversation ? (
+        <PanelHeader
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 2,
+            py: 1.5,
+          }}
+        >
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, minWidth: 0, flex: 1 }}>
+            <QueueAvatar sx={{ width: 44, height: 44, fontSize: 14 }}>{visitorInfo.initials}</QueueAvatar>
+            <Box sx={{ minWidth: 0 }}>
+              <Typography fontWeight={700} sx={{ fontSize: 15, color: theme.app.text.primary }}>
+                {headerTitle}
+              </Typography>
+              {headerSubtitle ? (
+                <Typography
+                  sx={{
+                    fontSize: 11,
+                    color: theme.app.dashboard.textMuted,
+                    mt: 0.25,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {headerSubtitle}
+                </Typography>
+              ) : null}
+              <Box
+                component="span"
+                sx={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 0.5,
+                  mt: 0.5,
+                  px: 0.85,
+                  py: 0.2,
+                  borderRadius: 999,
+                  fontSize: 11,
+                  fontWeight: 600,
+                  color: readOnly
+                    ? theme.app.dashboard.textMuted
+                    : visitorTyping
+                      ? theme.app.dashboard.accentCyan
+                      : theme.palette.success.light,
+                  bgcolor: readOnly
+                    ? "rgba(148,163,184,0.12)"
+                    : visitorTyping
+                      ? "rgba(34,211,238,0.12)"
+                      : "rgba(34,197,94,0.12)",
+                }}
+              >
+                <Box
+                  component="span"
+                  sx={{
+                    width: 6,
+                    height: 6,
+                    borderRadius: "50%",
+                    bgcolor: readOnly
+                      ? theme.app.dashboard.textMuted
+                      : visitorTyping
+                        ? theme.app.dashboard.accentCyan
+                        : theme.palette.success.main,
+                  }}
+                />
+                {readOnly ? "Closed" : visitorTyping ? "Typing" : "Online"}
+              </Box>
+            </Box>
+          </Box>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexShrink: 0 }}>
+            <Box
+              sx={{
+                display: { xs: "none", sm: "flex" },
+                gap: 0.75,
+                flexWrap: "wrap",
+                justifyContent: "flex-end",
+              }}
+            >
+              <ChatHeaderMetaChip>
+                <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, fontSize: 10 }}>
+                  Session
+                </Typography>
+                <Typography sx={{ fontSize: 13, fontWeight: 700, color: theme.app.text.primary }}>
+                  {formatDuration(elapsedSec)}
+                </Typography>
+              </ChatHeaderMetaChip>
+              <ChatHeaderMetaChip>
+                <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, fontSize: 10 }}>
+                  Pages
+                </Typography>
+                <Typography sx={{ fontSize: 13, fontWeight: 700, color: theme.app.text.primary }}>
+                  {pageCount}
+                </Typography>
+              </ChatHeaderMetaChip>
+            </Box>
+            {onCloseChat ? (
+              <>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="compact"
+                  onClick={() => void onCloseChat()}
+                  sx={{ display: { xs: "none", md: "inline-flex" }, minWidth: 0, px: 1.5 }}
+                >
+                  Close chat
+                </Button>
+                <IconButton
+                  size="small"
+                  aria-label="More actions"
+                  onClick={(e) => setMenuAnchor(e.currentTarget)}
+                  sx={{ color: theme.app.dashboard.iconMuted, display: { md: "none" } }}
+                >
+                  <MoreVert />
+                </IconButton>
+                <Menu
+                  anchorEl={menuAnchor}
+                  open={Boolean(menuAnchor)}
+                  onClose={() => setMenuAnchor(null)}
+                  slotProps={{
+                    paper: {
+                      sx: {
+                        bgcolor: theme.app.dashboard.menuSurfaceBg,
+                        border: `1px solid ${theme.app.dashboard.cardBorder}`,
+                      },
+                    },
+                  }}
+                >
+                  <MenuItem
+                    onClick={() => {
+                      setMenuAnchor(null);
+                      onCloseChat();
+                    }}
+                    sx={{ color: theme.palette.error.light }}
+                  >
+                    Close conversation
+                  </MenuItem>
+                </Menu>
+              </>
+            ) : null}
+          </Box>
+        </PanelHeader>
+      ) : null}
+
+      {readOnly && hasConversation ? (
+        <Box sx={chatOpsAlertBannerSx("muted")}>
+          <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, fontSize: 11 }}>
+            Closed conversation — transcript is read-only. New visitor messages may reopen the chat.
+          </Typography>
+        </Box>
+      ) : null}
+
+      {availabilityHint && hasConversation && !readOnly ? (
+        <Box sx={chatOpsAlertBannerSx("info")}>
+          <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, fontSize: 11 }}>
+            Service window · {availabilityHint}
+          </Typography>
+        </Box>
+      ) : null}
+
+      <ChatMessageList
+        messages={messages}
+        visitorInitials={visitorInfo.initials}
+        visitorTyping={visitorTyping}
+        visitorDisplayName={visitorInfo.displayName}
+        agentDisplayName={assignedAgentLabel}
+        showEmptyPlaceholder={!hasConversation}
+      />
+
+      {activeWhisper && onApplyWhisperToComposer && onDismissWhisper ? (
+        <AgentWhisperBanner
+          payload={activeWhisper}
+          onApplyToComposer={onApplyWhisperToComposer}
+          onDismiss={onDismissWhisper}
+        />
+      ) : null}
+
+      <ChatComposer
+        value={composer}
+        onChange={onComposerChange}
+        onSend={onSend}
+        onTyping={onTyping}
+        onStopTyping={onStopTyping}
+        disabled={!canSend || readOnly}
+        onInsertCanned={onInsertCanned}
+        websiteId={websiteId}
+        departmentId={departmentId}
+        aiMessages={aiMessages}
+        aiPrompt={aiPrompt}
+        onAiPromptChange={onAiPromptChange}
+        onSendAiPrompt={onSendAiPrompt}
+        onApplyAiToComposer={onApplyAiToComposer}
+        aiBusy={aiBusy}
+        websiteRequiredDisabled={websiteRequiredDisabled}
+        hasConversation={hasConversation}
+      />
+    </PanelColumn>
+  );
+}

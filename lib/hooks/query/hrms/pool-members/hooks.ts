@@ -3,6 +3,7 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   addPoolMember,
+  addPoolMembersBulk,
   listPoolMembers,
   movePoolMember,
   removePoolMember,
@@ -46,6 +47,19 @@ export function useAddPoolMemberMutation() {
   return useMutation({
     mutationFn: (vars: { poolId: string; userId: string }) =>
       addPoolMember(vars.poolId, vars.userId),
+    onSuccess: (_data, vars) => {
+      invalidatePoolMembers(qc, vars.poolId);
+      void qc.invalidateQueries({ queryKey: hrmsPoolMembersKeys.all });
+      void qc.invalidateQueries({ queryKey: usersKeys.lists() });
+    },
+  });
+}
+
+export function useAddPoolMembersBulkMutation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (vars: { poolId: string; userIds: string[] }) =>
+      addPoolMembersBulk(vars.poolId, vars.userIds),
     onSuccess: (_data, vars) => {
       invalidatePoolMembers(qc, vars.poolId);
       void qc.invalidateQueries({ queryKey: hrmsPoolMembersKeys.all });

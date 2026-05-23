@@ -35,15 +35,20 @@ export const poolShiftFormGridSx: SxProps<Theme> = {
   mb: 0.5,
 };
 
-export const poolShiftFilterFieldsGridSx: SxProps<Theme> = {
-  display: "grid",
-  gridTemplateColumns: {
-    xs: "1fr",
-    sm: "repeat(2, minmax(0, 1fr))",
-    lg: "repeat(5, minmax(0, 1fr))",
-  },
+/** Filter popover: stacked fields + paired row for reseller/parent (aligned bottoms). */
+export const poolShiftFilterPopoverStackSx: SxProps<Theme> = {
+  display: "flex",
+  flexDirection: "column",
   gap: 2,
-  mb: 0.5,
+  width: "100%",
+};
+
+export const poolShiftFilterPopoverPairRowSx: SxProps<Theme> = {
+  display: "grid",
+  gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))" },
+  gap: 2,
+  width: "100%",
+  alignItems: "end",
 };
 
 export const poolShiftActionsSx: SxProps<Theme> = {
@@ -55,5 +60,7 @@ export const poolShiftActionsSx: SxProps<Theme> = {
 
 export const poolShiftFilterHintSx: SxProps<Theme> = (theme) => ({
   color: (theme as AppTheme).app.dashboard.textMuted,
-  alignSelf: "center",
+  alignSelf: "stretch",
+  whiteSpace: "normal",
+  lineHeight: 1.5,
 });

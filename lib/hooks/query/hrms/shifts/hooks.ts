@@ -3,19 +3,19 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createShiftTemplate, deleteShiftTemplate, getShiftTemplate, listShiftTemplates, updateShiftTemplate } from "@/api";
 import type { JsonRecord } from "@/api";
+import { buildHrmsShiftsListQueryRecord, type HrmsShiftsListQueryInput } from "@/lib/utils/hrms";
 import { hrmsShiftsKeys } from "./keys";
 
-export type HrmsShiftsListParams = {
-  page?: number;
-  limit?: number;
-  all?: boolean;
-  search?: string;
-};
+/**
+ * `GET /hrms/shifts` — camelCase query: `page`, `limit`, `all`, `parentCompanyId`, `search`, `shiftScope`.
+ * `shiftScope`: `internal` | `external` | `all` — server-side catalog slice; JWT resolves allowed rows.
+ */
+export type HrmsShiftsListParams = HrmsShiftsListQueryInput;
 
 export function useShiftsListQuery(params: HrmsShiftsListParams | undefined, options?: { enabled?: boolean; scope?: string }) {
   const scope = options?.scope ?? "default";
   const enabled = options?.enabled ?? true;
-  const req = params as unknown as JsonRecord | undefined;
+  const req = buildHrmsShiftsListQueryRecord(params) as JsonRecord | undefined;
   return useQuery({
     queryKey: [...hrmsShiftsKeys.list(req), scope] as const,
     queryFn: () => listShiftTemplates(req),
@@ -23,7 +23,6 @@ export function useShiftsListQuery(params: HrmsShiftsListParams | undefined, opt
     placeholderData: keepPreviousData,
   });
 }
-
 export function useShiftQuery(id: string | undefined, options?: { enabled?: boolean; scope?: string }) {
   const trimmed = id?.trim() ?? "";
   const scope = options?.scope ?? "default";

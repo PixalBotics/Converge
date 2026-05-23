@@ -23,7 +23,7 @@ export function useGeneratePlatformLicenseKeyMutation() {
   return useMutation({
     mutationFn: (body: JsonRecord) => generatePlatformLicenseKey(body),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: platformKeys.licenseKeys(undefined) });
+      void queryClient.invalidateQueries({ queryKey: platformKeys.licenseKeysRoot() });
     },
   });
 }

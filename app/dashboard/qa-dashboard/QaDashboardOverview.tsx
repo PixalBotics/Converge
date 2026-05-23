@@ -12,12 +12,11 @@ import {
   DataTable,
   dataTableActionButton,
   SearchBar,
-  FilterButton,
   TablePagination,
   ButtonOutline,
 } from "@/components/common";
 import type { DataTableColumn } from "@/components/common";
-import { MetricCard } from "@/components/dashboard";
+import { MetricCard } from "@/components/common";
 import {
   AccessTime as AccessTimeIcon,
   MoreHoriz as MoreHorizIcon,
@@ -181,7 +180,6 @@ export default function QaDashboardOverview() {
             <Box sx={searchWrap}>
               <SearchBar value={search} onChange={setSearch} placeholder="Search anything..." />
             </Box>
-            <FilterButton />
           </Box>
         </Box>
 

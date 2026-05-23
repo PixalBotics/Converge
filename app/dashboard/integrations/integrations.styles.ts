@@ -58,7 +58,7 @@ export const integrationsSectionIconBox: SxProps<Theme> = {
   alignItems: "center",
   justifyContent: "center",
   flexShrink: 0,
-  boxShadow: "0 10px 30px rgba(15,23,42,0.85)",
+  boxShadow: "none",
 };
 
 export const integrationsSearchRow: SxProps<Theme> = {

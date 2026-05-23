@@ -13,9 +13,37 @@ export * from "./hrms";
 export * from "./website-assignments";
 export * from "./platform";
 export * from "./platform-theme";
+export * from "./ai/agent-suggest.api";
+export * from "./kb/kb.api";
+export * from "./ai-knowledge/types";
+export * from "./ai-chatbot/ai-chatbot-knowledge.api";
+export * from "./ai-assistant/ai-assistant-kb.api";
+export {
+  listAdminWidgets,
+  createWidgetInstallation,
+  getWidgetEmbedSnippet,
+  getWidgetSnapshot,
+  getAdminWidget,
+  patchWidgetConfiguration,
+  deleteWidget,
+  publishWidget,
+  rollbackWidget,
+  uploadWidgetAsset,
+  widgetResponseData,
+} from "./widgets";
+export type {
+  AdminWidgetTableRow,
+  ListWidgetsQuery,
+  WidgetChatModeApi,
+  WidgetTypeApi,
+} from "./types/widgets.types";
 export * from "./types/auth.types";
 export type { JsonRecord } from "./types/common.types";
-export type { AssignWebsiteTierBody, WebsiteAssignmentTier } from "./types/website-assignments.types";
+export type {
+  AssignWebsiteTierBody,
+  PutDepartmentRosterBody,
+  WebsiteAssignmentTier,
+} from "./types/website-assignments.types";
 export type {
   PlatformThemeMeData,
   PlatformThemeMeEnvelope,
@@ -33,3 +61,12 @@ export {
   attachAuthSessionLifecycleListeners,
 } from "./session/auth-session.sync";
 export { refreshSessionWithStoredRefresh } from "./session/refresh-access-token";
+export {
+  terminateAuthSession,
+  isAuthSessionTerminated,
+  resetAuthSessionTerminatedFlag,
+} from "./session/terminate-auth-session";
+export {
+  registerAuthSessionTeardown,
+  type AuthSessionTeardownReason,
+} from "./session/auth-session-teardown";

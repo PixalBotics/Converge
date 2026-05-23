@@ -17,7 +17,7 @@ import {
   leaveTypeSubtextSx,
 } from "./leave-type.styles";
 import { useCreateLeaveTypeMutation, useDeleteLeaveTypeMutation, useLeaveTypesListQuery, useUpdateLeaveTypeMutation } from "@/lib/hooks/query";
-import { isRecord, pickNum, pickStr, unwrapApiData } from "@/lib/utils";
+import { isRecord, pickNum, pickStr, unwrapApiData } from "@/lib/utils/core";
 import { LeaveTypeModals, LeaveTypesTableCard } from "./components";
 import { useAuth } from "@/lib/auth";
 import { canLeaveTypeManage, canLeaveTypeView } from "@/lib/permissions";
@@ -36,6 +36,7 @@ export default function LeaveTypePage() {
   const canManageLeaveTypes = canLeaveTypeManage(hasOperational);
   const canViewLeaveTypes = canLeaveTypeView(hasOperational);
 
+  const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
 
@@ -79,6 +80,13 @@ export default function LeaveTypePage() {
     const n = pickNum(payloadObj, ["totalPages"]);
     return n && n > 0 ? n : 1;
   }, [payloadObj]);
+
+  useEffect(() => {
+    if (searchInput.trim().length > 0) return;
+    if (!search.trim()) return;
+    setSearch("");
+    setPage(1);
+  }, [searchInput, search]);
 
   useEffect(() => {
     setPage(1);
@@ -161,8 +169,13 @@ export default function LeaveTypePage() {
         rows={tableRows}
         columns={columns}
         isLoading={listQuery.isLoading || listQuery.isFetching}
-        search={search}
-        onSearchChange={setSearch}
+        searchInput={searchInput}
+        onSearchInputChange={setSearchInput}
+        appliedSearch={search}
+        onSearchApply={() => {
+          setSearch(searchInput.trim());
+          setPage(1);
+        }}
         page={page}
         pageCount={pageCount}
         footerText={

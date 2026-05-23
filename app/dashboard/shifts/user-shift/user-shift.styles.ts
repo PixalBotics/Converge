@@ -20,6 +20,7 @@ export const userShiftCardHeaderSx: SxProps<Theme> = {
 
 export const userShiftIconSx: SxProps<Theme> = (theme) => ({
   fontSize: 20,
+  /** Icon sits on purple `rolesIconBox`; keep light glyph for contrast. */
   color: (theme as AppTheme).app.dashboard.white95,
 });
 
@@ -35,4 +36,43 @@ export const userShiftActionsSx: SxProps<Theme> = {
   justifyContent: "flex-end",
   gap: 1.5,
   flexWrap: "wrap",
+};
+
+/** Narrow user-shift sidebar: search full-width, then Search + Filter (avoids clipped buttons). */
+export const userShiftUsersSearchColumnSx: SxProps<Theme> = {
+  display: "flex",
+  flexDirection: "column",
+  gap: 1.25,
+  width: "100%",
+  minWidth: 0,
+};
+
+export const userShiftUsersSearchFieldSx: SxProps<Theme> = {
+  width: "100%",
+  minWidth: 0,
+};
+
+export const userShiftUsersSearchActionsSx: SxProps<Theme> = {
+  display: "flex",
+  flexWrap: "wrap",
+  alignItems: "center",
+  gap: 1.25,
+  width: "100%",
+  minWidth: 0,
+};
+
+/** User list filter popover — aligned with pool/department shift toolbar pattern. */
+export const userShiftFilterPopoverStackSx: SxProps<Theme> = {
+  display: "flex",
+  flexDirection: "column",
+  gap: 2,
+  width: "100%",
+};
+
+export const userShiftFilterPopoverPairRowSx: SxProps<Theme> = {
+  display: "grid",
+  gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))" },
+  gap: 2,
+  width: "100%",
+  alignItems: "end",
 };

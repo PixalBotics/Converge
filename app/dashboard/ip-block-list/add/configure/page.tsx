@@ -9,7 +9,7 @@ import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import { Button, InputField, Typography } from "@/components/common";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
-import { AddIpBlockWizardShell } from "@/components/dashboard/AddIpBlockWizardShell";
+import { AddIpBlockWizardShell } from "@/features/ip-block";
 
 export default function AddIpBlockConfigurePage() {
   const router = useRouter();

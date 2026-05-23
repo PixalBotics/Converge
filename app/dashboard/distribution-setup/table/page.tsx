@@ -14,8 +14,8 @@ import { filterChromeButtonSx } from "@/components/common/FilterButton/filter-bu
 import { resolveSx } from "@/utils/resolveSx";
 import { Button, DataTable, SearchBar, TablePagination, Typography } from "@/components/common";
 import type { DataTableColumn } from "@/components/common";
-import { DistributionWizardShell } from "@/components/dashboard/DistributionWizardShell";
-import { VisitorInformationPreviewModal } from "@/components/dashboard/VisitorInformationPreviewModal";
+import { DistributionWizardShell } from "@/features/distribution-setup";
+import { VisitorInformationPreviewModal } from "@/features/distribution-setup";
 import {
   distributionWizardTableSearchWrap,
   distributionWizardTableToolbar,

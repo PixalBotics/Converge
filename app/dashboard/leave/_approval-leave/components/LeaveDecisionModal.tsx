@@ -34,6 +34,7 @@ export function LeaveDecisionModal({ decision, isLoading, onDismiss, onConfirm }
       isLoading={isLoading}
       onDismiss={onDismiss}
       onConfirm={onConfirm}
+      confirmButtonVariant={decision?.action === "reject" ? "danger" : "primary"}
     />
   );
 }

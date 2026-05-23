@@ -7,7 +7,7 @@ import { Typography } from "@/components/common";
 import type { DataTableColumn } from "@/components/common";
 import { rolesPageWrapper } from "../../roles/roles.styles";
 import { pageWrapper } from "../../companies/overview.styles";
-import { formatIsoDate, isRecord, pickNum, pickStr, unwrapApiData } from "@/lib/utils";
+import { formatIsoDate, isRecord, pickNum, pickStr, unwrapApiData } from "@/lib/utils/core";
 import { publishAppToast } from "@/lib/notify";
 import {
   useDecideLeaveTenantMutation,
@@ -29,22 +29,21 @@ import {
   type LeaveDecision,
 } from "../_approval-leave/components";
 import { useAuth } from "@/lib/auth";
-import { OP } from "@/lib/permissions";
+import { HRMS, hasAnyOperational } from "@/lib/permissions";
 
 const PAGE_LIMIT = 8;
 
 export default function ApprovalLeavePage() {
   const { hasOperational: h, user } = useAuth();
-  const orgBypass = h(OP.hrms.org.manage);
-  const canPoolApprove = orgBypass || h(OP.hrms.leave.approvePool) || h(OP.hrms.leave.approve);
-  const canPoolReject = orgBypass || h(OP.hrms.leave.rejectPool);
-  const canDeptApprove = orgBypass || h(OP.hrms.leave.approveDepartment) || h(OP.hrms.leave.approve);
-  const canDeptReject = orgBypass || h(OP.hrms.leave.rejectDepartment);
-  const canUsePoolQueue = canPoolApprove || canPoolReject || h(OP.hrms.leave.view);
-  const canUseDepartmentQueue = canDeptApprove || canDeptReject || h(OP.hrms.leave.view);
-  const canTenantApprove = canDeptApprove;
-  const canTenantReject = canDeptReject;
-  const canUseTenantQueue = canTenantApprove || canTenantReject || h(OP.hrms.leave.view);
+  const canPoolApprove = hasAnyOperational(h, [HRMS.LEAVE_APPROVE_POOL, HRMS.LEAVE_APPROVE]);
+  const canPoolReject = canPoolApprove || h("hrms:leave:reject:pool");
+  const canDeptApprove = hasAnyOperational(h, [HRMS.LEAVE_APPROVE_DEPT, HRMS.LEAVE_APPROVE]);
+  const canDeptReject = canDeptApprove || h("hrms:leave:reject:department");
+  const canTenantApprove = hasAnyOperational(h, [HRMS.LEAVE_APPROVE_TENANT, HRMS.LEAVE_APPROVE]);
+  const canTenantReject = canTenantApprove;
+  const canUsePoolQueue = canPoolApprove || canPoolReject || h(HRMS.LEAVE_VIEW);
+  const canUseDepartmentQueue = canDeptApprove || canDeptReject || h(HRMS.LEAVE_VIEW);
+  const canUseTenantQueue = canTenantApprove || canTenantReject || h(HRMS.LEAVE_VIEW);
 
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
@@ -52,8 +51,7 @@ export default function ApprovalLeavePage() {
   const [decision, setDecision] = useState<LeaveDecision>(null);
 
   const sessionPoolId = user?.poolId?.trim() ?? "";
-  const poolQueueEnabled =
-    queue === "pool" && canUsePoolQueue && (orgBypass || Boolean(sessionPoolId));
+  const poolQueueEnabled = queue === "pool" && canUsePoolQueue && Boolean(sessionPoolId);
 
   const poolQueueQuery = usePendingLeavePoolQueueQuery(
     {
