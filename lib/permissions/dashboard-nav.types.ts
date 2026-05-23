@@ -55,6 +55,8 @@ export type DashboardNavItem = {
    * Used for Chat Monitor under `page:chat` without a separate page key.
    */
   operationalAny?: string[];
+  /** Hide from sidebar unless the signed-in user is platform internal staff. */
+  internalOnly?: boolean;
   /** Nested links (e.g. Departments + Designations under one sidebar dropdown). */
   children?: DashboardNavItem[];
 };
@@ -82,6 +84,7 @@ export type PagePermission =
   | "page:shifts"
   | "page:smtp-email"
   | "page:email-template"
+  | "page:email-agent-feedback"
   | "page:social-media"
   | "page:users"
   | "page:website-assignments";

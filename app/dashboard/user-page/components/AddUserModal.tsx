@@ -3,8 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Box from "@mui/material/Box";
 import CircularProgress from "@mui/material/CircularProgress";
-import Radio from "@mui/material/Radio";
-import { Typography, InputField, SelectField, FormModal, DashboardCard } from "@/components/common";
+import { alpha } from "@mui/material/styles";
+import { Typography, InputField, SelectField, FormModal } from "@/components/common";
 import type { JsonRecord } from "@/api";
 import type { AppTheme } from "@/theme/theme";
 import {
@@ -24,9 +24,18 @@ import {
   toIdNameOption,
 } from "./add-user-modal.utils";
 import { publishAppToast } from "@/lib/notify";
-import { useAuth, sessionMayPickInternalUserScope } from "@/lib/auth";
 import {
+  useAuth,
+  sessionMayAssignWideResellerScope,
+  sessionMayPickInternalUserScope,
+} from "@/lib/auth";
+import {
+  externalScopeUsesWideReseller,
+  findDefaultStandardExternalRoleId,
   findPlatformAdminRoleId,
+  isExternalAdminRoleName,
+  isExternalAdminScope,
+  isPlatformAdminRoleName,
   PARENT_COMPANY_ADMIN_ROLE_NAME,
   RESELLER_ADMIN_ROLE_NAME,
   resolveInternalAdminScope,
@@ -34,6 +43,7 @@ import {
   type ExternalAdminScope,
   type InternalAdminScope,
 } from "@/lib/users/user-admin-scope";
+import { SelectableOptionCard, SelectableOptionsSection } from "./SelectableOptionCard";
 import { UserAdminScopeFields } from "./UserAdminScopeFields";
 
 export function AddUserModal({
@@ -57,6 +67,21 @@ export function AddUserModal({
     () => sessionMayPickInternalUserScope(isPlatformAdmin, authUser?.userType),
     [isPlatformAdmin, authUser?.userType],
   );
+  const mayAssignWideResellerScope = useMemo(
+    () =>
+      sessionMayAssignWideResellerScope(
+        isPlatformAdmin,
+        authUser?.userType,
+        authUser?.wideResellerScope,
+        authUser?.resellerId,
+      ),
+    [
+      isPlatformAdmin,
+      authUser?.userType,
+      authUser?.wideResellerScope,
+      authUser?.resellerId,
+    ],
+  );
 
   const [userType, setUserType] = useState<"Internal" | "External">("Internal");
   const [resellerId, setResellerId] = useState("");
@@ -72,7 +97,7 @@ export function AddUserModal({
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [internalAdminScope, setInternalAdminScope] = useState<InternalAdminScope>("standard");
-  const [externalAdminScope, setExternalAdminScope] = useState<ExternalAdminScope>("parent_company");
+  const [externalAdminScope, setExternalAdminScope] = useState<ExternalAdminScope>("standard");
   const [editFormHydrated, setEditFormHydrated] = useState(false);
   const hydratedEditUserIdRef = useRef<string | null>(null);
 
@@ -252,7 +277,7 @@ export function AddUserModal({
     setEmail("");
     setPhone("");
     setInternalAdminScope("standard");
-    setExternalAdminScope("parent_company");
+    setExternalAdminScope("standard");
     setEditFormHydrated(false);
     hydratedEditUserIdRef.current = null;
   }, [open, mayPickInternalSessionScope]);
@@ -288,14 +313,6 @@ export function AddUserModal({
     const wrRaw = u.wideResellerScope ?? u.wide_reseller_scope;
     const wide =
       wrRaw === true || wrRaw === "true" || wrRaw === 1 || wrRaw === "1";
-    const roleNameHydrated = String(roleObj?.name ?? u.roleName ?? u.role_name ?? "").trim();
-    if (roleNameHydrated === RESELLER_ADMIN_ROLE_NAME) {
-      setExternalAdminScope("wide_reseller");
-    } else if (roleNameHydrated === PARENT_COMPANY_ADMIN_ROLE_NAME) {
-      setExternalAdminScope("parent_company");
-    } else {
-      setExternalAdminScope(wide ? "wide_reseller" : "parent_company");
-    }
 
     const typeRaw = u.userType ?? u.user_type;
     const nextType = String(typeRaw ?? "Internal") === "External" ? "External" : "Internal";
@@ -318,9 +335,17 @@ export function AddUserModal({
 
     const roleId = String(u.roleId ?? u.role_id ?? roleObj?.id ?? "").trim();
     setRoleValue(roleId);
-    setRoleLabelHint(
-      String(roleObj?.name ?? u.roleName ?? u.role_name ?? "").trim(),
-    );
+    const roleNameHydrated = String(roleObj?.name ?? u.roleName ?? u.role_name ?? "").trim();
+    setRoleLabelHint(roleNameHydrated);
+    if (nextType === "External") {
+      if (roleNameHydrated === RESELLER_ADMIN_ROLE_NAME) {
+        setExternalAdminScope("wide_reseller");
+      } else if (roleNameHydrated === PARENT_COMPANY_ADMIN_ROLE_NAME) {
+        setExternalAdminScope("parent_company");
+      } else {
+        setExternalAdminScope(wide ? "wide_reseller" : "standard");
+      }
+    }
 
     const deptId = String(u.departmentId ?? u.department_id ?? deptObj?.id ?? "").trim();
     setDepartmentValue(deptId);
@@ -368,19 +393,57 @@ export function AddUserModal({
 
   const handleExternalAdminScopeChange = (scope: ExternalAdminScope) => {
     setExternalAdminScope(scope);
-    const adminRoleId = resolveRoleIdForExternalAdminScope(scope, roleOptions);
-    if (adminRoleId) setRoleValue(adminRoleId);
+    if (isExternalAdminScope(scope)) {
+      const adminRoleId = resolveRoleIdForExternalAdminScope(scope, roleOptions);
+      if (adminRoleId) setRoleValue(adminRoleId);
+      return;
+    }
+    const standardRoleId = findDefaultStandardExternalRoleId(roleOptions);
+    if (standardRoleId) setRoleValue(standardRoleId);
   };
 
-  const wideResellerScope = externalAdminScope === "wide_reseller";
+  const wideResellerScope = externalScopeUsesWideReseller(externalAdminScope);
+
+  useEffect(() => {
+    if (!open || userType !== "External" || mayAssignWideResellerScope) return;
+    if (externalAdminScope !== "wide_reseller") return;
+    setExternalAdminScope("standard");
+  }, [open, userType, mayAssignWideResellerScope, externalAdminScope]);
 
   useEffect(() => {
     if (!open || !roleOptions.length || userType !== "External") return;
+    if (!isExternalAdminScope(externalAdminScope)) return;
     const adminRoleId = resolveRoleIdForExternalAdminScope(externalAdminScope, roleOptions);
     if (adminRoleId && roleValue !== adminRoleId) {
       setRoleValue(adminRoleId);
     }
   }, [open, externalAdminScope, roleOptions, roleValue, userType]);
+
+  useEffect(() => {
+    if (!open || !roleOptions.length || userType !== "External") return;
+    if (externalAdminScope !== "standard") return;
+    if (mode === "edit" && !editFormHydrated) return;
+    const current = roleOptions.find((r) => r.value === roleValue);
+    if (
+      current &&
+      !isExternalAdminRoleName(current.label) &&
+      !isPlatformAdminRoleName(current.label)
+    ) {
+      return;
+    }
+    const standardRoleId = findDefaultStandardExternalRoleId(roleOptions);
+    if (standardRoleId && roleValue !== standardRoleId) {
+      setRoleValue(standardRoleId);
+    }
+  }, [
+    open,
+    externalAdminScope,
+    roleOptions,
+    roleValue,
+    userType,
+    mode,
+    editFormHydrated,
+  ]);
 
   useEffect(() => {
     if (mode === "edit" && !editFormHydrated) return;
@@ -455,19 +518,21 @@ export function AddUserModal({
         });
         return;
       }
-      const externalRoleId = resolveRoleIdForExternalAdminScope(
-        externalAdminScope,
-        roleOptions,
-      );
-      if (!externalRoleId) {
-        publishAppToast({
-          variant: "error",
-          message:
-            externalAdminScope === "wide_reseller"
-              ? `"${RESELLER_ADMIN_ROLE_NAME}" role is missing. Run API seed.`
-              : `"${PARENT_COMPANY_ADMIN_ROLE_NAME}" role is missing. Run API seed.`,
-        });
-        return;
+      if (isExternalAdminScope(externalAdminScope)) {
+        const externalRoleId = resolveRoleIdForExternalAdminScope(
+          externalAdminScope,
+          roleOptions,
+        );
+        if (!externalRoleId) {
+          publishAppToast({
+            variant: "error",
+            message:
+              externalAdminScope === "wide_reseller"
+                ? `"${RESELLER_ADMIN_ROLE_NAME}" role is missing. Run API seed.`
+                : `"${PARENT_COMPANY_ADMIN_ROLE_NAME}" role is missing. Run API seed.`,
+          });
+          return;
+        }
       }
     }
 
@@ -569,114 +634,63 @@ export function AddUserModal({
         />
       </Box>
 
-      <Box
-        sx={{
-          display: "grid",
-          gridTemplateColumns: showInternalUserTypeCard
-            ? { xs: "1fr", sm: "1fr 1fr" }
-            : { xs: "1fr", sm: "1fr" },
-          gap: 2,
-          mb: 3,
-        }}
+      <SelectableOptionsSection
+        theme={theme}
+        title="User category"
+        lockedHint={mode === "edit" ? "Cannot change after creation." : undefined}
       >
-        {showInternalUserTypeCard ? (
-          <DashboardCard
-            sx={{
-              p: 2,
-              borderRadius: 2,
-              cursor: mode === "edit" ? "default" : "pointer",
-              opacity: mode === "edit" && isEditLoading ? 0.5 : 1,
-              pointerEvents: mode === "edit" ? "none" : "auto",
-              background: userType === "Internal" ? theme.app.dashboard.navActiveBg : theme.app.dashboard.cardBg,
-            }}
-            onClick={() => {
-              if (mode === "edit") return;
-              setUserType("Internal");
-              setResellerId("");
-              setParentCompanyId("");
-              setInternalAdminScope("standard");
-              setExternalAdminScope("parent_company");
-              setDepartmentValue("");
-              setDesignationValue("");
-              setDesignationLabelHint("");
-            }}
-          >
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1.25 }}>
-              <Radio
-                checked={userType === "Internal"}
-                onChange={() => {
-                  setUserType("Internal");
-                  setResellerId("");
-                  setParentCompanyId("");
-                  setInternalAdminScope("standard");
-                  setExternalAdminScope("parent_company");
-                  setDepartmentValue("");
-                  setDesignationValue("");
-                  setDesignationLabelHint("");
-                }}
-                value="Internal"
-                disabled={mode === "edit"}
-                disableRipple
-                icon={<Box sx={{ width: 16, height: 16, borderRadius: "9999px", border: "2px solid rgba(148,163,184,0.6)", bgcolor: "transparent" }} />}
-                checkedIcon={<Box sx={{ width: 16, height: 16, borderRadius: "9999px", bgcolor: theme.app.dashboard.accentGreen, boxShadow: "0 0 0 4px rgba(34,197,94,0.35)" }} />}
-                sx={{ p: 0.25 }}
-              />
-              <Box>
-                <Typography variant="medium" color="white" sx={{ mb: 0.25 }}>
-                  Internal User
-                </Typography>
-                <Typography variant="small" sx={{ color: theme.app.dashboard.textMuted }}>
-                  Team member with company email
-                </Typography>
-              </Box>
-            </Box>
-          </DashboardCard>
-        ) : null}
-
-        <DashboardCard
+        <Box
           sx={{
-            p: 2,
-            borderRadius: 2,
-            cursor: mode === "edit" ? "default" : "pointer",
-            opacity: mode === "edit" && isEditLoading ? 0.5 : 1,
-            pointerEvents: mode === "edit" ? "none" : "auto",
-            background: userType === "External" ? theme.app.dashboard.navActiveBg : theme.app.dashboard.cardBg,
-          }}
-          onClick={() => {
-            if (mode === "edit") return;
-            setUserType("External");
-            setDepartmentValue("");
-            setDesignationValue("");
-            setDesignationLabelHint("");
+            display: "grid",
+            gridTemplateColumns: showInternalUserTypeCard
+              ? { xs: "1fr", sm: "1fr 1fr" }
+              : { xs: "1fr", sm: "1fr" },
+            gap: { xs: 1.5, sm: 2 },
+            alignItems: "stretch",
           }}
         >
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1.25 }}>
-            <Radio
-              checked={userType === "External"}
-              onChange={() => {
-                setUserType("External");
+          {showInternalUserTypeCard ? (
+            <SelectableOptionCard
+              theme={theme}
+              title="Internal"
+              subtitle="Your organization"
+              accent="indigo"
+              value="Internal"
+              selected={userType === "Internal"}
+              disabled={mode === "edit" && isEditLoading}
+              selectionLocked={mode === "edit"}
+              onSelect={() => {
+                setUserType("Internal");
+                setResellerId("");
+                setParentCompanyId("");
+                setInternalAdminScope("standard");
+                setExternalAdminScope("standard");
                 setDepartmentValue("");
                 setDesignationValue("");
                 setDesignationLabelHint("");
               }}
-              value="External"
-              disabled={mode === "edit"}
-              disableRipple
-              icon={<Box sx={{ width: 16, height: 16, borderRadius: "9999px", border: "2px solid rgba(148,163,184,0.6)", bgcolor: "transparent" }} />}
-              checkedIcon={<Box sx={{ width: 16, height: 16, borderRadius: "9999px", bgcolor: theme.app.dashboard.accentGreen, boxShadow: "0 0 0 4px rgba(34,197,94,0.35)" }} />}
-              sx={{ p: 0.25 }}
             />
-            <Box>
-              <Typography variant="medium" color="white" sx={{ mb: 0.25 }}>
-                External User
-              </Typography>
-              <Typography variant="small" sx={{ color: theme.app.dashboard.textMuted }}>
-                Client-side user under a reseller
-              </Typography>
-            </Box>
-          </Box>
-        </DashboardCard>
-      </Box>
+          ) : null}
+
+          <SelectableOptionCard
+            theme={theme}
+            title="External"
+            subtitle="Reseller client"
+            accent="green"
+            value="External"
+            selected={userType === "External"}
+            disabled={mode === "edit" && isEditLoading}
+            selectionLocked={mode === "edit"}
+            onSelect={() => {
+              setUserType("External");
+              setExternalAdminScope("standard");
+              setDepartmentValue("");
+              setDesignationValue("");
+              setDesignationLabelHint("");
+            }}
+          />
+        </Box>
+      </SelectableOptionsSection>
 
       {userType === "External" && (
         <>
@@ -721,6 +735,7 @@ export function AddUserModal({
             disabled={isSaving || (mode === "edit" && isEditLoading)}
             selectionLocked={mode === "edit"}
             showInternal={false}
+            allowWideResellerScope={mayAssignWideResellerScope}
           />
         </>
       )}
@@ -735,23 +750,40 @@ export function AddUserModal({
           onExternalScopeChange={handleExternalAdminScopeChange}
           disabled={isSaving || (mode === "edit" && isEditLoading)}
           selectionLocked={mode === "edit"}
+          allowWideResellerScope={mayAssignWideResellerScope}
         />
       ) : null}
 
       <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 2, mb: 2 }}>
-        <SelectField
-          label="Role"
-          value={roleValue}
-          onChange={setRoleValue}
-          options={roleOptions.length ? roleOptions : emptySelect}
-          menuMaxRows={3}
-          disabled={
-            isSaving ||
-            (mode === "edit" && isEditLoading) ||
-            (userType === "Internal" && internalAdminScope === "platform_admin") ||
-            userType === "External"
-          }
-        />
+        <Box>
+          <SelectField
+            label="Role"
+            value={roleValue}
+            onChange={setRoleValue}
+            options={roleOptions.length ? roleOptions : emptySelect}
+            menuMaxRows={3}
+            disabled={
+              isSaving ||
+              (mode === "edit" && isEditLoading) ||
+              (userType === "Internal" && internalAdminScope === "platform_admin") ||
+              (userType === "External" && isExternalAdminScope(externalAdminScope))
+            }
+          />
+          {(userType === "Internal" && internalAdminScope === "platform_admin") ||
+          (userType === "External" && isExternalAdminScope(externalAdminScope)) ? (
+            <Typography
+              variant="caption"
+              sx={{
+                color: alpha(theme.app.dashboard.accentBlue, 0.95),
+                display: "block",
+                mt: 0.75,
+                lineHeight: 1.45,
+              }}
+            >
+              Role is set automatically.
+            </Typography>
+          ) : null}
+        </Box>
         <SelectField
           label="Department"
           value={departmentValue}

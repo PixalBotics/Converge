@@ -15,4 +15,20 @@ export const emailKeys = {
     [...emailKeys.all, "template-published-preview", resellerId] as const,
   templatePublished: (resellerId: string) =>
     [...emailKeys.all, "template-published", resellerId] as const,
+  templateAssignment: (resellerId: string) =>
+    [...emailKeys.all, "template-assignment", resellerId] as const,
+  templateById: (templateId: string) => [...emailKeys.all, "template-by-id", templateId] as const,
+  templatePreviewById: (templateId: string) =>
+    [...emailKeys.all, "template-preview-by-id", templateId] as const,
+  platformTemplateDraft: () => [...emailKeys.all, "platform-template-draft"] as const,
+  platformTemplatePublished: () => [...emailKeys.all, "platform-template-published"] as const,
+  platformTemplateDraftPreview: () => [...emailKeys.all, "platform-template-draft-preview"] as const,
+  platformTemplatePublishedPreview: () =>
+    [...emailKeys.all, "platform-template-published-preview"] as const,
+  platformTemplateAssignmentList: () =>
+    [...emailKeys.all, "platform-template-assignment-list"] as const,
+  platformTemplateVersions: () => [...emailKeys.all, "platform-template-versions"] as const,
+  platformAgentFeedback: () => [...emailKeys.all, "platform-agent-feedback"] as const,
+  resellerTemplateVersions: (resellerId: string) =>
+    [...emailKeys.all, "reseller-template-versions", resellerId] as const,
 };

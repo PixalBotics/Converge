@@ -12,16 +12,16 @@ import { EmailRouteSegmented } from "./EmailRouteSegmented";
 import { pageHeaderRow } from "../styles/email-page.styles";
 
 const CONNECTION_TABS = [
-  { href: EMAIL_ROUTES.resellerMail, label: "Reseller mail", internalOnly: false },
-  { href: EMAIL_ROUTES.platformMail, label: "Platform mail", internalOnly: true },
-  { href: EMAIL_ROUTES.platformAssignment, label: "Use platform mail", internalOnly: true },
+  { href: EMAIL_ROUTES.setupReseller, label: "Reseller mail", internalOnly: false },
+  { href: EMAIL_ROUTES.setupPlatform, label: "Platform mail", internalOnly: true },
+  { href: EMAIL_ROUTES.setupAssignment, label: "Use platform mail", internalOnly: true },
 ] as const;
 
 function resolvePageTitle(pathname: string): string {
   if (pathname === EMAIL_ROUTES.design || pathname.startsWith(`${EMAIL_ROUTES.design}/`)) {
     return "Email design";
   }
-  return "Email setup";
+  return "SMTP & mail";
 }
 
 /** Page title (left) + route tabs (right) for all `/dashboard/email/*` pages. */

@@ -9,7 +9,7 @@ import { EMAIL_ROUTES } from "@/features/email/email.constants";
 export default function LegacySmtpEmailRedirectPage() {
   const router = useRouter();
   useEffect(() => {
-    router.replace(EMAIL_ROUTES.resellerMail);
+    router.replace(EMAIL_ROUTES.setupReseller);
   }, [router]);
   return <LoadingScreen message="Opening email settings…" />;
 }

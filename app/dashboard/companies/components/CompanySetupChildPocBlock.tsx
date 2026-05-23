@@ -6,15 +6,23 @@ import FormControl from "@mui/material/FormControl";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Radio from "@mui/material/Radio";
 import RadioGroup from "@mui/material/RadioGroup";
-import { useTheme } from "@mui/material/styles";
+import { alpha, useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import { InputField, SelectField, Typography } from "@/components/common";
 import { useDesignationsListQuery } from "@/lib/hooks/query";
 import { pickItemsArray, toIdNameOption } from "@/app/dashboard/user-page/components/add-user-modal.utils";
 import { childrenDraftFieldPath, getCompanySetupFieldError } from "@/lib/companies/company-setup-draft-field-paths";
 import type { DraftChildPayload } from "@/lib/companies/setup-draft.utils";
-import { sessionShowPocDeptDesignationPickFromList, useAuth } from "@/lib/auth";
 import {
+  sessionMayAssignWideResellerScope,
+  sessionShowPocDeptDesignationPickFromList,
+  useAuth,
+} from "@/lib/auth";
+import {
+  externalScopeUsesWideReseller,
+  findDefaultStandardExternalRoleId,
+  isExternalAdminScope,
+  resolveExternalAdminScope,
   resolveRoleIdForExternalAdminScope,
   type ExternalAdminScope,
 } from "@/lib/users/user-admin-scope";
@@ -55,6 +63,16 @@ export function CompanySetupChildPocBlock({
 }: CompanySetupChildPocBlockProps) {
   const theme = useTheme() as AppTheme;
   const { isPlatformAdmin, user } = useAuth();
+  const mayAssignWideResellerScope = useMemo(
+    () =>
+      sessionMayAssignWideResellerScope(
+        isPlatformAdmin,
+        user?.userType,
+        user?.wideResellerScope,
+        user?.resellerId,
+      ),
+    [isPlatformAdmin, user?.userType, user?.wideResellerScope, user?.resellerId],
+  );
   const showPocPickFromList = sessionShowPocDeptDesignationPickFromList(
     isPlatformAdmin,
     user?.userType,
@@ -113,25 +131,64 @@ export function CompanySetupChildPocBlock({
     designationsQuery.isLoading,
   ]);
 
-  const roleSelectOptions = useMemo(
-    () =>
-      roleOptions.length > 0
-        ? roleOptions
-        : [{ value: "", label: rolesLoading ? "Loading…" : "— Select role —" }],
-    [roleOptions, rolesLoading],
-  );
+  const roleSelectOptions =
+    roleOptions.length > 0
+      ? roleOptions
+      : [{ value: "", label: rolesLoading ? "Loading…" : "— Select role —" }];
+
+  const pocExternalScope = useMemo(() => {
+    const scope = resolveExternalAdminScope(
+      row.roleId,
+      roleSelectOptions,
+      row.pocWideResellerScope,
+    );
+    if (!mayAssignWideResellerScope && scope === "wide_reseller") {
+      return "standard" as ExternalAdminScope;
+    }
+    return scope;
+  }, [
+    row.roleId,
+    row.pocWideResellerScope,
+    roleSelectOptions,
+    mayAssignWideResellerScope,
+  ]);
+
+  useEffect(() => {
+    if (!mayAssignWideResellerScope && row.pocWideResellerScope) {
+      updateChildRow(childIndex, { pocWideResellerScope: false });
+    }
+  }, [mayAssignWideResellerScope, row.pocWideResellerScope, childIndex, updateChildRow]);
 
   useEffect(() => {
     if (!roleOptions.length) return;
-    const scope = row.pocWideResellerScope ? "wide_reseller" : "parent_company";
-    const adminRoleId = resolveRoleIdForExternalAdminScope(scope, roleSelectOptions);
+    if (!isExternalAdminScope(pocExternalScope)) return;
+    const adminRoleId = resolveRoleIdForExternalAdminScope(
+      pocExternalScope,
+      roleSelectOptions,
+    );
     if (adminRoleId && row.roleId !== adminRoleId) {
       updateChildRow(childIndex, { roleId: adminRoleId });
     }
   }, [
     childIndex,
+    pocExternalScope,
     roleOptions.length,
-    row.pocWideResellerScope,
+    row.roleId,
+    roleSelectOptions,
+    updateChildRow,
+  ]);
+
+  useEffect(() => {
+    if (!roleOptions.length || pocExternalScope !== "standard") return;
+    if (row.roleId.trim()) return;
+    const standardRoleId = findDefaultStandardExternalRoleId(roleSelectOptions);
+    if (standardRoleId) {
+      updateChildRow(childIndex, { roleId: standardRoleId });
+    }
+  }, [
+    childIndex,
+    pocExternalScope,
+    roleOptions.length,
     row.roleId,
     roleSelectOptions,
     updateChildRow,
@@ -230,17 +287,26 @@ export function CompanySetupChildPocBlock({
           theme={theme}
           userType="External"
           internalScope="standard"
-          externalScope={row.pocWideResellerScope ? "wide_reseller" : "parent_company"}
+          externalScope={pocExternalScope}
           onInternalScopeChange={() => {}}
           onExternalScopeChange={(scope: ExternalAdminScope) => {
-            const adminRoleId = resolveRoleIdForExternalAdminScope(scope, roleSelectOptions);
+            if (isExternalAdminScope(scope)) {
+              const adminRoleId = resolveRoleIdForExternalAdminScope(scope, roleSelectOptions);
+              updateChildRow(childIndex, {
+                pocWideResellerScope: externalScopeUsesWideReseller(scope),
+                ...(adminRoleId ? { roleId: adminRoleId } : {}),
+              });
+              return;
+            }
+            const standardRoleId = findDefaultStandardExternalRoleId(roleSelectOptions);
             updateChildRow(childIndex, {
-              pocWideResellerScope: scope === "wide_reseller",
-              ...(adminRoleId ? { roleId: adminRoleId } : {}),
+              pocWideResellerScope: false,
+              ...(standardRoleId ? { roleId: standardRoleId } : {}),
             });
           }}
           disabled={controlsDisabled}
           showInternal={false}
+          allowWideResellerScope={mayAssignWideResellerScope}
         />
         {apiMsg("pocInvite.wideResellerScope") ? (
           <Typography variant="caption" sx={{ color: theme.palette.error.main, display: "block", mt: 0.5 }}>
@@ -253,11 +319,24 @@ export function CompanySetupChildPocBlock({
         <SelectField
           label="Role"
           value={row.roleId}
-          disabled
+          disabled={controlsDisabled || isExternalAdminScope(pocExternalScope)}
           scrollAnchorPath={resolvePath("pocInvite.roleId")}
           onChange={(id) => updateChildRow(childIndex, { roleId: id })}
           options={roleSelectOptions}
         />
+        {isExternalAdminScope(pocExternalScope) && !apiMsg("pocInvite.roleId") ? (
+          <Typography
+            variant="caption"
+            sx={{
+              color: alpha(theme.app.dashboard.accentBlue, 0.95),
+              display: "block",
+              mt: 0.75,
+              lineHeight: 1.45,
+            }}
+          >
+            Role is set automatically.
+          </Typography>
+        ) : null}
         {apiMsg("pocInvite.roleId") ? (
           <Typography variant="caption" sx={{ color: theme.palette.error.main, display: "block", mt: 0.5 }}>
             {apiMsg("pocInvite.roleId")}

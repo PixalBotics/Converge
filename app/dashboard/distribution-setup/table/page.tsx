@@ -2,10 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Add from "@mui/icons-material/Add";
+import MailOutline from "@mui/icons-material/MailOutline";
 import Box from "@mui/material/Box";
 import MuiLink from "@mui/material/Link";
 import TextField from "@mui/material/TextField";
 import NextLink from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useTheme } from "@mui/material/styles";
 import type { SxProps, Theme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
@@ -14,8 +16,39 @@ import { filterChromeButtonSx } from "@/components/common/FilterButton/filter-bu
 import { resolveSx } from "@/utils/resolveSx";
 import { Button, DataTable, SearchBar, TablePagination, Typography } from "@/components/common";
 import type { DataTableColumn } from "@/components/common";
-import { DistributionWizardShell } from "@/features/distribution-setup";
-import { VisitorInformationPreviewModal } from "@/features/distribution-setup";
+import {
+  DistributionTestEmailModal,
+  DistributionWizardShell,
+  VisitorInformationPreviewModal,
+} from "@/features/distribution-setup";
+import { getEmailFormForWebsite } from "@/api/email/email-forms.api";
+import {
+  useCreateDistributionSetupMutation,
+  useDistributionSetupDetailQuery,
+  useUpdateDistributionSetupMutation,
+} from "@/features/distribution-setup/hooks/useDistributionSetupMutations";
+import {
+  createDraftRow,
+  detailToTableRows,
+  draftRowHasData,
+  tableRowsToDepartments,
+  type DistributionTableRow,
+} from "@/features/distribution-setup/utils/map-distribution-rows";
+import {
+  clearWizardDraft,
+  readWizardEmailFormId,
+  readWizardMethod,
+  readWizardSetupId,
+  readWizardSubject,
+  readWizardWebsite,
+  writeWizardEmailFormId,
+  writeWizardSetupId,
+  writeWizardSubject,
+} from "@/features/distribution-setup/wizard-storage";
+import { useQuery } from "@tanstack/react-query";
+import { DISTRIBUTION_ROUTES } from "@/features/distribution-setup/distribution.constants";
+import { publishAppToast } from "@/lib/notify";
+import { extractApiErrorMessageForToast } from "@/lib/notify/extract-api-message";
 import {
   distributionWizardTableSearchWrap,
   distributionWizardTableToolbar,
@@ -25,61 +58,8 @@ import {
   integrationsPaginationWrapper,
 } from "../../integrations/integrations.styles";
 
-interface DistributionTableRow extends Record<string, unknown> {
-  id: string;
-  department: string;
-  to: string;
-  cc: string;
-  bcc: string;
-  formLabel: string;
-  sources: string;
-  /** New row from “Add Row”: show empty inputs until filled */
-  isDraft?: boolean;
-}
-
-function mockDistributionRow(id: string): DistributionTableRow {
-  return {
-    id,
-    department: "Sales",
-    to: "sales@company.com",
-    cc: "manager@company.com",
-    bcc: "admin@company.com",
-    formLabel: "Chat Transcript Email",
-    sources: "support@abc.com",
-  };
-}
-
-function createDraftRow(): DistributionTableRow {
-  const draftId =
-    typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
-      ? crypto.randomUUID()
-      : String(Date.now());
-
-  return {
-    id: `draft-${draftId}`,
-    department: "",
-    to: "",
-    cc: "",
-    bcc: "",
-    formLabel: "",
-    sources: "",
-    isDraft: true,
-  };
-}
-
-function draftRowHasData(row: DistributionTableRow): boolean {
-  return [row.department, row.to, row.cc, row.bcc, row.formLabel, row.sources].some(
-    (s) => String(s).trim() !== ""
-  );
-}
-
-const INITIAL_ROWS: DistributionTableRow[] = Array.from({ length: 15 }, (_, i) =>
-  mockDistributionRow(String(i + 1))
-);
-
 const PAGE_SIZE = 10;
-
-const TRANSCRIPT_HREF = "/dashboard/distribution-setup/transcript";
+const TRANSCRIPT_HREF = DISTRIBUTION_ROUTES.transcript;
 
 function draftFieldSx(theme: AppTheme): SxProps<Theme> {
   return {
@@ -106,26 +86,69 @@ function draftFieldSx(theme: AppTheme): SxProps<Theme> {
 
 export default function DistributionTablePage() {
   const theme = useTheme() as AppTheme;
-  const [rows, setRows] = useState<DistributionTableRow[]>(() => [...INITIAL_ROWS]);
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const setupIdFromUrl = searchParams.get("setupId")?.trim() || null;
+  const setupId = setupIdFromUrl ?? readWizardSetupId();
+
+  const detailQuery = useDistributionSetupDetailQuery(setupId);
+  const createMutation = useCreateDistributionSetupMutation();
+  const updateMutation = useUpdateDistributionSetupMutation(setupId ?? "");
+
+  const [rows, setRows] = useState<DistributionTableRow[]>(() => [createDraftRow()]);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [visitorPreviewOpen, setVisitorPreviewOpen] = useState(true);
+  const [hydrated, setHydrated] = useState(false);
+  const [testEmailOpen, setTestEmailOpen] = useState(false);
+
+  const websiteIdForForm = detailQuery.data?.websiteId ?? readWizardWebsite()?.websiteId ?? "";
+  const formQuery = useQuery({
+    queryKey: ["email-form", websiteIdForForm],
+    queryFn: () => getEmailFormForWebsite(websiteIdForForm),
+    enabled: Boolean(websiteIdForForm),
+  });
+
+  const methodUsesEmail =
+    (detailQuery.data?.method ?? readWizardMethod()).toLowerCase() === "email" ||
+    (detailQuery.data?.method ?? readWizardMethod()).toLowerCase() === "both";
+
+  useEffect(() => {
+    if (setupIdFromUrl) {
+      writeWizardSetupId(setupIdFromUrl);
+    }
+  }, [setupIdFromUrl]);
+
+  useEffect(() => {
+    if (!setupId) {
+      const website = readWizardWebsite();
+      if (!website?.websiteId) {
+        router.replace(DISTRIBUTION_ROUTES.configure);
+      }
+      return;
+    }
+    if (detailQuery.data && !hydrated) {
+      setRows(detailToTableRows(detailQuery.data));
+      if (detailQuery.data.subject) writeWizardSubject(detailQuery.data.subject);
+      if (detailQuery.data.emailConfigurationId) {
+        writeWizardEmailFormId(detailQuery.data.emailConfigurationId);
+      }
+      setHydrated(true);
+    }
+  }, [setupId, detailQuery.data, hydrated, router]);
 
   const dismissVisitorPreview = useCallback(() => {
     setVisitorPreviewOpen(false);
   }, []);
 
   const updateRowField = useCallback((id: string, field: keyof DistributionTableRow, value: string) => {
-    setRows((prev) =>
-      prev.map((row) => (row.id === id ? { ...row, [field]: value } : row))
-    );
+    setRows((prev) => prev.map((row) => (row.id === id ? { ...row, [field]: value } : row)));
   }, []);
 
   const handleAddRow = useCallback(() => {
     setRows((prev) => [createDraftRow(), ...prev]);
   }, []);
 
-  /** Draft row: Add click saves row into table when at least one field has text */
   const handleCommitDraftRow = useCallback((id: string) => {
     setRows((prev) => {
       const row = prev.find((r) => r.id === id);
@@ -134,13 +157,64 @@ export default function DistributionTablePage() {
     });
   }, []);
 
+  const handleSave = async () => {
+    const websiteId = detailQuery.data?.websiteId ?? readWizardWebsite()?.websiteId;
+    if (!websiteId) {
+      publishAppToast({ variant: "error", message: "Select a website before saving." });
+      router.push(DISTRIBUTION_ROUTES.configure);
+      return;
+    }
+
+    const departments = tableRowsToDepartments(rows);
+    if (departments.length === 0) {
+      publishAppToast({
+        variant: "error",
+        message: "Add at least one department with recipients.",
+      });
+      return;
+    }
+
+    const body = {
+      websiteId,
+      method: detailQuery.data?.method ?? readWizardMethod(),
+      subject: (detailQuery.data?.subject ?? readWizardSubject()) || undefined,
+      emailConfigurationId:
+        detailQuery.data?.emailConfigurationId ??
+        readWizardEmailFormId() ??
+        formQuery.data?.id ??
+        undefined,
+      isActive: true,
+      departments,
+    };
+
+    try {
+      if (setupId) {
+        await updateMutation.mutateAsync(body);
+        publishAppToast({ variant: "success", message: "Distribution setup saved." });
+      } else {
+        const created = await createMutation.mutateAsync(body);
+        writeWizardSetupId(created.id);
+        publishAppToast({ variant: "success", message: "Distribution setup created." });
+      }
+      clearWizardDraft();
+      router.push(DISTRIBUTION_ROUTES.home);
+    } catch (err) {
+      publishAppToast({
+        variant: "error",
+        message: extractApiErrorMessageForToast(err, "Could not save distribution setup."),
+      });
+    }
+  };
+
+  const saving = createMutation.isPending || updateMutation.isPending;
+
   const filteredRows = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return rows;
     return rows.filter((row) =>
       [row.department, row.to, row.cc, row.bcc, row.sources, row.formLabel].some((cell) =>
-        String(cell).toLowerCase().includes(q)
-      )
+        String(cell).toLowerCase().includes(q),
+      ),
     );
   }, [rows, search]);
 
@@ -173,7 +247,7 @@ export default function DistributionTablePage() {
               size="small"
               value={row.department}
               onChange={(e) => updateRowField(row.id, "department", e.target.value)}
-              placeholder=""
+              placeholder="Sales"
               fullWidth
               variant="outlined"
               sx={draftFieldSx(theme)}
@@ -192,7 +266,7 @@ export default function DistributionTablePage() {
               size="small"
               value={row.to}
               onChange={(e) => updateRowField(row.id, "to", e.target.value)}
-              placeholder=""
+              placeholder="a@company.com"
               fullWidth
               variant="outlined"
               sx={draftFieldSx(theme)}
@@ -211,7 +285,6 @@ export default function DistributionTablePage() {
               size="small"
               value={row.cc}
               onChange={(e) => updateRowField(row.id, "cc", e.target.value)}
-              placeholder=""
               fullWidth
               variant="outlined"
               sx={draftFieldSx(theme)}
@@ -230,7 +303,6 @@ export default function DistributionTablePage() {
               size="small"
               value={row.bcc}
               onChange={(e) => updateRowField(row.id, "bcc", e.target.value)}
-              placeholder=""
               fullWidth
               variant="outlined"
               sx={draftFieldSx(theme)}
@@ -248,7 +320,6 @@ export default function DistributionTablePage() {
               size="small"
               value={row.formLabel}
               onChange={(e) => updateRowField(row.id, "formLabel", e.target.value)}
-              placeholder=""
               fullWidth
               variant="outlined"
               sx={draftFieldSx(theme)}
@@ -262,7 +333,6 @@ export default function DistributionTablePage() {
                 color: theme.app.dashboard.accentGreen,
                 fontWeight: 600,
                 fontSize: 14,
-                cursor: "pointer",
               }}
             >
               {row.formLabel}
@@ -281,17 +351,16 @@ export default function DistributionTablePage() {
               size="small"
               value={row.sources}
               onChange={(e) => updateRowField(row.id, "sources", e.target.value)}
-              placeholder=""
               fullWidth
               variant="outlined"
               sx={draftFieldSx(theme)}
             />
           ) : (
-            row.sources
+            row.sources || "—"
           ),
       },
     ],
-    [theme, updateRowField]
+    [theme, updateRowField],
   );
 
   const actionColumn = useMemo(
@@ -320,58 +389,115 @@ export default function DistributionTablePage() {
           "—"
         ),
     }),
-    [handleCommitDraftRow, theme]
+    [handleCommitDraftRow, theme],
   );
+
+  const testDepartments = useMemo(
+    () =>
+      rows
+        .filter((r) => !r.isDraft && r.department.trim())
+        .map((r) => ({
+          name: r.department.trim(),
+          to: r.to.split(/[,;]/)[0]?.trim() ?? "",
+        })),
+    [rows],
+  );
+
+  if (setupId && detailQuery.isLoading) {
+    return (
+      <DistributionWizardShell step={3} cardTitle="Distribution table" footer={null}>
+        <Typography sx={{ py: 2, color: theme.app.dashboard.textMuted }}>Loading setup…</Typography>
+      </DistributionWizardShell>
+    );
+  }
 
   return (
     <>
+      <DistributionTestEmailModal
+        open={testEmailOpen}
+        onClose={() => setTestEmailOpen(false)}
+        websiteId={websiteIdForForm}
+        subject={detailQuery.data?.subject ?? readWizardSubject()}
+        emailConfigurationId={
+          detailQuery.data?.emailConfigurationId ?? readWizardEmailFormId() ?? formQuery.data?.id
+        }
+        fields={formQuery.data?.fields ?? []}
+        departments={testDepartments}
+      />
       <VisitorInformationPreviewModal open={visitorPreviewOpen} onClose={dismissVisitorPreview} />
-    <DistributionWizardShell
-      step={3}
-      cardTitle="Distribution Table"
-      subtitle="Connect your workflows with industry-leading CRM sync functionality."
-      footer={null}
-      cardHeaderRight={
-        <Box sx={distributionWizardTableToolbar}>
-          <Box sx={distributionWizardTableSearchWrap}>
-            <SearchBar
-              value={search}
-              onChange={setSearch}
-              placeholder="Search anything..."
-              sx={{ minWidth: 0, width: "100%", maxWidth: 400 }}
-            />
+      <DistributionWizardShell
+        step={3}
+        cardTitle="Distribution table"
+        subtitle="Departments and recipient lists for this website."
+        footer={
+          <>
+            <Button type="button" variant="secondary" onClick={() => router.push(DISTRIBUTION_ROUTES.home)}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="primary"
+              sx={gradientPrimaryButtonSx}
+              disabled={saving}
+              onClick={() => void handleSave()}
+            >
+              {saving ? "Saving…" : "Save distribution"}
+            </Button>
+          </>
+        }
+        cardHeaderRight={
+          <Box sx={distributionWizardTableToolbar}>
+            <Box sx={distributionWizardTableSearchWrap}>
+              <SearchBar
+                value={search}
+                onChange={setSearch}
+                placeholder="Search departments or emails…"
+                sx={{ minWidth: 0, width: "100%", maxWidth: 400 }}
+              />
+            </Box>
+            {methodUsesEmail ? (
+              <Button
+                type="button"
+                variant="outlined"
+                startIcon={<MailOutline sx={{ fontSize: 20 }} />}
+                sx={{ ...resolveSx(filterChromeButtonSx, theme), flexShrink: 0 }}
+                disabled={!websiteIdForForm}
+                onClick={() => setTestEmailOpen(true)}
+              >
+                Send test email
+              </Button>
+            ) : null}
+            <Button
+              type="button"
+              variant="outlined"
+              startIcon={<Add sx={{ fontSize: 20 }} />}
+              sx={{ ...resolveSx(filterChromeButtonSx, theme), flexShrink: 0 }}
+              onClick={handleAddRow}
+            >
+              Add row
+            </Button>
           </Box>
-          <Button
-            type="button"
-            variant="outlined"
-            startIcon={<Add sx={{ fontSize: 20 }} />}
-            sx={{ ...resolveSx(filterChromeButtonSx, theme), flexShrink: 0 }}
-            onClick={handleAddRow}
-          >
-            Add Row
-          </Button>
-        </Box>
-      }
-    >
-      <Box sx={{ display: "flex", flexDirection: "column", gap: 0, width: "100%" }}>
-        <DataTable<DistributionTableRow>
-          columns={columns}
-          rows={paginatedRows}
-          getRowId={(row) => row.id}
-          actionColumn={actionColumn}
-          minWidth={1120}
-          size="medium"
-        />
-        <Box sx={integrationsFooterRow}>
-          <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted }}>
-            Showing data {rangeStart} to {rangeEnd} of {filteredRows.length} entries
-          </Typography>
-          <Box sx={integrationsPaginationWrapper}>
-            <TablePagination page={page} pageCount={pageCount} onPageChange={setPage} />
+        }
+      >
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 0, width: "100%" }}>
+          <DataTable<DistributionTableRow>
+            columns={columns}
+            rows={paginatedRows}
+            getRowId={(row) => row.id}
+            actionColumn={actionColumn}
+            minWidth={1120}
+            size="medium"
+          />
+          <Box sx={integrationsFooterRow}>
+            <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted }}>
+              Showing data {rangeStart} to {rangeEnd} of {filteredRows.length} entries
+            </Typography>
+            <Box sx={integrationsPaginationWrapper}>
+              <TablePagination page={page} pageCount={pageCount} onPageChange={setPage} />
+            </Box>
           </Box>
         </Box>
-      </Box>
-    </DistributionWizardShell>
+      </DistributionWizardShell>
     </>
   );
 }

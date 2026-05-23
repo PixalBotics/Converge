@@ -57,6 +57,7 @@ type AccessTokenPayload = {
   email?: string;
   roles?: string[];
   resellerId?: string;
+  wideResellerScope?: boolean;
 };
 
 type ApiRole = {
@@ -76,6 +77,8 @@ type ApiUser = {
   pool?: { id?: string; name?: string; poolId?: string };
   resellerId?: string;
   reseller_id?: string;
+  wideResellerScope?: boolean;
+  wide_reseller_scope?: boolean;
 };
 
 function parseApiUserType(user: ApiUser): AuthUserType | undefined {
@@ -142,6 +145,9 @@ function mapApiUserToUser(user: ApiUser): User | null {
     (typeof user.resellerId === "string" && user.resellerId.trim()) ||
     (typeof user.reseller_id === "string" && user.reseller_id.trim()) ||
     undefined;
+  const wr: unknown = user.wideResellerScope ?? user.wide_reseller_scope;
+  const wideResellerScope =
+    wr === true || wr === "true" || wr === 1 || wr === "1";
   return {
     id: user.id,
     email: user.email,
@@ -152,6 +158,7 @@ function mapApiUserToUser(user: ApiUser): User | null {
     poolId,
     poolName,
     resellerId,
+    wideResellerScope,
   };
 }
 
@@ -192,6 +199,7 @@ function getUserFromAccessToken(): User | null {
     role: mapRoleNameToAppRole(firstRole),
     roleLabel: firstRole,
     resellerId,
+    wideResellerScope: payload.wideResellerScope === true,
   };
 }
 

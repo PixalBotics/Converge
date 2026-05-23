@@ -37,6 +37,8 @@ export interface SelectFieldProps {
   searchPlaceholder?: string;
   /** For scroll-to-error: sets `data-setup-scroll-anchor` (comma-separated paths allowed). */
   scrollAnchorPath?: string;
+  /** Smaller label + tighter spacing (side panels, dense forms). */
+  dense?: boolean;
 }
 
 /** Dense `MenuItem` row height used only when `menuMaxRows` is set (compact, predictable scroll). */
@@ -54,6 +56,7 @@ export function SelectField({
   searchable = true,
   searchPlaceholder,
   scrollAnchorPath,
+  dense = false,
 }: SelectFieldProps) {
   const theme = useTheme() as AppTheme;
   const fieldId = label.toLowerCase().replace(/\s+/g, "-");
@@ -109,7 +112,7 @@ export function SelectField({
         sx={{ width: "100%" }}
         {...(scrollAnchorPath ? { "data-setup-scroll-anchor": scrollAnchorPath } : {})}
       >
-        <Label htmlFor={fieldId} variant="mediumLarge" sx={{ mb: 0.75 }}>
+        <Label htmlFor={fieldId} variant={dense ? "mediumSmall" : "mediumLarge"} sx={{ mb: dense ? 0.5 : 0.75 }}>
           {label}
         </Label>
 
@@ -170,7 +173,7 @@ export function SelectField({
       sx={{ width: "100%" }}
       {...(scrollAnchorPath ? { "data-setup-scroll-anchor": scrollAnchorPath } : {})}
     >
-      <Label htmlFor={fieldId} variant="mediumLarge" sx={{ mb: 0.75 }}>
+      <Label htmlFor={fieldId} variant={dense ? "mediumSmall" : "mediumLarge"} sx={{ mb: dense ? 0.5 : 0.75 }}>
         {label}
       </Label>
       <TextField

@@ -159,6 +159,19 @@ const PREFIX_VIEW_RULES: readonly { prefix: string; anyOf: readonly string[] }[]
   { prefix: "/dashboard/shifts/pool-shift", anyOf: [HRMS.SHIFT_VIEW, OP.hrms.shift.view] },
   { prefix: "/dashboard/shifts", anyOf: [HRMS.SHIFT_VIEW, OP.hrms.shift.view, OP.hrms.shiftAssignment.view] },
   {
+    prefix: "/dashboard/email/distribution",
+    anyOf: [
+      OP.distributionSetup.view,
+      OP.distributionSetup.create,
+      OP.distributionSetup.update,
+      OP.distributionSetup.delete,
+    ],
+  },
+  {
+    prefix: "/dashboard/email/feedback",
+    anyOf: [OP.agentFeedback.view, OP.agentFeedback.update],
+  },
+  {
     prefix: "/dashboard/email/design",
     anyOf: [OP.emailTemplate.view, OP.emailTemplate.update, OP.emailTemplate.publish],
   },
@@ -177,6 +190,9 @@ const PREFIX_VIEW_RULES: readonly { prefix: string; anyOf: readonly string[] }[]
       OP.emailTemplate.view,
       OP.emailTemplate.update,
       OP.emailTemplate.publish,
+      OP.distributionSetup.view,
+      OP.distributionSetup.create,
+      OP.distributionSetup.update,
     ],
   },
 ].sort((a, b) => b.prefix.length - a.prefix.length);
@@ -204,6 +220,7 @@ const PAGE_PERMISSION_TO_VIEW_ANY: Readonly<Record<string, readonly string[]>> =
   "page:billing": [OP.billing.view],
   "page:smtp-email": [OP.smtpEmail.view],
   "page:email-template": [OP.emailTemplate.view],
+  "page:email-agent-feedback": [OP.agentFeedback.view],
   "page:social-media": [OP.socialMedia.view],
 };
 

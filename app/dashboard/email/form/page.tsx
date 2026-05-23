@@ -1,12 +1,13 @@
 "use client";
 
-import { EmailPlaceholderPage } from "@/features/email";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { EMAIL_ROUTES } from "@/features/email/email.constants";
 
-export default function Page() {
-  return (
-    <EmailPlaceholderPage
-      title="Wrap-up form"
-      description="Customize the visitor wrap-up form shown at the end of a chat."
-    />
-  );
+export default function LegacyEmailFormRedirect() {
+  const router = useRouter();
+  useEffect(() => {
+    router.replace(EMAIL_ROUTES.forms);
+  }, [router]);
+  return null;
 }
