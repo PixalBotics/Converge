@@ -159,3 +159,90 @@ export const billingSendButtonSx: SxProps<Theme> = (theme) => {
     px: 3,
   };
 };
+
+export const billingHeaderSx: SxProps<Theme> = {
+  display: "flex",
+  alignItems: { xs: "stretch", sm: "flex-start" },
+  justifyContent: "space-between",
+  flexDirection: { xs: "column", sm: "row" },
+  gap: 1.5,
+  mb: 2.5,
+};
+
+export const billingHeaderButtonsSx: SxProps<Theme> = {
+  display: "flex",
+  flexWrap: "wrap",
+  gap: 1,
+  alignItems: "center",
+  width: { xs: "100%", sm: "auto" },
+};
+
+export const billingCardHeaderSx: SxProps<Theme> = {
+  display: "flex",
+  alignItems: "center",
+  gap: 1.25,
+  mb: 2,
+};
+
+export const billingFilterGridSx: SxProps<Theme> = {
+  display: "grid",
+  gridTemplateColumns: {
+    xs: "1fr",
+    sm: "repeat(2, minmax(0, 1fr))",
+    xl: "repeat(4, minmax(0, 1fr)) auto",
+  },
+  gap: 1.5,
+  alignItems: "end",
+};
+
+/** Apply Filter sits in the grid’s `auto` column — do not stretch to cell width. */
+export const billingApplyFilterButtonSx: SxProps<Theme> = {
+  minWidth: 126,
+  width: "fit-content",
+  maxWidth: "100%",
+  justifySelf: { xs: "end", sm: "end", xl: "end" },
+  gridColumn: { xs: "1", sm: "2", xl: "auto" },
+};
+
+export const billingFooterRowSx: SxProps<Theme> = {
+  display: "flex",
+  flexDirection: { xs: "column", sm: "row" },
+  alignItems: { xs: "flex-start", sm: "center" },
+  justifyContent: "space-between",
+  gap: 1.5,
+  mt: 2,
+  pt: 2,
+};
+
+export const billingPaginationWrapSx: SxProps<Theme> = {
+  display: "flex",
+  justifyContent: { xs: "flex-start", sm: "flex-end" },
+  width: { xs: "100%", sm: "auto" },
+};
+
+export const billingStatusPaidSx: SxProps<Theme> = (theme) => ({
+  color: theme.palette.success.main,
+  fontWeight: 600,
+  fontSize: 13,
+});
+
+export const billingTodaysDetailButtonSx: SxProps<Theme> = (theme) => {
+  const app = (theme as AppTheme).app;
+  return {
+    minWidth: 132,
+    borderRadius: "9999px",
+    borderColor: app.dashboard.cardBorder,
+    color: app.text.primary,
+    textTransform: "none",
+    fontWeight: 600,
+    px: 2.5,
+    whiteSpace: "nowrap",
+    flex: { xs: "1 1 auto", sm: "0 0 auto" },
+  };
+};
+
+export const billingCreateInvoiceButtonSx: SxProps<Theme> = {
+  minWidth: 150,
+  whiteSpace: "nowrap",
+  flex: { xs: "1 1 auto", sm: "0 0 auto" },
+};

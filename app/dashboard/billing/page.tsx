@@ -1,278 +1,230 @@
 "use client";
 
-import { useState } from "react";
-import AutoAwesome from "@mui/icons-material/AutoAwesome";
-import Send from "@mui/icons-material/Send";
+import { useMemo, useState } from "react";
 import Box from "@mui/material/Box";
+import BlurOnRounded from "@mui/icons-material/BlurOnRounded";
+import MoreHoriz from "@mui/icons-material/MoreHoriz";
+import IconButton from "@mui/material/IconButton";
 import Link from "next/link";
-import ToggleButton from "@mui/material/ToggleButton";
-import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
+import type { SxProps, Theme } from "@mui/material/styles";
 import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import {
   Button,
   DashboardCard,
-  InputField,
+  DataTable,
   SelectField,
+  TablePagination,
   Typography,
+  dataTableActionButton,
 } from "@/components/common";
+import type { DataTableColumn } from "@/components/common";
+import { AddCircleIcon } from "@/components/common/icons";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
+import { pageWrapper, footerMutedText } from "../companies/overview.styles";
+import { rolesCard, rolesFooterRow, rolesIconBox, rolesPageWrapper, rolesPaginationWrapper } from "../roles/roles.styles";
 import {
-  billingCardLastSx,
-  billingCardSx,
-  billingCardTitleRow,
-  billingFooterRow,
-  billingFormGrid2,
-  billingFormGrid3,
-  billingFormGridDiscount,
-  billingHeaderActionsSx,
-  billingPageHeader,
-  billingPageWrapper,
-  billingPartyToggleSx,
-  billingPreviewLinkSx,
-  billingPreviewLinksSx,
-  billingSectionIconBox,
-  billingSendButtonSx,
+  billingApplyFilterButtonSx,
+  billingCardHeaderSx,
+  billingCreateInvoiceButtonSx,
+  billingFilterGridSx,
+  billingHeaderButtonsSx,
+  billingHeaderSx,
+  billingStatusPaidSx,
   billingSubtextSx,
+  billingTodaysDetailButtonSx,
 } from "./billing.styles";
 
-const RESELLER_OPTIONS = [{ label: "Jeera", value: "jeera" }];
-const PARENT_OPTIONS = [{ label: "rajasaifali125@gmail.com", value: "parent-1" }];
-const CHILD_OPTIONS = [{ label: "+920313939237", value: "child-1" }];
-const PAYMENT_METHOD_OPTIONS = [
-  { label: "Bank Transfer", value: "bank-transfer" },
-  { label: "Credit Card", value: "credit-card" },
-  { label: "PayPal", value: "paypal" },
-  { label: "Wire Transfer", value: "wire-transfer" },
+type BillingInvoiceRow = {
+  id: string;
+  invoiceId: string;
+  billType: string;
+  reseller: string;
+  parentCompany: string;
+  website: string;
+  totalChats: string;
+  amount: string;
+  dueDate: string;
+  status: "Paid";
+};
+
+const RESELLER_OPTIONS = [
+  { label: "TechDistributors", value: "tech-distributors" },
+  { label: "Beta Retailers", value: "beta-retailers" },
+];
+const PARENT_OPTIONS = [
+  { label: "ABC Group", value: "abc-group" },
+  { label: "Alpha Tech", value: "alpha-tech" },
+];
+const CHILD_OPTIONS = [
+  { label: "Native Group", value: "native-group" },
+  { label: "Matrix Group", value: "matrix-group" },
+];
+const WEBSITE_OPTIONS = [
+  { label: "Native Group", value: "native-group" },
+  { label: "alphatech.com", value: "alphatech-com" },
 ];
 
-function BillingSectionHeader({ title, theme }: { title: string; theme: AppTheme }) {
-  return (
-    <Box sx={billingCardTitleRow}>
-      <Box sx={billingSectionIconBox} aria-hidden>
-        <Typography
-          sx={{
-            color: theme.app.dashboard.white95,
-            fontWeight: 700,
-            fontSize: "1.1rem",
-            lineHeight: 1,
-          }}
-        >
-          $
-        </Typography>
-      </Box>
-      <Typography variant="mediumLarge" color="white" fontWeight={600}>
-        {title}
-      </Typography>
-    </Box>
-  );
+const PAGE_SIZE = 8;
+const DISPLAY_TOTAL_ENTRIES = 256_000;
+const ASSIGNED_USERS_COUNT = 48;
+
+const ROWS: BillingInvoiceRow[] = Array.from({ length: 16 }, (_, i) => ({
+  id: `billing-invoice-${i + 1}`,
+  invoiceId: "INV-2024",
+  billType: "Reseller",
+  reseller: "Beta Retailers",
+  parentCompany: "alphatech.com",
+  website: "alphatech.com",
+  totalChats: "1,250",
+  amount: "$4,500.00",
+  dueDate: "Oct 28, 2024",
+  status: "Paid",
+}));
+
+function formatCompactEntryTotal(n: number): string {
+  if (n >= 1_000_000) {
+    const m = n / 1_000_000;
+    return `${m % 1 === 0 ? m : m.toFixed(1)}M`;
+  }
+  if (n >= 1000) {
+    const k = n / 1000;
+    return `${k % 1 === 0 ? k : k.toFixed(0)}K`;
+  }
+  return String(n);
 }
 
 export default function BillingPage() {
   const theme = useTheme() as AppTheme;
-  const [party, setParty] = useState<"client" | "reseller">("client");
+  const [reseller, setReseller] = useState("tech-distributors");
+  const [parentCompany, setParentCompany] = useState("abc-group");
+  const [childCompany, setChildCompany] = useState("native-group");
+  const [website, setWebsite] = useState("native-group");
+  const [page, setPage] = useState(1);
 
-  const [reseller, setReseller] = useState("jeera");
-  const [parentCompany, setParentCompany] = useState("parent-1");
-  const [childCompany, setChildCompany] = useState("child-1");
-  const [clientWebsite, setClientWebsite] = useState("");
+  const pageCount = Math.max(1, Math.ceil(ROWS.length / PAGE_SIZE));
+  const paginatedRows = useMemo(() => {
+    const start = (page - 1) * PAGE_SIZE;
+    return ROWS.slice(start, start + PAGE_SIZE);
+  }, [page]);
 
-  const [resellerName, setResellerName] = useState("Jeera");
-  const [resellerWebsite, setResellerWebsite] = useState("rajasaifali125@gmail.com");
+  const rangeStart = paginatedRows.length ? (page - 1) * PAGE_SIZE + 1 : 0;
+  const rangeEnd = (page - 1) * PAGE_SIZE + paginatedRows.length;
 
-  const [invoiceId, setInvoiceId] = useState("Jeera");
-  const [billingPeriod, setBillingPeriod] = useState("rajasaifali125@gmail.com");
-  const [totalChats, setTotalChats] = useState("+920313939237");
-  const [billableChats, setBillableChats] = useState("Jeera");
-  const [costPerChat, setCostPerChat] = useState("rajasaifali125@gmail.com");
-  const [extraCharges, setExtraCharges] = useState("+920313939237");
-  const [discount, setDiscount] = useState("Jeera");
-  const [totalAmount, setTotalAmount] = useState("rajasaifali125@gmail.com");
-
-  const [paymentMethod, setPaymentMethod] = useState("bank-transfer");
-  const [bankName, setBankName] = useState("Borcelle");
-  const [accountNumber, setAccountNumber] = useState("123-456-7890");
-  const [accountHolder, setAccountHolder] = useState("Morgan Maxwell");
-
-  const isClient = party === "client";
+  const columns = useMemo<DataTableColumn<BillingInvoiceRow>[]>(
+    () => [
+      { id: "invoiceId", label: "Invoice ID" },
+      { id: "billType", label: "Bill Type" },
+      { id: "reseller", label: "Reseller" },
+      { id: "parentCompany", label: "Parent Com." },
+      { id: "website", label: "Website" },
+      { id: "totalChats", label: "Total Ch.." },
+      { id: "amount", label: "Amount" },
+      { id: "dueDate", label: "Due Date" },
+      {
+        id: "status",
+        label: "Status",
+        render: (value) => (
+          <Typography component="span" sx={billingStatusPaidSx}>
+            {String(value)}
+          </Typography>
+        ),
+      },
+    ],
+    [],
+  );
 
   return (
-    <Box sx={billingPageWrapper}>
-      <Box sx={billingPageHeader}>
+    <Box sx={[pageWrapper, rolesPageWrapper] as SxProps<Theme>}>
+      <Box sx={billingHeaderSx}>
         <Box>
-          <Typography variant="regularLarge" fontWeight={700} color="white" sx={{ mb: 0.5 }}>
-            Create Invoice
+          <Typography variant="regularLarge" fontWeight={700} color="white">
+            Billing
           </Typography>
-          <Typography variant="medium" sx={billingSubtextSx}>
+          <Typography variant="body2" sx={billingSubtextSx}>
             Generate and distribute licenses to client companies
           </Typography>
         </Box>
-
-        <Box sx={billingHeaderActionsSx}>
-          <Box sx={billingPreviewLinksSx}>
-            <Link href="/dashboard/billing/invoice/one" style={{ textDecoration: "none" }}>
-              <Box component="span" sx={billingPreviewLinkSx}>
-                Invoice One
-              </Box>
-            </Link>
-            <Link href="/dashboard/billing/invoice/two" style={{ textDecoration: "none" }}>
-              <Box component="span" sx={billingPreviewLinkSx}>
-                Invoice Two
-              </Box>
-            </Link>
-            <Link href="/dashboard/billing/invoice/three" style={{ textDecoration: "none" }}>
-              <Box component="span" sx={billingPreviewLinkSx}>
-                Invoice Three
-              </Box>
-            </Link>
-          </Box>
-
-          <ToggleButtonGroup
-            exclusive
-            value={party}
-            onChange={(_e, value) => {
-              if (value === "client" || value === "reseller") setParty(value);
-            }}
-            sx={billingPartyToggleSx}
-            aria-label="Client or reseller"
+        <Box sx={billingHeaderButtonsSx}>
+          <Button type="button" variant="outlined" sx={billingTodaysDetailButtonSx}>
+            Todays Detail
+          </Button>
+          <Button
+            type="button"
+            component={Link}
+            href="/dashboard/billing/create-invoice"
+            variant="primary"
+            startIcon={<AddCircleIcon width={16} height={16} />}
+            sx={{ ...billingCreateInvoiceButtonSx, ...(gradientPrimaryButtonSx as object) }}
           >
-            <ToggleButton value="client">
-              <AutoAwesome sx={{ fontSize: 16 }} />
-              Client
-            </ToggleButton>
-            <ToggleButton value="reseller">
-              <Send sx={{ fontSize: 16 }} />
-              Reseller
-            </ToggleButton>
-          </ToggleButtonGroup>
+            Create Invoice
+          </Button>
         </Box>
       </Box>
 
-      {isClient ? (
-        <>
-          <DashboardCard sx={billingCardSx}>
-            <BillingSectionHeader title="Client Details" theme={theme} />
-            <Box sx={billingFormGrid3}>
-              <SelectField
-                label="Reseller"
-                value={reseller}
-                onChange={setReseller}
-                options={RESELLER_OPTIONS}
-              />
-              <SelectField
-                label="Parent Company"
-                value={parentCompany}
-                onChange={setParentCompany}
-                options={PARENT_OPTIONS}
-              />
-              <SelectField
-                label="Child Company"
-                value={childCompany}
-                onChange={setChildCompany}
-                options={CHILD_OPTIONS}
-              />
-            </Box>
-            <InputField
-              label="Website (Required)"
-              placeholder="Your Address Here"
-              value={clientWebsite}
-              onChange={(e) => setClientWebsite(e.target.value)}
-            />
-          </DashboardCard>
-
-          <DashboardCard sx={billingCardSx}>
-            <BillingSectionHeader title="Billing Method" theme={theme} />
-            <Box sx={billingFormGrid3}>
-              <SelectField
-                label="Payment Method"
-                value={paymentMethod}
-                onChange={setPaymentMethod}
-                options={PAYMENT_METHOD_OPTIONS}
-              />
-              <InputField
-                label="Bank Name"
-                value={bankName}
-                onChange={(e) => setBankName(e.target.value)}
-              />
-              <InputField
-                label="Account Number"
-                value={accountNumber}
-                onChange={(e) => setAccountNumber(e.target.value)}
-              />
-            </Box>
-            <InputField
-              label="Account Holder Name"
-              placeholder="Account holder full name"
-              value={accountHolder}
-              onChange={(e) => setAccountHolder(e.target.value)}
-            />
-          </DashboardCard>
-        </>
-      ) : (
-        <DashboardCard sx={billingCardSx}>
-          <BillingSectionHeader title="Reseller Details" theme={theme} />
-          <Box sx={billingFormGrid2}>
-            <InputField
-              label="Reseller Name"
-              value={resellerName}
-              onChange={(e) => setResellerName(e.target.value)}
-            />
-            <InputField
-              label="Website (Recommended)"
-              value={resellerWebsite}
-              onChange={(e) => setResellerWebsite(e.target.value)}
-            />
+      <DashboardCard sx={rolesCard}>
+        <Box sx={billingCardHeaderSx}>
+          <Box sx={rolesIconBox}>
+            <BlurOnRounded sx={{ fontSize: 18, color: theme.app.dashboard.white95 }} />
           </Box>
-        </DashboardCard>
-      )}
-
-      <DashboardCard sx={billingCardLastSx}>
-        <BillingSectionHeader title="Billing" theme={theme} />
-
-        <Box sx={billingFormGrid3}>
-          <InputField label="Invoice ID" value={invoiceId} onChange={(e) => setInvoiceId(e.target.value)} />
-          <InputField
-            label="Billing Period (From - To)"
-            value={billingPeriod}
-            onChange={(e) => setBillingPeriod(e.target.value)}
-          />
-          <InputField label="Total Chats" value={totalChats} onChange={(e) => setTotalChats(e.target.value)} />
+          <Typography variant="mediumLarge" color="white" fontWeight={600}>
+            Select Filter
+          </Typography>
         </Box>
-
-        <Box sx={billingFormGrid3}>
-          <InputField
-            label="Billable Chats"
-            value={billableChats}
-            onChange={(e) => setBillableChats(e.target.value)}
+        <Box sx={billingFilterGridSx}>
+          <SelectField label="Reseller" value={reseller} onChange={setReseller} options={RESELLER_OPTIONS} />
+          <SelectField
+            label="Parent Company"
+            value={parentCompany}
+            onChange={setParentCompany}
+            options={PARENT_OPTIONS}
           />
-          <InputField
-            label="Cost Per Chat"
-            value={costPerChat}
-            onChange={(e) => setCostPerChat(e.target.value)}
-          />
-          <InputField
-            label="Extra Charges"
-            value={extraCharges}
-            onChange={(e) => setExtraCharges(e.target.value)}
-          />
-        </Box>
-
-        <Box sx={billingFormGridDiscount}>
-          <InputField label="Discount" value={discount} onChange={(e) => setDiscount(e.target.value)} />
-          <InputField
-            label="Total Amount (Auto)"
-            value={totalAmount}
-            onChange={(e) => setTotalAmount(e.target.value)}
-          />
-        </Box>
-
-        <Box sx={billingFooterRow}>
-          <Button type="button" variant="outlined" sx={billingSendButtonSx}>
-            Send Invoice
+          <SelectField label="Child Company" value={childCompany} onChange={setChildCompany} options={CHILD_OPTIONS} />
+          <SelectField label="Website" value={website} onChange={setWebsite} options={WEBSITE_OPTIONS} />
+          <Button
+            type="button"
+            variant="primary"
+            sx={{ ...billingApplyFilterButtonSx, ...(gradientPrimaryButtonSx as object) }}
+          >
+            Apply Filter
           </Button>
-          <Button type="button" variant="primary" sx={gradientPrimaryButtonSx}>
-            Save
-          </Button>
+        </Box>
+      </DashboardCard>
+
+      <DashboardCard sx={rolesCard}>
+        <Box sx={billingCardHeaderSx}>
+          <Box sx={rolesIconBox}>
+            <BlurOnRounded sx={{ fontSize: 18, color: theme.app.dashboard.white95 }} />
+          </Box>
+          <Typography variant="mediumLarge" color="white" fontWeight={600}>
+            {`Assigned Users (${ASSIGNED_USERS_COUNT})`}
+          </Typography>
+        </Box>
+
+        <DataTable<BillingInvoiceRow>
+          columns={columns}
+          rows={paginatedRows}
+          getRowId={(row) => row.id}
+          minWidth={1200}
+          actionColumn={{
+            label: "Action",
+            render: () => (
+              <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+                <IconButton size="small" sx={dataTableActionButton}>
+                  <MoreHoriz fontSize="small" />
+                </IconButton>
+              </Box>
+            ),
+          }}
+        />
+
+        <Box sx={rolesFooterRow}>
+          <Typography variant="medium" sx={footerMutedText(theme)}>
+            {`Showing data ${rangeStart} to ${rangeEnd} of ${formatCompactEntryTotal(DISPLAY_TOTAL_ENTRIES)} entries`}
+          </Typography>
+          <Box sx={rolesPaginationWrapper}>
+            <TablePagination page={page} pageCount={pageCount} onPageChange={setPage} />
+          </Box>
         </Box>
       </DashboardCard>
     </Box>
