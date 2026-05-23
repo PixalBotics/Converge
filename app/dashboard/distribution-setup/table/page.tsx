@@ -177,7 +177,7 @@ export default function DistributionTablePage() {
     const body = {
       websiteId,
       method: detailQuery.data?.method ?? readWizardMethod(),
-      subject: detailQuery.data?.subject ?? readWizardSubject() || undefined,
+      subject: (detailQuery.data?.subject ?? readWizardSubject()) || undefined,
       emailConfigurationId:
         detailQuery.data?.emailConfigurationId ??
         readWizardEmailFormId() ??

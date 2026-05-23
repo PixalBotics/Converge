@@ -68,16 +68,16 @@ export function DistributionListPage() {
 
   const columns = useMemo<DataTableColumn<Row>[]>(
     () => [
-      { key: "clientOf", header: "Client of", accessor: "clientOf" },
-      { key: "parentCompany", header: "Parent company", accessor: "parentCompany" },
-      { key: "childCompany", header: "Child company", accessor: "childCompany" },
-      { key: "website", header: "Website", accessor: "website" },
-      { key: "disMethod", header: "Method", accessor: "disMethod" },
-      { key: "department", header: "Departments", accessor: "department" },
+      { id: "clientOf", label: "Client of" },
+      { id: "parentCompany", label: "Parent company" },
+      { id: "childCompany", label: "Child company" },
+      { id: "website", label: "Website" },
+      { id: "disMethod", label: "Method" },
+      { id: "department", label: "Departments" },
       {
-        key: "isActive",
-        header: "Status",
-        render: (row) => (
+        id: "isActive",
+        label: "Status",
+        render: (_v, row) => (
           <Typography variant="medium" sx={{ color: row.isActive ? theme.palette.success.main : theme.app.dashboard.textMuted }}>
             {row.isActive ? "Active" : "Inactive"}
           </Typography>
@@ -102,12 +102,12 @@ export function DistributionListPage() {
     if (!deleteTarget) return;
     try {
       await deleteMutation.mutateAsync(deleteTarget.id);
-      publishAppToast({ message: "Distribution setup removed.", severity: "success" });
+      publishAppToast({ variant: "success", message: "Distribution setup removed." });
       setDeleteTarget(null);
     } catch (err) {
       publishAppToast({
+        variant: "error",
         message: extractApiErrorMessageForToast(err, "Could not delete distribution setup."),
-        severity: "error",
       });
     }
   };

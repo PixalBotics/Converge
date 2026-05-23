@@ -5,7 +5,7 @@ import Box from "@mui/material/Box";
 import { useTheme, alpha } from "@mui/material/styles";
 import type { SxProps, Theme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
-import { InputField, Typography } from "@/components/common";
+import { InputField, Label } from "@/components/common";
 import type { InputFieldProps } from "@/components/common/InputField/InputField.types";
 import { SelectField, type SelectFieldProps } from "@/components/common/SelectField/SelectField";
 
@@ -74,14 +74,13 @@ export function EmailBuilderColorField({
 
   return (
     <Box>
-      <Typography
-        component="label"
+      <Label
         htmlFor={fieldId}
-        variant="caption"
-        sx={{ mb: 0.75, color: d.textMuted, fontWeight: 600, display: "block" }}
+        variant="mediumSmall"
+        sx={{ mb: 0.75, color: d.textMuted, fontWeight: 600 }}
       >
         {label}
-      </Typography>
+      </Label>
       <Box sx={{ display: "flex", gap: 1, alignItems: "stretch", position: "relative" }}>
         <Box
           component="button"
