@@ -36,7 +36,6 @@ const PRIMARY_LUM_THRESHOLD = 0.15;
 export const navItemSx: SxProps<Theme> = (theme) => {
   const app = (theme as AppTheme).app;
   const primary = theme.palette.primary.main;
-  const edge = theme.spacing(1);
   const mode = theme.palette.mode;
   const textPrimary = theme.palette.text.primary;
   const primaryTooDarkForTint = getLuminance(primary) < PRIMARY_LUM_THRESHOLD;
@@ -70,9 +69,10 @@ export const navItemSx: SxProps<Theme> = (theme) => {
     ml: 0,
     mr: 1.25,
     my: 2.25,
-    pl: `calc(${edge} + ${theme.spacing(2)})`,
-    pr: 3,
-    py: 1.5,
+    pt: "12px",
+    pr: "24px",
+    pb: "12px",
+    pl: "calc(12px)",
     borderRadius: "10px",
     boxSizing: "border-box",
     whiteSpace: "nowrap",

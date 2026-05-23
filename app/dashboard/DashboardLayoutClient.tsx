@@ -153,7 +153,7 @@ export default function DashboardLayoutClient({
               {
                 flex: 1,
                 py: { xs: 2, sm: 3 },
-                px: { xs: 1.5, sm: 2, md: 2.5 },
+                px: { xs: 1.5, sm: 2, md: 0 },
                 overflow: "auto",
                 boxSizing: "border-box",
               },
