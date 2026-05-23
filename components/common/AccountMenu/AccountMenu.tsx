@@ -15,7 +15,12 @@ import {
 import type { AppTheme } from "@/theme/theme";
 import { Typography } from "@/components/common";
 import type { AccountMenuProps } from "./AccountMenu.types";
-import { AccountMenuIconWrap, accountMenuRowSx, accountMenuThemeIconWrapSx } from "./AccountMenu.styled";
+import {
+  AccountMenuIconWrap,
+  accountMenuProfileIconWrapSx,
+  accountMenuRowSx,
+  accountMenuThemeIconWrapSx,
+} from "./AccountMenu.styled";
 
 const defaultProfileHref = "/dashboard/settings?tab=profile";
 const defaultThemeHref = "/dashboard/theme";
@@ -78,8 +83,8 @@ export function AccountMenu({
       disableScrollLock
     >
       <MenuItem component={Link} href={profileHref} onClick={onClose} disableRipple sx={rowSx}>
-        <AccountMenuIconWrap>
-          <PersonOutlineIcon sx={{ fontSize: 20 }} />
+        <AccountMenuIconWrap sx={accountMenuProfileIconWrapSx(theme)}>
+          <PersonOutlineIcon sx={{ fontSize: 20, color: "inherit", display: "block", lineHeight: 0 }} />
         </AccountMenuIconWrap>
         <Typography variant="body2" fontWeight={600} sx={{ color: app.text.primary }}>
           Profile

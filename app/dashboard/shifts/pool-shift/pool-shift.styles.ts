@@ -53,6 +53,7 @@ export const poolShiftFilterPopoverPairRowSx: SxProps<Theme> = {
 
 export const poolShiftActionsSx: SxProps<Theme> = {
   display: "flex",
+  alignItems: "center",
   justifyContent: "flex-end",
   gap: 1.5,
   flexWrap: "wrap",

@@ -6,11 +6,13 @@ function dash(theme: Theme) {
   return (theme as AppTheme).app.dashboard;
 }
 
-/** Full-bleed inbox workstation (Intercom / Front style). */
+/** Inbox workstation — stay inside main column (no negative bleed; avoids page horizontal scroll). */
 export const chatOpsPageWrapper: SxProps<Theme> = {
-  width: { xs: "calc(100% + 24px)", sm: "calc(100% + 32px)", md: "calc(100% + 40px)" },
-  maxWidth: "none",
-  mx: { xs: -1.5, sm: -2, md: -2.5 },
+  width: "100%",
+  maxWidth: "100%",
+  mx: 0,
+  boxSizing: "border-box",
+  overflowX: "clip",
   display: "flex",
   flexDirection: "column",
   flex: 1,
@@ -118,7 +120,7 @@ export const chatOpsWorkspaceGrid: SxProps<Theme> = (theme) => {
     display: "grid",
     gridTemplateColumns: {
       xs: "1fr",
-      lg: "minmax(280px, 320px) minmax(0, 1fr) minmax(260px, 300px)",
+      lg: "minmax(0, 300px) minmax(0, 1fr) minmax(0, 280px)",
     },
     flex: 1,
     minHeight: 0,
@@ -198,7 +200,7 @@ export const chatOpsInboxSearchWrap: SxProps<Theme> = (theme) => ({
   py: 1.25,
   flexShrink: 0,
   borderBottom: `1px solid ${alpha(dash(theme).cardBorder, 0.12)}`,
-  "& > div": { width: "100%", minWidth: "100%" },
+  "& > div": { width: "100%", minWidth: 0, maxWidth: "100%" },
 });
 
 export const chatOpsInboxHeaderSx: SxProps<Theme> = (theme) => ({

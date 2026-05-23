@@ -28,6 +28,17 @@ export const accountMenuRowSx = (theme: Theme): SxProps<Theme> => {
   };
 };
 
+/** Profile row — tinted chip so the person icon stays visible on light/custom menu surfaces. */
+export const accountMenuProfileIconWrapSx = (theme: Theme): SxProps<Theme> => {
+  const app = (theme as AppTheme).app;
+  const mode = theme.palette.mode;
+  return {
+    backgroundColor: alpha(app.dashboard.accentBlue, mode === "dark" ? 0.2 : 0.14),
+    border: `1px solid ${alpha(app.dashboard.accentBlue, mode === "dark" ? 0.5 : 0.38)}`,
+    color: mode === "dark" ? app.dashboard.white80 : app.dashboard.accentBlue,
+  };
+};
+
 /** “Theme / appearance” row — matches dashboard section gradient tiles (not the neutral profile chip). */
 export const accountMenuThemeIconWrapSx = (theme: Theme): SxProps<Theme> => {
   const app = (theme as AppTheme).app;

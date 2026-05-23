@@ -11,6 +11,7 @@ import IconButton from "@mui/material/IconButton";
 import { useTheme } from "@mui/material/styles";
 import type { SxProps, Theme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
+import { hideScrollbarsSx } from "@/lib/ui/hideScrollbars";
 import { FORM_MODAL_MUI_OVERLAY_Z_INDEX } from "@/lib/ui/dialogStacking";
 import { Typography } from "@/components/common/Typography";
 import { SearchIcon } from "@/components/common/icons";
@@ -223,6 +224,7 @@ export function FilterableSearchBar({
           <Paper
             elevation={0}
             sx={{
+              ...hideScrollbarsSx,
               mt: 1,
               position: "absolute",
               top: "100%",

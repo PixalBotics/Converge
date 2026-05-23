@@ -14,6 +14,7 @@ import {
   DataTable,
   FormModal,
   SearchBar,
+  SearchSubmitButton,
   SelectField,
   TablePagination,
   Typography,
@@ -226,16 +227,15 @@ export function UnifiedPoolMembersCard({
                 placeholder="Member name or email…"
               />
             </Box>
-            <Button
-              variant="outlined"
-              disabled={isLoading || isFetching}
+            <SearchSubmitButton
+              disabled={
+                isLoading || isFetching || searchInput.trim() === appliedSearch.trim()
+              }
               onClick={() => {
-                setAppliedSearch(searchInput);
+                setAppliedSearch(searchInput.trim());
                 setPage(1);
               }}
-            >
-              Search
-            </Button>
+            />
             {membersToolbarFilter}
           </Box>
         </Box>

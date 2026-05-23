@@ -32,6 +32,15 @@ import {
   type WidgetChatColorsDraft,
 } from "@/lib/chat-widget/widget-colors-draft";
 import { WidgetInquiryOptionsEditor } from "@/components/dashboard/chat-widget/WidgetInquiryOptionsEditor";
+import {
+  chatBoxColorHintSx,
+  chatBoxColorRowSx,
+  chatBoxFieldGroupSx,
+  chatBoxFormStackSx,
+  chatBoxSectionHintSx,
+  chatBoxSectionTitleSx,
+  chatBoxSwitchRowSx,
+} from "./chat-box-design.styles";
 import { defaultWidgetDraft } from "@/lib/chat-widget/widgetDraft";
 import {
   normalizeWidgetInquiryOptions,
@@ -351,59 +360,67 @@ export default function ChatWidgetBoxDesignPage() {
           alignItems: "start",
         }}
       >
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 0 }}>
+        <Box sx={chatBoxFormStackSx}>
       <SelectField label="Header Title" value={headerTitle} onChange={setHeaderTitle} options={[{ label: "Center", value: "Center" }, { label: "Left", value: "Left" }]} />
 
-      <Typography variant="mediumLarge" sx={{ color: theme.app.text.primary, mb: -1.25 }}>Button Color</Typography>
-      <Box sx={{ display: "flex", alignItems: "center", gap: 1.25 }}>
-        <Box
-          component="input"
-          type="color"
-          value={buttonColor}
-          onChange={handleButtonColor}
-          sx={{
-            width: 44,
-            height: 44,
-            p: 0,
-            border: `1px solid ${theme.app.dashboard.cardBorder}`,
-            borderRadius: "4px",
-            bgcolor: "transparent",
-            cursor: "pointer",
-          }}
-        />
-        <Typography variant="mediumLarge" sx={{ color: theme.app.dashboard.textMuted }}>
-          Choose color
+      <Box sx={chatBoxFieldGroupSx}>
+        <Typography variant="medium16" sx={chatBoxSectionTitleSx}>
+          Button Color
         </Typography>
+        <Box sx={chatBoxColorRowSx}>
+          <Box
+            component="input"
+            type="color"
+            value={buttonColor}
+            onChange={handleButtonColor}
+            sx={{
+              width: 44,
+              height: 44,
+              p: 0,
+              border: `1px solid ${theme.app.dashboard.cardBorder}`,
+              borderRadius: "4px",
+              bgcolor: "transparent",
+              cursor: "pointer",
+            }}
+          />
+          <Typography variant="body2" sx={chatBoxColorHintSx}>
+            Choose color
+          </Typography>
+        </Box>
+        <InputField label="Hex" name="button-color-hex" value={buttonColor} onChange={(e) => setButtonColor(e.target.value)} />
       </Box>
-      <InputField label="Hex" name="button-color-hex" value={buttonColor} onChange={(e) => setButtonColor(e.target.value)} />
 
-      <Typography variant="mediumLarge" sx={{ color: theme.app.text.primary, mb: -1.25 }}>Text Color</Typography>
-      <Box sx={{ display: "flex", alignItems: "center", gap: 1.25 }}>
-        <Box
-          component="input"
-          type="color"
-          value={textColor}
-          onChange={handleTextColor}
-          sx={{
-            width: 44,
-            height: 44,
-            p: 0,
-            border: `1px solid ${theme.app.dashboard.cardBorder}`,
-            borderRadius: "4px",
-            bgcolor: "transparent",
-            cursor: "pointer",
-          }}
-        />
-        <Typography variant="mediumLarge" sx={{ color: theme.app.dashboard.textMuted }}>
-          Choose color
+      <Box sx={chatBoxFieldGroupSx}>
+        <Typography variant="medium16" sx={chatBoxSectionTitleSx}>
+          Text Color
         </Typography>
+        <Box sx={chatBoxColorRowSx}>
+          <Box
+            component="input"
+            type="color"
+            value={textColor}
+            onChange={handleTextColor}
+            sx={{
+              width: 44,
+              height: 44,
+              p: 0,
+              border: `1px solid ${theme.app.dashboard.cardBorder}`,
+              borderRadius: "4px",
+              bgcolor: "transparent",
+              cursor: "pointer",
+            }}
+          />
+          <Typography variant="body2" sx={chatBoxColorHintSx}>
+            Choose color
+          </Typography>
+        </Box>
+        <InputField label="Hex" name="text-color-hex" value={textColor} onChange={(e) => setTextColor(e.target.value)} />
       </Box>
-      <InputField label="Hex" name="text-color-hex" value={textColor} onChange={(e) => setTextColor(e.target.value)} />
 
       <InputField label="Company Logo" name="logo" value={companyLogo} onChange={(event) => setCompanyLogo(event.target.value)} />
 
-      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <Typography variant="mediumLarge" sx={{ color: theme.app.text.primary }}>
+      <Box sx={chatBoxSwitchRowSx}>
+        <Typography variant="medium16" sx={chatBoxSectionTitleSx}>
           Banner (Optional)
         </Typography>
         <Switch checked={bannerOn} onChange={(_, checked) => setBannerOn(checked)} color="success" />
@@ -458,8 +475,8 @@ export default function ChatWidgetBoxDesignPage() {
       ) : null}
       <Box component="input" ref={bannerUploadRef} type="file" accept=".png,.jpg,.jpeg,.webp,.gif,.mp4,.webm,.ogg,.mov" onChange={handleBannerUpload} sx={{ display: "none" }} />
 
-      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mt: 1 }}>
-        <Typography variant="mediumLarge" sx={{ color: theme.app.text.primary }}>
+      <Box sx={chatBoxSwitchRowSx}>
+        <Typography variant="medium16" sx={chatBoxSectionTitleSx}>
           Inquiry topics (optional)
         </Typography>
         <Switch checked={inquiryOn} onChange={(_, checked) => setInquiryOn(checked)} color="success" />
@@ -473,48 +490,54 @@ export default function ChatWidgetBoxDesignPage() {
         />
       ) : null}
 
-      <Typography variant="mediumLarge" sx={{ color: theme.app.text.primary, mt: 1.5, mb: -1.25 }}>
-        Launcher & panel shell (config.ui)
-      </Typography>
-      <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, mb: 1 }}>
-        Shown on step 2 PATCH: floating button label, first bubble line, composer placeholder, panel background.
-      </Typography>
-      <InputField label="Floating button label" name="button-label" value={buttonLabel} onChange={(e) => setButtonLabel(e.target.value)} />
-      <InputField
-        label="First message (intro bubble)"
-        name="first-message"
-        value={firstMessage}
-        onChange={(e) => setFirstMessage(e.target.value)}
-      />
-      <InputField
-        label="Composer placeholder (config.ui)"
-        name="message-placeholder"
-        value={messagePlaceholder}
-        onChange={(e) => setMessagePlaceholder(e.target.value)}
-      />
-      <Typography variant="mediumLarge" sx={{ color: theme.app.text.primary, mb: -1.25 }}>
-        Panel background
-      </Typography>
-      <Box sx={{ display: "flex", alignItems: "center", gap: 1.25 }}>
-        <Box
-          component="input"
-          type="color"
-          value={backgroundColor.startsWith("#") && backgroundColor.length >= 4 ? backgroundColor : "#f8fafc"}
-          onChange={(e: ChangeEvent<HTMLInputElement>) => setBackgroundColor(e.target.value)}
-          sx={{
-            width: 44,
-            height: 44,
-            p: 0,
-            border: `1px solid ${theme.app.dashboard.cardBorder}`,
-            borderRadius: "4px",
-            bgcolor: "transparent",
-            cursor: "pointer",
-          }}
+      <Box sx={chatBoxFieldGroupSx}>
+        <Typography variant="medium16" sx={chatBoxSectionTitleSx}>
+          Launcher & panel shell (config.ui)
+        </Typography>
+        <Typography variant="body2" sx={chatBoxSectionHintSx}>
+          Shown on step 2 PATCH: floating button label, first bubble line, composer placeholder, panel background.
+        </Typography>
+        <InputField label="Floating button label" name="button-label" value={buttonLabel} onChange={(e) => setButtonLabel(e.target.value)} />
+        <InputField
+          label="First message (intro bubble)"
+          name="first-message"
+          value={firstMessage}
+          onChange={(e) => setFirstMessage(e.target.value)}
         />
-        <InputField label="Hex" name="bg-hex" value={backgroundColor} onChange={(e) => setBackgroundColor(e.target.value)} />
+        <InputField
+          label="Composer placeholder (config.ui)"
+          name="message-placeholder"
+          value={messagePlaceholder}
+          onChange={(e) => setMessagePlaceholder(e.target.value)}
+        />
       </Box>
-      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mt: 1 }}>
-        <Typography variant="mediumLarge" sx={{ color: theme.app.text.primary }}>
+
+      <Box sx={chatBoxFieldGroupSx}>
+        <Typography variant="medium16" sx={chatBoxSectionTitleSx}>
+          Panel background
+        </Typography>
+        <Box sx={chatBoxColorRowSx}>
+          <Box
+            component="input"
+            type="color"
+            value={backgroundColor.startsWith("#") && backgroundColor.length >= 4 ? backgroundColor : "#f8fafc"}
+            onChange={(e: ChangeEvent<HTMLInputElement>) => setBackgroundColor(e.target.value)}
+            sx={{
+              width: 44,
+              height: 44,
+              p: 0,
+              border: `1px solid ${theme.app.dashboard.cardBorder}`,
+              borderRadius: "4px",
+              bgcolor: "transparent",
+              cursor: "pointer",
+            }}
+          />
+          <InputField label="Hex" name="bg-hex" value={backgroundColor} onChange={(e) => setBackgroundColor(e.target.value)} />
+        </Box>
+      </Box>
+
+      <Box sx={chatBoxSwitchRowSx}>
+        <Typography variant="medium16" sx={chatBoxSectionTitleSx}>
           Popup auto-open (config.ui.popupEnabled)
         </Typography>
         <Switch checked={popupEnabled} onChange={(_, c) => setPopupEnabled(c)} color="success" />
@@ -533,10 +556,13 @@ export default function ChatWidgetBoxDesignPage() {
         }}
       />
 
-      <Typography variant="mediumLarge" sx={{ color: theme.app.text.primary, mb: -1.25 }}>Text & Labels</Typography>
-      <InputField label="Greeting Message" name="greeting-message" value={greetingMessage} onChange={(event) => setGreetingMessage(event.target.value)} />
-
-      <InputField label="Send Message Placeholder" name="send-placeholder" value={sendPlaceholder} onChange={(event) => setSendPlaceholder(event.target.value)} />
+      <Box sx={chatBoxFieldGroupSx}>
+        <Typography variant="medium16" sx={chatBoxSectionTitleSx}>
+          Text & Labels
+        </Typography>
+        <InputField label="Greeting Message" name="greeting-message" value={greetingMessage} onChange={(event) => setGreetingMessage(event.target.value)} />
+        <InputField label="Send Message Placeholder" name="send-placeholder" value={sendPlaceholder} onChange={(event) => setSendPlaceholder(event.target.value)} />
+      </Box>
       <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 1.5 }}>
         <InputField
           label="Chat Box Width (px)"

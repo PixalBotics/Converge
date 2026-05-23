@@ -23,11 +23,12 @@ import {
   FormModal,
   ConfirmActionModal,
   SearchBar,
+  SearchSubmitButton,
   ToolbarFilterPopover,
   ToolbarFilterPopoverPanel,
 } from "@/components/common";
 import type { DataTableColumn } from "@/components/common";
-import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
+import { gradientPrimaryButtonSx, pillCompanionChipSx } from "@/components/common/Button/Button.styles";
 import { rolesCard, rolesIconBox, rolesPageWrapper } from "../../roles/roles.styles";
 import { footerMutedText, pageWrapper } from "../../companies/overview.styles";
 import { publishAppToast } from "@/lib/notify";
@@ -759,10 +760,9 @@ export default function PoolShiftPage() {
         </Box>
         <Box sx={poolShiftActionsSx}>
           <Chip
-            size="small"
             label={`${totalEntries} assignment${totalEntries === 1 ? "" : "s"}`}
             variant="outlined"
-            sx={{ alignSelf: "center", borderColor: "rgba(255,255,255,0.35)", color: theme.app.dashboard.white95 }}
+            sx={pillCompanionChipSx}
           />
           <Button variant="primary" sx={gradientPrimaryButtonSx} onClick={() => setAssignOpen(true)}>
             Add pool shift
@@ -798,15 +798,10 @@ export default function PoolShiftPage() {
                 placeholder="Search by pool, shift, or dates…"
               />
             </Box>
-            <Button
-              type="button"
-              variant="primary"
+            <SearchSubmitButton
               disabled={listSearchDraft.trim() === listAppliedSearch.trim()}
               onClick={handleListSearchApply}
-              sx={{ minWidth: 132, whiteSpace: "nowrap", alignSelf: { xs: "stretch", sm: "center" } }}
-            >
-              Search
-            </Button>
+            />
             <ToolbarFilterPopover open={listFilterOpen} onOpenChange={setListFilterOpen} active={!filterClearDisabled}>
               {poolShiftListFilterPanel}
             </ToolbarFilterPopover>

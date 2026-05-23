@@ -362,12 +362,14 @@ export default function TeamAttendancePage() {
               options={poolOptions}
               menuMaxRows={8}
             />
-            <InputField
-              label="Member name / email"
-              placeholder="Optional contains…"
-              value={poolMemberName}
-              onChange={(e) => setPoolMemberName(e.target.value)}
-            />
+            <Box sx={teamAttendanceDateRangeFieldSx}>
+              <InputField
+                label="Member name / email"
+                placeholder="Optional contains…"
+                value={poolMemberName}
+                onChange={(e) => setPoolMemberName(e.target.value)}
+              />
+            </Box>
             <Calendar label="Date (UTC)" value={poolDate} onChange={setPoolDate} />
           </Box>
         )}

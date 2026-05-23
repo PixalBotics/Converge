@@ -21,6 +21,7 @@ import {
   SelectField,
   FormModal,
   SearchBar,
+  SearchSubmitButton,
   ToolbarFilterPopover,
   Divider,
 } from "@/components/common";
@@ -1075,16 +1076,16 @@ export function PoolsPageView({ mode }: PoolsPageViewProps) {
                     placeholder="Search name or email…"
                   />
                 </Box>
-                <Button
-                  variant="outlined"
-                  disabled={hubUsersLoading}
+                <SearchSubmitButton
+                  disabled={
+                    hubUsersLoading ||
+                    hubUserSearchInput.trim() === hubUserSearchApplied.trim()
+                  }
                   onClick={() => {
-                    setHubUserSearchApplied(hubUserSearchInput);
+                    setHubUserSearchApplied(hubUserSearchInput.trim());
                     setHubUserIds([]);
                   }}
-                >
-                  Search
-                </Button>
+                />
                 <Button
                   variant="outlined"
                   size="small"

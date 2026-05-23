@@ -9,6 +9,7 @@ import {
   DashboardCard,
   DataTable,
   SearchBar,
+  SearchSubmitButton,
   Button,
   TablePagination,
 } from "@/components/common";
@@ -204,15 +205,10 @@ export function CompaniesTableSection({
             <Box sx={departmentsSearchFieldWrapper}>
               <SearchBar value={searchInput} onChange={onSearchInputChange} placeholder="Search anything.." />
             </Box>
-            <Button
-              type="button"
-              variant="primary"
+            <SearchSubmitButton
               disabled={searchInput.trim() === appliedSearch.trim()}
               onClick={onSearchSubmit}
-              sx={{ minWidth: 132, whiteSpace: "nowrap", alignSelf: { xs: "stretch", sm: "center" } }}
-            >
-              Search
-            </Button>
+            />
           </Box>
         </Box>
 

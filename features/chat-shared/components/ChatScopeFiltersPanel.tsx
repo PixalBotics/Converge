@@ -1,11 +1,9 @@
 "use client";
 
 import Box from "@mui/material/Box";
-import { useTheme } from "@mui/material/styles";
-import type { AppTheme } from "@/theme/theme";
 import { Button, Calendar, SelectField, Typography } from "@/components/common";
 import type { ChatScopeFilterState } from "../types";
-import { chatLiveFilterGridSx } from "../styles/chat-live.styles";
+import { chatLiveFilterGridSx, chatLiveFilterHintSx } from "../styles/chat-live.styles";
 
 interface ChatScopeFiltersPanelProps {
   filters: ChatScopeFilterState;
@@ -44,12 +42,10 @@ export function ChatScopeFiltersPanel({
   statusOptions = [{ value: "", label: "All statuses" }],
   hint,
 }: ChatScopeFiltersPanelProps) {
-  const theme = useTheme() as AppTheme;
-
   return (
     <Box>
       {hint ? (
-        <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, display: "block", mb: 1 }}>
+        <Typography component="p" sx={chatLiveFilterHintSx}>
           {hint}
         </Typography>
       ) : null}

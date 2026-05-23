@@ -53,6 +53,7 @@ export const departmentShiftFilterPopoverPairRowSx: SxProps<Theme> = {
 
 export const departmentShiftActionsSx: SxProps<Theme> = {
   display: "flex",
+  alignItems: "center",
   justifyContent: "flex-end",
   gap: 1.5,
   flexWrap: "wrap",

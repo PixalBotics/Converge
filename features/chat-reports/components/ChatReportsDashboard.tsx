@@ -32,7 +32,6 @@ import { useChatReports } from "../hooks/useChatReports";
 import { ReportBucketTable } from "./ReportBucketTable";
 import { defaultReportRange } from "../utils/format-metric";
 import {
-  chatReportsContentSx,
   chatReportsKpiCardSx,
   chatReportsKpiGridSx,
   chatReportsPageWrapper,
@@ -122,19 +121,18 @@ export function ChatReportsDashboard() {
 
   return (
     <Box sx={mergeSx(chatReportsPageWrapper, chatLivePageStackSx)}>
-      <Box sx={chatReportsContentSx}>
-        <ChatLivePageHeader
-          title="Live chat reports"
-          subtitle="Scoped metrics from closed and active conversations in your monitor access."
-          navItems={chatNavItems}
-          trailing={
-            <Button type="button" variant="outlined" onClick={() => void reports.refresh()}>
-              Refresh
-            </Button>
-          }
-        />
+      <ChatLivePageHeader
+        title="Live chat reports"
+        subtitle="Scoped metrics from closed and active conversations in your monitor access."
+        navItems={chatNavItems}
+        trailing={
+          <Button type="button" variant="outlined" onClick={() => void reports.refresh()}>
+            Refresh
+          </Button>
+        }
+      />
 
-        <DashboardCard sx={{ flexShrink: 0, p: { xs: 1.5, md: 2 }, height: "auto", minHeight: 0 }}>
+      <DashboardCard sx={{ flexShrink: 0, p: { xs: 1.5, md: 2 }, height: "auto", minHeight: 0 }}>
           <ChatScopeFiltersPanel
             filters={scopeFilters.filters}
             onPatch={scopeFilters.patchFilters}
@@ -225,7 +223,6 @@ export function ChatReportsDashboard() {
             </Box>
           </>
         ) : null}
-      </Box>
     </Box>
   );
 }

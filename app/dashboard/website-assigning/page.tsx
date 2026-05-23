@@ -20,6 +20,7 @@ import {
   DataTable,
   FormModal,
   SearchBar,
+  SearchSubmitButton,
   TablePagination,
   ToolbarFilterPopover,
   Typography,
@@ -387,18 +388,13 @@ export default function WebsiteAssigningPage() {
               sx={{ minWidth: "100%" }}
             />
           </Box>
-          <Button
-            type="button"
-            variant="primary"
+          <SearchSubmitButton
             disabled={searchInput.trim() === search.trim()}
             onClick={() => {
               setSearch(searchInput.trim());
               setPage(1);
             }}
-            sx={{ minWidth: 132, whiteSpace: "nowrap", alignSelf: { xs: "stretch", sm: "center" } }}
-          >
-            Search
-          </Button>
+          />
           <ToolbarFilterPopover
             open={filterPopoverOpen}
             onOpenChange={setFilterPopoverOpen}

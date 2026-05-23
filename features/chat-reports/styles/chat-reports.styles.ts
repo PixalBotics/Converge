@@ -5,14 +5,6 @@ import { chatOpsPageWrapper } from "@/features/chat-operations/styles/chat-opera
 
 export { chatOpsPageWrapper as chatReportsPageWrapper };
 
-export const chatReportsContentSx: SxProps<Theme> = {
-  px: { xs: 2, md: 3 },
-  py: 2,
-  flex: 1,
-  minHeight: 0,
-  overflow: "auto",
-};
-
 export const chatReportsKpiGridSx: SxProps<Theme> = {
   display: "grid",
   gridTemplateColumns: {

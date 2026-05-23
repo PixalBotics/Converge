@@ -21,6 +21,7 @@ import {
   DataTable,
   FormModal,
   SearchBar,
+  SearchSubmitButton,
   SegmentedControl,
   SelectField,
   TablePagination,
@@ -59,7 +60,6 @@ import {
 import { extractUsersRows } from "@/app/dashboard/user-page/utils";
 import { useAuth, sessionMayPickInternalUserScope } from "@/lib/auth";
 import { canManageDepartmentHeads, canRemoveDepartmentHead } from "@/lib/permissions";
-import { SearchIcon } from "@/components/common/icons";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
 import {
   departmentsCardHeader,
@@ -1127,18 +1127,11 @@ export default function DepartmentHeadsPage() {
                   sx={{ width: "100%" }}
                 />
               </Box>
-              <Button
-                type="button"
-                variant="primary"
+              <SearchSubmitButton
                 disabled={headsSearch.trim() === appliedHeadsSearch.trim()}
                 onClick={applyHeadsSearch}
-                sx={{ minWidth: 120, whiteSpace: "nowrap", alignSelf: { xs: "stretch", sm: "center" } }}
-              >
-                <Box component="span" sx={{ display: "inline-flex", lineHeight: 0 }}>
-                  <SearchIcon width={18} height={18} sx={{ color: "inherit" }} />
-                </Box>
-                Search
-              </Button>
+                sx={{ minWidth: 120 }}
+              />
               <ToolbarFilterPopover open={filterPanelOpen} onOpenChange={setFilterPanelOpen} active={filterToolbarActive}>
                 {departmentHeadsFilterPanel}
               </ToolbarFilterPopover>

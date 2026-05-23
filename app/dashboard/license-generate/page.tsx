@@ -13,6 +13,7 @@ import {
   DashboardCard,
   DataTable,
   SearchBar,
+  SearchSubmitButton,
   SelectField,
   TablePagination,
   ToolbarFilterPopover,
@@ -240,15 +241,10 @@ export default function LicenseGeneratePage() {
                 sx={{ minWidth: "100%" }}
               />
             </Box>
-            <Button
-              type="button"
-              variant="primary"
+            <SearchSubmitButton
               disabled={searchInput.trim() === search.trim()}
               onClick={() => setSearch(searchInput)}
-              sx={{ minWidth: 132, whiteSpace: "nowrap", alignSelf: { xs: "stretch", sm: "center" } }}
-            >
-              Search
-            </Button>
+            />
             <ToolbarFilterPopover
               open={filterPopoverOpen}
               onOpenChange={setFilterPopoverOpen}

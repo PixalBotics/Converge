@@ -68,7 +68,7 @@ export const navItemSx: SxProps<Theme> = (theme) => {
   return {
     ml: 0,
     mr: 1.25,
-    my: 2.25,
+    my: "7px",
     pt: "12px",
     pr: "24px",
     pb: "12px",

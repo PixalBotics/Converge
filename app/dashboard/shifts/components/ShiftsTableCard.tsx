@@ -15,6 +15,7 @@ import {
   DataTable,
   dataTableActionButton,
   SearchBar,
+  SearchSubmitButton,
   TablePagination,
   ToolbarFilterPopover,
   Typography,
@@ -157,15 +158,10 @@ export function ShiftsTableCard({
             <SearchBar value={searchInput} onChange={onSearchInputChange} placeholder={searchPlaceholder} />
           </Box>
           {showSearchSubmitButton ? (
-            <Button
-              type="button"
-              variant="primary"
+            <SearchSubmitButton
               disabled={searchInput.trim() === appliedSearch.trim()}
               onClick={onSearchApply}
-              sx={{ minWidth: 132, whiteSpace: "nowrap", alignSelf: { xs: "stretch", sm: "center" } }}
-            >
-              Search
-            </Button>
+            />
           ) : null}
           {showFilter ? (
             <ToolbarFilterPopover

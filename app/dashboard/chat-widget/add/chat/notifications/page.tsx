@@ -31,6 +31,17 @@ import { WidgetBehaviorLivePreview } from "@/components/dashboard/chat-widget/Wi
 import { readWidgetChatColorsFromDraft } from "@/lib/chat-widget/widget-colors-draft";
 import { WidgetAiTypeField } from "@/components/dashboard/chat-widget/WidgetAiTypeField";
 import {
+  notificationsCheckboxItemSx,
+  notificationsCheckboxRowSx,
+  notificationsFieldGroupSx,
+  notificationsFormStackSx,
+  notificationsInlineTogglesSx,
+  notificationsSectionHintSx,
+  notificationsSectionTitleSx,
+  notificationsSwitchLabelSx,
+  notificationsSwitchRowSx,
+} from "./notifications-advanced.styles";
+import {
   defaultWidgetDraft,
   type WidgetInstallChatMode,
 } from "@/lib/chat-widget/widgetDraft";
@@ -377,62 +388,93 @@ export default function ChatWidgetNotificationsPage() {
           alignItems: "start",
         }}
       >
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 0 }}>
-      <Typography variant="mediumLarge" sx={{ color: theme.app.text.primary, mb: -1.25 }}>Notification Settings</Typography>
-      <Box sx={{ display: "flex", gap: 2.5 }}>
-        <Checkbox checked={browserNotification} onChange={(e) => setBrowserNotification(e.target.checked)} />
-        <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted, ml: -1.5 }}>Browser Notification</Typography>
-        <Checkbox checked={soundNotification} onChange={(e) => setSoundNotification(e.target.checked)} />
-        <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted, ml: -1.5 }}>Sound Notification</Typography>
+        <Box sx={notificationsFormStackSx}>
+      <Box sx={notificationsFieldGroupSx}>
+        <Typography variant="medium16" sx={notificationsSectionTitleSx}>
+          Notification Settings
+        </Typography>
+        <Box sx={notificationsCheckboxRowSx}>
+          <Box sx={notificationsCheckboxItemSx}>
+            <Checkbox checked={browserNotification} onChange={(e) => setBrowserNotification(e.target.checked)} />
+            <Typography variant="body2" sx={notificationsSwitchLabelSx}>
+              Browser Notification
+            </Typography>
+          </Box>
+          <Box sx={notificationsCheckboxItemSx}>
+            <Checkbox checked={soundNotification} onChange={(e) => setSoundNotification(e.target.checked)} />
+            <Typography variant="body2" sx={notificationsSwitchLabelSx}>
+              Sound Notification
+            </Typography>
+          </Box>
+        </Box>
+        <InputField
+          label="Fallback Notification Text"
+          name="fallback"
+          value={fallbackText}
+          onChange={(e) => setFallbackText(e.target.value)}
+          inputProps={{ maxLength: 120 }}
+        />
       </Box>
 
-      <InputField
-        label="Fallback Notification Text"
-        name="fallback"
-        value={fallbackText}
-        onChange={(e) => setFallbackText(e.target.value)}
-        inputProps={{ maxLength: 120 }}
-      />
+      <Box sx={notificationsFieldGroupSx}>
+        <Typography variant="medium16" sx={notificationsSectionTitleSx}>
+          Chat routing (backend mode)
+        </Typography>
+        <SelectField
+          label="Chat mode"
+          value={chatMode}
+          onChange={(v) => setChatMode(v as WidgetInstallChatMode)}
+          options={[
+            { label: "Hybrid (AI then agent handoff)", value: "HYBRID" },
+            { label: "AI only", value: "AI_ONLY" },
+            { label: "Agent only", value: "AGENT_ONLY" },
+          ]}
+          searchable={false}
+          menuMaxRows={6}
+        />
+        {shouldShowWidgetAiType(chatMode) ? (
+          <WidgetAiTypeField value={aiType} onChange={setAiType} />
+        ) : null}
+        <InputField
+          label="Allowed domains (comma-separated hosts, optional)"
+          name="allowed-domains"
+          value={allowedDomainsInput}
+          onChange={(e) => setAllowedDomainsInput(e.target.value)}
+          placeholder="example.com, app.example.com"
+        />
+      </Box>
 
-      <Typography variant="mediumLarge" sx={{ color: theme.app.text.primary, mb: -1.25, mt: 0.5 }}>
-        Chat routing (backend mode)
-      </Typography>
-      <SelectField
-        label="Chat mode"
-        value={chatMode}
-        onChange={(v) => setChatMode(v as WidgetInstallChatMode)}
-        options={[
-          { label: "Hybrid (AI then agent handoff)", value: "HYBRID" },
-          { label: "AI only", value: "AI_ONLY" },
-          { label: "Agent only", value: "AGENT_ONLY" },
-        ]}
-        searchable={false}
-        menuMaxRows={6}
-      />
-      {shouldShowWidgetAiType(chatMode) ? (
-        <WidgetAiTypeField value={aiType} onChange={setAiType} />
-      ) : null}
-      <InputField
-        label="Allowed domains (comma-separated hosts, optional)"
-        name="allowed-domains"
-        value={allowedDomainsInput}
-        onChange={(e) => setAllowedDomainsInput(e.target.value)}
-        placeholder="example.com, app.example.com"
-      />
-
-      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <Typography variant="mediumLarge" sx={{ color: theme.app.text.primary }}>
+      <Box sx={notificationsSwitchRowSx}>
+        <Typography variant="medium16" sx={notificationsSectionTitleSx}>
           Video Welcome Message
         </Typography>
         <Switch checked={videoWelcomeOn} onChange={(_, checked) => setVideoWelcomeOn(checked)} color="success" />
       </Box>
 
       {videoWelcomeOn ? (
-        <>
-          <Typography variant="mediumLarge" sx={{ color: theme.app.text.primary, mb: -1.25 }}>Video Source</Typography>
+        <Box sx={notificationsFieldGroupSx}>
+          <Typography variant="medium16" sx={notificationsSectionTitleSx}>
+            Video Source
+          </Typography>
           <RadioGroup row value={videoSource} onChange={(e) => setVideoSource(e.target.value)} sx={{ gap: 2.5 }}>
-            <FormControlLabel value="upload" control={<Radio />} label={<Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted }}>Upload Video</Typography>} />
-            <FormControlLabel value="url" control={<Radio />} label={<Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted }}>Video URL (YouTube/Vimeo)</Typography>} />
+            <FormControlLabel
+              value="upload"
+              control={<Radio />}
+              label={
+                <Typography variant="body2" sx={notificationsSwitchLabelSx}>
+                  Upload Video
+                </Typography>
+              }
+            />
+            <FormControlLabel
+              value="url"
+              control={<Radio />}
+              label={
+                <Typography variant="body2" sx={notificationsSwitchLabelSx}>
+                  Video URL (YouTube/Vimeo)
+                </Typography>
+              }
+            />
           </RadioGroup>
 
           <Box
@@ -467,51 +509,52 @@ export default function ChatWidgetNotificationsPage() {
             </Typography>
           </Box>
           <Box component="input" ref={videoUploadRef} type="file" accept=".mp4,.webm,.mov" onChange={handleVideoUpload} sx={{ display: "none" }} />
-        </>
+        </Box>
       ) : null}
 
-      <Typography variant="mediumLarge" sx={{ color: theme.app.text.primary, mt: 2.5, mb: 0.5 }}>
-        Behavior (config.behavior)
-      </Typography>
-      <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, mb: 1 }}>
-        Bot, routing copy, inquiry chips, auto-open, uploads, consent — saved on this step.
-      </Typography>
-      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted }}>
-          Bot enabled
+      <Box sx={notificationsFieldGroupSx}>
+        <Typography variant="medium16" sx={notificationsSectionTitleSx}>
+          Behavior (config.behavior)
         </Typography>
-        <Switch checked={botEnabled} onChange={(_, c) => setBotEnabled(c)} color="success" />
-      </Box>
+        <Typography variant="body2" sx={notificationsSectionHintSx}>
+          Bot, routing copy, inquiry chips, auto-open, uploads, consent — saved on this step.
+        </Typography>
+        <Box sx={notificationsSwitchRowSx}>
+          <Typography variant="body2" sx={notificationsSwitchLabelSx}>
+            Bot enabled
+          </Typography>
+          <Switch checked={botEnabled} onChange={(_, c) => setBotEnabled(c)} color="success" />
+        </Box>
       <InputField
         label="Welcome message (behavior)"
         name="welcome-behavior"
         value={welcomeMessageBehavior}
         onChange={(e) => setWelcomeMessageBehavior(e.target.value)}
       />
-      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted }}>
-          Inquiry topic pills
-        </Typography>
-        <Switch checked={inquiryOn} onChange={(_, c) => setInquiryOn(c)} color="success" />
-      </Box>
+        <Box sx={notificationsSwitchRowSx}>
+          <Typography variant="body2" sx={notificationsSwitchLabelSx}>
+            Inquiry topic pills
+          </Typography>
+          <Switch checked={inquiryOn} onChange={(_, c) => setInquiryOn(c)} color="success" />
+        </Box>
       {inquiryOn ? (
-        <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, mb: 1 }}>
+        <Typography variant="body2" sx={notificationsSectionHintSx}>
           Inquire labels and department routing are configured on the{" "}
           <strong>Chat Box Design</strong> step ({inquiryOptionsList.length} option
           {inquiryOptionsList.length === 1 ? "" : "s"}
           {inquiryOptionsList.length ? `: ${inquiryOptionsList.join(", ")}` : ""}).
         </Typography>
       ) : (
-        <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, mb: 1 }}>
+        <Typography variant="body2" sx={notificationsSectionHintSx}>
           Topic pills are hidden. Enable them on the Chat Box Design step.
         </Typography>
       )}
-      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted }}>
-          Auto-open widget
-        </Typography>
-        <Switch checked={autoOpenEnabled} onChange={(_, c) => setAutoOpenEnabled(c)} color="success" />
-      </Box>
+        <Box sx={notificationsSwitchRowSx}>
+          <Typography variant="body2" sx={notificationsSwitchLabelSx}>
+            Auto-open widget
+          </Typography>
+          <Switch checked={autoOpenEnabled} onChange={(_, c) => setAutoOpenEnabled(c)} color="success" />
+        </Box>
       <InputField
         label="Auto-open delay (seconds)"
         name="auto-open-delay"
@@ -519,88 +562,94 @@ export default function ChatWidgetNotificationsPage() {
         onChange={(e) => setAutoOpenDelayStr(e.target.value)}
         inputProps={{ inputMode: "numeric" }}
       />
-      <Box sx={{ display: "flex", gap: 3, flexWrap: "wrap", alignItems: "center" }}>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-          <Switch checked={fileUploadEnabled} onChange={(_, c) => setFileUploadEnabled(c)} color="success" />
-          <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted }}>
-            File upload
-          </Typography>
+        <Box sx={notificationsInlineTogglesSx}>
+          <Box sx={notificationsCheckboxItemSx}>
+            <Switch checked={fileUploadEnabled} onChange={(_, c) => setFileUploadEnabled(c)} color="success" />
+            <Typography variant="body2" sx={notificationsSwitchLabelSx}>
+              File upload
+            </Typography>
+          </Box>
+          <Box sx={notificationsCheckboxItemSx}>
+            <Switch checked={emojiEnabled} onChange={(_, c) => setEmojiEnabled(c)} color="success" />
+            <Typography variant="body2" sx={notificationsSwitchLabelSx}>
+              Emoji
+            </Typography>
+          </Box>
         </Box>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-          <Switch checked={emojiEnabled} onChange={(_, c) => setEmojiEnabled(c)} color="success" />
-          <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted }}>
-            Emoji
+        <Box sx={notificationsSwitchRowSx}>
+          <Typography variant="body2" sx={notificationsSwitchLabelSx}>
+            Consent required
           </Typography>
+          <Switch checked={consentRequired} onChange={(_, c) => setConsentRequired(c)} color="success" />
         </Box>
-      </Box>
-      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted }}>
-          Consent required
-        </Typography>
-        <Switch checked={consentRequired} onChange={(_, c) => setConsentRequired(c)} color="success" />
-      </Box>
       <InputField label="Consent text" name="consent-text" value={consentText} onChange={(e) => setConsentText(e.target.value)} />
       <InputField label="Privacy policy URL" name="privacy-url" value={privacyPolicyUrl} onChange={(e) => setPrivacyPolicyUrl(e.target.value)} />
       <InputField label="Privacy notice" name="privacy-notice" value={privacyNotice} onChange={(e) => setPrivacyNotice(e.target.value)} />
-      <InputField
-        label="Allowed domains helper text"
-        name="allowed-domains-text"
-        value={allowedDomainsText}
-        onChange={(e) => setAllowedDomainsText(e.target.value)}
-      />
-
-      <Typography variant="mediumLarge" sx={{ color: theme.app.text.primary, mt: 2, mb: 0.5 }}>
-        Session (config.session)
-      </Typography>
-      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted }}>
-          Persist visitor session
-        </Typography>
-        <Switch checked={persistVisitorSession} onChange={(_, c) => setPersistVisitorSession(c)} color="success" />
+        <InputField
+          label="Allowed domains helper text"
+          name="allowed-domains-text"
+          value={allowedDomainsText}
+          onChange={(e) => setAllowedDomainsText(e.target.value)}
+        />
       </Box>
-      <InputField
-        label="Session TTL (minutes)"
-        name="session-ttl"
-        value={sessionTtlStr}
-        onChange={(e) => setSessionTtlStr(e.target.value)}
-        inputProps={{ inputMode: "numeric" }}
-      />
 
-      <Typography variant="mediumLarge" sx={{ color: theme.app.text.primary, mt: 2, mb: 0.5 }}>
-        Pre-chat form (config.form)
-      </Typography>
-      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted }}>
-          Form enabled
+      <Box sx={notificationsFieldGroupSx}>
+        <Typography variant="medium16" sx={notificationsSectionTitleSx}>
+          Session (config.session)
         </Typography>
-        <Switch checked={formEnabled} onChange={(_, c) => setFormEnabled(c)} color="success" />
+        <Box sx={notificationsSwitchRowSx}>
+          <Typography variant="body2" sx={notificationsSwitchLabelSx}>
+            Persist visitor session
+          </Typography>
+          <Switch checked={persistVisitorSession} onChange={(_, c) => setPersistVisitorSession(c)} color="success" />
+        </Box>
+        <InputField
+          label="Session TTL (minutes)"
+          name="session-ttl"
+          value={sessionTtlStr}
+          onChange={(e) => setSessionTtlStr(e.target.value)}
+          inputProps={{ inputMode: "numeric" }}
+        />
       </Box>
+
+      <Box sx={notificationsFieldGroupSx}>
+        <Typography variant="medium16" sx={notificationsSectionTitleSx}>
+          Pre-chat form (config.form)
+        </Typography>
+        <Box sx={notificationsSwitchRowSx}>
+          <Typography variant="body2" sx={notificationsSwitchLabelSx}>
+            Form enabled
+          </Typography>
+          <Switch checked={formEnabled} onChange={(_, c) => setFormEnabled(c)} color="success" />
+        </Box>
       <InputField label="Form title" name="form-title" value={formTitle} onChange={(e) => setFormTitle(e.target.value)} />
       <InputField label="Form subtitle" name="form-subtitle" value={formSubtitle} onChange={(e) => setFormSubtitle(e.target.value)} />
-      <InputField label="Submit button label" name="form-submit" value={formSubmitLabel} onChange={(e) => setFormSubmitLabel(e.target.value)} />
-      <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, mb: 0.5 }}>
-        Field toggles
-      </Typography>
-      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 2 }}>
-        {[
-          ["Name", prechatNameEnabled, setPrechatNameEnabled] as const,
-          ["Email", prechatEmailEnabled, setPrechatEmailEnabled] as const,
-          ["Phone", prechatPhoneEnabled, setPrechatPhoneEnabled] as const,
-          ["Message", prechatMessageEnabled, setPrechatMessageEnabled] as const,
-          ["Message required", prechatMessageRequired, setPrechatMessageRequired] as const,
-        ].map(([label, val, setter]) => (
-          <Box key={label} sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-            <Switch checked={val} onChange={(_, c) => setter(c)} color="success" />
-            <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted }}>
-              {label}
-            </Typography>
-          </Box>
-        ))}
+        <InputField label="Submit button label" name="form-submit" value={formSubmitLabel} onChange={(e) => setFormSubmitLabel(e.target.value)} />
+        <Typography variant="medium16" sx={notificationsSectionTitleSx}>
+          Field toggles
+        </Typography>
+        <Box sx={notificationsInlineTogglesSx}>
+          {[
+            ["Name", prechatNameEnabled, setPrechatNameEnabled] as const,
+            ["Email", prechatEmailEnabled, setPrechatEmailEnabled] as const,
+            ["Phone", prechatPhoneEnabled, setPrechatPhoneEnabled] as const,
+            ["Message", prechatMessageEnabled, setPrechatMessageEnabled] as const,
+            ["Message required", prechatMessageRequired, setPrechatMessageRequired] as const,
+          ].map(([label, val, setter]) => (
+            <Box key={label} sx={notificationsCheckboxItemSx}>
+              <Switch checked={val} onChange={(_, c) => setter(c)} color="success" />
+              <Typography variant="body2" sx={notificationsSwitchLabelSx}>
+                {label}
+              </Typography>
+            </Box>
+          ))}
+        </Box>
       </Box>
 
-      <Typography variant="mediumLarge" sx={{ color: theme.app.text.primary, mt: 2, mb: 0.5 }}>
-        Responses (config.response)
-      </Typography>
+      <Box sx={notificationsFieldGroupSx}>
+        <Typography variant="medium16" sx={notificationsSectionTitleSx}>
+          Responses (config.response)
+        </Typography>
       <InputField
         label="Welcome message (response)"
         name="resp-welcome"
@@ -631,22 +680,23 @@ export default function ChatWidgetNotificationsPage() {
         value={responseAiPromptHint}
         onChange={(e) => setResponseAiPromptHint(e.target.value)}
       />
-      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted }}>
-          Agent handover enabled
-        </Typography>
-        <Switch
-          checked={responseAgentHandoverEnabled}
-          onChange={(_, c) => setResponseAgentHandoverEnabled(c)}
-          color="success"
+        <Box sx={notificationsSwitchRowSx}>
+          <Typography variant="body2" sx={notificationsSwitchLabelSx}>
+            Agent handover enabled
+          </Typography>
+          <Switch
+            checked={responseAgentHandoverEnabled}
+            onChange={(_, c) => setResponseAgentHandoverEnabled(c)}
+            color="success"
+          />
+        </Box>
+        <InputField
+          label="Handover trigger text"
+          name="resp-handover"
+          value={responseHandoverTriggerText}
+          onChange={(e) => setResponseHandoverTriggerText(e.target.value)}
         />
       </Box>
-      <InputField
-        label="Handover trigger text"
-        name="resp-handover"
-        value={responseHandoverTriggerText}
-        onChange={(e) => setResponseHandoverTriggerText(e.target.value)}
-      />
         </Box>
 
         <Box
