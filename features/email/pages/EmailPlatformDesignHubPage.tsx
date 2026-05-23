@@ -99,7 +99,7 @@ export function EmailPlatformDesignHubPage() {
     <>
       <EmailConfigTableCard>
         <EmailTableCardHeader
-          icon={<PaletteOutlined sx={iconGlyphSx(theme, 22)} />}
+          icon={<PaletteOutlined sx={iconGlyphSx(22)} />}
           title="Platform email design"
           subtitle="Default transcript email for resellers on platform template mode."
         />

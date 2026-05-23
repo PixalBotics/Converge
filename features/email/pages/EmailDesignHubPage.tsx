@@ -127,7 +127,7 @@ export function EmailDesignHubPage() {
     <>
       <EmailConfigTableCard>
         <EmailTableCardHeader
-          icon={<PaletteOutlined sx={iconGlyphSx(theme, 22)} />}
+          icon={<PaletteOutlined sx={iconGlyphSx(22)} />}
           title="Reseller email designs"
           subtitle="Custom transcript email per reseller. Resellers on platform default appear under Use platform design."
           action={addButton}

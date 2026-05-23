@@ -39,23 +39,22 @@ function EmailFormBlockHint() {
         Which fields appear in outgoing emails is configured per website under Email forms. Disabled
         fields are not shown in the email, even if this section is enabled here.
       </Typography>
-      <Typography
-        component={Link}
-        href={EMAIL_ROUTES.forms}
-        variant="caption"
-        sx={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 0.5,
-          color: theme.palette.primary.light,
-          fontWeight: 700,
-          textDecoration: "none",
-          "&:hover": { textDecoration: "underline" },
-        }}
-      >
-        Open Email forms
-        <OpenInNewOutlined sx={{ fontSize: 14 }} />
-      </Typography>
+      <Link href={EMAIL_ROUTES.forms} style={{ textDecoration: "none" }}>
+        <Typography
+          variant="caption"
+          sx={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 0.5,
+            color: theme.palette.primary.light,
+            fontWeight: 700,
+            "&:hover": { textDecoration: "underline" },
+          }}
+        >
+          Open Email forms
+          <OpenInNewOutlined sx={{ fontSize: 14 }} />
+        </Typography>
+      </Link>
     </Box>
   );
 }
@@ -92,23 +91,22 @@ function PlatformFormBlockHint({ blockKey }: { blockKey: EmailTemplateBlockKey }
         Button labels, placeholders, and submit text are configured once for all agents in Feedback
         settings — not in this email design.
       </Typography>
-      <Typography
-        component={Link}
-        href={EMAIL_ROUTES.feedback}
-        variant="caption"
-        sx={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 0.5,
-          color: theme.palette.primary.light,
-          fontWeight: 700,
-          textDecoration: "none",
-          "&:hover": { textDecoration: "underline" },
-        }}
-      >
-        Open Feedback settings
-        <OpenInNewOutlined sx={{ fontSize: 14 }} />
-      </Typography>
+      <Link href={EMAIL_ROUTES.feedback} style={{ textDecoration: "none" }}>
+        <Typography
+          variant="caption"
+          sx={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 0.5,
+            color: theme.palette.primary.light,
+            fontWeight: 700,
+            "&:hover": { textDecoration: "underline" },
+          }}
+        >
+          Open Feedback settings
+          <OpenInNewOutlined sx={{ fontSize: 14 }} />
+        </Typography>
+      </Link>
     </Box>
   );
 }

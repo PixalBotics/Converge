@@ -756,7 +756,7 @@ export function EmailVisualBuilder({
                 onChange={(e) => patchTheme({ footerNote: e.target.value })}
                 disabled={disabled}
                 multiline
-                rows={2}
+                minRows={2}
               />
               <EmailBuilderInputField
                 label="Support email"

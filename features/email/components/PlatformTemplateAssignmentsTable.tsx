@@ -4,8 +4,6 @@ import { useCallback, useMemo, useState } from "react";
 import PaletteOutlined from "@mui/icons-material/PaletteOutlined";
 import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
-import { useTheme } from "@mui/material/styles";
-import type { AppTheme } from "@/theme/theme";
 import { Button, DataTable, Typography } from "@/components/common";
 import type { DataTableColumn } from "@/components/common";
 import type { PlatformTemplateAssignmentListItem } from "@/api/email/email.api";
@@ -29,7 +27,6 @@ import { usePlatformEmailTemplatePublishedQuery } from "../hooks/useEmailTemplat
 type DeleteTarget = { resellerId: string; resellerName: string };
 
 export function PlatformTemplateAssignmentsTable() {
-  const theme = useTheme() as AppTheme;
   const { hasOperational } = useAuth();
   const canView = hasOperational(OP.emailTemplate.view);
   const canUpdate = hasOperational(OP.emailTemplate.update);
@@ -95,7 +92,7 @@ export function PlatformTemplateAssignmentsTable() {
     <>
       <EmailConfigTableCard>
         <EmailTableCardHeader
-          icon={<PaletteOutlined sx={iconGlyphSx(theme, 22)} />}
+          icon={<PaletteOutlined sx={iconGlyphSx(22)} />}
           title="Resellers using platform design"
           subtitle="These resellers send transcript emails with the platform template until they publish and switch to their own design."
           action={
@@ -103,7 +100,7 @@ export function PlatformTemplateAssignmentsTable() {
               <Button
                 type="button"
                 variant="primary"
-                startIcon={<AddCircleIcon sx={iconGlyphSx(theme, 20)} />}
+                startIcon={<AddCircleIcon sx={iconGlyphSx(20)} />}
                 sx={gradientPrimaryButtonSx}
                 disabled={!platformPublished}
                 onClick={openModal}

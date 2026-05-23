@@ -28,6 +28,8 @@ export const EMAIL_ROUTES = {
   designResellerEdit: (resellerId: string) =>
     `${EMAIL_BASE_PATH}/design/reseller/${encodeURIComponent(resellerId.trim())}`,
   forms: `${EMAIL_BASE_PATH}/forms`,
+  formsStandard: `${EMAIL_BASE_PATH}/forms/standard`,
+  formsCustom: `${EMAIL_BASE_PATH}/forms/custom`,
   formsSet: `${EMAIL_BASE_PATH}/forms/set`,
   feedback: `${EMAIL_BASE_PATH}/feedback`,
   /** Legacy paths — redirects */

@@ -27,7 +27,7 @@ export function EmailHubNav() {
       href: EMAIL_ROUTES.setupReseller,
       label: "SMTP & mail",
       show: hasOperational(OP.smtpEmail.view),
-      isActive: (p) =>
+      isActive: (p: string) =>
         p.startsWith(`${EMAIL_ROUTES.setup}/`) ||
         p.startsWith(`${EMAIL_BASE_PATH}/connection/`),
     },
@@ -35,14 +35,15 @@ export function EmailHubNav() {
       href: EMAIL_ROUTES.design,
       label: "Email design",
       show: hasOperational(OP.emailTemplate.view),
-      isActive: (p) =>
+      isActive: (p: string) =>
         p.startsWith(`${EMAIL_ROUTES.design}/`) || p === EMAIL_ROUTES.design,
     },
     {
       href: EMAIL_ROUTES.forms,
       label: "Email forms",
       show: hasOperational(OP.emailTemplate.view),
-      isActive: (p) => p.startsWith(`${EMAIL_ROUTES.forms}/`) || p === EMAIL_ROUTES.forms,
+      isActive: (p: string) =>
+        p.startsWith(`${EMAIL_ROUTES.forms}/`) || p === EMAIL_ROUTES.forms,
     },
   ].filter((t) => t.show);
 

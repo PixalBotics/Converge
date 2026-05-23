@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
 import Skeleton from "@mui/material/Skeleton";
-import { alpha, useTheme } from "@mui/material/styles";
+import { alpha, useTheme, type SxProps, type Theme } from "@mui/material/styles";
 import ArrowBack from "@mui/icons-material/ArrowBack";
 import CheckCircleOutline from "@mui/icons-material/CheckCircleOutline";
 import LanguageOutlined from "@mui/icons-material/LanguageOutlined";
@@ -168,7 +168,7 @@ export function EmailFormSetPage() {
   };
 
   return (
-    <Box sx={[pageWrapper, emailFormBuilderPageSx]}>
+    <Box sx={[pageWrapper, emailFormBuilderPageSx] as SxProps<Theme>}>
       <Box sx={{ mb: 2.5 }}>
         <Button
           component={Link}

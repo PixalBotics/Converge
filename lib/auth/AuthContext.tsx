@@ -145,7 +145,7 @@ function mapApiUserToUser(user: ApiUser): User | null {
     (typeof user.resellerId === "string" && user.resellerId.trim()) ||
     (typeof user.reseller_id === "string" && user.reseller_id.trim()) ||
     undefined;
-  const wr = user.wideResellerScope ?? user.wide_reseller_scope;
+  const wr: unknown = user.wideResellerScope ?? user.wide_reseller_scope;
   const wideResellerScope =
     wr === true || wr === "true" || wr === 1 || wr === "1";
   return {

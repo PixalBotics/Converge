@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Add from "@mui/icons-material/Add";
 import Box from "@mui/material/Box";
 import Skeleton from "@mui/material/Skeleton";
-import { useTheme } from "@mui/material/styles";
+import { useTheme, type SxProps, type Theme } from "@mui/material/styles";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { AppTheme } from "@/theme/theme";
 import { Button, SearchBar, TablePagination, Typography } from "@/components/common";
@@ -63,7 +63,7 @@ export function EmailFormsListPage() {
   const isEmpty = items.length === 0 && !listQuery.isLoading;
 
   return (
-    <Box sx={[pageWrapper, emailFormBuilderPageSx]}>
+    <Box sx={[pageWrapper, emailFormBuilderPageSx] as SxProps<Theme>}>
       <Box
         sx={{
           mb: 2.5,
