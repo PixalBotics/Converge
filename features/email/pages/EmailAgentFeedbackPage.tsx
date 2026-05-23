@@ -4,6 +4,11 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Box from "@mui/material/Box";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Switch from "@mui/material/Switch";
+import Table from "@mui/material/Table";
+import TableBody from "@mui/material/TableBody";
+import TableCell from "@mui/material/TableCell";
+import TableHead from "@mui/material/TableHead";
+import TableRow from "@mui/material/TableRow";
 import ThumbDownAltOutlined from "@mui/icons-material/ThumbDownAltOutlined";
 import ThumbUpAltOutlined from "@mui/icons-material/ThumbUpAltOutlined";
 import { alpha, useTheme } from "@mui/material/styles";
@@ -17,6 +22,7 @@ import { EmailSectionLayout } from "../components/EmailSectionLayout";
 import { EmailBuilderInputField } from "../components/email-builder/EmailBuilderFormField";
 import { EmailBuilderSettingsGroup } from "../styles/email-design.styled";
 import {
+  useDistributionFeedbackSubmissionsQuery,
   usePlatformAgentFeedbackQuery,
   useUpdatePlatformAgentFeedbackMutation,
 } from "../hooks/usePlatformAgentFeedback";
@@ -43,6 +49,17 @@ function BuilderGroupHeading({ children }: { children: React.ReactNode }) {
   );
 }
 
+function parseReasonOptionsText(text: string): string[] {
+  return text
+    .split(/\n|,/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+function formatReasonOptions(options: string[] | undefined): string {
+  return (options ?? []).join("\n");
+}
+
 export function EmailAgentFeedbackPage() {
   const theme = useTheme() as AppTheme;
   const { hasOperational } = useAuth();
@@ -51,8 +68,15 @@ export function EmailAgentFeedbackPage() {
 
   const query = usePlatformAgentFeedbackQuery({ enabled: canView });
   const updateMutation = useUpdatePlatformAgentFeedbackMutation();
+  const [submissionsPage, setSubmissionsPage] = useState(1);
+  const submissionsQuery = useDistributionFeedbackSubmissionsQuery(
+    submissionsPage,
+    20,
+    { enabled: canView },
+  );
 
   const [form, setForm] = useState<PlatformAgentFeedbackSettingsBody>({});
+  const [poorReasonsText, setPoorReasonsText] = useState("");
   const [dirty, setDirty] = useState(false);
 
   useEffect(() => {
@@ -66,7 +90,12 @@ export function EmailAgentFeedbackPage() {
       notesPlaceholder: query.data.notesPlaceholder,
       notesSubmitLabel: query.data.notesSubmitLabel,
       notesRequired: query.data.notesRequired,
+      poorFormTitle: query.data.poorFormTitle,
+      poorFormPrompt: query.data.poorFormPrompt,
+      poorSubmitLabel: query.data.poorSubmitLabel,
+      goodThankYouMessage: query.data.goodThankYouMessage,
     });
+    setPoorReasonsText(formatReasonOptions(query.data.poorReasonOptions));
     setDirty(false);
   }, [query.data]);
 
@@ -87,14 +116,24 @@ export function EmailAgentFeedbackPage() {
         "Add wrap-up notes for the next agent or supervisor…",
       notesSubmitLabel: form.notesSubmitLabel?.trim() || "Submit note",
       notesRequired: form.notesRequired ?? false,
+      poorFormTitle: form.poorFormTitle?.trim() || "Feedback",
+      poorFormPrompt:
+        form.poorFormPrompt?.trim() || "Tell us what can be improved?",
+      poorSubmitLabel: form.poorSubmitLabel?.trim() || "Submit",
+      goodThankYouMessage:
+        form.goodThankYouMessage?.trim() || "Thank you for your feedback.",
+      poorReasonOptions: parseReasonOptionsText(poorReasonsText),
     }),
-    [form],
+    [form, poorReasonsText],
   );
 
   const handleSave = async () => {
     if (!canUpdate) return;
     try {
-      await updateMutation.mutateAsync(form);
+      await updateMutation.mutateAsync({
+        ...form,
+        poorReasonOptions: parseReasonOptionsText(poorReasonsText),
+      });
       setDirty(false);
       publishAppToast({ variant: "success", message: "Feedback settings saved." });
     } catch (err) {
@@ -109,7 +148,7 @@ export function EmailAgentFeedbackPage() {
     return (
       <EmailSectionLayout
         title="Feedback"
-        description="Platform wrap-up form for agents (inquire rating and additional notes)."
+        description="Distribution email rating links and the public poor-rating form."
       >
         <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted }}>
           You do not have permission to view feedback settings.
@@ -121,7 +160,7 @@ export function EmailAgentFeedbackPage() {
   return (
     <EmailSectionLayout
       title="Feedback"
-      description="Configure the agent wrap-up form shown in chat transcript emails — inquire (like / dislike) and additional notes."
+      description="Configure like/dislike labels in distribution wrap-up emails and the public form recipients see when they click Poor."
     >
       <Box
         sx={{
@@ -129,11 +168,15 @@ export function EmailAgentFeedbackPage() {
           gridTemplateColumns: { xs: "1fr", lg: "1fr 340px" },
           gap: 2,
           alignItems: "start",
+          mb: 3,
         }}
       >
         <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
           <EmailBuilderSettingsGroup>
             <BuilderGroupHeading>Inquire (like / dislike)</BuilderGroupHeading>
+            <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, mb: 1, display: "block" }}>
+              Shown in distribution wrap-up emails. Recipients click a link to rate on the public page.
+            </Typography>
             <FormControlLabel
               control={
                 <Switch
@@ -160,20 +203,58 @@ export function EmailAgentFeedbackPage() {
                 disabled={!canUpdate || !preview.ratingEnabled}
               />
             </Box>
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={preview.ratingRequired}
-                  onChange={(e) => patch({ ratingRequired: e.target.checked })}
-                  disabled={!canUpdate || !preview.ratingEnabled}
-                />
-              }
-              label="Rating required before wrap-up"
+            <EmailBuilderInputField
+              label="Thank-you message (after submit)"
+              name="goodThankYouMessage"
+              value={preview.goodThankYouMessage}
+              onChange={(e) => patch({ goodThankYouMessage: e.target.value })}
+              disabled={!canUpdate}
+              multiline
             />
           </EmailBuilderSettingsGroup>
 
           <EmailBuilderSettingsGroup>
-            <BuilderGroupHeading>Additional note</BuilderGroupHeading>
+            <BuilderGroupHeading>Poor rating form (public page)</BuilderGroupHeading>
+            <EmailBuilderInputField
+              label="Form title"
+              name="poorFormTitle"
+              value={preview.poorFormTitle}
+              onChange={(e) => patch({ poorFormTitle: e.target.value })}
+              disabled={!canUpdate}
+            />
+            <EmailBuilderInputField
+              label="Prompt"
+              name="poorFormPrompt"
+              value={preview.poorFormPrompt}
+              onChange={(e) => patch({ poorFormPrompt: e.target.value })}
+              disabled={!canUpdate}
+            />
+            <EmailBuilderInputField
+              label="Reason chips (one per line)"
+              name="poorReasonOptions"
+              value={poorReasonsText}
+              onChange={(e) => {
+                setPoorReasonsText(e.target.value);
+                setDirty(true);
+              }}
+              disabled={!canUpdate}
+              multiline
+              placeholder={"Long wait time\nUnhelpful response\n…"}
+            />
+            <EmailBuilderInputField
+              label="Submit button label"
+              name="poorSubmitLabel"
+              value={preview.poorSubmitLabel}
+              onChange={(e) => patch({ poorSubmitLabel: e.target.value })}
+              disabled={!canUpdate}
+            />
+          </EmailBuilderSettingsGroup>
+
+          <EmailBuilderSettingsGroup>
+            <BuilderGroupHeading>Additional note (email block)</BuilderGroupHeading>
+            <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, mb: 1, display: "block" }}>
+              Optional notes block in the email template — separate from the public poor form.
+            </Typography>
             <FormControlLabel
               control={
                 <Switch
@@ -191,7 +272,6 @@ export function EmailAgentFeedbackPage() {
               onChange={(e) => patch({ notesPlaceholder: e.target.value })}
               disabled={!canUpdate || !preview.notesEnabled}
               multiline
-              rows={2}
             />
             <EmailBuilderInputField
               label="Submit button label"
@@ -229,7 +309,7 @@ export function EmailAgentFeedbackPage() {
         <EmailBuilderSettingsGroup sx={{ position: { lg: "sticky" }, top: 16 }}>
           <BuilderGroupHeading>Preview</BuilderGroupHeading>
           <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, mb: 1.5, display: "block" }}>
-            How agents will see these controls in transcript emails.
+            In-email inquire buttons link to the public rating page.
           </Typography>
 
           {preview.ratingEnabled ? (
@@ -245,24 +325,17 @@ export function EmailAgentFeedbackPage() {
             >
               <Typography variant="small" fontWeight={700} sx={{ mb: 1.5 }}>
                 Inquire
-                {preview.ratingRequired ? (
-                  <Box component="span" sx={{ color: theme.palette.error.light, ml: 0.5 }}>
-                    *
-                  </Box>
-                ) : null}
               </Typography>
               <Box sx={{ display: "flex", justifyContent: "center", gap: 3 }}>
                 <Box sx={{ textAlign: "center" }}>
                   <Box
-                    component="button"
-                    type="button"
+                    component="span"
                     sx={{
                       width: 52,
                       height: 52,
                       borderRadius: "50%",
                       border: "2px solid #22c55e",
                       bgcolor: "#dcfce7",
-                      cursor: "pointer",
                       display: "inline-flex",
                       alignItems: "center",
                       justifyContent: "center",
@@ -276,15 +349,13 @@ export function EmailAgentFeedbackPage() {
                 </Box>
                 <Box sx={{ textAlign: "center" }}>
                   <Box
-                    component="button"
-                    type="button"
+                    component="span"
                     sx={{
                       width: 52,
                       height: 52,
                       borderRadius: "50%",
                       border: "2px solid #ef4444",
                       bgcolor: "#fee2e2",
-                      cursor: "pointer",
                       display: "inline-flex",
                       alignItems: "center",
                       justifyContent: "center",
@@ -300,53 +371,124 @@ export function EmailAgentFeedbackPage() {
             </Box>
           ) : null}
 
-          {preview.notesEnabled ? (
+          {preview.poorReasonOptions.length > 0 ? (
             <Box
               sx={{
                 p: 2,
                 borderRadius: 1.5,
                 border: `1px solid ${theme.app.dashboard.cardBorder}`,
-                bgcolor: alpha(theme.palette.common.black, 0.12),
+                bgcolor: alpha(theme.palette.common.black, 0.08),
               }}
             >
-              <Typography variant="small" fontWeight={700} sx={{ mb: 1 }}>
-                Additional note
-                {preview.notesRequired ? (
-                  <Box component="span" sx={{ color: theme.palette.error.light, ml: 0.5 }}>
-                    *
-                  </Box>
-                ) : null}
+              <Typography variant="small" fontWeight={700} sx={{ mb: 0.75 }}>
+                {preview.poorFormTitle}
               </Typography>
-              <Box
-                component="textarea"
-                readOnly
-                placeholder={preview.notesPlaceholder}
-                sx={{
-                  width: "100%",
-                  minHeight: 72,
-                  p: 1.25,
-                  borderRadius: 1,
-                  border: `1px solid ${theme.app.dashboard.cardBorder}`,
-                  bgcolor: theme.app.dashboard.overlayLight,
-                  fontFamily: "inherit",
-                  fontSize: 13,
-                  resize: "vertical",
-                  mb: 1.25,
-                }}
-              />
-              <Button type="button" variant="primary" size="small">
-                {preview.notesSubmitLabel}
-              </Button>
+              <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, display: "block", mb: 1 }}>
+                {preview.poorFormPrompt}
+              </Typography>
+              <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
+                {preview.poorReasonOptions.slice(0, 4).map((r) => (
+                  <Box
+                    key={r}
+                    component="span"
+                    sx={{
+                      px: 1,
+                      py: 0.25,
+                      borderRadius: 99,
+                      border: `1px solid ${theme.app.dashboard.cardBorder}`,
+                      fontSize: 11,
+                    }}
+                  >
+                    {r}
+                  </Box>
+                ))}
+              </Box>
             </Box>
-          ) : null}
-
-          {!preview.ratingEnabled && !preview.notesEnabled ? (
-            <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted }}>
-              Enable inquire or additional note to show a preview.
-            </Typography>
           ) : null}
         </EmailBuilderSettingsGroup>
       </Box>
+
+      <EmailBuilderSettingsGroup>
+        <BuilderGroupHeading>Distribution feedback submissions</BuilderGroupHeading>
+        <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, mb: 1.5, display: "block" }}>
+          Ratings submitted from distribution wrap-up email links.
+        </Typography>
+        {submissionsQuery.isLoading ? (
+          <Typography variant="small" sx={{ color: theme.app.dashboard.textMuted }}>
+            Loading submissions…
+          </Typography>
+        ) : submissionsQuery.isError ? (
+          <Typography variant="small" color="error">
+            Could not load submissions.
+          </Typography>
+        ) : (submissionsQuery.data?.items.length ?? 0) === 0 ? (
+          <Typography variant="small" sx={{ color: theme.app.dashboard.textMuted }}>
+            No feedback submitted yet. Send a distribution test email and use the rating links.
+          </Typography>
+        ) : (
+          <>
+            <Box sx={{ overflowX: "auto" }}>
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell>When</TableCell>
+                    <TableCell>Rating</TableCell>
+                    <TableCell>Recipient</TableCell>
+                    <TableCell>Website</TableCell>
+                    <TableCell>Department</TableCell>
+                    <TableCell>Details</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {submissionsQuery.data?.items.map((row) => (
+                    <TableRow key={row.id}>
+                      <TableCell>
+                        {new Date(row.submittedAt).toLocaleString()}
+                      </TableCell>
+                      <TableCell sx={{ textTransform: "capitalize" }}>{row.rating}</TableCell>
+                      <TableCell>{row.send.recipientEmail}</TableCell>
+                      <TableCell>{row.send.websiteName}</TableCell>
+                      <TableCell>{row.send.departmentName}</TableCell>
+                      <TableCell>
+                        {row.reasonKeys.length > 0
+                          ? row.reasonKeys.join(", ")
+                          : row.comment ?? "—"}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </Box>
+            {(submissionsQuery.data?.totalPages ?? 1) > 1 ? (
+              <Box sx={{ display: "flex", gap: 1, mt: 1.5, alignItems: "center" }}>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="small"
+                  disabled={submissionsPage <= 1}
+                  onClick={() => setSubmissionsPage((p) => Math.max(1, p - 1))}
+                >
+                  Previous
+                </Button>
+                <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted }}>
+                  Page {submissionsPage} of {submissionsQuery.data?.totalPages ?? 1}
+                </Typography>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="small"
+                  disabled={
+                    submissionsPage >= (submissionsQuery.data?.totalPages ?? 1)
+                  }
+                  onClick={() => setSubmissionsPage((p) => p + 1)}
+                >
+                  Next
+                </Button>
+              </Box>
+            ) : null}
+          </>
+        )}
+      </EmailBuilderSettingsGroup>
     </EmailSectionLayout>
   );
 }

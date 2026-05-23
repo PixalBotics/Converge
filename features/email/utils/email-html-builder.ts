@@ -62,6 +62,11 @@ export type EmailAgentFeedbackPreview = {
   notesRequired?: boolean;
 };
 
+export type EmailFeedbackLinks = {
+  goodUrl: string;
+  poorUrl: string;
+};
+
 export function buildEmailHtml(input: {
   theme: EmailTemplateThemeJson;
   accent: string;
@@ -71,11 +76,22 @@ export function buildEmailHtml(input: {
   blocks: RenderEmailBlockInput[];
   sample: EmailSampleData;
   feedback?: EmailAgentFeedbackPreview;
+  feedbackLinks?: EmailFeedbackLinks;
   /** When set (live email per website), only fields enabled in Email forms are rendered. */
   enabledFormFieldKeys?: ReadonlySet<string> | null;
 }): string {
-  const { theme, accent, logoUrl, bannerUrl, platformHeaderUrl, blocks, sample, feedback, enabledFormFieldKeys } =
-    input;
+  const {
+    theme,
+    accent,
+    logoUrl,
+    bannerUrl,
+    platformHeaderUrl,
+    blocks,
+    sample,
+    feedback,
+    feedbackLinks,
+    enabledFormFieldKeys,
+  } = input;
   const bg = theme.backgroundColor ?? "#eef2f7";
   const contentBg = theme.contentBackground ?? "#ffffff";
   const text = theme.textColor ?? "#1e293b";
@@ -100,6 +116,7 @@ export function buildEmailHtml(input: {
       block.styleJson,
       feedback,
       enabledFormFieldKeys,
+      feedbackLinks,
     );
     if (html) parts.push(html);
   }
@@ -339,6 +356,7 @@ function renderBlock(
   styleJson: Record<string, unknown> | null,
   feedback?: EmailAgentFeedbackPreview,
   enabledFormFieldKeys?: ReadonlySet<string> | null,
+  feedbackLinks?: EmailFeedbackLinks,
 ): string {
   const style = readBlockStyleJson(styleJson, blockKey);
   const sectionStyle = theme.sectionHeaderStyle ?? "bar";
@@ -389,14 +407,16 @@ function renderBlock(
       if (feedback && !feedback.ratingEnabled) return "";
       const good = feedback?.goodLabel?.trim() || "Good";
       const poor = feedback?.poorLabel?.trim() || "Poor";
-      const btn = (emoji: string, label: string, bg: string, border: string) =>
-        `<td style="padding:0 16px;text-align:center;"><a href="#" style="text-decoration:none;display:inline-block;"><div style="width:52px;height:52px;border-radius:50%;background:${bg};border:2px solid ${border};line-height:52px;font-size:26px;cursor:pointer;">${emoji}</div><div style="font-size:12px;color:#64748b;margin-top:6px;font-weight:600;">${escHtml(label)}</div></a></td>`;
+      const goodHref = feedbackLinks?.goodUrl ?? "#";
+      const poorHref = feedbackLinks?.poorUrl ?? "#";
+      const btn = (href: string, emoji: string, label: string, bg: string, border: string) =>
+        `<td style="padding:0 16px;text-align:center;"><a href="${escAttr(href)}" target="_blank" rel="noopener noreferrer" style="text-decoration:none;display:inline-block;"><div style="width:52px;height:52px;border-radius:50%;background:${bg};border:2px solid ${border};line-height:52px;font-size:26px;">${emoji}</div><div style="font-size:12px;color:#64748b;margin-top:6px;font-weight:600;">${escHtml(label)}</div></a></td>`;
       return [
         sectionTitle(style.title, accent, sectionStyle),
         `<tr><td style="padding:16px 24px 20px;text-align:center;">`,
         `<table cellpadding="0" cellspacing="0" role="presentation" align="center"><tr>`,
-        btn("&#128077;", good, "#dcfce7", "#22c55e"),
-        btn("&#128078;", poor, "#fee2e2", "#ef4444"),
+        btn(goodHref, "&#128077;", good, "#dcfce7", "#22c55e"),
+        btn(poorHref, "&#128078;", poor, "#fee2e2", "#ef4444"),
         `</tr></table></td></tr>`,
       ].join("");
     }

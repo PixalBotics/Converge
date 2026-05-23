@@ -32,4 +32,5 @@ export {
   uploadResellerEmailLogo,
   getPlatformAgentFeedbackSettings,
   updatePlatformAgentFeedbackSettings,
+  listDistributionFeedbackSubmissions,
 } from "@/api/email/email.api";
