@@ -2,6 +2,7 @@ export {
   resolveSessionResellerId,
   sessionCanFilterByResellerId,
   sessionMayPickInternalUserScope,
+  sessionMayAssignWideResellerScope,
   sessionShowPocDeptDesignationPickFromList,
 } from "./session-scope";
 export { extractResellerIdFromMePayload } from "./extract-reseller-id";

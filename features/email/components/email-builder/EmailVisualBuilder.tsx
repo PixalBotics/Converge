@@ -30,7 +30,12 @@ import {
   EMAIL_THEME_PRESETS,
   type EmailTemplateTheme,
 } from "../../utils/email-theme";
-import { patchBlockStyle, readBlockStyle, syncBlocksWithGlobalIconStyle } from "../../utils/email-block-style";
+import {
+  defaultStyleForBlock,
+  patchBlockStyle,
+  readBlockStyle,
+  syncBlocksWithGlobalIconStyle,
+} from "../../utils/email-block-style";
 import { EMAIL_BLOCK_FIELD_CATALOG } from "../../constants/email-block-fields";
 import { ImageUploadDropzone } from "../ImageUploadDropzone";
 import { SectionBlockEditor } from "./SectionBlockEditor";
@@ -695,7 +700,10 @@ export function EmailVisualBuilder({
               <EmailBuilderInputField
                 label="Footer section title (optional)"
                 name="footerSectionTitle"
-                value={readBlockStyle(footerBlock ?? { blockKey: "footer", styleJson: null }).title ?? ""}
+                value={
+                  (footerBlock ? readBlockStyle(footerBlock) : defaultStyleForBlock("footer")).title ??
+                  ""
+                }
                 onChange={(e) => {
                   const fb = footerBlock ?? blocks.find((b) => b.blockKey === "footer");
                   if (!fb) return;

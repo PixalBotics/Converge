@@ -13,7 +13,11 @@ import { useDesignationsListQuery } from "@/lib/hooks/query";
 import { pickItemsArray, toIdNameOption } from "@/app/dashboard/user-page/components/add-user-modal.utils";
 import { childrenDraftFieldPath, getCompanySetupFieldError } from "@/lib/companies/company-setup-draft-field-paths";
 import type { DraftChildPayload } from "@/lib/companies/setup-draft.utils";
-import { sessionShowPocDeptDesignationPickFromList, useAuth } from "@/lib/auth";
+import {
+  sessionMayAssignWideResellerScope,
+  sessionShowPocDeptDesignationPickFromList,
+  useAuth,
+} from "@/lib/auth";
 import {
   externalScopeUsesWideReseller,
   findDefaultStandardExternalRoleId,
@@ -59,6 +63,16 @@ export function CompanySetupChildPocBlock({
 }: CompanySetupChildPocBlockProps) {
   const theme = useTheme() as AppTheme;
   const { isPlatformAdmin, user } = useAuth();
+  const mayAssignWideResellerScope = useMemo(
+    () =>
+      sessionMayAssignWideResellerScope(
+        isPlatformAdmin,
+        user?.userType,
+        user?.wideResellerScope,
+        user?.resellerId,
+      ),
+    [isPlatformAdmin, user?.userType, user?.wideResellerScope, user?.resellerId],
+  );
   const showPocPickFromList = sessionShowPocDeptDesignationPickFromList(
     isPlatformAdmin,
     user?.userType,
@@ -122,11 +136,28 @@ export function CompanySetupChildPocBlock({
       ? roleOptions
       : [{ value: "", label: rolesLoading ? "Loading…" : "— Select role —" }];
 
-  const pocExternalScope = useMemo(
-    () =>
-      resolveExternalAdminScope(row.roleId, roleSelectOptions, row.pocWideResellerScope),
-    [row.roleId, row.pocWideResellerScope, roleSelectOptions],
-  );
+  const pocExternalScope = useMemo(() => {
+    const scope = resolveExternalAdminScope(
+      row.roleId,
+      roleSelectOptions,
+      row.pocWideResellerScope,
+    );
+    if (!mayAssignWideResellerScope && scope === "wide_reseller") {
+      return "standard" as ExternalAdminScope;
+    }
+    return scope;
+  }, [
+    row.roleId,
+    row.pocWideResellerScope,
+    roleSelectOptions,
+    mayAssignWideResellerScope,
+  ]);
+
+  useEffect(() => {
+    if (!mayAssignWideResellerScope && row.pocWideResellerScope) {
+      updateChildRow(childIndex, { pocWideResellerScope: false });
+    }
+  }, [mayAssignWideResellerScope, row.pocWideResellerScope, childIndex, updateChildRow]);
 
   useEffect(() => {
     if (!roleOptions.length) return;
@@ -275,6 +306,7 @@ export function CompanySetupChildPocBlock({
           }}
           disabled={controlsDisabled}
           showInternal={false}
+          allowWideResellerScope={mayAssignWideResellerScope}
         />
         {apiMsg("pocInvite.wideResellerScope") ? (
           <Typography variant="caption" sx={{ color: theme.palette.error.main, display: "block", mt: 0.5 }}>
