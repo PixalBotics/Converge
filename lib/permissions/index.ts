@@ -9,13 +9,58 @@ export {
   resolveDashboardLandingHref,
   getVisibleDashboardNavItems,
   isNavPathSelected,
-  type DashboardNavItem,
-  type DashboardSidebarIconKey,
 } from "./dashboard-access";
+export type { DashboardNavItem, DashboardNavSection, DashboardSidebarIconKey } from "./dashboard-nav.types";
 export {
   getOperationalViewAnyOfForDashboardPath,
   userSatisfiesOperationalViewForDashboardPath,
 } from "./operational-view-gate";
+export { PAGE, ORG, HRMS, HRMS_LEAVE_APPROVE_ANY, HRMS_WORKFORCE_VIEW_ANY, flattenPermissionCodes } from "./permission-constants";
+export {
+  hasAnyOperational,
+  hasPagePermission,
+  canAccessRoute,
+  hasPoolPage,
+  hasDepartmentsPage,
+  canPermissionCode,
+  createPermissionCan,
+  type PermissionChecker,
+  type AuthPermissionArrays,
+} from "./access-helpers";
+export { CHAT_CLIENT_CAP_PRESET_NAMES, CHAT_CLIENT_CAP_PRESET_LABELS } from "./chat-client-cap-preset";
+export {
+  CHAT_BUNDLE_OPTIONS,
+  isChatBundleCode,
+  isGranularChatPermissionCode,
+  pickAssignedChatBundle,
+  type ChatBundleCode,
+} from "./chat-bundles";
+export { useChatApiGates } from "./use-chat-api-gates";
+export {
+  canAgentChatFromArrays,
+  canMonitorFromArrays,
+  canQaFromArrays,
+  canChatReportsFromArrays,
+  canWidgetSettingsFromArrays,
+  canMonitorRoute,
+  canAccessChatInbox,
+  canAccessChatInboxFromChecker,
+  canAccessChatMonitor,
+  canAccessChatQa,
+  canAnnotateQaMessage,
+  canApproveTakeover,
+  canAssignQaReview,
+  canPlatformChatAudit,
+  canRequestTakeover,
+  canReviewQaSession,
+  canSendGuestLink,
+  canUseSupervisorTools,
+  canViewChatReports,
+  canWhisper,
+  needsChatScopeFilters,
+  buildChatLiveNavItems,
+  type ChatLiveNavItem,
+} from "./chat-access";
 export {
   OP,
   canManagePoolHeads,
@@ -30,6 +75,7 @@ export {
   canPoolMemberMove,
   canPoolMemberRemove,
   canShiftAction,
+  canOrgManageAny,
   canCompanyAction,
   hasCompaniesModulePage,
   canCompaniesModuleAction,

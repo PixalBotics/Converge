@@ -6,7 +6,7 @@ import IconButton from "@mui/material/IconButton";
 import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import { Person as PersonIcon, Edit as EditIcon, Delete as DeleteIcon } from "@mui/icons-material";
-import { AddCircleIcon } from "@/components/dashboard/icons/AddCircleIcon";
+import { AddCircleIcon, SearchIcon } from "@/components/common/icons";
 import {
   Typography,
   DashboardCard,
@@ -17,7 +17,6 @@ import {
   TablePagination,
 } from "@/components/common";
 import type { DataTableColumn } from "@/components/common";
-import { SearchIcon } from "@/components/dashboard/icons/SearchIcon";
 import { useRolesListQuery, useSoftDeleteRoleMutation } from "@/lib/hooks";
 import {
   rolesPageWrapper,

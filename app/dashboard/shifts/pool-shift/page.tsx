@@ -1,13 +1,15 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Box from "@mui/material/Box";
 import IconButton from "@mui/material/IconButton";
 import Chip from "@mui/material/Chip";
+import Checkbox from "@mui/material/Checkbox";
+import FormControlLabel from "@mui/material/FormControlLabel";
 import { AttachMoney as AttachMoneyIcon } from "@mui/icons-material";
 import DeleteIcon from "@mui/icons-material/Delete";
 import type { SxProps, Theme } from "@mui/material/styles";
-import { useTheme } from "@mui/material/styles";
+import { alpha, useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import {
   Typography,
@@ -20,13 +22,23 @@ import {
   InputField,
   FormModal,
   ConfirmActionModal,
+  SearchBar,
+  ToolbarFilterPopover,
+  ToolbarFilterPopoverPanel,
 } from "@/components/common";
 import type { DataTableColumn } from "@/components/common";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
 import { rolesCard, rolesIconBox, rolesPageWrapper } from "../../roles/roles.styles";
 import { footerMutedText, pageWrapper } from "../../companies/overview.styles";
 import { publishAppToast } from "@/lib/notify";
-import { isRecord, pickNum, pickStr, unwrapApiData } from "@/lib/utils";
+import { isRecord, pickNum, pickStr, unwrapApiData } from "@/lib/utils/core";
+import {
+  HRMS_SHIFTS_LIST_SEARCH_MAX,
+  clampWorkingDaysMask,
+  effectiveWorkingDaysMask,
+  formatWorkingDaysMaskHuman,
+  HRMS_DEFAULT_WORKING_DAYS_MASK,
+} from "@/lib/utils/hrms";
 import {
   useAssignPoolShiftMutation,
   useCompaniesByResellerQuery,
@@ -39,12 +51,17 @@ import {
 } from "@/lib/hooks/query";
 import { extractParentCompaniesFromByResellerTree, pickItemsArray, toIdNameOption } from "@/app/dashboard/user-page/components/add-user-modal.utils";
 import { useAuth, sessionMayPickInternalUserScope } from "@/lib/auth";
+import { WorkingWeekDayToggles } from "@/app/dashboard/shifts/components";
+import {
+  departmentsCardHeader,
+  departmentsSearchFieldWrapper,
+  departmentsSearchRow,
+} from "@/app/dashboard/website-assigning/website-assigning.styles";
 import {
   poolShiftActionsSx,
-  poolShiftCardHeaderSx,
-  poolShiftFilterFieldsGridSx,
   poolShiftFilterHintSx,
-  poolShiftFormGridSx,
+  poolShiftFilterPopoverPairRowSx,
+  poolShiftFilterPopoverStackSx,
   poolShiftHeaderWrapSx,
   poolShiftIconSx,
   poolShiftSubtextSx,
@@ -63,6 +80,7 @@ type AssignmentRow = {
   shiftName: string;
   effectiveFrom: string;
   effectiveTo: string;
+  weekSummary: string;
 };
 
 export default function PoolShiftPage() {
@@ -82,6 +100,9 @@ export default function PoolShiftPage() {
   const [filterPoolId, setFilterPoolId] = useState("");
 
   const [page, setPage] = useState(1);
+  const [listSearchDraft, setListSearchDraft] = useState("");
+  const [listAppliedSearch, setListAppliedSearch] = useState("");
+  const [listFilterOpen, setListFilterOpen] = useState(false);
   const [assignOpen, setAssignOpen] = useState(false);
   const [removeTarget, setRemoveTarget] = useState<AssignmentRow | null>(null);
 
@@ -96,6 +117,8 @@ export default function PoolShiftPage() {
   const [shiftId, setShiftId] = useState("");
   const [effectiveFrom, setEffectiveFrom] = useState("");
   const [effectiveTo, setEffectiveTo] = useState("");
+  const [assignOverrideWeek, setAssignOverrideWeek] = useState(false);
+  const [assignWorkingMask, setAssignWorkingMask] = useState(HRMS_DEFAULT_WORKING_DAYS_MASK);
 
   const filterInternalDepartmentsQuery = useDepartmentsListQuery(
     effectiveFilterKind === "Internal" ? { all: true, type: "Internal" } : undefined,
@@ -172,6 +195,8 @@ export default function PoolShiftPage() {
     setFilterParentCompanyId("");
     setFilterDepartmentId("");
     setFilterPoolId("");
+    setListSearchDraft("");
+    setListAppliedSearch("");
   }, [filterDeptKind]);
 
   useEffect(() => {
@@ -194,6 +219,7 @@ export default function PoolShiftPage() {
     setAssignParentCompanyId("");
     setAssignDepartmentId("");
     setAssignPoolId("");
+    setShiftId("");
   }, [assignDeptKind]);
 
   useEffect(() => {
@@ -363,7 +389,32 @@ export default function PoolShiftPage() {
     return [{ value: "", label: prompt }, ...base];
   }, [assignPoolsQuery.data, assignPoolsQuery.isLoading, assignDepartmentId]);
 
-  const shiftsQuery = useShiftsListQuery({ all: true }, { enabled: true, scope: "pool-shift-templates" });
+  const shiftCatalogParentCompanyId = useMemo(() => {
+    if (assignOpen && effectiveAssignKind === "External" && assignParentCompanyId.trim()) {
+      return assignParentCompanyId.trim();
+    }
+    if (!assignOpen && effectiveFilterKind === "External" && filterParentCompanyId.trim()) {
+      return filterParentCompanyId.trim();
+    }
+    return "";
+  }, [
+    assignOpen,
+    effectiveAssignKind,
+    assignParentCompanyId,
+    effectiveFilterKind,
+    filterParentCompanyId,
+  ]);
+
+  const shiftCatalogKind = assignOpen ? effectiveAssignKind : effectiveFilterKind;
+
+  const shiftsQuery = useShiftsListQuery(
+    {
+      all: true,
+      shiftScope: shiftCatalogKind === "Internal" ? "internal" : "external",
+      ...(shiftCatalogParentCompanyId ? { parentCompanyId: shiftCatalogParentCompanyId } : {}),
+    },
+    { enabled: true, scope: "pool-shift-templates" },
+  );
   const shiftOptions = useMemo(() => {
     const payload = unwrapApiData(shiftsQuery.data);
     const payloadObj = isRecord(payload) ? payload : null;
@@ -373,7 +424,10 @@ export default function PoolShiftPage() {
         const id = pickStr(r, ["id"]);
         const name = pickStr(r, ["name"]);
         if (!id || !name) return null;
-        return { value: id, label: name };
+        const cat = pickStr(r, ["catalog"]).toLowerCase();
+        const scopeLabel = cat === "platform" ? "Internal" : cat === "tenant" ? "External" : "";
+        const label = scopeLabel ? `${name} (${scopeLabel})` : name;
+        return { value: id, label };
       })
       .filter((o): o is { value: string; label: string } => o !== null);
     return [{ value: "", label: "— Select shift —" }, ...base];
@@ -387,16 +441,12 @@ export default function PoolShiftPage() {
   const listParams = useMemo(
     () =>
       filterPoolId.trim()
-        ? {
-            poolId: filterPoolId.trim(),
-            page,
-            limit: PAGE_LIMIT,
-          }
-        : undefined,
+        ? { poolId: filterPoolId.trim(), page, limit: PAGE_LIMIT }
+        : { all: true as const, page, limit: PAGE_LIMIT },
     [filterPoolId, page],
   );
   const listQuery = usePoolShiftAssignmentsListQuery(listParams, {
-    enabled: Boolean(filterPoolId.trim()),
+    enabled: true,
     scope: "pool-shift",
   });
   const assignMutation = useAssignPoolShiftMutation();
@@ -421,6 +471,8 @@ export default function PoolShiftPage() {
 
   useEffect(() => {
     setPage(1);
+    setListSearchDraft("");
+    setListAppliedSearch("");
   }, [filterPoolId]);
 
   useEffect(() => {
@@ -436,16 +488,41 @@ export default function PoolShiftPage() {
           pickStr(isRecord(r["pool"]) ? (r["pool"] as Record<string, unknown>) : null, ["name"]) ||
           selectedPoolLabel ||
           "—";
+        const shiftObj = isRecord(r["shift"]) ? (r["shift"] as Record<string, unknown>) : null;
         const shiftName =
-          pickStr(isRecord(r["shift"]) ? (r["shift"] as Record<string, unknown>) : null, ["name"]) ||
+          pickStr(shiftObj, ["name"]) ||
           pickStr(r, ["shiftName"]) ||
           "—";
         const from = pickStr(r, ["effectiveFrom", "from", "startDate"]) || "—";
         const to = pickStr(r, ["effectiveTo", "to", "endDate"]) || "—";
-        return { id, poolName, shiftName, effectiveFrom: from, effectiveTo: to };
+        const rawAssign = r["workingDaysMask"] ?? r["working_days_mask"];
+        let assignMask: number | null = null;
+        if (rawAssign !== null && rawAssign !== undefined && rawAssign !== "") {
+          const n = typeof rawAssign === "number" ? rawAssign : Number(rawAssign);
+          if (Number.isFinite(n) && n >= 1 && n <= 127) assignMask = Math.trunc(n);
+        }
+        const tmplMask = pickNum(shiftObj, ["workingDaysMask", "working_days_mask"]);
+        const eff = effectiveWorkingDaysMask(assignMask, tmplMask);
+        const weekSummary =
+          assignMask != null
+            ? formatWorkingDaysMaskHuman(clampWorkingDaysMask(assignMask))
+            : `Inherited (${formatWorkingDaysMaskHuman(eff)})`;
+        return { id, poolName, shiftName, effectiveFrom: from, effectiveTo: to, weekSummary };
       })
       .filter((x): x is AssignmentRow => x !== null);
   }, [items, selectedPoolLabel]);
+
+  const listSearchNorm = useMemo(() => listAppliedSearch.trim().toLowerCase(), [listAppliedSearch]);
+
+  const listDisplayRows = useMemo(() => {
+    if (!listSearchNorm) return tableRows;
+    return tableRows.filter((row) => {
+      const hay = [row.poolName, row.shiftName, row.weekSummary, row.effectiveFrom, row.effectiveTo]
+        .join(" ")
+        .toLowerCase();
+      return hay.includes(listSearchNorm);
+    });
+  }, [tableRows, listSearchNorm]);
 
   const footerRangeStart = tableRows.length > 0 ? (page - 1) * PAGE_LIMIT + 1 : 0;
   const footerRangeEnd = (page - 1) * PAGE_LIMIT + tableRows.length;
@@ -454,6 +531,7 @@ export default function PoolShiftPage() {
     () => [
       { id: "poolName", label: "Pool" },
       { id: "shiftName", label: "Shift" },
+      { id: "weekSummary", label: "Working week" },
       { id: "effectiveFrom", label: "Effective from" },
       { id: "effectiveTo", label: "Effective to" },
     ],
@@ -461,31 +539,141 @@ export default function PoolShiftPage() {
   );
 
   const filterHint = useMemo(() => {
-    if (filterPoolId.trim()) return "Filtered by pool";
-    if (filterDepartmentId.trim()) return "Pick a pool to load assignments below";
+    if (filterPoolId.trim()) return "List is limited to the selected pool.";
+    if (filterDepartmentId.trim()) return "Optional: pick a pool to narrow the list; leave pool empty to keep all assignments visible.";
     if (effectiveFilterKind === "External" && (filterResellerId.trim() || filterParentCompanyId.trim())) {
-      return "Narrow pools with reseller / parent / department, then select a pool";
+      return "Use department (and optionally pool) to narrow external assignments.";
     }
-    return "Select filters and a pool to view assignments";
+    return "Showing all pool assignments. Open Filter to narrow by department or pool.";
   }, [effectiveFilterKind, filterPoolId, filterDepartmentId, filterResellerId, filterParentCompanyId]);
 
   const filterClearDisabled = useMemo(
     () =>
+      !listSearchDraft.trim() &&
+      !listAppliedSearch.trim() &&
       !filterPoolId.trim() &&
       !filterDepartmentId.trim() &&
       !filterResellerId.trim() &&
       !filterParentCompanyId.trim() &&
       (!mayPickInternal || filterDeptKind === "Internal"),
-    [mayPickInternal, filterDeptKind, filterPoolId, filterDepartmentId, filterResellerId, filterParentCompanyId],
+    [
+      mayPickInternal,
+      filterDeptKind,
+      listSearchDraft,
+      listAppliedSearch,
+      filterPoolId,
+      filterDepartmentId,
+      filterResellerId,
+      filterParentCompanyId,
+    ],
   );
 
-  const clearFilters = () => {
+  const clearFilters = useCallback(() => {
     setFilterDeptKind(mayPickInternal ? "Internal" : "External");
     setFilterResellerId("");
     setFilterParentCompanyId("");
     setFilterDepartmentId("");
     setFilterPoolId("");
-  };
+    setListSearchDraft("");
+    setListAppliedSearch("");
+  }, [mayPickInternal]);
+
+  const handleListSearchApply = useCallback(() => {
+    setListAppliedSearch(listSearchDraft.trim().slice(0, HRMS_SHIFTS_LIST_SEARCH_MAX));
+    setPage(1);
+  }, [listSearchDraft]);
+
+  const poolShiftListFilterPanel = useMemo(() => {
+    return (
+      <ToolbarFilterPopoverPanel
+        footer={
+          <>
+            <Button type="button" variant="secondary" disabled={filterClearDisabled} onClick={clearFilters}>
+              Clear filters
+            </Button>
+            <Button type="button" variant="primary" sx={gradientPrimaryButtonSx} onClick={() => setListFilterOpen(false)}>
+              Done
+            </Button>
+          </>
+        }
+      >
+        <Typography variant="medium" fontWeight={700} sx={{ color: theme.app.text.primary, mb: 1.5 }}>
+          Filters
+        </Typography>
+        <Box sx={poolShiftFilterPopoverStackSx}>
+            {mayPickInternal ? (
+              <SelectField
+                label="Department type"
+                value={filterDeptKind}
+                onChange={(v) => setFilterDeptKind(v as "Internal" | "External")}
+                options={DEPT_KIND_OPTIONS}
+                menuMaxRows={4}
+              />
+            ) : null}
+            {effectiveFilterKind === "External" ? (
+              <Box sx={poolShiftFilterPopoverPairRowSx}>
+                <SelectField
+                  label="Reseller"
+                  value={filterResellerId}
+                  onChange={setFilterResellerId}
+                  options={filterResellerOptions}
+                  menuMaxRows={8}
+                />
+                <SelectField
+                  label="Parent company"
+                  value={filterParentCompanyId}
+                  onChange={setFilterParentCompanyId}
+                  options={filterParentCompanyOptions}
+                  searchable
+                  searchPlaceholder="Search parent company…"
+                  menuMaxRows={7}
+                  disabled={!filterResellerId.trim()}
+                />
+              </Box>
+            ) : null}
+            <SelectField
+              label="Department"
+              value={filterDepartmentId}
+              onChange={setFilterDepartmentId}
+              options={filterDepartmentOptions}
+              searchable
+              searchPlaceholder="Search department…"
+              menuMaxRows={8}
+              disabled={effectiveFilterKind === "External" && !filterParentCompanyId.trim()}
+            />
+            <SelectField
+              label="Pool"
+              value={filterPoolId}
+              onChange={setFilterPoolId}
+              options={filterPoolOptions}
+              searchable
+              searchPlaceholder="Search pool…"
+              menuMaxRows={7}
+              disabled={!filterDepartmentId.trim()}
+            />
+          </Box>
+          <Typography variant="body2" sx={{ ...poolShiftFilterHintSx, mt: 1.5 }}>
+            {filterHint}
+          </Typography>
+      </ToolbarFilterPopoverPanel>
+    );
+  }, [
+    theme,
+    mayPickInternal,
+    filterDeptKind,
+    effectiveFilterKind,
+    filterResellerId,
+    filterParentCompanyId,
+    filterDepartmentId,
+    filterPoolId,
+    filterResellerOptions,
+    filterParentCompanyOptions,
+    filterDepartmentOptions,
+    filterPoolOptions,
+    filterHint,
+    filterClearDisabled,
+    clearFilters,
+  ]);
 
   const resetAssignModal = () => {
     setAssignDeptKind(mayPickInternal ? "Internal" : "External");
@@ -496,6 +684,8 @@ export default function PoolShiftPage() {
     setShiftId("");
     setEffectiveFrom("");
     setEffectiveTo("");
+    setAssignOverrideWeek(false);
+    setAssignWorkingMask(HRMS_DEFAULT_WORKING_DAYS_MASK);
   };
 
   const handleAssign = () => {
@@ -526,6 +716,7 @@ export default function PoolShiftPage() {
         shiftId: shiftId.trim(),
         effectiveFrom: effectiveFrom.trim(),
         effectiveTo: effectiveTo.trim(),
+        ...(assignOverrideWeek ? { workingDaysMask: clampWorkingDaysMask(assignWorkingMask) } : {}),
       },
       {
         onSuccess: () => {
@@ -537,6 +728,23 @@ export default function PoolShiftPage() {
       },
     );
   };
+
+  const listAssignmentsFooterText = useMemo(() => {
+    if (listQuery.isLoading || listQuery.isFetching) return "Loading…";
+    if (listAppliedSearch.trim()) {
+      if (listDisplayRows.length === 0) return "No assignments on this page match your search.";
+      return `${listDisplayRows.length} row(s) on this page match your search (current page only).`;
+    }
+    return `Showing data ${footerRangeStart} to ${footerRangeEnd} of ${totalEntries} entries`;
+  }, [
+    listQuery.isFetching,
+    listQuery.isLoading,
+    listAppliedSearch,
+    listDisplayRows.length,
+    footerRangeStart,
+    footerRangeEnd,
+    totalEntries,
+  ]);
 
   return (
     <Box sx={[pageWrapper, rolesPageWrapper] as SxProps<Theme>}>
@@ -550,142 +758,105 @@ export default function PoolShiftPage() {
           </Typography>
         </Box>
         <Box sx={poolShiftActionsSx}>
-          {filterPoolId.trim() ? (
-            <Chip
-              size="small"
-              label={`${totalEntries} assignment${totalEntries === 1 ? "" : "s"}`}
-              variant="outlined"
-              sx={{ alignSelf: "center", borderColor: "rgba(255,255,255,0.35)", color: theme.app.dashboard.white95 }}
-            />
-          ) : null}
+          <Chip
+            size="small"
+            label={`${totalEntries} assignment${totalEntries === 1 ? "" : "s"}`}
+            variant="outlined"
+            sx={{ alignSelf: "center", borderColor: "rgba(255,255,255,0.35)", color: theme.app.dashboard.white95 }}
+          />
           <Button variant="primary" sx={gradientPrimaryButtonSx} onClick={() => setAssignOpen(true)}>
             Add pool shift
           </Button>
         </Box>
       </Box>
 
-      <DashboardCard sx={rolesCard}>
-        <Box sx={poolShiftCardHeaderSx}>
-          <Box sx={rolesIconBox}>
-            <AttachMoneyIcon sx={poolShiftIconSx} />
+      <DashboardCard
+        sx={{
+          ...rolesCard,
+          border: `1px solid ${alpha(theme.palette.common.white, 0.14)}`,
+        }}
+      >
+        <Box sx={[departmentsCardHeader, { pb: 1.25 }] as SxProps<Theme>}>
+          <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1.5, minWidth: 0 }}>
+            <Box sx={rolesIconBox}>
+              <AttachMoneyIcon sx={poolShiftIconSx} />
+            </Box>
+            <Box sx={{ minWidth: 0 }}>
+              <Typography variant="mediumLarge" fontWeight={600} color="white">
+                Assigned shifts
+              </Typography>
+              <Typography variant="body2" sx={poolShiftSubtextSx}>
+                Use Filter to narrow by department or pool. Search applies to the current page after you press Search.
+              </Typography>
+            </Box>
           </Box>
-          <Typography variant="mediumLarge" fontWeight={600} color="white">
-            Filters
-          </Typography>
-        </Box>
-
-        <Box sx={poolShiftFilterFieldsGridSx}>
-          {mayPickInternal ? (
-            <SelectField
-              label="Department type"
-              value={filterDeptKind}
-              onChange={(v) => setFilterDeptKind(v as "Internal" | "External")}
-              options={DEPT_KIND_OPTIONS}
-              menuMaxRows={4}
-            />
-          ) : null}
-          {effectiveFilterKind === "External" ? (
-            <>
-              <SelectField
-                label="Reseller"
-                value={filterResellerId}
-                onChange={setFilterResellerId}
-                options={filterResellerOptions}
-                menuMaxRows={8}
+          <Box sx={departmentsSearchRow}>
+            <Box sx={departmentsSearchFieldWrapper}>
+              <SearchBar
+                value={listSearchDraft}
+                onChange={(v) => setListSearchDraft(v.slice(0, HRMS_SHIFTS_LIST_SEARCH_MAX))}
+                placeholder="Search by pool, shift, or dates…"
               />
-              <SelectField
-                label="Parent company"
-                value={filterParentCompanyId}
-                onChange={setFilterParentCompanyId}
-                options={filterParentCompanyOptions}
-                searchable
-                searchPlaceholder="Search parent company…"
-                menuMaxRows={7}
-                disabled={!filterResellerId.trim()}
-              />
-            </>
-          ) : null}
-          <SelectField
-            label="Department"
-            value={filterDepartmentId}
-            onChange={setFilterDepartmentId}
-            options={filterDepartmentOptions}
-            searchable
-            searchPlaceholder="Search department…"
-            menuMaxRows={8}
-            disabled={effectiveFilterKind === "External" && !filterParentCompanyId.trim()}
-          />
-          <SelectField
-            label="Pool"
-            value={filterPoolId}
-            onChange={setFilterPoolId}
-            options={filterPoolOptions}
-            searchable
-            searchPlaceholder="Search pool…"
-            menuMaxRows={7}
-            disabled={!filterDepartmentId.trim()}
-          />
-        </Box>
-
-        <Box sx={{ ...poolShiftFormGridSx, mt: 0.5 }}>
-          <Typography variant="body2" sx={poolShiftFilterHintSx}>
-            {filterHint}
-          </Typography>
-          <Box sx={{ display: "flex", alignItems: "end", justifyContent: { xs: "flex-start", md: "flex-end" }, gap: 1.25, flexWrap: "wrap" }}>
-            <Button variant="secondary" onClick={clearFilters} disabled={filterClearDisabled}>
-              Clear filters
+            </Box>
+            <Button
+              type="button"
+              variant="primary"
+              disabled={listSearchDraft.trim() === listAppliedSearch.trim()}
+              onClick={handleListSearchApply}
+              sx={{ minWidth: 132, whiteSpace: "nowrap", alignSelf: { xs: "stretch", sm: "center" } }}
+            >
+              Search
             </Button>
+            <ToolbarFilterPopover open={listFilterOpen} onOpenChange={setListFilterOpen} active={!filterClearDisabled}>
+              {poolShiftListFilterPanel}
+            </ToolbarFilterPopover>
           </Box>
         </Box>
-      </DashboardCard>
 
-      <DashboardCard sx={rolesCard}>
-        <Box sx={poolShiftCardHeaderSx}>
-          <Box sx={rolesIconBox}>
-            <AttachMoneyIcon sx={poolShiftIconSx} />
-          </Box>
-          <Typography variant="mediumLarge" fontWeight={600} color="white">
-            Assigned shifts
-          </Typography>
+        <Box sx={{ px: { xs: 1.5, sm: 2 }, pb: 0 }}>
+          <DataTable<AssignmentRow>
+            columns={columns}
+            rows={listDisplayRows}
+            isLoading={listQuery.isLoading || listQuery.isFetching}
+            getRowId={(row) => row.id}
+            minWidth={720}
+            actionColumn={{
+              label: "Action",
+              render: (row) => (
+                <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+                  <IconButton
+                    size="small"
+                    sx={{
+                      ...dataTableActionButton,
+                      color: theme.app.dashboard.accentRedLight,
+                      opacity: removeMutation.isPending ? 0.7 : 1,
+                    }}
+                    aria-label="Remove assignment"
+                    disabled={removeMutation.isPending}
+                    onClick={() => {
+                      setRemoveTarget(row);
+                    }}
+                  >
+                    <DeleteIcon fontSize="small" />
+                  </IconButton>
+                </Box>
+              ),
+            }}
+          />
         </Box>
 
-        <DataTable<AssignmentRow>
-          columns={columns}
-          rows={tableRows}
-          isLoading={listQuery.isLoading || listQuery.isFetching}
-          getRowId={(row) => row.id}
-          minWidth={720}
-          actionColumn={{
-            label: "Action",
-            render: (row) => (
-              <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
-                <IconButton
-                  size="small"
-                  sx={{
-                    ...dataTableActionButton,
-                    color: theme.app.dashboard.accentRedLight,
-                    opacity: removeMutation.isPending ? 0.7 : 1,
-                  }}
-                  aria-label="Remove assignment"
-                  disabled={removeMutation.isPending}
-                  onClick={() => {
-                    setRemoveTarget(row);
-                  }}
-                >
-                  <DeleteIcon fontSize="small" />
-                </IconButton>
-              </Box>
-            ),
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            mt: 2,
+            px: { xs: 1.5, sm: 2 },
+            pb: { xs: 1.5, sm: 2 },
           }}
-        />
-
-        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mt: 2 }}>
+        >
           <Typography variant="medium" sx={footerMutedText(theme)}>
-            {!filterPoolId.trim()
-              ? "Select a pool to view assignments."
-              : listQuery.isLoading
-                ? "Loading…"
-                : `Showing data ${footerRangeStart} to ${footerRangeEnd} of ${totalEntries} entries`}
+            {listAssignmentsFooterText}
           </Typography>
           <TablePagination page={page} pageCount={pageCount} onPageChange={setPage} />
         </Box>
@@ -771,6 +942,55 @@ export default function PoolShiftPage() {
             searchPlaceholder="Search shift…"
             menuMaxRows={7}
           />
+          <Box
+            sx={{
+              mt: 1,
+              pt: 1.5,
+              borderTop: `1px solid ${alpha(theme.app.dashboard.white95, 0.1)}`,
+            }}
+          >
+            <Typography
+              variant="caption"
+              sx={{
+                display: "block",
+                mb: 1,
+                fontWeight: 700,
+                letterSpacing: "0.08em",
+                textTransform: "uppercase",
+                color: alpha(theme.app.dashboard.white95, 0.42),
+              }}
+            >
+              Weekly pattern override
+            </Typography>
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={assignOverrideWeek}
+                  onChange={(e) => setAssignOverrideWeek(e.target.checked)}
+                  disabled={assignMutation.isPending}
+                  size="small"
+                />
+              }
+              label={
+                <Box>
+                  <Typography variant="body2" color="white" sx={{ fontWeight: 600 }}>
+                    Use custom working days
+                  </Typography>
+                  <Typography variant="caption" sx={{ display: "block", color: theme.app.dashboard.textMuted, mt: 0.25, lineHeight: 1.45 }}>
+                    Inherits the shift template when off. Sent only for this pool assignment.
+                  </Typography>
+                </Box>
+              }
+              sx={{ alignItems: "flex-start", ml: 0, mr: 0, mb: assignOverrideWeek ? 1 : 0 }}
+            />
+            {assignOverrideWeek ? (
+              <WorkingWeekDayToggles
+                value={assignWorkingMask}
+                onChange={setAssignWorkingMask}
+                disabled={assignMutation.isPending}
+              />
+            ) : null}
+          </Box>
           <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 2 }}>
             <InputField
               label="Effective from"
@@ -794,6 +1014,7 @@ export default function PoolShiftPage() {
         description="Remove this pool shift assignment?"
         confirmLabel={removeMutation.isPending ? "Removing…" : "Remove"}
         cancelLabel="Cancel"
+        confirmButtonVariant="danger"
         isLoading={removeMutation.isPending}
         onDismiss={() => {
           if (removeMutation.isPending) return;

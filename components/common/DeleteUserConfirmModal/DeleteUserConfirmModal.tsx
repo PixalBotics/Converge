@@ -56,6 +56,7 @@ export function DeleteUserConfirmModal({
       onSave={onConfirm}
       primaryButtonLabel={isDeleting ? "Deleting…" : "Delete user"}
       primaryButtonDisabled={!isConfirmed || isDeleting}
+      primaryButtonVariant="danger"
       cancelButtonLabel="Cancel"
       primaryStartIcon={<DeleteForever sx={{ fontSize: 18 }} />}
       maxWidth={480}

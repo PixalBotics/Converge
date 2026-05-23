@@ -51,7 +51,7 @@ export function ChildCompanyPocEditor({
   const [inviteRow, setInviteRow] = useState<DraftChildPayload>(() => emptyDraftChildRow());
 
   const usersQuery = useUsersListQuery(
-    { parentCompanyId: parentCompanyId.trim(), page: 1, limit: 200 },
+    { parentCompanyId: parentCompanyId.trim(), all: true },
     { enabled: parentCompanyId.trim().length > 0 },
   );
   const userRows = useMemo(() => extractUsersRows(usersQuery.data), [usersQuery.data]);

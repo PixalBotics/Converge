@@ -13,6 +13,12 @@ export type MonthGridCalendarEvent = {
   toIso: string;
   /** Optional tooltip/title text. */
   title?: string;
+  /**
+   * When set with `shiftTimeZone`, cells in range use this mask to show weekly off days
+   * (label becomes a muted "Off" chip instead of `label`).
+   */
+  effectiveWorkingDaysMask?: number;
+  shiftTimeZone?: string;
 };
 
 export type MonthGridCalendarProps = {

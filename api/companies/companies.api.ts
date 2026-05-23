@@ -16,16 +16,24 @@ export async function listCompanies(
 }
 
 /**
- * Same as {@link listCompanies} with `resellerId` set — Nest `GET /companies` + `ListCompaniesQueryDto`.
+ * `GET /companies/by-reseller/{resellerId}` — platform/internal picker for one reseller tenant.
+ * Query params match {@link listCompanies} (view, all, parentCompanyId, …) except `resellerId` (path only).
  */
 export async function listCompaniesByReseller(
   resellerId: string,
   params?: JsonRecord,
 ): Promise<CompaniesListResponseEnvelope> {
-  return listCompanies({
-    ...params,
-    resellerId: resellerId.trim(),
-  });
+  const rid = resellerId.trim();
+  if (!rid) {
+    return listCompanies(params);
+  }
+  const query = { ...(params ?? {}) } as JsonRecord & { resellerId?: string };
+  delete query.resellerId;
+  const { data } = await apiClient.get<CompaniesListResponseEnvelope>(
+    `/companies/by-reseller/${encodeURIComponent(rid)}`,
+    { params: query },
+  );
+  return data;
 }
 
 export async function getCompaniesSetupResellers(): Promise<unknown> {

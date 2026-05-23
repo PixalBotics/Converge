@@ -4,14 +4,24 @@ import { useEffect, useMemo, useState } from "react";
 import Box from "@mui/material/Box";
 import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
-import { AddCircleIcon } from "@/components/dashboard/icons/AddCircleIcon";
-import { Typography, Button } from "@/components/common";
-import { useUserFilterSuggestionsQuery, useUsersListQuery } from "@/lib/hooks";
+import { AddCircleIcon } from "@/components/common/icons";
+import { Typography, Button, type FilterableComboOption } from "@/components/common";
+import {
+  useCompaniesByResellerQuery,
+  useCompaniesSetupResellersQuery,
+  useUserFilterSuggestionsQuery,
+  useUsersListQuery,
+} from "@/lib/hooks";
 import { useAuth, sessionMayPickInternalUserScope } from "@/lib/auth";
 import { UserStatsCards } from "./components/UserStatsCards";
 import { UsersTableSection } from "./components/UsersTableSection";
 import { AddUserModal } from "./components/AddUserModal";
-import { type FilterKind } from "./types";
+import { type FilterKind, type UserListTypeFilter } from "./types";
+import {
+  extractParentCompaniesFromByResellerTree,
+  pickItemsArray,
+  toIdNameOption,
+} from "./components/add-user-modal.utils";
 import {
   extractUserCounts,
   extractUserSuggestions,
@@ -48,14 +58,67 @@ export default function UserPage() {
     departmentId?: string;
     designationId?: string;
   }>({});
+  const [listUserTypeFilter, setListUserTypeFilter] = useState<UserListTypeFilter>("all");
+  const [listScopeResellerId, setListScopeResellerId] = useState("");
+  const [listScopeParentCompanyId, setListScopeParentCompanyId] = useState("");
+
+  const resellersQuery = useCompaniesSetupResellersQuery({ enabled: true });
+  const companiesByResellerQuery = useCompaniesByResellerQuery(
+    listScopeResellerId,
+    { view: "tree", sortBy: "name", sortOrder: "asc", all: true },
+    { enabled: listUserTypeFilter === "External" && listScopeResellerId.trim().length > 0 },
+  );
+
+  const resellerOptions = useMemo(() => {
+    return pickItemsArray(resellersQuery.data)
+      .map((row) => toIdNameOption(row))
+      .filter((o): o is { value: string; label: string } => o !== null);
+  }, [resellersQuery.data]);
+
+  const resellerSelectOptions = useMemo((): FilterableComboOption[] => {
+    if (resellersQuery.isLoading) {
+      return [{ value: "", label: "Loading resellers…", disabled: true }];
+    }
+    const head: FilterableComboOption = { value: "", label: "Any reseller (optional)" };
+    return resellerOptions.length > 0 ? [head, ...resellerOptions] : [head];
+  }, [resellerOptions, resellersQuery.isLoading]);
+
+  const parentCompanySelectOptions = useMemo((): FilterableComboOption[] => {
+    if (listUserTypeFilter !== "External") {
+      return [{ value: "", label: "—", disabled: true }];
+    }
+    if (!listScopeResellerId.trim()) {
+      return [{ value: "", label: "Choose a reseller first", disabled: true }];
+    }
+    const parents = extractParentCompaniesFromByResellerTree(companiesByResellerQuery.data);
+    if (companiesByResellerQuery.isFetching && parents.length === 0) {
+      return [{ value: "", label: "Loading parent companies…", disabled: true }];
+    }
+    const head: FilterableComboOption = { value: "", label: "Any parent under reseller" };
+    return parents.length > 0
+      ? [head, ...parents]
+      : [{ value: "", label: "No parent companies for this reseller", disabled: true }];
+  }, [listUserTypeFilter, listScopeResellerId, companiesByResellerQuery.data, companiesByResellerQuery.isFetching]);
+
+  /** Reseller list ids are company rows — GET /users scopes reseller-only via `companyId`, not `resellerId`. */
+  const externalResellerOnlyCompanyId =
+    listUserTypeFilter === "External" &&
+    listScopeResellerId.trim().length > 0 &&
+    !listScopeParentCompanyId.trim()
+      ? listScopeResellerId.trim()
+      : undefined;
 
   const usersQuery = useUsersListQuery({
     page,
     limit: 20,
     search: appliedSearch.trim() || undefined,
+    userType: listUserTypeFilter === "all" ? undefined : listUserTypeFilter,
+    parentCompanyId:
+      listUserTypeFilter === "External" && listScopeParentCompanyId.trim()
+        ? listScopeParentCompanyId.trim()
+        : appliedFilterIds.parentCompanyId,
     userId: appliedFilterIds.userId,
-    companyId: appliedFilterIds.companyId,
-    parentCompanyId: appliedFilterIds.parentCompanyId,
+    companyId: externalResellerOnlyCompanyId ?? appliedFilterIds.companyId,
     departmentId: appliedFilterIds.departmentId,
     designationId: appliedFilterIds.designationId,
   });
@@ -123,6 +186,39 @@ export default function UserPage() {
     setPage(totalPages);
   }, [page, totalPages]);
 
+  useEffect(() => {
+    if (showInternalUsersCard || listUserTypeFilter !== "Internal") return;
+    setListUserTypeFilter("all");
+    setPage(1);
+  }, [showInternalUsersCard, listUserTypeFilter]);
+
+  const handleListUserTypeFilterChange = (value: UserListTypeFilter) => {
+    setListUserTypeFilter(value);
+    if (value !== "External") {
+      setListScopeResellerId("");
+      setListScopeParentCompanyId("");
+    }
+    setPage(1);
+  };
+
+  const handleListScopeResellerChange = (value: string) => {
+    setListScopeResellerId(value);
+    setListScopeParentCompanyId("");
+    setPage(1);
+  };
+
+  const handleListScopeParentCompanyChange = (value: string) => {
+    setListScopeParentCompanyId(value);
+    setPage(1);
+  };
+
+  const resetListFilters = () => {
+    setListUserTypeFilter("all");
+    setListScopeResellerId("");
+    setListScopeParentCompanyId("");
+    setPage(1);
+  };
+
   return (
     <Box sx={overviewPageWrapper}>
       <Box sx={overviewHeader}>
@@ -167,6 +263,17 @@ export default function UserPage() {
         setSelectedSuggestion={setSelectedSuggestion}
         isSuggestionsLoading={isSuggestionsLoading}
         onSearch={runSearch}
+        listUserTypeFilter={listUserTypeFilter}
+        onListUserTypeFilterChange={handleListUserTypeFilterChange}
+        showInternalUserTypeOption={showInternalUsersCard}
+        listScopeResellerId={listScopeResellerId}
+        listScopeParentCompanyId={listScopeParentCompanyId}
+        onListScopeResellerChange={handleListScopeResellerChange}
+        onListScopeParentCompanyChange={handleListScopeParentCompanyChange}
+        resellerSelectOptions={resellerSelectOptions}
+        parentCompanySelectOptions={parentCompanySelectOptions}
+        resellerFilterDisabled={resellersQuery.isLoading}
+        onResetListFilters={resetListFilters}
         rows={tableRows}
         page={page}
         pageCount={totalPages}

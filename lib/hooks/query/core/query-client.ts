@@ -1,4 +1,6 @@
 import { MutationCache, QueryCache, QueryClient } from "@tanstack/react-query";
+import { isAuthSessionTerminated } from "@/api/session/terminate-auth-session";
+import { classifyApiError, publishAppBoundary } from "@/lib/app-boundaries";
 import {
   extractApiErrorMessageForToast,
   extractApiSuccessMessageForToast,
@@ -28,6 +30,21 @@ export function makeQueryClient(): QueryClient {
     queryCache: new QueryCache({
       onError: (error, query) => {
         if (shouldSkipGlobalToast(query.meta)) return;
+        if (isAuthSessionTerminated()) return;
+        const classified = classifyApiError(error);
+        if (classified.kind === "session_expired") return;
+        if (classified.kind) {
+          publishAppBoundary({
+            kind: classified.kind,
+            title: classified.title,
+            description: classified.description,
+            onRetry: () => {
+              void query.fetch();
+            },
+          });
+          return;
+        }
+        if (!classified.shouldToast) return;
         const msg = extractApiErrorMessageForToast(error);
         if (msg) publishAppToast({ variant: "error", message: msg });
       },
@@ -42,6 +59,18 @@ export function makeQueryClient(): QueryClient {
       },
       onError: (error, _vars, _ctx, mutation) => {
         if (shouldSkipGlobalToast(mutation.meta)) return;
+        if (isAuthSessionTerminated()) return;
+        const classified = classifyApiError(error);
+        if (classified.kind === "session_expired") return;
+        if (classified.kind) {
+          publishAppBoundary({
+            kind: classified.kind,
+            title: classified.title,
+            description: classified.description,
+          });
+          return;
+        }
+        if (!classified.shouldToast) return;
         const msg = extractApiErrorMessageForToast(error);
         if (msg) publishAppToast({ variant: "error", message: msg });
       },

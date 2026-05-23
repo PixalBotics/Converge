@@ -14,7 +14,6 @@ import {
   DashboardCard,
   DataTable,
   EditIpBlockModal,
-  FilterButton,
   UnblockIpConfirmModal,
   SearchBar,
   TablePagination,
@@ -205,8 +204,8 @@ export default function IpBlockListPage() {
           <Typography variant="regularLarge" fontWeight={700} color="white" sx={{ mb: 0.5 }}>
             IP Block List
           </Typography>
-          <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted, maxWidth: 560 }}>
-            Connect your Meta Business assets to streamline your workflow and data sync.
+          <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted, maxWidth: 480 }}>
+            Manage blocked IP addresses.
           </Typography>
         </Box>
         <Box sx={integrationsHeaderActions}>
@@ -245,7 +244,6 @@ export default function IpBlockListPage() {
             <Box sx={integrationsSearchFieldWrapper}>
               <SearchBar value={search} onChange={setSearch} placeholder="Search anything..." sx={{ minWidth: "100%" }} />
             </Box>
-            <FilterButton sx={{ whiteSpace: "nowrap", alignSelf: { xs: "stretch", sm: "center" } }} />
           </Box>
         </Box>
 

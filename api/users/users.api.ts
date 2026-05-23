@@ -1,4 +1,5 @@
 import { apiClient } from "../http/axios-instance";
+import { sanitizePaginationQueryParams } from "@/lib/constants/pagination";
 import type { JsonRecord } from "../types/common.types";
 
 export async function getUserFilterSuggestions(
@@ -11,7 +12,9 @@ export async function getUserFilterSuggestions(
 }
 
 export async function listUsers(params?: JsonRecord): Promise<unknown> {
-  const { data } = await apiClient.get("/users", { params });
+  const { data } = await apiClient.get("/users", {
+    params: sanitizePaginationQueryParams(params),
+  });
   return data;
 }
 

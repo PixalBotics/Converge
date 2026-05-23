@@ -1,13 +1,16 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Box from "@mui/material/Box";
+import Alert from "@mui/material/Alert";
 import IconButton from "@mui/material/IconButton";
 import Chip from "@mui/material/Chip";
+import Checkbox from "@mui/material/Checkbox";
+import FormControlLabel from "@mui/material/FormControlLabel";
 import { AccessTime as AccessTimeIcon } from "@mui/icons-material";
 import DeleteIcon from "@mui/icons-material/Delete";
 import type { SxProps, Theme } from "@mui/material/styles";
-import { useTheme } from "@mui/material/styles";
+import { alpha, useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import {
   Typography,
@@ -20,13 +23,27 @@ import {
   InputField,
   FormModal,
   ConfirmActionModal,
+  SegmentedControl,
+  SearchBar,
+  ToolbarFilterPopover,
+  ToolbarFilterPopoverPanel,
 } from "@/components/common";
 import type { DataTableColumn } from "@/components/common";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
 import { rolesCard, rolesIconBox, rolesPageWrapper } from "../../roles/roles.styles";
 import { footerMutedText, pageWrapper } from "../../companies/overview.styles";
 import { publishAppToast } from "@/lib/notify";
-import { formatIsoDate, isRecord, pickNum, pickStr, unwrapApiData } from "@/lib/utils";
+import { formatIsoDate, isRecord, pickNum, pickStr, unwrapApiData } from "@/lib/utils/core";
+import {
+  HRMS_SHIFTS_LIST_SEARCH_MAX,
+  hrmsList403UserMessage,
+  buildHrmsDepartmentShiftsListQueryRecord,
+  type HrmsShiftsListShiftScope,
+  clampWorkingDaysMask,
+  effectiveWorkingDaysMask,
+  formatWorkingDaysMaskHuman,
+  HRMS_DEFAULT_WORKING_DAYS_MASK,
+} from "@/lib/utils/hrms";
 import {
   useCompaniesByResellerQuery,
   useCompaniesSetupResellersQuery,
@@ -38,12 +55,17 @@ import {
 } from "@/lib/hooks/query";
 import { extractParentCompaniesFromByResellerTree, pickItemsArray, toIdNameOption } from "@/app/dashboard/user-page/components/add-user-modal.utils";
 import { useAuth, sessionMayPickInternalUserScope } from "@/lib/auth";
+import { WorkingWeekDayToggles } from "@/app/dashboard/shifts/components";
+import {
+  departmentsCardHeader,
+  departmentsSearchFieldWrapper,
+  departmentsSearchRow,
+} from "@/app/dashboard/website-assigning/website-assigning.styles";
 import {
   departmentShiftActionsSx,
-  departmentShiftCardHeaderSx,
-  departmentShiftFilterFieldsGridSx,
   departmentShiftFilterHintSx,
-  departmentShiftFormGridSx,
+  departmentShiftFilterPopoverPairRowSx,
+  departmentShiftFilterPopoverStackSx,
   departmentShiftHeaderWrapSx,
   departmentShiftIconSx,
   departmentShiftSubtextSx,
@@ -60,9 +82,22 @@ type AssignmentRow = {
   id: string;
   departmentName: string;
   shiftName: string;
+  /** Platform = both owner ids null on linked shift; Tenant otherwise. */
+  shiftTemplate: "Platform" | "Tenant" | "—";
   effectiveFrom: string;
   effectiveTo: string;
+  weekSummary: string;
 };
+
+function shiftTemplateCatalogLabel(shift: Record<string, unknown> | null): "Platform" | "Tenant" | "—" {
+  if (!shift) return "—";
+  const orv = shift["ownerResellerId"] ?? shift["owner_reseller_id"];
+  const opv = shift["ownerParentCompanyId"] ?? shift["owner_parent_company_id"];
+  const orStr = orv == null || orv === "" ? "" : String(orv).trim();
+  const opStr = opv == null || opv === "" ? "" : String(opv).trim();
+  if (!orStr && !opStr) return "Platform";
+  return "Tenant";
+}
 
 export default function DepartmentShiftPage() {
   const theme = useTheme() as AppTheme;
@@ -80,6 +115,12 @@ export default function DepartmentShiftPage() {
   const [filterDepartmentId, setFilterDepartmentId] = useState("");
 
   const [page, setPage] = useState(1);
+  const [listShiftScope, setListShiftScope] = useState<HrmsShiftsListShiftScope>("all");
+  const [listSearchDraft, setListSearchDraft] = useState("");
+  const [listAppliedSearch, setListAppliedSearch] = useState("");
+
+  const [listFilterOpen, setListFilterOpen] = useState(false);
+
   const [assignOpen, setAssignOpen] = useState(false);
   const [removeTarget, setRemoveTarget] = useState<AssignmentRow | null>(null);
 
@@ -93,6 +134,8 @@ export default function DepartmentShiftPage() {
   const [shiftId, setShiftId] = useState("");
   const [effectiveFrom, setEffectiveFrom] = useState("");
   const [effectiveTo, setEffectiveTo] = useState("");
+  const [assignOverrideWeek, setAssignOverrideWeek] = useState(false);
+  const [assignWorkingMask, setAssignWorkingMask] = useState(HRMS_DEFAULT_WORKING_DAYS_MASK);
 
   const filterInternalDepartmentsQuery = useDepartmentsListQuery(
     effectiveFilterKind === "Internal" ? { all: true, type: "Internal" } : undefined,
@@ -159,7 +202,10 @@ export default function DepartmentShiftPage() {
     setFilterResellerId("");
     setFilterParentCompanyId("");
     setFilterDepartmentId("");
-  }, [filterDeptKind]);
+    setListSearchDraft("");
+    setListAppliedSearch("");
+    setListShiftScope(mayPickInternal ? "all" : "external");
+  }, [filterDeptKind, mayPickInternal]);
 
   useEffect(() => {
     setFilterParentCompanyId("");
@@ -174,6 +220,7 @@ export default function DepartmentShiftPage() {
     setAssignResellerId("");
     setAssignParentCompanyId("");
     setAssignDepartmentId("");
+    setShiftId("");
   }, [assignDeptKind]);
 
   useEffect(() => {
@@ -299,21 +346,62 @@ export default function DepartmentShiftPage() {
 
   const listParams = useMemo(
     () =>
-      ({
-        ...(filterDepartmentId.trim() ? { departmentId: filterDepartmentId.trim() } : {}),
+      buildHrmsDepartmentShiftsListQueryRecord({
         page,
         limit: PAGE_LIMIT,
-      }) satisfies { departmentId?: string; page: number; limit: number },
-    [filterDepartmentId, page],
+        ...(filterDepartmentId.trim() ? { departmentId: filterDepartmentId.trim() } : {}),
+        ...(effectiveFilterKind === "External" && filterParentCompanyId.trim()
+          ? { parentCompanyId: filterParentCompanyId.trim() }
+          : {}),
+        ...(listAppliedSearch.trim()
+          ? { search: listAppliedSearch.trim().slice(0, HRMS_SHIFTS_LIST_SEARCH_MAX) }
+          : {}),
+        shiftScope: mayPickInternal ? listShiftScope : "external",
+      }),
+    [
+      page,
+      filterDepartmentId,
+      effectiveFilterKind,
+      filterParentCompanyId,
+      listAppliedSearch,
+      mayPickInternal,
+      listShiftScope,
+    ],
   );
   const listQuery = useDepartmentShiftsListQuery(listParams, {
     enabled: true,
     scope: "dept-shifts",
   });
+  const deptShiftsList403 = useMemo(() => hrmsList403UserMessage(listQuery.error), [listQuery.error]);
   const assignMutation = useEnableDepartmentShiftMutation();
   const removeMutation = useRemoveDepartmentShiftMutation();
 
-  const shiftsQuery = useShiftsListQuery({ all: true }, { enabled: true, scope: "dept-shift-templates" });
+  const shiftCatalogParentCompanyId = useMemo(() => {
+    if (assignOpen && effectiveAssignKind === "External" && assignParentCompanyId.trim()) {
+      return assignParentCompanyId.trim();
+    }
+    if (!assignOpen && effectiveFilterKind === "External" && filterParentCompanyId.trim()) {
+      return filterParentCompanyId.trim();
+    }
+    return "";
+  }, [
+    assignOpen,
+    effectiveAssignKind,
+    assignParentCompanyId,
+    effectiveFilterKind,
+    filterParentCompanyId,
+  ]);
+
+  const shiftCatalogKind = assignOpen ? effectiveAssignKind : effectiveFilterKind;
+
+  const shiftsQuery = useShiftsListQuery(
+    {
+      all: true,
+      shiftScope: shiftCatalogKind === "Internal" ? "internal" : "external",
+      ...(shiftCatalogParentCompanyId ? { parentCompanyId: shiftCatalogParentCompanyId } : {}),
+    },
+    { enabled: true, scope: "dept-shift-templates" },
+  );
   const shiftOptions = useMemo(() => {
     const payload = unwrapApiData(shiftsQuery.data);
     const payloadObj = isRecord(payload) ? payload : null;
@@ -323,7 +411,10 @@ export default function DepartmentShiftPage() {
         const id = pickStr(r, ["id"]);
         const name = pickStr(r, ["name"]);
         if (!id || !name) return null;
-        return { value: id, label: name };
+        const cat = pickStr(r, ["catalog"]).toLowerCase();
+        const scopeLabel = cat === "platform" ? "Internal" : cat === "tenant" ? "External" : "";
+        const label = scopeLabel ? `${name} (${scopeLabel})` : name;
+        return { value: id, label };
       })
       .filter((o): o is { value: string; label: string } => o !== null);
     return [{ value: "", label: "— Select shift —" }, ...base];
@@ -348,7 +439,20 @@ export default function DepartmentShiftPage() {
 
   useEffect(() => {
     setPage(1);
-  }, [filterDepartmentId]);
+  }, [
+    filterDepartmentId,
+    listShiftScope,
+    listAppliedSearch,
+    effectiveFilterKind,
+    filterParentCompanyId,
+    filterResellerId,
+    filterDeptKind,
+  ]);
+
+  useEffect(() => {
+    if (mayPickInternal) return;
+    setListShiftScope("external");
+  }, [mayPickInternal]);
 
   useEffect(() => {
     setPage((p) => (p > pageCount ? pageCount : p));
@@ -368,18 +472,34 @@ export default function DepartmentShiftPage() {
           pickStr(isRecord(r["department"]) ? (r["department"] as Record<string, unknown>) : null, ["name"]) ||
           selectedDepartmentLabel ||
           "—";
+        const shiftObj = isRecord(r["shift"]) ? (r["shift"] as Record<string, unknown>) : null;
         const shiftName =
-          pickStr(isRecord(r["shift"]) ? (r["shift"] as Record<string, unknown>) : null, ["name"]) ||
+          pickStr(shiftObj, ["name"]) ||
           pickStr(r, ["shiftName"]) ||
           "—";
         const fromRaw = pickStr(r, ["effectiveFrom", "from", "startDate"]);
         const toRaw = pickStr(r, ["effectiveTo", "to", "endDate"]);
+        const rawAssign = r["workingDaysMask"] ?? r["working_days_mask"];
+        let assignMask: number | null = null;
+        if (rawAssign !== null && rawAssign !== undefined && rawAssign !== "") {
+          const n = typeof rawAssign === "number" ? rawAssign : Number(rawAssign);
+          if (Number.isFinite(n) && n >= 1 && n <= 127) assignMask = Math.trunc(n);
+        }
+        const tmplMask = pickNum(shiftObj, ["workingDaysMask", "working_days_mask"]);
+        const eff = effectiveWorkingDaysMask(assignMask, tmplMask);
+        const weekSummary =
+          assignMask != null
+            ? formatWorkingDaysMaskHuman(clampWorkingDaysMask(assignMask))
+            : `Inherited (${formatWorkingDaysMaskHuman(eff)})`;
+        const shiftTemplate = shiftTemplateCatalogLabel(shiftObj);
         return {
           id,
           departmentName,
           shiftName,
+          shiftTemplate,
           effectiveFrom: formatIsoDate(fromRaw),
           effectiveTo: formatIsoDate(toRaw),
+          weekSummary,
         };
       })
       .filter((x): x is AssignmentRow => x !== null);
@@ -392,10 +512,28 @@ export default function DepartmentShiftPage() {
     () => [
       { id: "departmentName", label: "Department" },
       { id: "shiftName", label: "Shift" },
+      {
+        id: "shiftTemplate",
+        label: "Template",
+        render: (_, row) => (
+          <Chip
+            size="small"
+            label={row.shiftTemplate}
+            variant="outlined"
+            sx={{
+              height: 24,
+              fontWeight: 600,
+              borderColor: alpha(theme.app.dashboard.white95, 0.25),
+              color: theme.app.dashboard.white95,
+            }}
+          />
+        ),
+      },
+      { id: "weekSummary", label: "Working week" },
       { id: "effectiveFrom", label: "Effective from" },
       { id: "effectiveTo", label: "Effective to" },
     ],
-    [],
+    [theme],
   );
 
   const filterHint = useMemo(() => {
@@ -406,21 +544,144 @@ export default function DepartmentShiftPage() {
     return "Showing all departments";
   }, [effectiveFilterKind, filterDepartmentId, filterResellerId, filterParentCompanyId]);
 
-  const filterClearDisabled = useMemo(
-    () =>
+  const filterClearDisabled = useMemo(() => {
+    const scopeAtDefault = mayPickInternal ? listShiftScope === "all" : listShiftScope === "external";
+    return (
+      !listSearchDraft.trim() &&
+      !listAppliedSearch.trim() &&
+      scopeAtDefault &&
       !filterDepartmentId.trim() &&
       !filterResellerId.trim() &&
       !filterParentCompanyId.trim() &&
-      (!mayPickInternal || filterDeptKind === "Internal"),
-    [mayPickInternal, filterDeptKind, filterDepartmentId, filterResellerId, filterParentCompanyId],
-  );
+      (!mayPickInternal || filterDeptKind === "Internal")
+    );
+  }, [
+    mayPickInternal,
+    filterDeptKind,
+    filterDepartmentId,
+    filterResellerId,
+    filterParentCompanyId,
+    listSearchDraft,
+    listAppliedSearch,
+    listShiftScope,
+  ]);
 
-  const clearFilters = () => {
+  const clearFilters = useCallback(() => {
     setFilterDeptKind(mayPickInternal ? "Internal" : "External");
     setFilterResellerId("");
     setFilterParentCompanyId("");
     setFilterDepartmentId("");
-  };
+    setListShiftScope(mayPickInternal ? "all" : "external");
+    setListSearchDraft("");
+    setListAppliedSearch("");
+  }, [mayPickInternal]);
+
+  const handleListSearchApply = useCallback(() => {
+    setListAppliedSearch(listSearchDraft.trim().slice(0, HRMS_SHIFTS_LIST_SEARCH_MAX));
+    setPage(1);
+  }, [listSearchDraft]);
+
+  const departmentShiftListFilterPanel = useMemo(() => {
+    return (
+      <ToolbarFilterPopoverPanel
+        footer={
+          <>
+            <Button type="button" variant="secondary" disabled={filterClearDisabled} onClick={clearFilters}>
+              Clear filters
+            </Button>
+            <Button type="button" variant="primary" sx={gradientPrimaryButtonSx} onClick={() => setListFilterOpen(false)}>
+              Done
+            </Button>
+          </>
+        }
+      >
+        <Typography variant="medium" fontWeight={700} sx={{ color: theme.app.text.primary, mb: 1.5 }}>
+          Filters
+        </Typography>
+        {mayPickInternal ? (
+          <Box sx={{ mb: 2 }}>
+            <Typography variant="caption" sx={{ display: "block", mb: 0.75, color: theme.app.dashboard.textMuted }}>
+              Shift template scope (list)
+            </Typography>
+            <SegmentedControl
+              options={[
+                { value: "all", label: "All" },
+                { value: "internal", label: "Internal" },
+                { value: "external", label: "External" },
+              ]}
+              value={listShiftScope}
+              onChange={(v) => setListShiftScope(v as HrmsShiftsListShiftScope)}
+              sx={{
+                width: "100%",
+                display: "flex",
+                "& .MuiToggleButtonGroup-grouped": { flex: 1, minWidth: 0 },
+              }}
+            />
+          </Box>
+        ) : null}
+        <Box sx={departmentShiftFilterPopoverStackSx}>
+            {mayPickInternal ? (
+              <SelectField
+                label="Department type"
+                value={filterDeptKind}
+                onChange={(v) => setFilterDeptKind(v as "Internal" | "External")}
+                options={DEPT_KIND_OPTIONS}
+                menuMaxRows={4}
+              />
+            ) : null}
+            {effectiveFilterKind === "External" ? (
+              <Box sx={departmentShiftFilterPopoverPairRowSx}>
+                <SelectField
+                  label="Reseller"
+                  value={filterResellerId}
+                  onChange={setFilterResellerId}
+                  options={filterResellerOptions}
+                  menuMaxRows={8}
+                />
+                <SelectField
+                  label="Parent company"
+                  value={filterParentCompanyId}
+                  onChange={setFilterParentCompanyId}
+                  options={filterParentCompanyOptions}
+                  searchable
+                  searchPlaceholder="Search parent company…"
+                  menuMaxRows={7}
+                  disabled={!filterResellerId.trim()}
+                />
+              </Box>
+            ) : null}
+            <SelectField
+              label="Department"
+              value={filterDepartmentId}
+              onChange={setFilterDepartmentId}
+              options={filterDepartmentOptions}
+              searchable
+              searchPlaceholder="Search department…"
+              menuMaxRows={8}
+              disabled={effectiveFilterKind === "External" && !filterParentCompanyId.trim()}
+            />
+          </Box>
+          <Typography variant="body2" sx={{ ...departmentShiftFilterHintSx, mt: 1.5 }}>
+            {filterHint}
+          </Typography>
+      </ToolbarFilterPopoverPanel>
+    );
+  }, [
+    theme,
+    mayPickInternal,
+    listShiftScope,
+    filterDeptKind,
+    effectiveFilterKind,
+    filterResellerId,
+    filterParentCompanyId,
+    filterDepartmentId,
+    filterResellerOptions,
+    filterParentCompanyOptions,
+    filterDepartmentOptions,
+    filterHint,
+    filterClearDisabled,
+    clearFilters,
+  ]);
 
   const resetAssignModal = () => {
     setAssignDeptKind(mayPickInternal ? "Internal" : "External");
@@ -430,6 +691,8 @@ export default function DepartmentShiftPage() {
     setShiftId("");
     setEffectiveFrom("");
     setEffectiveTo("");
+    setAssignOverrideWeek(false);
+    setAssignWorkingMask(HRMS_DEFAULT_WORKING_DAYS_MASK);
   };
 
   const handleAssign = () => {
@@ -456,6 +719,7 @@ export default function DepartmentShiftPage() {
         shiftId: shiftId.trim(),
         effectiveFrom: effectiveFrom.trim(),
         effectiveTo: effectiveTo.trim(),
+        ...(assignOverrideWeek ? { workingDaysMask: clampWorkingDaysMask(assignWorkingMask) } : {}),
       },
       {
         onSuccess: () => {
@@ -492,118 +756,100 @@ export default function DepartmentShiftPage() {
         </Box>
       </Box>
 
-      <DashboardCard sx={rolesCard}>
-        <Box sx={departmentShiftCardHeaderSx}>
-          <Box sx={rolesIconBox}>
-            <AccessTimeIcon sx={departmentShiftIconSx} />
+      <DashboardCard
+        sx={{
+          ...rolesCard,
+          border: `1px solid ${alpha(theme.palette.common.white, 0.14)}`,
+        }}
+      >
+        <Box sx={[departmentsCardHeader, { pb: 1.25 }] as SxProps<Theme>}>
+          <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1.5, minWidth: 0 }}>
+            <Box sx={rolesIconBox}>
+              <AccessTimeIcon sx={departmentShiftIconSx} />
+            </Box>
+            <Box sx={{ minWidth: 0 }}>
+              <Typography variant="mediumLarge" fontWeight={600} color="white">
+                Assigned shifts
+              </Typography>
+              <Typography variant="body2" sx={departmentShiftSubtextSx}>
+                Search and filter department shift assignments. Use Assign shift to add new assignments.
+              </Typography>
+            </Box>
           </Box>
-          <Typography variant="mediumLarge" fontWeight={600} color="white">
-            Filters
-          </Typography>
+          <Box sx={departmentsSearchRow}>
+            <Box sx={departmentsSearchFieldWrapper}>
+              <SearchBar
+                value={listSearchDraft}
+                onChange={(v) => setListSearchDraft(v.slice(0, HRMS_SHIFTS_LIST_SEARCH_MAX))}
+                placeholder="Search by shift or department name…"
+              />
+            </Box>
+            <Button
+              type="button"
+              variant="primary"
+              disabled={listSearchDraft.trim() === listAppliedSearch.trim()}
+              onClick={handleListSearchApply}
+              sx={{ minWidth: 132, whiteSpace: "nowrap", alignSelf: { xs: "stretch", sm: "center" } }}
+            >
+              Search
+            </Button>
+            <ToolbarFilterPopover
+              open={listFilterOpen}
+              onOpenChange={setListFilterOpen}
+              active={!filterClearDisabled}
+            >
+              {departmentShiftListFilterPanel}
+            </ToolbarFilterPopover>
+          </Box>
         </Box>
 
-        <Box sx={departmentShiftFilterFieldsGridSx}>
-          {mayPickInternal ? (
-            <SelectField
-              label="Department type"
-              value={filterDeptKind}
-              onChange={(v) => setFilterDeptKind(v as "Internal" | "External")}
-              options={DEPT_KIND_OPTIONS}
-              menuMaxRows={4}
-            />
-          ) : null}
-          {effectiveFilterKind === "External" ? (
-            <>
-              <SelectField
-                label="Reseller"
-                value={filterResellerId}
-                onChange={setFilterResellerId}
-                options={filterResellerOptions}
-                menuMaxRows={8}
-              />
-              <SelectField
-                label="Parent company"
-                value={filterParentCompanyId}
-                onChange={setFilterParentCompanyId}
-                options={filterParentCompanyOptions}
-                searchable
-                searchPlaceholder="Search parent company…"
-                menuMaxRows={7}
-                disabled={!filterResellerId.trim()}
-              />
-            </>
-          ) : null}
-          <SelectField
-            label="Department"
-            value={filterDepartmentId}
-            onChange={setFilterDepartmentId}
-            options={filterDepartmentOptions}
-            searchable
-            searchPlaceholder="Search department…"
-            menuMaxRows={8}
-            disabled={effectiveFilterKind === "External" && !filterParentCompanyId.trim()}
+        {deptShiftsList403 ? (
+          <Alert severity="error" sx={{ mb: 1.5 }}>
+            {deptShiftsList403}
+          </Alert>
+        ) : null}
+
+        <Box sx={{ px: { xs: 1.5, sm: 2 }, pb: 0 }}>
+          <DataTable<AssignmentRow>
+            columns={columns}
+            rows={tableRows}
+            isLoading={(listQuery.isLoading || listQuery.isFetching) && !deptShiftsList403}
+            getRowId={(row) => row.id}
+            minWidth={920}
+            actionColumn={{
+              label: "Action",
+              render: (row) => (
+                <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+                  <IconButton
+                    size="small"
+                    sx={{
+                      ...dataTableActionButton,
+                      color: "#ff6b6b",
+                      opacity: removeMutation.isPending ? 0.7 : 1,
+                    }}
+                    aria-label="Remove assignment"
+                    disabled={removeMutation.isPending}
+                    onClick={() => {
+                      setRemoveTarget(row);
+                    }}
+                  >
+                    <DeleteIcon fontSize="small" />
+                  </IconButton>
+                </Box>
+              ),
+            }}
           />
         </Box>
 
-        <Box sx={{ ...departmentShiftFormGridSx, mt: 0.5 }}>
-          <Typography variant="body2" sx={departmentShiftFilterHintSx}>
-            {filterHint}
-          </Typography>
-          <Box sx={{ display: "flex", alignItems: "end", justifyContent: { xs: "flex-start", md: "flex-end" }, gap: 1.25, flexWrap: "wrap" }}>
-            <Button variant="secondary" onClick={clearFilters} disabled={filterClearDisabled}>
-              Clear filters
-            </Button>
-          </Box>
-        </Box>
-      </DashboardCard>
-
-      <DashboardCard sx={rolesCard}>
-        <Box sx={departmentShiftCardHeaderSx}>
-          <Box sx={rolesIconBox}>
-            <AccessTimeIcon sx={departmentShiftIconSx} />
-          </Box>
-          <Typography variant="mediumLarge" fontWeight={600} color="white">
-            Assigned shifts
-          </Typography>
-        </Box>
-
-        <DataTable<AssignmentRow>
-          columns={columns}
-          rows={tableRows}
-          isLoading={listQuery.isLoading || listQuery.isFetching}
-          getRowId={(row) => row.id}
-          minWidth={720}
-          actionColumn={{
-            label: "Action",
-            render: (row) => (
-              <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
-                <IconButton
-                  size="small"
-                  sx={{
-                    ...dataTableActionButton,
-                    color: "#ff6b6b",
-                    opacity: removeMutation.isPending ? 0.7 : 1,
-                  }}
-                  aria-label="Remove assignment"
-                  disabled={removeMutation.isPending}
-                  onClick={() => {
-                    setRemoveTarget(row);
-                  }}
-                >
-                  <DeleteIcon fontSize="small" />
-                </IconButton>
-              </Box>
-            ),
-          }}
-        />
-
-        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mt: 2 }}>
+        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mt: 2, px: { xs: 1.5, sm: 2 }, pb: { xs: 1.5, sm: 2 } }}>
           <Typography variant="medium" sx={footerMutedText(theme)}>
-            {listQuery.isLoading
-              ? "Loading…"
-              : tableRows.length === 0
-                ? "No shift assignments found for the current filter."
-              : `Showing data ${footerRangeStart} to ${footerRangeEnd} of ${totalEntries} entries`}
+            {deptShiftsList403
+              ? deptShiftsList403
+              : listQuery.isLoading
+                ? "Loading…"
+                : tableRows.length === 0
+                  ? "No shift assignments found for the current filter."
+                  : `Showing data ${footerRangeStart} to ${footerRangeEnd} of ${totalEntries} entries`}
           </Typography>
           <TablePagination page={page} pageCount={pageCount} onPageChange={setPage} />
         </Box>
@@ -679,6 +925,55 @@ export default function DepartmentShiftPage() {
             searchPlaceholder="Search shift…"
             menuMaxRows={7}
           />
+          <Box
+            sx={{
+              mt: 1,
+              pt: 1.5,
+              borderTop: `1px solid ${alpha(theme.app.dashboard.white95, 0.1)}`,
+            }}
+          >
+            <Typography
+              variant="caption"
+              sx={{
+                display: "block",
+                mb: 1,
+                fontWeight: 700,
+                letterSpacing: "0.08em",
+                textTransform: "uppercase",
+                color: alpha(theme.app.dashboard.white95, 0.42),
+              }}
+            >
+              Weekly pattern override
+            </Typography>
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={assignOverrideWeek}
+                  onChange={(e) => setAssignOverrideWeek(e.target.checked)}
+                  disabled={assignMutation.isPending}
+                  size="small"
+                />
+              }
+              label={
+                <Box>
+                  <Typography variant="body2" color="white" sx={{ fontWeight: 600 }}>
+                    Use custom working days
+                  </Typography>
+                  <Typography variant="caption" sx={{ display: "block", color: theme.app.dashboard.textMuted, mt: 0.25, lineHeight: 1.45 }}>
+                    Inherits the shift template when off. Pool copies use the same mask when enabled.
+                  </Typography>
+                </Box>
+              }
+              sx={{ alignItems: "flex-start", ml: 0, mr: 0, mb: assignOverrideWeek ? 1 : 0 }}
+            />
+            {assignOverrideWeek ? (
+              <WorkingWeekDayToggles
+                value={assignWorkingMask}
+                onChange={setAssignWorkingMask}
+                disabled={assignMutation.isPending}
+              />
+            ) : null}
+          </Box>
           <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 2 }}>
             <InputField
               label="Effective from"
@@ -702,6 +997,7 @@ export default function DepartmentShiftPage() {
         description="Remove this department shift assignment?"
         confirmLabel={removeMutation.isPending ? "Removing…" : "Remove"}
         cancelLabel="Cancel"
+        confirmButtonVariant="danger"
         isLoading={removeMutation.isPending}
         onDismiss={() => {
           if (removeMutation.isPending) return;

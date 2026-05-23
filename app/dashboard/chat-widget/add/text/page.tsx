@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type ChangeEvent } from "react";
+import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
 import CloudUploadOutlined from "@mui/icons-material/CloudUploadOutlined";
 import Settings from "@mui/icons-material/Settings";
@@ -10,7 +10,25 @@ import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import { Button, InputField, SelectField, Typography } from "@/components/common";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
-import { WidgetFlowShell } from "@/components/dashboard/WidgetFlowShell";
+import { WidgetFlowShell } from "@/features/chat-widget";
+import {
+  patchRemoteWidgetConfiguration,
+  summarizePatchResult,
+} from "@/lib/chat-widget/widget-remote-sync";
+import { extractApiErrorMessageForToast } from "@/lib/notify/extract-api-message";
+import { publishAppToast } from "@/lib/notify";
+import {
+  readChatWizardDraft,
+  saveChatWizardDraft,
+} from "@/lib/chat-widget/chat-wizard-edit";
+import type { TextUsFormFieldDraft } from "@/lib/chat-widget/widgetDraft";
+
+const DEFAULT_FIELDS: TextUsFormFieldDraft[] = [
+  { key: "name", label: "Name", fieldType: "text", required: true },
+  { key: "email", label: "Email", fieldType: "email", required: true },
+  { key: "message", label: "Message", fieldType: "textarea", required: false },
+  { key: "phone", label: "Phone Number", fieldType: "phone", required: false },
+];
 
 export default function TextUsWidgetPage() {
   const router = useRouter();
@@ -18,8 +36,37 @@ export default function TextUsWidgetPage() {
   const [position, setPosition] = useState("center");
   const [contentEnabled, setContentEnabled] = useState(true);
   const [buttonColor, setButtonColor] = useState("#da9b2f");
+  const [headerTitle, setHeaderTitle] = useState("Special Offer");
+  const [welcomeMessage, setWelcomeMessage] = useState(
+    "Get 20% off all premium plans today.",
+  );
+  const [fieldNameLabel, setFieldNameLabel] = useState("Name");
+  const [fieldEmailLabel, setFieldEmailLabel] = useState("Email");
+  const [fieldMessageLabel, setFieldMessageLabel] = useState("Message");
+  const [fieldPhoneLabel, setFieldPhoneLabel] = useState("Phone Number");
+
   const [customFieldFileName, setCustomFieldFileName] = useState("");
   const customFieldUploadRef = useRef<HTMLInputElement | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    const d = readChatWizardDraft(null);
+    if (d.type === "text") {
+      if (d.textUsPosition) setPosition(d.textUsPosition);
+      if (d.textUsButtonColor) setButtonColor(d.textUsButtonColor);
+      if (d.textUsHeaderTitle) setHeaderTitle(d.textUsHeaderTitle);
+      if (d.textUsWelcomeMessage) setWelcomeMessage(d.textUsWelcomeMessage);
+      const flds = d.textUsFormFields;
+      if (flds?.length) {
+        flds.forEach((f) => {
+          if (f.key === "name") setFieldNameLabel(f.label);
+          if (f.key === "email") setFieldEmailLabel(f.label);
+          if (f.key === "message") setFieldMessageLabel(f.label);
+          if (f.key === "phone") setFieldPhoneLabel(f.label);
+        });
+      }
+    }
+  }, []);
 
   const handlePickColor = (event: ChangeEvent<HTMLInputElement>) => {
     const color = event.target.value;
@@ -33,15 +80,75 @@ export default function TextUsWidgetPage() {
     setCustomFieldFileName(file.name);
   };
 
+  const persistAndContinue = () => {
+    if (saving) return;
+    void (async () => {
+      const textUsFormFields: TextUsFormFieldDraft[] = [
+        { key: "name", label: fieldNameLabel, fieldType: "text", required: true },
+        { key: "email", label: fieldEmailLabel, fieldType: "email", required: true },
+        { key: "message", label: fieldMessageLabel, fieldType: "textarea", required: false },
+        { key: "phone", label: fieldPhoneLabel, fieldType: "phone", required: false },
+      ];
+
+      const prev = readChatWizardDraft(null);
+      const rk = prev.remoteWidgetKey?.trim();
+      if (!rk) {
+        publishAppToast({
+          variant: "error",
+          message:
+            "Missing server widget draft. Go back to the first step and save again.",
+        });
+        return;
+      }
+
+      setSaving(true);
+      try {
+        saveChatWizardDraft(null, {
+          ...prev,
+          type: "text",
+          completed: false,
+          textUsButtonColor: buttonColor,
+          textUsPosition: position,
+          textUsHeaderTitle: headerTitle,
+          textUsWelcomeMessage: contentEnabled ? welcomeMessage : "",
+          textUsFormFields,
+        });
+        const latest = readChatWizardDraft(null);
+        const patchInner = await patchRemoteWidgetConfiguration({
+          widgetKey: rk,
+          widgetKind: "text",
+          draft: latest,
+          publishNow: false,
+        });
+        const sum = summarizePatchResult(patchInner);
+        saveChatWizardDraft(null, {
+          requiresPublishBeforeEmbed: sum.requiresPublishBeforeEmbed,
+        });
+        router.push("/dashboard/chat-widget/add/text/script");
+      } catch (e) {
+        publishAppToast({
+          variant: "error",
+          message:
+            extractApiErrorMessageForToast(e) ??
+            "Could not save Text Us configuration to the server.",
+        });
+      } finally {
+        setSaving(false);
+      }
+    })();
+  };
+
   return (
     <WidgetFlowShell
       pageTitle="Text Us Widget"
-      subtitle="Connect your workflow with industry-leading CRM platform minutes."
+      subtitle="Draft is PATCHed after the first step; publish happens on the script step."
       cardTitle="Widget Button Design"
       footer={
         <>
           <Button type="button" variant="secondary" onClick={() => router.push("/dashboard/chat-widget")}>Cancel</Button>
-          <Button type="button" variant="primary" sx={gradientPrimaryButtonSx} onClick={() => router.push("/dashboard/chat-widget/add/text/script")}>Save</Button>
+          <Button type="button" variant="primary" sx={gradientPrimaryButtonSx} disabled={saving} onClick={persistAndContinue}>
+            {saving ? "Saving…" : "Save"}
+          </Button>
         </>
       }
     >
@@ -87,17 +194,17 @@ export default function TextUsWidgetPage() {
         <Switch checked={contentEnabled} onChange={(_, checked) => setContentEnabled(checked)} color="success" />
       </Box>
 
-      <InputField label="Header Title" name="header" value="Special Offer" />
-      <InputField label="Welcome Message" name="welcome" value="Get 20% off all premium plans today." inputProps={{ maxLength: 120 }} />
+      <InputField label="Header Title" name="header" value={headerTitle} onChange={(e) => setHeaderTitle(e.target.value)} />
+      <InputField label="Welcome Message" name="welcome" value={welcomeMessage} onChange={(e) => setWelcomeMessage(e.target.value)} inputProps={{ maxLength: 240 }} />
 
-      <Typography variant="mediumLarge" sx={{ color: theme.app.text.primary, mb: -1.25 }}>Visitor Form</Typography>
+      <Typography variant="mediumLarge" sx={{ color: theme.app.text.primary, mb: -1.25 }}>Visitor Form (labels)</Typography>
       <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 1.5 }}>
-        <InputField label="Name" name="name" value="Zino Chat" />
-        <InputField label="Email" name="email" value="Zino CRM" />
+        <InputField label="Name label" name="name" value={fieldNameLabel} onChange={(e) => setFieldNameLabel(e.target.value)} />
+        <InputField label="Email label" name="email" value={fieldEmailLabel} onChange={(e) => setFieldEmailLabel(e.target.value)} />
       </Box>
       <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 1.5 }}>
-        <InputField label="Message" name="message" value="Zino Chat" />
-        <InputField label="Phone Number" name="phone" value="Zino CRM" />
+        <InputField label="Message label" name="message" value={fieldMessageLabel} onChange={(e) => setFieldMessageLabel(e.target.value)} />
+        <InputField label="Phone label" name="phone" value={fieldPhoneLabel} onChange={(e) => setFieldPhoneLabel(e.target.value)} />
       </Box>
 
       <Box
@@ -116,6 +223,9 @@ export default function TextUsWidgetPage() {
         <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted }}>Add Custom Field</Typography>
         <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted }}>{customFieldFileName || "Max 10 MB files are allowed"}</Typography>
       </Box>
+      <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted }}>
+        Extended fields UI only; structured fields POST as textUsFormConfig.fields ({DEFAULT_FIELDS.length} defaults).
+      </Typography>
       <Box component="input" ref={customFieldUploadRef} type="file" onChange={handleCustomFieldUpload} sx={{ display: "none" }} />
     </WidgetFlowShell>
   );

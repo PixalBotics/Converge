@@ -2,16 +2,13 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Box from "@mui/material/Box";
-import FormControl from "@mui/material/FormControl";
-import FormControlLabel from "@mui/material/FormControlLabel";
 import IconButton from "@mui/material/IconButton";
 import Radio from "@mui/material/Radio";
-import RadioGroup from "@mui/material/RadioGroup";
-import { useTheme } from "@mui/material/styles";
+import { alpha, useTheme } from "@mui/material/styles";
 import { CheckCircle as CheckCircleIcon } from "@mui/icons-material";
 import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
 import type { AppTheme } from "@/theme/theme";
-import { Button, FormModal, InputField, SelectField, Typography } from "@/components/common";
+import { Button, DashboardCard, FormModal, InputField, SelectField, Typography } from "@/components/common";
 import {
   useCompaniesSetupResellersQuery,
   useCompanySetupDraftByIdQuery,
@@ -37,8 +34,7 @@ import {
 } from "@/lib/companies/setup-draft.utils";
 import { pickItemsArray, toIdNameOption } from "@/app/dashboard/user-page/components/add-user-modal.utils";
 import { publishAppToast } from "@/lib/notify";
-import { DeleteCircleIcon } from "@/components/dashboard/icons/DeleteCircleIcon";
-import { AddCircleIcon } from "@/components/dashboard/icons/AddCircleIcon";
+import { AddCircleIcon, DeleteCircleIcon } from "@/components/common/icons";
 import {
   stepperOuter,
   stepperSegment,
@@ -505,67 +501,147 @@ export function CompanySetupWizardModal({ open, draftId, onClose }: CompanySetup
           <Typography variant="medium" color="white" fontWeight={600} sx={{ mb: 1 }}>
             How should this company sit in the tree?
           </Typography>
-          <FormControl
-            component="fieldset"
+          <Box
+            role="radiogroup"
+            aria-label="Reseller placement"
             sx={{
-              width: "100%",
+              display: "grid",
+              gridTemplateColumns: canCreateNewReseller ? { xs: "1fr", sm: "1fr 1fr" } : "1fr",
+              gap: 2,
               mb: 1.5,
-              m: 0,
-              p: 0,
-              border: "none",
             }}
           >
-            <RadioGroup
-              value={setupKind}
-              onChange={(e) => {
-                const v = e.target.value;
-                if (v !== "new_reseller" && v !== "existing_reseller") return;
+            {canCreateNewReseller ? (
+              <DashboardCard
+                sx={{
+                  p: 2,
+                  borderRadius: 2,
+                  cursor: "pointer",
+                  transition: "background-color 160ms ease, box-shadow 160ms ease",
+                  background:
+                    setupKind === "new_reseller" ? theme.app.dashboard.navActiveBg : theme.app.dashboard.cardBg,
+                  boxShadow:
+                    setupKind === "new_reseller"
+                      ? `0 0 0 1px ${alpha(theme.app.dashboard.accentBlue, 0.45)}`
+                      : "none",
+                }}
+                onClick={() => {
+                  clearResellerParentFieldErrors();
+                  setSetupKind("new_reseller");
+                  setResellerId("");
+                }}
+              >
+                <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1.25 }}>
+                  <Radio
+                    name="company-setup-kind"
+                    checked={setupKind === "new_reseller"}
+                    onChange={() => {
+                      clearResellerParentFieldErrors();
+                      setSetupKind("new_reseller");
+                      setResellerId("");
+                    }}
+                    value="new_reseller"
+                    disableRipple
+                    icon={
+                      <Box
+                        sx={{
+                          width: 16,
+                          height: 16,
+                          borderRadius: "50%",
+                          border: "2px solid rgba(148,163,184,0.55)",
+                          bgcolor: "transparent",
+                        }}
+                      />
+                    }
+                    checkedIcon={
+                      <Box
+                        sx={{
+                          width: 16,
+                          height: 16,
+                          borderRadius: "50%",
+                          bgcolor: theme.app.dashboard.accentBlue,
+                          boxShadow: `0 0 0 4px ${alpha(theme.app.dashboard.accentBlue, 0.32)}`,
+                        }}
+                      />
+                    }
+                    sx={{ p: 0.25, mt: 0.125 }}
+                  />
+                  <Box>
+                    <Typography variant="medium" color="white" sx={{ mb: 0.25 }}>
+                      New reseller
+                    </Typography>
+                    <Typography variant="small" sx={{ color: theme.app.dashboard.textMuted, lineHeight: 1.45 }}>
+                      Parent company only — no reseller to pick from the list.
+                    </Typography>
+                  </Box>
+                </Box>
+              </DashboardCard>
+            ) : null}
+            <DashboardCard
+              sx={{
+                p: 2,
+                borderRadius: 2,
+                cursor: "pointer",
+                transition: "background-color 160ms ease, box-shadow 160ms ease",
+                background:
+                  setupKind === "existing_reseller"
+                    ? theme.app.dashboard.navActiveBg
+                    : theme.app.dashboard.cardBg,
+                boxShadow:
+                  setupKind === "existing_reseller"
+                    ? `0 0 0 1px ${alpha(theme.app.dashboard.accentBlue, 0.45)}`
+                    : "none",
+              }}
+              onClick={() => {
                 clearResellerParentFieldErrors();
-                if (!canCreateNewReseller && v === "new_reseller") return;
-                setSetupKind(v);
-                if (v === "new_reseller") setResellerId("");
+                setSetupKind("existing_reseller");
               }}
             >
-              {canCreateNewReseller ? (
-                <FormControlLabel
-                  value="new_reseller"
-                  control={
-                    <Radio
-                      size="small"
+              <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1.25 }}>
+                <Radio
+                  name="company-setup-kind"
+                  checked={setupKind === "existing_reseller"}
+                  onChange={() => {
+                    clearResellerParentFieldErrors();
+                    setSetupKind("existing_reseller");
+                  }}
+                  value="existing_reseller"
+                  disableRipple
+                  icon={
+                    <Box
                       sx={{
-                        color: theme.app.dashboard.textMuted,
-                        "&.Mui-checked": { color: theme.app.dashboard.accentBlue },
+                        width: 16,
+                        height: 16,
+                        borderRadius: "50%",
+                        border: "2px solid rgba(148,163,184,0.55)",
+                        bgcolor: "transparent",
                       }}
                     />
                   }
-                  label={
-                    <Typography variant="body2" color="white">
-                      New reseller — only enter the parent company name (no reseller to pick).
-                    </Typography>
+                  checkedIcon={
+                    <Box
+                      sx={{
+                        width: 16,
+                        height: 16,
+                        borderRadius: "50%",
+                        bgcolor: theme.app.dashboard.accentBlue,
+                        boxShadow: `0 0 0 4px ${alpha(theme.app.dashboard.accentBlue, 0.32)}`,
+                      }}
+                    />
                   }
-                  sx={{ alignItems: "flex-start", ml: 0, mr: 0, mb: 0.5 }}
+                  sx={{ p: 0.25, mt: 0.125 }}
                 />
-              ) : null}
-              <FormControlLabel
-                value="existing_reseller"
-                control={
-                  <Radio
-                    size="small"
-                    sx={{
-                      color: theme.app.dashboard.textMuted,
-                      "&.Mui-checked": { color: theme.app.dashboard.accentBlue },
-                    }}
-                  />
-                }
-                label={
-                  <Typography variant="body2" color="white">
-                    Under an existing reseller — then choose reseller and parent company.
+                <Box>
+                  <Typography variant="medium" color="white" sx={{ mb: 0.25 }}>
+                    Under existing reseller
                   </Typography>
-                }
-                sx={{ alignItems: "flex-start", ml: 0, mr: 0 }}
-              />
-            </RadioGroup>
-          </FormControl>
+                  <Typography variant="small" sx={{ color: theme.app.dashboard.textMuted, lineHeight: 1.45 }}>
+                    Choose reseller from the list, then the parent company.
+                  </Typography>
+                </Box>
+              </Box>
+            </DashboardCard>
+          </Box>
 
           {setupKind === "existing_reseller" ? (
             <Box>

@@ -15,7 +15,7 @@ export function selectMenuPaperSx(theme: Theme) {
     borderRadius: 2,
     mt: 1,
     border: `1px solid ${app.dashboard.cardBorder}`,
-    boxShadow: "0 18px 45px rgba(0,0,0,0.35)",
+    boxShadow: "none",
   };
 }
 

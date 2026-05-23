@@ -13,6 +13,7 @@ import {
   Delete as DeleteIcon,
 } from "@mui/icons-material";
 import NextLink from "next/link";
+import type { DataTableColumn, FilterableComboOption } from "@/components/common";
 import {
   Typography,
   DashboardCard,
@@ -21,12 +22,11 @@ import {
   TablePagination,
   DeleteUserConfirmModal,
 } from "@/components/common";
-import type { DataTableColumn } from "@/components/common";
 import { userIconPath } from "@/assets";
 import { useAuth } from "@/lib/auth/AuthContext";
 import type { AppTheme } from "@/theme/theme";
 import { useLoginAsMutation, useSoftDeleteUserMutation } from "@/lib/hooks";
-import type { FilterKind, UserRow, UserSuggestion } from "../types";
+import type { FilterKind, UserListTypeFilter, UserRow, UserSuggestion } from "../types";
 import { EmptyUsersState } from "./EmptyUsersState";
 import { UserSearchToolbar } from "./UserSearchToolbar";
 import {
@@ -48,6 +48,17 @@ type Props = {
   setSelectedSuggestion: (v: UserSuggestion | undefined) => void;
   isSuggestionsLoading: boolean;
   onSearch: () => void;
+  listUserTypeFilter: UserListTypeFilter;
+  onListUserTypeFilterChange: (value: UserListTypeFilter) => void;
+  showInternalUserTypeOption: boolean;
+  listScopeResellerId: string;
+  listScopeParentCompanyId: string;
+  onListScopeResellerChange: (value: string) => void;
+  onListScopeParentCompanyChange: (value: string) => void;
+  resellerSelectOptions: FilterableComboOption[];
+  parentCompanySelectOptions: FilterableComboOption[];
+  resellerFilterDisabled?: boolean;
+  onResetListFilters: () => void;
   rows: UserRow[];
   page: number;
   pageCount: number;
@@ -68,6 +79,17 @@ export function UsersTableSection(props: Props) {
     setSelectedSuggestion,
     isSuggestionsLoading,
     onSearch,
+    listUserTypeFilter,
+    onListUserTypeFilterChange,
+    showInternalUserTypeOption,
+    listScopeResellerId,
+    listScopeParentCompanyId,
+    onListScopeResellerChange,
+    onListScopeParentCompanyChange,
+    resellerSelectOptions,
+    parentCompanySelectOptions,
+    resellerFilterDisabled = false,
+    onResetListFilters,
     rows,
     page,
     pageCount,
@@ -186,6 +208,17 @@ export function UsersTableSection(props: Props) {
           setSelectedSuggestion={setSelectedSuggestion}
           isSuggestionsLoading={isSuggestionsLoading}
           onSearch={onSearch}
+          listUserTypeFilter={listUserTypeFilter}
+          onListUserTypeFilterChange={onListUserTypeFilterChange}
+          showInternalUserTypeOption={showInternalUserTypeOption}
+          listScopeResellerId={listScopeResellerId}
+          listScopeParentCompanyId={listScopeParentCompanyId}
+          onListScopeResellerChange={onListScopeResellerChange}
+          onListScopeParentCompanyChange={onListScopeParentCompanyChange}
+          resellerSelectOptions={resellerSelectOptions}
+          parentCompanySelectOptions={parentCompanySelectOptions}
+          resellerFilterDisabled={resellerFilterDisabled}
+          onResetListFilters={onResetListFilters}
         />
       </Box>
 

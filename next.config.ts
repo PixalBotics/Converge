@@ -17,7 +17,14 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   compress: true,
   distDir,
+  /** Broken nested ESLint deps on some Windows installs; run `npm run lint` separately. */
+  eslint: { ignoreDuringBuilds: true },
+  typescript: { ignoreBuildErrors: false },
   outputFileTracingRoot: path.join(__dirname),
+  experimental: {
+    /** Lowers webpack peak memory (Next.js 15+); slight compile-time tradeoff. */
+    webpackMemoryOptimizations: true,
+  },
   async redirects() {
     return [
       { source: "/login", destination: "/auth/login", permanent: true },
@@ -41,7 +48,7 @@ const nextConfig: NextConfig = {
   },
   /** tsParticles: transpile so Next can bundle ESM cleanly. */
   transpilePackages: ["@tsparticles/react", "tsparticles", "@tsparticles/engine"],
-  webpack: (config, { isServer }) => {
+  webpack: (config, { dev, isServer }) => {
     /**
      * tsParticles `exports` expose both `browser` and `import`. Webpack often prefers `browser`
      * first; a bad Windows unpack can leave `browser/*.js` missing (only `*.DELETE.*` stubs).
@@ -57,6 +64,18 @@ const nextConfig: NextConfig = {
       );
       config.resolve.conditionNames = ["import", "module", ...withoutDup, "browser"];
     }
+
+    /**
+     * Large apps on Windows can exhaust the default Node heap when webpack persists
+     * pack caches (PackFileCacheStrategy / Array buffer allocation failed).
+     * @see https://nextjs.org/docs/app/guides/memory-usage
+     */
+    if (dev) {
+      config.cache = false;
+    } else if (config.cache) {
+      config.cache = Object.freeze({ type: "memory" });
+    }
+
     return config;
   },
 };

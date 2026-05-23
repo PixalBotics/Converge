@@ -9,7 +9,7 @@ import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import { Button, InputField, Typography } from "@/components/common";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
-import { SmtpEmailWizardShell } from "@/components/dashboard/SmtpEmailWizardShell";
+import { SmtpEmailWizardShell } from "@/features/smtp-email";
 import { distributionWizardFormGrid3 } from "../../distribution-setup/wizard.styles";
 import { smtpWizardFormGrid2 } from "../wizard.styles";
 

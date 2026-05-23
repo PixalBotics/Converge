@@ -5,7 +5,7 @@ import Box from "@mui/material/Box";
 import { AccessTime as AccessTimeIcon, CalendarMonth as CalendarMonthIcon } from "@mui/icons-material";
 import type { SxProps, Theme } from "@mui/material/styles";
 import { useRouter } from "next/navigation";
-import { Typography, DashboardCard, DataTable, TablePagination, Button, SearchBar, FilterButton, Calendar } from "@/components/common";
+import { Typography, DashboardCard, DataTable, TablePagination, Button, SearchBar, Calendar } from "@/components/common";
 import type { DataTableColumn } from "@/components/common";
 import { rolesCard, rolesFooterRow, rolesIconBox, rolesPageWrapper, rolesPaginationWrapper } from "../../roles/roles.styles";
 import { footerMutedText, pageWrapper } from "../../companies/overview.styles";
@@ -14,7 +14,7 @@ import type { AppTheme } from "@/theme/theme";
 import { useTheme } from "@mui/material/styles";
 import { useAttendanceMeQuery } from "@/lib/hooks/query";
 import { publishAppToast } from "@/lib/notify";
-import { isRecord, unwrapApiData } from "@/lib/utils";
+import { isRecord, unwrapApiData } from "@/lib/utils/core";
 import { EmptyAttendanceState } from "../components/EmptyAttendanceState";
 import { useAuth } from "@/lib/auth";
 import { OP } from "@/lib/permissions";
@@ -244,7 +244,6 @@ export default function MyAttendancePage() {
             <Box sx={departmentsSearchFieldWrapper}>
               <SearchBar value={search} onChange={setSearch} placeholder="Search anything.." />
             </Box>
-            <FilterButton />
           </Box>
         </Box>
 

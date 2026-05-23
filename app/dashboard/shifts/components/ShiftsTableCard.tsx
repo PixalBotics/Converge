@@ -1,19 +1,22 @@
 "use client";
 
+import type { ReactNode } from "react";
 import Box from "@mui/material/Box";
 import IconButton from "@mui/material/IconButton";
-import { AttachMoney as AttachMoneyIcon } from "@mui/icons-material";
+import { Schedule as ScheduleIcon } from "@mui/icons-material";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
-import { useTheme } from "@mui/material/styles";
+import { alpha, useTheme } from "@mui/material/styles";
+import type { SxProps, Theme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import {
+  Button,
   DashboardCard,
   DataTable,
   dataTableActionButton,
-  FilterButton,
   SearchBar,
   TablePagination,
+  ToolbarFilterPopover,
   Typography,
 } from "@/components/common";
 import type { DataTableColumn } from "@/components/common";
@@ -37,14 +40,27 @@ export type ShiftRow = {
   endTime: string;
   breakMinutes: number | null;
   timezone: string;
+  /** UI label for API `catalog` (shown as Internal / External). */
+  catalogLabel: string;
+  /** `ownerResellerName` · `ownerParentCompanyName` when present. */
+  ownerDisplay: string;
+  /** Human-readable working week (from mask or `workingWeekdays`). */
+  workingDaysSummary: string;
 };
 
 export type ShiftsTableCardProps = {
   rows: ShiftRow[];
   columns: DataTableColumn<ShiftRow>[];
   isLoading: boolean;
-  search: string;
-  onSearchChange: (value: string) => void;
+  /** Draft value in the search field. */
+  searchInput: string;
+  onSearchInputChange: (value: string) => void;
+  /** When `showSearchSubmitButton` is true: last-applied search for disabling the Search button. */
+  appliedSearch?: string;
+  onSearchApply?: () => void;
+  /** If false, search is driven by the parent (e.g. debounced) without a Search button. Default true. */
+  showSearchSubmitButton?: boolean;
+  searchPlaceholder?: string;
   page: number;
   pageCount: number;
   footerText: string;
@@ -54,14 +70,26 @@ export type ShiftsTableCardProps = {
   disableActions: boolean;
   canEdit?: boolean;
   canDelete?: boolean;
+  /** Shown under the main card title (optional). */
+  cardSubtitle?: string;
+  emptyState?: { title?: string; description?: string };
+  /** When set with handlers, Filter opens this content in a popover. */
+  filterPanel?: ReactNode;
+  filterOpen?: boolean;
+  onFilterOpenChange?: (open: boolean) => void;
+  filterButtonActive?: boolean;
 };
 
 export function ShiftsTableCard({
   rows,
   columns,
   isLoading,
-  search,
-  onSearchChange,
+  searchInput,
+  onSearchInputChange,
+  appliedSearch = "",
+  onSearchApply = () => {},
+  showSearchSubmitButton = true,
+  searchPlaceholder = "Search by shift name…",
   page,
   pageCount,
   footerText,
@@ -71,67 +99,137 @@ export function ShiftsTableCard({
   disableActions,
   canEdit = true,
   canDelete = true,
+  cardSubtitle,
+  emptyState,
+  filterPanel,
+  filterOpen = false,
+  onFilterOpenChange,
+  filterButtonActive = false,
 }: ShiftsTableCardProps) {
   const theme = useTheme() as AppTheme;
 
+  const showFilter = filterPanel != null && onFilterOpenChange != null;
+
   return (
-    <DashboardCard sx={rolesCard}>
-      <Box sx={departmentsCardHeader}>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-          <Box sx={rolesIconBox}>
-            <AttachMoneyIcon sx={{ fontSize: 20, color: theme.app.dashboard.white95 }} />
+    <DashboardCard
+      sx={
+        [
+          rolesCard,
+          {
+            overflow: "hidden",
+            border: `1px solid ${alpha(theme.app.dashboard.white95, 0.14)}`,
+          },
+        ] as SxProps<Theme>
+      }
+    >
+      <Box sx={[departmentsCardHeader, { pb: 1.25 }] as SxProps<Theme>}>
+        <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1.5, minWidth: 0 }}>
+          <Box
+            sx={
+              [
+                rolesIconBox,
+                {
+                  background: `linear-gradient(145deg, ${alpha(theme.app.dashboard.accentBlue, 0.35)} 0%, ${alpha(theme.app.dashboard.accentIndigo, 0.15)} 100%)`,
+                  border: `1px solid ${alpha(theme.app.dashboard.white95, 0.2)}`,
+                },
+              ] as SxProps<Theme>
+            }
+          >
+            <ScheduleIcon sx={{ fontSize: 22, color: theme.app.dashboard.white95 }} />
           </Box>
-          <Typography variant="mediumLarge" fontWeight={600} color="white">
-            Shifts
-          </Typography>
+          <Box sx={{ minWidth: 0 }}>
+            <Typography variant="mediumLarge" fontWeight={700} color="white" sx={{ letterSpacing: "-0.02em" }}>
+              Shift templates
+            </Typography>
+            {cardSubtitle ? (
+              <Typography
+                variant="caption"
+                sx={{ display: "block", mt: 0.5, color: theme.app.dashboard.textMuted, lineHeight: 1.5, maxWidth: 560 }}
+              >
+                {cardSubtitle}
+              </Typography>
+            ) : null}
+          </Box>
         </Box>
 
         <Box sx={departmentsSearchRow}>
           <Box sx={departmentsSearchFieldWrapper}>
-            <SearchBar value={search} onChange={onSearchChange} placeholder="Search anything.." />
+            <SearchBar value={searchInput} onChange={onSearchInputChange} placeholder={searchPlaceholder} />
           </Box>
-          <FilterButton />
+          {showSearchSubmitButton ? (
+            <Button
+              type="button"
+              variant="primary"
+              disabled={searchInput.trim() === appliedSearch.trim()}
+              onClick={onSearchApply}
+              sx={{ minWidth: 132, whiteSpace: "nowrap", alignSelf: { xs: "stretch", sm: "center" } }}
+            >
+              Search
+            </Button>
+          ) : null}
+          {showFilter ? (
+            <ToolbarFilterPopover
+              open={filterOpen}
+              onOpenChange={onFilterOpenChange}
+              active={filterButtonActive}
+            >
+              {filterPanel}
+            </ToolbarFilterPopover>
+          ) : null}
         </Box>
       </Box>
 
-      <DataTable<ShiftRow>
-        columns={columns}
-        rows={rows}
-        isLoading={isLoading}
-        getRowId={(row) => row.id}
-        minWidth={640}
-        actionColumn={{
-          label: "Action",
-          render: (row) => (
-            <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 1 }}>
-              <IconButton
-                size="small"
-                sx={dataTableActionButton}
-                aria-label="Edit shift"
-                disabled={disableActions || !canEdit}
-                onClick={() => onEdit(row)}
-              >
-                <EditIcon fontSize="small" />
-              </IconButton>
-              <IconButton
-                size="small"
-                aria-label="Delete shift"
-                disabled={disableActions || !canDelete}
-                onClick={() => onDelete(row)}
-                sx={{
-                  ...dataTableActionButton,
-                  color: theme.app.dashboard.accentRedLight,
-                  opacity: disableActions ? 0.7 : 1,
-                }}
-              >
-                <DeleteIcon fontSize="small" />
-              </IconButton>
-            </Box>
-          ),
-        }}
-      />
+      <Box sx={{ px: { xs: 0.5, sm: 1 }, pb: 0.5 }}>
+        <DataTable<ShiftRow>
+          columns={columns}
+          rows={rows}
+          isLoading={isLoading}
+          getRowId={(row) => row.id}
+          minWidth={1000}
+          emptyState={{
+            title: emptyState?.title ?? "No shift templates",
+            description: emptyState?.description ?? "No results for this search.",
+          }}
+          actionColumn={{
+            label: "Actions",
+            render: (row) => (
+              <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 0.5 }}>
+                <IconButton
+                  size="small"
+                  sx={dataTableActionButton}
+                  aria-label="Edit shift"
+                  disabled={disableActions || !canEdit}
+                  onClick={() => onEdit(row)}
+                >
+                  <EditIcon fontSize="small" />
+                </IconButton>
+                <IconButton
+                  size="small"
+                  aria-label="Delete shift"
+                  disabled={disableActions || !canDelete}
+                  onClick={() => onDelete(row)}
+                  sx={{
+                    ...dataTableActionButton,
+                    color: theme.app.dashboard.accentRedLight,
+                    opacity: disableActions ? 0.7 : 1,
+                  }}
+                >
+                  <DeleteIcon fontSize="small" />
+                </IconButton>
+              </Box>
+            ),
+          }}
+        />
+      </Box>
 
-      <Box sx={rolesFooterRow}>
+      <Box
+        sx={
+          [
+            rolesFooterRow,
+            { borderTop: `1px solid ${alpha(theme.app.dashboard.white95, 0.08)}`, pt: 1.5, mt: 0.5 },
+          ] as SxProps<Theme>
+        }
+      >
         <Typography variant="medium" sx={footerMutedText(theme)}>
           {footerText}
         </Typography>
@@ -142,4 +240,3 @@ export function ShiftsTableCard({
     </DashboardCard>
   );
 }
-

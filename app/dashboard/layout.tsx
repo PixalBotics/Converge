@@ -1,4 +1,6 @@
+import { Suspense } from "react";
 import DashboardLayoutClient from "./DashboardLayoutClient";
+import { DashboardRouteFallback } from "./DashboardRouteFallback";
 
 export const dynamic = "force-dynamic";
 
@@ -7,5 +9,9 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return <DashboardLayoutClient>{children}</DashboardLayoutClient>;
+  return (
+    <Suspense fallback={<DashboardRouteFallback />}>
+      <DashboardLayoutClient>{children}</DashboardLayoutClient>
+    </Suspense>
+  );
 }

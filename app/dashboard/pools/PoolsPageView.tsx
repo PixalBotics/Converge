@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Box from "@mui/material/Box";
-import Divider from "@mui/material/Divider";
 import Stack from "@mui/material/Stack";
 import { AttachMoney as AttachMoneyIcon } from "@mui/icons-material";
 import { alpha, useTheme } from "@mui/material/styles";
@@ -22,17 +21,25 @@ import {
   SelectField,
   FormModal,
   SearchBar,
+  ToolbarFilterPopover,
+  Divider,
 } from "@/components/common";
 import type { DataTableColumn } from "@/components/common";
-import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
-import { rolesCard, rolesIconBox, rolesPageWrapper } from "../roles/roles.styles";
-import { pageWrapper } from "../companies/overview.styles";
-import { departmentsCardHeader } from "../website-assigning/website-assigning.styles";
+import {
+  HUB_ADD_USER_TABLE_MAX_PX,
+  departmentsCardHeader,
+  gradientPrimaryButtonSx,
+  hubUserCheckboxSx,
+  pageWrapper,
+  rolesCard,
+  rolesIconBox,
+  rolesPageWrapper,
+} from "./styles";
 import { publishAppToast } from "@/lib/notify";
-import { isRecord, pickNum, pickStr, unwrapApiData } from "@/lib/utils";
+import { isRecord, pickNum, pickStr, unwrapApiData } from "@/lib/utils/core";
 import {
   type HrmsPoolsListParams,
-  useAddPoolMemberMutation,
+  useAddPoolMembersBulkMutation,
   useCompaniesByResellerQuery,
   useCompaniesSetupResellersQuery,
   useCreatePoolMutation,
@@ -49,7 +56,7 @@ import {
 } from "@/app/dashboard/user-page/components/add-user-modal.utils";
 import { extractUsersRows } from "@/app/dashboard/user-page/utils";
 import type { UserRow } from "@/app/dashboard/user-page/types";
-import { PoolModals, PoolsTableCard, UnifiedPoolMembersCard } from "./components";
+import { PoolModals, PoolsTableCard, PoolMembersScopeFilterPanel, UnifiedPoolMembersCard } from "./components";
 import type { PoolRow } from "./components";
 import { useAuth, sessionMayPickInternalUserScope } from "@/lib/auth";
 import {
@@ -58,15 +65,10 @@ import {
   canPoolMemberList,
   canPoolMemberMove,
   canPoolMemberRemove,
+  hasPoolPage,
 } from "@/lib/permissions";
 
 const PAGE_LIMIT = 8;
-const HUB_ADD_USER_TABLE_MAX_PX = 360;
-
-const hubUserCheckboxSx = (theme: AppTheme) => ({
-  color: theme.app.dashboard.textMuted,
-  "&.Mui-checked": { color: "#2dd4bf" },
-});
 
 export type PoolsPageMode = "pools" | "pool-members";
 
@@ -85,11 +87,11 @@ export function PoolsPageView({ mode }: PoolsPageViewProps) {
   const canCreatePool = canPoolAction(hasOperational, "create");
   const canUpdatePool = canPoolAction(hasOperational, "update");
   const canDeletePool = canPoolAction(hasOperational, "delete");
-  const hasHrmsPage = hasPage("page:hrms");
-  const canListPoolMembers = hasHrmsPage && canPoolMemberList(hasOperational);
-  const canAddPoolMember = hasHrmsPage && canPoolMemberAdd(hasOperational);
-  const canMovePoolMember = hasHrmsPage && canPoolMemberMove(hasOperational);
-  const canRemovePoolMember = hasHrmsPage && canPoolMemberRemove(hasOperational);
+  const hasPoolPageAccess = hasPoolPage(hasPage);
+  const canListPoolMembers = hasPoolPageAccess && canPoolMemberList(hasOperational);
+  const canAddPoolMember = hasPoolPageAccess && canPoolMemberAdd(hasOperational);
+  const canMovePoolMember = hasPoolPageAccess && canPoolMemberMove(hasOperational);
+  const canRemovePoolMember = hasPoolPageAccess && canPoolMemberRemove(hasOperational);
 
   const [filterDeptKind, setFilterDeptKind] = useState<"Internal" | "External">("Internal");
   const effectiveFilterDeptKind: "Internal" | "External" = mayPickInternalDeptType ? filterDeptKind : "External";
@@ -101,6 +103,7 @@ export function PoolsPageView({ mode }: PoolsPageViewProps) {
   const [searchInput, setSearchInput] = useState("");
   const [appliedSearch, setAppliedSearch] = useState("");
   const [page, setPage] = useState(1);
+  const [membersHubFilterOpen, setMembersHubFilterOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [createDeptKind, setCreateDeptKind] = useState<"Internal" | "External">("Internal");
   const [createModalResellerId, setCreateModalResellerId] = useState("");
@@ -115,7 +118,7 @@ export function PoolsPageView({ mode }: PoolsPageViewProps) {
   const [hubParentCompanyId, setHubParentCompanyId] = useState("");
   const [hubDepartmentId, setHubDepartmentId] = useState("");
   const [hubPoolId, setHubPoolId] = useState("");
-  const [hubUserId, setHubUserId] = useState("");
+  const [hubUserIds, setHubUserIds] = useState<string[]>([]);
   const [hubUserSearchInput, setHubUserSearchInput] = useState("");
   const [hubUserSearchApplied, setHubUserSearchApplied] = useState("");
 
@@ -226,6 +229,31 @@ export function PoolsPageView({ mode }: PoolsPageViewProps) {
     parentCompanyId,
   ]);
 
+  const hasMembersHubScopeFilters = useMemo(() => {
+    if (!mayPickInternalDeptType) {
+      return (
+        Boolean(resellerId.trim()) || Boolean(parentCompanyId.trim()) || Boolean(departmentId.trim())
+      );
+    }
+    return (
+      filterDeptKind !== "Internal" ||
+      Boolean(resellerId.trim()) ||
+      Boolean(parentCompanyId.trim()) ||
+      Boolean(departmentId.trim())
+    );
+  }, [mayPickInternalDeptType, filterDeptKind, resellerId, parentCompanyId, departmentId]);
+
+  const handleClearFilters = useCallback(() => {
+    setFilterDeptKind(mayPickInternalDeptType ? "Internal" : "External");
+    setResellerId("");
+    setParentCompanyId("");
+    setDepartmentId("");
+    setSearchInput("");
+    setAppliedSearch("");
+    setPage(1);
+    setMembersHubFilterOpen(false);
+  }, [mayPickInternalDeptType]);
+
   const createModalParentCompanyOptionsForCreate = useMemo(() => {
     const base = extractParentCompaniesFromByResellerTree(createModalParentCompaniesQuery.data).map((o) => ({
       value: o.value,
@@ -286,11 +314,18 @@ export function PoolsPageView({ mode }: PoolsPageViewProps) {
     return params;
   }, [appliedSearch, departmentId, page, parentCompanyId, resellerId]);
 
+  useEffect(() => {
+    if (searchInput.trim().length > 0) return;
+    if (!appliedSearch.trim()) return;
+    setAppliedSearch("");
+    setPage(1);
+  }, [searchInput, appliedSearch]);
+
   const poolsQuery = usePoolsListQuery(listParams, { enabled: !isMembersHub, scope: "pools-page" });
   const createMutation = useCreatePoolMutation();
   const updateMutation = useUpdatePoolMutation();
   const deleteMutation = useDeletePoolMutation();
-  const addPoolMemberMutation = useAddPoolMemberMutation();
+  const addPoolMembersBulkMutation = useAddPoolMembersBulkMutation();
 
   const addMemberHubQueriesActive = isMembersHub && canAddPoolMember && hubAddOpen;
 
@@ -329,6 +364,10 @@ export function PoolsPageView({ mode }: PoolsPageViewProps) {
   );
 
   /** Department narrows list when set; without it we still load all internal users (same idea as pool-heads assign). */
+  const hubExcludePoolHeadParams = hubPoolId.trim()
+    ? { excludePoolHeadOfPoolId: hubPoolId.trim() }
+    : {};
+
   const hubInternalUsersQuery = useUsersListQuery(
     addMemberHubQueriesActive && hubDeptKind === "Internal"
       ? {
@@ -336,6 +375,7 @@ export function PoolsPageView({ mode }: PoolsPageViewProps) {
           userType: "Internal",
           unassignedPoolOnly: true,
           ...(hubDepartmentId.trim() ? { departmentId: hubDepartmentId.trim() } : {}),
+          ...hubExcludePoolHeadParams,
         }
       : undefined,
     { enabled: addMemberHubQueriesActive && hubDeptKind === "Internal" },
@@ -352,6 +392,7 @@ export function PoolsPageView({ mode }: PoolsPageViewProps) {
           unassignedPoolOnly: true,
           parentCompanyId: hubParentCompanyId.trim(),
           ...(hubDepartmentId.trim() ? { departmentId: hubDepartmentId.trim() } : {}),
+          ...hubExcludePoolHeadParams,
         }
       : undefined,
     {
@@ -380,6 +421,10 @@ export function PoolsPageView({ mode }: PoolsPageViewProps) {
     const n = pickNum(payloadObj, ["totalPages"]);
     return n && n > 0 ? n : 1;
   }, [payloadObj]);
+
+  useEffect(() => {
+    if (!isMembersHub) setMembersHubFilterOpen(false);
+  }, [isMembersHub]);
 
   useEffect(() => {
     setResellerId("");
@@ -482,16 +527,6 @@ export function PoolsPageView({ mode }: PoolsPageViewProps) {
     );
   };
 
-  const handleClearFilters = () => {
-    setFilterDeptKind(mayPickInternalDeptType ? "Internal" : "External");
-    setResellerId("");
-    setParentCompanyId("");
-    setDepartmentId("");
-    setSearchInput("");
-    setAppliedSearch("");
-    setPage(1);
-  };
-
   const hubModalParentCompanyOptions = useMemo(() => {
     const base = extractParentCompaniesFromByResellerTree(hubModalParentCompaniesQuery.data).map((o) => ({
       value: o.value,
@@ -566,9 +601,9 @@ export function PoolsPageView({ mode }: PoolsPageViewProps) {
     hubDeptKind === "Internal" ? hubInternalUsersQuery.isError : hubExternalUsersQuery.isError;
 
   useEffect(() => {
-    if (!hubUserId.trim()) return;
-    if (!hubFilteredUserRows.some((r) => r.id === hubUserId)) setHubUserId("");
-  }, [hubFilteredUserRows, hubUserId]);
+    const visible = new Set(hubFilteredUserRows.map((r) => r.id));
+    setHubUserIds((prev) => prev.filter((id) => visible.has(id)));
+  }, [hubFilteredUserRows]);
 
   const resetHubAddMemberForm = () => {
     setHubDeptKind(mayPickInternalDeptType ? "Internal" : "External");
@@ -576,34 +611,50 @@ export function PoolsPageView({ mode }: PoolsPageViewProps) {
     setHubParentCompanyId("");
     setHubDepartmentId("");
     setHubPoolId("");
-    setHubUserId("");
+    setHubUserIds([]);
     setHubUserSearchInput("");
     setHubUserSearchApplied("");
   };
 
+  const toggleHubUserSelection = useCallback((userId: string) => {
+    setHubUserIds((prev) =>
+      prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId],
+    );
+  }, []);
+
   const handleHubAddMemberSave = () => {
     const pid = hubPoolId.trim();
-    const uid = hubUserId.trim();
-    if (!pid || !uid) {
-      publishAppToast({ variant: "error", message: "Select both pool and user." });
+    const ids = hubUserIds.map((id) => id.trim()).filter(Boolean);
+    if (!pid) {
+      publishAppToast({ variant: "error", message: "Select a pool." });
       return;
     }
-    addPoolMemberMutation.mutate(
-      { poolId: pid, userId: uid },
+    if (ids.length === 0) {
+      publishAppToast({ variant: "error", message: "Select at least one user." });
+      return;
+    }
+    addPoolMembersBulkMutation.mutate(
+      { poolId: pid, userIds: ids },
       {
         onSuccess: () => {
-          publishAppToast({ variant: "success", message: "Member added to pool." });
+          publishAppToast({
+            variant: "success",
+            message:
+              ids.length === 1
+                ? "Member added to pool."
+                : `${ids.length} members added to pool.`,
+          });
           setHubAddOpen(false);
           resetHubAddMemberForm();
         },
-        onError: () => publishAppToast({ variant: "error", message: "Could not add member." }),
+        onError: () => publishAppToast({ variant: "error", message: "Could not add members." }),
       },
     );
   };
 
   const pageTitle = isMembersHub ? "Pool members" : "Pools";
   const pageSubtitle = isMembersHub
-    ? "Open Add pool member to assign someone to a pool. The table below lists members for the department you pick in Filters."
+    ? "Open Add pool member to assign someone to a pool. The table lists members for the department scope you set with Filter (next to Search)."
     : "Create and manage pools by department.";
 
   const poolsTableEl = (
@@ -614,9 +665,10 @@ export function PoolsPageView({ mode }: PoolsPageViewProps) {
       search={searchInput}
       onSearchChange={setSearchInput}
       onSearchSubmit={() => {
-        setAppliedSearch(searchInput);
+        setAppliedSearch(searchInput.trim());
         setPage(1);
       }}
+      searchSubmitDisabled={searchInput.trim() === appliedSearch.trim()}
       page={page}
       pageCount={pageCount}
       footerText={
@@ -653,7 +705,7 @@ export function PoolsPageView({ mode }: PoolsPageViewProps) {
           <Button
             variant="primary"
             sx={gradientPrimaryButtonSx}
-            disabled={addPoolMemberMutation.isPending}
+            disabled={addPoolMembersBulkMutation.isPending}
             onClick={() => {
               resetHubAddMemberForm();
               setHubAddOpen(true);
@@ -676,86 +728,88 @@ export function PoolsPageView({ mode }: PoolsPageViewProps) {
         ) : null}
       </Box>
 
-      <DashboardCard sx={rolesCard}>
-        <Box sx={departmentsCardHeader}>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-            <Box sx={rolesIconBox}>
-              <AttachMoneyIcon sx={{ fontSize: 20, color: theme.app.dashboard.white95 }} />
+      {!isMembersHub ? (
+        <DashboardCard sx={rolesCard}>
+          <Box sx={departmentsCardHeader}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+              <Box sx={rolesIconBox}>
+                <AttachMoneyIcon sx={{ fontSize: 20, color: theme.app.dashboard.white95 }} />
+              </Box>
+              <Typography variant="mediumLarge" fontWeight={600} color="white">
+                Filters
+              </Typography>
             </Box>
-            <Typography variant="mediumLarge" fontWeight={600} color="white">
-              Filters
-            </Typography>
+
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              <Button variant="outlined" onClick={handleClearFilters}>
+                Clear filters
+              </Button>
+            </Box>
           </Box>
 
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-            <Button variant="outlined" onClick={handleClearFilters}>
-              Clear filters
-            </Button>
-          </Box>
-        </Box>
-
-        <Box
-          sx={{
-            display: "grid",
-            gridTemplateColumns: {
-              xs: "1fr",
-              sm: "repeat(2, minmax(0, 1fr))",
-              lg:
-                mayPickInternalDeptType && effectiveFilterDeptKind === "External"
-                  ? "repeat(4, minmax(0, 1fr))"
-                  : mayPickInternalDeptType
-                    ? "repeat(2, minmax(0, 1fr))"
-                    : "repeat(3, minmax(0, 1fr))",
-            },
-            gap: 1.5,
-            mt: 2,
-          }}
-        >
-          {mayPickInternalDeptType ? (
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: {
+                xs: "1fr",
+                sm: "repeat(2, minmax(0, 1fr))",
+                lg:
+                  mayPickInternalDeptType && effectiveFilterDeptKind === "External"
+                    ? "repeat(4, minmax(0, 1fr))"
+                    : mayPickInternalDeptType
+                      ? "repeat(2, minmax(0, 1fr))"
+                      : "repeat(3, minmax(0, 1fr))",
+              },
+              gap: 1.5,
+              mt: 2,
+            }}
+          >
+            {mayPickInternalDeptType ? (
+              <SelectField
+                label="Department type"
+                value={filterDeptKind}
+                onChange={(v) => setFilterDeptKind(v as "Internal" | "External")}
+                options={[
+                  { value: "Internal", label: "Internal" },
+                  { value: "External", label: "External" },
+                ]}
+                menuMaxRows={4}
+              />
+            ) : null}
+            {effectiveFilterDeptKind === "External" ? (
+              <>
+                <SelectField
+                  label="Reseller"
+                  value={resellerId}
+                  onChange={setResellerId}
+                  options={resellerOptions}
+                  menuMaxRows={8}
+                />
+                <SelectField
+                  label="Parent company"
+                  value={parentCompanyId}
+                  onChange={setParentCompanyId}
+                  options={parentCompanyOptions}
+                  searchable
+                  searchPlaceholder="Search parent company…"
+                  menuMaxRows={8}
+                  disabled={!resellerId.trim()}
+                />
+              </>
+            ) : null}
             <SelectField
-              label="Department type"
-              value={filterDeptKind}
-              onChange={(v) => setFilterDeptKind(v as "Internal" | "External")}
-              options={[
-                { value: "Internal", label: "Internal" },
-                { value: "External", label: "External" },
-              ]}
-              menuMaxRows={4}
+              label="Department"
+              value={departmentId}
+              onChange={setDepartmentId}
+              options={departmentOptions}
+              searchable
+              searchPlaceholder="Search department…"
+              menuMaxRows={8}
+              disabled={effectiveFilterDeptKind === "External" && !parentCompanyId.trim()}
             />
-          ) : null}
-          {effectiveFilterDeptKind === "External" ? (
-            <>
-              <SelectField
-                label="Reseller"
-                value={resellerId}
-                onChange={setResellerId}
-                options={resellerOptions}
-                menuMaxRows={8}
-              />
-              <SelectField
-                label="Parent company"
-                value={parentCompanyId}
-                onChange={setParentCompanyId}
-                options={parentCompanyOptions}
-                searchable
-                searchPlaceholder="Search parent company…"
-                menuMaxRows={8}
-                disabled={!resellerId.trim()}
-              />
-            </>
-          ) : null}
-          <SelectField
-            label="Department"
-            value={departmentId}
-            onChange={setDepartmentId}
-            options={departmentOptions}
-            searchable
-            searchPlaceholder="Search department…"
-            menuMaxRows={8}
-            disabled={effectiveFilterDeptKind === "External" && !parentCompanyId.trim()}
-          />
-        </Box>
-      </DashboardCard>
+          </Box>
+        </DashboardCard>
+      ) : null}
 
       {isMembersHub && !canListPoolMembers ? (
         <Typography variant="body2" sx={{ mt: 2, color: theme.app.dashboard.textMuted }}>
@@ -771,6 +825,32 @@ export function PoolsPageView({ mode }: PoolsPageViewProps) {
             active={canListPoolMembers}
             canMove={canMovePoolMember}
             canRemove={canRemovePoolMember}
+            membersToolbarFilter={
+              <ToolbarFilterPopover
+                open={membersHubFilterOpen}
+                onOpenChange={setMembersHubFilterOpen}
+                active={hasMembersHubScopeFilters}
+              >
+                <PoolMembersScopeFilterPanel
+                  mayPickInternalDeptType={mayPickInternalDeptType}
+                  effectiveFilterDeptKind={effectiveFilterDeptKind}
+                  filterDeptKind={filterDeptKind}
+                  onFilterDeptKindChange={setFilterDeptKind}
+                  resellerId={resellerId}
+                  onResellerIdChange={setResellerId}
+                  parentCompanyId={parentCompanyId}
+                  onParentCompanyIdChange={setParentCompanyId}
+                  departmentId={departmentId}
+                  onDepartmentIdChange={setDepartmentId}
+                  resellerOptions={resellerOptions}
+                  parentCompanyOptions={parentCompanyOptions}
+                  departmentOptions={departmentOptions}
+                  hasMembersHubScopeFilters={hasMembersHubScopeFilters}
+                  onClearFilters={handleClearFilters}
+                  onClose={() => setMembersHubFilterOpen(false)}
+                />
+              </ToolbarFilterPopover>
+            }
           />
         </Box>
       ) : (
@@ -783,17 +863,25 @@ export function PoolsPageView({ mode }: PoolsPageViewProps) {
           title="Add pool member"
           description={
             mayPickInternalDeptType
-              ? "Choose the target pool, pick one user from the list, then confirm. Internal users load by default; external flows need reseller and parent company first."
-              : "Choose the target pool (external departments), pick one user from the list, then confirm. Select reseller and parent company first to load users."
+              ? "Choose the target pool, select one or more users, then confirm. Pool heads are excluded. Internal users load by default; external flows need reseller and parent company first."
+              : "Choose the target pool, select one or more users, then confirm. Pool heads are excluded. Select reseller and parent company first to load users."
           }
           onClose={() => {
-            if (addPoolMemberMutation.isPending) return;
+            if (addPoolMembersBulkMutation.isPending) return;
             setHubAddOpen(false);
             resetHubAddMemberForm();
           }}
           onSave={handleHubAddMemberSave}
-          primaryButtonLabel={addPoolMemberMutation.isPending ? "Adding…" : "Add to pool"}
-          primaryButtonDisabled={addPoolMemberMutation.isPending || !hubPoolId.trim() || !hubUserId.trim()}
+          primaryButtonLabel={
+            addPoolMembersBulkMutation.isPending
+              ? "Adding…"
+              : hubUserIds.length > 1
+                ? `Add ${hubUserIds.length} to pool`
+                : "Add to pool"
+          }
+          primaryButtonDisabled={
+            addPoolMembersBulkMutation.isPending || !hubPoolId.trim() || hubUserIds.length === 0
+          }
           cancelButtonLabel="Cancel"
           maxWidth={760}
           fitContent
@@ -803,7 +891,7 @@ export function PoolsPageView({ mode }: PoolsPageViewProps) {
               <Button
                 variant="outlined"
                 size="small"
-                disabled={addPoolMemberMutation.isPending}
+                disabled={addPoolMembersBulkMutation.isPending}
                 onClick={resetHubAddMemberForm}
                 sx={{
                   minWidth: 0,
@@ -855,7 +943,7 @@ export function PoolsPageView({ mode }: PoolsPageViewProps) {
                     setHubParentCompanyId("");
                     setHubDepartmentId("");
                     setHubPoolId("");
-                    setHubUserId("");
+                    setHubUserIds([]);
                     setHubUserSearchInput("");
                     setHubUserSearchApplied("");
                   }}
@@ -880,7 +968,7 @@ export function PoolsPageView({ mode }: PoolsPageViewProps) {
                         setHubParentCompanyId("");
                         setHubDepartmentId("");
                         setHubPoolId("");
-                        setHubUserId("");
+                        setHubUserIds([]);
                         setHubUserSearchApplied("");
                       }}
                       options={resellerOptions}
@@ -893,7 +981,7 @@ export function PoolsPageView({ mode }: PoolsPageViewProps) {
                         setHubParentCompanyId(v);
                         setHubDepartmentId("");
                         setHubPoolId("");
-                        setHubUserId("");
+                        setHubUserIds([]);
                         setHubUserSearchApplied("");
                       }}
                       options={hubModalParentCompanyOptions}
@@ -909,7 +997,7 @@ export function PoolsPageView({ mode }: PoolsPageViewProps) {
                   onChange={(v) => {
                     setHubDepartmentId(v);
                     setHubPoolId("");
-                    setHubUserId("");
+                    setHubUserIds([]);
                     setHubUserSearchApplied("");
                   }}
                   options={hubDepartmentOptions}
@@ -920,7 +1008,10 @@ export function PoolsPageView({ mode }: PoolsPageViewProps) {
                 <SelectField
                   label="Pool"
                   value={hubPoolId}
-                  onChange={setHubPoolId}
+                  onChange={(v) => {
+                    setHubPoolId(v);
+                    setHubUserIds([]);
+                  }}
                   options={hubAddPoolOptions}
                   menuMaxRows={12}
                   disabled={!hubDepartmentId.trim()}
@@ -928,7 +1019,7 @@ export function PoolsPageView({ mode }: PoolsPageViewProps) {
               </Stack>
             </Box>
 
-            <Divider sx={{ my: 2.5, borderColor: theme.app.dashboard.overlayBorder }} />
+            <Divider sx={{ my: 2.5, borderBottom: `1px solid ${theme.app.dashboard.overlayBorder}` }} />
 
             <Box
               sx={{
@@ -956,7 +1047,7 @@ export function PoolsPageView({ mode }: PoolsPageViewProps) {
                     User
                   </Typography>
                   <Typography variant="body2" sx={{ mt: 1, color: theme.app.text.secondary, maxWidth: 560 }}>
-                    Click a row to select one person. Search narrows the list.
+                    Click rows to select one or more people. Pool heads are not listed. Search narrows the list.
                   </Typography>
                 </Box>
                 {hubUserSourceRows.length > 0 && !hubUsersLoading ? (
@@ -989,7 +1080,7 @@ export function PoolsPageView({ mode }: PoolsPageViewProps) {
                   disabled={hubUsersLoading}
                   onClick={() => {
                     setHubUserSearchApplied(hubUserSearchInput);
-                    setHubUserId("");
+                    setHubUserIds([]);
                   }}
                 >
                   Search
@@ -1094,13 +1185,13 @@ export function PoolsPageView({ mode }: PoolsPageViewProps) {
                     </TableHead>
                     <TableBody>
                       {hubFilteredUserRows.map((row) => {
-                        const checked = hubUserId === row.id;
+                        const checked = hubUserIds.includes(row.id);
                         return (
                           <TableRow
                             key={row.id}
                             hover
                             selected={checked}
-                            onClick={() => setHubUserId(checked ? "" : row.id)}
+                            onClick={() => toggleHubUserSelection(row.id)}
                             sx={{
                               cursor: "pointer",
                               "& td": { fontSize: 13, py: 0.85 },

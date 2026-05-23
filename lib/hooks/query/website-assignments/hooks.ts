@@ -2,12 +2,16 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  assignWebsiteTier,
   getWebsiteAssignmentDetail,
   listWebsitesForUser,
   listWebsitesInScope,
+  putDepartmentRoster,
+  putWebsiteAssignmentSlot,
+  removeWebsiteSlotAssignment,
 } from "@/api";
-import type { AssignWebsiteTierBody, JsonRecord } from "@/api";
+import type { AssignWebsiteTierBody, JsonRecord, PutDepartmentRosterBody } from "@/api";
+import { useAuth } from "@/lib/auth";
+import { buildWebsiteAssignmentsScopeParams } from "@/lib/companies/reseller-list-filter";
 import { websiteAssignmentsKeys } from "./keys";
 
 export type WebsiteAssignmentsWebsitesParams = {
@@ -22,15 +26,19 @@ export type WebsiteAssignmentsWebsitesParams = {
   childCompanyId?: string;
   userId?: string;
   search?: string;
+  serviceSchedulingConfigured?: boolean;
+  fullyAssigned?: boolean;
 };
 
 export function useWebsiteAssignmentsWebsitesQuery(
   params?: WebsiteAssignmentsWebsitesParams,
-  options?: { enabled?: boolean },
+  options?: { enabled?: boolean; /** Only platform admins may pass `resellerId`. */ allowResellerIdFilter?: boolean },
 ) {
+  const { user } = useAuth();
+  const scopedParams = buildWebsiteAssignmentsScopeParams(params, user);
   return useQuery({
-    queryKey: websiteAssignmentsKeys.websites(params),
-    queryFn: () => listWebsitesInScope(params),
+    queryKey: websiteAssignmentsKeys.websites(scopedParams),
+    queryFn: () => listWebsitesInScope(scopedParams),
     enabled: options?.enabled ?? true,
   });
 }
@@ -71,9 +79,53 @@ export function useWebsiteAssignmentsUserWebsitesQuery(
 export function useAssignWebsiteTierMutation() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (body: AssignWebsiteTierBody) => assignWebsiteTier(body),
+    mutationFn: (body: AssignWebsiteTierBody) => putWebsiteAssignmentSlot(body),
+    onSuccess: (_data, body) => {
+      void queryClient.invalidateQueries({ queryKey: websiteAssignmentsKeys.all });
+      void queryClient.invalidateQueries({
+        queryKey: websiteAssignmentsKeys.website(body.websiteId),
+      });
+    },
+  });
+}
+
+export function usePutDepartmentRosterMutation(websiteId: string) {
+  const queryClient = useQueryClient();
+  const wid = websiteId.trim();
+  return useMutation({
+    mutationFn: (args: { departmentId: string; body: PutDepartmentRosterBody }) =>
+      putDepartmentRoster(wid, args.departmentId, args.body),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: websiteAssignmentsKeys.all });
+      if (wid) {
+        void queryClient.invalidateQueries({
+          queryKey: websiteAssignmentsKeys.website(wid),
+        });
+      }
+    },
+  });
+}
+
+export function useRemoveWebsiteSlotMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (args: {
+      websiteId: string;
+      departmentId: string;
+      serviceChannel: AssignWebsiteTierBody["serviceChannel"];
+      assignmentType: AssignWebsiteTierBody["assignmentType"];
+    }) =>
+      removeWebsiteSlotAssignment(
+        args.websiteId,
+        args.departmentId,
+        args.serviceChannel,
+        args.assignmentType,
+      ),
+    onSuccess: (_data, args) => {
+      void queryClient.invalidateQueries({ queryKey: websiteAssignmentsKeys.all });
+      void queryClient.invalidateQueries({
+        queryKey: websiteAssignmentsKeys.website(args.websiteId),
+      });
     },
   });
 }

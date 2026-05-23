@@ -33,3 +33,6 @@ export const FILTER_KIND_OPTIONS = [
 ] as const;
 
 export type FilterKind = (typeof FILTER_KIND_OPTIONS)[number]["value"];
+
+/** GET /users `userType` — "all" omits the param. */
+export type UserListTypeFilter = "all" | "Internal" | "External";

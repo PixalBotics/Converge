@@ -7,8 +7,6 @@ import Settings from "@mui/icons-material/Settings";
 import Box from "@mui/material/Box";
 import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
-import { filterChromeButtonSx } from "@/components/common/FilterButton/filter-button.styles";
-import { resolveSx } from "@/utils/resolveSx";
 import { Button, Typography } from "@/components/common";
 import { ModalGlassShell } from "@/components/common/FormModal/ModalGlassShell";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
@@ -115,7 +113,7 @@ export function SendLicenseConfirmModal({
         </Typography>
 
         <Box sx={sendLicenseConfirmActionsRowSx}>
-          <Button type="button" variant="outlined" onClick={onDismiss} sx={resolveSx(filterChromeButtonSx, theme)}>
+          <Button type="button" variant="secondary" onClick={onDismiss} sx={{ minWidth: 120 }}>
             {dismissLabel}
           </Button>
           <Button

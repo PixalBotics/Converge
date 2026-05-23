@@ -17,6 +17,7 @@ export type UserShiftAssignmentRow = {
   shiftName: string;
   effectiveFrom: string;
   effectiveTo: string;
+  weekSummary: string;
 };
 
 export type UserShiftAssignmentsCardProps = {
@@ -48,7 +49,7 @@ export function UserShiftAssignmentsCard({
             <AttachMoneyIcon sx={userShiftIconSx} />
           </Box>
           <Box sx={{ minWidth: 0 }}>
-            <Typography variant="mediumLarge" fontWeight={700} color="white" noWrap>
+            <Typography variant="mediumLarge" fontWeight={700} sx={{ color: "text.primary" }} noWrap>
               Assignments
             </Typography>
             <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted }} noWrap>

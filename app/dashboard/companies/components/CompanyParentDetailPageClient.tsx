@@ -11,6 +11,7 @@ import { useParentCompanyQuery } from "@/lib/hooks/query";
 import { normalizePocsFromCarrier } from "@/lib/companies/parent-detail-pocs";
 import { extractApiErrorMessageForToast } from "@/lib/notify/extract-api-message";
 import { CompanyPocSummaryBlock } from "./CompanyPocSummaryBlock";
+import { ClientPermissionsCapPanel } from "./ClientPermissionsCapPanel";
 import { pageHeaderRow, pageWrapper } from "../overview.styles";
 import { departmentsCard } from "../../website-assigning/website-assigning.styles";
 import { useAuth } from "@/lib/auth";
@@ -35,7 +36,7 @@ function detailCardSx(theme: AppTheme) {
     borderRadius: "16px",
     border: `1px solid ${alpha(theme.app.dashboard.cardBorder, 0.95)}`,
     bgcolor: alpha(theme.app.dashboard.white95, 0.035),
-    boxShadow: `0 12px 40px ${alpha("#000", 0.25)}`,
+    boxShadow: "none",
   };
 }
 
@@ -136,6 +137,11 @@ export function CompanyParentDetailPageClient() {
           }}
         >
           <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
+            <ClientPermissionsCapPanel
+              parentCompanyId={parentId}
+              parentCompanyName={parent.name}
+            />
+
             <Box sx={detailCardSx(theme)}>
               <Typography
                 sx={{

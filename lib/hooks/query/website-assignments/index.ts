@@ -1,6 +1,8 @@
 export { websiteAssignmentsKeys } from "./keys";
 export {
   useAssignWebsiteTierMutation,
+  usePutDepartmentRosterMutation,
+  useRemoveWebsiteSlotMutation,
   useWebsiteAssignmentDetailQuery,
   useWebsiteAssignmentsUserWebsitesQuery,
   useWebsiteAssignmentsWebsitesQuery,
@@ -9,3 +11,4 @@ export type {
   WebsiteAssignmentsUserWebsitesParams,
   WebsiteAssignmentsWebsitesParams,
 } from "./hooks";
+export { buildWebsitesInScopeParams } from "./scope-params";

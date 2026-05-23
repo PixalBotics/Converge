@@ -7,7 +7,7 @@ import { useTheme } from "@mui/material/styles";
 import type { SxProps, Theme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import type { SearchBarProps } from "./SearchBar.types";
-import { SearchIcon } from "@/components/dashboard/icons/SearchIcon";
+import { SearchIcon } from "@/components/common/icons";
 import { resolveSx } from "@/utils/resolveSx";
 
 export function SearchBar({ value, onChange, placeholder = "Search anything..", sx }: SearchBarProps) {
@@ -34,7 +34,19 @@ export function SearchBar({ value, onChange, placeholder = "Search anything..", 
         ] as SxProps<Theme>
       }
     >
-      <SearchIcon sx={{ color: app.dashboard.iconMuted, fontSize: 18 }} width={18} height={18} />
+      <Box
+        aria-hidden
+        sx={{
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          flexShrink: 0,
+          lineHeight: 0,
+          color: app.dashboard.iconMuted,
+        }}
+      >
+        <SearchIcon width={18} height={18} />
+      </Box>
       <InputBase
         placeholder={placeholder}
         value={value}

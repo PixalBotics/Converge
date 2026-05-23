@@ -89,7 +89,7 @@ export function ChildCompanyWebsitesPanel({
     borderRadius: "14px",
     border: `1px solid ${alpha(theme.app.dashboard.cardBorder, 0.55)}`,
     background: `linear-gradient(145deg, ${alpha(theme.app.dashboard.white95, 0.06)} 0%, ${alpha("#000", 0.12)} 100%)`,
-    boxShadow: `0 12px 40px ${alpha("#000", 0.18)}, inset 0 1px 0 ${alpha(theme.app.dashboard.white95, 0.06)}`,
+    boxShadow: `inset 0 1px 0 ${alpha(theme.app.dashboard.white95, 0.06)}`,
   } as const;
 
   const setAt = (idx: number, patch: Partial<WebsiteListItem>) => {
