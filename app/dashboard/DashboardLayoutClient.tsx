@@ -69,6 +69,7 @@ export default function DashboardLayoutClient({
       pagePermissionSet,
       isDemoUser,
       isPlatformAdmin,
+      isInternalUser: user?.userType === "Internal",
     });
     if (fallback && fallback !== pathname) {
       setRouteAccessBlocked(false);
@@ -85,6 +86,7 @@ export default function DashboardLayoutClient({
     pagePermissionSet,
     isDemoUser,
     isPlatformAdmin,
+    user?.userType,
     router,
   ]);
 

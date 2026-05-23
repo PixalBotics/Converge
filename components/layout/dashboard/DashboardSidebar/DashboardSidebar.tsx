@@ -61,6 +61,7 @@ export default function DashboardSidebar({ open = false, onClose }: { open?: boo
     operationalPermissionSet,
     isDemoUser,
     isPlatformAdmin,
+    isInternalUser: user?.userType === "Internal",
   });
   const footerItems = getVisibleDashboardNavItems({
     section: "footer",
@@ -69,6 +70,7 @@ export default function DashboardSidebar({ open = false, onClose }: { open?: boo
     operationalPermissionSet,
     isDemoUser,
     isPlatformAdmin,
+    isInternalUser: user?.userType === "Internal",
   });
 
   useEffect(() => {

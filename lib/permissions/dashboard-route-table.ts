@@ -134,23 +134,36 @@ export const ROUTE_RULES: readonly RouteRule[] = [
   { permission: "page:settings", href: "/dashboard/settings", iconKey: "settings" },
   {
     permission: "page:email-template",
+    href: "/dashboard/email",
+    iconKey: "smtpEmail",
+    prefixMatch: true,
+  },
+  {
+    permission: "page:email-template",
     href: "/dashboard/email/design",
     iconKey: "smtpEmail",
     prefixMatch: true,
   },
   {
     permission: "page:email-template",
-    href: "/dashboard/email/form",
+    href: "/dashboard/email/forms",
     iconKey: "smtpEmail",
     prefixMatch: true,
   },
   {
-    permission: "page:smtp-email",
-    href: "/dashboard/email/connection",
+    permission: "page:email-agent-feedback",
+    href: "/dashboard/email/feedback",
     iconKey: "smtpEmail",
+    internalOnly: true,
+  },
+  {
+    permission: "page:smtp-email",
+    href: "/dashboard/email",
+    iconKey: "smtpEmail",
+    label: "Email Configuration",
     prefixMatch: true,
   },
-  { permission: "page:smtp-email", href: "/dashboard/email", iconKey: "smtpEmail", prefixMatch: true },
+  { permission: "page:smtp-email", href: "/dashboard/email/setup", iconKey: "smtpEmail", prefixMatch: true },
   { permission: "page:smtp-email", href: "/dashboard/smtp-email-integration", iconKey: "smtpEmail", prefixMatch: true },
   { permission: "page:social-media", href: "/dashboard/integrations", iconKey: "socialMedia" },
   /** Alternate / legacy entry paths that share the same backend page permission. */
@@ -203,6 +216,7 @@ export const PAGE_PERMISSION_ORDER: readonly PagePermission[] = [
   "page:settings",
   "page:smtp-email",
   "page:email-template",
+  "page:email-agent-feedback",
   "page:social-media",
   "page:resellers",
 ] as const;

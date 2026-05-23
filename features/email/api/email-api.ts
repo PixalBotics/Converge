@@ -5,6 +5,7 @@
 export {
   deletePlatformEmailSettings,
   deletePlatformMailAssignment,
+  deleteResellerEmailBanner,
   deleteResellerEmailLogo,
   deleteResellerOwnMailSettings,
   getEmailProviderFormSchema,
@@ -14,6 +15,8 @@ export {
   getResellerEmailTemplateDraftPreview,
   getResellerEmailTemplatePublished,
   getResellerEmailTemplatePublishedPreview,
+  getResellerEmailTemplateAssignment,
+  usePlatformEmailTemplate,
   getResellerOwnMailSettings,
   listEmailProviders,
   listPlatformMailAssignments,
@@ -25,5 +28,8 @@ export {
   updatePlatformMailAssignment,
   updateResellerEmailTemplateDraft,
   updateResellerOwnMailSettings,
+  uploadResellerEmailBanner,
   uploadResellerEmailLogo,
+  getPlatformAgentFeedbackSettings,
+  updatePlatformAgentFeedbackSettings,
 } from "@/api/email/email.api";

@@ -9,7 +9,11 @@ export function EmailRouteSegmented({
   ariaLabel,
   sx,
 }: {
-  tabs: readonly { href: string; label: string }[];
+  tabs: readonly {
+    href: string;
+    label: string;
+    isActive?: (pathname: string) => boolean;
+  }[];
   ariaLabel: string;
   sx?: SxProps<Theme>;
 }) {
@@ -17,9 +21,9 @@ export function EmailRouteSegmented({
   const router = useRouter();
 
   const active =
-    tabs.find((t) => pathname === t.href || pathname.startsWith(`${t.href}/`))?.href ??
-    tabs[0]?.href ??
-    "";
+    tabs.find((t) =>
+      t.isActive ? t.isActive(pathname) : pathname === t.href || pathname.startsWith(`${t.href}/`),
+    )?.href ?? tabs[0]?.href ?? "";
 
   if (tabs.length === 0) return null;
 

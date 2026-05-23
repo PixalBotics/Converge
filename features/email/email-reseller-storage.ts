@@ -20,7 +20,7 @@ export function writeEmailResellerToStorage(resellerId: string | null): void {
 export function buildEmailTabHref(path: string, resellerId: string | null): string {
   const id = resellerId?.trim();
   if (!id) return path;
-  if (path === EMAIL_ROUTES.connection || path === EMAIL_ROUTES.resellerMail) {
+  if (path === EMAIL_ROUTES.connection || path === EMAIL_ROUTES.setupReseller) {
     return resellerOwnMailEditPath(id);
   }
   const sep = path.includes("?") ? "&" : "?";

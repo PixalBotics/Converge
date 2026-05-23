@@ -361,6 +361,83 @@ const HRMS_GROUP: DashboardNavItem = {
   ],
 };
 
+const EMAIL_GROUP: DashboardNavItem = {
+  href: "/dashboard/email/setup/reseller",
+  label: "Email Configuration",
+  section: "activity",
+  iconKey: "smtpEmail",
+  permission: null,
+  permissionsAny: ["page:smtp-email", "page:email-template", "page:email-agent-feedback"],
+  prefixMatch: true,
+  children: [
+    {
+      href: "/dashboard/email/setup/reseller",
+      label: "Reseller mail",
+      section: "activity",
+      iconKey: "smtpEmail",
+      permission: "page:smtp-email",
+      prefixMatch: true,
+    },
+    {
+      href: "/dashboard/email/setup/platform",
+      label: "Platform mail",
+      section: "activity",
+      iconKey: "smtpEmail",
+      permission: "page:smtp-email",
+      internalOnly: true,
+    },
+    {
+      href: "/dashboard/email/setup/assignment",
+      label: "Use platform mail",
+      section: "activity",
+      iconKey: "smtpEmail",
+      permission: "page:smtp-email",
+      internalOnly: true,
+    },
+    {
+      href: "/dashboard/email/design",
+      label: "Email design",
+      section: "activity",
+      iconKey: "smtpEmail",
+      permission: "page:email-template",
+      prefixMatch: true,
+      pathExcludes: ["/platform", "/assignment", "/editor"],
+    },
+    {
+      href: "/dashboard/email/design/platform",
+      label: "Platform design",
+      section: "activity",
+      iconKey: "smtpEmail",
+      permission: "page:email-template",
+      internalOnly: true,
+    },
+    {
+      href: "/dashboard/email/design/assignment",
+      label: "Use platform design",
+      section: "activity",
+      iconKey: "smtpEmail",
+      permission: "page:email-template",
+      internalOnly: true,
+    },
+    {
+      href: "/dashboard/email/forms",
+      label: "Email forms",
+      section: "activity",
+      iconKey: "smtpEmail",
+      permission: "page:email-template",
+      prefixMatch: true,
+    },
+    {
+      href: "/dashboard/email/feedback",
+      label: "Feedback",
+      section: "activity",
+      iconKey: "smtpEmail",
+      permission: "page:email-agent-feedback",
+      internalOnly: true,
+    },
+  ],
+};
+
 export const DASHBOARD_NAV_ITEMS: readonly DashboardNavItem[] = PAGE_PERMISSION_ORDER.flatMap((permission) => {
   if (permission === "page:departments" || permission === "page:designations") {
     return permission === "page:departments" ? [DEPARTMENTS_GROUP] : [];
@@ -382,6 +459,8 @@ export const DASHBOARD_NAV_ITEMS: readonly DashboardNavItem[] = PAGE_PERMISSION_
     if (!first || permission !== first) return [];
     return [COMMERCIAL_ACCOUNT_GROUP];
   }
+  if (permission === "page:smtp-email") return [EMAIL_GROUP];
+  if (permission === "page:email-template") return [];
   const item = toNavItem(permission);
   return item ? [item] : [];
 });

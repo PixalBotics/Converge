@@ -4,29 +4,30 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { LoadingScreen } from "@/components/common";
 import { useAuth } from "@/lib/auth";
-import { EMAIL_ROUTES, resellerOwnMailEditPath } from "@/features/email/email.constants";
-import { buildEmailTabHref, readEmailResellerFromStorage } from "@/features/email/email-reseller-storage";
 import { OP } from "@/lib/permissions/operational-keys";
+import { EMAIL_ROUTES } from "@/features/email/email.constants";
 
-export default function EmailIndexPage() {
+/** Email hub landing — first sidebar section the user can access. */
+export default function EmailHubHomePage() {
   const router = useRouter();
   const { hasOperational, user } = useAuth();
+  const isInternal = user?.userType === "Internal";
 
   useEffect(() => {
-    const storedResellerId = readEmailResellerFromStorage();
-    const scopedId = user?.resellerId?.trim() || storedResellerId;
     if (hasOperational(OP.smtpEmail.view)) {
-      router.replace(
-        scopedId ? resellerOwnMailEditPath(scopedId) : EMAIL_ROUTES.resellerMail,
-      );
+      router.replace(EMAIL_ROUTES.setupReseller);
       return;
     }
     if (hasOperational(OP.emailTemplate.view)) {
-      router.replace(buildEmailTabHref(EMAIL_ROUTES.design, scopedId));
+      router.replace(EMAIL_ROUTES.design);
       return;
     }
-    router.replace(EMAIL_ROUTES.resellerMail);
-  }, [hasOperational, router, user?.resellerId]);
+    if (isInternal) {
+      router.replace(EMAIL_ROUTES.setupPlatform);
+      return;
+    }
+    router.replace(EMAIL_ROUTES.setupReseller);
+  }, [router, hasOperational, isInternal]);
 
-  return <LoadingScreen message="Loading email settings…" />;
+  return <LoadingScreen message="Opening email configuration…" />;
 }

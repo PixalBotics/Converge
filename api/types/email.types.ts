@@ -136,6 +136,8 @@ export type EmailTemplateBlockKey =
   | "chat_info"
   | "acquisition"
   | "transcript"
+  | "additional_notes"
+  | "visitor_feedback"
   | "visitor_journey"
   | "footer";
 
@@ -143,26 +145,64 @@ export interface EmailTemplateBlock {
   blockKey: EmailTemplateBlockKey;
   enabled: boolean;
   sortOrder: number;
+  styleJson?: Record<string, unknown> | null;
 }
+
+export type EmailTemplateThemeJson = Record<string, unknown>;
 
 export interface EmailTemplateDraft {
   name: string;
   primaryColor?: string | null;
+  themeJson?: EmailTemplateThemeJson | null;
   blocks: EmailTemplateBlock[];
   logoUrl?: string | null;
+  bannerUrl?: string | null;
   updatedAt?: string | null;
   updatedBy?: string | null;
   publishedAt?: string | null;
+  id?: string;
+  /** Live template source when GET published (effective). */
+  source?: "platform" | "reseller";
+  usesPlatformDefault?: boolean;
+  templateMode?: "PLATFORM" | "OWN";
+}
+
+export interface EmailTemplateAssignment {
+  resellerId: string;
+  templateMode: "PLATFORM" | "OWN";
+  usesPlatformDefault: boolean;
+  hasCustomPublished: boolean;
+  customPublishedAt?: string | null;
+  assigned?: boolean;
 }
 
 export interface EmailTemplateDraftBody {
   name: string;
   primaryColor?: string;
+  themeJson?: EmailTemplateThemeJson | null;
   blocks: EmailTemplateBlock[];
 }
 
 export interface EmailPreviewData {
   html: string;
+}
+
+export interface EmailTemplateVersionRow {
+  id: string;
+  name: string;
+  primaryColor: string | null;
+  publishedAt: string | null;
+  isCurrent: boolean;
+  isArchived: boolean;
+  versionLabel: string;
+  blockCount: number;
+  publishedBy?: { id: string; displayName: string | null; email: string | null } | null;
+}
+
+export interface EmailTemplateVersionRestoreResult {
+  restored: boolean;
+  versionId: string;
+  message: string;
 }
 
 export type EmailProvidersEnvelope = ApiEnvelope<EmailProvider[]>;
@@ -175,3 +215,21 @@ export type PlatformMailAssignmentListEnvelope = ApiEnvelope<PlatformMailAssignm
 export type EmailTestResultEnvelope = ApiEnvelope<EmailTestResult>;
 export type EmailTemplateDraftEnvelope = ApiEnvelope<EmailTemplateDraft>;
 export type EmailPreviewEnvelope = ApiEnvelope<EmailPreviewData>;
+
+/** Platform agent wrap-up feedback (rating + notes) for live chat / transcript flows. */
+export interface PlatformAgentFeedbackSettings {
+  id: string;
+  ratingEnabled: boolean;
+  goodLabel: string;
+  poorLabel: string;
+  ratingRequired: boolean;
+  notesEnabled: boolean;
+  notesPlaceholder: string;
+  notesSubmitLabel: string;
+  notesRequired: boolean;
+  updatedAt: string | null;
+}
+
+export type PlatformAgentFeedbackSettingsBody = Partial<
+  Omit<PlatformAgentFeedbackSettings, "id" | "updatedAt">
+>;

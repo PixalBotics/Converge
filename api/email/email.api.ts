@@ -3,8 +3,11 @@ import type {
   EmailPreviewData,
   EmailProvider,
   EmailProviderFormSchema,
+  EmailTemplateAssignment,
   EmailTemplateDraft,
   EmailTemplateDraftBody,
+  EmailTemplateVersionRestoreResult,
+  EmailTemplateVersionRow,
   EmailTestBody,
   EmailTestResult,
   PlatformEmailSettings,
@@ -12,6 +15,8 @@ import type {
   PlatformMailAssignment,
   PlatformMailAssignmentBody,
   PlatformMailAssignmentListItem,
+  PlatformAgentFeedbackSettings,
+  PlatformAgentFeedbackSettingsBody,
   ResellerOwnMailListItem,
   ResellerOwnMailSettings,
   ResellerOwnMailSettingsBody,
@@ -177,7 +182,26 @@ export async function getResellerEmailTemplatePublishedPreview(
   return unwrapApiData<EmailPreviewData>(data);
 }
 
-export async function uploadResellerEmailLogo(resellerId: string, file: File): Promise<EmailTemplateDraft> {
+export async function getResellerEmailTemplateAssignment(
+  resellerId: string,
+): Promise<EmailTemplateAssignment> {
+  const { data } = await apiClient.get(
+    `/resellers/${encodeURIComponent(resellerId)}/email-templates/assignment`,
+  );
+  return unwrapApiData<EmailTemplateAssignment>(data);
+}
+
+export async function usePlatformEmailTemplate(resellerId: string): Promise<EmailTemplateAssignment> {
+  const { data } = await apiClient.post(
+    `/resellers/${encodeURIComponent(resellerId)}/email-templates/use-platform`,
+  );
+  return unwrapApiData<EmailTemplateAssignment>(data);
+}
+
+export async function uploadResellerEmailLogo(
+  resellerId: string,
+  file: File,
+): Promise<{ logoUrl: string; storageKey: string }> {
   const form = new FormData();
   form.append("file", file);
   const { data } = await apiClient.post(
@@ -185,12 +209,195 @@ export async function uploadResellerEmailLogo(resellerId: string, file: File): P
     form,
     { headers: { "Content-Type": "multipart/form-data" } },
   );
-  return unwrapApiData<EmailTemplateDraft>(data);
+  return unwrapApiData<{ logoUrl: string; storageKey: string }>(data);
 }
 
-export async function deleteResellerEmailLogo(resellerId: string): Promise<EmailTemplateDraft> {
+export async function deleteResellerEmailLogo(resellerId: string): Promise<{ removed: boolean }> {
   const { data } = await apiClient.delete(
     `/resellers/${encodeURIComponent(resellerId)}/email-branding/logo`,
   );
+  return unwrapApiData<{ removed: boolean }>(data);
+}
+
+export async function uploadResellerEmailBanner(
+  resellerId: string,
+  file: File,
+): Promise<{ bannerUrl: string; storageKey: string }> {
+  const form = new FormData();
+  form.append("file", file);
+  const { data } = await apiClient.post(
+    `/resellers/${encodeURIComponent(resellerId)}/email-branding/banner`,
+    form,
+    { headers: { "Content-Type": "multipart/form-data" } },
+  );
+  return unwrapApiData<{ bannerUrl: string; storageKey: string }>(data);
+}
+
+export async function deleteResellerEmailBanner(resellerId: string): Promise<{ removed: boolean }> {
+  const { data } = await apiClient.delete(
+    `/resellers/${encodeURIComponent(resellerId)}/email-branding/banner`,
+  );
+  return unwrapApiData<{ removed: boolean }>(data);
+}
+
+// —— Template by id (preview hub, published snapshots) ——
+export async function getEmailTemplateById(templateId: string): Promise<EmailTemplateDraft> {
+  const { data } = await apiClient.get(`/email-templates/${encodeURIComponent(templateId)}`);
   return unwrapApiData<EmailTemplateDraft>(data);
+}
+
+export async function getEmailTemplatePreviewById(templateId: string): Promise<EmailPreviewData> {
+  const { data } = await apiClient.get(
+    `/email-templates/${encodeURIComponent(templateId)}/preview`,
+  );
+  return unwrapApiData<EmailPreviewData>(data);
+}
+
+export async function updateEmailTemplateById(
+  templateId: string,
+  body: EmailTemplateDraftBody,
+): Promise<EmailTemplateDraft> {
+  const { data } = await apiClient.put(`/email-templates/${encodeURIComponent(templateId)}`, body);
+  return unwrapApiData<EmailTemplateDraft>(data);
+}
+
+// —— Platform templates ——
+export async function getPlatformEmailTemplateDraft(): Promise<EmailTemplateDraft | null> {
+  const { data } = await apiClient.get("/platform/email-templates/draft");
+  return unwrapApiData<EmailTemplateDraft | null>(data);
+}
+
+export async function getPlatformEmailTemplatePublished(): Promise<EmailTemplateDraft | null> {
+  const { data } = await apiClient.get("/platform/email-templates/published");
+  return unwrapApiData<EmailTemplateDraft | null>(data);
+}
+
+export async function updatePlatformEmailTemplateDraft(
+  body: EmailTemplateDraftBody,
+): Promise<EmailTemplateDraft> {
+  const { data } = await apiClient.put("/platform/email-templates/draft", body);
+  return unwrapApiData<EmailTemplateDraft>(data);
+}
+
+export async function publishPlatformEmailTemplateDraft(): Promise<EmailTemplateDraft> {
+  const { data } = await apiClient.post("/platform/email-templates/draft/publish");
+  return unwrapApiData<EmailTemplateDraft>(data);
+}
+
+export async function getPlatformEmailTemplateDraftPreview(): Promise<EmailPreviewData> {
+  const { data } = await apiClient.get("/platform/email-templates/draft/preview");
+  return unwrapApiData<EmailPreviewData>(data);
+}
+
+export async function getPlatformEmailTemplatePublishedPreview(): Promise<EmailPreviewData> {
+  const { data } = await apiClient.get("/platform/email-templates/published/preview");
+  return unwrapApiData<EmailPreviewData>(data);
+}
+
+export async function listPlatformEmailTemplateVersions(): Promise<EmailTemplateVersionRow[]> {
+  const { data } = await apiClient.get("/platform/email-templates/versions");
+  return unwrapApiData<EmailTemplateVersionRow[]>(data);
+}
+
+export async function restorePlatformEmailTemplateVersion(
+  versionId: string,
+): Promise<EmailTemplateVersionRestoreResult> {
+  const { data } = await apiClient.post(
+    `/platform/email-templates/versions/${encodeURIComponent(versionId)}/restore`,
+  );
+  return unwrapApiData<EmailTemplateVersionRestoreResult>(data);
+}
+
+export async function listResellerEmailTemplateVersions(
+  resellerId: string,
+): Promise<EmailTemplateVersionRow[]> {
+  const { data } = await apiClient.get(
+    `/resellers/${encodeURIComponent(resellerId)}/email-templates/versions`,
+  );
+  return unwrapApiData<EmailTemplateVersionRow[]>(data);
+}
+
+export async function restoreResellerEmailTemplateVersion(
+  resellerId: string,
+  versionId: string,
+): Promise<EmailTemplateVersionRestoreResult> {
+  const { data } = await apiClient.post(
+    `/resellers/${encodeURIComponent(resellerId)}/email-templates/versions/${encodeURIComponent(versionId)}/restore`,
+  );
+  return unwrapApiData<EmailTemplateVersionRestoreResult>(data);
+}
+
+export async function uploadPlatformEmailLogo(
+  file: File,
+): Promise<{ logoUrl: string; storageKey: string }> {
+  const form = new FormData();
+  form.append("file", file);
+  const { data } = await apiClient.post("/platform/email-branding/logo", form, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+  return unwrapApiData<{ logoUrl: string; storageKey: string }>(data);
+}
+
+export async function deletePlatformEmailLogo(): Promise<{ removed: boolean }> {
+  const { data } = await apiClient.delete("/platform/email-branding/logo");
+  return unwrapApiData<{ removed: boolean }>(data);
+}
+
+export async function uploadPlatformEmailBanner(
+  file: File,
+): Promise<{ bannerUrl: string; storageKey: string }> {
+  const form = new FormData();
+  form.append("file", file);
+  const { data } = await apiClient.post("/platform/email-branding/banner", form, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+  return unwrapApiData<{ bannerUrl: string; storageKey: string }>(data);
+}
+
+export async function deletePlatformEmailBanner(): Promise<{ removed: boolean }> {
+  const { data } = await apiClient.delete("/platform/email-branding/banner");
+  return unwrapApiData<{ removed: boolean }>(data);
+}
+
+export type PlatformTemplateAssignmentListItem = {
+  id: string;
+  resellerId: string;
+  resellerName: string;
+  usesPlatformDefault: boolean;
+  hasCustomPublished: boolean;
+  updatedAt: string | null;
+};
+
+export async function listPlatformTemplateAssignments(): Promise<PlatformTemplateAssignmentListItem[]> {
+  const { data } = await apiClient.get("/email/platform-template-assignments");
+  const payload = unwrapApiData<{ items: PlatformTemplateAssignmentListItem[] }>(data);
+  return payload.items ?? [];
+}
+
+export async function assignPlatformEmailTemplate(resellerId: string): Promise<EmailTemplateAssignment> {
+  const { data } = await apiClient.put(
+    `/resellers/${encodeURIComponent(resellerId)}/platform-template-assignment`,
+  );
+  return unwrapApiData<EmailTemplateAssignment>(data);
+}
+
+export async function removePlatformEmailTemplateAssignment(
+  resellerId: string,
+): Promise<EmailTemplateAssignment> {
+  const { data } = await apiClient.delete(
+    `/resellers/${encodeURIComponent(resellerId)}/platform-template-assignment`,
+  );
+  return unwrapApiData<EmailTemplateAssignment>(data);
+}
+
+export async function getPlatformAgentFeedbackSettings(): Promise<PlatformAgentFeedbackSettings> {
+  const { data } = await apiClient.get("/platform/agent-feedback");
+  return unwrapApiData<PlatformAgentFeedbackSettings>(data);
+}
+
+export async function updatePlatformAgentFeedbackSettings(
+  body: PlatformAgentFeedbackSettingsBody,
+): Promise<PlatformAgentFeedbackSettings> {
+  const { data } = await apiClient.put("/platform/agent-feedback", body);
+  return unwrapApiData<PlatformAgentFeedbackSettings>(data);
 }

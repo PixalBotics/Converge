@@ -34,6 +34,7 @@ export const dataTableRoot: SxProps<Theme> = (theme) => {
       borderColor: b,
       borderBottom: `1px solid ${b}`,
       textAlign: "left",
+      verticalAlign: "middle",
       padding: "10px 16px",
       whiteSpace: "nowrap",
     },

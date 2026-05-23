@@ -2,12 +2,12 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { DISTRIBUTION_ROUTES } from "@/features/distribution-setup/distribution.constants";
 
-/** Distribution email settings live under Distribution setup, not Email configuration. */
-export default function EmailDistributionRedirectPage() {
+export default function LegacyEmailDistributionRedirect() {
   const router = useRouter();
   useEffect(() => {
-    router.replace("/dashboard/distribution-setup");
+    router.replace(DISTRIBUTION_ROUTES.home);
   }, [router]);
   return null;
 }
