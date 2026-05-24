@@ -25,8 +25,6 @@ import {
 import { extractDepartmentFromDetailApi } from "@/app/dashboard/departments/utils";
 import { extractDesignationFromDetailApi, type DesignationRow } from "../utils";
 
-const EMPTY_SELECT = [{ label: "—", value: "" }] as const;
-
 export type AddDesignationModalProps = {
   open: boolean;
   onClose: () => void;
@@ -98,22 +96,21 @@ export function AddDesignationModal({
     { enabled: open && deptKind === "Internal", scope: "add-designation-modal-int-dept" },
   );
 
-  const externalDepartmentsQuery = useDepartmentsListQuery(
-    {
-      all: true,
-      type: "External",
-      resellerId: resellerId.trim(),
-      parentCompanyId: parentCompanyId.trim(),
-    },
-    {
-      enabled:
-        open &&
-        deptKind === "External" &&
-        Boolean(resellerId.trim()) &&
-        Boolean(parentCompanyId.trim()),
-      scope: "add-designation-modal-ext-dept",
-    },
-  );
+  const externalDeptListParams = useMemo(() => {
+    const params: Record<string, string | boolean> = { all: true, type: "External" };
+    const rid = resellerId.trim();
+    if (rid) {
+      params.resellerId = rid;
+      const pid = parentCompanyId.trim();
+      if (pid) params.parentCompanyId = pid;
+    }
+    return params;
+  }, [resellerId, parentCompanyId]);
+
+  const externalDepartmentsQuery = useDepartmentsListQuery(externalDeptListParams, {
+    enabled: open && deptKind === "External",
+    scope: "add-designation-modal-ext-dept",
+  });
 
   const departmentsQuery =
     deptKind === "Internal" ? internalDepartmentsQuery : externalDepartmentsQuery;
@@ -130,11 +127,12 @@ export function AddDesignationModal({
   );
 
   const resellerSelectOptions = useMemo(() => {
+    const allRow = { value: "", label: "All resellers" };
     const loadingRow = {
       value: "",
-      label: resellersQuery.isLoading ? "Loading resellers…" : "— Select reseller —",
+      label: resellersQuery.isLoading ? "Loading resellers…" : "All resellers",
     };
-    const base = resellerOptions.length > 0 ? resellerOptions : [loadingRow];
+    const base = resellerOptions.length > 0 ? [allRow, ...resellerOptions] : [loadingRow];
     const rid = resellerId.trim();
     if (rid && !base.some((o) => o.value === rid)) {
       return [{ value: rid, label: rid }, ...base];
@@ -143,13 +141,16 @@ export function AddDesignationModal({
   }, [resellerOptions, resellersQuery.isLoading, resellerId]);
 
   const parentSelectOptions = useMemo(() => {
-    if (!resellerId.trim()) return [...EMPTY_SELECT];
+    if (!resellerId.trim()) {
+      return [{ value: "", label: "Choose a reseller first" }];
+    }
     if (companiesByResellerQuery.isLoading && parentCompanyOptions.length === 0) {
       return [{ value: "", label: "Loading parent companies…" }];
     }
+    const allRow = { value: "", label: "All parent companies" };
     const base =
       parentCompanyOptions.length > 0
-        ? parentCompanyOptions
+        ? [allRow, ...parentCompanyOptions]
         : [{ value: "", label: "No parent companies" }];
     const pid = parentCompanyId.trim();
     if (pid && !base.some((o) => o.value === pid)) {
@@ -175,22 +176,11 @@ export function AddDesignationModal({
   }, [mayPickInternalDeptType]);
 
   const departmentSelectOptions = useMemo(() => {
-    const externalBlocked =
-      deptKind === "External" && (!resellerId.trim() || !parentCompanyId.trim());
-    if (externalBlocked) {
-      return [{ value: "", label: "Select reseller and parent company first" }];
-    }
     if (departmentOptions.length > 0) return departmentOptions;
     return departmentsQuery.isLoading
       ? [{ value: "", label: "Loading…" }]
       : [{ value: "", label: "No departments available" }];
-  }, [
-    deptKind,
-    resellerId,
-    parentCompanyId,
-    departmentOptions,
-    departmentsQuery.isLoading,
-  ]);
+  }, [departmentOptions, departmentsQuery.isLoading]);
 
   useEffect(() => {
     if (!open) {
@@ -260,16 +250,6 @@ export function AddDesignationModal({
       publishAppToast({ variant: "error", message: "Please enter a designation name." });
       return;
     }
-    if (deptKind === "External") {
-      if (!resellerId.trim()) {
-        publishAppToast({ variant: "error", message: "Please select a reseller." });
-        return;
-      }
-      if (!parentCompanyId.trim()) {
-        publishAppToast({ variant: "error", message: "Please select a parent company." });
-        return;
-      }
-    }
     if (!departmentId.trim()) {
       publishAppToast({ variant: "error", message: "Please select a department." });
       return;
@@ -318,8 +298,8 @@ export function AddDesignationModal({
   const modalDescription = isEdit
     ? "Review the designation details, update the fields, and save your changes."
     : mayPickInternalDeptType
-      ? "Choose internal or external department scope, pick a department, then enter the designation name."
-      : "Choose reseller and parent company, pick an external department, then enter the designation name.";
+      ? "Choose department type, pick a department, then enter the designation name. Reseller and parent company are optional for external departments."
+      : "Pick an external department, then enter the designation name. Reseller and parent company are optional to narrow the list.";
 
   return (
     <FormModal
@@ -344,27 +324,19 @@ export function AddDesignationModal({
         </Box>
       ) : (
         <>
-          <InputField
-            label="Designation Name"
-            placeholder="e.g. Senior Manager"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            disabled={savePending}
-          />
-
           <SelectField
             label="Department type"
             value={deptKind}
             onChange={handleDeptKindChange}
             options={departmentTypeOptions}
             menuMaxRows={4}
-            disabled={savePending || (departmentTypeOptions.length === 1)}
+            disabled={savePending || departmentTypeOptions.length === 1}
           />
 
           {deptKind === "External" ? (
             <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 1.5 }}>
               <SelectField
-                label="Reseller"
+                label="Reseller (optional)"
                 value={resellerId}
                 onChange={handleResellerChange}
                 options={resellerSelectOptions}
@@ -372,7 +344,7 @@ export function AddDesignationModal({
                 disabled={savePending}
               />
               <SelectField
-                label="Parent company"
+                label="Parent company (optional)"
                 value={parentCompanyId}
                 onChange={(v) => {
                   setParentCompanyId(v);
@@ -385,19 +357,22 @@ export function AddDesignationModal({
             </Box>
           ) : null}
 
-          <Box>
-            <SelectField
-              label="Department"
-              value={departmentId}
-              onChange={setDepartmentId}
-              options={departmentSelectOptions}
-              menuMaxRows={6}
-              disabled={
-                savePending ||
-                (deptKind === "External" && (!resellerId.trim() || !parentCompanyId.trim()))
-              }
-            />
-          </Box>
+          <SelectField
+            label="Department"
+            value={departmentId}
+            onChange={setDepartmentId}
+            options={departmentSelectOptions}
+            menuMaxRows={6}
+            disabled={savePending}
+          />
+
+          <InputField
+            label="Designation Name"
+            placeholder="e.g. Senior Manager"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            disabled={savePending}
+          />
         </>
       )}
     </FormModal>

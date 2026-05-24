@@ -12,11 +12,19 @@ const distDir =
       ? ".next-release"
       : ".next-dev";
 
+const isProduction = process.env.NODE_ENV === "production";
+
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
   compress: true,
+  productionBrowserSourceMaps: false,
   distDir,
+  compiler: isProduction
+    ? {
+        removeConsole: { exclude: ["error", "warn"] },
+      }
+    : undefined,
   /** Broken nested ESLint deps on some Windows installs; run `npm run lint` separately. */
   eslint: { ignoreDuringBuilds: true },
   typescript: { ignoreBuildErrors: false },
@@ -24,6 +32,24 @@ const nextConfig: NextConfig = {
   experimental: {
     /** Lowers webpack peak memory (Next.js 15+); slight compile-time tradeoff. */
     webpackMemoryOptimizations: true,
+  },
+  async headers() {
+    if (!isProduction) return [];
+    return [
+      {
+        source: "/:path*",
+        headers: [
+          { key: "X-DNS-Prefetch-Control", value: "on" },
+          { key: "X-Frame-Options", value: "SAMEORIGIN" },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          {
+            key: "Permissions-Policy",
+            value: "camera=(), microphone=(), geolocation=()",
+          },
+        ],
+      },
+    ];
   },
   async redirects() {
     return [
