@@ -7,18 +7,11 @@ import {
   listInvolvementUsersInScope,
   saveInvolvementUsers,
 } from "@/services/chat/involvement-roster.api";
-import { listQaRosterInScope, saveQaWebsiteRoster, fetchQaWebsiteRoster } from "@/services/chat/qa-roster.api";
 
 export const involvementListKeys = {
   all: ["involvement-list"] as const,
   scope: (q: ChatScopeListQuery) => [...involvementListKeys.all, "scope", q] as const,
   website: (websiteId: string) => [...involvementListKeys.all, "website", websiteId] as const,
-};
-
-export const qaRosterListKeys = {
-  all: ["qa-roster-list"] as const,
-  scope: (q: ChatScopeListQuery) => [...qaRosterListKeys.all, "scope", q] as const,
-  website: (websiteId: string) => [...qaRosterListKeys.all, "website", websiteId] as const,
 };
 
 export function useInvolvementListQuery(query: ChatScopeListQuery, enabled = true) {
@@ -55,38 +48,3 @@ export function useSaveInvolvementWebsiteMutation() {
   });
 }
 
-export function useQaRosterListQuery(query: ChatScopeListQuery, enabled = true) {
-  return useQuery({
-    queryKey: qaRosterListKeys.scope(query),
-    queryFn: () => listQaRosterInScope({ ...query, all: true }),
-    enabled,
-    staleTime: 30_000,
-  });
-}
-
-export function useQaRosterWebsiteQuery(websiteId: string, enabled = true) {
-  return useQuery({
-    queryKey: qaRosterListKeys.website(websiteId),
-    queryFn: () => fetchQaWebsiteRoster(websiteId),
-    enabled: Boolean(websiteId.trim()) && enabled,
-    staleTime: 30_000,
-  });
-}
-
-export function useSaveQaRosterWebsiteMutation() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({
-      websiteId,
-      internalUserIds,
-      externalUserIds,
-    }: {
-      websiteId: string;
-      internalUserIds: string[];
-      externalUserIds: string[];
-    }) => saveQaWebsiteRoster(websiteId, { internalUserIds, externalUserIds }),
-    onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: qaRosterListKeys.all });
-    },
-  });
-}

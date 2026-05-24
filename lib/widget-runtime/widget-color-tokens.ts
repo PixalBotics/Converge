@@ -361,6 +361,8 @@ export function buildChatColorsFromDraftScalars(args: {
   } = args;
   const incomingBg = mixHex(secondaryColor, panelBackground, 22);
   const incomingText = pickReadableText(incomingBg, headerTextColor);
+  const panelBodyText = pickReadableText(panelBackground, headerTextColor);
+  const panelLabelText = pickReadableText(panelBackground, headerTextColor);
   return {
     button: buttonColor,
     buttonHover: buttonHoverColor,
@@ -368,8 +370,8 @@ export function buildChatColorsFromDraftScalars(args: {
     headerText: headerTextColor,
     secondary: secondaryColor,
     panelBackground,
-    bodyText: headerTextColor,
-    mutedText: mixHex(headerTextColor, panelBackground, 62),
+    bodyText: panelBodyText,
+    mutedText: mixHex(panelBodyText, panelBackground, 62),
     incomingMessageBg: incomingBg,
     incomingMessageText: incomingText,
     outgoingMessageBg: buttonColor,
@@ -377,11 +379,11 @@ export function buildChatColorsFromDraftScalars(args: {
     greetingBubbleBg: incomingBg,
     greetingBubbleText: incomingText,
     inputBackground: "#ffffff",
-    inputText: pickReadableText("#ffffff", headerTextColor),
+    inputText: pickReadableText("#ffffff", panelBodyText),
     inputBorderColor: mixHex(secondaryColor, panelBackground, 55),
-    labelColor: headerTextColor,
+    labelColor: panelLabelText,
     inquiryPillBg: panelBackground,
-    inquiryPillText: pickReadableText(panelBackground, headerTextColor),
+    inquiryPillText: pickReadableText(panelBackground, panelBodyText),
     inquiryPillBorder: mixHex(secondaryColor, panelBackground, 70),
     inquiryPillSelectedBg: buttonColor,
     inquiryPillSelectedText: pickReadableText(buttonColor, iconColor),

@@ -13,8 +13,6 @@ import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import { filterChromeButtonSx } from "@/components/common/FilterButton/filter-button.styles";
 import {
-  AssignWebsiteModal,
-  type AssignWebsiteModalPreset,
   Button,
   DashboardCard,
   DataTable,
@@ -25,7 +23,6 @@ import {
   Typography,
 } from "@/components/common";
 import { WebsiteAssignmentScopeFilterPanel } from "@/features/website-assignments/components/WebsiteAssignmentScopeFilterPanel";
-import { WebsiteAssignmentJourneyStepper } from "@/features/website-assignments/components/WebsiteAssignmentJourneyStepper";
 import { WebsiteAssignmentTableActions } from "@/features/website-assignments/components/WebsiteAssignmentTableActions";
 import { useWebsiteAssignmentScopeFilters } from "@/features/website-assignments/hooks/useWebsiteAssignmentScopeFilters";
 import {
@@ -93,8 +90,6 @@ export default function WebsiteAssigningPage() {
   const [filterAssigned, setFilterAssigned] = useState("");
   const [filterRoster, setFilterRoster] = useState("");
   const [filterPopoverOpen, setFilterPopoverOpen] = useState(false);
-  const [isAssignOpen, setIsAssignOpen] = useState(false);
-  const [assignPreset, setAssignPreset] = useState<AssignWebsiteModalPreset | null>(null);
   const [clearTarget, setClearTarget] = useState<WebsiteRow | null>(null);
   const [clearing, setClearing] = useState(false);
   const [page, setPage] = useState(1);
@@ -169,8 +164,7 @@ export default function WebsiteAssigningPage() {
     `/dashboard/website-assigning/website/${encodeURIComponent(websiteId)}`;
 
   const openAssign = () => {
-    setAssignPreset(null);
-    setIsAssignOpen(true);
+    router.push("/dashboard/website-assigning/assign");
   };
 
   const openRosterEdit = (row: WebsiteRow) => {
@@ -342,11 +336,11 @@ export default function WebsiteAssigningPage() {
     <Box sx={websiteAssignmentPageWrapper}>
       <Box sx={websiteAssignmentPageHeader}>
         <Box>
-          <Typography variant="regularLarge" fontWeight={700} sx={{ color: theme.app.text.primary, mb: 0.5 }}>
-            Website Assignment
+          <Typography variant="regularLarge" fontWeight={700} sx={{ color: theme.app.text.primary, mb: 0.5, letterSpacing: "-0.02em" }}>
+            Website assignments
           </Typography>
           <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted, maxWidth: 560 }}>
-            Complete service scheduling first, then assign Primary → Secondary → Backup per department.
+            Manage service schedules and agent rosters per website — scoped to your reseller or client.
           </Typography>
         </Box>
         <Box sx={websiteAssignmentHeaderActions}>
@@ -366,8 +360,6 @@ export default function WebsiteAssigningPage() {
           ) : null}
         </Box>
       </Box>
-
-      <WebsiteAssignmentJourneyStepper variant="hub" activeStep={2} schedulingComplete />
 
       <DashboardCard sx={websiteAssignmentFilterCard}>
         <Box sx={websiteAssignmentFilterTitleRow}>
@@ -554,16 +546,6 @@ export default function WebsiteAssigningPage() {
           </Box>
         </Box>
       </DashboardCard>
-
-      <AssignWebsiteModal
-        open={isAssignOpen}
-        preset={assignPreset}
-        onClose={() => {
-          setIsAssignOpen(false);
-          setAssignPreset(null);
-        }}
-        onAssign={() => void queryClient.invalidateQueries({ queryKey: websiteAssignmentsKeys.all })}
-      />
 
       <FormModal
         open={Boolean(clearTarget)}

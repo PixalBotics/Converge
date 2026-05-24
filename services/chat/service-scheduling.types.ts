@@ -24,6 +24,8 @@ export type ServiceSchedulingBundle = {
   parentCompanyId: string;
   operatingChannels: OperatingChannels;
   timezone: string;
+  internalTimezone?: string;
+  externalTimezone?: string;
   gapPolicy: string;
   internalWindows: ServiceScheduleWindow[];
   externalWindows: ServiceScheduleWindow[];
@@ -45,6 +47,8 @@ export type ServiceSchedulingTopicInput = {
 export type UpsertServiceSchedulingBody = {
   operatingChannels: OperatingChannels;
   timezone: string;
+  internalTimezone?: string;
+  externalTimezone?: string;
   gapPolicy: string;
   internalWindows?: Array<{
     daysOfWeek: string[];

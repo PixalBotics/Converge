@@ -79,6 +79,36 @@ export const DEFAULT_CHAT_OPERATIONS: ChatOperationsJson = {
   cannedResponses: {
     enabled: true,
   },
+  closePolicy: {
+    enabled: true,
+    visitorIdle: {
+      enabled: true,
+      nudgeAfterMinutes: 8,
+      nudgeMessage:
+        "Are you still there? Reply to keep this chat open.",
+      closeAfterMinutes: 10,
+      closeMessage:
+        "This chat was closed due to inactivity. You can start a new conversation anytime.",
+    },
+    agentNoResponse: {
+      enabled: true,
+      firstAlertAgentAfterMinutes: 2,
+      fallbackToVisitorAfterMinutes: 5,
+      fallbackMessage:
+        "Thanks for your patience. An agent will respond shortly.",
+      closeAfterMinutes: 20,
+      closeMessage:
+        "We could not connect you with an agent right now. Please try again later.",
+    },
+    supervisorClose: {
+      enabled: true,
+      requireReason: true,
+      reasonMinLength: 3,
+    },
+    onClose: {
+      insertDistributionLinkInTranscript: true,
+    },
+  },
 };
 
 /** Shallow-merge operations sections (same semantics as Nest `mergeOperations`). */
@@ -87,5 +117,44 @@ export function mergeChatOperationsJson(
   patch?: Partial<ChatOperationsJson> | null,
 ): ChatOperationsJson {
   if (!patch || typeof patch !== "object") return base;
-  return { ...base, ...patch };
+  const merged = { ...base, ...patch } as ChatOperationsJson;
+  if (patch.closePolicy && typeof patch.closePolicy === "object") {
+    merged.closePolicy = {
+      ...(base.closePolicy as Record<string, unknown> | undefined),
+      ...(patch.closePolicy as Record<string, unknown>),
+      visitorIdle: {
+        ...((base.closePolicy as Record<string, unknown> | undefined)?.visitorIdle as
+          | Record<string, unknown>
+          | undefined),
+        ...((patch.closePolicy as Record<string, unknown>).visitorIdle as
+          | Record<string, unknown>
+          | undefined),
+      },
+      agentNoResponse: {
+        ...((base.closePolicy as Record<string, unknown> | undefined)?.agentNoResponse as
+          | Record<string, unknown>
+          | undefined),
+        ...((patch.closePolicy as Record<string, unknown>).agentNoResponse as
+          | Record<string, unknown>
+          | undefined),
+      },
+      supervisorClose: {
+        ...((base.closePolicy as Record<string, unknown> | undefined)?.supervisorClose as
+          | Record<string, unknown>
+          | undefined),
+        ...((patch.closePolicy as Record<string, unknown>).supervisorClose as
+          | Record<string, unknown>
+          | undefined),
+      },
+      onClose: {
+        ...((base.closePolicy as Record<string, unknown> | undefined)?.onClose as
+          | Record<string, unknown>
+          | undefined),
+        ...((patch.closePolicy as Record<string, unknown>).onClose as
+          | Record<string, unknown>
+          | undefined),
+      },
+    };
+  }
+  return merged;
 }

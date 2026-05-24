@@ -162,6 +162,38 @@ export const journeyStepperRootSx: SxProps<Theme> = (theme) => {
   };
 };
 
+/** Four-step website assignment flow (select → schedule → roster → complete). */
+export const flowStepperRootSx: SxProps<Theme> = (theme) => {
+  const t = theme as AppTheme;
+  return {
+    display: "grid",
+    gridTemplateColumns: {
+      xs: "1fr",
+      sm: "1fr 1fr",
+      xl: "1fr auto 1fr auto 1fr auto 1fr",
+    },
+    gap: { xs: 1.25, md: 1.5 },
+    alignItems: "stretch",
+    p: { xs: 2, sm: 2.5 },
+    mb: 3,
+    borderRadius: 3,
+    border: `1px solid ${t.app.dashboard.cardBorder}`,
+    background: `linear-gradient(135deg, ${alpha(t.palette.primary.main, 0.14)} 0%, ${alpha(t.app.dashboard.pillBg, 0.52)} 45%, ${alpha(t.palette.success.main, 0.08)} 100%)`,
+    boxShadow: `0 16px 48px ${alpha(t.palette.common.black, 0.2)}`,
+  };
+};
+
+export const flowStepperConnectorSx: SxProps<Theme> = (theme) => {
+  const t = theme as AppTheme;
+  return {
+    display: { xs: "none", xl: "flex" },
+    alignItems: "center",
+    justifyContent: "center",
+    px: 0.25,
+    color: t.app.dashboard.textMuted,
+  };
+};
+
 export const journeyStepCardSx =
   (state: "active" | "complete" | "upcoming"): SxProps<Theme> =>
   (theme) => {
@@ -238,3 +270,101 @@ export const scheduleFormActionBarSx: SxProps<Theme> = (theme) => {
     pb: 0.5,
   };
 };
+
+export const websiteFlowStepperRootSx: SxProps<Theme> = {
+  mb: 3,
+  width: "100%",
+};
+
+export const websiteFlowProgressTrackSx: SxProps<Theme> = (theme) => {
+  const t = theme as AppTheme;
+  return {
+    height: 4,
+    borderRadius: 999,
+    bgcolor: alpha(t.app.dashboard.cardBorder, 0.65),
+    overflow: "hidden",
+    mb: 2,
+  };
+};
+
+export const websiteFlowProgressFillSx =
+  (pct: number): SxProps<Theme> =>
+  (theme) => {
+    const t = theme as AppTheme;
+    return {
+      height: "100%",
+      width: `${Math.min(100, Math.max(0, pct))}%`,
+      borderRadius: 999,
+      background: `linear-gradient(90deg, ${t.palette.primary.main}, ${t.palette.primary.light})`,
+      transition: "width 0.35s ease",
+    };
+  };
+
+export const websiteFlowStepperGridSx: SxProps<Theme> = {
+  display: "grid",
+  gridTemplateColumns: {
+    xs: "repeat(2, minmax(0, 1fr))",
+    sm: "repeat(4, minmax(0, 1fr))",
+  },
+  gap: { xs: 1, md: 1.25 },
+};
+
+export const websiteFlowStepCardSx =
+  (state: "active" | "done" | "upcoming"): SxProps<Theme> =>
+  (theme) => {
+    const t = theme as AppTheme;
+    const base = {
+      p: { xs: 1.25, md: 1.5 },
+      borderRadius: 2,
+      border: `1px solid ${t.app.dashboard.cardBorder}`,
+      bgcolor: alpha(t.app.dashboard.pillBg, 0.45),
+      display: "flex",
+      flexDirection: "column",
+      gap: 0.5,
+      minHeight: { xs: 80, md: 88 },
+      transition: "border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease",
+    } as const;
+
+    if (state === "active") {
+      return {
+        ...base,
+        borderColor: alpha(t.palette.primary.main, 0.65),
+        bgcolor: alpha(t.palette.primary.main, 0.1),
+        boxShadow: `0 0 0 1px ${alpha(t.palette.primary.main, 0.2)}, 0 12px 32px ${alpha(t.palette.primary.main, 0.12)}`,
+      };
+    }
+    if (state === "done") {
+      return {
+        ...base,
+        borderColor: alpha(t.palette.success.main, 0.45),
+        bgcolor: alpha(t.palette.success.main, 0.08),
+      };
+    }
+    return base;
+  };
+
+export const websiteFlowStepNumberSx =
+  (state: "active" | "done" | "upcoming"): SxProps<Theme> =>
+  (theme) => {
+    const t = theme as AppTheme;
+    const color =
+      state === "active"
+        ? t.palette.primary.main
+        : state === "done"
+          ? t.palette.success.main
+          : t.app.dashboard.textMuted;
+    return {
+      width: 28,
+      height: 28,
+      borderRadius: "10px",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      fontSize: 13,
+      fontWeight: 700,
+      flexShrink: 0,
+      bgcolor: alpha(color, 0.16),
+      color,
+      border: `1px solid ${alpha(color, 0.35)}`,
+    };
+  };

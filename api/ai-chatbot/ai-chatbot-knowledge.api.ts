@@ -2,6 +2,10 @@ import { apiClient } from "../http/axios-instance";
 import type {
   CreateKnowledgeSourceJsonBody,
   CreateKnowledgeSourceResult,
+  ListKbTrainingWebsitesParams,
+  ListKbTrainingWebsitesResult,
+  ListKnowledgeSourceChunksParams,
+  ListKnowledgeSourceChunksResult,
   ListKnowledgeSourcesParams,
   ListKnowledgeSourcesResult,
   ReindexBulkResult,
@@ -35,6 +39,24 @@ export async function listAiChatbotSources(
 ): Promise<ListKnowledgeSourcesResult> {
   const { data } = await apiClient.get<unknown>("/ai-chatbot/sources", { params });
   return unwrapAiKnowledgeData<ListKnowledgeSourcesResult>(data);
+}
+
+export async function listAiChatbotTrainingWebsites(
+  params?: ListKbTrainingWebsitesParams,
+): Promise<ListKbTrainingWebsitesResult> {
+  const { data } = await apiClient.get<unknown>("/ai-chatbot/training-websites", { params });
+  return unwrapAiKnowledgeData<ListKbTrainingWebsitesResult>(data);
+}
+
+export async function listAiChatbotSourceChunks(
+  sourceId: string,
+  params?: ListKnowledgeSourceChunksParams,
+): Promise<ListKnowledgeSourceChunksResult> {
+  const { data } = await apiClient.get<unknown>(
+    `/ai-chatbot/sources/${encodeURIComponent(sourceId.trim())}/chunks`,
+    { params },
+  );
+  return unwrapAiKnowledgeData<ListKnowledgeSourceChunksResult>(data);
 }
 
 export async function deleteAiChatbotSource(sourceId: string): Promise<{ sourceId: string; deleted: boolean }> {

@@ -128,6 +128,8 @@ export interface WidgetDraft {
   soundNotification?: boolean;
   fallbackNotificationText?: string;
   videoWelcomeOn?: boolean;
+  /** YouTube/Vimeo or direct MP4 link (saved in config; embed player pending). */
+  videoWelcomeUrl?: string;
   /** When false, inquiry topic pills are hidden (step 2 toggle). */
   inquiryOn?: boolean;
   inquiryOptions?: WidgetInquiryOption[];
@@ -223,6 +225,7 @@ export const defaultWidgetDraft: WidgetDraft = {
   soundNotification: false,
   fallbackNotificationText: "You have a new message from support.",
   videoWelcomeOn: false,
+  videoWelcomeUrl: "",
   welcomeMessageBehavior: "Thanks for reaching out.",
   autoOpenEnabled: false,
   autoOpenDelaySeconds: 10,
@@ -250,7 +253,7 @@ export const defaultWidgetDraft: WidgetDraft = {
   responseSendPlaceholder: "Ask us anything…",
   responseAiPromptHint: "Be concise and helpful.",
   responseAgentHandoverEnabled: true,
-  responseHandoverTriggerText: "talk to human",
+  responseHandoverTriggerText: "Talk to agent",
   inquiryOn: false,
   inquiryOptions: normalizeWidgetInquiryOptions(["Billing", "Technical", "Sales"]),
 };

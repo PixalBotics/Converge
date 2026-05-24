@@ -9,6 +9,10 @@ import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import { Typography } from "@/components/common";
 import {
+  VISITOR_WIDGET_AI_FIELD_CAPTION,
+  WIDGET_AI_TYPE_AGENT_NOTE,
+} from "@/lib/ai/ai-role-copy";
+import {
   WIDGET_AI_TYPE_OPTIONS,
   type WidgetAiType,
 } from "@/lib/chat-widget/widget-ai-type";
@@ -29,8 +33,15 @@ export function WidgetAiTypeField({
       <Typography variant="mediumLarge" sx={{ color: theme.app.text.primary, mb: 0.5 }}>
         AI type
       </Typography>
-      <Typography variant="caption" sx={{ display: "block", color: theme.app.dashboard.textMuted, mb: 1 }}>
-        Shown when chat mode is Hybrid or AI only. Agent-only mode ignores AI type on the server.
+      <Typography variant="caption" sx={{ display: "block", color: theme.app.dashboard.textMuted, mb: 0.75 }}>
+        {VISITOR_WIDGET_AI_FIELD_CAPTION}
+      </Typography>
+      <Typography
+        variant="caption"
+        sx={{ display: "block", color: theme.app.dashboard.textMuted, mb: 1, lineHeight: 1.45 }}
+      >
+        Shown when chat mode is Hybrid or AI only. Agent-only mode ignores AI type on the server.{" "}
+        {WIDGET_AI_TYPE_AGENT_NOTE}
       </Typography>
       <FormControl component="fieldset" disabled={disabled} sx={{ width: "100%" }}>
         <RadioGroup

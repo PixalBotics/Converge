@@ -1,0 +1,115 @@
+"use client";
+
+import { useState } from "react";
+import FilterList from "@mui/icons-material/FilterList";
+import Box from "@mui/material/Box";
+import {
+  DashboardCard,
+  SearchBar,
+  ToolbarFilterPopover,
+  Typography,
+} from "@/components/common";
+import {
+  websiteAssignmentFilterCard,
+  websiteAssignmentFilterIconBox,
+  websiteAssignmentFilterTitleRow,
+  websiteAssignmentSearchFieldWrapper,
+  websiteAssignmentSearchRow,
+} from "@/app/dashboard/website-assigning/website-assigning.styles";
+import { ChatScopeFiltersPanel } from "./ChatScopeFiltersPanel";
+import type { ChatScopeFilterState } from "../types";
+
+type ChatLiveHubScopeCardProps = {
+  filters: ChatScopeFilterState;
+  onPatch: (patch: Partial<ChatScopeFilterState>) => void;
+  onReset: () => void;
+  canFilterByResellerId: boolean;
+  resellerOptions: { value: string; label: string }[];
+  parentCompanyOptions: { value: string; label: string }[];
+  childCompanyOptions: { value: string; label: string }[];
+  websiteOptions: { value: string; label: string }[];
+  showDepartmentPool?: boolean;
+  departmentOptions?: { value: string; label: string }[];
+  poolOptions?: { value: string; label: string }[];
+  statusOptions?: { value: string; label: string }[];
+  agentSearch: string;
+  onAgentSearchChange: (v: string) => void;
+};
+
+export function ChatLiveHubScopeCard({
+  filters,
+  onPatch,
+  onReset,
+  canFilterByResellerId,
+  resellerOptions,
+  parentCompanyOptions,
+  childCompanyOptions,
+  websiteOptions,
+  showDepartmentPool = true,
+  departmentOptions = [],
+  poolOptions = [],
+  statusOptions = [],
+  agentSearch,
+  onAgentSearchChange,
+}: ChatLiveHubScopeCardProps) {
+  const [filterOpen, setFilterOpen] = useState(false);
+
+  const hasActive = Boolean(
+    filters.resellerId.trim() ||
+      filters.parentCompanyId.trim() ||
+      filters.childCompanyId.trim() ||
+      filters.websiteId.trim() ||
+      filters.departmentId.trim() ||
+      filters.poolId.trim() ||
+      filters.status.trim() ||
+      agentSearch.trim(),
+  );
+
+  return (
+    <DashboardCard sx={websiteAssignmentFilterCard}>
+      <Box sx={websiteAssignmentFilterTitleRow}>
+        <Box sx={websiteAssignmentFilterIconBox}>
+          <FilterList sx={{ fontSize: 20 }} />
+        </Box>
+        <Box>
+          <Typography variant="mediumLarge" fontWeight={600}>
+            Scope
+          </Typography>
+          <Typography variant="caption" sx={{ color: "text.secondary" }}>
+            Select a website to list assigned agents, then open their chats.
+          </Typography>
+        </Box>
+      </Box>
+      <Box sx={websiteAssignmentSearchRow}>
+        <Box sx={websiteAssignmentSearchFieldWrapper}>
+          <SearchBar
+            value={agentSearch}
+            onChange={onAgentSearchChange}
+            placeholder="Search agent name or email…"
+            sx={{ minWidth: "100%" }}
+          />
+        </Box>
+        <ToolbarFilterPopover open={filterOpen} onOpenChange={setFilterOpen} active={hasActive}>
+          <ChatScopeFiltersPanel
+            compact
+            filters={filters}
+            onPatch={onPatch}
+            onReset={onReset}
+            canFilterByResellerId={canFilterByResellerId}
+            resellerOptions={resellerOptions}
+            parentCompanyOptions={parentCompanyOptions}
+            childCompanyOptions={childCompanyOptions}
+            websiteOptions={websiteOptions}
+            showDepartment={showDepartmentPool}
+            showPool={showDepartmentPool}
+            showStatus={statusOptions.length > 1}
+            departmentOptions={departmentOptions}
+            poolOptions={poolOptions}
+            statusOptions={statusOptions}
+            hint="Reseller → company → website. Department and pool narrow the agent table and chat queue."
+          />
+        </ToolbarFilterPopover>
+      </Box>
+    </DashboardCard>
+  );
+}

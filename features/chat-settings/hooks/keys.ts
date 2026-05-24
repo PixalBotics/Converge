@@ -21,6 +21,8 @@ export const chatSettingsKeys = {
     [...chatSettingsKeys.all, "pools", parentCompanyId] as const,
   qaRoster: (websiteId: string) =>
     [...chatSettingsKeys.all, "qa-roster", websiteId] as const,
+  qaRosterExclusions: (websiteId: string) =>
+    [...chatSettingsKeys.all, "qa-roster-exclusions", websiteId] as const,
   cannedList: (q: {
     resellerId?: string;
     parentCompanyId?: string;
@@ -38,4 +40,21 @@ export const chatSettingsKeys = {
     ] as const,
   cannedWebsite: (websiteId: string) =>
     [...chatSettingsKeys.all, "canned", "website", websiteId] as const,
+  closePolicyList: (q: {
+    resellerId?: string;
+    parentCompanyId?: string;
+    childCompanyId?: string;
+    websiteId?: string;
+    search?: string;
+  }) =>
+    [
+      ...chatSettingsKeys.all,
+      "close-policy",
+      "list",
+      q.resellerId ?? "",
+      q.parentCompanyId ?? "",
+      q.childCompanyId ?? "",
+      q.websiteId ?? "",
+      q.search ?? "",
+    ] as const,
 };

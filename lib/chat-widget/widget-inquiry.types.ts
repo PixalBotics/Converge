@@ -75,19 +75,34 @@ export function normalizeWidgetInquiryOptions(raw: unknown): WidgetInquiryOption
   return out;
 }
 
-/** Department + pool for the visitor channel on this inquire row. */
+function pickInquiryServiceChannel(option: WidgetInquiryOption): WidgetServiceChannel {
+  const hasInternal = Boolean(option.internalDepartmentId?.trim());
+  const hasExternal = Boolean(option.externalDepartmentId?.trim());
+  if (hasInternal && !hasExternal) return "internal";
+  if (hasExternal && !hasInternal) return "external";
+  return option.serviceChannel;
+}
+
+/** Department + pool for the active visitor channel on this inquire row. */
 export function resolveInquiryRoutingTargets(
   option: WidgetInquiryOption,
-): { departmentId: string | null; poolId: string | null } {
-  if (option.serviceChannel === "external") {
+): {
+  departmentId: string | null;
+  poolId: string | null;
+  serviceChannel: WidgetServiceChannel;
+} {
+  const channel = pickInquiryServiceChannel(option);
+  if (channel === "external") {
     return {
       departmentId: option.externalDepartmentId,
       poolId: option.externalPoolId,
+      serviceChannel: channel,
     };
   }
   return {
     departmentId: option.internalDepartmentId,
     poolId: option.internalPoolId,
+    serviceChannel: channel,
   };
 }
 

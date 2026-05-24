@@ -17,6 +17,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { Controller, useForm } from "react-hook-form";
@@ -38,10 +39,13 @@ import {
   buildDynamicPrechatZod,
   buildVisitorPayloadParts,
   extractPrechatFieldsFromWidgetConfig,
+  isPrechatBootstrapVisitorMessage,
+  resolvePersonalizedAssistantWelcome,
   type PrechatFieldDto,
 } from "@/lib/widget-runtime/prechat-form";
 import {
   extractRuntimeChatAppearance,
+  resolveEmbedGreetingMessage,
   launcherBorderRadius,
   launcherEmbedRootSx,
   resolveRuntimeConfigRecord,
@@ -70,14 +74,10 @@ import { EmbedWidgetBanner } from "@/components/embed/EmbedWidgetBanner";
 import { EmbedWidgetTheme } from "@/components/embed/EmbedWidgetTheme";
 import {
   getWidgetRuntimeConfig,
-  postAiVisitorRespond,
   postWidgetSession,
 } from "@/lib/widget-runtime/widget-public-fetch";
 import type { WidgetConfigEnvelope } from "@/lib/widget-runtime/widget-types";
-import {
-  formatKnowledgeMatchCitation,
-  resolveVisitorAiMessageContent,
-} from "@/lib/widget-runtime/visitor-ai-display";
+import { postWidgetRequestHuman } from "@/services/chat/widget-visitor.api";
 import { decodeJwtExpMs } from "@/lib/widget-runtime/jwt-expiry";
 import {
   generateClientSessionId,
@@ -288,7 +288,7 @@ function writeWelcomeAcknowledged(widgetKey: string) {
   }
 }
 
-/** Bottom-right launcher: icon only → panel with welcome → (chat) form → chat */
+/** Bottom-right launcher: greeting → pre-chat form → live chat */
 function FloatingChatEmbed({
   widgetKey,
   welcomeText,
@@ -311,11 +311,16 @@ function FloatingChatEmbed({
   textUsBelow?: ReactNode;
 }) {
   const [launcherOpen, setLauncherOpen] = useState(false);
-  const [welcomeAck, setWelcomeAck] = useState(false);
+  const greetingMessage = useMemo(
+    () => resolveEmbedGreetingMessage(appearance, welcomeText),
+    [appearance, welcomeText],
+  );
+  const hasGreetingStep = greetingMessage.length > 0;
+  const [greetingAck, setGreetingAck] = useState(!hasGreetingStep);
 
   useEffect(() => {
-    setWelcomeAck(readWelcomeAcknowledged(widgetKey));
-  }, [widgetKey]);
+    setGreetingAck(!hasGreetingStep);
+  }, [widgetKey, hasGreetingStep]);
 
   useEffect(() => {
     if (!appearance.autoOpenEnabled || appearance.autoOpenDelaySeconds <= 0) return;
@@ -326,18 +331,27 @@ function FloatingChatEmbed({
     return () => window.clearTimeout(id);
   }, [appearance.autoOpenEnabled, appearance.autoOpenDelaySeconds, appearance]);
 
-  const acknowledgeWelcome = () => {
-    setWelcomeAck(true);
-    writeWelcomeAcknowledged(widgetKey);
+  const acknowledgeGreeting = () => {
+    setGreetingAck(true);
+  };
+
+  const closeLauncher = () => {
+    setLauncherOpen(false);
+    postEmbedHostResize(false, appearance);
+    setGreetingAck(!hasGreetingStep);
   };
 
   const { launcher, chatBox } = appearance;
   useEmbedHostResize(launcherOpen, appearance);
 
+  const openLauncher = () => {
+    setLauncherOpen(true);
+    postEmbedHostResize(true, appearance);
+  };
+
   const toggleLauncher = () => {
-    const next = !launcherOpen;
-    postEmbedHostResize(next, appearance);
-    setLauncherOpen(next);
+    if (launcherOpen) closeLauncher();
+    else openLauncher();
   };
 
   const panelAlign =
@@ -420,7 +434,7 @@ function FloatingChatEmbed({
                 type="button"
                 aria-label="Minimize widget"
                 size="small"
-                onClick={() => setLauncherOpen(false)}
+                onClick={closeLauncher}
                 sx={{ color: "inherit", ml: 1 }}
               >
                 <CloseRounded fontSize="small" />
@@ -432,35 +446,34 @@ function FloatingChatEmbed({
                 flex: 1,
                 minHeight: 0,
                 overflowY: "auto",
-                p: welcomeAck ? 0 : appearance.densityTokens.panelPaddingPx / 8,
+                p: greetingAck ? 0 : appearance.densityTokens.panelPaddingPx / 8,
                 bgcolor: chatBox.backgroundColor,
               }}
             >
-              {!welcomeAck ? (
+              {!greetingAck ? (
                 <Stack spacing={2} sx={{ pt: 0.5 }}>
                   <EmbedWidgetBanner banner={appearance.banner} appearance={appearance} />
-                  <Typography variant="body1" fontWeight={600} sx={embedBodyTextSx(appearance)}>
-                    {appearance.form.title || welcomeText || "How can we help?"}
-                  </Typography>
-                  <Typography variant="body2" sx={embedMutedTextSx(appearance)}>
-                    {appearance.form.subtitle ||
-                      appearance.panelGreetingMessage ||
-                      welcomeText}
+                  <Typography
+                    variant="body2"
+                    sx={embedGreetingBubbleSx(appearance)}
+                  >
+                    {greetingMessage}
                   </Typography>
                   <EmbedActionButton
                     type="button"
                     appearance={appearance}
                     fullWidth
-                    onClick={acknowledgeWelcome}
+                    onClick={acknowledgeGreeting}
                   >
                     Continue
                   </EmbedActionButton>
                 </Stack>
               ) : (
                 <Box sx={{ display: "flex", flexDirection: "column", gap: 0 }}>
-                  <Box sx={{ p: welcomeAck ? appearance.densityTokens.panelPaddingPx / 8 : 0 }}>
+                  <Box sx={{ p: greetingAck ? appearance.densityTokens.panelPaddingPx / 8 : 0 }}>
                     <WidgetChatPanel
                       embedded
+                      greetingAlreadyShown={hasGreetingStep}
                       widgetKey={widgetKey}
                       websiteId={websiteId}
                       parentPageUrl={parentPageUrl}
@@ -753,6 +766,7 @@ function WidgetSurfaces({
 
 function WidgetChatPanel({
   embedded = false,
+  greetingAlreadyShown = false,
   widgetKey,
   websiteId,
   parentPageUrl,
@@ -762,6 +776,8 @@ function WidgetChatPanel({
   appearance,
 }: {
   embedded?: boolean;
+  /** Greeting bubble was shown in the launcher shell before this panel. */
+  greetingAlreadyShown?: boolean;
   widgetKey: string;
   websiteId: string;
   parentPageUrl: string;
@@ -791,7 +807,8 @@ function WidgetChatPanel({
   const formEnabled = appearance?.formEnabled ?? true;
   const inquiryOptions: RuntimeInquiryOption[] = appearance?.inquiryOptions ?? [];
   const hasInquiryStep = inquiryOptions.length > 0;
-  const [prechatDone, setPrechatDone] = useState(!formEnabled);
+  const needsPrechatGate = formEnabled || hasInquiryStep;
+  const [prechatDone, setPrechatDone] = useState(!needsPrechatGate);
   const [prechatStep, setPrechatStep] = useState<"inquiry" | "form">(
     hasInquiryStep ? "inquiry" : "form",
   );
@@ -801,15 +818,23 @@ function WidgetChatPanel({
   );
 
   useEffect(() => {
-    setPrechatDone(!formEnabled);
+    setPrechatDone(!needsPrechatGate);
     setPrechatStep(hasInquiryStep ? "inquiry" : "form");
     setSelectedInquiry(null);
     if (!appearance?.consentRequired) setConsentAccepted(true);
-  }, [formEnabled, hasInquiryStep, appearance?.consentRequired]);
+  }, [needsPrechatGate, hasInquiryStep, appearance?.consentRequired]);
   const [aiPending, setAiPending] = useState(false);
+  const aiPendingSinceRef = useRef<number | null>(null);
   /** HYBRID only: set true when visitor taps "Talk to a human" — never from API shouldEscalate (that was forcing queue UI + repeated handoff replies). */
   const [escalated, setEscalated] = useState(false);
+  const [handoverStatus, setHandoverStatus] = useState<string | null>(null);
+  const [handoverBusy, setHandoverBusy] = useState(false);
   const [localAiMessages, setLocalAiMessages] = useState<ChatMessage[]>([]);
+  /** API `firstMessage` on create — hidden from transcript; not sent to AI as a user question. */
+  const prechatApiFirstMessageRef = useRef<string | null>(null);
+  /** AI/HYBRID: hide socket AI replies until the visitor sends a composer message. */
+  const [awaitingFirstUserQuestion, setAwaitingFirstUserQuestion] = useState(false);
+  const startConversationRef = useRef<(() => Promise<void>) | null>(null);
 
   const visitorSessionId = useMemo(() => {
     const existing = readVisitorSessionId(siteKey);
@@ -825,7 +850,30 @@ function WidgetChatPanel({
     autoConnect: false,
     widgetSessionToken: sessionToken,
     getCurrentPageUrl: pageUrlGetter,
+    onChatAssigned: () => {
+      setHandoverStatus("An agent has joined your chat.");
+    },
+    onChatQueued: () => {
+      setHandoverStatus(
+        "You are in the queue. The next available teammate will join shortly.",
+      );
+    },
   });
+
+  useEffect(() => {
+    if (!aiPending) return;
+    const since = aiPendingSinceRef.current;
+    if (!since) return;
+    const gotAi = chat.messages.some((m) => {
+      if (m.role !== "system") return false;
+      if (!m.createdAt) return true;
+      return new Date(m.createdAt).getTime() >= since - 800;
+    });
+    if (gotAi) {
+      setAiPending(false);
+      aiPendingSinceRef.current = null;
+    }
+  }, [aiPending, chat.messages]);
 
   const mergeDisplayMessages = useMemo(() => {
     const map = new Map<string, ChatMessage>();
@@ -833,12 +881,48 @@ function WidgetChatPanel({
       const k = m.id ?? `${m.role}-${m.createdAt}-${m.content}`;
       map.set(k, m);
     };
-    chat.messages.forEach(add);
+    const apiBootstrap = prechatApiFirstMessageRef.current;
+    for (const m of chat.messages) {
+      if (
+        m.role === "visitor" &&
+        isPrechatBootstrapVisitorMessage(m.content, apiBootstrap)
+      ) {
+        continue;
+      }
+      if (
+        awaitingFirstUserQuestion &&
+        (m.role === "agent" || m.role === "system")
+      ) {
+        continue;
+      }
+      add(m);
+    }
     localAiMessages.forEach(add);
     return [...map.values()].sort((a, b) =>
       String(a.createdAt).localeCompare(String(b.createdAt)),
     );
-  }, [chat.messages, localAiMessages]);
+  }, [awaitingFirstUserQuestion, chat.messages, localAiMessages]);
+
+  const assistantHandlesChat =
+    mode === "AI_ONLY" || (mode === "HYBRID" && !escalated);
+  const needsAgentSocket =
+    mode === "AGENT_ONLY" || (mode === "HYBRID" && escalated);
+  const hasActiveConversation = Boolean(chat.conversationId);
+  const showOfflineBanner =
+    needsAgentSocket &&
+    !chat.isConnected &&
+    Boolean(appearance?.offlineMessage?.trim());
+  const statusLabel = assistantHandlesChat && hasActiveConversation
+    ? aiPending
+      ? "Assistant"
+      : "Live"
+    : !chat.isConnected && appearance?.offlineMessage?.trim()
+      ? "Offline"
+      : chat.isConnected
+        ? "Live"
+        : hasActiveConversation
+          ? "Live"
+          : "Connecting…";
 
   const appendAiAssistant = (
     conversationId: string,
@@ -859,63 +943,79 @@ function WidgetChatPanel({
     ]);
   };
 
-  const onPrechatSubmit = form.handleSubmit(async (values) => {
-    if (hasInquiryStep && !selectedInquiry) return;
-    const { visitor, firstMessage } = buildVisitorPayloadParts(
-      values as Record<string, unknown>,
-      fields,
-      visitorSessionId,
-      selectedInquiry?.label,
-    );
-    const routingTargets = selectedInquiry
-      ? resolveInquiryRoutingTargets(selectedInquiry)
-      : { departmentId: null, poolId: null };
-    const created = await chat.startConversation({
-      websiteId,
-      visitor,
-      firstMessage,
-      currentPageUrl: parentPageUrl,
-      referrerUrl: typeof document !== "undefined" ? document.referrer : "",
-      routingKey: selectedInquiry?.routingKey,
-      serviceChannel:
-        selectedInquiry?.serviceChannel === "external" ? "External" : "Internal",
-      inquiryDepartmentId: routingTargets.departmentId ?? undefined,
-      inquiryPoolId: routingTargets.poolId ?? undefined,
-      inquiryLabel: selectedInquiry?.label,
-    });
-    persistConversationId(siteKey, created.conversationId);
-
-    const originHostSafe = safeHostname(parentPageUrl);
-
-    if (mode === "AI_ONLY" || mode === "HYBRID") {
-      setAiPending(true);
-      const aiRes = await postAiVisitorRespond(
-        {
-          message: firstMessage,
-          websiteId: websiteId.trim() || undefined,
-          conversationId: created.conversationId,
-          widgetKey,
-          originHost: originHostSafe,
-          currentPageUrl: parentPageUrl.trim() || undefined,
-        },
-        sessionToken,
+  const beginConversation = useCallback(
+    async (values: Record<string, unknown>) => {
+      if (chat.conversationId) {
+        setPrechatDone(true);
+        return;
+      }
+      const { visitor, firstMessage } = buildVisitorPayloadParts(
+        values,
+        fields,
+        visitorSessionId,
+        selectedInquiry?.label,
       );
-      setAiPending(false);
-      if (aiRes.ok) {
+      const routingTargets = selectedInquiry
+        ? resolveInquiryRoutingTargets(selectedInquiry)
+        : {
+            departmentId: null,
+            poolId: null,
+            serviceChannel: "internal" as const,
+          };
+      const created = await chat.startConversation({
+        websiteId,
+        visitor,
+        firstMessage,
+        currentPageUrl: parentPageUrl,
+        referrerUrl: typeof document !== "undefined" ? document.referrer : "",
+        routingKey: selectedInquiry?.routingKey,
+        serviceChannel:
+          routingTargets.serviceChannel === "external" ? "External" : "Internal",
+        inquiryDepartmentId: routingTargets.departmentId ?? undefined,
+        inquiryPoolId: routingTargets.poolId ?? undefined,
+        inquiryLabel: selectedInquiry?.label,
+        deferInitialAiReply: mode === "AI_ONLY" || mode === "HYBRID",
+      });
+      persistConversationId(siteKey, created.conversationId);
+      prechatApiFirstMessageRef.current = firstMessage;
+      if (mode === "AI_ONLY" || mode === "HYBRID") {
+        setAwaitingFirstUserQuestion(true);
         appendAiAssistant(
           created.conversationId,
-          resolveVisitorAiMessageContent(
-            aiRes.data.response,
-            aiRes.data.knowledgeMatches,
+          resolvePersonalizedAssistantWelcome(
+            visitor.name ?? "there",
+            appearance?.firstMessage,
           ),
-          {
-            knowledgeMatches: aiRes.data.knowledgeMatches,
-            intent: aiRes.data.intent,
-          },
+          { kind: "assistantWelcome" },
         );
       }
-    }
-    setPrechatDone(true);
+      setPrechatDone(true);
+    },
+    [
+      appearance?.firstMessage,
+      chat,
+      fields,
+      mode,
+      parentPageUrl,
+      selectedInquiry,
+      siteKey,
+      visitorSessionId,
+      websiteId,
+    ],
+  );
+
+  startConversationRef.current = async () => {
+    await beginConversation(buildDefaultFormValues(fields) as Record<string, unknown>);
+  };
+
+  useEffect(() => {
+    if (needsPrechatGate || prechatDone || chat.conversationId) return;
+    void startConversationRef.current?.();
+  }, [needsPrechatGate, prechatDone, chat.conversationId]);
+
+  const onPrechatSubmit = form.handleSubmit(async (values) => {
+    if (hasInquiryStep && !selectedInquiry) return;
+    await beginConversation(values as Record<string, unknown>);
   });
 
   const [draft, setDraft] = useState("");
@@ -924,39 +1024,37 @@ function WidgetChatPanel({
     const text = normalizeChatMessageText(draft);
     if (!text || !chat.conversationId) return;
 
+    if (awaitingFirstUserQuestion) {
+      setAwaitingFirstUserQuestion(false);
+    }
+
     /** HYBRID: AI replies until the visitor taps "Talk to a human"; then only visitor→agent messages run until an agent joins. */
     const shouldUseAiBridge =
       mode === "AI_ONLY" || (mode === "HYBRID" && !escalated);
 
-    if (!shouldUseAiBridge) {
-      await chat.sendMessage(text);
-      setDraft("");
-      return;
-    }
-
-    await chat.sendMessage(text);
     setDraft("");
-    setAiPending(true);
-    const aiRes = await postAiVisitorRespond(
-      {
-        message: text,
-        websiteId: websiteId.trim() || undefined,
-        conversationId: chat.conversationId,
-        widgetKey,
-        originHost: safeHostname(parentPageUrl),
-        currentPageUrl: parentPageUrl.trim() || undefined,
-      },
+    if (shouldUseAiBridge) {
+      setAiPending(true);
+      aiPendingSinceRef.current = Date.now();
+    }
+    await chat.sendMessage(text);
+  };
+
+  const runHumanHandover = async () => {
+    if (!chat.conversationId || handoverBusy) return;
+    setHandoverBusy(true);
+    setEscalated(true);
+    setHandoverStatus(null);
+    const res = await postWidgetRequestHuman(
+      chat.conversationId,
+      websiteId,
       sessionToken,
     );
-    setAiPending(false);
-    if (aiRes.ok) {
-      appendAiAssistant(
-        chat.conversationId,
-        resolveVisitorAiMessageContent(aiRes.data.response, aiRes.data.knowledgeMatches),
-        {
-          knowledgeMatches: aiRes.data.knowledgeMatches,
-        },
-      );
+    setHandoverBusy(false);
+    if (res.ok) {
+      setHandoverStatus(res.data.message);
+    } else {
+      setHandoverStatus(res.message || "Could not reach a teammate right now.");
     }
   };
 
@@ -972,10 +1070,11 @@ function WidgetChatPanel({
 
   if (!prechatDone) {
     const welcomeLine =
-      appearance?.welcomeMessage?.trim() ||
-      appearance?.panelGreetingMessage?.trim() ||
-      appearance?.firstMessage?.trim() ||
-      "";
+      !greetingAlreadyShown && appearance
+        ? resolveEmbedGreetingMessage(appearance).trim() ||
+          appearance.firstMessage?.trim() ||
+          ""
+        : "";
 
     if (prechatStep === "inquiry" && hasInquiryStep) {
       return (
@@ -1010,7 +1109,13 @@ function WidgetChatPanel({
                 variant="outlined"
                 onClick={() => {
                   setSelectedInquiry(opt);
-                  setPrechatStep("form");
+                  if (formEnabled) {
+                    setPrechatStep("form");
+                  } else {
+                    void beginConversation(
+                      buildDefaultFormValues(fields) as Record<string, unknown>,
+                    );
+                  }
                 }}
                 sx={
                   appearance
@@ -1165,21 +1270,21 @@ function WidgetChatPanel({
           Conversation
         </Typography>
         <Typography variant="caption" sx={appearance ? embedMutedTextSx(appearance) : undefined}>
-          {!chat.isConnected && appearance?.offlineMessage?.trim()
-            ? "Offline"
-            : chat.isConnected
-              ? "Live"
-              : "Connecting…"}
+          {statusLabel}
         </Typography>
       </Stack>
 
-      {!chat.isConnected && appearance?.offlineMessage?.trim() ? (
+      {showOfflineBanner ? (
         <Typography variant="caption" sx={appearance ? embedMutedTextSx(appearance) : undefined}>
-          {appearance.offlineMessage}
+          {appearance!.offlineMessage}
         </Typography>
       ) : null}
 
-      {mode === "HYBRID" && escalated ? (
+      {handoverStatus ? (
+        <Typography variant="caption" sx={appearance ? embedMutedTextSx(appearance) : undefined}>
+          {handoverStatus}
+        </Typography>
+      ) : mode === "HYBRID" && escalated ? (
         <Typography variant="caption" sx={appearance ? embedMutedTextSx(appearance) : undefined}>
           Waiting for an available teammate — you can keep typing here.
         </Typography>
@@ -1207,7 +1312,9 @@ function WidgetChatPanel({
           pr: 0.5,
         }}
       >
-        {!mergeDisplayMessages.length && appearance?.chatBox.greetingMessage ? (
+        {!mergeDisplayMessages.length &&
+        appearance?.chatBox.greetingMessage &&
+        !greetingAlreadyShown ? (
           <Box
             sx={{
               alignSelf: "flex-start",
@@ -1223,7 +1330,9 @@ function WidgetChatPanel({
             </Typography>
           </Box>
         ) : null}
-        {!mergeDisplayMessages.length && appearance?.firstMessage?.trim() ? (
+        {!mergeDisplayMessages.length &&
+        appearance?.firstMessage?.trim() &&
+        mode === "AGENT_ONLY" ? (
           <Box
             sx={{
               alignSelf: "flex-start",
@@ -1281,23 +1390,18 @@ function WidgetChatPanel({
 
       {mode === "HYBRID" &&
       !escalated &&
+      hasActiveConversation &&
       (appearance?.agentHandoverEnabled ?? true) ? (
         <MuiButton
           type="button"
           variant="outlined"
-          onClick={() => {
-            void (async () => {
-              setEscalated(true);
-              if (chat.conversationId) {
-                await chat.sendMessage(
-                  "[Escalation requested] Please connect me with a human specialist.",
-                );
-              }
-            })();
-          }}
+          disabled={handoverBusy}
+          onClick={() => void runHumanHandover()}
           sx={appearance ? embedHandoverButtonSx(appearance) : undefined}
         >
-          {appearance?.handoverTriggerText ?? "Talk to a human"}
+          {handoverBusy
+            ? "Connecting…"
+            : appearance?.handoverTriggerText ?? "Talk to agent"}
         </MuiButton>
       ) : null}
     </Box>
@@ -1528,13 +1632,6 @@ function MessageBubble({
   const bubbleRole = resolveEmbedMessageBubbleRole(message.role);
   const alignRight = bubbleRole === "visitor";
 
-  const kmRaw = (
-    message.metadata as { knowledgeMatches?: unknown[] } | undefined
-  )?.knowledgeMatches;
-  const citations = Array.isArray(kmRaw)
-    ? kmRaw.map((c) => formatKnowledgeMatchCitation(c)).filter(Boolean)
-    : [];
-
   return (
     <Box sx={{ alignSelf: alignRight ? "flex-end" : "flex-start", maxWidth: "92%" }}>
       <Box
@@ -1553,18 +1650,6 @@ function MessageBubble({
           {normalizeChatMessageText(message.content)}
         </Typography>
       </Box>
-      {citations.length ? (
-        <Typography
-          variant="caption"
-          sx={{
-            display: "block",
-            mt: 0.5,
-            ...(appearance ? embedMutedTextSx(appearance) : {}),
-          }}
-        >
-          Sources: {citations.join(", ")}
-        </Typography>
-      ) : null}
     </Box>
   );
 }

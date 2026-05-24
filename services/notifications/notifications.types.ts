@@ -26,6 +26,8 @@ export type NotificationSocketEvent = {
   event: "new" | "read" | "read_all";
   notification?: NotificationDto;
   badgeCounts: BadgeCounts;
+  /** Present on `read_all` when only one badge group was cleared. */
+  badgeGroup?: NotificationBadgeGroup;
 };
 
 export type NotificationsListResponse = {

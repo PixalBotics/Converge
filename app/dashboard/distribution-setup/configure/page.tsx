@@ -25,6 +25,7 @@ import {
 } from "@/features/website-assignments/components/PickWebsiteFields";
 import type { PickWebsitePreset } from "@/features/website-assignments/components/PickWebsiteModal";
 import { emailFormWebsiteScopeSx } from "@/features/email/styles/email-form-builder.styles";
+import { mergeSx } from "@/lib/mui/merge-sx";
 
 const EMPTY_PRESET: PickWebsitePreset = {
   websiteId: "",
@@ -111,7 +112,7 @@ export default function ConfigureDistributionPage() {
       }
     >
       {scopeLabels && isPickWebsiteComplete(preset) ? (
-        <Box sx={[emailFormWebsiteScopeSx, { mb: 2.5 }] as SxProps<Theme>}>
+        <Box sx={mergeSx(emailFormWebsiteScopeSx, { mb: 2.5 })}>
           <Box
             sx={{
               width: 40,

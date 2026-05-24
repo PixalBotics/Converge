@@ -7,6 +7,7 @@ import { alpha, useTheme } from "@mui/material/styles";
 import type { SxProps, Theme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import { Typography } from "@/components/common";
+import { mergeSx } from "@/lib/mui/merge-sx";
 import {
   distributionStepCardSx,
   distributionStepNumberSx,
@@ -71,42 +72,37 @@ export function CompanyEditStepper({
               tabIndex={interactive ? 0 : -1}
               disabled={!interactive}
               onClick={() => goToStep(s.n)}
-              onKeyDown={(e: KeyboardEvent<HTMLButtonElement>) => {
+              onKeyDown={(e: KeyboardEvent<HTMLElement>) => {
                 if (!interactive) return;
                 if (e.key === "Enter" || e.key === " ") {
                   e.preventDefault();
                   goToStep(s.n);
                 }
               }}
-              sx={
-                [
-                  distributionStepCardSx(state),
-                  {
-                    cursor: interactive ? "pointer" : "default",
-                    font: "inherit",
-                    textAlign: "left",
-                    width: "100%",
-                    appearance: "none",
-                    WebkitAppearance: "none",
-                    border: "none",
-                    outline: "none",
-                    opacity: interactive ? 1 : 0.65,
-                    pointerEvents: interactive ? "auto" : "none",
-                    transition:
-                      "transform 0.15s ease, border-color 0.2s ease, background-color 0.2s ease",
-                    "&:hover": interactive
-                      ? {
-                          borderColor: alpha(theme.palette.primary.main, isActive ? 0.65 : 0.45),
-                          bgcolor: alpha(theme.palette.primary.main, isActive ? 0.12 : 0.06),
-                          transform: "translateY(-1px)",
-                        }
-                      : undefined,
-                    "&:focus-visible": {
-                      boxShadow: `0 0 0 2px ${alpha(theme.palette.primary.main, 0.45)}`,
-                    },
-                  },
-                ] as SxProps<Theme>
-              }
+              sx={mergeSx(
+                distributionStepCardSx(state),
+                interactive
+                  ? {
+                      cursor: "pointer",
+                      font: "inherit",
+                      textAlign: "left",
+                      width: "100%",
+                      appearance: "none",
+                      WebkitAppearance: "none",
+                      outline: "none",
+                      transition:
+                        "transform 0.15s ease, border-color 0.2s ease, background-color 0.2s ease",
+                      "&:hover": {
+                        borderColor: alpha(theme.palette.primary.main, isActive ? 0.65 : 0.45),
+                        bgcolor: alpha(theme.palette.primary.main, isActive ? 0.12 : 0.06),
+                        transform: "translateY(-1px)",
+                      },
+                      "&:focus-visible": {
+                        boxShadow: `0 0 0 2px ${alpha(theme.palette.primary.main, 0.45)}`,
+                      },
+                    }
+                  : { cursor: "default", pointerEvents: "none", opacity: 0.65 },
+              )}
             >
               <Box sx={{ display: "flex", alignItems: "center", gap: 1.25 }}>
                 <Box sx={distributionStepNumberSx(state)}>

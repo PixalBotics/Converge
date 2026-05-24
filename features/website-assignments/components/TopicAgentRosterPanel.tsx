@@ -6,8 +6,7 @@ import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
 import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
-import { Button, SelectField, Typography } from "@/components/common";
-import type { ShiftCoverage } from "@/api/types/shift-coverage.types";
+import { SelectField, Typography } from "@/components/common";
 import type {
   OperatingChannels,
   ServiceChannel,
@@ -19,20 +18,14 @@ import {
   canShowInternalSlots,
   isChannelAllowed,
 } from "@/lib/website-assignments/channel-helpers";
-import { usePutDepartmentRosterMutation } from "@/lib/hooks";
-import { extractApiErrorMessageForToast, publishAppToast } from "@/lib/notify";
-import { extractShiftCoverageFromAssignResponse } from "@/lib/website-assignments/shift-coverage";
-import { ShiftCoverageBanner } from "@/components/common/ShiftCoverageBanner/ShiftCoverageBanner";
 import { assignmentStepChipSx, assignmentStepRowSx } from "../styles/website-assignment-ui.styles";
-import { buildDepartmentPutBody, clearChannelDraft, slotsFromRoster } from "../utils/roster-draft.utils";
 import {
   buildVisitorTopicContexts,
   departmentIdForTopicChannel,
   departmentLabelForTopicChannel,
-  findRosterRow,
+  poolIdForTopicChannel,
 } from "../utils/roster-topic.utils";
-import { emptySlotDraft, type SlotDraft } from "./RosterSlotPicker";
-import { RosterUsersPickerTable } from "./RosterUsersPickerTable";
+import { CoverageBlocksPanel } from "./CoverageBlocksPanel";
 
 type TopicAgentRosterPanelProps = {
   websiteId: string;
@@ -41,9 +34,7 @@ type TopicAgentRosterPanelProps = {
   departmentRoster: WebsiteDepartmentRosterRow[];
   topics: ServiceSchedulingTopic[];
   canEdit: boolean;
-  onCoverage?: (coverage: ShiftCoverage | null) => void;
   onSaved?: () => void;
-  /** Edit flow: pre-select channel + topic when opening from table. */
   initialChannel?: ServiceChannel;
   initialTopicKey?: string;
 };
@@ -60,7 +51,6 @@ export function TopicAgentRosterPanel({
   departmentRoster,
   topics,
   canEdit,
-  onCoverage,
   onSaved,
   initialChannel,
   initialTopicKey,
@@ -85,9 +75,6 @@ export function TopicAgentRosterPanel({
 
   const [channel, setChannel] = useState<ServiceChannel>(initialChannel ?? "Internal");
   const [topicKey, setTopicKey] = useState(initialTopicKey ?? "");
-  const [draft, setDraft] = useState<SlotDraft>(emptySlotDraft);
-  const [baseline, setBaseline] = useState<SlotDraft>(emptySlotDraft);
-  const [shiftCoverage, setShiftCoverage] = useState<ShiftCoverage | null>(null);
 
   useEffect(() => {
     if (channelOptions.length === 0) return;
@@ -127,59 +114,9 @@ export function TopicAgentRosterPanel({
     ? departmentLabelForTopicChannel(selectedTopic, channel)
     : "";
 
-  const rosterRow = useMemo(
-    () => findRosterRow(departmentRoster, activeDepartmentId),
-    [departmentRoster, activeDepartmentId],
-  );
-
-  useEffect(() => {
-    if (!rosterRow) {
-      setDraft(emptySlotDraft());
-      setBaseline(emptySlotDraft());
-      return;
-    }
-    const slots =
-      channel === "Internal" ? rosterRow.roster.internal : rosterRow.roster.external;
-    const next = slotsFromRoster(slots);
-    setDraft(next);
-    setBaseline(next);
-    setShiftCoverage(null);
-  }, [rosterRow, channel, activeDepartmentId]);
-
-  const putRosterMutation = usePutDepartmentRosterMutation(websiteId);
-
-  const channelOnlyChanges =
-    draft.Primary !== baseline.Primary ||
-    draft.Secondary !== baseline.Secondary ||
-    draft.Backup !== baseline.Backup;
-
-  const handleSave = async () => {
-    if (!canEdit || !selectedTopic || !activeDepartmentId || !channelOnlyChanges) return;
-    try {
-      const res = await putRosterMutation.mutateAsync({
-        departmentId: activeDepartmentId,
-        body: buildDepartmentPutBody({
-          showInternal: channel === "Internal",
-          showExternal: channel === "External",
-          internalDraft: channel === "Internal" ? draft : emptySlotDraft(),
-          externalDraft: channel === "External" ? draft : emptySlotDraft(),
-        }),
-      });
-      const cov = extractShiftCoverageFromAssignResponse(res);
-      if (cov) {
-        setShiftCoverage(cov);
-        onCoverage?.(cov);
-      }
-      setBaseline(draft);
-      publishAppToast({ message: "Team assignments saved", variant: "success" });
-      onSaved?.();
-    } catch (e) {
-      publishAppToast({
-        message: extractApiErrorMessageForToast(e, "Could not save team assignments"),
-        variant: "error",
-      });
-    }
-  };
+  const activeTopicPoolId = selectedTopic
+    ? poolIdForTopicChannel(selectedTopic, channel)
+    : null;
 
   const topicOptions = useMemo(
     () => [
@@ -217,31 +154,17 @@ export function TopicAgentRosterPanel({
       >
         <InfoOutlined sx={{ color: theme.palette.info.light, fontSize: 22, mt: 0.25 }} />
         <Typography variant="body2" sx={{ lineHeight: 1.6, color: theme.app.dashboard.textMuted }}>
-          <strong>How chat routing works:</strong> When a visitor picks a topic (e.g.{" "}
-          <em>sale inquire</em>), the widget sends that topic&apos;s <strong>routing key</strong> plus
-          channel <strong>Internal</strong> or <strong>External</strong>. The system looks up the
-          department you mapped in service scheduling for that topic and channel, then offers the
-          chat to agents assigned here for that exact department ID — Primary, then Secondary, then
-          Backup.
+          <strong>Step 3 — Assign agents:</strong> Choose <strong>same team all day</strong> or{" "}
+          <strong>duty periods</strong> (morning / afternoon teams). Routing uses Primary → Secondary →
+          Backup for the active period. With HRMS, internal agents only get chats when chat hours, duty
+          period, and HRMS shift overlap.
         </Typography>
       </Box>
 
       <Box sx={assignmentStepRowSx}>
-        <Chip
-          label="1. Channel"
-          size="small"
-          sx={assignmentStepChipSx(Boolean(channel))}
-        />
-        <Chip
-          label="2. Visitor topic"
-          size="small"
-          sx={assignmentStepChipSx(Boolean(topicKey))}
-        />
-        <Chip
-          label="3. Team members"
-          size="small"
-          sx={assignmentStepChipSx(channelOnlyChanges)}
-        />
+        <Chip label="1. Channel" size="small" sx={assignmentStepChipSx(Boolean(channel))} />
+        <Chip label="2. Visitor topic" size="small" sx={assignmentStepChipSx(Boolean(topicKey))} />
+        <Chip label="3. Coverage & team" size="small" sx={assignmentStepChipSx(Boolean(activeDepartmentId))} />
       </Box>
 
       <Box
@@ -288,55 +211,20 @@ export function TopicAgentRosterPanel({
             Topic <strong>{selectedTopic.clientLabel}</strong> ({selectedTopic.routingKey}) ·{" "}
             <strong>{channel}</strong> chats use department{" "}
             <strong>{activeDepartmentLabel}</strong>
-            {channel === "Internal" ? (
-              <>
-                {" "}
-                (not {selectedTopic.externalDepartmentName} — that is for External only).
-              </>
-            ) : (
-              <>
-                {" "}
-                (not {selectedTopic.internalDepartmentName} — that is for Internal only).
-              </>
-            )}
           </Typography>
         </Box>
       ) : null}
 
-      <ShiftCoverageBanner coverage={shiftCoverage} onDismiss={() => setShiftCoverage(null)} />
-
       {selectedTopic && activeDepartmentId ? (
-        <>
-          <RosterUsersPickerTable
-            channel={channel}
-            departmentId={activeDepartmentId}
-            departmentName={activeDepartmentLabel}
-            draft={draft}
-            canEdit={canEdit}
-            onChange={setDraft}
-          />
-          {canEdit ? (
-            <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1, mt: 2 }}>
-              <Button
-                type="button"
-                variant="primary"
-                disabled={!channelOnlyChanges || putRosterMutation.isPending}
-                onClick={() => void handleSave()}
-              >
-                {putRosterMutation.isPending ? "Saving…" : "Save team assignments"}
-              </Button>
-              <Button
-                type="button"
-                variant="outlined"
-                size="small"
-                disabled={putRosterMutation.isPending}
-                onClick={() => setDraft(clearChannelDraft(channel))}
-              >
-                Clear {channel.toLowerCase()} slots
-              </Button>
-            </Box>
-          ) : null}
-        </>
+        <CoverageBlocksPanel
+          websiteId={websiteId}
+          departmentId={activeDepartmentId}
+          departmentName={activeDepartmentLabel}
+          channel={channel}
+          topicPoolId={activeTopicPoolId ?? undefined}
+          canEdit={canEdit}
+          onSaved={onSaved}
+        />
       ) : null}
     </Box>
   );

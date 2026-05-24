@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import Link from "@mui/material/Link";
+import NextLink from "next/link";
 import AutoAwesome from "@mui/icons-material/AutoAwesome";
 import CircularProgress from "@mui/material/CircularProgress";
 import { useTheme } from "@mui/material/styles";
@@ -19,6 +21,11 @@ import {
   ComposerTextField,
 } from "../styles/chat-operations.styled";
 import SendRounded from "@mui/icons-material/SendRounded";
+import {
+  AGENT_COPILOT_EMPTY_HINT,
+  AGENT_COPILOT_SUBTITLE,
+  AGENT_COPILOT_WEBSITE_REQUIRED,
+} from "@/lib/ai/ai-role-copy";
 
 const QUICK_ACTIONS: Array<{ action: AgentAiAction; label: string }> = [
   { action: "suggested_reply", label: "Suggest reply" },
@@ -73,20 +80,48 @@ export function AiAssistantDrawer({
         variant="caption"
         sx={{ color: theme.app.dashboard.textMuted, px: 2, py: 2, display: "block" }}
       >
-        Select a conversation to open the virtual assistant
+        Select a conversation to open the agent copilot
       </Typography>
     );
   }
 
   return (
     <AiAssistantShell>
+      <Typography
+        variant="caption"
+        sx={{
+          display: "block",
+          px: 2,
+          pt: 1.25,
+          pb: 0.5,
+          color: theme.app.dashboard.textMuted,
+          lineHeight: 1.45,
+          fontSize: 11,
+        }}
+      >
+        {AGENT_COPILOT_SUBTITLE}
+      </Typography>
+      {websiteRequiredDisabled ? (
+        <Typography
+          variant="caption"
+          sx={{
+            display: "block",
+            px: 2,
+            pb: 0.75,
+            color: theme.palette.warning.main,
+            fontSize: 11,
+          }}
+        >
+          {AGENT_COPILOT_WEBSITE_REQUIRED}
+        </Typography>
+      ) : null}
       <AiChatThread ref={threadRef} sx={{ pt: 1 }}>
         {messages.length === 0 ? (
           <Typography
             variant="caption"
             sx={{ color: theme.app.dashboard.textMuted, textAlign: "center", py: 2, px: 1 }}
           >
-            Ask anything about this conversation — draft replies, tone, or knowledge lookups.
+            {AGENT_COPILOT_EMPTY_HINT}
           </Typography>
         ) : (
           messages.map((msg) => (
@@ -165,6 +200,21 @@ export function AiAssistantDrawer({
             )}
           </AiSendButton>
         </AiInputRow>
+        <Link
+          component={NextLink}
+          href="/dashboard/ai-training/assistant"
+          underline="none"
+          sx={{
+            display: "block",
+            mb: 0.75,
+            fontSize: 11,
+            fontWeight: 600,
+            color: theme.app.dashboard.accentViolet,
+            "&:hover": { textDecoration: "underline" },
+          }}
+        >
+          Manage copilot knowledge (AI Assistant training) →
+        </Link>
         <Typography
           variant="caption"
           sx={{ color: theme.app.dashboard.textMuted, display: "block", mb: 0.75, fontSize: 11 }}

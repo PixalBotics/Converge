@@ -51,7 +51,7 @@ export const CHAT_WIZARD_PATCH_DEFAULTS = {
   responseSendPlaceholder: "Ask us anything…",
   responseAiPromptHint: "Be concise and helpful.",
   responseAgentHandoverEnabled: true,
-  responseHandoverTriggerText: "talk to human",
+  responseHandoverTriggerText: "Talk to agent",
 };
 
 export function defaultWizardFormFields(): JsonRecord[] {

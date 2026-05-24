@@ -2,10 +2,12 @@
 
 import { useMemo } from "react";
 import ArrowBack from "@mui/icons-material/ArrowBack";
+import Groups from "@mui/icons-material/Groups";
 import Language from "@mui/icons-material/Language";
 import Schedule from "@mui/icons-material/Schedule";
 import WarningAmber from "@mui/icons-material/WarningAmber";
 import Box from "@mui/material/Box";
+import Chip from "@mui/material/Chip";
 import Link from "@mui/material/Link";
 import NextLink from "next/link";
 import { useParams } from "next/navigation";
@@ -17,7 +19,7 @@ import {
   PermissionDeniedPanel,
   Typography,
 } from "@/components/common";
-import { WebsiteAssignmentJourneyStepper } from "@/features/website-assignments/components/WebsiteAssignmentJourneyStepper";
+import { WebsiteAssignmentFlowStepper } from "@/features/website-assignments/components/WebsiteAssignmentFlowStepper";
 import { WebsiteDepartmentRoster } from "@/features/website-assignments/components/WebsiteDepartmentRoster";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
 import { useWebsiteAssignmentDetailQuery } from "@/lib/hooks";
@@ -25,22 +27,13 @@ import { useWebsiteAssignmentGates } from "@/lib/permissions/use-website-assignm
 import { parseWebsiteAssignmentDetail } from "@/lib/website-assignments/roster-payload";
 import {
   websiteAssignmentHeaderActions,
+  websiteAssignmentHeroSx,
+  websiteAssignmentModernCardSx,
   websiteAssignmentPageHeader,
   websiteAssignmentPageWrapper,
   websiteAssignmentSectionIconSx,
-  websiteAssignmentUserDetailCard,
 } from "../../website-assigning.styles";
-
-const siteOverviewGridSx = {
-  display: "grid",
-  gridTemplateColumns: {
-    xs: "1fr",
-    sm: "repeat(2, minmax(0, 1fr))",
-    md: "repeat(3, minmax(0, 1fr))",
-  },
-  gap: { xs: 2, sm: 2.5 },
-  alignItems: "start",
-};
+import { mergeSx } from "@/lib/mui/merge-sx";
 
 const MODE_LABELS: Record<string, string> = {
   internal_only: "Internal only",
@@ -84,13 +77,15 @@ export default function WebsiteAssignmentDetailPage() {
     <Box sx={websiteAssignmentPageWrapper}>
       <Box sx={websiteAssignmentPageHeader}>
         <Box>
-          <Typography variant="regularLarge" fontWeight={700} sx={{ color: theme.app.text.primary, mb: 0.5 }}>
+          <Typography
+            variant="regularLarge"
+            fontWeight={700}
+            sx={{ color: theme.app.text.primary, mb: 0.5, letterSpacing: "-0.02em" }}
+          >
             Agent roster
           </Typography>
-          <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted, maxWidth: 640 }}>
-            Step 2 of 2 — {title}
-            {url ? ` · ${url}` : ""}. Assign Primary, Secondary, and Backup per channel and visitor
-            topic.
+          <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted, maxWidth: 560 }}>
+            Assign Primary, Secondary, and Backup agents by channel and visitor topic.
           </Typography>
         </Box>
         <Box sx={websiteAssignmentHeaderActions}>
@@ -111,20 +106,59 @@ export default function WebsiteAssignmentDetailPage() {
               href={schedulingHref}
               startIcon={<Schedule sx={{ fontSize: 18 }} />}
             >
-              Edit schedule
+              Service scheduling
             </Button>
           ) : null}
         </Box>
       </Box>
 
       {detail?.websiteId ? (
-        <WebsiteAssignmentJourneyStepper
-          activeStep={2}
+        <WebsiteAssignmentFlowStepper
+          activeStep={detail.isFullyAssigned ? 4 : 3}
           websiteId={detail.websiteId}
+          pickHref="/dashboard/website-assigning/assign"
           schedulingComplete={schedulingConfigured}
-          websiteLabel={title}
+          rosterComplete={Boolean(detail.isFullyAssigned)}
         />
       ) : null}
+
+      <Box sx={websiteAssignmentHeroSx}>
+        <Box sx={{ display: "flex", alignItems: "flex-start", gap: 2, flexWrap: "wrap" }}>
+          <Box sx={websiteAssignmentSectionIconSx} aria-hidden>
+            <Groups sx={{ fontSize: 22 }} />
+          </Box>
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            <Typography variant="mediumLarge" fontWeight={700} sx={{ color: theme.app.text.primary, mb: 0.5 }}>
+              {title}
+            </Typography>
+            {url ? (
+              <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, mb: 1 }}>
+                <Language sx={{ fontSize: 16, color: theme.app.dashboard.textMuted }} />
+                <Link href={url} target="_blank" rel="noopener noreferrer" sx={{ wordBreak: "break-all" }}>
+                  {url}
+                </Link>
+              </Box>
+            ) : null}
+            <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
+              <Chip
+                size="small"
+                label={modeLabel}
+                sx={{
+                  height: 26,
+                  fontWeight: 600,
+                  bgcolor: `${theme.palette.primary.main}18`,
+                  color: theme.palette.primary.light,
+                }}
+              />
+              <Chip
+                size="small"
+                label={detail?.allowedAssignmentChannels?.join(" · ") || "—"}
+                sx={{ height: 26, fontWeight: 600 }}
+              />
+            </Box>
+          </Box>
+        </Box>
+      </Box>
 
       {!schedulingConfigured && detail?.websiteId ? (
         <Box
@@ -133,19 +167,20 @@ export default function WebsiteAssignmentDetailPage() {
             alignItems: "flex-start",
             gap: 1.5,
             mb: 3,
-            p: 2,
-            borderRadius: 2.5,
+            p: 2.25,
+            borderRadius: 3,
             border: `1px solid ${theme.palette.warning.main}44`,
-            bgcolor: `${theme.palette.warning.main}12`,
+            bgcolor: `${theme.palette.warning.main}10`,
+            boxShadow: `0 8px 28px ${theme.palette.warning.main}12`,
           }}
         >
           <WarningAmber sx={{ color: theme.palette.warning.light, fontSize: 24 }} />
           <Box sx={{ flex: 1 }}>
             <Typography variant="body2" fontWeight={700} sx={{ mb: 0.5 }}>
-              Complete Step 1 first
+              Service scheduling required
             </Typography>
-            <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, mb: 1.5 }}>
-              Service scheduling (hours and visitor topics) is required before you can assign agents.
+            <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, mb: 1.5, lineHeight: 1.55 }}>
+              Set service hours and visitor topics before assigning agents to this website.
             </Typography>
             <Button
               type="button"
@@ -156,66 +191,26 @@ export default function WebsiteAssignmentDetailPage() {
               startIcon={<Schedule sx={{ fontSize: 18 }} />}
               sx={gradientPrimaryButtonSx}
             >
-              Set up service scheduling
+              Open service scheduling
             </Button>
           </Box>
         </Box>
       ) : null}
 
       {detailQuery.isError ? (
-        <DashboardCard sx={{ p: 3 }}>
+        <DashboardCard sx={websiteAssignmentModernCardSx}>
           <Typography variant="medium" sx={{ color: theme.palette.error.main }}>
             Could not load this website. Refresh the page or try again in a moment.
           </Typography>
         </DashboardCard>
       ) : null}
 
-      <DashboardCard sx={websiteAssignmentUserDetailCard}>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 2 }}>
-          <Box sx={websiteAssignmentSectionIconSx} aria-hidden>
-            <Language sx={{ fontSize: 22 }} />
-          </Box>
-          <Typography variant="mediumLarge" color="white" fontWeight={600}>
-            Website overview
-          </Typography>
-        </Box>
-        <Box sx={siteOverviewGridSx}>
-          <Box>
-            <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, display: "block", mb: 0.5 }}>
-              URL
-            </Typography>
-            {url ? (
-              <Link href={url} target="_blank" rel="noopener noreferrer" sx={{ wordBreak: "break-all" }}>
-                {url}
-              </Link>
-            ) : (
-              <Typography variant="medium">—</Typography>
-            )}
-          </Box>
-          <Box>
-            <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, display: "block", mb: 0.5 }}>
-              Operating mode
-            </Typography>
-            <Typography variant="medium">{modeLabel}</Typography>
-          </Box>
-          <Box>
-            <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, display: "block", mb: 0.5 }}>
-              Allowed channels
-            </Typography>
-            <Typography variant="medium">
-              {detail?.allowedAssignmentChannels?.join(", ") || "—"}
-            </Typography>
-          </Box>
-        </Box>
-      </DashboardCard>
-
-      <DashboardCard sx={{ p: { xs: 2, sm: 2.5 } }}>
-        <Typography variant="mediumLarge" color="white" fontWeight={600} sx={{ mb: 0.5 }}>
-          Assign agents
+      <DashboardCard sx={mergeSx(websiteAssignmentModernCardSx, { p: { xs: 2, sm: 2.5 } })}>
+        <Typography variant="mediumLarge" fontWeight={700} sx={{ color: theme.app.text.primary, mb: 0.5 }}>
+          Team assignments
         </Typography>
-        <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, mb: 2, lineHeight: 1.55 }}>
-          Select <strong>Internal</strong> or <strong>External</strong>, choose a visitor topic, then
-          pick users for Primary, Secondary, and Backup slots.
+        <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, mb: 2.5, lineHeight: 1.55 }}>
+          Pick a channel and visitor topic, then assign Primary, Secondary, and Backup users.
         </Typography>
         {detailQuery.isLoading ? (
           <Typography sx={{ color: theme.app.dashboard.textMuted }}>Loading roster…</Typography>

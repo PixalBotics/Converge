@@ -3,10 +3,10 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import ArrowBack from "@mui/icons-material/ArrowBack";
-import Edit from "@mui/icons-material/Edit";
-import InfoOutlined from "@mui/icons-material/InfoOutlined";
+import Language from "@mui/icons-material/Language";
 import Schedule from "@mui/icons-material/Schedule";
 import Box from "@mui/material/Box";
+import Chip from "@mui/material/Chip";
 import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import {
@@ -18,8 +18,8 @@ import {
 } from "@/components/common";
 import { extractApiErrorMessageForToast, publishAppToast } from "@/lib/notify";
 import NextLink from "next/link";
-import { WebsiteAssignmentJourneyStepper } from "@/features/website-assignments/components/WebsiteAssignmentJourneyStepper";
 import { SchedulingSaveSuccessPanel } from "@/features/website-assignments/components/SchedulingSaveSuccessPanel";
+import { WebsiteAssignmentFlowStepper } from "@/features/website-assignments/components/WebsiteAssignmentFlowStepper";
 import { ServiceScheduleTab } from "@/features/chat-settings/components/ServiceScheduleTab";
 import { useDepartmentCatalogQuery } from "@/features/chat-settings/hooks/useChatSettings";
 import {
@@ -30,13 +30,13 @@ import { useWebsiteAssignmentDetailQuery } from "@/lib/hooks";
 import { parseWebsiteAssignmentDetail } from "@/lib/website-assignments/roster-payload";
 import { useWebsiteAssignmentGates } from "@/lib/permissions/use-website-assignment-gates";
 import { useServiceSchedulingGates } from "../hooks/useServiceSchedulingGates";
-import { WebsiteAssignmentWorkflowStepBar } from "@/features/website-assignments/components/WebsiteAssignmentWorkflowStepBar";
 import {
   websiteAssignmentHeaderActions,
+  websiteAssignmentHeroSx,
+  websiteAssignmentModernCardSx,
   websiteAssignmentPageHeader,
   websiteAssignmentPageWrapper,
   websiteAssignmentSectionIconSx,
-  websiteAssignmentUserDetailCard,
 } from "@/app/dashboard/website-assigning/website-assigning.styles";
 
 export function WebsiteServiceSchedulingWorkspace({ websiteId }: { websiteId: string }) {
@@ -59,8 +59,6 @@ export function WebsiteServiceSchedulingWorkspace({ websiteId }: { websiteId: st
   const schedulingQuery = useServiceSchedulingQuery(websiteId, gates.canViewApi);
   const parentCompanyId =
     schedulingQuery.data?.parentCompanyId ?? detail?.parentCompanyId ?? "";
-  const parentCompanyName =
-    detail?.parentCompanyName?.trim() || parentCompanyId || "this parent company";
 
   const departmentsQuery = useDepartmentCatalogQuery(
     parentCompanyId,
@@ -87,9 +85,8 @@ export function WebsiteServiceSchedulingWorkspace({ websiteId }: { websiteId: st
 
   const title = detail?.name || schedulingQuery.data?.websiteId?.slice(0, 8) || "Website";
   const url = detail?.url ?? "";
-  const rosterHref = `/dashboard/website-assigning/website/${encodeURIComponent(websiteId)}`;
   const schedulingConfigured =
-    detail?.serviceSchedulingConfigured === true || saveSuccess;
+    detail?.serviceSchedulingConfigured === true || Boolean(schedulingQuery.data?.operatingChannels);
 
   return (
     <Box sx={websiteAssignmentPageWrapper}>
@@ -98,12 +95,12 @@ export function WebsiteServiceSchedulingWorkspace({ websiteId }: { websiteId: st
           <Typography
             variant="regularLarge"
             fontWeight={700}
-            sx={{ color: theme.app.text.primary, mb: 0.5 }}
+            sx={{ color: theme.app.text.primary, mb: 0.5, letterSpacing: "-0.02em" }}
           >
             Service scheduling
           </Typography>
-          <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted, maxWidth: 640 }}>
-            Step 1 of 2 — configure this website, then assign agents on the roster.
+          <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted, maxWidth: 560 }}>
+            Configure when this website accepts chats and which visitor topics route to departments.
           </Typography>
         </Box>
         <Box sx={websiteAssignmentHeaderActions}>
@@ -116,16 +113,6 @@ export function WebsiteServiceSchedulingWorkspace({ websiteId }: { websiteId: st
           >
             All schedules
           </Button>
-          {schedulingConfigured ? (
-            <Button
-              type="button"
-              variant="primary"
-              component={NextLink}
-              href={rosterHref}
-            >
-              Agent roster →
-            </Button>
-          ) : null}
           {assignGates.assign && gates.canEditApi ? (
             <Button
               type="button"
@@ -139,83 +126,66 @@ export function WebsiteServiceSchedulingWorkspace({ websiteId }: { websiteId: st
         </Box>
       </Box>
 
-      <WebsiteAssignmentJourneyStepper
-        activeStep={1}
+      <WebsiteAssignmentFlowStepper
+        activeStep={2}
         websiteId={websiteId}
+        pickHref="/dashboard/website-assigning/service-schedules/add"
         schedulingComplete={schedulingConfigured}
-        websiteLabel={title}
+        rosterComplete={Boolean(detail?.isFullyAssigned)}
       />
 
+      <Box sx={websiteAssignmentHeroSx}>
+        <Box sx={{ display: "flex", alignItems: "flex-start", gap: 2, flexWrap: "wrap" }}>
+          <Box sx={websiteAssignmentSectionIconSx} aria-hidden>
+            <Schedule sx={{ fontSize: 22 }} />
+          </Box>
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            <Typography variant="mediumLarge" fontWeight={700} sx={{ color: theme.app.text.primary, mb: 0.5 }}>
+              {title}
+            </Typography>
+            {url ? (
+              <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, mb: 1 }}>
+                <Language sx={{ fontSize: 16, color: theme.app.dashboard.textMuted }} />
+                <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, wordBreak: "break-all" }}>
+                  {url}
+                </Typography>
+              </Box>
+            ) : null}
+            <Chip
+              size="small"
+              label="Hours · timezone · visitor topics"
+              sx={{
+                height: 26,
+                fontWeight: 600,
+                bgcolor: `${theme.palette.primary.main}18`,
+                color: theme.palette.primary.light,
+                border: `1px solid ${theme.palette.primary.main}33`,
+              }}
+            />
+          </Box>
+        </Box>
+      </Box>
+
       {saveSuccess ? (
-        <DashboardCard sx={websiteAssignmentUserDetailCard}>
+        <DashboardCard sx={websiteAssignmentModernCardSx}>
           <SchedulingSaveSuccessPanel
             websiteName={title}
             websiteUrl={url}
-            rosterHref={rosterHref}
             onViewAllSchedules={() =>
               router.push("/dashboard/website-assigning/service-schedules")
             }
+            onEditAgain={() => setSaveSuccess(false)}
           />
-          <Box sx={{ display: "flex", justifyContent: "center", mt: 2 }}>
-            <Button
-              type="button"
-              variant="secondary"
-              size="small"
-              startIcon={<Edit sx={{ fontSize: 16 }} />}
-              onClick={() => setSaveSuccess(false)}
-            >
-              Edit schedule again
-            </Button>
-          </Box>
         </DashboardCard>
       ) : (
-        <DashboardCard sx={websiteAssignmentUserDetailCard}>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 2 }}>
-            <Box sx={websiteAssignmentSectionIconSx} aria-hidden>
-              <Schedule sx={{ fontSize: 22 }} />
-            </Box>
-            <Box sx={{ flex: 1, minWidth: 0 }}>
-              <Typography variant="mediumLarge" color="white" fontWeight={600}>
-                Hours & visitor topics
-              </Typography>
-              <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted }}>
-                {title}
-                {url ? ` · ${url}` : ""}
-              </Typography>
-            </Box>
-          </Box>
-
-          <Box
-            sx={{
-              display: "flex",
-              gap: 1.25,
-              alignItems: "flex-start",
-              mb: 2.5,
-              p: 1.75,
-              borderRadius: 2,
-              border: `1px solid ${theme.palette.primary.main}33`,
-              bgcolor: `${theme.palette.primary.main}0c`,
-            }}
-          >
-            <InfoOutlined sx={{ fontSize: 20, color: theme.palette.primary.light, mt: 0.15 }} />
-            <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, lineHeight: 1.55 }}>
-              This page is <strong style={{ color: theme.app.text.primary }}>Step 1</strong> only.
-              After saving, go to <strong style={{ color: theme.app.text.primary }}>Step 2 — Agent roster</strong>{" "}
-              to pick users for each visitor topic (Internal / External channels).
-            </Typography>
-          </Box>
-
-          <WebsiteAssignmentWorkflowStepBar variant="scheduling-editor" activeStep={3} />
-
+        <DashboardCard sx={websiteAssignmentModernCardSx}>
           <ServiceScheduleTab
             websiteId={websiteId}
             departments={departmentsQuery.data ?? []}
             departmentsLoading={departmentsQuery.isLoading}
             canView={gates.canViewApi}
             canEdit={gates.canEditApi}
-            rosterHref={rosterHref}
             onSaved={() => setSaveSuccess(true)}
-            onSaveAndGoToRoster={() => router.push(rosterHref)}
           />
         </DashboardCard>
       )}
@@ -223,7 +193,7 @@ export function WebsiteServiceSchedulingWorkspace({ websiteId }: { websiteId: st
       <FormModal
         open={deleteOpen}
         title="Delete service schedule?"
-        description={`Remove service hours for this website and clear visitor topics. Agent assignments are kept.`}
+        description="Remove service hours for this website and clear visitor topics. Agent assignments are kept."
         onClose={() => !deleteMutation.isPending && setDeleteOpen(false)}
         onSave={() => {
           deleteMutation.mutate(undefined, {
@@ -249,4 +219,3 @@ export function WebsiteServiceSchedulingWorkspace({ websiteId }: { websiteId: st
     </Box>
   );
 }
-

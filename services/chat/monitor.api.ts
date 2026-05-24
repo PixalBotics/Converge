@@ -85,9 +85,15 @@ export async function fetchMonitorDirectoryAgents(params: {
   parentCompanyId?: string;
   departmentId?: string;
   poolId?: string;
+  websiteId?: string;
 }): Promise<MonitorDirectoryAgentsResponse> {
   const { data } = await apiClient.get<unknown>("/chat/monitor/directory/agents", {
-    params,
+    params: {
+      ...(params.parentCompanyId ? { parentCompanyId: params.parentCompanyId } : {}),
+      ...(params.departmentId ? { departmentId: params.departmentId } : {}),
+      ...(params.poolId ? { poolId: params.poolId } : {}),
+      ...(params.websiteId ? { websiteId: params.websiteId } : {}),
+    },
   });
   return unwrapChatHttpData<MonitorDirectoryAgentsResponse>(data);
 }

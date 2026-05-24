@@ -13,6 +13,7 @@ import {
   assignmentStepRowSx,
 } from "@/features/website-assignments/styles/website-assignment-ui.styles";
 import { fetchQaWebsiteRoster } from "@/services/chat/qa-roster.api";
+import { useQaRosterExclusionsQuery } from "@/features/chat-settings/hooks/useChatSettings";
 import { useChannelDepartmentsQuery } from "../hooks/useChannelDepartmentsQuery";
 import { useInvolvementModalScope } from "../hooks/useInvolvementModalScope";
 import { InvolvementOrgScopeFields } from "./InvolvementOrgScopeFields";
@@ -64,6 +65,9 @@ export function QaAddReviewersModal({
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
 
   const modalResellerId = modalScope.filterResellerId.trim() || undefined;
+  const websiteIdForExclusions = modalScope.websiteId.trim();
+  const exclusionsQuery = useQaRosterExclusionsQuery(websiteIdForExclusions, open && Boolean(websiteIdForExclusions));
+  const chatAgentUserIds = exclusionsQuery.data?.chatAgentUserIds ?? [];
 
   const deptCatalog = useChannelDepartmentsQuery(
     {
@@ -158,8 +162,8 @@ export function QaAddReviewersModal({
       open={open}
       fitContent
       maxWidth={720}
-      title="Add QA reviewers"
-      description="Pick organization, website, channel, department, then reviewers (department-wise — same as involvement supervisors)."
+      title="Assign QA reviewers"
+      description="Dedicated QA staff only—users on the live chat roster for this site are hidden. QA reviewers work from the QA inbox on closed chats."
       onClose={onClose}
       onSave={() => void handleSave()}
       primaryButtonLabel={saving ? "Saving…" : `Add ${selectedUserIds.length} reviewer(s)`}
@@ -229,7 +233,7 @@ export function QaAddReviewersModal({
               {activeDept.label}
             </Typography>
             <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted }}>
-              {channel} users in this department only.
+              Pick {channel.toLowerCase()} users who are <strong>not</strong> live chat agents on this website.
             </Typography>
           </Box>
         ) : null}
@@ -245,7 +249,9 @@ export function QaAddReviewersModal({
             onChangeSelectedIds={setSelectedUserIds}
             canEdit={canEdit}
             disabled={saving}
-            emptyHint={`No ${channel.toLowerCase()} users in this department.`}
+            excludeUserIds={chatAgentUserIds}
+            excludeReason="On live chat roster"
+            emptyHint={`No eligible ${channel.toLowerCase()} users (chat agents are excluded).`}
           />
         ) : (
           <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted }}>

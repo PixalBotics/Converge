@@ -30,3 +30,15 @@ export async function deleteServiceScheduling(
   const { data } = await apiClient.delete<unknown>(serviceSchedulingPath(websiteId));
   return unwrapChatHttpData<ServiceSchedulingBundle>(data);
 }
+
+function visitorTopicsPath(websiteId: string): string {
+  return `/chat/settings/websites/${encodeURIComponent(websiteId)}/visitor-topics`;
+}
+
+export async function saveVisitorTopics(
+  websiteId: string,
+  body: Pick<UpsertServiceSchedulingBody, "topics">,
+): Promise<ServiceSchedulingBundle> {
+  const { data } = await apiClient.put<unknown>(visitorTopicsPath(websiteId), body);
+  return unwrapChatHttpData<ServiceSchedulingBundle>(data);
+}

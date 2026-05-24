@@ -66,6 +66,19 @@ export interface RuntimeBannerAppearance {
   mediaType: string;
 }
 
+/** Greeting bubble shown before the pre-chat form in the embed widget. */
+export function resolveEmbedGreetingMessage(
+  appearance: RuntimeChatAppearance,
+  fallbackWelcome?: string,
+): string {
+  return (
+    appearance.panelGreetingMessage.trim() ||
+    appearance.welcomeMessage.trim() ||
+    appearance.chatBox.greetingMessage.trim() ||
+    (fallbackWelcome ?? "").trim()
+  );
+}
+
 export interface RuntimeChatAppearance {
   launcher: RuntimeLauncherAppearance;
   chatBox: RuntimeChatBoxAppearance;
@@ -340,7 +353,7 @@ export function extractRuntimeChatAppearance(
       response?.handoverTriggerText,
       response?.handover_trigger_text,
       behavior?.handoverTriggerText,
-      "Talk to a human",
+      "Talk to agent",
     ),
     agentHandoverEnabled,
     botEnabled: runtimeBoolFlag(behavior?.botEnabled, true),

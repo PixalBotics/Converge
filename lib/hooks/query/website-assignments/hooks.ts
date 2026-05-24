@@ -3,13 +3,22 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   getWebsiteAssignmentDetail,
+  getDepartmentRosterHrmsContext,
+  getDepartmentRosterCoverage,
   listWebsitesForUser,
   listWebsitesInScope,
   putDepartmentRoster,
+  putDepartmentRosterCoverage,
   putWebsiteAssignmentSlot,
   removeWebsiteSlotAssignment,
 } from "@/api";
-import type { AssignWebsiteTierBody, JsonRecord, PutDepartmentRosterBody } from "@/api";
+import type {
+  AssignWebsiteTierBody,
+  JsonRecord,
+  PutDepartmentRosterBody,
+  PutDepartmentRosterCoverageBody,
+} from "@/api";
+import type { ServiceChannel } from "@/api/types/website-assignments.types";
 import { useAuth } from "@/lib/auth";
 import { buildWebsiteAssignmentsScopeParams } from "@/lib/companies/reseller-list-filter";
 import { websiteAssignmentsKeys } from "./keys";
@@ -126,6 +135,78 @@ export function useRemoveWebsiteSlotMutation() {
       void queryClient.invalidateQueries({
         queryKey: websiteAssignmentsKeys.website(args.websiteId),
       });
+    },
+  });
+}
+
+export function useDepartmentRosterHrmsContextQuery(
+  websiteId: string | undefined,
+  departmentId: string | undefined,
+  channel: ServiceChannel,
+  options?: { enabled?: boolean; userIds?: string },
+) {
+  const wid = websiteId?.trim() ?? "";
+  const deptId = departmentId?.trim() ?? "";
+  const params = {
+    channel,
+    ...(options?.userIds?.trim() ? { userIds: options.userIds.trim() } : {}),
+  };
+  return useQuery({
+    queryKey: websiteAssignmentsKeys.rosterHrmsContext(wid, deptId, params),
+    queryFn: async () => {
+      const res = await getDepartmentRosterHrmsContext(wid, deptId, params);
+      return res.data;
+    },
+    enabled:
+      (options?.enabled ?? true) &&
+      wid.length > 0 &&
+      deptId.length > 0 &&
+      channel === "Internal",
+    staleTime: 60_000,
+  });
+}
+
+export function useDepartmentRosterCoverageQuery(
+  websiteId: string | undefined,
+  departmentId: string | undefined,
+  channel: ServiceChannel,
+  options?: { enabled?: boolean },
+) {
+  const wid = websiteId?.trim() ?? "";
+  const deptId = departmentId?.trim() ?? "";
+  return useQuery({
+    queryKey: websiteAssignmentsKeys.rosterCoverage(wid, deptId, channel),
+    queryFn: async () => {
+      const res = await getDepartmentRosterCoverage(wid, deptId, channel);
+      return res.data;
+    },
+    enabled:
+      (options?.enabled ?? true) && wid.length > 0 && deptId.length > 0,
+    staleTime: 30_000,
+  });
+}
+
+export function usePutDepartmentRosterCoverageMutation(
+  websiteId: string,
+  departmentId: string,
+  channel: ServiceChannel,
+) {
+  const queryClient = useQueryClient();
+  const wid = websiteId.trim();
+  const deptId = departmentId.trim();
+  return useMutation({
+    mutationFn: (body: PutDepartmentRosterCoverageBody) =>
+      putDepartmentRosterCoverage(wid, deptId, channel, body),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: websiteAssignmentsKeys.all });
+      if (wid) {
+        void queryClient.invalidateQueries({
+          queryKey: websiteAssignmentsKeys.website(wid),
+        });
+        void queryClient.invalidateQueries({
+          queryKey: websiteAssignmentsKeys.rosterCoverage(wid, deptId, channel),
+        });
+      }
     },
   });
 }

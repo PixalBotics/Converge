@@ -17,7 +17,7 @@ import { Typography } from "@/components/common";
 import type { AccountMenuProps } from "./AccountMenu.types";
 import { AccountMenuIconWrap, accountMenuRowSx, accountMenuThemeIconWrapSx } from "./AccountMenu.styled";
 
-const defaultProfileHref = "/dashboard/settings?tab=profile";
+const defaultProfileHref = "/dashboard/settings/profile";
 const defaultThemeHref = "/dashboard/theme";
 
 export function AccountMenu({

@@ -79,7 +79,36 @@ export function normalizeServerMessage(payload: unknown): ChatMessage | null {
         ? (pl.meta as Record<string, unknown>)
         : undefined;
 
+  const messageType =
+    (typeof pl.messageType === "string" && pl.messageType) ||
+    (typeof pl.message_type === "string" && pl.message_type) ||
+    undefined;
+
+  const attachmentMetadata =
+    typeof pl.attachmentMetadata === "object" && pl.attachmentMetadata !== null
+      ? (pl.attachmentMetadata as Record<string, unknown>)
+      : typeof pl.attachment_metadata === "object" && pl.attachment_metadata !== null
+        ? (pl.attachment_metadata as Record<string, unknown>)
+        : undefined;
+
   const role = inferRole(pl as Record<string, unknown>);
+
+  const mergedMetadata: Record<string, unknown> = {
+    ...(meta ?? {}),
+    ...(messageType ? { messageType } : {}),
+    ...(attachmentMetadata ? { attachmentMetadata } : {}),
+  };
+  if (attachmentMetadata) {
+    if (typeof attachmentMetadata.href === "string") {
+      mergedMetadata.href = attachmentMetadata.href;
+    }
+    if (typeof attachmentMetadata.label === "string") {
+      mergedMetadata.label = attachmentMetadata.label;
+    }
+    if (typeof attachmentMetadata.category === "string") {
+      mergedMetadata.category = attachmentMetadata.category;
+    }
+  }
 
   return {
     id,
@@ -89,6 +118,6 @@ export function normalizeServerMessage(payload: unknown): ChatMessage | null {
     senderId,
     senderName,
     createdAt,
-    ...(meta ? { metadata: meta as Record<string, unknown> } : {}),
+    ...(Object.keys(mergedMetadata).length ? { metadata: mergedMetadata } : {}),
   };
 }

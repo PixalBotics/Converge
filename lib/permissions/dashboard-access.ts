@@ -42,22 +42,39 @@ export function getVisibleDashboardNavItems(opts: {
   isInternalUser?: boolean;
 }): DashboardNavItem[] {
   const rbacFiltersNav = opts.rbacEnabled && !opts.isPlatformAdmin;
+
+  const itemVisible = (item: DashboardNavItem): boolean => {
+    if (!rbacFiltersNav) {
+      if (item.internalOnly && !opts.isInternalUser) return false;
+      return true;
+    }
+    if (item.internalOnly && !opts.isInternalUser) return false;
+    if (item.children?.length) {
+      const any = item.permissionsAny;
+      if (any?.length) {
+        return any.some((p) => hasPagePermission(opts.pagePermissionSet, p));
+      }
+      return true;
+    }
+    if (item.permissionsAny?.length) {
+      return item.permissionsAny.some((p) => hasPagePermission(opts.pagePermissionSet, p));
+    }
+    if (item.operationalAny?.length) {
+      const ops = opts.operationalPermissionSet;
+      if (!ops?.size) return false;
+      if (!item.permission) {
+        return item.operationalAny.some((p) => ops.has(p));
+      }
+      if (!hasPagePermission(opts.pagePermissionSet, item.permission)) return false;
+      return item.operationalAny.some((p) => ops.has(p));
+    }
+    if (!item.permission) return true;
+    return hasPagePermission(opts.pagePermissionSet, item.permission);
+  };
+
   const permissionDriven = rbacFiltersNav
-    ? DASHBOARD_NAV_ITEMS.filter((item) => {
-        if (item.children?.length) {
-          const any = item.permissionsAny;
-          if (any?.length) {
-            return any.some((p) => hasPagePermission(opts.pagePermissionSet, p));
-          }
-          return true;
-        }
-        if (item.permissionsAny?.length) {
-          return item.permissionsAny.some((p) => hasPagePermission(opts.pagePermissionSet, p));
-        }
-        if (!item.permission) return true;
-        return hasPagePermission(opts.pagePermissionSet, item.permission);
-      })
-    : DASHBOARD_NAV_ITEMS;
+    ? DASHBOARD_NAV_ITEMS.filter(itemVisible)
+    : DASHBOARD_NAV_ITEMS.filter((item) => !item.internalOnly || opts.isInternalUser);
 
   const withFilteredChildren = permissionDriven.map((item) => {
     if (!item.children?.length) return item;
@@ -189,6 +206,7 @@ function deprioritizeDashboardShell(hrefs: readonly string[]): string[] {
 export function getFirstAccessibleDashboardPath(opts: {
   rbacEnabled: boolean;
   pagePermissionSet: Set<string>;
+  operationalPermissionSet?: Set<string>;
   isDemoUser: boolean;
   isPlatformAdmin?: boolean;
   isInternalUser?: boolean;
@@ -197,6 +215,7 @@ export function getFirstAccessibleDashboardPath(opts: {
     section: "activity",
     rbacEnabled: opts.rbacEnabled,
     pagePermissionSet: opts.pagePermissionSet,
+    operationalPermissionSet: opts.operationalPermissionSet,
     isDemoUser: opts.isDemoUser,
     isPlatformAdmin: opts.isPlatformAdmin,
     isInternalUser: opts.isInternalUser,

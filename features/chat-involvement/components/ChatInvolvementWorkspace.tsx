@@ -1,7 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import FilterList from "@mui/icons-material/FilterList";
+import { useState } from "react";
 import Box from "@mui/material/Box";
 import Tab from "@mui/material/Tab";
 import Tabs from "@mui/material/Tabs";
@@ -12,37 +11,28 @@ import type { AppTheme } from "@/theme/theme";
 import {
   DashboardCard,
   PermissionDeniedPanel,
-  ToolbarFilterPopover,
   Typography,
 } from "@/components/common";
 import {
   ChatLivePageHeader,
+  ChatLivePageShell,
+  ChatScopeTableFiltersCard,
+  chatConfigurePageTabsSx,
   useChatScopeFilters,
 } from "@/features/chat-shared";
-import { chatLivePageStackSx } from "@/features/chat-shared/styles/chat-live.styles";
-import {
-  websiteAssignmentFilterCard,
-  websiteAssignmentFilterIconBox,
-  websiteAssignmentFilterTitleRow,
-} from "@/app/dashboard/website-assigning/website-assigning.styles";
-import { buildChatLiveNavItems, useChatApiGates } from "@/lib/permissions";
+import { useChatApiGates } from "@/lib/permissions";
 import { useAuth } from "@/lib/auth";
 import { OP } from "@/lib/permissions/operational-keys";
 import { fetchWebsiteInvolvementLinks } from "@/services/chat/involvement.api";
 import { InvolvementUsersTab } from "./InvolvementUsersTab";
-import { InvolvementQaRosterTab } from "./InvolvementQaRosterTab";
 import { ChatInvolvementScopeFilterPanel } from "./ChatInvolvementScopeFilterPanel";
 
-type TabId = "users" | "qa" | "links";
+type TabId = "users" | "links";
 
 export function ChatInvolvementWorkspace() {
   const theme = useTheme() as AppTheme;
   const { hasOperational, hasPage, permissionsSyncing } = useAuth();
   const gates = useChatApiGates();
-  const chatNavItems = useMemo(
-    () => buildChatLiveNavItems(hasPage, hasOperational),
-    [hasPage, hasOperational],
-  );
   const [tab, setTab] = useState<TabId>("users");
   const [filterPopoverOpen, setFilterPopoverOpen] = useState(false);
 
@@ -76,50 +66,34 @@ export function ChatInvolvementWorkspace() {
   }
 
   return (
-    <Box sx={chatLivePageStackSx}>
+    <ChatLivePageShell>
       <ChatLivePageHeader
-        title="Chat involvement & QA setup"
-        subtitle="External involvement users (email + monitor), QA roster, and link activity. Agents send links from the inbox."
-        navItems={chatNavItems}
+        title="Chat involvement"
+        subtitle="External users who receive monitor links by email—not live chat agents. Scope filters apply to the table only; Add modals use their own picker. QA reviewers live under QA → Roster."
+        navPreset="configure"
       />
 
-      <DashboardCard sx={websiteAssignmentFilterCard}>
-        <Box sx={websiteAssignmentFilterTitleRow}>
-          <Box sx={websiteAssignmentFilterIconBox}>
-            <FilterList sx={{ fontSize: 20 }} />
-          </Box>
-          <Typography variant="mediumLarge" fontWeight={600}>
-            Filters
-          </Typography>
-          <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, ml: "auto" }}>
-            Table only — does not affect Add modals
-          </Typography>
-        </Box>
-        <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
-          <ToolbarFilterPopover
-            open={filterPopoverOpen}
-            onOpenChange={setFilterPopoverOpen}
-            active={hasActiveTableFilters}
-          >
-            <ChatInvolvementScopeFilterPanel
-              filters={scopeFilters.filters}
-              onPatch={scopeFilters.patchFilters}
-              canFilterByResellerId={scopeFilters.canFilterByResellerId}
-              resellerOptions={scopeFilters.resellerOptions}
-              parentCompanyOptions={scopeFilters.parentCompanyOptions}
-              childCompanyOptions={scopeFilters.childCompanyOptions}
-              websiteOptions={scopeFilters.websiteOptions}
-              hasActiveFilters={hasActiveTableFilters}
-              onClearAll={scopeFilters.resetFilters}
-              onClose={() => setFilterPopoverOpen(false)}
-            />
-          </ToolbarFilterPopover>
-        </Box>
-      </DashboardCard>
+      <ChatScopeTableFiltersCard
+        hasActiveFilters={hasActiveTableFilters}
+        filterPopoverOpen={filterPopoverOpen}
+        onFilterPopoverOpenChange={setFilterPopoverOpen}
+      >
+        <ChatInvolvementScopeFilterPanel
+          filters={scopeFilters.filters}
+          onPatch={scopeFilters.patchFilters}
+          canFilterByResellerId={scopeFilters.canFilterByResellerId}
+          resellerOptions={scopeFilters.resellerOptions}
+          parentCompanyOptions={scopeFilters.parentCompanyOptions}
+          childCompanyOptions={scopeFilters.childCompanyOptions}
+          websiteOptions={scopeFilters.websiteOptions}
+          hasActiveFilters={hasActiveTableFilters}
+          onClearAll={scopeFilters.resetFilters}
+          onClose={() => setFilterPopoverOpen(false)}
+        />
+      </ChatScopeTableFiltersCard>
 
-      <Tabs value={tab} onChange={(_, v) => setTab(v as TabId)} sx={{ flexShrink: 0 }}>
+      <Tabs value={tab} onChange={(_, v) => setTab(v as TabId)} sx={chatConfigurePageTabsSx}>
         <Tab value="users" label="Involvement users" />
-        <Tab value="qa" label="QA roster" />
         <Tab value="links" label="Link activity" />
       </Tabs>
 
@@ -128,14 +102,6 @@ export function ChatInvolvementWorkspace() {
           filters={scopeFilters.filters}
           canFilterByResellerId={scopeFilters.canFilterByResellerId}
           canEdit={hasOperational(OP.chatWidget.update)}
-          apiEnabled={gates.widgetSettings}
-        />
-      ) : null}
-
-      {tab === "qa" ? (
-        <InvolvementQaRosterTab
-          filters={scopeFilters.filters}
-          canFilterByResellerId={scopeFilters.canFilterByResellerId}
           apiEnabled={gates.widgetSettings}
         />
       ) : null}
@@ -195,6 +161,6 @@ export function ChatInvolvementWorkspace() {
           )}
         </DashboardCard>
       ) : null}
-    </Box>
+    </ChatLivePageShell>
   );
 }

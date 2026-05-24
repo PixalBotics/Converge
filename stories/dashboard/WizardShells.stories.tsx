@@ -25,7 +25,7 @@ export const WidgetFlowWithStepper: StoryObj = {
         pageTitle="Widget marketplace"
         subtitle="Install and configure dashboard widgets for your workspace."
         cardTitle="Browse catalog"
-        stepper={{ labels: ["Pick widget", "Configure", "Review"], currentStep: 1 }}
+        currentStep={1}
         footer={<Typography variant="caption">Footer actions</Typography>}
       >
         {placeholder}

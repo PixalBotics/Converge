@@ -19,6 +19,9 @@ export type MultiUserCheckboxPickerProps = {
   canEdit?: boolean;
   disabled?: boolean;
   emptyHint?: string;
+  /** Hidden from list unless already selected (e.g. live chat agents when picking QA). */
+  excludeUserIds?: string[];
+  excludeReason?: string;
 };
 
 export function MultiUserCheckboxPicker({
@@ -29,6 +32,8 @@ export function MultiUserCheckboxPicker({
   canEdit = true,
   disabled = false,
   emptyHint,
+  excludeUserIds = [],
+  excludeReason = "Not eligible for this role",
 }: MultiUserCheckboxPickerProps) {
   const theme = useTheme() as AppTheme;
   const [search, setSearch] = useState("");
@@ -45,6 +50,12 @@ export function MultiUserCheckboxPicker({
     },
   );
 
+  const excludeSet = useMemo(
+    () => new Set(excludeUserIds.map((id) => id.trim()).filter(Boolean)),
+    [excludeUserIds],
+  );
+  const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
+
   const options = useMemo(
     () =>
       buildChatRosterUserOptions(usersQuery.data, {
@@ -60,7 +71,10 @@ export function MultiUserCheckboxPicker({
     for (const id of selectedIds) {
       if (!byId.has(id)) byId.set(id, { id, label: id.slice(0, 8), email: "" });
     }
-    const all = [...byId.values()];
+    const all = [...byId.values()].filter((u) => {
+      if (!excludeSet.has(u.id)) return true;
+      return selectedSet.has(u.id);
+    });
     if (!q) return all.sort((a, b) => a.label.localeCompare(b.label));
     return all
       .filter(
@@ -70,7 +84,15 @@ export function MultiUserCheckboxPicker({
           u.id.toLowerCase().includes(q),
       )
       .sort((a, b) => a.label.localeCompare(b.label));
-  }, [options, search, selectedIds]);
+  }, [options, search, selectedIds, excludeSet, selectedSet]);
+
+  const hiddenExcludedCount = useMemo(() => {
+    let n = 0;
+    for (const id of excludeSet) {
+      if (!selectedSet.has(id) && options.some((o) => o.id === id)) n += 1;
+    }
+    return n;
+  }, [excludeSet, selectedSet, options]);
 
   const toggle = (userId: string) => {
     if (!canEdit || disabled) return;
@@ -146,6 +168,9 @@ export function MultiUserCheckboxPicker({
         {selectedIds.length} selected
         {userType ? ` · ${userType} users` : ""}
         {deptId ? " · this department" : ""}
+        {hiddenExcludedCount > 0
+          ? ` · ${hiddenExcludedCount} hidden (${excludeReason.toLowerCase()})`
+          : ""}
       </Typography>
 
       {usersQuery.isLoading ? (

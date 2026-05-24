@@ -20,7 +20,7 @@ import { fetchQaWebsiteRoster, type QaRosterListRow } from "@/services/chat/qa-r
 import {
   useQaRosterListQuery,
   useSaveQaRosterWebsiteMutation,
-} from "../hooks/useInvolvementLists";
+} from "@/features/chat-qa/hooks/useQaRosterList";
 import { InvolvementTabToolbarCard } from "./InvolvementTabToolbarCard";
 import { QaAddReviewersModal } from "./QaAddReviewersModal";
 
@@ -72,6 +72,14 @@ export function InvolvementQaRosterTab({
   const saveMutation = useSaveQaRosterWebsiteMutation();
 
   const rows = listQuery.data ?? [];
+
+  const hasActiveTableFilters = Boolean(
+    (canFilterByResellerId && filters.resellerId.trim()) ||
+      filters.parentCompanyId.trim() ||
+      filters.childCompanyId.trim() ||
+      filters.websiteId.trim() ||
+      tableSearch.trim(),
+  );
 
   const removeRow = async (row: QaRosterListRow) => {
     try {
@@ -166,11 +174,12 @@ export function InvolvementQaRosterTab({
         icon={<FactCheckOutlined />}
         iconColor={theme.app.dashboard.accentViolet}
         title="QA roster"
-        description="Filter the table above. Add opens one modal — external users assign external QA only; internal users pick internal or external."
+        description="Assign who can review closed chats per website (internal vs external channel). Use filters to narrow the table, or leave empty to see all assignments in your scope."
         searchValue={tableSearch}
         onSearchChange={setTableSearch}
-        searchPlaceholder="Search website, reviewer, email…"
-        addLabel="Add QA reviewer"
+        searchLabel="Search this table"
+        searchPlaceholder="Website, company, or reviewer…"
+        addLabel="Assign QA reviewers"
         onAdd={() => setAddOpen(true)}
         canAdd={canEdit}
       />
@@ -181,10 +190,12 @@ export function InvolvementQaRosterTab({
         getRowId={(row) => row.id}
         isLoading={listQuery.isLoading}
         emptyState={{
-          title: listQuery.isError ? "Could not load" : "No QA reviewers",
+          title: listQuery.isError ? "Could not load" : "No QA reviewers assigned",
           description: listQuery.isError
             ? "Check permissions and try again."
-            : "No rows in your scope yet. Use Add QA reviewer.",
+            : hasActiveTableFilters
+              ? "No assignments match these filters. Clear filters or assign reviewers for this org."
+              : "Assign internal and external QA users per website so closed chats can be reviewed in the QA inbox.",
         }}
       />
 

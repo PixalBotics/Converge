@@ -24,72 +24,66 @@ const CHAT_QA_OPERATIONAL_ANY = [
   OP.qa.chatAssign,
 ] as const;
 
-const CHAT_GROUP: DashboardNavItem = {
+function chatNavItem(
+  permission: string,
+  href: string,
+  label: string,
+  iconKey: DashboardNavItem["iconKey"],
+  operationalAny?: readonly string[],
+): DashboardNavItem {
+  const item = toNavItem(permission as Parameters<typeof toNavItem>[0]);
+  return {
+    href,
+    label,
+    section: "activity",
+    iconKey,
+    permission,
+    prefixMatch: true,
+    ...(operationalAny?.length ? { operationalAny: [...operationalAny] } : {}),
+    ...(item?.pathExcludes ? { pathExcludes: item.pathExcludes } : {}),
+  };
+}
+
+const LIVE_CHAT_GROUP: DashboardNavItem = {
   href: "/dashboard/chat-operations",
   label: "Live chat",
   section: "activity",
   iconKey: "chat",
   permission: null,
-  permissionsAny: [PAGE.CHAT, PAGE.CHAT_WIDGET],
+  permissionsAny: [
+    PAGE.CHAT_INBOX,
+    PAGE.CHAT_MONITOR,
+    PAGE.CHAT_QA,
+    PAGE.CHAT_QA_ROSTER,
+    PAGE.CHAT_REPORTS,
+    PAGE.CHAT_WIDGET,
+    PAGE.CHAT_CLOSE_POLICY,
+    PAGE.CHAT_CANNED,
+    PAGE.CHAT_INVOLVEMENT,
+  ],
+  prefixMatch: true,
   children: [
-    {
-      ...toNavItem(PAGE.CHAT)!,
-      label: "Agent inbox",
-      href: "/dashboard/chat-operations",
-      prefixMatch: true,
-      operationalAny: [OP.chat.access],
-    },
-    {
-      href: "/dashboard/chat-monitor",
-      label: "Monitor",
-      section: "activity",
-      iconKey: "chat",
-      permission: PAGE.CHAT,
-      prefixMatch: true,
-      operationalAny: [...CHAT_MONITOR_OPERATIONAL_ANY],
-    },
-    {
-      href: "/dashboard/chat-qa",
-      label: "QA inbox",
-      section: "activity",
-      iconKey: "chat",
-      permission: PAGE.CHAT,
-      prefixMatch: true,
-      operationalAny: [...CHAT_QA_OPERATIONAL_ANY],
-    },
-    {
-      href: "/dashboard/chat-reports",
-      label: "Chat reports",
-      section: "activity",
-      iconKey: "reports",
-      permission: PAGE.CHAT,
-      prefixMatch: true,
-      operationalAny: [OP.chat.reportView],
-    },
-    {
-      ...toNavItem(PAGE.CHAT_WIDGET)!,
-      label: "Widget",
-      href: "/dashboard/chat-widget",
-      prefixMatch: true,
-    },
-    {
-      href: "/dashboard/chat-involvement",
-      label: "Chat involvement",
-      section: "activity",
-      iconKey: "chatWidget",
-      permission: PAGE.CHAT_WIDGET,
-      prefixMatch: true,
-    },
-    {
-      href: "/dashboard/chat-settings",
-      label: "Canned messages",
-      section: "activity",
-      iconKey: "chatWidget",
-      permission: PAGE.CHAT_WIDGET,
-      prefixMatch: true,
-    },
+    chatNavItem(PAGE.CHAT_INBOX, "/dashboard/chat-operations", "Agent inbox", "chat", [OP.chat.access]),
+    chatNavItem(PAGE.CHAT_MONITOR, "/dashboard/chat-monitor", "Monitor", "chat", CHAT_MONITOR_OPERATIONAL_ANY),
+    chatNavItem(PAGE.CHAT_QA, "/dashboard/qa/inbox", "QA inbox", "chat", CHAT_QA_OPERATIONAL_ANY),
+    chatNavItem(PAGE.CHAT_QA_ROSTER, "/dashboard/qa/roster", "QA roster", "chat", [OP.qa.chatAssign]),
+    chatNavItem(PAGE.CHAT_REPORTS, "/dashboard/chat-reports", "Reports", "reports", [OP.chat.reportView]),
+    chatNavItem(PAGE.CHAT_WIDGET, "/dashboard/chat-widget", "Widget", "chatWidget"),
+    chatNavItem(PAGE.CHAT_CLOSE_POLICY, "/dashboard/chat-settings", "Settings", "chatWidget"),
+    chatNavItem(PAGE.CHAT_CANNED, "/dashboard/chat-canned", "Canned messages", "chatWidget"),
+    chatNavItem(PAGE.CHAT_INVOLVEMENT, "/dashboard/chat-involvement", "Involvement", "chatWidget"),
   ],
 };
+
+const CHAT_AI_NAV: readonly DashboardNavItem[] = [
+  chatNavItem(PAGE.AI_ASSISTANT, "/dashboard/ai-training/assistant", "AI Assistant", "aiTraining", [
+    OP.aiAssistant.use,
+    OP.aiAssistant.trainingView,
+  ]),
+  chatNavItem(PAGE.AI_CHATBOT, "/dashboard/ai-training/chatbot", "AI Chatbot", "aiTraining", [
+    OP.aiChatbot.trainingView,
+  ]),
+];
 
 export const ALWAYS_VISIBLE_NAV_ITEMS: readonly DashboardNavItem[] = [
   {
@@ -272,33 +266,6 @@ const COMMERCIAL_ACCOUNT_GROUP: DashboardNavItem = {
   ],
 };
 
-const AI_TRAINING_GROUP: DashboardNavItem = {
-  href: "/dashboard/ai-training/assistant",
-  label: "AI Training",
-  section: "activity",
-  iconKey: "aiTraining",
-  permission: null,
-  permissionsAny: ["page:chat-widget", "page:chat"],
-  children: [
-    {
-      href: "/dashboard/ai-training/chatbot",
-      label: "AI Chatbot",
-      section: "activity",
-      iconKey: "aiTraining",
-      permission: "page:chat-widget",
-      prefixMatch: false,
-    },
-    {
-      href: "/dashboard/ai-training/assistant",
-      label: "AI Assistant",
-      section: "activity",
-      iconKey: "aiTraining",
-      permission: "page:chat",
-      prefixMatch: false,
-    },
-  ],
-};
-
 const HRMS_GROUP: DashboardNavItem = {
   href: "/dashboard/hrms",
   label: "HRMS",
@@ -365,6 +332,51 @@ const HRMS_GROUP: DashboardNavItem = {
       section: "activity",
       iconKey: "leave",
       permission: PAGE.HRMS,
+    },
+  ],
+};
+
+const SETTINGS_GROUP: DashboardNavItem = {
+  href: "/dashboard/settings",
+  label: "Settings",
+  section: "activity",
+  iconKey: "settings",
+  permission: null,
+  permissionsAny: ["page:settings", "page:observability:logs"],
+  prefixMatch: true,
+  children: [
+    {
+      href: "/dashboard/settings",
+      label: "Overview",
+      section: "activity",
+      iconKey: "settings",
+      permission: "page:settings",
+      prefixMatch: false,
+    },
+    {
+      href: "/dashboard/settings/profile",
+      label: "Profile",
+      section: "activity",
+      iconKey: "settings",
+      permission: "page:settings",
+      prefixMatch: false,
+    },
+    {
+      href: "/dashboard/settings/logs",
+      label: "System logs",
+      section: "activity",
+      iconKey: "settings",
+      permission: "page:observability:logs",
+      internalOnly: true,
+      prefixMatch: true,
+    },
+    {
+      href: "/dashboard/security",
+      label: "Security",
+      section: "activity",
+      iconKey: "settings",
+      permission: "page:settings",
+      prefixMatch: true,
     },
   ],
 };
@@ -449,10 +461,24 @@ export const DASHBOARD_NAV_ITEMS: readonly DashboardNavItem[] = PAGE_PERMISSION_
   if (permission === "page:users") return [USERS_GROUP];
   if (permission === "page:hrms") return [HRMS_GROUP];
   if (permission === "page:shifts") return [SHIFTS_GROUP];
-  if (permission === "page:chat") return [CHAT_GROUP, AI_TRAINING_GROUP];
-  if (permission === "page:chat-widget") {
-    const widgetItem = toNavItem("page:chat-widget");
-    return widgetItem ? [widgetItem] : [];
+  if (
+    permission === "page:chat-inbox" ||
+    permission === "page:chat-monitor" ||
+    permission === "page:chat-qa" ||
+    permission === "page:chat-qa-roster" ||
+    permission === "page:chat-reports" ||
+    permission === "page:chat-widget" ||
+    permission === "page:chat-close-policy" ||
+    permission === "page:chat-canned" ||
+    permission === "page:chat-involvement"
+  ) {
+    return permission === "page:chat-inbox" ? [LIVE_CHAT_GROUP] : [];
+  }
+  if (permission === "page:ai-assistant") {
+    return [CHAT_AI_NAV.find((i) => i.permission === PAGE.AI_ASSISTANT)!];
+  }
+  if (permission === "page:ai-chatbot") {
+    return [CHAT_AI_NAV.find((i) => i.permission === PAGE.AI_CHATBOT)!];
   }
   if (COMMERCIAL_PAGE_PERMISSIONS.includes(permission)) {
     const first = firstCommercialPageInNavOrder();
@@ -461,6 +487,9 @@ export const DASHBOARD_NAV_ITEMS: readonly DashboardNavItem[] = PAGE_PERMISSION_
   }
   if (permission === "page:smtp-email") return [EMAIL_GROUP];
   if (permission === "page:email-template") return [];
+  if (permission === "page:settings" || permission === "page:observability:logs") {
+    return permission === "page:settings" ? [SETTINGS_GROUP] : [];
+  }
   const item = toNavItem(permission);
   return item ? [item] : [];
 });

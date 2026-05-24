@@ -126,6 +126,19 @@ export const variantStyles = {
   danger: dangerButtonStyles,
 } as const;
 
+export type ButtonVariant = keyof typeof variantStyles;
+
+/** Maps app + legacy MUI names to supported button variants. */
+export function resolveButtonVariant(variant: string | undefined): ButtonVariant {
+  if (variant === "primary" || variant === "secondary" || variant === "outlined" || variant === "danger") {
+    return variant;
+  }
+  if (variant === "text" || variant === "contained") {
+    return variant === "text" ? "outlined" : "primary";
+  }
+  return "primary";
+}
+
 /** Gradient fill on top of `baseButtonStyles` — use via `sx` where Add/Save needs accent gradient. */
 export const gradientPrimaryButtonSx: SxProps<Theme> = (theme) => {
   const app = (theme as AppTheme).app;

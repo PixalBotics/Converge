@@ -262,6 +262,7 @@ export function buildChatWizardStep3Config(draft: WidgetDraft): JsonRecord {
               }))
             : [...def.inquiryOptions],
       videoWelcomeOn: draft.videoWelcomeOn ?? false,
+      videoWelcomeUrl: draft.videoWelcomeUrl?.trim() || undefined,
       welcomeMessage: draft.welcomeMessageBehavior ?? def.welcomeMessage,
       autoOpenEnabled: draft.autoOpenEnabled ?? def.autoOpenEnabled,
       autoOpenDelaySeconds: draft.autoOpenDelaySeconds ?? def.autoOpenDelaySeconds,

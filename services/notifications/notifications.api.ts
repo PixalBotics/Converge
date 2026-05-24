@@ -4,11 +4,7 @@ import type { BadgeCounts, NotificationDto, NotificationsListResponse } from "./
 
 export async function fetchNotificationBadgeCounts(): Promise<BadgeCounts> {
   const { data } = await apiClient.get<unknown>("/notifications/me/badge-counts");
-  const raw = unwrapChatHttpData<BadgeCounts | { counts?: BadgeCounts }>(data);
-  if (raw && typeof raw === "object" && "counts" in raw && raw.counts) {
-    return normalizeBadgeCounts(raw.counts);
-  }
-  return normalizeBadgeCounts(raw);
+  return parseBadgeCountsResponse(data);
 }
 
 export async function fetchMyNotifications(params?: {
@@ -34,9 +30,24 @@ export async function markAllNotificationsRead(badgeGroup?: string): Promise<Bad
   const { data } = await apiClient.post<unknown>("/notifications/me/mark-all-read", {}, {
     params: badgeGroup ? { badgeGroup } : undefined,
   });
-  const raw = unwrapChatHttpData<BadgeCounts | { badgeCounts?: BadgeCounts }>(data);
-  if (raw && typeof raw === "object" && "badgeCounts" in raw && raw.badgeCounts) {
-    return normalizeBadgeCounts(raw.badgeCounts);
+  return parseBadgeCountsResponse(data);
+}
+
+function parseBadgeCountsResponse(payload: unknown): BadgeCounts {
+  const raw = unwrapChatHttpData<BadgeCounts | { badgeCounts?: BadgeCounts; counts?: BadgeCounts }>(
+    payload,
+  );
+  if (raw && typeof raw === "object") {
+    const o = raw as Record<string, unknown>;
+    if (o.badgeCounts && typeof o.badgeCounts === "object") {
+      return normalizeBadgeCounts(o.badgeCounts);
+    }
+    if (o.counts && typeof o.counts === "object") {
+      return normalizeBadgeCounts(o.counts);
+    }
+    if ("chat" in o || "qa" in o || "hrms_leave" in o || "hrms_attendance" in o) {
+      return normalizeBadgeCounts(o);
+    }
   }
   return normalizeBadgeCounts(raw);
 }

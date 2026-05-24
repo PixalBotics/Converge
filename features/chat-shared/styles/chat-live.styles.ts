@@ -40,6 +40,14 @@ export const chatLiveFilterCardSx: SxProps<Theme> = (theme) => {
   };
 };
 
+/** Wraps `ChatLiveModeTabs` inside a `DashboardCard`. */
+export const chatLiveModeTabsCardSx: SxProps<Theme> = {
+  flexShrink: 0,
+  p: { xs: 1, md: 1.25 },
+  height: "auto",
+  minHeight: 0,
+};
+
 export const chatLiveFilterGridSx: SxProps<Theme> = {
   display: "grid",
   gridTemplateColumns: {
@@ -52,17 +60,12 @@ export const chatLiveFilterGridSx: SxProps<Theme> = {
   alignItems: "start",
 };
 
-export const chatLiveNavStripSx: SxProps<Theme> = (theme) => {
-  const d = dash(theme);
-  return {
-    display: "inline-flex",
-    flexWrap: "wrap",
-    gap: 0.5,
-    p: 0.4,
-    borderRadius: "10px",
-    border: `1px solid ${alpha(d.cardBorder, 0.28)}`,
-    bgcolor: alpha(d.overlayLight, 0.22),
-  };
+export const chatLiveNavStripSx: SxProps<Theme> = {
+  display: "flex",
+  flexWrap: "wrap",
+  alignItems: "center",
+  gap: { xs: 0.5, md: 0.75 },
+  width: "100%",
 };
 
 export const chatLiveNavRowSx: SxProps<Theme> = {
@@ -70,7 +73,7 @@ export const chatLiveNavRowSx: SxProps<Theme> = {
   flexWrap: "wrap",
   gap: 1,
   alignItems: "center",
-  mt: 1.25,
+  mt: 1,
 };
 
 export const chatLiveNavLinkSx =
@@ -79,41 +82,60 @@ export const chatLiveNavLinkSx =
     const d = dash(theme);
     return {
       fontSize: 13,
-      fontWeight: active ? 700 : 500,
+      fontWeight: active ? 600 : 500,
       color: active ? (theme as AppTheme).app.text.primary : d.textMuted,
       textDecoration: "none",
-      px: 1.35,
-      py: 0.55,
-      borderRadius: "8px",
-      border: "none",
-      background: active
-        ? `linear-gradient(135deg, ${alpha(d.accentBlue, 0.32)} 0%, ${alpha(d.accentIndigo, 0.24)} 100%)`
-        : "transparent",
-      boxShadow: active ? `inset 0 1px 0 ${alpha(theme.palette.common.white, 0.08)}` : "none",
-      transition: "background-color 0.15s ease, color 0.15s ease",
+      px: 0.25,
+      py: 0.35,
+      whiteSpace: "nowrap",
+      borderBottom: active ? `2px solid ${d.accentBlue}` : "2px solid transparent",
+      transition: "color 0.15s ease, border-color 0.15s ease",
       "&:hover": {
         color: (theme as AppTheme).app.text.primary,
-        background: active
-          ? `linear-gradient(135deg, ${alpha(d.accentBlue, 0.36)} 0%, ${alpha(d.accentIndigo, 0.28)} 100%)`
-          : alpha(d.overlayLight, 0.35),
       },
     };
   };
 
+/** Flat page chrome — no nested glass card. */
 export const chatLiveHeaderCardSx: SxProps<Theme> = (theme) => {
   const d = dash(theme);
-  const isLight = theme.palette.mode === "light";
   return {
     flexShrink: 0,
-    px: { xs: 1.5, md: 2 },
-    py: { xs: 1.25, md: 1.5 },
-    borderRadius: "9.32px",
-    border: `1px solid ${alpha(d.cardBorder, 0.3)}`,
-    bgcolor: isLight ? "rgba(255, 255, 255, 0.12)" : "rgba(8, 12, 22, 0.2)",
-    backdropFilter: d.cardBackdropBlur,
-    WebkitBackdropFilter: d.cardBackdropBlur,
+    pb: 1.25,
+    mb: 0.25,
+    borderBottom: `1px solid ${alpha(d.cardBorder, 0.22)}`,
   };
 };
+
+export const chatLiveViewSwitchRowSx: SxProps<Theme> = {
+  display: "flex",
+  alignItems: "flex-end",
+  gap: 2,
+  mt: 1.25,
+  flexShrink: 0,
+};
+
+export const chatLiveViewSwitchBtnSx =
+  (active: boolean): SxProps<Theme> =>
+  (theme) => {
+    const d = dash(theme);
+    return {
+      border: "none",
+      background: "transparent",
+      cursor: "pointer",
+      fontFamily: "inherit",
+      fontSize: 13,
+      fontWeight: active ? 600 : 500,
+      color: active ? (theme as AppTheme).app.text.primary : d.textMuted,
+      pb: 0.75,
+      mb: "-1px",
+      borderBottom: active ? `2px solid ${d.accentBlue}` : "2px solid transparent",
+      transition: "color 0.15s ease, border-color 0.15s ease",
+      "&:hover": {
+        color: (theme as AppTheme).app.text.primary,
+      },
+    };
+  };
 
 export const chatLiveScopeChipSx: SxProps<Theme> = (theme) => {
   const d = dash(theme);
@@ -154,6 +176,33 @@ export const chatLiveQueueStatPillSx = (
     color: (theme as AppTheme).app.text.primary,
     border: `1px solid ${alpha(accent, 0.35)}`,
     bgcolor: alpha(accent, 0.12),
+  };
+};
+
+/** Sentence-case tabs on chat configure pages (involvement, widget settings). */
+export const chatConfigurePageTabsSx: SxProps<Theme> = (theme) => {
+  const d = dash(theme);
+  return {
+    flexShrink: 0,
+    minHeight: 40,
+    "& .MuiTabs-indicator": {
+      backgroundColor: d.accentBlue,
+      height: 2,
+      borderRadius: 1,
+    },
+    "& .MuiTab-root": {
+      textTransform: "none",
+      fontSize: 14,
+      fontWeight: 500,
+      letterSpacing: 0,
+      minHeight: 40,
+      py: 1,
+      color: d.textMuted,
+      "&.Mui-selected": {
+        color: (theme as AppTheme).app.text.primary,
+        fontWeight: 600,
+      },
+    },
   };
 };
 

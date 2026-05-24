@@ -34,6 +34,8 @@ export interface AdminWidgetTableRow extends Record<string, unknown> {
   resellerName: string;
   widgetTypeLabel: string;
   publishedVersionNo: string;
+  latestDraftVersionNo: string;
+  hasUnpublishedDraft: boolean;
   chatEnabled: boolean;
   textUsEnabled: boolean;
   statusLabel: string;

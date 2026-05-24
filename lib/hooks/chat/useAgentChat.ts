@@ -109,7 +109,7 @@ export function useAgentChat(params: UseAgentChatParams): UseAgentChatReturn {
 
   const upsertMessage = useCallback(
     (message: ChatMessage) => {
-      if (selectedIsClosedRef.current) return;
+      if (selectedIsClosedRef.current && message.role !== "system") return;
 
       if (message.id && !message.id.startsWith("optimistic-")) {
         for (const [k, existing] of messageMapRef.current) {

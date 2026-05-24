@@ -5,16 +5,16 @@ export type WidgetAiType = "AI_CHATBOT" | "AI_ASSISTANT";
 
 export const WIDGET_AI_TYPE_OPTIONS: { label: string; value: WidgetAiType; description: string }[] = [
   {
-    label: "AI Chatbot",
+    label: "AI Chatbot (Lite)",
     value: "AI_CHATBOT",
     description:
-      "Visitor public knowledge: crawl, URL, sitemap, visitor FAQs (/ai-chatbot/sources).",
+      "Visitor auto-replies: public site crawl + visitor FAQs. Default for website sales and support.",
   },
   {
-    label: "AI Assistant",
+    label: "AI Assistant (Pro)",
     value: "AI_ASSISTANT",
     description:
-      "Internal docs: PDF, FAQ, DOCX, SOP, Excel (/ai-assistant/kb/sources). Separate DB scope from chatbot FAQs.",
+      "Visitor auto-replies use internal docs (PDF, SOP, internal FAQ). Use only if that content is safe for the public.",
   },
 ];
 

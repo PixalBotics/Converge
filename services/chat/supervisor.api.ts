@@ -101,3 +101,14 @@ export async function sendSupervisorControlMessage(
   );
   return unwrapChatHttpData(data);
 }
+
+export async function supervisorCloseConversation(
+  conversationId: string,
+  body: { reason?: string } = {},
+): Promise<unknown> {
+  const { data } = await apiClient.post<unknown>(
+    `${conversationPath(conversationId)}/supervisor/close`,
+    body,
+  );
+  return unwrapChatHttpData(data);
+}

@@ -1,7 +1,7 @@
 import { apiClient } from "../http/axios-instance";
 import type { JsonRecord } from "../types/common.types";
-import type {
-  AssignWebsiteTierBody,
+import type { DepartmentRosterHrmsContextEnvelope } from "../types/roster-hrms-context.types";
+import type {  AssignWebsiteTierBody,
   PutDepartmentRosterBody,
   PutDepartmentRosterResponseEnvelope,
   ServiceChannel,
@@ -79,7 +79,49 @@ export async function clearWebsiteRoster(
   return data;
 }
 
-/** New per-department slot removal. */
+export async function getDepartmentRosterHrmsContext(
+  websiteId: string,
+  departmentId: string,
+  params: { channel: ServiceChannel; userIds?: string },
+): Promise<DepartmentRosterHrmsContextEnvelope> {
+  const { data } = await apiClient.get<DepartmentRosterHrmsContextEnvelope>(
+    `/website-assignments/websites/${encodeURIComponent(websiteId)}/departments/${encodeURIComponent(departmentId)}/roster-hrms-context`,
+    { params },
+  );
+  return data;
+}
+
+export async function getDepartmentRosterCoverage(
+  websiteId: string,
+  departmentId: string,
+  channel: ServiceChannel,
+): Promise<import("../types/roster-coverage.types").DepartmentRosterCoverageEnvelope> {
+  const { data } = await apiClient.get<
+    import("../types/roster-coverage.types").DepartmentRosterCoverageEnvelope
+  >(
+    `/website-assignments/websites/${encodeURIComponent(websiteId)}/departments/${encodeURIComponent(departmentId)}/roster-coverage`,
+    { params: { channel } },
+  );
+  return data;
+}
+
+export async function putDepartmentRosterCoverage(
+  websiteId: string,
+  departmentId: string,
+  channel: ServiceChannel,
+  body: import("../types/roster-coverage.types").PutDepartmentRosterCoverageBody,
+): Promise<import("../types/roster-coverage.types").DepartmentRosterCoverageEnvelope> {
+  const { data } = await apiClient.put<
+    import("../types/roster-coverage.types").DepartmentRosterCoverageEnvelope
+  >(
+    `/website-assignments/websites/${encodeURIComponent(websiteId)}/departments/${encodeURIComponent(departmentId)}/roster-coverage`,
+    body,
+    { params: { channel } },
+  );
+  return data;
+}
+
+/** Clear one roster slot (department + Internal/External + tier). */
 export async function removeWebsiteSlotAssignment(
   websiteId: string,
   departmentId: string,
