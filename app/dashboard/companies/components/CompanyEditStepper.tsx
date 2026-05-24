@@ -4,6 +4,7 @@ import type { KeyboardEvent } from "react";
 import Check from "@mui/icons-material/Check";
 import Box from "@mui/material/Box";
 import { alpha, useTheme } from "@mui/material/styles";
+import type { SxProps, Theme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import { Typography } from "@/components/common";
 import { mergeSx } from "@/lib/mui/merge-sx";
@@ -63,12 +64,13 @@ export function CompanyEditStepper({
           return (
             <Box
               key={s.n}
-              component={interactive ? "button" : "div"}
-              type={interactive ? "button" : undefined}
+              component="button"
+              type="button"
               role="tab"
               aria-selected={isActive}
               aria-current={isActive ? "step" : undefined}
               tabIndex={interactive ? 0 : -1}
+              disabled={!interactive}
               onClick={() => goToStep(s.n)}
               onKeyDown={(e: KeyboardEvent<HTMLElement>) => {
                 if (!interactive) return;

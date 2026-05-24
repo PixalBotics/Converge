@@ -1,8 +1,9 @@
 import { alpha } from "@mui/material/styles";
 import type { SxProps, Theme } from "@mui/material/styles";
+import type { SystemStyleObject } from "@mui/system";
 import type { AppTheme } from "@/theme/theme";
 
-export const emailTableCellTruncateSx: SxProps<Theme> = {
+export const emailTableCellTruncateSx: SystemStyleObject<Theme> = {
   display: "block",
   overflow: "hidden",
   textOverflow: "ellipsis",

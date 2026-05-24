@@ -1,6 +1,7 @@
 "use client";
 
 import Box from "@mui/material/Box";
+import type { SxProps, Theme } from "@mui/material/styles";
 import { emailTableCellTruncateSx } from "../styles/email-table.styles";
 import { mergeSx } from "@/lib/mui/merge-sx";
 
