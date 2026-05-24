@@ -49,7 +49,11 @@ export { websiteAssignmentsKeys } from "./website-assignments";
 export {
   buildWebsitesInScopeParams,
   useAssignWebsiteTierMutation,
+  useDepartmentRosterCoverageQuery,
+  useDepartmentRosterHrmsContextQuery,
+  usePutDepartmentRosterCoverageMutation,
   usePutDepartmentRosterMutation,
+  useRemoveWebsiteSlotMutation,
   useWebsiteAssignmentDetailQuery,
   useWebsiteAssignmentsUserWebsitesQuery,
   useWebsiteAssignmentsWebsitesQuery,

@@ -27,6 +27,7 @@ export const OP = {  accountSetup: {
     takeoverRequest: "chat:takeover:request",
     takeoverApprove: "chat:takeover:approve",
     guestLinkSend: "chat:guest-link:send",
+    supervisorClose: "chat:supervisor:close",
     reportView: "chat:report:view",
   },
   chatWidget: {
@@ -34,6 +35,15 @@ export const OP = {  accountSetup: {
     delete: "chat-widget:delete",
     update: "chat-widget:update",
     view: "chat-widget:view",
+  },
+  aiAssistant: {
+    trainingView: "ai-assistant:training:view",
+    trainingManage: "ai-assistant:training:manage",
+    use: "ai-assistant:use",
+  },
+  aiChatbot: {
+    trainingView: "ai-chatbot:training:view",
+    trainingManage: "ai-chatbot:training:manage",
   },
   client: { permissions: "client:permissions" },
   company: {

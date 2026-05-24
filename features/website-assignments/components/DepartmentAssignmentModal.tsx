@@ -138,6 +138,7 @@ export function DepartmentAssignmentModal({
         {showInternal ? (
           <Box>
             <RosterUsersPickerTable
+              websiteId={websiteId}
               channel="Internal"
               departmentId={department.departmentId}
               departmentName={department.departmentName}
@@ -165,6 +166,7 @@ export function DepartmentAssignmentModal({
         {showExternal ? (
           <Box>
             <RosterUsersPickerTable
+              websiteId={websiteId}
               channel="External"
               departmentId={department.departmentId}
               departmentName={department.departmentName}

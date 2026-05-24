@@ -19,6 +19,8 @@ import type {
   UpsertQaSessionReviewBody,
 } from "@/services/chat/qa.types";
 import type { ChatMessage } from "@/services/chat/chat.types";
+import { publishAppToast } from "@/lib/notify";
+import { extractApiErrorMessageForToast } from "@/lib/notify/extract-api-message";
 import { chatQaKeys } from "./keys";
 
 export type QaStatusTab = QaReviewStatus | "all";
@@ -119,6 +121,21 @@ export function useChatQa(
         await upsertQaSessionReview(selectedConversationId, body, token);
         refreshBundle();
         refreshQueue();
+        publishAppToast({
+          message:
+            body.status === "completed"
+              ? "QA report submitted."
+              : body.status === "in_progress"
+                ? "Review started."
+                : "Review saved.",
+          variant: "success",
+        });
+      } catch (err) {
+        publishAppToast({
+          message: extractApiErrorMessageForToast(err, "Could not save QA review."),
+          variant: "error",
+        });
+        throw err;
       } finally {
         setBundleLoading(false);
       }
@@ -147,6 +164,13 @@ export function useChatQa(
       await assignQaReview(selectedConversationId, {}, token);
       refreshBundle();
       refreshQueue();
+      publishAppToast({ message: "Review assigned to you.", variant: "success" });
+    } catch (err) {
+      publishAppToast({
+        message: extractApiErrorMessageForToast(err, "Could not take this review."),
+        variant: "error",
+      });
+      throw err;
     } finally {
       setBundleLoading(false);
     }
@@ -160,6 +184,13 @@ export function useChatQa(
         await assignQaReview(selectedConversationId, { qaUserId: qaUserId.trim() }, token);
         refreshBundle();
         refreshQueue();
+        publishAppToast({ message: "QA reviewer assigned.", variant: "success" });
+      } catch (err) {
+        publishAppToast({
+          message: extractApiErrorMessageForToast(err, "Could not assign reviewer."),
+          variant: "error",
+        });
+        throw err;
       } finally {
         setBundleLoading(false);
       }

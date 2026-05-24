@@ -1,24 +1,12 @@
 "use client";
 
-import { Suspense } from "react";
-import { ChatSettingsWorkspace } from "@/features/chat-settings";
-import { Typography } from "@/components/common";
-import Box from "@mui/material/Box";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 
-function ChatSettingsPageInner() {
-  return <ChatSettingsWorkspace />;
-}
-
-export default function ChatSettingsPage() {
-  return (
-    <Suspense
-      fallback={
-        <Box sx={{ py: 4 }}>
-          <Typography>Loading chat settings…</Typography>
-        </Box>
-      }
-    >
-      <ChatSettingsPageInner />
-    </Suspense>
-  );
+export default function ChatSettingsRedirectPage() {
+  const router = useRouter();
+  useEffect(() => {
+    router.replace("/dashboard/chat-settings/close-policy", { scroll: false });
+  }, [router]);
+  return null;
 }

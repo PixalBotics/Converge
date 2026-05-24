@@ -446,7 +446,7 @@ function mapChildrenDraftRows(children: DraftChildPayload[]): JsonRecord[] {
       };
       const urls = collectHttpsWebsiteUrls(c.websiteUrls ?? []);
       if (urls.length > 0) {
-        row.website = { url: urls[0] };
+        row.websites = urls.map((url) => ({ url }));
       }
       const invites = c.pocRows
         .map((slice) => buildPocInviteForSlice(slice))

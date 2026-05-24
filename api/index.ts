@@ -45,6 +45,10 @@ export type {
   WebsiteAssignmentTier,
 } from "./types/website-assignments.types";
 export type {
+  DepartmentRosterCoverage,
+  PutDepartmentRosterCoverageBody,
+} from "./types/roster-coverage.types";
+export type {
   PlatformThemeMeData,
   PlatformThemeMeEnvelope,
   PlatformThemePatchBody,

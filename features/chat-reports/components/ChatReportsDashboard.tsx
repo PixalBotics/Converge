@@ -8,7 +8,7 @@ import type { AppTheme } from "@/theme/theme";
 import { useAuth } from "@/lib/auth";
 import { mergeSx } from "@/lib/mui/merge-sx";
 import { PermissionDeniedPanel } from "@/components/common";
-import { buildChatLiveNavItems, useChatApiGates } from "@/lib/permissions";
+import { useChatApiGates } from "@/lib/permissions";
 import { Button, DashboardCard, Typography } from "@/components/common";
 import {
   Bar,
@@ -62,10 +62,6 @@ export function ChatReportsDashboard() {
   const { hasOperational, hasPage, permissionsSyncing } = useAuth();
   const gates = useChatApiGates();
   const allowed = gates.reports;
-  const chatNavItems = useMemo(
-    () => buildChatLiveNavItems(hasPage, hasOperational),
-    [hasPage, hasOperational],
-  );
   const reports = useChatReports({ apiEnabled: allowed });
   const scopeFilters = useChatScopeFilters(
     {
@@ -126,7 +122,7 @@ export function ChatReportsDashboard() {
         <ChatLivePageHeader
           title="Live chat reports"
           subtitle="Scoped metrics from closed and active conversations in your monitor access."
-          navItems={chatNavItems}
+          navItems={[]}
           trailing={
             <Button type="button" variant="outlined" onClick={() => void reports.refresh()}>
               Refresh

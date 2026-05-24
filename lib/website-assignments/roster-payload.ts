@@ -77,6 +77,10 @@ export function parseWebsiteAssignmentDetail(payload: unknown): WebsiteAssignmen
       op === "external_only" || op === "both" ? op : "internal_only",
     allowedAssignmentChannels,
     serviceSchedulingConfigured: Boolean(data.serviceSchedulingConfigured),
+    isFullyAssigned: Boolean(data.isFullyAssigned),
+    expectedRosterSlots:
+      typeof data.expectedRosterSlots === "number" ? data.expectedRosterSlots : undefined,
+    filledSlots: typeof data.filledSlots === "number" ? data.filledSlots : undefined,
     departmentRoster,
     assignments: Array.isArray(data.assignments) ? data.assignments : undefined,
     parentCompanyId: String(data.parentCompanyId ?? "").trim() || undefined,

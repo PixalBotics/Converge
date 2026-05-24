@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect } from "react";
 import Box from "@mui/material/Box";
+import { alpha, useTheme } from "@mui/material/styles";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import { DashboardCard, Typography } from "@/components/common";
 import {
@@ -12,7 +12,6 @@ import {
   useChatScopeFilters,
 } from "@/features/chat-shared";
 import { chatLivePageStackSx } from "@/features/chat-shared/styles/chat-live.styles";
-import { buildChatLiveNavItems } from "@/lib/permissions";
 import { PermissionDeniedPanel } from "@/components/common";
 import { useAuth } from "@/lib/auth";
 import { OP } from "@/lib/permissions/operational-keys";
@@ -26,10 +25,6 @@ export function ChatSettingsWorkspace() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { hasOperational, hasPage, permissionsSyncing } = useAuth();
-  const chatNavItems = useMemo(
-    () => buildChatLiveNavItems(hasPage, hasOperational),
-    [hasPage, hasOperational],
-  );
   const gates = useChatApiGates();
   const canEdit = hasOperational(OP.chatWidget.update);
 
@@ -46,12 +41,11 @@ export function ChatSettingsWorkspace() {
     const params = new URLSearchParams(searchParams.toString());
     if (selectedWebsiteId) params.set("website", selectedWebsiteId);
     else params.delete("website");
-    if (params.get("tab") === "settings") params.delete("tab");
     const qs = params.toString();
-    const next = qs ? `/dashboard/chat-settings?${qs}` : "/dashboard/chat-settings";
+    const next = qs ? `/dashboard/chat-canned?${qs}` : "/dashboard/chat-canned";
     const current = qs
-      ? `/dashboard/chat-settings?${searchParams.toString()}`
-      : "/dashboard/chat-settings";
+      ? `/dashboard/chat-canned?${searchParams.toString()}`
+      : "/dashboard/chat-canned";
     if (next !== current) {
       router.replace(next, { scroll: false });
     }
@@ -83,36 +77,59 @@ export function ChatSettingsWorkspace() {
     <Box sx={chatLivePageStackSx}>
       <ChatLivePageHeader
         title="Canned messages"
-        subtitle="Manage quick replies per website for the agent inbox. Routing, QA, and operations are configured under Website Assignments and the chat widget."
-        navItems={chatNavItems}
+        subtitle="Quick replies agents insert from the inbox composer. Scope filters narrow the list; each row is one message for a website."
+        navItems={[]}
       />
 
-      <DashboardCard sx={{ flexShrink: 0, p: { xs: 1.5, md: 2 }, height: "auto", minHeight: 0 }}>
-        <ChatScopeFiltersPanel
-          filters={scopeFilters.filters}
-          onPatch={scopeFilters.patchFilters}
-          onReset={scopeFilters.resetFilters}
-          canFilterByResellerId={scopeFilters.canFilterByResellerId}
-          resellerOptions={scopeFilters.resellerOptions}
-          parentCompanyOptions={scopeFilters.parentCompanyOptions}
-          childCompanyOptions={scopeFilters.childCompanyOptions}
-          websiteOptions={scopeFilters.websiteOptions}
-          hint="Filter canned messages: reseller → parent company → child company → website (optional)."
-        />
-        {scopeFilters.websitesLoading ? (
-          <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, mt: 1 }}>
-            Loading websites…
-          </Typography>
-        ) : null}
+      <DashboardCard
+        sx={{
+          flex: 1,
+          display: "flex",
+          flexDirection: "column",
+          minHeight: 0,
+          p: 0,
+          overflow: "hidden",
+          borderColor: alpha(theme.app.dashboard.cardBorder, 0.85),
+        }}
+      >
+        <Box
+          sx={{
+            px: { xs: 1.5, md: 2 },
+            py: { xs: 1.25, md: 1.5 },
+            borderBottom: `1px solid ${alpha(theme.app.dashboard.cardBorder, 0.65)}`,
+            bgcolor: alpha(theme.app.dashboard.overlayLight, 0.25),
+            flexShrink: 0,
+          }}
+        >
+          <ChatScopeFiltersPanel
+            compact
+            filters={scopeFilters.filters}
+            onPatch={scopeFilters.patchFilters}
+            onReset={scopeFilters.resetFilters}
+            canFilterByResellerId={scopeFilters.canFilterByResellerId}
+            resellerOptions={scopeFilters.resellerOptions}
+            parentCompanyOptions={scopeFilters.parentCompanyOptions}
+            childCompanyOptions={scopeFilters.childCompanyOptions}
+            websiteOptions={scopeFilters.websiteOptions}
+          />
+          {scopeFilters.websitesLoading ? (
+            <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, mt: 0.75 }}>
+              Loading websites…
+            </Typography>
+          ) : null}
+        </Box>
+
+        <Box sx={{ flex: 1, minHeight: 0, p: { xs: 1.5, md: 2 } }}>
+          <CannedResponsesTab
+            filters={scopeFilters.filters}
+            canFilterByResellerId={scopeFilters.canFilterByResellerId}
+            canEdit={canEdit}
+            onNotifyError={notifyError}
+            onNotifySuccess={(message) => publishAppToast({ message, variant: "success" })}
+            embedded
+          />
+        </Box>
       </DashboardCard>
-
-      <CannedResponsesTab
-        filters={scopeFilters.filters}
-        canFilterByResellerId={scopeFilters.canFilterByResellerId}
-        canEdit={canEdit}
-        onNotifyError={notifyError}
-        onNotifySuccess={(message) => publishAppToast({ message, variant: "success" })}
-      />
     </Box>
   );
 }

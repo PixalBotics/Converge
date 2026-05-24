@@ -8,7 +8,6 @@ import type { AgentAiAction } from "@/api/ai/agent-suggest.api";
 import { useAuth, useResellerListScope } from "@/lib/auth";
 import { DashboardCard, PermissionDeniedPanel, Typography } from "@/components/common";
 import {
-  buildChatLiveNavItems,
   needsChatScopeFilters,
   useChatApiGates,
 } from "@/lib/permissions";
@@ -65,10 +64,6 @@ export function ChatOperationsWorkspace() {
   const searchParams = useSearchParams();
   const inboxAllowed = gates.agentInbox;
   const showScopeFilters = needsChatScopeFilters(hasOperational, canFilterByResellerId);
-  const chatNavItems = useMemo(
-    () => buildChatLiveNavItems(hasPage, hasOperational),
-    [hasPage, hasOperational],
-  );
   const accessToken = inboxAllowed ? getAccessToken() ?? "" : "";
   const scopeFilters = useChatScopeFilters(undefined, { apiEnabled: showScopeFilters });
   const conversationIdFromUrl = searchParams.get("conversationId")?.trim() ?? "";
@@ -363,7 +358,7 @@ export function ChatOperationsWorkspace() {
             ? "Reply to visitors in your scoped queue. Use filters to narrow by organization or website."
             : "Your assigned queue — reply, insert canned responses, and wrap up when required."
         }
-        navItems={chatNavItems}
+        navItems={[]}
         trailing={
           <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75, justifyContent: "flex-end" }}>
             <Box sx={chatLiveQueueStatPillSx("active")}>Active {activeFiltered.length}</Box>

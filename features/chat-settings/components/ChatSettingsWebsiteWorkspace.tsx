@@ -23,13 +23,14 @@ import {
   useWebsiteChatSettingsQuery,
 } from "../hooks/useChatSettings";
 import type { ChatSettingsWebsiteOption } from "../types";
+import { ClosePolicyTab } from "./ClosePolicyTab";
 import { DepartmentEmailsTab } from "./DepartmentEmailsTab";
 import { GeneralOperationsTab } from "./GeneralOperationsTab";
 import { QaPolicyTab } from "./QaPolicyTab";
 import { RoutingRulesTab } from "./RoutingRulesTab";
 import { QaRosterTab } from "./QaRosterTab";
 
-type SettingsTab = "general" | "routing" | "qa-policy" | "qa-team" | "emails";
+type SettingsTab = "general" | "close-policy" | "routing" | "qa-policy" | "qa-team" | "emails";
 
 export function ChatSettingsWebsiteWorkspace({
   websiteId,
@@ -141,6 +142,7 @@ export function ChatSettingsWebsiteWorkspace({
           sx={{ borderBottom: 1, borderColor: "divider", mb: 2, flexShrink: 0 }}
         >
           <Tab value="general" label="General" />
+          <Tab value="close-policy" label="Close policy" />
           <Tab value="routing" label="Routing" />
           <Tab value="qa-policy" label="QA policy" />
           <Tab value="qa-team" label="QA team" />
@@ -152,6 +154,15 @@ export function ChatSettingsWebsiteWorkspace({
             <GeneralOperationsTab
               settings={bundle.settings}
               departments={departments}
+              canEdit={canEdit}
+              saving={saveSettings.isPending}
+              onSave={saveSettingsBody}
+            />
+          ) : null}
+
+          {tab === "close-policy" ? (
+            <ClosePolicyTab
+              settings={bundle.settings}
               canEdit={canEdit}
               saving={saveSettings.isPending}
               onSave={saveSettingsBody}

@@ -54,6 +54,7 @@ export {
   canRequestTakeover,
   canReviewQaSession,
   canSendGuestLink,
+  canSupervisorCloseChat,
   canUseSupervisorTools,
   canViewChatReports,
   canWhisper,

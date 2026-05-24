@@ -7,7 +7,6 @@ import { useAuth } from "@/lib/auth";
 import { mergeSx } from "@/lib/mui/merge-sx";
 import { PermissionDeniedPanel } from "@/components/common";
 import {
-  buildChatLiveNavItems,
   canAnnotateQaMessage,
   canAssignQaReview,
   canReviewQaSession,
@@ -42,13 +41,9 @@ export function ChatQaWorkspace({
   initialConversationId?: string | null;
 }) {
   const router = useRouter();
-  const { hasOperational, hasPage, permissionsSyncing } = useAuth();
+  const { hasOperational, permissionsSyncing, user } = useAuth();
   const gates = useChatApiGates();
   const allowed = gates.qa;
-  const chatNavItems = useMemo(
-    () => buildChatLiveNavItems(hasPage, hasOperational),
-    [hasPage, hasOperational],
-  );
   const scopeFilters = useChatScopeFilters(undefined, { apiEnabled: allowed });
 
   const qa = useChatQa(initialConversationId, { apiEnabled: allowed });
@@ -91,8 +86,19 @@ export function ChatQaWorkspace({
     return <Typography sx={{ py: 4 }}>Sign in to open the QA inbox.</Typography>;
   }
 
-  const rosterWebsiteId = qa.bundle?.review?.websiteId?.trim() ?? "";
-  const rosterQuery = useQaRosterQuery(rosterWebsiteId, Boolean(rosterWebsiteId) && canAssignQaReview(hasOperational));
+  const rosterWebsiteId = useMemo(() => {
+    const fromReview = qa.bundle?.review?.websiteId?.trim();
+    if (fromReview) return fromReview;
+    const row = qa.queue.find((r) => r.conversationId === qa.selectedConversationId);
+    if (row?.websiteId?.trim()) return row.websiteId.trim();
+    const transcript = qa.bundle?.transcript as { websiteId?: string } | undefined;
+    return transcript?.websiteId?.trim() ?? "";
+  }, [qa.bundle?.review?.websiteId, qa.bundle?.transcript, qa.queue, qa.selectedConversationId]);
+
+  const rosterQuery = useQaRosterQuery(
+    rosterWebsiteId,
+    Boolean(rosterWebsiteId) && canAssignQaReview(hasOperational),
+  );
 
   const rosterAssignOptions = useMemo(() => {
     const channel = String(qa.bundle?.review?.serviceChannel ?? qa.bundle?.transcript?.serviceChannel ?? "internal")
@@ -113,8 +119,8 @@ export function ChatQaWorkspace({
     <Box sx={mergeSx(chatQaPageWrapper, chatLivePageStackSx)}>
       <ChatLivePageHeader
         title="QA inbox"
-        subtitle="Review closed conversations, annotate messages, and score sessions."
-        navItems={chatNavItems}
+        subtitle="Closed chats land in your queue. Read the transcript, score the session, then submit the QA report."
+        navItems={[]}
         trailing={
           <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75, justifyContent: "flex-end" }}>
             <Box sx={chatLiveQueueStatPillSx("waiting")}>
@@ -184,6 +190,7 @@ export function ChatQaWorkspace({
               bundle={qa.bundle}
               canEdit={canReviewQaSession(hasOperational)}
               canAssign={canAssignQaReview(hasOperational)}
+              currentUserId={user?.id ?? null}
               rosterAssignOptions={rosterAssignOptions}
               onSave={qa.saveSessionReview}
               onClaim={qa.claimReview}

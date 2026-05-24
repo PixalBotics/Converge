@@ -9,6 +9,8 @@ import type {
 import {
   normalizeDaysOfWeek,
   normalizeScheduleWindow,
+  WEEKDAY_CODES,
+  type WeekdayCode,
 } from "@/features/website-assignments/utils/schedule-weekday.utils";
 
 export function canShowInternalSlots(op: OperatingChannels): boolean {
@@ -28,6 +30,37 @@ export function emptyScheduleWindow(): ServiceScheduleWindow {
   };
 }
 
+/** Full-week 24/7 service window (matches backend crosses-midnight 00:00→00:00 logic). */
+export function twentyFourHourScheduleWindow(): ServiceScheduleWindow {
+  return {
+    daysOfWeek: [...WEEKDAY_CODES],
+    startTime: "00:00",
+    endTime: "00:00",
+    crossesMidnight: true,
+  };
+}
+
+export function isTwentyFourHourWindow(window: ServiceScheduleWindow): boolean {
+  const days = normalizeDaysOfWeek(window.daysOfWeek as Array<string | number>);
+  if (days.length !== WEEKDAY_CODES.length) return false;
+  if (
+    window.startTime === "00:00" &&
+    window.endTime === "00:00" &&
+    window.crossesMidnight === true
+  ) {
+    return true;
+  }
+  return window.startTime === "00:00" && window.endTime === "23:59";
+}
+
+/** Keep a single service window in the draft (no multi-window UI). */
+export function singleServiceWindow(
+  windows: ServiceScheduleWindow[],
+): ServiceScheduleWindow[] {
+  if (!windows.length) return [emptyScheduleWindow()];
+  return [normalizeScheduleWindow({ ...windows[0]! })];
+}
+
 export function emptyTopic(displayOrder = 0): ServiceSchedulingTopic {
   return {
     routingKey: "",
@@ -43,11 +76,21 @@ export function emptyTopic(displayOrder = 0): ServiceSchedulingTopic {
 
 export function defaultSchedulingDraft(): Pick<
   ServiceSchedulingBundle,
-  "operatingChannels" | "timezone" | "gapPolicy" | "internalWindows" | "externalWindows" | "topics" | "defaultDepartmentId"
+  | "operatingChannels"
+  | "timezone"
+  | "internalTimezone"
+  | "externalTimezone"
+  | "gapPolicy"
+  | "internalWindows"
+  | "externalWindows"
+  | "topics"
+  | "defaultDepartmentId"
 > {
   return {
     operatingChannels: "internal_only",
     timezone: "Asia/Karachi",
+    internalTimezone: "Asia/Karachi",
+    externalTimezone: "Asia/Karachi",
     gapPolicy: "queue_until_next_window",
     internalWindows: [emptyScheduleWindow()],
     externalWindows: [emptyScheduleWindow()],
@@ -57,18 +100,23 @@ export function defaultSchedulingDraft(): Pick<
 }
 
 export function bundleToDraft(bundle: ServiceSchedulingBundle) {
+  const fallbackTz = bundle.timezone?.trim() || "Asia/Karachi";
   return {
     operatingChannels: bundle.operatingChannels,
-    timezone: bundle.timezone,
+    timezone: fallbackTz,
+    internalTimezone: bundle.internalTimezone?.trim() || fallbackTz,
+    externalTimezone: bundle.externalTimezone?.trim() || fallbackTz,
     gapPolicy: bundle.gapPolicy,
-    internalWindows:
+    internalWindows: singleServiceWindow(
       bundle.internalWindows.length > 0
         ? bundle.internalWindows.map((w) => normalizeScheduleWindow({ ...w }))
         : [emptyScheduleWindow()],
-    externalWindows:
+    ),
+    externalWindows: singleServiceWindow(
       bundle.externalWindows.length > 0
         ? bundle.externalWindows.map((w) => normalizeScheduleWindow({ ...w }))
         : [emptyScheduleWindow()],
+    ),
     topics: bundle.topics.length > 0 ? bundle.topics.map((t) => ({ ...t })) : [emptyTopic(0)],
     defaultDepartmentId: bundle.defaultDepartmentId,
   };
@@ -77,7 +125,7 @@ export function bundleToDraft(bundle: ServiceSchedulingBundle) {
 export function windowsForSave(
   windows: ServiceScheduleWindow[],
 ): UpsertServiceSchedulingBody["internalWindows"] {
-  return windows.map((w) => ({
+  return singleServiceWindow(windows).map((w) => ({
     daysOfWeek: w.daysOfWeek,
     startTime: w.startTime,
     endTime: w.endTime,
@@ -99,9 +147,13 @@ export function topicsForSave(topics: ServiceSchedulingTopic[]): ServiceScheduli
 }
 
 export function buildSaveBody(draft: ReturnType<typeof bundleToDraft>): UpsertServiceSchedulingBody {
+  const internalTz = draft.internalTimezone.trim();
+  const externalTz = draft.externalTimezone.trim();
   const body: UpsertServiceSchedulingBody = {
     operatingChannels: draft.operatingChannels,
-    timezone: draft.timezone.trim(),
+    timezone: internalTz || externalTz || draft.timezone.trim(),
+    internalTimezone: internalTz,
+    externalTimezone: externalTz,
     gapPolicy: draft.gapPolicy,
     topics: topicsForSave(draft.topics),
     defaultDepartmentId: draft.defaultDepartmentId?.trim() || null,
@@ -118,7 +170,12 @@ export function buildSaveBody(draft: ReturnType<typeof bundleToDraft>): UpsertSe
 export function validateSchedulingDraft(
   draft: ReturnType<typeof bundleToDraft>,
 ): string | null {
-  if (!draft.timezone.trim()) return "Timezone is required.";
+  if (canShowInternalSlots(draft.operatingChannels) && !draft.internalTimezone.trim()) {
+    return "Internal timezone is required.";
+  }
+  if (canShowExternalSlots(draft.operatingChannels) && !draft.externalTimezone.trim()) {
+    return "External timezone is required.";
+  }
   if (canShowInternalSlots(draft.operatingChannels) && draft.internalWindows.length === 0) {
     return "Add at least one internal service window.";
   }

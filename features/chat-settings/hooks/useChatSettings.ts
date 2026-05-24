@@ -19,7 +19,11 @@ import type {
   UpsertChatRouteBody,
   UpsertWebsiteChatSettingsBody,
 } from "@/services/chat/chat-settings.types";
-import { fetchQaWebsiteRoster, saveQaWebsiteRoster } from "@/services/chat/qa-roster.api";
+import {
+  fetchQaWebsiteRoster,
+  fetchQaWebsiteRosterExclusions,
+  saveQaWebsiteRoster,
+} from "@/services/chat/qa-roster.api";
 import { LIST_ALL_QUERY } from "@/lib/constants/pagination";
 import {
   parseDepartmentCatalog,
@@ -191,6 +195,15 @@ export function useQaRosterQuery(websiteId: string, enabled = true) {
   });
 }
 
+export function useQaRosterExclusionsQuery(websiteId: string, enabled = true) {
+  return useQuery({
+    queryKey: chatSettingsKeys.qaRosterExclusions(websiteId),
+    queryFn: () => fetchQaWebsiteRosterExclusions(websiteId),
+    enabled: Boolean(websiteId.trim()) && enabled,
+    staleTime: 30_000,
+  });
+}
+
 export function useSaveQaRosterMutation(websiteId: string) {
   const qc = useQueryClient();
   return useMutation({
@@ -198,6 +211,8 @@ export function useSaveQaRosterMutation(websiteId: string) {
       saveQaWebsiteRoster(websiteId, body),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: chatSettingsKeys.qaRoster(websiteId) });
+      void qc.invalidateQueries({ queryKey: chatSettingsKeys.qaRosterExclusions(websiteId) });
+      void qc.invalidateQueries({ queryKey: ["qa-roster-list"] });
     },
   });
 }

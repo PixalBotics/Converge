@@ -5,7 +5,7 @@ import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
 import { alpha, useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
-import { Button, InputField, Typography } from "@/components/common";
+import { Button, Typography } from "@/components/common";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
 import { getAccessToken } from "@/api";
 import { canSendGuestLink } from "@/lib/permissions/chat-access";
@@ -40,7 +40,6 @@ export function GuestLinkPanel({
   const token = getAccessToken() ?? "";
   const canSend = canSendGuestLink(hasOperational);
 
-  const [extraEmail, setExtraEmail] = useState("");
   const [links, setLinks] = useState<GuestLinkRow[]>([]);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
@@ -69,18 +68,13 @@ export function GuestLinkPanel({
     setBusy(true);
     setStatus(null);
     try {
-      const res = await sendDepartmentGuestLink(
-        conversationId,
-        extraEmail.trim() ? { email: extraEmail.trim() } : undefined,
-        token,
-      );
+      const res = await sendDepartmentGuestLink(conversationId, undefined, token);
       const count = res.sent?.length ?? 0;
       setStatus(
         count > 0
-          ? `Sent ${count} guest link${count === 1 ? "" : "s"} to department notify addresses.`
+          ? `Sent involvement link to ${count} supervisor${count === 1 ? "" : "s"}.`
           : "No links sent.",
       );
-      setExtraEmail("");
       await refresh();
     } catch (err) {
       const msg =
@@ -100,22 +94,14 @@ export function GuestLinkPanel({
     <ChatSideToolCard
       accent="guest"
       title="Send involvement link"
-      subtitle="Emails all involvement supervisors for this chat's department (same one-time URL). First opener gets the session; whisper and takeover available without login."
+      subtitle="Emails all involvement supervisors for this chat's department (one shared one-time URL)."
     >
-      <InputField
-        label="Extra recipient email (optional)"
-        value={extraEmail}
-        onChange={(e) => setExtraEmail(e.target.value)}
-        disabled={busy || disabled}
-        placeholder="Leave blank to use involvement roster emails"
-      />
-
       <Button
         type="button"
         variant="primary"
         size="small"
         fullWidth
-        sx={{ ...gradientPrimaryButtonSx, mt: 1 }}
+        sx={{ ...gradientPrimaryButtonSx, mt: 0.5 }}
         disabled={busy || disabled}
         onClick={() => void runSend()}
       >

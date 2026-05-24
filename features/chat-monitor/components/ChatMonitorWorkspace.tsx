@@ -9,7 +9,6 @@ import type { AppTheme } from "@/theme/theme";
 import { useAuth } from "@/lib/auth";
 import { PermissionDeniedPanel } from "@/components/common";
 import {
-  buildChatLiveNavItems,
   needsChatScopeFilters,
   useChatApiGates,
 } from "@/lib/permissions";
@@ -53,17 +52,13 @@ export function ChatMonitorWorkspace({
   const theme = useTheme() as AppTheme;
   const { user, hasOperational, hasPage, permissionsSyncing } = useAuth();
   const gates = useChatApiGates();
-  const hasChatPage = hasPage(PAGE.CHAT);
+  const hasChatPage = hasPage(PAGE.CHAT_MONITOR) || hasPage(PAGE.CHAT);
   const hasMonitorPerm =
     gates.monitor ||
     hasOperational(OP.chat.monitorInvolvement) ||
     hasOperational(OP.chat.monitorPool) ||
     hasOperational(OP.chat.monitorDepartment) ||
     hasOperational(OP.chat.monitorParentCompany);
-  const chatNavItems = useMemo(
-    () => buildChatLiveNavItems(hasPage, hasOperational),
-    [hasPage, hasOperational],
-  );
   const monitorApiEnabled = gates.ready && hasChatPage;
   const scopeFilters = useChatScopeFilters(undefined, { apiEnabled: monitorApiEnabled });
   const showScopeFilters = needsChatScopeFilters(
@@ -223,7 +218,7 @@ export function ChatMonitorWorkspace({
               ? "Pick an agent in the directory, then open their chats. Switch to Live queue for all scoped chats."
               : "All live and closed chats in your scope. Use By agent to drill into one user."
         }
-        navItems={chatNavItems}
+        navItems={[]}
         trailing={
           <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75, justifyContent: "flex-end" }}>
             <Box sx={chatLiveQueueStatPillSx("active")}>Live {scopedLive.length}</Box>

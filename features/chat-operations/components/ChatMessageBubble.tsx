@@ -3,6 +3,7 @@
 import DoneAll from "@mui/icons-material/DoneAll";
 import type { ChatMessage } from "@/services/chat/chat.types";
 import { Typography } from "@/components/common";
+import { ChatMessageContent } from "./ChatMessageContent";
 import { formatMessageTime } from "../utils/format-message-time";
 import type { MessageGroupPosition } from "../utils/message-grouping";
 import {
@@ -46,18 +47,7 @@ export function ChatMessageBubble({
       <MessageRowOuter system>
         <MessageRow system>
           <MessageBubble outgoing={false} system groupPosition="single">
-            <Typography
-              component="span"
-              sx={{
-                color: "inherit",
-                fontSize: "inherit",
-                lineHeight: "inherit",
-                whiteSpace: "pre-wrap",
-                wordBreak: "break-word",
-              }}
-            >
-              {message.content}
-            </Typography>
+            <ChatMessageContent message={message} />
           </MessageBubble>
         </MessageRow>
       </MessageRowOuter>
@@ -74,18 +64,7 @@ export function ChatMessageBubble({
 
       <MessageRow outgoing={isOutgoing}>
         <MessageBubble outgoing={isOutgoing} groupPosition={groupPosition}>
-          <Typography
-            component="span"
-            sx={{
-              color: "inherit",
-              fontSize: "inherit",
-              lineHeight: "inherit",
-              whiteSpace: "pre-wrap",
-              wordBreak: "break-word",
-            }}
-          >
-            {message.content}
-          </Typography>
+          <ChatMessageContent message={message} />
         </MessageBubble>
         {showMeta ? (
           <MessageMeta

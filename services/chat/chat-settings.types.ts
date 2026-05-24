@@ -18,6 +18,33 @@ export interface ServiceSchedule {
   daysOfWeekLabels?: Record<string, string>;
 }
 
+export interface ChatClosePolicyJson {
+  enabled?: boolean;
+  visitorIdle?: {
+    enabled?: boolean;
+    nudgeAfterMinutes?: number;
+    nudgeMessage?: string;
+    closeAfterMinutes?: number;
+    closeMessage?: string;
+  };
+  agentNoResponse?: {
+    enabled?: boolean;
+    firstAlertAgentAfterMinutes?: number;
+    fallbackToVisitorAfterMinutes?: number;
+    fallbackMessage?: string;
+    closeAfterMinutes?: number;
+    closeMessage?: string;
+  };
+  supervisorClose?: {
+    enabled?: boolean;
+    requireReason?: boolean;
+    reasonMinLength?: number;
+  };
+  onClose?: {
+    insertDistributionLinkInTranscript?: boolean;
+  };
+}
+
 export interface ChatOperationsJson {
   guestAccess?: Record<string, unknown>;
   takeover?: Record<string, unknown>;
@@ -27,6 +54,7 @@ export interface ChatOperationsJson {
   reporting?: Record<string, unknown>;
   csat?: Record<string, unknown>;
   cannedResponses?: Record<string, unknown>;
+  closePolicy?: ChatClosePolicyJson;
   [key: string]: unknown;
 }
 

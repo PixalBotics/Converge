@@ -25,10 +25,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import { websiteAssignmentsKeys } from "@/lib/hooks/query/website-assignments/keys";
 import type { DataTableColumn } from "@/components/common";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
-import { PickWebsiteModal } from "@/features/website-assignments/components/PickWebsiteModal";
 import { ServiceScheduleTableActions } from "@/features/website-assignments/components/ServiceScheduleTableActions";
 import { WebsiteAssignmentScopeFilterPanel } from "@/features/website-assignments/components/WebsiteAssignmentScopeFilterPanel";
-import { WebsiteAssignmentJourneyStepper } from "@/features/website-assignments/components/WebsiteAssignmentJourneyStepper";
 import { useWebsiteAssignmentScopeFilters } from "@/features/website-assignments/hooks/useWebsiteAssignmentScopeFilters";
 import {
   SCHEDULING_FILTER_OPTIONS,
@@ -89,7 +87,6 @@ export default function ServiceSchedulesPage() {
   const [filterScheduling, setFilterScheduling] = useState("");
   const [filterPopoverOpen, setFilterPopoverOpen] = useState(false);
   const [page, setPage] = useState(1);
-  const [pickOpen, setPickOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<ScheduleRow | null>(null);
   const [deleting, setDeleting] = useState(false);
 
@@ -269,15 +266,13 @@ export default function ServiceSchedulesPage() {
               variant="primary"
               sx={gradientPrimaryButtonSx}
               startIcon={<Add sx={{ fontSize: 18 }} />}
-              onClick={() => setPickOpen(true)}
+              onClick={() => router.push("/dashboard/website-assigning/service-schedules/add")}
             >
               Add schedule
             </Button>
           ) : null}
         </Box>
       </Box>
-
-      <WebsiteAssignmentJourneyStepper variant="hub" activeStep={1} schedulingComplete={false} />
 
       <DashboardCard sx={websiteAssignmentFilterCard}>
         <Box sx={websiteAssignmentFilterTitleRow}>
@@ -396,17 +391,6 @@ export default function ServiceSchedulesPage() {
         maxWidth={520}
       />
 
-      <PickWebsiteModal
-        open={pickOpen}
-        title="Add service schedule"
-        description="Step 1 of 3: Choose organization and website. Next you will set mode, hours, and topics."
-        primaryLabel="Continue to scheduling"
-        onClose={() => setPickOpen(false)}
-        onContinue={(picked) => {
-          setPickOpen(false);
-          router.push(schedulingPath(picked.websiteId));
-        }}
-      />
     </Box>
   );
 }

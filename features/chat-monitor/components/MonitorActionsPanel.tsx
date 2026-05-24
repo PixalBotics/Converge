@@ -13,7 +13,9 @@ import {
   releaseDirectSupervisorControl,
   sendSupervisorControlMessage,
   startDirectSupervisorControl,
+  supervisorCloseConversation,
 } from "@/services/chat/supervisor.api";
+import { canSupervisorCloseChat } from "@/lib/permissions/chat-access";
 
 interface MonitorActionsPanelProps {
   conversationId: string | null;
@@ -43,6 +45,8 @@ export function MonitorActionsPanel({
 
   const [whisperText, setWhisperText] = useState("");
   const [controlMessage, setControlMessage] = useState("");
+  const [closeReason, setCloseReason] = useState("");
+  const [closeDialogOpen, setCloseDialogOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
 
@@ -52,6 +56,8 @@ export function MonitorActionsPanel({
     Boolean(supervisorControlUserId) &&
     Boolean(currentUserId) &&
     supervisorControlUserId === currentUserId;
+
+  const canClose = canSupervisorCloseChat(hasOperational);
 
   const run = async (fn: () => Promise<void>) => {
     setBusy(true);
@@ -194,6 +200,69 @@ export function MonitorActionsPanel({
           >
             Request transfer takeover
           </Button>
+        ) : null}
+
+        {canClose ? (
+          <>
+            {!closeDialogOpen ? (
+              <Button
+                type="button"
+                variant="outlined"
+                size="small"
+                fullWidth
+                sx={{ mt: 1.5, borderColor: theme.app.dashboard.cardBorder }}
+                disabled={busy}
+                onClick={() => setCloseDialogOpen(true)}
+              >
+                Close chat
+              </Button>
+            ) : (
+              <Box sx={{ mt: 1.5 }}>
+                <InputField
+                  label="Close reason"
+                  value={closeReason}
+                  onChange={(e) => setCloseReason(e.target.value)}
+                  disabled={busy}
+                  multiline
+                  minRows={2}
+                  placeholder="Why is this chat being closed?"
+                />
+                <Box sx={{ display: "flex", gap: 1, mt: 1 }}>
+                  <Button
+                    type="button"
+                    variant="primary"
+                    size="small"
+                    sx={{ ...gradientPrimaryButtonSx, flex: 1 }}
+                    disabled={busy || !closeReason.trim()}
+                    onClick={() =>
+                      void run(async () => {
+                        await supervisorCloseConversation(conversationId, {
+                          reason: closeReason.trim(),
+                        });
+                        setCloseReason("");
+                        setCloseDialogOpen(false);
+                        setStatus("Chat closed.");
+                      })
+                    }
+                  >
+                    Confirm close
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="small"
+                    disabled={busy}
+                    onClick={() => {
+                      setCloseDialogOpen(false);
+                      setCloseReason("");
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                </Box>
+              </Box>
+            )}
+          </>
         ) : null}
 
         {status ? (

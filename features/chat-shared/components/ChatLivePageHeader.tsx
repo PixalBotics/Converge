@@ -24,12 +24,14 @@ const DEFAULT_NAV: ChatLiveNavItem[] = [
   { href: "/dashboard/chat-qa", label: "QA inbox" },
   { href: "/dashboard/chat-reports", label: "Reports" },
   { href: "/dashboard/chat-involvement", label: "Involvement" },
-  { href: "/dashboard/chat-settings", label: "Canned" },
+  { href: "/dashboard/chat-settings/close-policy", label: "Settings" },
+  { href: "/dashboard/chat-canned", label: "Canned" },
 ];
 
 interface ChatLivePageHeaderProps {
   title: string;
   subtitle?: string;
+  /** Omit for default strip; pass `[]` to hide horizontal nav (sidebar-only). */
   navItems?: ChatLiveNavItem[];
   trailing?: React.ReactNode;
 }
@@ -37,11 +39,12 @@ interface ChatLivePageHeaderProps {
 export function ChatLivePageHeader({
   title,
   subtitle,
-  navItems = DEFAULT_NAV,
+  navItems,
   trailing,
 }: ChatLivePageHeaderProps) {
   const theme = useTheme() as AppTheme;
   const pathname = usePathname();
+  const stripItems = navItems === undefined ? DEFAULT_NAV : navItems;
 
   return (
     <Box sx={chatLiveHeaderCardSx}>
@@ -73,10 +76,10 @@ export function ChatLivePageHeader({
         </Box>
         {trailing ? <Box sx={{ flexShrink: 0 }}>{trailing}</Box> : null}
       </Box>
-      {navItems.length > 0 ? (
+      {stripItems.length > 0 ? (
         <Box sx={chatLiveNavRowSx}>
           <Box sx={chatLiveNavStripSx} role="tablist" aria-label="Live chat sections">
-            {navItems.map((item) => {
+            {stripItems.map((item) => {
               const active =
                 pathname === item.href || pathname.startsWith(`${item.href}/`);
               return (

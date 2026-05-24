@@ -1,6 +1,9 @@
 export { websiteAssignmentsKeys } from "./keys";
 export {
   useAssignWebsiteTierMutation,
+  useDepartmentRosterCoverageQuery,
+  useDepartmentRosterHrmsContextQuery,
+  usePutDepartmentRosterCoverageMutation,
   usePutDepartmentRosterMutation,
   useRemoveWebsiteSlotMutation,
   useWebsiteAssignmentDetailQuery,

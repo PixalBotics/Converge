@@ -221,7 +221,7 @@ export function ComposerDrawerTabs({
                             variant="outlined"
                             size="small"
                             component={Link}
-                            href="/dashboard/chat-settings"
+                            href="/dashboard/chat-canned"
                           >
                             Manage canned messages
                           </Button>

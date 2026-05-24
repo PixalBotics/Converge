@@ -8,6 +8,7 @@ import {
   saveInvolvementUsers,
 } from "@/services/chat/involvement-roster.api";
 import { listQaRosterInScope, saveQaWebsiteRoster, fetchQaWebsiteRoster } from "@/services/chat/qa-roster.api";
+import { chatSettingsKeys } from "@/features/chat-settings/hooks/keys";
 
 export const involvementListKeys = {
   all: ["involvement-list"] as const,
@@ -85,8 +86,12 @@ export function useSaveQaRosterWebsiteMutation() {
       internalUserIds: string[];
       externalUserIds: string[];
     }) => saveQaWebsiteRoster(websiteId, { internalUserIds, externalUserIds }),
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       void qc.invalidateQueries({ queryKey: qaRosterListKeys.all });
+      void qc.invalidateQueries({
+        queryKey: chatSettingsKeys.qaRosterExclusions(variables.websiteId),
+      });
+      void qc.invalidateQueries({ queryKey: chatSettingsKeys.qaRoster(variables.websiteId) });
     },
   });
 }

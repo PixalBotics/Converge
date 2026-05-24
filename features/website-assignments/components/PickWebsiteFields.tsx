@@ -28,12 +28,15 @@ export type PickWebsiteFieldsProps = {
   onChange: (next: PickWebsitePreset) => void;
   /** Hide websites that already have a distribution setup (new wizard only). */
   excludeWebsiteIds?: readonly string[];
+  /** Hide inline Parent / Child / Website chips when a page-level flow stepper is shown. */
+  showProgressChips?: boolean;
 };
 
 export function PickWebsiteFields({
   value,
   onChange,
   excludeWebsiteIds,
+  showProgressChips = true,
 }: PickWebsiteFieldsProps) {
   const { canFilterByResellerId, sessionResellerId } = useResellerListScope();
 
@@ -163,15 +166,17 @@ export function PickWebsiteFields({
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
-      <Box sx={assignmentStepRowSx}>
-        {[
-          { n: 1, label: "Parent" },
-          { n: 2, label: "Child company" },
-          { n: 3, label: "Website" },
-        ].map(({ n, label }) => (
-          <Chip key={n} label={`${n}. ${label}`} size="small" sx={assignmentStepChipSx(wizardStep >= n)} />
-        ))}
-      </Box>
+      {showProgressChips ? (
+        <Box sx={assignmentStepRowSx}>
+          {[
+            { n: 1, label: "Parent" },
+            { n: 2, label: "Child company" },
+            { n: 3, label: "Website" },
+          ].map(({ n, label }) => (
+            <Chip key={n} label={`${n}. ${label}`} size="small" sx={assignmentStepChipSx(wizardStep >= n)} />
+          ))}
+        </Box>
+      ) : null}
 
       <SchedulingSectionCard
         step={1}

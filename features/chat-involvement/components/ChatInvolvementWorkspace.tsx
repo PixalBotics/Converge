@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import FilterList from "@mui/icons-material/FilterList";
 import Box from "@mui/material/Box";
 import Tab from "@mui/material/Tab";
@@ -25,7 +25,7 @@ import {
   websiteAssignmentFilterIconBox,
   websiteAssignmentFilterTitleRow,
 } from "@/app/dashboard/website-assigning/website-assigning.styles";
-import { buildChatLiveNavItems, useChatApiGates } from "@/lib/permissions";
+import { useChatApiGates } from "@/lib/permissions";
 import { useAuth } from "@/lib/auth";
 import { OP } from "@/lib/permissions/operational-keys";
 import { fetchWebsiteInvolvementLinks } from "@/services/chat/involvement.api";
@@ -39,10 +39,6 @@ export function ChatInvolvementWorkspace() {
   const theme = useTheme() as AppTheme;
   const { hasOperational, hasPage, permissionsSyncing } = useAuth();
   const gates = useChatApiGates();
-  const chatNavItems = useMemo(
-    () => buildChatLiveNavItems(hasPage, hasOperational),
-    [hasPage, hasOperational],
-  );
   const [tab, setTab] = useState<TabId>("users");
   const [filterPopoverOpen, setFilterPopoverOpen] = useState(false);
 
@@ -80,7 +76,7 @@ export function ChatInvolvementWorkspace() {
       <ChatLivePageHeader
         title="Chat involvement & QA setup"
         subtitle="External involvement users (email + monitor), QA roster, and link activity. Agents send links from the inbox."
-        navItems={chatNavItems}
+        navItems={[]}
       />
 
       <DashboardCard sx={websiteAssignmentFilterCard}>

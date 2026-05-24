@@ -58,7 +58,15 @@ export function normalizeConversationHistoryPayload(
     ([] as RawChatMessagePayload[]);
 
   const messages = rawMsgs
-    .map((m) => normalizeServerMessage(m))
+    .map((m) =>
+      normalizeServerMessage({
+        ...m,
+        conversationId:
+          (m as Record<string, unknown>).conversationId ??
+          (m as Record<string, unknown>).conversation_id ??
+          cid,
+      }),
+    )
     .filter((m): m is NonNullable<typeof m> => Boolean(m));
 
   const visitor =
