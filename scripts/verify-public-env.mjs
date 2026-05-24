@@ -66,6 +66,9 @@ const RECOMMENDED = [
   },
 ];
 
+const isNetlify = process.env.NETLIFY === "true";
+const isCi = process.env.CI === "true";
+
 const env = loadMergedEnv();
 const missing = REQUIRED.filter(({ key }) => !String(env[key] ?? "").trim());
 
@@ -74,9 +77,15 @@ if (missing.length > 0) {
   for (const { key, hint } of missing) {
     console.error(`  • ${key}  (${hint})`);
   }
-  console.error(
-    "\nCopy .env.production.example → .env.production.local and set values.\n",
-  );
+  if (isNetlify || isCi) {
+    console.error(
+      "\nSet variables in Netlify → Site configuration → Environment variables.\n",
+    );
+  } else {
+    console.error(
+      "\nCopy .env.production.example → .env.production.local and set values.\n",
+    );
+  }
   process.exit(1);
 }
 
