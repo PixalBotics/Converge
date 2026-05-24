@@ -5,6 +5,7 @@ import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
 import Skeleton from "@mui/material/Skeleton";
 import { alpha } from "@mui/material/styles";
+import type { SxProps, Theme } from "@mui/material/styles";
 import DescriptionOutlined from "@mui/icons-material/DescriptionOutlined";
 import ExpandMore from "@mui/icons-material/ExpandMore";
 import { Button, Typography } from "@/components/common";
@@ -62,10 +63,12 @@ function PreviewField({
         {label}
       </Box>
       <Box
-        sx={[
-          distributionPreviewFieldValueSx,
-          multiline ? { minHeight: 96, whiteSpace: "pre-wrap", lineHeight: 1.5 } : {},
-        ]}
+        sx={
+          [
+            distributionPreviewFieldValueSx,
+            multiline ? { minHeight: 96, whiteSpace: "pre-wrap", lineHeight: 1.5 } : {},
+          ] as SxProps<Theme>
+        }
       >
         {value}
       </Box>

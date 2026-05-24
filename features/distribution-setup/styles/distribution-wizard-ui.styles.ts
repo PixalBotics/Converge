@@ -1,6 +1,9 @@
 import { alpha } from "@mui/material/styles";
 import type { SxProps, Theme } from "@mui/material/styles";
+import type { SystemStyleObject } from "@mui/system";
 import type { AppTheme } from "@/theme/theme";
+
+type ThemeSxCallback = (theme: Theme) => SystemStyleObject<Theme>;
 
 export const distributionWizardFooterActionsSx: SxProps<Theme> = {
   display: "flex",
@@ -52,7 +55,7 @@ export const distributionStepperGridSx: SxProps<Theme> = {
 };
 
 export const distributionStepCardSx =
-  (state: "active" | "done" | "upcoming"): SxProps<Theme> =>
+  (state: "active" | "done" | "upcoming"): ThemeSxCallback =>
   (theme) => {
     const t = theme as AppTheme;
     const base = {
@@ -157,7 +160,7 @@ export const distributionAgentFormBodySx: SxProps<Theme> = {
 };
 
 /** Light-surface field styles — do not use dashboard InputField inside the white preview. */
-export const distributionPreviewFieldLabelSx: SxProps<Theme> = {
+export const distributionPreviewFieldLabelSx: SystemStyleObject<Theme> = {
   display: "block",
   mb: 0.5,
   color: "#334155",
@@ -166,7 +169,7 @@ export const distributionPreviewFieldLabelSx: SxProps<Theme> = {
   lineHeight: 1.3,
 };
 
-export const distributionPreviewFieldValueSx: SxProps<Theme> = {
+export const distributionPreviewFieldValueSx: SystemStyleObject<Theme> = {
   display: "block",
   width: "100%",
   px: 1.5,

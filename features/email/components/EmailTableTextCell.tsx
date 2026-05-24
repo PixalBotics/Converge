@@ -1,6 +1,7 @@
 "use client";
 
 import Box from "@mui/material/Box";
+import type { SxProps, Theme } from "@mui/material/styles";
 import { emailTableCellTruncateSx } from "../styles/email-table.styles";
 
 export function EmailTableTextCell({
@@ -16,10 +17,12 @@ export function EmailTableTextCell({
     <Box
       component="span"
       title={text === "—" ? undefined : text}
-      sx={[
-        emailTableCellTruncateSx,
-        muted ? { color: "inherit", opacity: 0.82 } : null,
-      ]}
+      sx={
+        [
+          emailTableCellTruncateSx,
+          muted ? { color: "inherit", opacity: 0.82 } : null,
+        ] as SxProps<Theme>
+      }
     >
       {text}
     </Box>

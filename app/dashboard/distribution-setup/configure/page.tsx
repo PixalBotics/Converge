@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Box from "@mui/material/Box";
+import type { SxProps, Theme } from "@mui/material/styles";
 import LanguageOutlined from "@mui/icons-material/LanguageOutlined";
 import { Button, Typography } from "@/components/common";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
@@ -110,7 +111,7 @@ export default function ConfigureDistributionPage() {
       }
     >
       {scopeLabels && isPickWebsiteComplete(preset) ? (
-        <Box sx={[emailFormWebsiteScopeSx, { mb: 2.5 }]}>
+        <Box sx={[emailFormWebsiteScopeSx, { mb: 2.5 }] as SxProps<Theme>}>
           <Box
             sx={{
               width: 40,

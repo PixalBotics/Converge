@@ -1,6 +1,9 @@
 import { alpha } from "@mui/material/styles";
 import type { SxProps, Theme } from "@mui/material/styles";
+import type { SystemStyleObject } from "@mui/system";
 import type { AppTheme } from "@/theme/theme";
+
+type ThemeSxCallback = (theme: Theme) => SystemStyleObject<Theme>;
 
 export const emailFormBuilderPageSx: SxProps<Theme> = {
   maxWidth: 1280,
@@ -32,7 +35,7 @@ export const emailFormTypeChoiceCardSx =
     };
   };
 
-export const emailFormWebsiteScopeSx: SxProps<Theme> = (theme) => {
+export const emailFormWebsiteScopeSx: ThemeSxCallback = (theme) => {
   const t = theme as AppTheme;
   return {
     display: "flex",
