@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type ChangeEvent } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import ChatRounded from "@mui/icons-material/ChatRounded";
 import CloudUploadOutlined from "@mui/icons-material/CloudUploadOutlined";
@@ -11,6 +11,8 @@ import type { AppTheme } from "@/theme/theme";
 import { Button, InputField, SelectField, Typography } from "@/components/common";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
 import { WidgetFlowShell } from "@/features/chat-widget";
+import { WidgetWizardPageLayout } from "@/features/chat-widget/components/WidgetWizardPageLayout";
+import { SchedulingSectionCard } from "@/features/website-assignments/components/ServiceSchedulingSections";
 import { LAUNCHER_ICON_PRESETS, LauncherPresetIcon } from "@/lib/chat-widget/launcherIcons";
 import {
   patchRemoteWidgetConfiguration,
@@ -30,7 +32,8 @@ import {
   readWidgetChatColorsFromDraft,
   widgetChatColorsDraftToPatch,
 } from "@/lib/chat-widget/widget-colors-draft";
-import { WidgetAccentDensityPreview } from "@/components/dashboard/chat-widget/WidgetAccentDensityPreview";
+import { WidgetLauncherLivePreview } from "@/components/dashboard/chat-widget/WidgetLauncherLivePreview";
+import { WidgetColorPickerField } from "@/components/dashboard/chat-widget/WidgetColorPickerField";
 import {
   DESIGN_ACCENT_SELECT_OPTIONS,
   DESIGN_DENSITY_SELECT_OPTIONS,
@@ -39,11 +42,6 @@ import {
   defaultWidgetDraft,
   type LauncherIconPresetId,
 } from "@/lib/chat-widget/widgetDraft";
-
-const STEPS = ["Widget Button Design", "Chat Box Design", "Notifications & Advanced"];
-
-const PREVIEW_LAUNCHER_PX = 52;
-const PREVIEW_SIM_MIN_HEIGHT = 200;
 
 function parseInsetPxString(raw: string, fallback: number): number {
   const n = Number.parseInt(raw.trim(), 10);
@@ -73,6 +71,7 @@ export default function ChatWidgetButtonDesignPage() {
   const [launcherInsetSide, setLauncherInsetSide] = useState("28");
   const iconUploadRef = useRef<HTMLInputElement | null>(null);
   const [saving, setSaving] = useState(false);
+  const [checklistRefreshKey, setChecklistRefreshKey] = useState(0);
 
   const [themeName, setThemeName] = useState(defaultWidgetDraft.themeName ?? "Brand Default");
   const [themePrimaryColor, setThemePrimaryColor] = useState(
@@ -134,23 +133,7 @@ export default function ChatWidgetButtonDesignPage() {
     setThemeDesignJsonDensity(d.themeDesignJsonDensity ?? "comfortable");
   }, [draftReady, editWidgetKey]);
 
-  const handlePickColor = (event: ChangeEvent<HTMLInputElement>) => {
-    const color = event.target.value;
-    if (!color) return;
-    setSelectedButtonColor(color);
-  };
-
-  const handleHexInput = (event: ChangeEvent<HTMLInputElement>) => {
-    const raw = event.target.value.trim();
-    if (!raw) {
-      setSelectedButtonColor("");
-      return;
-    }
-    const withHash = raw.startsWith("#") ? raw : `#${raw}`;
-    setSelectedButtonColor(withHash);
-  };
-
-  const handleIconUpload = (event: ChangeEvent<HTMLInputElement>) => {
+  const handleIconUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
     setIconFileName(file.name);
@@ -159,27 +142,8 @@ export default function ChatWidgetButtonDesignPage() {
     reader.readAsDataURL(file);
   };
 
-  const buttonRadius = buttonShape === "circle" ? "50%" : buttonShape === "rounded" ? "16px" : "8px";
   const previewBottomPx = parseInsetPxString(launcherInsetBottom, 28);
   const previewSidePx = parseInsetPxString(launcherInsetSide, 28);
-  /** Live preview box must be tall enough so `bottom: Npx` does not push the launcher above the clip rect */
-  const previewCanvasMinHeight = Math.max(PREVIEW_SIM_MIN_HEIGHT, previewBottomPx + PREVIEW_LAUNCHER_PX + 16);
-
-  const previewFabSx = {
-    position: "absolute" as const,
-    bottom: `${previewBottomPx}px`,
-    width: 52,
-    height: 52,
-    ...(buttonPosition === "left"
-      ? { left: `${previewSidePx}px`, right: "auto", transform: "none" }
-      : buttonPosition === "right"
-        ? { right: `${previewSidePx}px`, left: "auto", transform: "none" }
-        : {
-            left: "50%",
-            right: "auto",
-            transform: `translateX(calc(-50% + ${previewSidePx}px))`,
-          }),
-  };
 
   const handleNext = () => {
     if (saving) return;
@@ -252,6 +216,7 @@ export default function ChatWidgetButtonDesignPage() {
         saveChatWizardDraft(editKey || undefined, {
           requiresPublishBeforeEmbed: sum.requiresPublishBeforeEmbed,
         });
+        setChecklistRefreshKey((k) => k + 1);
         router.push(
           withChatEditQuery(
             "/dashboard/chat-widget/add/chat/box",
@@ -275,7 +240,7 @@ export default function ChatWidgetButtonDesignPage() {
       pageTitle="Widget Customization"
       subtitle="Connect your workflow with industry-leading CRM platform minutes."
       cardTitle="Button Shape"
-      stepper={{ labels: STEPS, currentStep: 0 }}
+      currentStep={0}
       footer={
         <>
           <Button type="button" variant="secondary" onClick={() => router.push("/dashboard/chat-widget")}>
@@ -303,6 +268,24 @@ export default function ChatWidgetButtonDesignPage() {
           {hydrateError}
         </Typography>
       ) : null}
+      <WidgetWizardPageLayout
+        checklistRefreshKey={checklistRefreshKey}
+        preview={
+          <WidgetLauncherLivePreview
+            buttonShape={buttonShape}
+            buttonPosition={buttonPosition as "left" | "center" | "right"}
+            insetBottomPx={previewBottomPx}
+            insetSidePx={previewSidePx}
+            buttonColor={selectedButtonColor || "#2AA9E0"}
+            iconColor={selectedIconColor || "#FFFFFF"}
+            iconDataUrl={iconDataUrl}
+            launcherIconPreset={launcherIconPreset}
+            accent={themeDesignJsonAccent}
+            density={themeDesignJsonDensity}
+          />
+        }
+      >
+        <SchedulingSectionCard title="Launcher shape & position" subtitle="Floating button geometry and screen placement.">
       <Typography variant="mediumLarge" sx={{ color: theme.app.text.primary, mb: -1.25 }}>Button Shape</Typography>
       <Box sx={{ display: "flex", gap: 1.5, flexWrap: "wrap", mt: 0.75 }}>
         <IconButton
@@ -358,53 +341,26 @@ export default function ChatWidgetButtonDesignPage() {
         {buttonShape === "circle" ? "Circle" : buttonShape === "rounded" ? "Rounded" : "Square"}
       </Typography>
 
-      <Typography variant="mediumLarge" sx={{ color: theme.app.text.primary, mb: -1.25 }}>Button Color</Typography>
-      <Box sx={{ display: "flex", alignItems: "center", gap: 1.25 }}>
-        <Box
-          component="input"
-          type="color"
-          value={selectedButtonColor || "#000000"}
-          onChange={handlePickColor}
-          aria-label="Choose color"
-          sx={{
-            width: 44,
-            height: 44,
-            p: 0,
-            border: `1px solid ${theme.app.dashboard.cardBorder}`,
-            borderRadius: "4px",
-            bgcolor: "transparent",
-            cursor: "pointer",
-          }}
+      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 2, mb: 1.5 }}>
+        <WidgetColorPickerField
+          label="Button color"
+          value={selectedButtonColor}
+          onChange={setSelectedButtonColor}
+          fallback="#2563eb"
         />
-        <Typography variant="mediumLarge" sx={{ color: theme.app.dashboard.textMuted }}>
-          Choose color
-        </Typography>
-      </Box>
-      <InputField label="Hex" name="hexColor" value={selectedButtonColor} onChange={handleHexInput} />
-
-      <Typography variant="mediumLarge" sx={{ color: theme.app.text.primary, mb: -1.25 }}>Button Hover</Typography>
-      <Box sx={{ display: "flex", alignItems: "center", gap: 1.25 }}>
-        <Box
-          component="input"
-          type="color"
-          value={selectedHoverColor || "#000000"}
-          onChange={(event: ChangeEvent<HTMLInputElement>) => setSelectedHoverColor(event.target.value)}
-          aria-label="Choose hover color"
-          sx={{
-            width: 44,
-            height: 44,
-            p: 0,
-            border: `1px solid ${theme.app.dashboard.cardBorder}`,
-            borderRadius: "4px",
-            bgcolor: "transparent",
-            cursor: "pointer",
-          }}
+        <WidgetColorPickerField
+          label="Hover color"
+          value={selectedHoverColor}
+          onChange={setSelectedHoverColor}
+          fallback="#1d4ed8"
         />
-        <Typography variant="mediumLarge" sx={{ color: theme.app.dashboard.textMuted }}>
-          Hover color
-        </Typography>
+        <WidgetColorPickerField
+          label="Icon color"
+          value={selectedIconColor}
+          onChange={setSelectedIconColor}
+          fallback="#ffffff"
+        />
       </Box>
-      <InputField label="Hover Hex" name="hoverHexColor" value={selectedHoverColor} onChange={(event) => setSelectedHoverColor(event.target.value)} />
 
       <Typography variant="mediumLarge" sx={{ color: theme.app.text.primary, mb: -1.25 }}>
         Default launcher icon
@@ -492,35 +448,6 @@ export default function ChatWidgetButtonDesignPage() {
       </Box>
       <Box component="input" ref={iconUploadRef} type="file" accept=".svg,.png,.jpg,.jpeg,.webp" onChange={handleIconUpload} sx={{ display: "none" }} />
 
-      <Typography variant="mediumLarge" sx={{ color: theme.app.text.primary, mb: -1.25 }}>Icon Color</Typography>
-      <Box sx={{ display: "flex", alignItems: "center", gap: 1.25 }}>
-        <Box
-          component="input"
-          type="color"
-          value={selectedIconColor || "#FFFFFF"}
-          onChange={(event: ChangeEvent<HTMLInputElement>) => setSelectedIconColor(event.target.value)}
-          aria-label="Choose icon color"
-          sx={{
-            width: 44,
-            height: 44,
-            p: 0,
-            border: `1px solid ${theme.app.dashboard.cardBorder}`,
-            borderRadius: "4px",
-            bgcolor: "transparent",
-            cursor: "pointer",
-          }}
-        />
-        <Typography variant="mediumLarge" sx={{ color: theme.app.dashboard.textMuted }}>
-          Choose icon color
-        </Typography>
-      </Box>
-      <InputField
-        label="Icon Hex"
-        name="iconHexColor"
-        value={selectedIconColor}
-        onChange={(event) => setSelectedIconColor(event.target.value)}
-      />
-
       <SelectField
         label="Button Position"
         value={buttonPosition}
@@ -557,26 +484,23 @@ export default function ChatWidgetButtonDesignPage() {
         />
       </Box>
 
-      <Typography variant="mediumLarge" sx={{ color: theme.app.text.primary, mt: 2, mb: 0.5 }}>
-        Brand theme (PATCH step 1)
-      </Typography>
-      <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, mb: 1 }}>
-        These values map to config.theme on the server.
-      </Typography>
+        </SchedulingSectionCard>
+
+        <SchedulingSectionCard title="Brand theme" subtitle="Typography, spacing, and panel styling saved with the launcher.">
       <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 1.5 }}>
         <InputField label="Theme name" name="theme-name" value={themeName} onChange={(e) => setThemeName(e.target.value)} />
-        <InputField
-          label="Primary color (optional — empty uses launcher button color)"
-          name="theme-primary"
+        <WidgetColorPickerField
+          label="Primary color"
           value={themePrimaryColor}
-          onChange={(e) => setThemePrimaryColor(e.target.value)}
-          placeholder="#2563eb"
+          onChange={setThemePrimaryColor}
+          fallback={selectedButtonColor || "#2563eb"}
+          optional
         />
-        <InputField
+        <WidgetColorPickerField
           label="Secondary color"
-          name="theme-secondary"
           value={themeSecondaryColor}
-          onChange={(e) => setThemeSecondaryColor(e.target.value)}
+          onChange={setThemeSecondaryColor}
+          fallback="#64748b"
         />
         <InputField
           label="Font family"
@@ -657,85 +581,8 @@ export default function ChatWidgetButtonDesignPage() {
           options={DESIGN_DENSITY_SELECT_OPTIONS}
         />
       </Box>
-      <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, mt: -1, mb: 1 }}>
-        Step 1 PATCH sends <code>theme</code> scalars, <code>designJson.chat.colors</code>,{" "}
-        <code>designJson.theme</code>, <code>designJson.ui.backgroundColor</code>, and launcher fields on{" "}
-        <code>config.ui</code>. Design accent/density are preview-only until the API adds those keys.
-      </Typography>
-
-      <Typography variant="mediumLarge" sx={{ color: theme.app.text.primary, mt: 0.5, mb: -0.5 }}>
-        Live Preview
-      </Typography>
-      <Box
-        sx={{
-          border: `1px solid ${theme.app.dashboard.cardBorder}`,
-          borderRadius: 3,
-          p: 2,
-          minHeight: Math.max(250, previewCanvasMinHeight + 24),
-          bgcolor: "rgba(6, 12, 54, 0.45)",
-        }}
-      >
-        <Box
-          sx={{
-            position: "relative",
-            borderRadius: 2.5,
-            border: `1px solid ${theme.app.dashboard.cardBorder}`,
-            bgcolor: "#E5EAF2",
-            minHeight: previewCanvasMinHeight,
-            overflow: "hidden",
-          }}
-        >
-          <Box
-            sx={{
-              ...previewFabSx,
-              borderRadius: buttonRadius,
-              bgcolor: selectedButtonColor || "#2AA9E0",
-              boxShadow: "0 8px 18px rgba(7, 27, 73, 0.35)",
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              transition:
-                buttonPosition === "center"
-                  ? "transform 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease"
-                  : "background-color 0.2s ease, box-shadow 0.2s ease",
-              "&:hover": {
-                bgcolor: selectedHoverColor || "#1C8DC2",
-                ...(buttonPosition === "center"
-                  ? {
-                      transform:
-                        previewSidePx !== 0
-                          ? `translate(calc(-50% + ${previewSidePx}px), -2px) scale(1.04)`
-                          : "translate(-50%, -2px) scale(1.04)",
-                      boxShadow: "0 16px 30px rgba(7, 27, 73, 0.56), 0 0 0 3px rgba(255, 255, 255, 0.16)",
-                    }
-                  : {
-                      transform: "translateY(-2px) scale(1.04)",
-                      boxShadow: "0 16px 30px rgba(7, 27, 73, 0.56), 0 0 0 3px rgba(255, 255, 255, 0.16)",
-                    }),
-              },
-            }}
-          >
-            {iconDataUrl ? (
-              <Box
-                component="img"
-                src={iconDataUrl}
-                alt="Custom widget icon"
-                sx={{ width: 26, height: 26, objectFit: "contain" }}
-              />
-            ) : launcherIconPreset ? (
-              <LauncherPresetIcon presetId={launcherIconPreset} color={selectedIconColor || "#FFFFFF"} fontSizePx={26} />
-            ) : (
-              <ChatRounded sx={{ color: selectedIconColor || "#FFFFFF", fontSize: 26 }} />
-            )}
-          </Box>
-        </Box>
-        <WidgetAccentDensityPreview
-          accent={themeDesignJsonAccent}
-          density={themeDesignJsonDensity}
-          launcherColor={selectedButtonColor || "#2AA9E0"}
-          headerTextColor="#0f172a"
-        />
-      </Box>
+        </SchedulingSectionCard>
+      </WidgetWizardPageLayout>
     </WidgetFlowShell>
   );
 }

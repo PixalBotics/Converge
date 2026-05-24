@@ -15,6 +15,8 @@ export interface UseVisitorChatOptions {
   /** Widget session JWT (`POST /widget/session`). Required for authenticated Socket.IO in production. */
   widgetSessionToken?: string | null;
   getCurrentPageUrl?: () => string;
+  onChatAssigned?: () => void;
+  onChatQueued?: () => void;
 }
 
 export interface UseVisitorChatReturn {
@@ -128,9 +130,31 @@ export function useVisitorChat(
       setAgentTypingFromOther(false);
     });
 
-    const offAssigned = socketClient.onChatAssigned(() =>
-      setAssigned(true),
-    );
+    const getHandlers = () => options ?? {};
+
+    const offAssigned = socketClient.onChatAssigned((payload: unknown) => {
+      const cid = conversationIdRef.current;
+      if (
+        cid &&
+        typeof payload === "object" &&
+        payload &&
+        (payload as { conversationId?: string }).conversationId === cid
+      ) {
+        setAssigned(true);
+        getHandlers().onChatAssigned?.();
+      }
+    });
+    const offQueued = socketClient.onChatQueued((payload: unknown) => {
+      const cid = conversationIdRef.current;
+      if (
+        cid &&
+        typeof payload === "object" &&
+        payload &&
+        (payload as { conversationId?: string }).conversationId === cid
+      ) {
+        getHandlers().onChatQueued?.();
+      }
+    });
     const offClosed = socketClient.onChatClosed(() => {
       setAssigned(false);
       setAgentTypingFromOther(false);
@@ -146,9 +170,10 @@ export function useVisitorChat(
       offTyping();
       offStopTyping();
       offAssigned();
+      offQueued();
       offClosed();
     };
-  }, [options?.widgetSessionToken, socketClient, upsertMessage]);
+  }, [options, socketClient, upsertMessage]);
 
   const joinRoom = useCallback(
     (roomConversationId: string) => {

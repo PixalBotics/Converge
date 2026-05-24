@@ -1,7 +1,22 @@
+export {
+  CHAT_CONFIGURE_NAV_ITEMS,
+  CHAT_HUB_NAV_ITEMS,
+  CHAT_LIVE_NAV_ITEMS,
+} from "./constants/chat-live-nav";
 export { ChatLivePageHeader } from "./components/ChatLivePageHeader";
+export type { ChatLiveNavItem, ChatLiveNavPreset } from "./components/ChatLivePageHeader";
+export { ChatLiveViewSwitch } from "./components/ChatLiveViewSwitch";
+export type { ChatLiveViewOption } from "./components/ChatLiveViewSwitch";
+export { ChatLivePageShell } from "./components/ChatLivePageShell";
+export { ChatLiveHubScopeCard } from "./components/ChatLiveHubScopeCard";
+export { ChatWebsiteAgentsTable } from "./components/ChatWebsiteAgentsTable";
+export { useChatWebsiteAgents } from "./hooks/useChatWebsiteAgents";
+export type { ChatWebsiteAgentRow } from "./utils/flatten-website-agents";
 export { ChatSideToolCard } from "./components/ChatSideToolCard";
 export type { ChatSideToolCardAccent, ChatSideToolCardProps } from "./components/ChatSideToolCard";
 export { ChatScopeFiltersPanel } from "./components/ChatScopeFiltersPanel";
+export { ChatScopeTableFiltersCard } from "./components/ChatScopeTableFiltersCard";
+export { chatConfigurePageTabsSx } from "./styles/chat-live.styles";
 export { MultiUserCheckboxPicker } from "./components/MultiUserCheckboxPicker";
 export type { MultiUserCheckboxPickerProps } from "./components/MultiUserCheckboxPicker";
 export { useChatScopeFilters } from "./hooks/useChatScopeFilters";

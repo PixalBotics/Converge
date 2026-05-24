@@ -14,6 +14,7 @@ import { getWidgetEmbedSnippet } from "@/api/widgets/widgets.api";
 import { Button, Typography } from "@/components/common";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
 import { WidgetFlowShell } from "@/features/chat-widget";
+import { WidgetWizardConfigChecklist } from "@/features/chat-widget/components/WidgetWizardConfigChecklist";
 import { LauncherPresetIcon } from "@/lib/chat-widget/launcherIcons";
 import { buildUnifiedWidgetEmbedScript, type WidgetDraft } from "@/lib/chat-widget/widgetDraft";
 import {
@@ -242,6 +243,15 @@ export default function ChatWidgetScriptPage() {
         </Typography>
       ) : null}
 
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: { xs: "1fr", xl: "minmax(0, 1fr) minmax(280px, 340px)" },
+          gap: 3,
+          alignItems: "start",
+        }}
+      >
+        <Box sx={{ minWidth: 0 }}>
       <Typography variant="mediumLarge" sx={{ color: theme.app.text.primary, mb: -1.2 }}>Embed Code</Typography>
       <Box
         sx={{
@@ -373,6 +383,17 @@ export default function ChatWidgetScriptPage() {
         <Button type="button" variant="secondary" onClick={() => router.push("/dashboard/chat-widget")}>
           Go to Widget Dashboard
         </Button>
+      </Box>
+        </Box>
+
+        <Box
+          sx={{
+            position: { xl: "sticky" },
+            top: 16,
+          }}
+        >
+          <WidgetWizardConfigChecklist />
+        </Box>
       </Box>
     </WidgetFlowShell>
   );

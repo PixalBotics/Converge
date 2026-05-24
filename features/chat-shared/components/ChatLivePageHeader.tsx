@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import Box from "@mui/material/Box";
 import { usePathname } from "next/navigation";
 import NextLink from "next/link";
@@ -12,39 +13,56 @@ import {
   chatLiveNavRowSx,
   chatLiveNavStripSx,
 } from "../styles/chat-live.styles";
+import {
+  CHAT_CONFIGURE_NAV_ITEMS,
+  CHAT_LIVE_NAV_ITEMS,
+} from "../constants/chat-live-nav";
+import { ChatLiveViewSwitch, type ChatLiveViewOption } from "./ChatLiveViewSwitch";
 
 export type ChatLiveNavItem = {
   href: string;
   label: string;
 };
 
-const DEFAULT_NAV: ChatLiveNavItem[] = [
-  { href: "/dashboard/chat-operations", label: "Inbox" },
-  { href: "/dashboard/chat-monitor", label: "Monitor" },
-  { href: "/dashboard/chat-qa", label: "QA inbox" },
-  { href: "/dashboard/chat-reports", label: "Reports" },
-  { href: "/dashboard/chat-involvement", label: "Involvement" },
-  { href: "/dashboard/chat-settings/close-policy", label: "Settings" },
-  { href: "/dashboard/chat-canned", label: "Canned" },
-];
+export type ChatLiveNavPreset = "triage" | "configure" | "none";
 
 interface ChatLivePageHeaderProps {
   title: string;
   subtitle?: string;
-  /** Omit for default strip; pass `[]` to hide horizontal nav (sidebar-only). */
+  /** Triage = inbox/monitor/QA. Configure = roster/reports/widget/settings. None = hide. */
+  navPreset?: ChatLiveNavPreset;
   navItems?: ChatLiveNavItem[];
-  trailing?: React.ReactNode;
+  trailing?: ReactNode;
+  /** Inbox/monitor view switch (underline tabs, no extra card). */
+  viewSwitch?: {
+    options: ChatLiveViewOption[];
+    value: string;
+    onChange: (id: string) => void;
+    ariaLabel?: string;
+  };
+}
+
+function resolveNavItems(
+  preset: ChatLiveNavPreset,
+  override?: ChatLiveNavItem[],
+): ChatLiveNavItem[] {
+  if (override !== undefined) return override;
+  if (preset === "none") return [];
+  if (preset === "configure") return CHAT_CONFIGURE_NAV_ITEMS;
+  return CHAT_LIVE_NAV_ITEMS;
 }
 
 export function ChatLivePageHeader({
   title,
   subtitle,
+  navPreset = "triage",
   navItems,
   trailing,
+  viewSwitch,
 }: ChatLivePageHeaderProps) {
   const theme = useTheme() as AppTheme;
   const pathname = usePathname();
-  const stripItems = navItems === undefined ? DEFAULT_NAV : navItems;
+  const stripItems = resolveNavItems(navPreset, navItems);
 
   return (
     <Box sx={chatLiveHeaderCardSx}>
@@ -57,7 +75,7 @@ export function ChatLivePageHeader({
           gap: 1.5,
         }}
       >
-        <Box sx={{ minWidth: 0 }}>
+        <Box sx={{ minWidth: 0, flex: 1 }}>
           <Typography
             variant="regularLarge"
             fontWeight={700}
@@ -68,7 +86,7 @@ export function ChatLivePageHeader({
           {subtitle ? (
             <Typography
               variant="medium"
-              sx={{ color: theme.app.dashboard.textMuted, mt: 0.4, maxWidth: 640, lineHeight: 1.45 }}
+              sx={{ color: theme.app.dashboard.textMuted, mt: 0.4, maxWidth: 720, lineHeight: 1.45 }}
             >
               {subtitle}
             </Typography>
@@ -76,6 +94,16 @@ export function ChatLivePageHeader({
         </Box>
         {trailing ? <Box sx={{ flexShrink: 0 }}>{trailing}</Box> : null}
       </Box>
+
+      {viewSwitch ? (
+        <ChatLiveViewSwitch
+          options={viewSwitch.options}
+          value={viewSwitch.value}
+          onChange={viewSwitch.onChange}
+          ariaLabel={viewSwitch.ariaLabel}
+        />
+      ) : null}
+
       {stripItems.length > 0 ? (
         <Box sx={chatLiveNavRowSx}>
           <Box sx={chatLiveNavStripSx} role="tablist" aria-label="Live chat sections">

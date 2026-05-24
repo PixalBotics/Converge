@@ -10,20 +10,19 @@ import {
   resolveDensityTokens,
 } from "@/lib/chat-widget/design-accent-density";
 
-/**
- * Step 1 live preview slice for `theme.designJson.accent` + `density`
- * (launcher FAB is previewed separately on the same page).
- */
 export function WidgetAccentDensityPreview({
   accent,
   density,
   launcherColor,
   headerTextColor,
+  embedded = false,
 }: {
   accent: string;
   density: string;
   launcherColor: string;
   headerTextColor: string;
+  /** Hide outer caption when nested inside launcher preview. */
+  embedded?: boolean;
 }) {
   const theme = useTheme() as AppTheme;
   const palette = resolveAccentPalette(accent);
@@ -31,39 +30,38 @@ export function WidgetAccentDensityPreview({
   const gap = densityTokens.stackGapMultiplier;
 
   return (
-    <Box sx={{ mt: 1.5 }}>
-      <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, mb: 1 }}>
-        Accent & density preview — how chips and spacing look inside the chat panel (saved as{" "}
-        <code>designJson.accent</code> / <code>designJson.density</code>).
-      </Typography>
+    <Box sx={embedded ? undefined : { mt: 1.5 }}>
+      {!embedded ? (
+        <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, mb: 1 }}>
+          Accent and density inside the chat panel.
+        </Typography>
+      ) : null}
       <Box
         sx={{
           borderRadius: 2,
           border: `1px solid ${theme.app.dashboard.cardBorder}`,
           overflow: "hidden",
-          maxWidth: 280,
+          width: "100%",
           bgcolor: "#fff",
-          color: headerTextColor,
+          color: "#0f172a",
           fontSize: 13,
+          boxShadow: embedded ? "0 8px 24px rgba(15, 23, 42, 0.08)" : undefined,
         }}
       >
         <Box
           sx={{
             px: 1.5,
-            py: 1,
+            py: 1.1,
             bgcolor: launcherColor,
             color: headerTextColor,
             fontWeight: 700,
             fontSize: 13,
           }}
         >
-          Panel header
+          Live chat
         </Box>
         <Box sx={{ p: `${densityTokens.panelPaddingPx}px` }}>
           <Stack spacing={gap}>
-            <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted }}>
-              Inquiry pills (accent)
-            </Typography>
             <Stack direction="row" spacing={0.75 * gap} flexWrap="wrap">
               <Box
                 sx={{
@@ -72,8 +70,9 @@ export function WidgetAccentDensityPreview({
                   borderRadius: 99,
                   border: `1px solid ${palette.border}`,
                   bgcolor: "#fff",
-                  color: headerTextColor,
+                  color: "#0f172a",
                   fontSize: 12,
+                  fontWeight: 600,
                 }}
               >
                 Billing
@@ -86,6 +85,7 @@ export function WidgetAccentDensityPreview({
                   bgcolor: palette.main,
                   color: "#fff",
                   fontSize: 12,
+                  fontWeight: 600,
                 }}
               >
                 Technical
@@ -94,41 +94,44 @@ export function WidgetAccentDensityPreview({
             <Box
               sx={{
                 border: `1px solid ${palette.border}`,
-                borderRadius: 1,
-                px: 1,
+                borderRadius: 1.25,
+                px: 1.25,
                 py: `${densityTokens.inputPaddingPx}px`,
                 bgcolor: palette.light,
                 fontSize: 12,
+                color: "#64748b",
               }}
             >
-              Sample input (accent border)
+              Type a message…
             </Box>
-            <Stack direction="row" spacing={0.75 * gap}>
+            <Stack direction="row" spacing={0.75 * gap} alignItems="flex-end">
               <Box
                 sx={{
                   flex: 1,
-                  px: 1,
+                  px: 1.25,
                   py: `${densityTokens.messagePy}px`,
                   borderRadius: 1.5,
                   bgcolor: palette.light,
-                  color: headerTextColor,
+                  color: "#0f172a",
                   fontSize: 12,
+                  lineHeight: 1.45,
                 }}
               >
-                Incoming message
+                Hi! How can we help?
               </Box>
               <Box
                 sx={{
-                  px: 1,
+                  px: 1.25,
                   py: `${densityTokens.messagePy}px`,
                   borderRadius: 1.5,
                   bgcolor: launcherColor,
                   color: "#fff",
                   fontSize: 12,
-                  maxWidth: "48%",
+                  maxWidth: "46%",
+                  lineHeight: 1.45,
                 }}
               >
-                You
+                Hello
               </Box>
             </Stack>
           </Stack>

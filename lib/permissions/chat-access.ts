@@ -165,7 +165,7 @@ export function buildChatLiveNavItems(
     (hasPage(PAGE.CHAT_QA) || hasPage(PAGE.CHAT)) &&
     canAccessChatQa(hasOperational)
   ) {
-    items.push({ href: "/dashboard/chat-qa", label: "QA inbox" });
+    items.push({ href: "/dashboard/qa/inbox", label: "QA inbox" });
   }
   if (
     (hasPage(PAGE.CHAT_REPORTS) || hasPage(PAGE.CHAT)) &&
@@ -190,7 +190,7 @@ export function buildChatLiveNavItems(
       hasOperational(OP.chatWidget.view) ||
       hasOperational(OP.chatWidget.update))
   ) {
-    items.push({ href: "/dashboard/chat-settings/qa-roster", label: "QA roster" });
+    items.push({ href: "/dashboard/qa/roster", label: "QA roster" });
   }
   if (
     (hasPage(PAGE.CHAT_WIDGET) || hasPage(PAGE.CHAT)) &&

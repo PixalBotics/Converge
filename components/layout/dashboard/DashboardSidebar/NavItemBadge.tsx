@@ -5,6 +5,7 @@ import { useNotificationsContext } from "@/lib/notifications/NotificationsContex
 
 const HREF_BADGE: Record<string, keyof { chat: number; qa: number; hrms_leave: number; hrms_attendance: number }> = {
   "/dashboard/chat-operations": "chat",
+  "/dashboard/qa/inbox": "qa",
   "/dashboard/chat-qa": "qa",
   "/dashboard/leave/approval-inbox": "hrms_leave",
   "/dashboard/attendance/team-attendance": "hrms_attendance",

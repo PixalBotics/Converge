@@ -3,6 +3,10 @@ import type {
   AssistantSourceType,
   CreateKnowledgeSourceJsonBody,
   CreateKnowledgeSourceResult,
+  ListKbTrainingWebsitesParams,
+  ListKbTrainingWebsitesResult,
+  ListKnowledgeSourceChunksParams,
+  ListKnowledgeSourceChunksResult,
   ListKnowledgeSourcesParams,
   ListKnowledgeSourcesResult,
   ReindexBulkResult,
@@ -69,6 +73,26 @@ export async function listAiAssistantKbSources(
 ): Promise<ListKnowledgeSourcesResult> {
   const { data } = await apiClient.get<unknown>("/ai-assistant/kb/sources", { params });
   return unwrapAiKnowledgeData<ListKnowledgeSourcesResult>(data);
+}
+
+export async function listAiAssistantKbTrainingWebsites(
+  params?: ListKbTrainingWebsitesParams,
+): Promise<ListKbTrainingWebsitesResult> {
+  const { data } = await apiClient.get<unknown>("/ai-assistant/kb/training-websites", {
+    params,
+  });
+  return unwrapAiKnowledgeData<ListKbTrainingWebsitesResult>(data);
+}
+
+export async function listAiAssistantKbSourceChunks(
+  sourceId: string,
+  params?: ListKnowledgeSourceChunksParams,
+): Promise<ListKnowledgeSourceChunksResult> {
+  const { data } = await apiClient.get<unknown>(
+    `/ai-assistant/kb/sources/${encodeURIComponent(sourceId.trim())}/chunks`,
+    { params },
+  );
+  return unwrapAiKnowledgeData<ListKnowledgeSourceChunksResult>(data);
 }
 
 export async function deleteAiAssistantKbSource(

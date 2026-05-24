@@ -65,17 +65,29 @@ export function mapAdminWidgetToTableRow(item: JsonRecord): AdminWidgetTableRow 
   const chatEnabled = surfaces?.chatEnabled !== false;
   const textUsEnabled = surfaces?.textUsEnabled !== false;
 
-  const published =
+  const publishedRaw =
     item.publishedVersionNo ?? item.activeVersionNo ?? item.versionNo ?? null;
-  const statusRaw = String(item.status ?? item.widgetStatus ?? "").toLowerCase();
-  const statusLabel =
-    published != null && published !== ""
-      ? "Published"
-      : statusRaw.includes("draft")
-        ? "Draft"
-        : statusRaw
-          ? statusRaw
-          : "—";
+  const latestDraftRaw = item.latestDraftVersionNo ?? item.latestDraftVersion ?? null;
+  const pubNum =
+    publishedRaw !== undefined && publishedRaw !== null && publishedRaw !== ""
+      ? Number(publishedRaw)
+      : NaN;
+  const draftNum =
+    latestDraftRaw !== undefined && latestDraftRaw !== null && latestDraftRaw !== ""
+      ? Number(latestDraftRaw)
+      : NaN;
+  const hasPublished = Number.isFinite(pubNum);
+  const hasDraft = Number.isFinite(draftNum);
+  const hasUnpublishedDraft = hasPublished && hasDraft && draftNum > pubNum;
+
+  let statusLabel = "Draft";
+  if (hasPublished && hasUnpublishedDraft) {
+    statusLabel = `Published v${pubNum} · Draft v${draftNum}`;
+  } else if (hasPublished) {
+    statusLabel = `Published v${pubNum}`;
+  } else if (hasDraft) {
+    statusLabel = `Draft v${draftNum}`;
+  }
 
   return {
     id,
@@ -92,10 +104,9 @@ export function mapAdminWidgetToTableRow(item: JsonRecord): AdminWidgetTableRow 
       item.resellerName ?? item.clientName ?? item.resellerTitle ?? "—",
     ),
     widgetTypeLabel,
-    publishedVersionNo:
-      published !== undefined && published !== null && published !== ""
-        ? String(published)
-        : "—",
+    publishedVersionNo: hasPublished ? String(pubNum) : "—",
+    latestDraftVersionNo: hasDraft ? String(draftNum) : "—",
+    hasUnpublishedDraft,
     chatEnabled,
     textUsEnabled,
     statusLabel,

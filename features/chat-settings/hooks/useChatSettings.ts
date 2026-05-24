@@ -3,6 +3,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { listDepartments } from "@/api/hrms/departments.api";
 import { listPools } from "@/api/hrms/pools.api";
+import { listClosePolicies } from "@/services/chat/close-policy-list.api";
+import type { ListClosePoliciesQuery } from "@/services/chat/close-policy-list.types";
 import {
   createChatRoute,
   deleteChatRoute,
@@ -38,6 +40,15 @@ export function useWebsiteChatSettingsQuery(websiteId: string, apiEnabled = true
     queryKey: chatSettingsKeys.website(websiteId),
     queryFn: () => fetchWebsiteChatSettings(websiteId),
     enabled: apiEnabled && Boolean(websiteId?.trim()),
+  });
+}
+
+export function useClosePolicyListQuery(query: ListClosePoliciesQuery, enabled = true) {
+  return useQuery({
+    queryKey: chatSettingsKeys.closePolicyList(query),
+    queryFn: () => listClosePolicies({ ...query, all: true }),
+    enabled,
+    staleTime: 30_000,
   });
 }
 
@@ -130,6 +141,7 @@ export function useSaveWebsiteChatSettingsMutation(websiteId: string) {
       saveWebsiteChatSettings(websiteId, body),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: chatSettingsKeys.website(websiteId) });
+      void qc.invalidateQueries({ queryKey: [...chatSettingsKeys.all, "close-policy"] });
     },
   });
 }

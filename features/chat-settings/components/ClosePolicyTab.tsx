@@ -1,10 +1,14 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import Box from "@mui/material/Box";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Switch from "@mui/material/Switch";
-import { useTheme } from "@mui/material/styles";
+import TimerOutlined from "@mui/icons-material/TimerOutlined";
+import PersonOffOutlined from "@mui/icons-material/PersonOffOutlined";
+import SupervisorAccountOutlined from "@mui/icons-material/SupervisorAccountOutlined";
+import LinkOutlined from "@mui/icons-material/LinkOutlined";
+import { alpha, useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import { Button, InputField, Typography } from "@/components/common";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
@@ -13,6 +17,8 @@ import {
   mergeChatOperationsJson,
 } from "@/services/chat/chat-settings.defaults";
 import type { ChatOperationsJson, WebsiteChatSettingsRow } from "@/services/chat/chat-settings.types";
+import { PolicyMinutesField } from "./PolicyMinutesField";
+import { ClosePolicyStatusChip } from "./ClosePolicyStatusChip";
 
 function readBool(section: Record<string, unknown> | undefined, key: string): boolean {
   return Boolean(section?.[key]);
@@ -38,9 +44,19 @@ interface ClosePolicyTabProps {
     defaultDepartmentId: string | null;
     operationsJson: ChatOperationsJson;
   }) => void;
+  /** Hide footer save — parent modal supplies primary action via onSaveReady */
+  hideSaveButton?: boolean;
+  onSaveReady?: (save: () => void) => void;
 }
 
-export function ClosePolicyTab({ settings, canEdit, saving, onSave }: ClosePolicyTabProps) {
+export function ClosePolicyTab({
+  settings,
+  canEdit,
+  saving,
+  onSave,
+  hideSaveButton = false,
+  onSaveReady,
+}: ClosePolicyTabProps) {
   const theme = useTheme() as AppTheme;
   const [ops, setOps] = useState<ChatOperationsJson>(() =>
     mergeChatOperationsJson(
@@ -58,10 +74,7 @@ export function ClosePolicyTab({ settings, canEdit, saving, onSave }: ClosePolic
     );
   }, [settings]);
 
-  const cp = (ops.closePolicy ?? DEFAULT_CHAT_OPERATIONS.closePolicy) as Record<
-    string,
-    unknown
-  >;
+  const cp = (ops.closePolicy ?? DEFAULT_CHAT_OPERATIONS.closePolicy) as Record<string, unknown>;
   const vi = (cp.visitorIdle ?? {}) as Record<string, unknown>;
   const anr = (cp.agentNoResponse ?? {}) as Record<string, unknown>;
   const sc = (cp.supervisorClose ?? {}) as Record<string, unknown>;
@@ -88,6 +101,8 @@ export function ClosePolicyTab({ settings, canEdit, saving, onSave }: ClosePolic
     reasonMinLength: 3,
   };
 
+  const policyEnabled = readBool(cp, "enabled");
+
   const patchClosePolicy = (patch: Record<string, unknown>) => {
     setOps((prev) => ({
       ...prev,
@@ -99,53 +114,84 @@ export function ClosePolicyTab({ settings, canEdit, saving, onSave }: ClosePolic
   };
 
   const patchVisitorIdle = (patch: Record<string, unknown>) => {
-    patchClosePolicy({
-      visitorIdle: { ...vi, ...patch },
-    });
+    patchClosePolicy({ visitorIdle: { ...vi, ...patch } });
   };
 
   const patchAgentNoResponse = (patch: Record<string, unknown>) => {
-    patchClosePolicy({
-      agentNoResponse: { ...anr, ...patch },
-    });
+    patchClosePolicy({ agentNoResponse: { ...anr, ...patch } });
   };
 
   const patchSupervisorClose = (patch: Record<string, unknown>) => {
-    patchClosePolicy({
-      supervisorClose: { ...sc, ...patch },
-    });
+    patchClosePolicy({ supervisorClose: { ...sc, ...patch } });
   };
 
   const patchOnClose = (patch: Record<string, unknown>) => {
-    patchClosePolicy({
-      onClose: { ...oc, ...patch },
-    });
+    patchClosePolicy({ onClose: { ...oc, ...patch } });
   };
 
+  const handleSave = useCallback(() => {
+    onSave({
+      defaultDepartmentId: settings.defaultDepartmentId,
+      operationsJson: ops,
+    });
+  }, [onSave, ops, settings.defaultDepartmentId]);
+
+  useEffect(() => {
+    if (!onSaveReady) return;
+    onSaveReady(handleSave);
+  }, [handleSave, onSaveReady]);
+
+  const sectionDisabled = !canEdit || !policyEnabled;
+
   return (
-    <Box sx={{ display: "flex", flexDirection: "column", gap: 3, maxWidth: 720 }}>
-      <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted }}>
-        Per-website rules for auto-close, visitor nudges, and agent no-response alerts.
-        Timers run on the server every minute.
-      </Typography>
-
-      <FormControlLabel
-        disabled={!canEdit}
-        control={
-          <Switch
-            checked={readBool(cp, "enabled")}
-            onChange={(_, v) => patchClosePolicy({ enabled: v })}
+    <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
+      <Box
+        sx={{
+          display: "flex",
+          flexWrap: "wrap",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 1.5,
+          p: 2,
+          borderRadius: 2,
+          border: `1px solid ${alpha(theme.app.dashboard.accentBlue, 0.25)}`,
+          bgcolor: alpha(theme.app.dashboard.accentBlue, 0.06),
+        }}
+      >
+        <Box>
+          <Typography fontWeight={700} sx={{ fontSize: 15, color: theme.app.text.primary }}>
+            Close policy
+          </Typography>
+          <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, display: "block", mt: 0.35 }}>
+            Server checks run every minute. Timers use website-local settings below.
+          </Typography>
+        </Box>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+          <ClosePolicyStatusChip enabled={policyEnabled} />
+          <FormControlLabel
+            disabled={!canEdit}
+            sx={{ m: 0 }}
+            control={
+              <Switch
+                checked={policyEnabled}
+                onChange={(_, v) => patchClosePolicy({ enabled: v })}
+              />
+            }
+            label={
+              <Typography sx={{ fontSize: 13, fontWeight: 600 }}>Enable for this website</Typography>
+            }
           />
-        }
-        label="Enable close policy for this website"
-      />
+        </Box>
+      </Box>
 
-      <Section title="Visitor inactivity">
-        <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, display: "block", mb: 1.5 }}>
-          When the agent (or AI) sent the last message and the visitor stops replying.
-        </Typography>
+      <Section
+        icon={<TimerOutlined fontSize="small" />}
+        title="Visitor inactivity"
+        description="When the agent (or AI) sent the last message and the visitor stops replying."
+        disabled={sectionDisabled}
+      >
         <FormControlLabel
-          disabled={!canEdit || !readBool(cp, "enabled")}
+          disabled={sectionDisabled}
           control={
             <Switch
               checked={readBool(vi, "enabled")}
@@ -154,52 +200,61 @@ export function ClosePolicyTab({ settings, canEdit, saving, onSave }: ClosePolic
           }
           label="Auto-close inactive visitor chats"
         />
-        <Box sx={{ display: "grid", gap: 1.5, mt: 1 }}>
-          <InputField
-            label="Nudge after (minutes)"
-            type="number"
-            disabled={!canEdit || !readBool(cp, "enabled") || !readBool(vi, "enabled")}
-            value={String(readNum(vi, "nudgeAfterMinutes", viDefaults.nudgeAfterMinutes ?? 8))}
-            onChange={(e) =>
-              patchVisitorIdle({ nudgeAfterMinutes: Number(e.target.value) || 8 })
-            }
-            sx={{ maxWidth: 200 }}
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" },
+            gap: 2,
+            mt: 0.5,
+          }}
+        >
+          <PolicyMinutesField
+            label="Nudge after"
+            value={readNum(vi, "nudgeAfterMinutes", viDefaults.nudgeAfterMinutes ?? 8)}
+            disabled={sectionDisabled || !readBool(vi, "enabled")}
+            onChange={(n) => patchVisitorIdle({ nudgeAfterMinutes: n })}
+            helperText="Reminder before auto-close"
           />
-          <InputField
-            label="Nudge message"
-            multiline
-            minRows={2}
-            disabled={!canEdit || !readBool(cp, "enabled") || !readBool(vi, "enabled")}
-            value={readStr(vi, "nudgeMessage", viDefaults.nudgeMessage ?? "")}
-            onChange={(e) => patchVisitorIdle({ nudgeMessage: e.target.value })}
+          <PolicyMinutesField
+            label="Close after"
+            value={readNum(vi, "closeAfterMinutes", viDefaults.closeAfterMinutes ?? 10)}
+            disabled={sectionDisabled || !readBool(vi, "enabled")}
+            onChange={(n) => patchVisitorIdle({ closeAfterMinutes: n })}
+            helperText="From last visitor message"
           />
-          <InputField
-            label="Close after (minutes)"
-            type="number"
-            disabled={!canEdit || !readBool(cp, "enabled") || !readBool(vi, "enabled")}
-            value={String(readNum(vi, "closeAfterMinutes", viDefaults.closeAfterMinutes ?? 10))}
-            onChange={(e) =>
-              patchVisitorIdle({ closeAfterMinutes: Number(e.target.value) || 10 })
-            }
-            sx={{ maxWidth: 200 }}
-          />
-          <InputField
-            label="Close message"
-            multiline
-            minRows={2}
-            disabled={!canEdit || !readBool(cp, "enabled") || !readBool(vi, "enabled")}
-            value={readStr(vi, "closeMessage", viDefaults.closeMessage ?? "")}
-            onChange={(e) => patchVisitorIdle({ closeMessage: e.target.value })}
-          />
+          <Box sx={{ gridColumn: { xs: "1", sm: "1 / -1" } }}>
+            <InputField
+              label="Nudge message"
+              multiline
+              minRows={2}
+              disabled={sectionDisabled || !readBool(vi, "enabled")}
+              value={readStr(vi, "nudgeMessage", viDefaults.nudgeMessage ?? "")}
+              onChange={(e) => patchVisitorIdle({ nudgeMessage: e.target.value })}
+              inputProps={{ maxLength: 500 }}
+            />
+          </Box>
+          <Box sx={{ gridColumn: { xs: "1", sm: "1 / -1" } }}>
+            <InputField
+              label="Close message"
+              multiline
+              minRows={2}
+              disabled={sectionDisabled || !readBool(vi, "enabled")}
+              value={readStr(vi, "closeMessage", viDefaults.closeMessage ?? "")}
+              onChange={(e) => patchVisitorIdle({ closeMessage: e.target.value })}
+              inputProps={{ maxLength: 500 }}
+            />
+          </Box>
         </Box>
       </Section>
 
-      <Section title="Agent no response">
-        <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, display: "block", mb: 1.5 }}>
-          When the visitor sent the last message and no agent has replied yet (queued or assigned).
-        </Typography>
+      <Section
+        icon={<PersonOffOutlined fontSize="small" />}
+        title="Agent no response"
+        description="When the visitor sent the last message and no agent has replied yet."
+        disabled={sectionDisabled}
+      >
         <FormControlLabel
-          disabled={!canEdit || !readBool(cp, "enabled")}
+          disabled={sectionDisabled}
           control={
             <Switch
               checked={readBool(anr, "enabled")}
@@ -208,107 +263,117 @@ export function ClosePolicyTab({ settings, canEdit, saving, onSave }: ClosePolic
           }
           label="Alert agents and send visitor fallback"
         />
-        <Box sx={{ display: "grid", gap: 1.5, mt: 1 }}>
-          <InputField
-            label="Alert agent after (minutes)"
-            type="number"
-            disabled={!canEdit || !readBool(cp, "enabled") || !readBool(anr, "enabled")}
-            value={String(
-              readNum(anr, "firstAlertAgentAfterMinutes", anrDefaults.firstAlertAgentAfterMinutes ?? 2),
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: { xs: "1fr", sm: "repeat(3, 1fr)" },
+            gap: 2,
+            mt: 0.5,
+          }}
+        >
+          <PolicyMinutesField
+            label="Alert agent after"
+            value={readNum(
+              anr,
+              "firstAlertAgentAfterMinutes",
+              anrDefaults.firstAlertAgentAfterMinutes ?? 2,
             )}
+            disabled={sectionDisabled || !readBool(anr, "enabled")}
+            onChange={(n) => patchAgentNoResponse({ firstAlertAgentAfterMinutes: n })}
+          />
+          <PolicyMinutesField
+            label="Fallback to visitor"
+            value={readNum(
+              anr,
+              "fallbackToVisitorAfterMinutes",
+              anrDefaults.fallbackToVisitorAfterMinutes ?? 5,
+            )}
+            disabled={sectionDisabled || !readBool(anr, "enabled")}
+            onChange={(n) => patchAgentNoResponse({ fallbackToVisitorAfterMinutes: n })}
+          />
+          <PolicyMinutesField
+            label="Close after"
+            value={readNum(anr, "closeAfterMinutes", anrDefaults.closeAfterMinutes ?? 20)}
+            disabled={sectionDisabled || !readBool(anr, "enabled")}
+            onChange={(n) => patchAgentNoResponse({ closeAfterMinutes: n })}
+          />
+          <Box sx={{ gridColumn: { xs: "1", sm: "1 / -1" } }}>
+            <InputField
+              label="Fallback message"
+              multiline
+              minRows={2}
+              disabled={sectionDisabled || !readBool(anr, "enabled")}
+              value={readStr(anr, "fallbackMessage", anrDefaults.fallbackMessage ?? "")}
+              onChange={(e) => patchAgentNoResponse({ fallbackMessage: e.target.value })}
+              inputProps={{ maxLength: 500 }}
+            />
+          </Box>
+          <Box sx={{ gridColumn: { xs: "1", sm: "1 / -1" } }}>
+            <InputField
+              label="Close message"
+              multiline
+              minRows={2}
+              disabled={sectionDisabled || !readBool(anr, "enabled")}
+              value={readStr(anr, "closeMessage", anrDefaults.closeMessage ?? "")}
+              onChange={(e) => patchAgentNoResponse({ closeMessage: e.target.value })}
+              inputProps={{ maxLength: 500 }}
+            />
+          </Box>
+        </Box>
+      </Section>
+
+      <Section
+        icon={<SupervisorAccountOutlined fontSize="small" />}
+        title="Supervisor close (monitor)"
+        description="Pool heads and department heads can close chats from Chat monitor when enabled."
+        disabled={sectionDisabled}
+      >
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
+          <FormControlLabel
+            disabled={sectionDisabled}
+            control={
+              <Switch
+                checked={readBool(sc, "enabled")}
+                onChange={(_, v) => patchSupervisorClose({ enabled: v })}
+              />
+            }
+            label="Allow supervisor close from monitor"
+          />
+          <FormControlLabel
+            disabled={sectionDisabled || !readBool(sc, "enabled")}
+            control={
+              <Switch
+                checked={readBool(sc, "requireReason")}
+                onChange={(_, v) => patchSupervisorClose({ requireReason: v })}
+              />
+            }
+            label="Require close reason"
+          />
+        </Box>
+        <Box sx={{ maxWidth: 220, mt: 1.5 }}>
+          <InputField
+            label="Minimum reason length (characters)"
+            type="number"
+            disabled={sectionDisabled || !readBool(sc, "enabled")}
+            value={String(readNum(sc, "reasonMinLength", Number(scDefaults.reasonMinLength) || 3))}
             onChange={(e) =>
-              patchAgentNoResponse({
-                firstAlertAgentAfterMinutes: Number(e.target.value) || 2,
+              patchSupervisorClose({
+                reasonMinLength: Math.max(1, Math.min(200, Number(e.target.value) || 3)),
               })
             }
-            sx={{ maxWidth: 200 }}
-          />
-          <InputField
-            label="Fallback to visitor after (minutes)"
-            type="number"
-            disabled={!canEdit || !readBool(cp, "enabled") || !readBool(anr, "enabled")}
-            value={String(
-              readNum(
-                anr,
-                "fallbackToVisitorAfterMinutes",
-                anrDefaults.fallbackToVisitorAfterMinutes ?? 5,
-              ),
-            )}
-            onChange={(e) =>
-              patchAgentNoResponse({
-                fallbackToVisitorAfterMinutes: Number(e.target.value) || 5,
-              })
-            }
-            sx={{ maxWidth: 200 }}
-          />
-          <InputField
-            label="Fallback message"
-            multiline
-            minRows={2}
-            disabled={!canEdit || !readBool(cp, "enabled") || !readBool(anr, "enabled")}
-            value={readStr(anr, "fallbackMessage", anrDefaults.fallbackMessage ?? "")}
-            onChange={(e) => patchAgentNoResponse({ fallbackMessage: e.target.value })}
-          />
-          <InputField
-            label="Close after (minutes)"
-            type="number"
-            disabled={!canEdit || !readBool(cp, "enabled") || !readBool(anr, "enabled")}
-            value={String(readNum(anr, "closeAfterMinutes", anrDefaults.closeAfterMinutes ?? 20))}
-            onChange={(e) =>
-              patchAgentNoResponse({ closeAfterMinutes: Number(e.target.value) || 20 })
-            }
-            sx={{ maxWidth: 200 }}
-          />
-          <InputField
-            label="Close message"
-            multiline
-            minRows={2}
-            disabled={!canEdit || !readBool(cp, "enabled") || !readBool(anr, "enabled")}
-            value={readStr(anr, "closeMessage", anrDefaults.closeMessage ?? "")}
-            onChange={(e) => patchAgentNoResponse({ closeMessage: e.target.value })}
+            inputProps={{ min: 1, max: 200, step: 1 }}
+            dense
           />
         </Box>
       </Section>
 
-      <Section title="Supervisor close (monitor)">
-        <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, display: "block", mb: 1.5 }}>
-          Pool heads and department heads can close chats from Chat monitor when enabled.
-        </Typography>
+      <Section
+        icon={<LinkOutlined fontSize="small" />}
+        title="After close"
+        disabled={sectionDisabled}
+      >
         <FormControlLabel
-          disabled={!canEdit || !readBool(cp, "enabled")}
-          control={
-            <Switch
-              checked={readBool(sc, "enabled")}
-              onChange={(_, v) => patchSupervisorClose({ enabled: v })}
-            />
-          }
-          label="Allow supervisor close from monitor"
-        />
-        <FormControlLabel
-          disabled={!canEdit || !readBool(cp, "enabled") || !readBool(sc, "enabled")}
-          control={
-            <Switch
-              checked={readBool(sc, "requireReason")}
-              onChange={(_, v) => patchSupervisorClose({ requireReason: v })}
-            />
-          }
-          label="Require close reason"
-        />
-        <InputField
-          label="Minimum reason length"
-          type="number"
-          disabled={!canEdit || !readBool(cp, "enabled") || !readBool(sc, "enabled")}
-          value={String(readNum(sc, "reasonMinLength", Number(scDefaults.reasonMinLength) || 3))}
-          onChange={(e) =>
-            patchSupervisorClose({ reasonMinLength: Number(e.target.value) || 3 })
-          }
-          sx={{ mt: 1, maxWidth: 200 }}
-        />
-      </Section>
-
-      <Section title="After close">
-        <FormControlLabel
-          disabled={!canEdit || !readBool(cp, "enabled")}
+          disabled={sectionDisabled}
           control={
             <Switch
               checked={readBool(oc, "insertDistributionLinkInTranscript")}
@@ -319,18 +384,13 @@ export function ClosePolicyTab({ settings, canEdit, saving, onSave }: ClosePolic
         />
       </Section>
 
-      {canEdit ? (
+      {canEdit && !hideSaveButton ? (
         <Button
           type="button"
           variant="primary"
-          sx={gradientPrimaryButtonSx}
+          sx={{ ...gradientPrimaryButtonSx, alignSelf: "flex-start", minWidth: 200 }}
           disabled={saving}
-          onClick={() =>
-            onSave({
-              defaultDepartmentId: settings.defaultDepartmentId,
-              operationsJson: ops,
-            })
-          }
+          onClick={handleSave}
         >
           {saving ? "Saving…" : "Save close policy"}
         </Button>
@@ -339,7 +399,19 @@ export function ClosePolicyTab({ settings, canEdit, saving, onSave }: ClosePolic
   );
 }
 
-function Section({ title, children }: { title: string; children: ReactNode }) {
+function Section({
+  title,
+  description,
+  icon,
+  disabled,
+  children,
+}: {
+  title: string;
+  description?: string;
+  icon?: ReactNode;
+  disabled?: boolean;
+  children: ReactNode;
+}) {
   const theme = useTheme() as AppTheme;
   return (
     <Box
@@ -347,12 +419,40 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
         p: 2,
         borderRadius: 2,
         border: `1px solid ${theme.app.dashboard.cardBorder}`,
-        bgcolor: "rgba(255,255,255,0.02)",
+        bgcolor: alpha(theme.app.dashboard.overlayLight, 0.2),
+        opacity: disabled ? 0.72 : 1,
+        transition: "opacity 0.15s ease",
       }}
     >
-      <Typography fontWeight={600} sx={{ mb: 1.5, fontSize: 14, color: theme.app.text.primary }}>
-        {title}
-      </Typography>
+      <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1.25, mb: 1.5 }}>
+        {icon ? (
+          <Box
+            sx={{
+              mt: 0.25,
+              width: 32,
+              height: 32,
+              borderRadius: 1.5,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: theme.app.dashboard.accentBlue,
+              bgcolor: alpha(theme.app.dashboard.accentBlue, 0.12),
+            }}
+          >
+            {icon}
+          </Box>
+        ) : null}
+        <Box sx={{ minWidth: 0 }}>
+          <Typography fontWeight={700} sx={{ fontSize: 14, color: theme.app.text.primary }}>
+            {title}
+          </Typography>
+          {description ? (
+            <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, display: "block", mt: 0.35 }}>
+              {description}
+            </Typography>
+          ) : null}
+        </Box>
+      </Box>
       {children}
     </Box>
   );

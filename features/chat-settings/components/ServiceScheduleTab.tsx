@@ -1,15 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Add from "@mui/icons-material/Add";
-import DeleteOutline from "@mui/icons-material/DeleteOutline";
 import Save from "@mui/icons-material/Save";
 import Schedule from "@mui/icons-material/Schedule";
 import Box from "@mui/material/Box";
-import IconButton from "@mui/material/IconButton";
+import Checkbox from "@mui/material/Checkbox";
 import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
-import { Button, Checkbox, InputField, SelectField, Typography } from "@/components/common";
+import { Button, InputField, SelectField, Typography } from "@/components/common";
+import { VisitorTopicsEditor } from "@/features/chat-settings/components/VisitorTopicsEditor";
 import { buildTimezoneSelectOptions } from "@/lib/utils/core/timezone-options";
 import { ServiceWeekdayPicker } from "@/features/website-assignments/components/ServiceWeekdayPicker";
 import {
@@ -23,7 +22,6 @@ import { extractApiErrorMessageForToast } from "@/lib/notify/extract-api-message
 import type { DepartmentCatalogOption } from "../utils/catalog";
 import {
   CrossMidnightToggle,
-  DepartmentCatalogPanel,
   SchedulingSectionCard,
   SchedulingStepBar,
 } from "@/features/website-assignments/components/ServiceSchedulingSections";
@@ -53,11 +51,11 @@ import {
   singleServiceWindow,
   twentyFourHourScheduleWindow,
   validateSchedulingDraft,
+  type ServiceSchedulingDraft,
 } from "./service-scheduling-form.utils";
 import type {
   OperatingChannels,
   ServiceScheduleWindow,
-  ServiceSchedulingTopic,
 } from "@/services/chat/service-scheduling.types";
 
 const GAP_POLICY_OPTIONS = [
@@ -174,7 +172,7 @@ function ScheduleWindowsEditor({
           <Checkbox
             checked={is24Hours}
             disabled={!canEdit}
-            onChange={(_, checked) => setTwentyFourHours(checked)}
+            onChange={(_: unknown, checked: boolean) => setTwentyFourHours(checked)}
             sx={{ flexShrink: 0, mt: -0.5 }}
           />
         </Box>
@@ -288,7 +286,7 @@ export function ServiceScheduleTab({
   const schedulingQuery = useServiceSchedulingQuery(websiteId, canView);
   const saveMutation = useSaveServiceSchedulingMutation(websiteId);
 
-  const [draft, setDraft] = useState(() => defaultSchedulingDraft());
+  const [draft, setDraft] = useState<ServiceSchedulingDraft>(() => defaultSchedulingDraft());
 
   useEffect(() => {
     if (schedulingQuery.data) {
@@ -323,13 +321,6 @@ export function ServiceScheduleTab({
     [departments],
   );
 
-
-  const patchTopic = (index: number, patch: Partial<ServiceSchedulingTopic>) => {
-    setDraft((p) => ({
-      ...p,
-      topics: p.topics.map((t, i) => (i === index ? { ...t, ...patch } : t)),
-    }));
-  };
 
   const runSave = (afterSuccess?: () => void) => {
     const err = validateSchedulingDraft(draft);
@@ -521,138 +512,52 @@ export function ServiceScheduleTab({
       <SchedulingSectionCard
         step={3}
         title="Visitor topics"
-        subtitle="Each topic needs one internal and one external department (widget routing). Both are saved even when the site is internal-only."
+        subtitle="Saved per website (same rows as Chat Box Design → Inquiry topics). Each topic needs internal and external departments."
       >
-        <DepartmentCatalogPanel departments={departments} isLoading={departmentsLoading} />
-        {internalDeptOptions.length === 0 && !departmentsLoading ? (
-          <Typography
-            variant="body2"
-            sx={{
-              color: theme.palette.warning.light,
-              bgcolor: `${theme.palette.warning.main}14`,
-              border: `1px solid ${theme.palette.warning.main}44`,
-              borderRadius: 1.5,
-              px: 1.5,
-              py: 1,
-              mb: 1.5,
-            }}
-          >
-            No internal departments found. Create an <strong>Internal</strong> department under HRMS →
-            Departments (reseller scope), then refresh this page.
-          </Typography>
-        ) : null}
-        <Box sx={{ mt: 2 }}>
-        {draft.topics.map((topic, index) => (
-          <Box
-            key={`topic-${index}`}
-            sx={{
-              p: 2,
-              mb: 1.5,
-              borderRadius: 2,
-              border: `1px solid ${theme.app.dashboard.cardBorder}`,
-            }}
-          >
-            <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
-              <Typography fontWeight={600} sx={{ fontSize: 14 }}>
-                Topic {index + 1}
-              </Typography>
-              {canEdit && draft.topics.length > 1 ? (
-                <IconButton
-                  size="small"
-                  aria-label="Remove topic"
-                  onClick={() =>
-                    setDraft((p) => ({
-                      ...p,
-                      topics: p.topics.filter((_, i) => i !== index),
-                    }))
-                  }
-                >
-                  <DeleteOutline fontSize="small" />
-                </IconButton>
-              ) : null}
-            </Box>
-            <Box
-              sx={{
-                display: "grid",
-                gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" },
-                gap: 1.25,
-              }}
-            >
-              <InputField
-                label="Routing key"
-                value={topic.routingKey}
-                disabled={!canEdit}
-                onChange={(e) => patchTopic(index, { routingKey: (e.target as HTMLInputElement).value })}
-                placeholder="billing"
-              />
-              <InputField
-                label="Client label (widget)"
-                value={topic.clientLabel}
-                disabled={!canEdit}
-                onChange={(e) => patchTopic(index, { clientLabel: (e.target as HTMLInputElement).value })}
-              />
-            </Box>
-            <Box
-              sx={{
-                display: "grid",
-                gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
-                gap: 1.25,
-                mt: 1.25,
-                p: 1.25,
-                borderRadius: 1.5,
-                border: `1px dashed ${theme.app.dashboard.cardBorder}`,
-              }}
-            >
-              <SelectField
-                label="Internal department"
-                value={topic.internalDepartmentId}
-                onChange={(v) => patchTopic(index, { internalDepartmentId: v })}
-                options={[
-                  { value: "", label: "Select internal department…" },
-                  ...internalDeptOptions.map((d) => ({ value: d.id, label: d.label })),
-                ]}
-                disabled={!canEdit}
-                menuMaxRows={8}
-              />
-              <SelectField
-                label="External department"
-                value={topic.externalDepartmentId}
-                onChange={(v) => patchTopic(index, { externalDepartmentId: v })}
-                options={[
-                  { value: "", label: "Select external department…" },
-                  ...externalDeptOptions.map((d) => ({ value: d.id, label: d.label })),
-                ]}
-                disabled={!canEdit}
-                menuMaxRows={8}
-              />
-            </Box>
-            <Box component="label" sx={{ display: "inline-flex", alignItems: "center", gap: 0.75, mt: 1 }}>
-              <Checkbox
-                checked={topic.isActive}
-                disabled={!canEdit}
-                onChange={(_, v) => patchTopic(index, { isActive: v })}
-              />
-              <Typography variant="caption">Active</Typography>
-            </Box>
-          </Box>
-        ))}
-        {canEdit ? (
-          <Button
-            type="button"
-            variant="outlined"
-            startIcon={<Add />}
-            onClick={() =>
-              setDraft((p) => ({
-                ...p,
-                topics: [...p.topics, emptyTopic(p.topics.length)],
-              }))
-            }
-            sx={{ alignSelf: "flex-start" }}
-          >
-            Add topic
-          </Button>
-        ) : null}
-        </Box>
+        <VisitorTopicsEditor
+          topics={draft.topics.map((t) => ({
+            routingKey: t.routingKey,
+            clientLabel: t.clientLabel,
+            internalDepartmentId: t.internalDepartmentId,
+            externalDepartmentId: t.externalDepartmentId,
+            internalPoolId: t.internalPoolId,
+            externalPoolId: t.externalPoolId,
+            isActive: t.isActive,
+          }))}
+          onChange={(rows) =>
+            setDraft((p) => ({
+              ...p,
+              topics: rows.map((row, i) => ({
+                ...emptyTopic(i),
+                ...p.topics[i],
+                routingKey: row.routingKey,
+                clientLabel: row.clientLabel,
+                internalDepartmentId: row.internalDepartmentId,
+                externalDepartmentId: row.externalDepartmentId,
+                internalPoolId: row.internalPoolId ?? null,
+                externalPoolId: row.externalPoolId ?? null,
+                isActive: row.isActive !== false,
+                displayOrder: i,
+              })),
+            }))
+          }
+          canEdit={canEdit}
+          showDepartmentCatalog
+          showActive
+          departments={departments}
+          departmentsLoading={departmentsLoading}
+          internalDeptOptions={internalDeptOptions}
+          externalDeptOptions={externalDeptOptions}
+          internalDeptWarning={
+            internalDeptOptions.length === 0 && !departmentsLoading ? (
+              <>
+                No internal departments found. Create an <strong>Internal</strong> department under
+                HRMS → Departments (reseller scope), then refresh this page.
+              </>
+            ) : null
+          }
+          minRows={1}
+        />
       </SchedulingSectionCard>
 
       {canEdit ? (

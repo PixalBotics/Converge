@@ -103,6 +103,18 @@ export interface CannedResponseRow {
   sortOrder: number;
 }
 
+export interface WebsiteChatSettingsContext {
+  websiteId: string;
+  websiteName?: string | null;
+  websiteUrl?: string;
+  childCompanyId?: string;
+  childCompanyName?: string;
+  parentCompanyId?: string;
+  parentCompanyName?: string;
+  resellerId?: string;
+  resellerName?: string;
+}
+
 export interface WebsiteChatSettingsBundle {
   websiteId: string;
   parentCompanyId: string;
@@ -110,6 +122,7 @@ export interface WebsiteChatSettingsBundle {
   routes: ChatRoutingRule[];
   departmentNotifyEmails: DepartmentNotifyEmailRow[];
   cannedResponses: CannedResponseRow[];
+  website?: WebsiteChatSettingsContext;
 }
 
 export interface UpsertWebsiteChatSettingsBody {

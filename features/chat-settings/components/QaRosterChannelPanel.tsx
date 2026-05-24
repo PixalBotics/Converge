@@ -6,8 +6,8 @@ import Chip from "@mui/material/Chip";
 import { alpha, useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import { SelectField, Typography } from "@/components/common";
-import { MultiUserCheckboxPicker } from "@/features/chat-shared";
-import { useChannelDepartmentsQuery } from "@/features/chat-involvement/hooks/useChannelDepartmentsQuery";
+import { useQaChannelDepartmentsQuery } from "@/features/chat-qa/hooks/useQaChannelDepartmentsQuery";
+import { QaDirectoryUserPicker } from "@/features/chat-qa/components/QaDirectoryUserPicker";
 import {
   assignmentStepChipSx,
   assignmentStepRowSx,
@@ -54,7 +54,7 @@ export function QaRosterChannelPanel({
   const theme = useTheme() as AppTheme;
   const [departmentId, setDepartmentId] = useState("");
 
-  const deptCatalog = useChannelDepartmentsQuery(
+  const deptCatalog = useQaChannelDepartmentsQuery(
     {
       channel,
       parentCompanyId: channel === "External" ? parentCompanyId : undefined,
@@ -156,15 +156,14 @@ export function QaRosterChannelPanel({
       </Box>
 
       {departmentId && deptReady ? (
-        <MultiUserCheckboxPicker
+        <QaDirectoryUserPicker
           userType={channel}
           departmentId={departmentId}
+          websiteId={websiteId}
           selectedIds={selectedIds}
           onChangeSelectedIds={onChangeSelectedIds}
           canEdit={canEdit}
           disabled={disabled}
-          excludeUserIds={chatAgentUserIds}
-          excludeReason="On live chat roster"
           emptyHint={`No eligible ${channel.toLowerCase()} users in this department (or all are chat agents).`}
         />
       ) : (

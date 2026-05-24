@@ -8,6 +8,7 @@ import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import { Typography } from "@/components/common";
 import { publishAppToast } from "@/lib/notify";
+import { mergeSx } from "@/lib/mui/merge-sx";
 import type { DistributionWizardStep } from "../distribution-wizard.types";
 import {
   canOpenDistributionWizardStep,
@@ -134,25 +135,25 @@ export function DistributionWizardStepper({
               type="button"
               onClick={() => void handleStepClick(n)}
               disabled={busy}
-              sx={[
+              sx={mergeSx(
                 distributionStepCardSx(state),
                 {
-                cursor: reachable && !busy ? "pointer" : "default",
-                textAlign: "left",
-                border: "none",
-                font: "inherit",
-                width: "100%",
-                opacity: reachable ? 1 : 0.55,
-                transition: "transform 0.15s ease, box-shadow 0.15s ease",
-                "&:hover": reachable && !busy
-                  ? { transform: "translateY(-1px)" }
-                  : undefined,
-                "&:focus-visible": {
-                  outline: `2px solid ${theme.palette.primary.main}`,
-                  outlineOffset: 2,
+                  cursor: reachable && !busy ? "pointer" : "default",
+                  textAlign: "left",
+                  border: "none",
+                  font: "inherit",
+                  width: "100%",
+                  opacity: reachable ? 1 : 0.55,
+                  transition: "transform 0.15s ease, box-shadow 0.15s ease",
+                  "&:hover": reachable && !busy
+                    ? { transform: "translateY(-1px)" }
+                    : undefined,
+                  "&:focus-visible": {
+                    outline: `2px solid ${theme.palette.primary.main}`,
+                    outlineOffset: 2,
+                  },
                 },
-              },
-              ]}
+              )}
             >
               <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                 <Box sx={distributionStepNumberSx(state)}>

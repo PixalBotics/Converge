@@ -257,6 +257,9 @@ export function mapAdminWidgetResponseToWidgetDraft(
     fallbackNotificationText:
       pickStr(behavior ?? {}, ["fallbackNotificationText"]) || defaultWidgetDraft.fallbackNotificationText,
     videoWelcomeOn: pickBool(behavior ?? {}, ["videoWelcomeOn"]) ?? defaultWidgetDraft.videoWelcomeOn,
+    videoWelcomeUrl:
+      pickStr(behavior ?? {}, ["videoWelcomeUrl", "video_welcome_url"]) ||
+      defaultWidgetDraft.videoWelcomeUrl,
     welcomeMessageBehavior:
       pickStr(behavior ?? {}, ["welcomeMessage"]) || defaultWidgetDraft.welcomeMessageBehavior,
     autoOpenEnabled: pickBool(behavior ?? {}, ["autoOpenEnabled"]) ?? defaultWidgetDraft.autoOpenEnabled,

@@ -733,7 +733,6 @@ export function AddUserModal({
             onInternalScopeChange={handleInternalAdminScopeChange}
             onExternalScopeChange={handleExternalAdminScopeChange}
             disabled={isSaving || (mode === "edit" && isEditLoading)}
-            selectionLocked={mode === "edit"}
             showInternal={false}
             allowWideResellerScope={mayAssignWideResellerScope}
           />
@@ -749,7 +748,6 @@ export function AddUserModal({
           onInternalScopeChange={handleInternalAdminScopeChange}
           onExternalScopeChange={handleExternalAdminScopeChange}
           disabled={isSaving || (mode === "edit" && isEditLoading)}
-          selectionLocked={mode === "edit"}
           allowWideResellerScope={mayAssignWideResellerScope}
         />
       ) : null}

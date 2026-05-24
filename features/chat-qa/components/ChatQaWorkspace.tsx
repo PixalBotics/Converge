@@ -4,7 +4,6 @@ import { useEffect, useMemo } from "react";
 import Box from "@mui/material/Box";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
-import { mergeSx } from "@/lib/mui/merge-sx";
 import { PermissionDeniedPanel } from "@/components/common";
 import {
   canAnnotateQaMessage,
@@ -15,25 +14,20 @@ import {
 import { Button, DashboardCard, Typography } from "@/components/common";
 import {
   ChatLivePageHeader,
+  ChatLivePageShell,
   ChatScopeFiltersPanel,
   qaRowMatchesScope,
   useChatScopeFilters,
 } from "@/features/chat-shared";
-import {
-  chatLivePageStackSx,
-  chatLiveQueueStatPillSx,
-} from "@/features/chat-shared/styles/chat-live.styles";
+import { chatLiveQueueStatPillSx } from "@/features/chat-shared/styles/chat-live.styles";
 import { useChatQa } from "../hooks/useChatQa";
 import { QaQueueSidebar } from "./QaQueueSidebar";
 import { QaAnnotatedTranscript } from "./QaAnnotatedTranscript";
 import { QaSessionReviewPanel } from "./QaSessionReviewPanel";
 import { QaTimelinePanel } from "./QaTimelinePanel";
 import { useQaRosterQuery } from "@/features/chat-settings/hooks/useChatSettings";
-import {
-  chatQaPageWrapper,
-  chatQaWorkspaceGrid,
-  chatQaWorkspaceShell,
-} from "../styles/chat-qa.styles";
+import { chatQaWorkspaceGrid, chatQaWorkspaceShell } from "../styles/chat-qa.styles";
+import { QA_HUB_BASE } from "@/features/chat-qa/constants/qa-nav";
 
 export function ChatQaWorkspace({
   initialConversationId = null,
@@ -112,15 +106,15 @@ export function ChatQaWorkspace({
 
   const handleSelect = (id: string) => {
     qa.selectConversation(id);
-    router.replace(`/dashboard/chat-qa/${encodeURIComponent(id)}`, { scroll: false });
+    router.replace(`${QA_HUB_BASE}/inbox/${encodeURIComponent(id)}`, { scroll: false });
   };
 
   return (
-    <Box sx={mergeSx(chatQaPageWrapper, chatLivePageStackSx)}>
+    <ChatLivePageShell variant="workstation">
       <ChatLivePageHeader
         title="QA inbox"
         subtitle="Closed chats land in your queue. Read the transcript, score the session, then submit the QA report."
-        navItems={[]}
+        navPreset="triage"
         trailing={
           <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75, justifyContent: "flex-end" }}>
             <Box sx={chatLiveQueueStatPillSx("waiting")}>
@@ -201,6 +195,6 @@ export function ChatQaWorkspace({
           </Box>
         </Box>
       </Box>
-    </Box>
+    </ChatLivePageShell>
   );
 }

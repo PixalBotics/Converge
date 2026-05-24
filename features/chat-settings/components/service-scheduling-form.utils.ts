@@ -74,31 +74,6 @@ export function emptyTopic(displayOrder = 0): ServiceSchedulingTopic {
   };
 }
 
-export function defaultSchedulingDraft(): Pick<
-  ServiceSchedulingBundle,
-  | "operatingChannels"
-  | "timezone"
-  | "internalTimezone"
-  | "externalTimezone"
-  | "gapPolicy"
-  | "internalWindows"
-  | "externalWindows"
-  | "topics"
-  | "defaultDepartmentId"
-> {
-  return {
-    operatingChannels: "internal_only",
-    timezone: "Asia/Karachi",
-    internalTimezone: "Asia/Karachi",
-    externalTimezone: "Asia/Karachi",
-    gapPolicy: "queue_until_next_window",
-    internalWindows: [emptyScheduleWindow()],
-    externalWindows: [emptyScheduleWindow()],
-    topics: [emptyTopic(0)],
-    defaultDepartmentId: null,
-  };
-}
-
 export function bundleToDraft(bundle: ServiceSchedulingBundle) {
   const fallbackTz = bundle.timezone?.trim() || "Asia/Karachi";
   return {
@@ -119,6 +94,22 @@ export function bundleToDraft(bundle: ServiceSchedulingBundle) {
     ),
     topics: bundle.topics.length > 0 ? bundle.topics.map((t) => ({ ...t })) : [emptyTopic(0)],
     defaultDepartmentId: bundle.defaultDepartmentId,
+  };
+}
+
+export type ServiceSchedulingDraft = ReturnType<typeof bundleToDraft>;
+
+export function defaultSchedulingDraft(): ServiceSchedulingDraft {
+  return {
+    operatingChannels: "internal_only",
+    timezone: "Asia/Karachi",
+    internalTimezone: "Asia/Karachi",
+    externalTimezone: "Asia/Karachi",
+    gapPolicy: "queue_until_next_window",
+    internalWindows: [emptyScheduleWindow()],
+    externalWindows: [emptyScheduleWindow()],
+    topics: [emptyTopic(0)],
+    defaultDepartmentId: null,
   };
 }
 

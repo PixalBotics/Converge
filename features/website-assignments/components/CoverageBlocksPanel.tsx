@@ -143,7 +143,7 @@ export function CoverageBlocksPanel({
     if (!chatServiceHours) {
       publishAppToast({
         message: "Pehle service scheduling mein chat service hours set karein.",
-        variant: "warning",
+        variant: "error",
       });
       return;
     }

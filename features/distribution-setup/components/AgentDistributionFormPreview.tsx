@@ -12,6 +12,7 @@ import type { EmailFormFieldRow } from "@/api/email/email-forms.api";
 import { isAgentDistributionFormField } from "@/features/email/constants/agent-distribution-form-fields";
 import { EMAIL_FORM_TEST_SAMPLE } from "@/features/email/constants/email-form-test-sample";
 import { groupEmailFormFields } from "@/features/email/utils/email-form-field-groups";
+import { mergeSx } from "@/lib/mui/merge-sx";
 import {
   distributionAgentFormBodySx,
   distributionAgentFormCanvasSx,
@@ -62,10 +63,10 @@ function PreviewField({
         {label}
       </Box>
       <Box
-        sx={[
+        sx={mergeSx(
           distributionPreviewFieldValueSx,
           multiline ? { minHeight: 96, whiteSpace: "pre-wrap", lineHeight: 1.5 } : {},
-        ]}
+        )}
       >
         {value}
       </Box>

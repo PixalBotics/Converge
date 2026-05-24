@@ -74,11 +74,10 @@ import { EmbedWidgetBanner } from "@/components/embed/EmbedWidgetBanner";
 import { EmbedWidgetTheme } from "@/components/embed/EmbedWidgetTheme";
 import {
   getWidgetRuntimeConfig,
-  postAiVisitorRespond,
   postWidgetSession,
 } from "@/lib/widget-runtime/widget-public-fetch";
 import type { WidgetConfigEnvelope } from "@/lib/widget-runtime/widget-types";
-import { resolveVisitorAiMessageContent } from "@/lib/widget-runtime/visitor-ai-display";
+import { postWidgetRequestHuman } from "@/services/chat/widget-visitor.api";
 import { decodeJwtExpMs } from "@/lib/widget-runtime/jwt-expiry";
 import {
   generateClientSessionId,
@@ -808,7 +807,8 @@ function WidgetChatPanel({
   const formEnabled = appearance?.formEnabled ?? true;
   const inquiryOptions: RuntimeInquiryOption[] = appearance?.inquiryOptions ?? [];
   const hasInquiryStep = inquiryOptions.length > 0;
-  const [prechatDone, setPrechatDone] = useState(!formEnabled);
+  const needsPrechatGate = formEnabled || hasInquiryStep;
+  const [prechatDone, setPrechatDone] = useState(!needsPrechatGate);
   const [prechatStep, setPrechatStep] = useState<"inquiry" | "form">(
     hasInquiryStep ? "inquiry" : "form",
   );
@@ -818,19 +818,23 @@ function WidgetChatPanel({
   );
 
   useEffect(() => {
-    setPrechatDone(!formEnabled);
+    setPrechatDone(!needsPrechatGate);
     setPrechatStep(hasInquiryStep ? "inquiry" : "form");
     setSelectedInquiry(null);
     if (!appearance?.consentRequired) setConsentAccepted(true);
-  }, [formEnabled, hasInquiryStep, appearance?.consentRequired]);
+  }, [needsPrechatGate, hasInquiryStep, appearance?.consentRequired]);
   const [aiPending, setAiPending] = useState(false);
+  const aiPendingSinceRef = useRef<number | null>(null);
   /** HYBRID only: set true when visitor taps "Talk to a human" — never from API shouldEscalate (that was forcing queue UI + repeated handoff replies). */
   const [escalated, setEscalated] = useState(false);
+  const [handoverStatus, setHandoverStatus] = useState<string | null>(null);
+  const [handoverBusy, setHandoverBusy] = useState(false);
   const [localAiMessages, setLocalAiMessages] = useState<ChatMessage[]>([]);
   /** API `firstMessage` on create — hidden from transcript; not sent to AI as a user question. */
   const prechatApiFirstMessageRef = useRef<string | null>(null);
   /** AI/HYBRID: hide socket AI replies until the visitor sends a composer message. */
   const [awaitingFirstUserQuestion, setAwaitingFirstUserQuestion] = useState(false);
+  const startConversationRef = useRef<(() => Promise<void>) | null>(null);
 
   const visitorSessionId = useMemo(() => {
     const existing = readVisitorSessionId(siteKey);
@@ -846,7 +850,30 @@ function WidgetChatPanel({
     autoConnect: false,
     widgetSessionToken: sessionToken,
     getCurrentPageUrl: pageUrlGetter,
+    onChatAssigned: () => {
+      setHandoverStatus("An agent has joined your chat.");
+    },
+    onChatQueued: () => {
+      setHandoverStatus(
+        "You are in the queue. The next available teammate will join shortly.",
+      );
+    },
   });
+
+  useEffect(() => {
+    if (!aiPending) return;
+    const since = aiPendingSinceRef.current;
+    if (!since) return;
+    const gotAi = chat.messages.some((m) => {
+      if (m.role !== "system") return false;
+      if (!m.createdAt) return true;
+      return new Date(m.createdAt).getTime() >= since - 800;
+    });
+    if (gotAi) {
+      setAiPending(false);
+      aiPendingSinceRef.current = null;
+    }
+  }, [aiPending, chat.messages]);
 
   const mergeDisplayMessages = useMemo(() => {
     const map = new Map<string, ChatMessage>();
@@ -916,45 +943,79 @@ function WidgetChatPanel({
     ]);
   };
 
+  const beginConversation = useCallback(
+    async (values: Record<string, unknown>) => {
+      if (chat.conversationId) {
+        setPrechatDone(true);
+        return;
+      }
+      const { visitor, firstMessage } = buildVisitorPayloadParts(
+        values,
+        fields,
+        visitorSessionId,
+        selectedInquiry?.label,
+      );
+      const routingTargets = selectedInquiry
+        ? resolveInquiryRoutingTargets(selectedInquiry)
+        : {
+            departmentId: null,
+            poolId: null,
+            serviceChannel: "internal" as const,
+          };
+      const created = await chat.startConversation({
+        websiteId,
+        visitor,
+        firstMessage,
+        currentPageUrl: parentPageUrl,
+        referrerUrl: typeof document !== "undefined" ? document.referrer : "",
+        routingKey: selectedInquiry?.routingKey,
+        serviceChannel:
+          routingTargets.serviceChannel === "external" ? "External" : "Internal",
+        inquiryDepartmentId: routingTargets.departmentId ?? undefined,
+        inquiryPoolId: routingTargets.poolId ?? undefined,
+        inquiryLabel: selectedInquiry?.label,
+        deferInitialAiReply: mode === "AI_ONLY" || mode === "HYBRID",
+      });
+      persistConversationId(siteKey, created.conversationId);
+      prechatApiFirstMessageRef.current = firstMessage;
+      if (mode === "AI_ONLY" || mode === "HYBRID") {
+        setAwaitingFirstUserQuestion(true);
+        appendAiAssistant(
+          created.conversationId,
+          resolvePersonalizedAssistantWelcome(
+            visitor.name ?? "there",
+            appearance?.firstMessage,
+          ),
+          { kind: "assistantWelcome" },
+        );
+      }
+      setPrechatDone(true);
+    },
+    [
+      appearance?.firstMessage,
+      chat,
+      fields,
+      mode,
+      parentPageUrl,
+      selectedInquiry,
+      siteKey,
+      visitorSessionId,
+      websiteId,
+    ],
+  );
+
+  startConversationRef.current = async () => {
+    await beginConversation(buildDefaultFormValues(fields) as Record<string, unknown>);
+  };
+
+  useEffect(() => {
+    if (needsPrechatGate || prechatDone || chat.conversationId) return;
+    void startConversationRef.current?.();
+  }, [needsPrechatGate, prechatDone, chat.conversationId]);
+
   const onPrechatSubmit = form.handleSubmit(async (values) => {
     if (hasInquiryStep && !selectedInquiry) return;
-    const { visitor, firstMessage } = buildVisitorPayloadParts(
-      values as Record<string, unknown>,
-      fields,
-      visitorSessionId,
-      selectedInquiry?.label,
-    );
-    const routingTargets = selectedInquiry
-      ? resolveInquiryRoutingTargets(selectedInquiry)
-      : { departmentId: null, poolId: null };
-    const created = await chat.startConversation({
-      websiteId,
-      visitor,
-      firstMessage,
-      currentPageUrl: parentPageUrl,
-      referrerUrl: typeof document !== "undefined" ? document.referrer : "",
-      routingKey: selectedInquiry?.routingKey,
-      serviceChannel:
-        selectedInquiry?.serviceChannel === "external" ? "External" : "Internal",
-      inquiryDepartmentId: routingTargets.departmentId ?? undefined,
-      inquiryPoolId: routingTargets.poolId ?? undefined,
-      inquiryLabel: selectedInquiry?.label,
-    });
-    persistConversationId(siteKey, created.conversationId);
-    prechatApiFirstMessageRef.current = firstMessage;
-    if (mode === "AI_ONLY" || mode === "HYBRID") {
-      setAwaitingFirstUserQuestion(true);
-      appendAiAssistant(
-        created.conversationId,
-        resolvePersonalizedAssistantWelcome(
-          visitor.name ?? "there",
-          appearance?.firstMessage,
-        ),
-        { kind: "assistantWelcome" },
-      );
-    }
-
-    setPrechatDone(true);
+    await beginConversation(values as Record<string, unknown>);
   });
 
   const [draft, setDraft] = useState("");
@@ -971,32 +1032,29 @@ function WidgetChatPanel({
     const shouldUseAiBridge =
       mode === "AI_ONLY" || (mode === "HYBRID" && !escalated);
 
-    if (!shouldUseAiBridge) {
-      await chat.sendMessage(text);
-      setDraft("");
-      return;
-    }
-
-    await chat.sendMessage(text);
     setDraft("");
-    setAiPending(true);
-    const aiRes = await postAiVisitorRespond(
-      {
-        message: text,
-        websiteId: websiteId.trim() || undefined,
-        conversationId: chat.conversationId,
-        widgetKey,
-        originHost: safeHostname(parentPageUrl),
-        currentPageUrl: parentPageUrl.trim() || undefined,
-      },
+    if (shouldUseAiBridge) {
+      setAiPending(true);
+      aiPendingSinceRef.current = Date.now();
+    }
+    await chat.sendMessage(text);
+  };
+
+  const runHumanHandover = async () => {
+    if (!chat.conversationId || handoverBusy) return;
+    setHandoverBusy(true);
+    setEscalated(true);
+    setHandoverStatus(null);
+    const res = await postWidgetRequestHuman(
+      chat.conversationId,
+      websiteId,
       sessionToken,
     );
-    setAiPending(false);
-    if (aiRes.ok) {
-      appendAiAssistant(
-        chat.conversationId,
-        resolveVisitorAiMessageContent(aiRes.data.response, aiRes.data.knowledgeMatches),
-      );
+    setHandoverBusy(false);
+    if (res.ok) {
+      setHandoverStatus(res.data.message);
+    } else {
+      setHandoverStatus(res.message || "Could not reach a teammate right now.");
     }
   };
 
@@ -1051,7 +1109,13 @@ function WidgetChatPanel({
                 variant="outlined"
                 onClick={() => {
                   setSelectedInquiry(opt);
-                  setPrechatStep("form");
+                  if (formEnabled) {
+                    setPrechatStep("form");
+                  } else {
+                    void beginConversation(
+                      buildDefaultFormValues(fields) as Record<string, unknown>,
+                    );
+                  }
                 }}
                 sx={
                   appearance
@@ -1216,7 +1280,11 @@ function WidgetChatPanel({
         </Typography>
       ) : null}
 
-      {mode === "HYBRID" && escalated ? (
+      {handoverStatus ? (
+        <Typography variant="caption" sx={appearance ? embedMutedTextSx(appearance) : undefined}>
+          {handoverStatus}
+        </Typography>
+      ) : mode === "HYBRID" && escalated ? (
         <Typography variant="caption" sx={appearance ? embedMutedTextSx(appearance) : undefined}>
           Waiting for an available teammate — you can keep typing here.
         </Typography>
@@ -1322,23 +1390,18 @@ function WidgetChatPanel({
 
       {mode === "HYBRID" &&
       !escalated &&
+      hasActiveConversation &&
       (appearance?.agentHandoverEnabled ?? true) ? (
         <MuiButton
           type="button"
           variant="outlined"
-          onClick={() => {
-            void (async () => {
-              setEscalated(true);
-              if (chat.conversationId) {
-                await chat.sendMessage(
-                  "[Escalation requested] Please connect me with a human specialist.",
-                );
-              }
-            })();
-          }}
+          disabled={handoverBusy}
+          onClick={() => void runHumanHandover()}
           sx={appearance ? embedHandoverButtonSx(appearance) : undefined}
         >
-          {appearance?.handoverTriggerText ?? "Talk to a human"}
+          {handoverBusy
+            ? "Connecting…"
+            : appearance?.handoverTriggerText ?? "Talk to agent"}
         </MuiButton>
       ) : null}
     </Box>

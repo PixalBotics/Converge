@@ -353,7 +353,7 @@ export function extractRuntimeChatAppearance(
       response?.handoverTriggerText,
       response?.handover_trigger_text,
       behavior?.handoverTriggerText,
-      "Talk to a human",
+      "Talk to agent",
     ),
     agentHandoverEnabled,
     botEnabled: runtimeBoolFlag(behavior?.botEnabled, true),

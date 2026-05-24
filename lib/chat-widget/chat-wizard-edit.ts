@@ -7,6 +7,7 @@ import { getWidgetSnapshot, widgetResponseData } from "@/api/widgets/widgets.api
 import { extractApiErrorMessageForToast } from "@/lib/notify/extract-api-message";
 import { mapWidgetSnapshotToWidgetDraft } from "./map-widget-snapshot-to-draft";
 import type { WidgetDraft } from "./widgetDraft";
+import { loadInquiryTopicsFromScheduling } from "./hydrate-widget-inquiry-from-scheduling";
 import {
   patchCreateWizardDraft,
   patchEditWizardDraft,
@@ -98,6 +99,14 @@ export function useChatWidgetWizardEdit(): {
         if (cancelled) return;
         const data = widgetResponseData<JsonRecord>(res);
         const mapped = mapWidgetSnapshotToWidgetDraft(data, editWidgetKey);
+        const wid = mapped.websiteId?.trim() ?? "";
+        if (wid) {
+          const fromScheduling = await loadInquiryTopicsFromScheduling(wid);
+          if (fromScheduling.length > 0) {
+            mapped.inquiryOptions = fromScheduling;
+            mapped.inquiryOn = true;
+          }
+        }
         replaceEditWizardDraftFromApi(editWidgetKey, mapped);
       } catch (e) {
         if (!cancelled) {

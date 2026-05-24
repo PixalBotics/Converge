@@ -33,6 +33,7 @@ import {
   websiteAssignmentPageWrapper,
   websiteAssignmentSectionIconSx,
 } from "../../website-assigning.styles";
+import { mergeSx } from "@/lib/mui/merge-sx";
 
 const MODE_LABELS: Record<string, string> = {
   internal_only: "Internal only",
@@ -204,7 +205,7 @@ export default function WebsiteAssignmentDetailPage() {
         </DashboardCard>
       ) : null}
 
-      <DashboardCard sx={[websiteAssignmentModernCardSx, { p: { xs: 2, sm: 2.5 } }]}>
+      <DashboardCard sx={mergeSx(websiteAssignmentModernCardSx, { p: { xs: 2, sm: 2.5 } })}>
         <Typography variant="mediumLarge" fontWeight={700} sx={{ color: theme.app.text.primary, mb: 0.5 }}>
           Team assignments
         </Typography>

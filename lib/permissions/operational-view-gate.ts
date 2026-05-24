@@ -24,6 +24,23 @@ const PREFIX_VIEW_RULES: readonly { prefix: string; anyOf: readonly string[] }[]
     ],
   },
   {
+    prefix: "/dashboard/qa/roster/assign",
+    anyOf: [OP.qa.chatAssign, OP.chatWidget.view, OP.chatWidget.update],
+  },
+  {
+    prefix: "/dashboard/qa/roster",
+    anyOf: [OP.qa.chatAssign, OP.chatWidget.view, OP.chatWidget.update],
+  },
+  {
+    prefix: "/dashboard/qa",
+    anyOf: [
+      OP.qa.chatReview,
+      OP.qa.chatReviewMessage,
+      OP.qa.chatReviewSession,
+      OP.qa.chatAssign,
+    ],
+  },
+  {
     prefix: "/dashboard/chat-qa",
     anyOf: [
       OP.qa.chatReview,
@@ -218,6 +235,10 @@ const PREFIX_VIEW_RULES: readonly { prefix: string; anyOf: readonly string[] }[]
     anyOf: [OP.smtpEmail.view, OP.smtpEmail.update, OP.smtpEmail.test],
   },
   {
+    prefix: "/dashboard/settings/logs",
+    anyOf: [OP.observability.auditRead, OP.observability.analyticsRead],
+  },
+  {
     prefix: "/dashboard/email",
     anyOf: [
       OP.smtpEmail.view,
@@ -278,6 +299,11 @@ const PAGE_PERMISSION_TO_VIEW_ANY: Readonly<Record<string, readonly string[]>> =
   "page:email-template": [OP.emailTemplate.view],
   "page:email-agent-feedback": [OP.agentFeedback.view],
   "page:social-media": [OP.socialMedia.view],
+  "page:settings": [],
+  "page:observability:logs": [
+    OP.observability.auditRead,
+    OP.observability.analyticsRead,
+  ],
 };
 
 function normalizePathname(pathname: string): string {

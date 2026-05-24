@@ -19,6 +19,11 @@ import type { CannedResponseRow } from "@/services/chat/chat-settings.types";
 import { CANNED_PERSONAL } from "../constants/canned-messages";
 import type { AiChatMessage } from "../types/ai-chat";
 import { useAgentCannedResponses } from "../hooks/useAgentCannedResponses";
+import {
+  AGENT_COPILOT_SUBTITLE,
+  AGENT_COPILOT_TAB_LABEL,
+  AGENT_COPILOT_TITLE,
+} from "@/lib/ai/ai-role-copy";
 import { AiAssistantDrawer } from "./AiAssistantDrawer";
 import { chatSemanticSurface } from "../styles/chat-semantic";
 import {
@@ -135,7 +140,7 @@ export function ComposerDrawerTabs({
             onClick={() => toggleDrawer("ai")}
           >
             <AutoAwesome sx={{ fontSize: 17 }} />
-            AI assistant
+            {AGENT_COPILOT_TAB_LABEL}
           </DrawerTabButton>
         </DrawerTabBar>
 
@@ -293,13 +298,13 @@ export function ComposerDrawerTabs({
                   <AutoAwesome sx={{ fontSize: 18, color: aiSurface.accent }} />
                   <Box sx={{ flex: 1, minWidth: 0 }}>
                     <Typography fontWeight={700} sx={{ fontSize: 14, color: theme.app.text.primary }}>
-                      AI assistant
+                      {AGENT_COPILOT_TITLE}
                     </Typography>
                     <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, fontSize: 11 }}>
-                      {aiBusy ? "Thinking…" : "Powered by conversation context"}
+                      {aiBusy ? "Thinking…" : AGENT_COPILOT_SUBTITLE}
                     </Typography>
                   </Box>
-                  <IconButton size="small" aria-label="Close AI assistant" onClick={closeDrawer}>
+                  <IconButton size="small" aria-label="Close agent copilot" onClick={closeDrawer}>
                     <CloseRounded sx={{ fontSize: 18 }} />
                   </IconButton>
                 </ComposerToolsHeader>

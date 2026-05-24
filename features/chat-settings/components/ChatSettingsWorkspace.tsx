@@ -8,10 +8,10 @@ import type { AppTheme } from "@/theme/theme";
 import { DashboardCard, Typography } from "@/components/common";
 import {
   ChatLivePageHeader,
+  ChatLivePageShell,
   ChatScopeFiltersPanel,
   useChatScopeFilters,
 } from "@/features/chat-shared";
-import { chatLivePageStackSx } from "@/features/chat-shared/styles/chat-live.styles";
 import { PermissionDeniedPanel } from "@/components/common";
 import { useAuth } from "@/lib/auth";
 import { OP } from "@/lib/permissions/operational-keys";
@@ -74,12 +74,31 @@ export function ChatSettingsWorkspace() {
   }
 
   return (
-    <Box sx={chatLivePageStackSx}>
+    <ChatLivePageShell>
       <ChatLivePageHeader
         title="Canned messages"
         subtitle="Quick replies agents insert from the inbox composer. Scope filters narrow the list; each row is one message for a website."
-        navItems={[]}
+        navPreset="configure"
       />
+
+      <DashboardCard sx={{ flexShrink: 0, p: { xs: 1.5, md: 2 }, height: "auto", minHeight: 0 }}>
+        <ChatScopeFiltersPanel
+          compact
+          filters={scopeFilters.filters}
+          onPatch={scopeFilters.patchFilters}
+          onReset={scopeFilters.resetFilters}
+          canFilterByResellerId={scopeFilters.canFilterByResellerId}
+          resellerOptions={scopeFilters.resellerOptions}
+          parentCompanyOptions={scopeFilters.parentCompanyOptions}
+          childCompanyOptions={scopeFilters.childCompanyOptions}
+          websiteOptions={scopeFilters.websiteOptions}
+        />
+        {scopeFilters.websitesLoading ? (
+          <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, mt: 0.75 }}>
+            Loading websites…
+          </Typography>
+        ) : null}
+      </DashboardCard>
 
       <DashboardCard
         sx={{
@@ -87,49 +106,20 @@ export function ChatSettingsWorkspace() {
           display: "flex",
           flexDirection: "column",
           minHeight: 0,
-          p: 0,
+          p: { xs: 1.5, md: 2 },
           overflow: "hidden",
           borderColor: alpha(theme.app.dashboard.cardBorder, 0.85),
         }}
       >
-        <Box
-          sx={{
-            px: { xs: 1.5, md: 2 },
-            py: { xs: 1.25, md: 1.5 },
-            borderBottom: `1px solid ${alpha(theme.app.dashboard.cardBorder, 0.65)}`,
-            bgcolor: alpha(theme.app.dashboard.overlayLight, 0.25),
-            flexShrink: 0,
-          }}
-        >
-          <ChatScopeFiltersPanel
-            compact
-            filters={scopeFilters.filters}
-            onPatch={scopeFilters.patchFilters}
-            onReset={scopeFilters.resetFilters}
-            canFilterByResellerId={scopeFilters.canFilterByResellerId}
-            resellerOptions={scopeFilters.resellerOptions}
-            parentCompanyOptions={scopeFilters.parentCompanyOptions}
-            childCompanyOptions={scopeFilters.childCompanyOptions}
-            websiteOptions={scopeFilters.websiteOptions}
-          />
-          {scopeFilters.websitesLoading ? (
-            <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, mt: 0.75 }}>
-              Loading websites…
-            </Typography>
-          ) : null}
-        </Box>
-
-        <Box sx={{ flex: 1, minHeight: 0, p: { xs: 1.5, md: 2 } }}>
-          <CannedResponsesTab
-            filters={scopeFilters.filters}
-            canFilterByResellerId={scopeFilters.canFilterByResellerId}
-            canEdit={canEdit}
-            onNotifyError={notifyError}
-            onNotifySuccess={(message) => publishAppToast({ message, variant: "success" })}
-            embedded
-          />
-        </Box>
+        <CannedResponsesTab
+          filters={scopeFilters.filters}
+          canFilterByResellerId={scopeFilters.canFilterByResellerId}
+          canEdit={canEdit}
+          onNotifyError={notifyError}
+          onNotifySuccess={(message) => publishAppToast({ message, variant: "success" })}
+          embedded
+        />
       </DashboardCard>
-    </Box>
+    </ChatLivePageShell>
   );
 }

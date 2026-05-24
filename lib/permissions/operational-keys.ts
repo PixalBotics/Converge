@@ -15,6 +15,10 @@ export const OP = {  accountSetup: {
     view: "account-setup:view",
   },
   billing: { view: "billing:view" },
+  observability: {
+    auditRead: "observability:audit:read",
+    analyticsRead: "observability:analytics:read",
+  },
   chat: {
     access: "chat:access",
     audit: "chat:audit",

@@ -84,7 +84,7 @@ export const ROUTE_RULES: readonly RouteRule[] = [
   { permission: "page:shifts", href: "/dashboard/shifts", iconKey: "shifts", label: "Shifts", prefixMatch: true },
   { permission: "page:chat-inbox", href: "/dashboard/chat-operations", iconKey: "chat", label: "Agent inbox", prefixMatch: true },
   { permission: "page:chat-monitor", href: "/dashboard/chat-monitor", iconKey: "chat", label: "Monitor", prefixMatch: true },
-  { permission: "page:chat-qa", href: "/dashboard/chat-qa", iconKey: "chat", label: "QA inbox", prefixMatch: true },
+  { permission: "page:chat-qa", href: "/dashboard/qa/inbox", iconKey: "chat", label: "QA inbox", prefixMatch: true },
   {
     permission: "page:chat-reports",
     href: "/dashboard/chat-reports",
@@ -116,8 +116,8 @@ export const ROUTE_RULES: readonly RouteRule[] = [
   },
   {
     permission: "page:chat-qa-roster",
-    href: "/dashboard/chat-settings/qa-roster",
-    iconKey: "chatWidget",
+    href: "/dashboard/qa/roster",
+    iconKey: "chat",
     label: "QA roster",
     prefixMatch: true,
   },
@@ -147,6 +147,13 @@ export const ROUTE_RULES: readonly RouteRule[] = [
   { permission: "page:reports", href: "/dashboard/reports", iconKey: "reports" },
   { permission: "page:billing", href: "/dashboard/billing", iconKey: "billing" },
   { permission: "page:settings", href: "/dashboard/settings", iconKey: "settings" },
+  {
+    permission: "page:observability:logs",
+    href: "/dashboard/settings/logs",
+    iconKey: "settings",
+    label: "System logs",
+    prefixMatch: true,
+  },
   {
     permission: "page:email-template",
     href: "/dashboard/email",
@@ -237,6 +244,7 @@ export const PAGE_PERMISSION_ORDER: readonly PagePermission[] = [
   "page:reports",
   "page:billing",
   "page:settings",
+  "page:observability:logs",
   "page:smtp-email",
   "page:email-template",
   "page:email-agent-feedback",
@@ -263,6 +271,7 @@ const KNOWN_PAGE_PERMISSION_KEYS = new Set<string>([
   ...(PAGE_PERMISSION_ORDER as readonly string[]),
   "page:designations",
   "page:pool",
+  "page:observability:logs",
 ]);
 
 /**
@@ -284,6 +293,7 @@ const DASHBOARD_URL_SEGMENT_TO_PAGE: Readonly<Record<string, PagePermission>> = 
   shifts: "page:shifts",
   "chat-operations": "page:chat-inbox",
   "chat-monitor": "page:chat-monitor",
+  qa: "page:chat-qa",
   "chat-qa": "page:chat-qa",
   "chat-reports": "page:chat-reports",
   "chat-widget": "page:chat-widget",

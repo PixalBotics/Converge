@@ -9,10 +9,10 @@ import type { AppTheme } from "@/theme/theme";
 import { DashboardCard, Typography } from "@/components/common";
 import {
   ChatLivePageHeader,
+  ChatLivePageShell,
   ChatScopeFiltersPanel,
   useChatScopeFilters,
 } from "@/features/chat-shared";
-import { chatLivePageStackSx } from "@/features/chat-shared/styles/chat-live.styles";
 import { PermissionDeniedPanel } from "@/components/common";
 import { useAuth, useResellerListScope } from "@/lib/auth";
 import { PAGE } from "@/lib/permissions/permission-constants";
@@ -78,11 +78,11 @@ export function ChatSettingsQaRosterWorkspace() {
   }
 
   return (
-    <Box sx={chatLivePageStackSx}>
+    <ChatLivePageShell>
       <ChatLivePageHeader
         title="QA roster"
         subtitle="Dedicated QA reviewers per website—separate from live chat agents. They review closed chats in the QA inbox."
-        navItems={[]}
+        navPreset="configure"
       />
 
       <ChatSettingsSectionLayout>
@@ -167,6 +167,6 @@ export function ChatSettingsQaRosterWorkspace() {
           />
         )}
       </ChatSettingsSectionLayout>
-    </Box>
+    </ChatLivePageShell>
   );
 }

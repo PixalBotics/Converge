@@ -17,8 +17,8 @@ import type {
   JsonRecord,
   PutDepartmentRosterBody,
   PutDepartmentRosterCoverageBody,
-  ServiceChannel,
 } from "@/api";
+import type { ServiceChannel } from "@/api/types/website-assignments.types";
 import { useAuth } from "@/lib/auth";
 import { buildWebsiteAssignmentsScopeParams } from "@/lib/companies/reseller-list-filter";
 import { websiteAssignmentsKeys } from "./keys";

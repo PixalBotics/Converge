@@ -35,6 +35,7 @@ import {
   resetCreateWizardDraft,
   saveChatWizardDraft,
 } from "@/lib/chat-widget/chat-wizard-edit";
+import { loadInquiryTopicsFromScheduling } from "@/lib/chat-widget/hydrate-widget-inquiry-from-scheduling";
 import type { WidgetDraft } from "@/lib/chat-widget/widgetDraft";
 import { extractApiErrorMessageForToast } from "@/lib/notify/extract-api-message";
 import { publishAppToast } from "@/lib/notify";
@@ -318,19 +319,27 @@ export default function WidgetTypeSelectionPage() {
                       draft: base,
                       widgetKind: kind,
                     });
+                    const fromScheduling = await loadInquiryTopicsFromScheduling(wid);
                     saveChatWizardDraft(null, {
                       ...base,
                       remoteWidgetKey: created.widgetKey,
                       widgetId: created.widgetKey,
                       requiresPublishBeforeEmbed: created.requiresPublishBeforeEmbed,
+                      ...(fromScheduling.length > 0
+                        ? { inquiryOptions: fromScheduling, inquiryOn: true }
+                        : {}),
                     });
                     publishAppToast({
                       variant: "success",
                       message: "Draft saved on server. Continue configuration.",
                     });
                   } else {
+                    const fromScheduling = await loadInquiryTopicsFromScheduling(wid);
                     saveChatWizardDraft(null, {
                       ...base,
+                      ...(fromScheduling.length > 0
+                        ? { inquiryOptions: fromScheduling, inquiryOn: true }
+                        : {}),
                     });
                   }
 

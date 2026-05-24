@@ -1,10 +1,12 @@
 "use client";
 
+import type { KeyboardEvent } from "react";
 import Check from "@mui/icons-material/Check";
 import Box from "@mui/material/Box";
 import { alpha, useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import { Typography } from "@/components/common";
+import { mergeSx } from "@/lib/mui/merge-sx";
 import {
   distributionStepCardSx,
   distributionStepNumberSx,
@@ -68,14 +70,14 @@ export function CompanyEditStepper({
               aria-current={isActive ? "step" : undefined}
               tabIndex={interactive ? 0 : -1}
               onClick={() => goToStep(s.n)}
-              onKeyDown={(e) => {
+              onKeyDown={(e: KeyboardEvent<HTMLElement>) => {
                 if (!interactive) return;
                 if (e.key === "Enter" || e.key === " ") {
                   e.preventDefault();
                   goToStep(s.n);
                 }
               }}
-              sx={[
+              sx={mergeSx(
                 distributionStepCardSx(state),
                 interactive
                   ? {
@@ -98,7 +100,7 @@ export function CompanyEditStepper({
                       },
                     }
                   : { cursor: "default", pointerEvents: "none", opacity: 0.65 },
-              ]}
+              )}
             >
               <Box sx={{ display: "flex", alignItems: "center", gap: 1.25 }}>
                 <Box sx={distributionStepNumberSx(state)}>

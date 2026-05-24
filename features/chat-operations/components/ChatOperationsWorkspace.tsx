@@ -15,14 +15,18 @@ import { useNotificationsContext } from "@/lib/notifications/NotificationsContex
 import { useAgentChat } from "@/lib/hooks/chat/useAgentChat";
 import { mergeSx } from "@/lib/mui/merge-sx";
 import {
+  ChatLiveHubScopeCard,
   ChatLivePageHeader,
+  ChatLivePageShell,
   ChatScopeFiltersPanel,
+  ChatWebsiteAgentsTable,
   conversationMatchesScope,
   useChatScopeFilters,
+  useChatWebsiteAgents,
+  type ChatWebsiteAgentRow,
 } from "@/features/chat-shared";
 import {
   chatLiveAgentStackSx,
-  chatLivePageStackSx,
   chatLiveQueueStatPillSx,
 } from "@/features/chat-shared/styles/chat-live.styles";
 import type { AgentVisitorPresentation, ConversationSummary } from "@/services/chat/chat.types";
@@ -68,11 +72,13 @@ export function ChatOperationsWorkspace() {
   const scopeFilters = useChatScopeFilters(undefined, { apiEnabled: showScopeFilters });
   const conversationIdFromUrl = searchParams.get("conversationId")?.trim() ?? "";
 
+  const markAllChatNotificationsRead = notifications?.markAllRead;
+
   useEffect(() => {
-    if (inboxAllowed) {
-      void notifications?.markAllRead("chat");
+    if (inboxAllowed && markAllChatNotificationsRead) {
+      void markAllChatNotificationsRead("chat");
     }
-  }, [inboxAllowed, notifications]);
+  }, [inboxAllowed, markAllChatNotificationsRead]);
 
   const agentChat = useAgentChat({
     token: accessToken,
@@ -87,6 +93,21 @@ export function ChatOperationsWorkspace() {
   >({});
   const [fallbackWebsiteId, setFallbackWebsiteId] = useState("");
   const [availabilityHint, setAvailabilityHint] = useState<string | null>(null);
+  const [teamAgent, setTeamAgent] = useState<ChatWebsiteAgentRow | null>(null);
+  const [agentSearch, setAgentSearch] = useState("");
+  const [teamView, setTeamView] = useState(showScopeFilters);
+
+  const websiteIdScope = scopeFilters.filters.websiteId.trim();
+  const agentsQuery = useChatWebsiteAgents(
+    websiteIdScope,
+    scopeFilters.filters.parentCompanyId,
+    {
+      departmentId: scopeFilters.filters.departmentId,
+      poolId: scopeFilters.filters.poolId,
+      search: agentSearch,
+    },
+    { enabled: inboxAllowed && teamView && Boolean(websiteIdScope) },
+  );
 
   useEffect(() => {
     if (!inboxAllowed || !conversationIdFromUrl) return;
@@ -113,10 +134,18 @@ export function ChatOperationsWorkspace() {
 
   const filterByScope = useCallback(
     (rows: ConversationSummary[]) =>
-      rows.filter((c) =>
-        conversationMatchesScope(c, scopeFilters.filters, scopeFilters.websiteIdsInScope),
-      ),
-    [scopeFilters.filters, scopeFilters.websiteIdsInScope],
+      rows.filter((c) => {
+        if (
+          teamView &&
+          teamAgent?.userId &&
+          c.assignedAgentId &&
+          c.assignedAgentId !== teamAgent.userId
+        ) {
+          return false;
+        }
+        return conversationMatchesScope(c, scopeFilters.filters, scopeFilters.websiteIdsInScope);
+      }),
+    [scopeFilters.filters, scopeFilters.websiteIdsInScope, teamAgent?.userId, teamView],
   );
 
   const activeFiltered = useMemo(
@@ -350,15 +379,36 @@ export function ChatOperationsWorkspace() {
     !agentChat.selectedIsClosed;
 
   return (
-    <Box sx={mergeSx(chatOpsPageWrapper, showScopeFilters ? chatLivePageStackSx : chatLiveAgentStackSx)}>
+    <ChatLivePageShell
+      variant="workstation"
+      sx={showScopeFilters ? undefined : chatLiveAgentStackSx}
+    >
       <ChatLivePageHeader
         title="Agent inbox"
         subtitle={
           showScopeFilters
-            ? "Reply to visitors in your scoped queue. Use filters to narrow by organization or website."
+            ? teamView
+              ? "Choose a website, then optionally an agent. Queue updates as you filter."
+              : "Your personal assignments across scoped websites."
             : "Your assigned queue — reply, insert canned responses, and wrap up when required."
         }
-        navItems={[]}
+        navPreset="triage"
+        viewSwitch={
+          showScopeFilters
+            ? {
+                options: [
+                  { id: "team", label: "By website" },
+                  { id: "mine", label: "My queue" },
+                ],
+                value: teamView ? "team" : "mine",
+                onChange: (id) => {
+                  setTeamView(id === "team");
+                  setTeamAgent(null);
+                },
+                ariaLabel: "Agent inbox view",
+              }
+            : undefined
+        }
         trailing={
           <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75, justifyContent: "flex-end" }}>
             <Box sx={chatLiveQueueStatPillSx("active")}>Active {activeFiltered.length}</Box>
@@ -368,21 +418,84 @@ export function ChatOperationsWorkspace() {
         }
       />
       {showScopeFilters ? (
-        <DashboardCard sx={{ flexShrink: 0, p: { xs: 1.5, md: 2 }, height: "auto", minHeight: 0 }}>
-          <ChatScopeFiltersPanel
-            filters={scopeFilters.filters}
-            onPatch={scopeFilters.patchFilters}
-            onReset={scopeFilters.resetFilters}
-            canFilterByResellerId={scopeFilters.canFilterByResellerId}
-            resellerOptions={scopeFilters.resellerOptions}
-            parentCompanyOptions={scopeFilters.parentCompanyOptions}
-            childCompanyOptions={scopeFilters.childCompanyOptions}
-            websiteOptions={scopeFilters.websiteOptions}
-            hint="Supervisors and leads: narrow the queue by reseller, company, or website."
-          />
-        </DashboardCard>
+        <>
+          {teamView ? (
+            <>
+              <ChatLiveHubScopeCard
+                filters={scopeFilters.filters}
+                onPatch={(patch) => {
+                  scopeFilters.patchFilters(patch);
+                  if (patch.websiteId !== undefined) setTeamAgent(null);
+                }}
+                onReset={() => {
+                  scopeFilters.resetFilters();
+                  setTeamAgent(null);
+                  setAgentSearch("");
+                }}
+                canFilterByResellerId={scopeFilters.canFilterByResellerId}
+                resellerOptions={scopeFilters.resellerOptions}
+                parentCompanyOptions={scopeFilters.parentCompanyOptions}
+                childCompanyOptions={scopeFilters.childCompanyOptions}
+                websiteOptions={scopeFilters.websiteOptions}
+                agentSearch={agentSearch}
+                onAgentSearchChange={setAgentSearch}
+                showDepartmentPool={false}
+              />
+              {websiteIdScope ? (
+                <ChatWebsiteAgentsTable
+                  rows={agentsQuery.rows}
+                  isLoading={agentsQuery.isLoading}
+                  isError={agentsQuery.isError}
+                  selectedAgentUserId={teamAgent?.userId}
+                  onSelectAgent={setTeamAgent}
+                  websiteLabel={
+                    scopeFilters.websiteOptions.find((w) => w.value === websiteIdScope)?.label
+                  }
+                />
+              ) : null}
+            </>
+          ) : (
+            <DashboardCard sx={{ flexShrink: 0, p: { xs: 1.5, md: 2 }, height: "auto", minHeight: 0 }}>
+              <ChatScopeFiltersPanel
+                filters={scopeFilters.filters}
+                onPatch={scopeFilters.patchFilters}
+                onReset={scopeFilters.resetFilters}
+                canFilterByResellerId={scopeFilters.canFilterByResellerId}
+                resellerOptions={scopeFilters.resellerOptions}
+                parentCompanyOptions={scopeFilters.parentCompanyOptions}
+                childCompanyOptions={scopeFilters.childCompanyOptions}
+                websiteOptions={scopeFilters.websiteOptions}
+                hint="Your personal agent queue across scoped websites."
+              />
+            </DashboardCard>
+          )}
+        </>
       ) : null}
       <Box sx={chatOpsWorkspaceShell}>
+        {teamView && teamAgent ? (
+          <DashboardCard sx={{ flexShrink: 0, p: 1.25, mb: 1 }}>
+            <Typography variant="body2">
+              Viewing chats for <strong>{teamAgent.displayName}</strong>
+              {teamAgent.email ? ` · ${teamAgent.email}` : null}
+              {" · "}
+              <Box
+                component="button"
+                type="button"
+                onClick={() => setTeamAgent(null)}
+                sx={{
+                  border: "none",
+                  bgcolor: "transparent",
+                  color: "primary.main",
+                  cursor: "pointer",
+                  fontWeight: 600,
+                  p: 0,
+                }}
+              >
+                Clear agent
+              </Box>
+            </Typography>
+          </DashboardCard>
+        ) : null}
         <Box sx={chatOpsWorkspaceGrid}>
           <Box data-chat-pane="inbox">
             <ChatQueueSidebar
@@ -480,6 +593,6 @@ export function ChatOperationsWorkspace() {
           }}
         />
       )}
-    </Box>
+    </ChatLivePageShell>
   );
 }

@@ -91,6 +91,7 @@ export type PagePermission =
   | "page:resellers"
   | "page:roles"
   | "page:settings"
+  | "page:observability:logs"
   | "page:shifts"
   | "page:smtp-email"
   | "page:email-template"

@@ -283,6 +283,7 @@ export function NotificationsBellDrawer() {
   const ctx = useNotificationsContext();
   const [filter, setFilter] = useState<FilterKey>("all");
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
+  const [markingAll, setMarkingAll] = useState(false);
 
   useEffect(() => {
     if (!ctx?.drawerOpen) {
@@ -346,6 +347,17 @@ export function NotificationsBellDrawer() {
     void markRead(notification.id);
   };
 
+  const handleMarkAllRead = async () => {
+    if (markingAll) return;
+    setMarkingAll(true);
+    try {
+      const group = filter === "all" ? undefined : filter;
+      await markAllRead(group);
+    } finally {
+      setMarkingAll(false);
+    }
+  };
+
   const emptyTitle =
     filter === "all" ? "You're all caught up" : `No ${GROUP_LABELS[filter as NotificationBadgeGroup]} alerts`;
   const emptyDescription =
@@ -406,21 +418,24 @@ export function NotificationsBellDrawer() {
               <Box
                 component="button"
                 type="button"
-                onClick={() => void markAllRead()}
+                disabled={markingAll}
+                onClick={() => void handleMarkAllRead()}
                 sx={{
                   border: "none",
                   p: 0,
                   bgcolor: "transparent",
-                  cursor: "pointer",
+                  cursor: markingAll ? "wait" : "pointer",
                   font: "inherit",
                   fontSize: 11,
-                  color: theme.app.text.link,
+                  color: markingAll ? theme.app.dashboard.textMuted : theme.app.text.link,
                   textDecoration: "underline",
                   textUnderlineOffset: 2,
+                  opacity: markingAll ? 0.7 : 1,
                   "&:hover": { color: theme.app.text.primary },
+                  "&:disabled": { cursor: "wait" },
                 }}
               >
-                Mark all read
+                {markingAll ? "Marking…" : "Mark all read"}
               </Box>
             ) : null}
           </Box>

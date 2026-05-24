@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import { useAuth } from "@/lib/auth";
-import { mergeSx } from "@/lib/mui/merge-sx";
 import { PermissionDeniedPanel } from "@/components/common";
 import { useChatApiGates } from "@/lib/permissions";
 import { Button, DashboardCard, Typography } from "@/components/common";
@@ -21,21 +20,19 @@ import {
 } from "recharts";
 import {
   ChatLivePageHeader,
+  ChatLivePageShell,
   ChatScopeFiltersPanel,
   calendarDateToIsoEnd,
   calendarDateToIsoStart,
   isoToCalendarDate,
   useChatScopeFilters,
 } from "@/features/chat-shared";
-import { chatLivePageStackSx } from "@/features/chat-shared/styles/chat-live.styles";
 import { useChatReports } from "../hooks/useChatReports";
 import { ReportBucketTable } from "./ReportBucketTable";
 import { defaultReportRange } from "../utils/format-metric";
 import {
-  chatReportsContentSx,
   chatReportsKpiCardSx,
   chatReportsKpiGridSx,
-  chatReportsPageWrapper,
   chatReportsSectionSx,
 } from "../styles/chat-reports.styles";
 import { formatDurationSeconds, formatScore } from "../utils/format-metric";
@@ -117,42 +114,41 @@ export function ChatReportsDashboard() {
   }));
 
   return (
-    <Box sx={mergeSx(chatReportsPageWrapper, chatLivePageStackSx)}>
-      <Box sx={chatReportsContentSx}>
-        <ChatLivePageHeader
-          title="Live chat reports"
-          subtitle="Scoped metrics from closed and active conversations in your monitor access."
-          navItems={[]}
-          trailing={
-            <Button type="button" variant="outlined" onClick={() => void reports.refresh()}>
-              Refresh
-            </Button>
-          }
+    <ChatLivePageShell>
+      <ChatLivePageHeader
+        title="Live chat reports"
+        subtitle="Scoped metrics from closed and active conversations in your monitor access."
+        navPreset="configure"
+        trailing={
+          <Button type="button" variant="outlined" onClick={() => void reports.refresh()}>
+            Refresh
+          </Button>
+        }
+      />
+
+      <DashboardCard sx={{ flexShrink: 0, p: { xs: 1.5, md: 2 }, height: "auto", minHeight: 0 }}>
+        <ChatScopeFiltersPanel
+          filters={scopeFilters.filters}
+          onPatch={scopeFilters.patchFilters}
+          onReset={() => {
+            scopeFilters.resetFilters();
+            const dr = defaultReportRange();
+            scopeFilters.patchFilters({
+              dateFrom: isoToCalendarDate(dr.from),
+              dateTo: isoToCalendarDate(dr.to),
+            });
+          }}
+          canFilterByResellerId={scopeFilters.canFilterByResellerId}
+          resellerOptions={scopeFilters.resellerOptions}
+          parentCompanyOptions={scopeFilters.parentCompanyOptions}
+          childCompanyOptions={scopeFilters.childCompanyOptions}
+          websiteOptions={scopeFilters.websiteOptions}
+          showDateRange
+          hint="Pick reseller, parent, and child company to narrow websites. Use the calendar for the report period."
         />
+      </DashboardCard>
 
-        <DashboardCard sx={{ flexShrink: 0, p: { xs: 1.5, md: 2 }, height: "auto", minHeight: 0 }}>
-          <ChatScopeFiltersPanel
-            filters={scopeFilters.filters}
-            onPatch={scopeFilters.patchFilters}
-            onReset={() => {
-              scopeFilters.resetFilters();
-              const dr = defaultReportRange();
-              scopeFilters.patchFilters({
-                dateFrom: isoToCalendarDate(dr.from),
-                dateTo: isoToCalendarDate(dr.to),
-              });
-            }}
-            canFilterByResellerId={scopeFilters.canFilterByResellerId}
-            resellerOptions={scopeFilters.resellerOptions}
-            parentCompanyOptions={scopeFilters.parentCompanyOptions}
-            childCompanyOptions={scopeFilters.childCompanyOptions}
-            websiteOptions={scopeFilters.websiteOptions}
-            showDateRange
-            hint="Pick reseller, parent, and child company to narrow websites. Use the calendar for the report period."
-          />
-        </DashboardCard>
-
-        {reports.loading ? (
+      {reports.loading ? (
           <Typography sx={{ color: theme.app.dashboard.textMuted }}>Loading report…</Typography>
         ) : reports.error ? (
           <Typography color="error">Could not load report. Check date range and permissions.</Typography>
@@ -221,7 +217,6 @@ export function ChatReportsDashboard() {
             </Box>
           </>
         ) : null}
-      </Box>
-    </Box>
+    </ChatLivePageShell>
   );
 }

@@ -19,6 +19,9 @@ import {
   playSoundForNotificationType,
   soundKeyForNotificationType,
 } from "@/lib/notifications/notification-sounds";
+import { extractApiErrorMessageForToast } from "@/lib/notify/extract-api-message";
+import { publishAppToast } from "@/lib/notify";
+import type { NotificationBadgeGroup } from "@/services/notifications/notifications.types";
 
 const EMPTY_BADGES: BadgeCounts = { chat: 0, qa: 0, hrms_leave: 0, hrms_attendance: 0 };
 
@@ -80,7 +83,12 @@ export function useNotifications(enabled: boolean) {
       );
     }
     if (payload.event === "read_all") {
-      setItems([]);
+      const group = payload.badgeGroup;
+      if (group) {
+        setItems((prev) => prev.filter((n) => n.badgeGroup !== group));
+      } else {
+        setItems([]);
+      }
     }
   }, []);
 
@@ -125,7 +133,7 @@ export function useNotifications(enabled: boolean) {
   );
 
   const markAllRead = useCallback(
-    async (badgeGroup?: string) => {
+    async (badgeGroup?: NotificationBadgeGroup | string) => {
       if (!tokenRef.current) return;
       try {
         const counts = await markAllNotificationsRead(badgeGroup);
@@ -135,11 +143,19 @@ export function useNotifications(enabled: boolean) {
         } else {
           setItems([]);
         }
-      } catch {
+        await refreshList(true);
+      } catch (err) {
+        publishAppToast({
+          variant: "error",
+          message:
+            extractApiErrorMessageForToast(err) ??
+            "Could not mark notifications as read.",
+        });
         await refreshBadges();
+        await refreshList(true);
       }
     },
-    [refreshBadges],
+    [refreshBadges, refreshList],
   );
 
   const openDrawer = useCallback(() => {

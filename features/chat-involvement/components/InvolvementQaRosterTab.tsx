@@ -20,7 +20,7 @@ import { fetchQaWebsiteRoster, type QaRosterListRow } from "@/services/chat/qa-r
 import {
   useQaRosterListQuery,
   useSaveQaRosterWebsiteMutation,
-} from "../hooks/useInvolvementLists";
+} from "@/features/chat-qa/hooks/useQaRosterList";
 import { InvolvementTabToolbarCard } from "./InvolvementTabToolbarCard";
 import { QaAddReviewersModal } from "./QaAddReviewersModal";
 
@@ -177,7 +177,8 @@ export function InvolvementQaRosterTab({
         description="Assign who can review closed chats per website (internal vs external channel). Use filters to narrow the table, or leave empty to see all assignments in your scope."
         searchValue={tableSearch}
         onSearchChange={setTableSearch}
-        searchPlaceholder="Search website, company, reviewer…"
+        searchLabel="Search this table"
+        searchPlaceholder="Website, company, or reviewer…"
         addLabel="Assign QA reviewers"
         onAdd={() => setAddOpen(true)}
         canAdd={canEdit}

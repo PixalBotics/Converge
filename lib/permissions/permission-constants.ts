@@ -28,6 +28,8 @@ export const PAGE = {
   AI_CHATBOT: "page:ai-chatbot",
   ROLES: "page:roles",
   WEBSITE_ASSIGNMENTS: "page:website-assignments",
+  SETTINGS: "page:settings",
+  OBSERVABILITY_LOGS: "page:observability:logs",
 } as const;
 
 /** Org / user-management structure (prefer `org:*`; keep `hrms:org:*` for backward compat). */

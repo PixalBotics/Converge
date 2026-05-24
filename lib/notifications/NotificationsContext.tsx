@@ -41,7 +41,18 @@ export function NotificationsProvider({
       markAllRead: n.markAllRead,
       refreshBadges: n.refreshBadges,
     }),
-    [n],
+    [
+      n.badgeCounts,
+      n.items,
+      n.loading,
+      n.connected,
+      n.drawerOpen,
+      n.openDrawer,
+      n.closeDrawer,
+      n.markRead,
+      n.markAllRead,
+      n.refreshBadges,
+    ],
   );
 
   return (

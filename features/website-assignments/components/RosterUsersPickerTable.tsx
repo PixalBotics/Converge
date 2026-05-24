@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
+import Link from "@mui/material/Link";
 import Radio from "@mui/material/Radio";
 import Table from "@mui/material/Table";
 import TableBody from "@mui/material/TableBody";
@@ -445,7 +446,7 @@ export function RosterUsersPickerTable({
                                 {formatRosterShiftLabel(hrms.shift)}
                               </Typography>
                               {!hrms.shift ? (
-                                <Typography
+                                <Link
                                   component={NextLink}
                                   href={hrmsSchedulingHref(user.id)}
                                   variant="caption"
@@ -457,7 +458,7 @@ export function RosterUsersPickerTable({
                                   }}
                                 >
                                   Assign shift in HRMS first
-                                </Typography>
+                                </Link>
                               ) : (
                                 <Chip
                                   size="small"

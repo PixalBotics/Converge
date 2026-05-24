@@ -1,5 +1,14 @@
-import { ChatSettingsQaRosterWorkspace } from "@/features/chat-settings/components/ChatSettingsQaRosterWorkspace";
+import { redirect } from "next/navigation";
 
-export default function ChatSettingsQaRosterPage() {
-  return <ChatSettingsQaRosterWorkspace />;
+type Props = {
+  searchParams: Promise<{ website?: string }>;
+};
+
+export default async function LegacyChatSettingsQaRosterPage({
+  searchParams,
+}: Props) {
+  const sp = await searchParams;
+  const website = typeof sp.website === "string" ? sp.website.trim() : "";
+  const qs = website ? `?websiteId=${encodeURIComponent(website)}` : "";
+  redirect(`/dashboard/qa/roster/assign${qs}`);
 }

@@ -344,7 +344,7 @@ export function QaSessionReviewPanel({
                 Chat involvement → QA roster
               </Link>{" "}
               or{" "}
-              <Link href="/dashboard/chat-settings/qa-roster" style={{ color: theme.app.dashboard.accentBlue }}>
+              <Link href="/dashboard/qa/roster" style={{ color: theme.app.dashboard.accentBlue }}>
                 Chat settings → QA roster
               </Link>
               .

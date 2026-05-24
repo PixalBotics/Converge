@@ -26,6 +26,8 @@ type InvolvementTabToolbarCardProps = {
   searchValue: string;
   onSearchChange: (value: string) => void;
   searchPlaceholder: string;
+  /** Shown above the table search field (distinct from the header global search). */
+  searchLabel?: string;
   addLabel?: string;
   onAdd?: () => void;
   canAdd?: boolean;
@@ -40,6 +42,7 @@ export function InvolvementTabToolbarCard({
   searchValue,
   onSearchChange,
   searchPlaceholder,
+  searchLabel = "Search this table",
   addLabel,
   onAdd,
   canAdd = false,
@@ -76,7 +79,15 @@ export function InvolvementTabToolbarCard({
           ) : null
         }
       />
-      <Box sx={{ ...websiteAssignmentSearchRow, mt: 2 }}>
+      <Box sx={{ ...websiteAssignmentSearchRow, mt: 2, flexDirection: "column", alignItems: "stretch" }}>
+        <Typography
+          component="label"
+          variant="caption"
+          fontWeight={600}
+          sx={{ color: theme.app.dashboard.textMuted, mb: 0.5, display: "block" }}
+        >
+          {searchLabel}
+        </Typography>
         <Box sx={websiteAssignmentSearchFieldWrapper}>
           <SearchBar
             value={searchValue}
