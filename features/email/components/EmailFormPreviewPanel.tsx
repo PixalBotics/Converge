@@ -7,6 +7,7 @@ import MailOutline from "@mui/icons-material/MailOutline";
 import type { AppTheme } from "@/theme/theme";
 import { Typography } from "@/components/common";
 import type { EmailFormFieldRow } from "@/api/email/email-forms.api";
+import { isConfigurableEmailFormFieldKey } from "../constants/agent-distribution-form-fields";
 import { groupEmailFormFields } from "../utils/email-form-field-groups";
 import {
   emailFormPreviewBodySx,
@@ -25,7 +26,11 @@ export function EmailFormPreviewPanel({
   fields: EmailFormFieldRow[];
 }) {
   const theme = useTheme() as AppTheme;
-  const included = fields.filter((f) => formType === "standard" || f.isRequired || f.enabled);
+  const included = fields.filter(
+    (f) =>
+      isConfigurableEmailFormFieldKey(f.fieldKey) &&
+      (formType === "standard" || f.isRequired || f.enabled),
+  );
   const groups = groupEmailFormFields(included);
   const displayName = formName.trim() || (formType === "standard" ? "Standard wrap-up" : "Custom wrap-up");
 

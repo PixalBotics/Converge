@@ -238,8 +238,9 @@ export function UsersTableSection(props: Props) {
                 && loginAsMutation.variables?.targetUserId === row.id;
               const licenseKey = row.licenseKey;
               const isSelf = Boolean(authUser?.id && row.id && authUser.id === row.id);
+              const isPoc = row.isPoc === true;
               const canOpenDelete =
-                canDeleteUser && !!row.id && !isSelf;
+                canDeleteUser && !!row.id && !isSelf && !isPoc;
               return (
                 <Box sx={{ display: "flex", alignItems: "center", justifyContent: "flex-start", gap: 1 }}>
                   {row.id ? (
@@ -306,7 +307,14 @@ export function UsersTableSection(props: Props) {
                   </IconButton>
                   <IconButton
                     size="small"
-                    aria-label={canOpenDelete ? "Delete user" : "Delete user (unavailable)"}
+                    aria-label={
+                      isPoc
+                        ? "Delete unavailable — user is a POC"
+                        : canOpenDelete
+                          ? "Delete user"
+                          : "Delete user (unavailable)"
+                    }
+                    title={isPoc ? "This user is a point of contact (POC) and cannot be deleted." : undefined}
                     disabled={!canOpenDelete}
                     onClick={() => {
                       if (!canOpenDelete) return;

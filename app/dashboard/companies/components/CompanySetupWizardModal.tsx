@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Box from "@mui/material/Box";
 import IconButton from "@mui/material/IconButton";
 import Radio from "@mui/material/Radio";
@@ -12,6 +12,7 @@ import { Button, DashboardCard, FormModal, InputField, SelectField, Typography }
 import {
   useCompaniesSetupResellersQuery,
   useCompanySetupDraftByIdQuery,
+  useCreateCompanySetupDraftMutation,
   useDepartmentsListQuery,
   useRolesListQuery,
   useSubmitCompanySetupDraftMutation,
@@ -24,17 +25,23 @@ import {
 } from "@/lib/companies/company-setup-draft-field-paths";
 import { extractNestFieldErrors } from "@/lib/companies/extract-nest-field-errors";
 import {
+  buildChildrenDraftAutosaveBody,
   buildChildrenDraftPatchBody,
-  buildResellerParentDraftPatchBody,
+  buildResellerParentDraftSaveBody,
+  extractCompanySetupDraftId,
   emptyDraftChildRow,
+  emptyPocSlice,
   isChildRowPocComplete,
+  MAX_POC_PER_CHILD,
   normalizeHttpsWebsiteUrl,
-  parseCompanySetupDraftRunForWizard,
+  readWizardHydrationFromDraft,
+  type CompanySetupWizardHydration,
   type DraftChildPayload,
+  type PocDraftSlice,
 } from "@/lib/companies/setup-draft.utils";
 import { pickItemsArray, toIdNameOption } from "@/app/dashboard/user-page/components/add-user-modal.utils";
 import { publishAppToast } from "@/lib/notify";
-import { AddCircleIcon, DeleteCircleIcon } from "@/components/common/icons";
+import { AddCircleIcon } from "@/components/common/icons";
 import {
   stepperOuter,
   stepperSegment,
@@ -49,12 +56,13 @@ import {
   stepOneIncompleteHint,
   sectionStack,
   sectionHeaderRow,
-  deleteIconButton,
-  addAnotherButton,
+  sectionHeaderRowWebsiteFirst,
+  addAnotherButtonRight,
   addAnotherIcon,
   addAnotherLabel,
+  childRemoveIconButton,
 } from "../overview.styles";
-import { CompanySetupChildPocBlock } from "./CompanySetupChildPocBlock";
+import { CompanySetupChildPocsList } from "./CompanySetupChildPocsList";
 import { useAuth, sessionMayPickInternalUserScope } from "@/lib/auth";
 import { canCompaniesModuleAction } from "@/lib/permissions";
 
@@ -96,22 +104,28 @@ export function CompanySetupWizardModal({ open, draftId, onClose }: CompanySetup
 
   draftChildRowsRef.current = draftChildRows;
 
+  const createDraftMutation = useCreateCompanySetupDraftMutation();
   const updateDraftMutation = useUpdateCompanySetupDraftMutation();
   /** Debounced step-2 PATCH: no global success/error toasts (inline field errors only). */
   const debouncedDraftUpdateMutation = useUpdateCompanySetupDraftMutation({ skipGlobalToast: true });
   const submitDraftMutation = useSubmitCompanySetupDraftMutation();
+  /** DB run id — created only after step 1 Continue (not on Add Reseller). */
+  const [activeRunId, setActiveRunId] = useState<string | null>(null);
 
   const debouncedDraftMutateAsyncRef = useRef(debouncedDraftUpdateMutation.mutateAsync);
   debouncedDraftMutateAsyncRef.current = debouncedDraftUpdateMutation.mutateAsync;
   /** Read inside debounced timer — avoids stale `isPending` after 1200ms. */
   const mutationsPendingRef = useRef(false);
   mutationsPendingRef.current =
+    createDraftMutation.isPending ||
     updateDraftMutation.isPending ||
     submitDraftMutation.isPending ||
     debouncedDraftUpdateMutation.isPending;
 
-  const draftQuery = useCompanySetupDraftByIdQuery(draftId, {
-    enabled: open && !!draftId?.trim(),
+  const effectiveRunId = activeRunId?.trim() || draftId?.trim() || "";
+
+  const draftQuery = useCompanySetupDraftByIdQuery(effectiveRunId || null, {
+    enabled: open && effectiveRunId.length > 0,
   });
 
   const resellersQuery = useCompaniesSetupResellersQuery({
@@ -155,12 +169,36 @@ export function CompanySetupWizardModal({ open, draftId, onClose }: CompanySetup
   );
 
   useEffect(() => {
+    if (!open) return;
+    setActiveRunId(draftId?.trim() || null);
     lastChildrenPatchBodyRef.current = "";
-  }, [draftId]);
+    hydratedDraftIdRef.current = null;
+  }, [open, draftId]);
 
   useEffect(() => {
     if (modalStep === 1) lastChildrenPatchBodyRef.current = "";
   }, [modalStep]);
+
+  const applyHydration = useCallback((parsed: CompanySetupWizardHydration & { modalStep: 1 | 2 }) => {
+    setSetupKind(parsed.setupKind);
+    setResellerId(parsed.resellerId);
+    setParentCompanyName(parsed.parentCompanyName);
+    setParentEmail(parsed.parentEmail);
+    setParentPhone(parsed.parentPhone);
+    setParentAddress(parsed.parentAddress);
+    setDraftChildRows(parsed.draftChildRows);
+    setModalStep(parsed.modalStep);
+  }, []);
+
+  const hydrateFromDraftResponse = useCallback(
+    (data: unknown, modalStepOverride?: 1 | 2) => {
+      const parsed = readWizardHydrationFromDraft(data, modalStepOverride);
+      if (!parsed) return false;
+      applyHydration(parsed);
+      return true;
+    },
+    [applyHydration],
+  );
 
   const applyApiErrorsFromCatch = (err: unknown) => {
     setApiFieldErrors(extractNestFieldErrors(err));
@@ -202,6 +240,7 @@ export function CompanySetupWizardModal({ open, draftId, onClose }: CompanySetup
     if (!open) {
       hydratedDraftIdRef.current = null;
       lastChildrenPatchBodyRef.current = "";
+      setActiveRunId(null);
       setApiFieldErrors({});
       setModalStep(1);
       setSetupKind("new_reseller");
@@ -224,28 +263,45 @@ export function CompanySetupWizardModal({ open, draftId, onClose }: CompanySetup
 
   /** Hydrate form from GET `/companies/setup/draft/{id}` once per open for this draft id. */
   useEffect(() => {
-    if (!open || !draftId?.trim()) return;
+    if (!open || !effectiveRunId) return;
     if (!draftQuery.isSuccess || draftQuery.data === undefined) return;
-    if (hydratedDraftIdRef.current === draftId) return;
-    const parsed = parseCompanySetupDraftRunForWizard(draftQuery.data);
-    if (!parsed) {
-      hydratedDraftIdRef.current = draftId;
+    if (hydratedDraftIdRef.current === effectiveRunId) return;
+    if (!hydrateFromDraftResponse(draftQuery.data)) {
+      hydratedDraftIdRef.current = effectiveRunId;
       return;
     }
-    setSetupKind(parsed.setupKind);
-    setResellerId(parsed.resellerId);
-    setParentCompanyName(parsed.parentCompanyName);
-    setParentEmail(parsed.parentEmail);
-    setParentPhone(parsed.parentPhone);
-    setParentAddress(parsed.parentAddress);
-    setDraftChildRows(parsed.draftChildRows);
-    setModalStep(parsed.modalStep);
-    hydratedDraftIdRef.current = draftId;
-  }, [open, draftId, draftQuery.isSuccess, draftQuery.data]);
+    hydratedDraftIdRef.current = effectiveRunId;
+  }, [open, effectiveRunId, draftQuery.isSuccess, draftQuery.data, hydrateFromDraftResponse]);
+
+  const handleBackToStep1 = () => {
+    void (async () => {
+      if (!effectiveRunId) {
+        setModalStep(1);
+        return;
+      }
+      const refreshed = await draftQuery.refetch();
+      const payload = refreshed.data ?? draftQuery.data;
+      if (payload) {
+        hydrateFromDraftResponse(payload, 1);
+      } else {
+        setModalStep(1);
+      }
+      if (canSetupDraftMutate) {
+        try {
+          await updateDraftMutation.mutateAsync({
+            id: effectiveRunId,
+            body: { step: "reseller_parent" },
+          });
+        } catch (err) {
+          applyApiErrorsFromCatch(err);
+        }
+      }
+    })();
+  };
 
   /** Persist children draft to server while editing step 2 so GET-after-refresh can hydrate rows. */
   useEffect(() => {
-    if (!open || !draftId?.trim() || modalStep !== 2) return;
+    if (!open || !effectiveRunId || modalStep !== 2) return;
     if (!canSetupDraftMutate) return;
     if (
       updateDraftMutation.isPending ||
@@ -259,12 +315,12 @@ export function CompanySetupWizardModal({ open, draftId, onClose }: CompanySetup
       if (mutationsPendingRef.current) return;
       const rows = draftChildRowsRef.current;
       if (!rows.some((r) => r.name.trim().length > 0)) return;
-      const body = buildChildrenDraftPatchBody(rows);
+      const body = buildChildrenDraftAutosaveBody(rows);
       const serialized = JSON.stringify(body);
       if (serialized === lastChildrenPatchBodyRef.current) return;
       void (async () => {
         try {
-          await debouncedDraftMutateAsyncRef.current({ id: draftId, body });
+          await debouncedDraftMutateAsyncRef.current({ id: effectiveRunId, body });
           lastChildrenPatchBodyRef.current = serialized;
         } catch (err) {
           applyApiErrorsFromCatch(err);
@@ -275,7 +331,7 @@ export function CompanySetupWizardModal({ open, draftId, onClose }: CompanySetup
     return () => window.clearTimeout(timer);
   }, [
     open,
-    draftId,
+    effectiveRunId,
     modalStep,
     draftChildRows,
     updateDraftMutation.isPending,
@@ -318,20 +374,39 @@ export function CompanySetupWizardModal({ open, draftId, onClose }: CompanySetup
   );
 
   const handleClose = () => {
-    if (updateDraftMutation.isPending || submitDraftMutation.isPending) return;
+    if (
+      createDraftMutation.isPending ||
+      updateDraftMutation.isPending ||
+      submitDraftMutation.isPending
+    ) {
+      return;
+    }
     onClose("dismissed");
   };
 
   const handlePrimary = () => {
     void (async () => {
-      if (!draftId) return;
       if (!canSetupDraftMutate) return;
       if (modalStep === 1) {
         if (!isStepOneComplete) return;
         try {
+          let runId = effectiveRunId;
+          if (!runId) {
+            const created = await createDraftMutation.mutateAsync({});
+            runId = extractCompanySetupDraftId(created) ?? "";
+            if (!runId) {
+              publishAppToast({
+                variant: "error",
+                message: "Could not start setup draft. Please try again.",
+              });
+              return;
+            }
+            setActiveRunId(runId);
+            hydratedDraftIdRef.current = null;
+          }
           await updateDraftMutation.mutateAsync({
-            id: draftId,
-            body: buildResellerParentDraftPatchBody(
+            id: runId,
+            body: buildResellerParentDraftSaveBody(
               setupKind === "new_reseller"
                 ? {
                     kind: "new_reseller",
@@ -357,6 +432,7 @@ export function CompanySetupWizardModal({ open, draftId, onClose }: CompanySetup
         }
         return;
       }
+      if (!effectiveRunId) return;
       if (!isStepTwoComplete) return;
       if (!canSubmitWizard) {
         publishAppToast({
@@ -367,10 +443,10 @@ export function CompanySetupWizardModal({ open, draftId, onClose }: CompanySetup
       }
       try {
         await updateDraftMutation.mutateAsync({
-          id: draftId,
+          id: effectiveRunId,
           body: buildChildrenDraftPatchBody(draftChildRows),
         });
-        await submitDraftMutation.mutateAsync(draftId);
+        await submitDraftMutation.mutateAsync(effectiveRunId);
         onClose("completed");
       } catch (err) {
         applyApiErrorsFromCatch(err);
@@ -398,6 +474,41 @@ export function CompanySetupWizardModal({ open, draftId, onClose }: CompanySetup
 
   const addChildRow = () => {
     setDraftChildRows((prev) => [...prev, emptyDraftChildRow()]);
+  };
+
+  const updateChildPoc = (
+    childIndex: number,
+    pocIndex: number,
+    patch: Partial<PocDraftSlice>,
+  ) => {
+    clearChildrenDraftFieldErrors(childIndex);
+    setDraftChildRows((prev) =>
+      prev.map((row, i) => {
+        if (i !== childIndex) return row;
+        const pocRows = row.pocRows.map((p, pi) => (pi === pocIndex ? { ...p, ...patch } : p));
+        return { ...row, pocRows };
+      }),
+    );
+  };
+
+  const addChildPoc = (childIndex: number) => {
+    clearChildrenDraftFieldErrors(childIndex);
+    setDraftChildRows((prev) =>
+      prev.map((row, i) => {
+        if (i !== childIndex || row.pocRows.length >= MAX_POC_PER_CHILD) return row;
+        return { ...row, pocRows: [...row.pocRows, emptyPocSlice()] };
+      }),
+    );
+  };
+
+  const removeChildPoc = (childIndex: number, pocIndex: number) => {
+    clearChildrenDraftFieldErrors(childIndex);
+    setDraftChildRows((prev) =>
+      prev.map((row, i) => {
+        if (i !== childIndex || pocIndex <= 0) return row;
+        return { ...row, pocRows: row.pocRows.filter((_, pi) => pi !== pocIndex) };
+      }),
+    );
   };
 
   const updateChildWebsiteUrlSlot = (childIndex: number, urlIndex: number, value: string) => {
@@ -430,7 +541,7 @@ export function CompanySetupWizardModal({ open, draftId, onClose }: CompanySetup
     );
   };
 
-  if (!open || !draftId) return null;
+  if (!open) return null;
 
   return (
     <FormModal
@@ -439,26 +550,28 @@ export function CompanySetupWizardModal({ open, draftId, onClose }: CompanySetup
       title={modalStep === 1 ? "Reseller / Parent Company" : "Add Child Companies"}
       description={
         modalStep === 1
-          ? "Choose how this company sits in the hierarchy, complete the fields that apply, then continue to child companies."
-          : "Add each child company and its point of contact. When the checklist is complete, submit to create everything."
+          ? "Choose how this company sits in the hierarchy. Nothing is saved until you click Continue with a complete parent company name."
+          : "Add each child company and up to five points of contact. Your work is saved to the draft as you type. Use Save at the end to create everything."
       }
       onClose={handleClose}
       onSave={handlePrimary}
       primaryButtonLabel={
         modalStep === 1
-          ? "Save & continue"
+          ? createDraftMutation.isPending || updateDraftMutation.isPending
+            ? "Saving draft…"
+            : "Continue"
           : submitDraftMutation.isPending
-            ? "Submitting…"
-            : "Finish & create"
+            ? "Saving…"
+            : "Save"
       }
       primaryButtonDisabled={
         modalStep === 1
           ? !isStepOneComplete ||
-            !draftId ||
+            createDraftMutation.isPending ||
             updateDraftMutation.isPending ||
             !canSetupDraftMutate
           : !isStepTwoComplete ||
-            !draftId ||
+            !effectiveRunId ||
             updateDraftMutation.isPending ||
             submitDraftMutation.isPending ||
             !canSetupDraftMutate ||
@@ -694,30 +807,54 @@ export function CompanySetupWizardModal({ open, draftId, onClose }: CompanySetup
         </>
       ) : (
         <>
-          <Button
-            variant="secondary"
-            onClick={() => setModalStep(1)}
-            disabled={updateDraftMutation.isPending || submitDraftMutation.isPending}
-            sx={{ minWidth: 140, alignSelf: "flex-start", mb: 0.5 }}
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 1.5,
+              flexWrap: "wrap",
+              mb: 0.5,
+            }}
           >
-            Back to Step 1
-          </Button>
+            <Button
+              variant="secondary"
+              onClick={handleBackToStep1}
+              disabled={updateDraftMutation.isPending || submitDraftMutation.isPending}
+              sx={{ minWidth: 140 }}
+            >
+              Back to Step 1
+            </Button>
+            <Box
+              component="button"
+              type="button"
+              onClick={addChildRow}
+              sx={addAnotherButtonRight}
+              disabled={updateDraftMutation.isPending || submitDraftMutation.isPending}
+            >
+              <AddCircleIcon width={16} height={16} sx={addAnotherIcon} />
+              <Typography variant="body2" sx={addAnotherLabel}>
+                Add child company
+              </Typography>
+            </Box>
+          </Box>
           {draftChildRows.map((row, index) => (
             <Box key={`child-draft-${index}`} sx={sectionStack}>
               <Box sx={sectionHeaderRow}>
                 <Typography variant="mediumLarge" color="white">
                   {`Child company ${index + 1}`}
                 </Typography>
-                <IconButton
-                  type="button"
-                  size="small"
-                  sx={deleteIconButton}
-                  aria-label={`Remove child company ${index + 1}`}
-                  disabled={draftChildRows.length <= 1}
-                  onClick={() => removeChildRow(index)}
-                >
-                  <DeleteCircleIcon width={43} height={43} />
-                </IconButton>
+                {index > 0 ? (
+                  <IconButton
+                    type="button"
+                    size="small"
+                    sx={childRemoveIconButton}
+                    aria-label={`Remove child company ${index + 1}`}
+                    onClick={() => removeChildRow(index)}
+                  >
+                    <DeleteOutlineRoundedIcon sx={{ fontSize: 22 }} />
+                  </IconButton>
+                ) : null}
               </Box>
               <InputField
                 label="Company name"
@@ -769,9 +906,22 @@ export function CompanySetupWizardModal({ open, draftId, onClose }: CompanySetup
                 onChange={(e) => updateChildRow(index, { address: e.target.value })}
               />
               <Box sx={{ display: "flex", flexDirection: "column", gap: 1.25, width: "100%" }}>
-                <Typography variant="medium" color="white" fontWeight={600}>
-                  Websites
-                </Typography>
+                <Box sx={sectionHeaderRowWebsiteFirst}>
+                  <Typography variant="medium" color="white" fontWeight={600}>
+                    Websites
+                  </Typography>
+                  <Box
+                    component="button"
+                    type="button"
+                    onClick={() => addWebsiteSlot(index)}
+                    sx={addAnotherButtonRight}
+                  >
+                    <AddCircleIcon width={16} height={16} sx={addAnotherIcon} />
+                    <Typography variant="body2" sx={addAnotherLabel}>
+                      Add website
+                    </Typography>
+                  </Box>
+                </Box>
                 {row.websiteUrls.map((url, wi) => (
                   <Box
                     key={`child-${index}-website-${wi}`}
@@ -820,34 +970,26 @@ export function CompanySetupWizardModal({ open, draftId, onClose }: CompanySetup
                         }}
                       />
                     </Box>
-                    <IconButton
-                      type="button"
-                      size="small"
-                      aria-label={`Remove website ${wi + 1}`}
-                      disabled={row.websiteUrls.length <= 1}
-                      onClick={() => removeWebsiteSlot(index, wi)}
-                      sx={{
-                        alignSelf: "center",
-                        flexShrink: 0,
-                        color: theme.app.dashboard.textMuted,
-                        "&:hover": { color: theme.app.text.primary, bgcolor: "rgba(255,255,255,0.06)" },
-                      }}
-                    >
-                      <DeleteOutlineRoundedIcon sx={{ fontSize: 22 }} />
-                    </IconButton>
+                    {wi > 0 ? (
+                      <IconButton
+                        type="button"
+                        size="small"
+                        aria-label={`Remove website ${wi + 1}`}
+                        onClick={() => removeWebsiteSlot(index, wi)}
+                        sx={childRemoveIconButton}
+                      >
+                        <DeleteOutlineRoundedIcon sx={{ fontSize: 22 }} />
+                      </IconButton>
+                    ) : null}
                   </Box>
                 ))}
-                <Box component="button" type="button" onClick={() => addWebsiteSlot(index)} sx={addAnotherButton}>
-                  <AddCircleIcon width={16} height={16} sx={addAnotherIcon} />
-                  <Typography variant="body2" sx={addAnotherLabel}>
-                    Add another website
-                  </Typography>
-                </Box>
               </Box>
-              <CompanySetupChildPocBlock
-                row={row}
+              <CompanySetupChildPocsList
                 childIndex={index}
-                updateChildRow={updateChildRow}
+                pocRows={row.pocRows}
+                updatePocRow={(pocIndex, patch) => updateChildPoc(index, pocIndex, patch)}
+                addPocRow={() => addChildPoc(index)}
+                removePocRow={(pocIndex) => removeChildPoc(index, pocIndex)}
                 roleOptions={roleOptions}
                 departmentOptions={departmentOptions}
                 rolesLoading={rolesQuery.isLoading}
@@ -857,16 +999,21 @@ export function CompanySetupWizardModal({ open, draftId, onClose }: CompanySetup
               />
             </Box>
           ))}
-          <Box component="button" type="button" onClick={addChildRow} sx={addAnotherButton}>
-            <AddCircleIcon width={16} height={16} sx={addAnotherIcon} />
-            <Typography variant="body2" sx={addAnotherLabel}>
-              Add another child company
-            </Typography>
-          </Box>
+          <Typography
+            variant="body2"
+            sx={{
+              color: theme.app.dashboard.textMuted,
+              mt: -0.25,
+              lineHeight: 1.5,
+            }}
+          >
+            Draft autosaves while you edit. Save creates everything in the system when the checklist
+            below is complete.
+          </Typography>
           {!isStepTwoComplete && (
             <Typography variant="body2" sx={stepOneIncompleteHint}>
-              Enter at least one child with company details, websites (optional), and a complete POC
-              (name, email, role, department, designation).
+              Enter at least one child with company details, websites (optional), and at least one
+              complete POC (name, email, role, designation; department optional).
             </Typography>
           )}
         </>

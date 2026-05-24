@@ -22,6 +22,7 @@ import {
   type EmailFormFieldRow,
 } from "@/api/email/email-forms.api";
 import { EMAIL_ROUTES } from "../email.constants";
+import { isConfigurableEmailFormFieldKey } from "../constants/agent-distribution-form-fields";
 import { EmailFormFieldsPanel } from "../components/EmailFormFieldsPanel";
 import { EmailFormPreviewPanel } from "../components/EmailFormPreviewPanel";
 import { PickWebsiteModal } from "@/features/website-assignments/components/PickWebsiteModal";
@@ -119,7 +120,9 @@ export function EmailFormSetPage() {
     if (!formQuery.data) return;
     setFormType(formQuery.data.formType);
     setFormName(formQuery.data.formName ?? "");
-    setFields(formQuery.data.fields);
+    setFields(
+      formQuery.data.fields.filter((f) => isConfigurableEmailFormFieldKey(f.fieldKey)),
+    );
   }, [formQuery.data]);
 
   const saveMutation = useMutation({
@@ -129,7 +132,11 @@ export function EmailFormSetPage() {
         formType,
         formName: formName.trim() || undefined,
         fields: fields
-          .filter((f) => formType === "standard" || f.isRequired || f.enabled)
+          .filter(
+            (f) =>
+              isConfigurableEmailFormFieldKey(f.fieldKey) &&
+              (formType === "standard" || f.isRequired || f.enabled),
+          )
           .map((f) => ({
             fieldKey: f.fieldKey,
             label: f.label,

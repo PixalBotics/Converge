@@ -13,17 +13,17 @@ import { EmailTestStatusCell } from "./EmailTestStatusCell";
 import { PROVIDER_CODE_LABELS } from "../email.constants";
 import { EmailConfigTableCard } from "../styles/email-configuration.styled";
 import { departmentsFooterRow, footerMutedText, gradientPrimaryButtonSx } from "../styles/email-page.styles";
-import { emailPlatformSummaryTableSx } from "../styles/email-table.styles";
+import { emailPlatformMailSummaryTableSx, emailTablePanelSx } from "../styles/email-table.styles";
 import { EmailStatusChip } from "./EmailStatusChip";
 import { EmailTableActions } from "./EmailTableActions";
 import { EmailTableCardHeader } from "./EmailTableCardHeader";
+import { EmailTableTextCell } from "./EmailTableTextCell";
 
 type PlatformSummaryRow = {
   id: string;
   provider: string;
   fromEmail: string;
   fromName: string;
-  status: string;
   isActive: boolean;
   lastTestStatus?: "success" | "failed" | null;
   lastTestedAt?: string | null;
@@ -54,7 +54,6 @@ export function PlatformMailConfigSummaryTable({
       provider: providerLabel,
       fromEmail: s.fromEmail?.trim() || "—",
       fromName: s.fromName?.trim() || "—",
-      status: s.isEnabled ? "Active" : "Paused",
       isActive: Boolean(s.isEnabled),
       lastTestStatus: s.lastTestStatus,
       lastTestedAt: s.lastTestedAt,
@@ -64,18 +63,34 @@ export function PlatformMailConfigSummaryTable({
 
   const columns = useMemo<DataTableColumn<PlatformSummaryRow>[]>(
     () => [
-      { id: "provider", label: "Provider" },
-      { id: "fromEmail", label: "From email" },
-      { id: "fromName", label: "From name" },
+      {
+        id: "provider",
+        label: "Provider",
+        render: (_v, r) => <EmailTableTextCell value={r.provider} />,
+      },
+      {
+        id: "fromEmail",
+        label: "From email",
+        render: (_v, r) => <EmailTableTextCell value={r.fromEmail} />,
+      },
+      {
+        id: "fromName",
+        label: "From name",
+        render: (_v, r) => <EmailTableTextCell value={r.fromName} muted />,
+      },
       {
         id: "status",
         label: "Sending",
-        render: (_, r) => <EmailStatusChip active={r.isActive} />,
+        render: (_v, r) => (
+          <Box sx={{ display: "inline-flex", flexShrink: 0 }}>
+            <EmailStatusChip active={r.isActive} activeLabel="Active" inactiveLabel="Paused" />
+          </Box>
+        ),
       },
       {
         id: "lastTest",
         label: "Last test",
-        render: (_, r) => (
+        render: (_v, r) => (
           <EmailTestStatusCell
             status={r.lastTestStatus}
             testedAt={r.lastTestedAt}
@@ -99,7 +114,7 @@ export function PlatformMailConfigSummaryTable({
         sx={gradientPrimaryButtonSx}
         onClick={onConfigure}
       >
-        Platform email configuration
+        {row ? "Edit configuration" : "Platform email configuration"}
       </Button>
     ) : null;
 
@@ -115,7 +130,7 @@ export function PlatformMailConfigSummaryTable({
           />
         }
         title="Platform configuration"
-        subtitle="Default SMTP or API used by the platform and inherited by assigned resellers."
+        subtitle="One global SMTP or API sender for the platform. Resellers on platform mail inherit this configuration."
         action={configureButton}
       />
 
@@ -124,16 +139,19 @@ export function PlatformMailConfigSummaryTable({
         rows={rows}
         getRowId={(r) => r.id}
         isLoading={isLoading}
-        minWidth={720}
-        tableSx={emailPlatformSummaryTableSx}
+        minWidth={980}
+        size="medium"
+        tableSx={emailPlatformMailSummaryTableSx}
+        containerSx={emailTablePanelSx}
         emptyState={{
           title: "Not configured yet",
-          description: "Use Platform email configuration to set up SMTP or API before assigning resellers.",
+          description: "Set up one platform SMTP or API provider before assigning resellers to platform mail.",
         }}
         actionColumn={
           canConfigure && onConfigure && row
             ? {
-                label: "Action",
+                label: "Actions",
+                align: "right",
                 render: () => (
                   <EmailTableActions
                     editLabel="Edit platform configuration"
@@ -150,7 +168,11 @@ export function PlatformMailConfigSummaryTable({
 
       <Box sx={departmentsFooterRow}>
         <Typography variant="medium" sx={footerMutedText(theme)}>
-          {isLoading ? "Loading…" : row ? "1 active configuration" : "No saved configuration"}
+          {isLoading
+            ? "Loading…"
+            : row
+              ? "1 platform sender configured"
+              : "No platform sender saved yet"}
         </Typography>
       </Box>
     </EmailConfigTableCard>

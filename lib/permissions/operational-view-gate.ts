@@ -215,7 +215,7 @@ const PAGE_PERMISSION_TO_VIEW_ANY: Readonly<Record<string, readonly string[]>> =
   "page:crm-integration": [OP.crmIntegration.view],
   "page:distribution-setup": [OP.distributionSetup.view],
   "page:ip-blocklist": [OP.ipBlocklist.view],
-  "page:licenses": [OP.license.view, OP.license.generate, OP.license.admin],
+  "page:licenses": [OP.license.view, OP.license.generate, OP.license.admin, OP.license.send],
   "page:reports": [OP.report.view],
   "page:billing": [OP.billing.view],
   "page:smtp-email": [OP.smtpEmail.view],

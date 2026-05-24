@@ -15,6 +15,11 @@ import type {
   LoginResponseEnvelope,
   LoginSuccessData,
   LogoutRequestBody,
+  PasswordResetConfirmBody,
+  PasswordResetMessageResponse,
+  PasswordResetRequestBody,
+  PasswordResetVerifyBody,
+  PasswordResetVerifyResponse,
   RefreshRequestBody,
   VerifyAccessBodyRequest,
 } from "../types/auth.types";
@@ -103,4 +108,33 @@ export async function logout(): Promise<void> {
     clearImpersonationSession();
     clearTokens();
   }
+}
+
+export async function requestPasswordReset(
+  body: PasswordResetRequestBody,
+): Promise<string> {
+  const { data } = await apiClient.post<PasswordResetMessageResponse>(
+    "/auth/password-reset/request",
+    body,
+  );
+  return data.data.message;
+}
+
+export async function verifyPasswordResetOtp(
+  body: PasswordResetVerifyBody,
+): Promise<void> {
+  await apiClient.post<PasswordResetVerifyResponse>(
+    "/auth/password-reset/verify",
+    body,
+  );
+}
+
+export async function confirmPasswordReset(
+  body: PasswordResetConfirmBody,
+): Promise<string> {
+  const { data } = await apiClient.post<PasswordResetMessageResponse>(
+    "/auth/password-reset/confirm",
+    body,
+  );
+  return data.data.message;
 }

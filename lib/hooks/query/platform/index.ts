@@ -1,2 +1,2 @@
 export { platformKeys } from "./keys";
-export { useGeneratePlatformLicenseKeyMutation, usePlatformLicenseKeysQuery } from "./hooks";
+export { useGeneratePlatformLicenseKeyMutation, usePlatformLicenseKeysQuery, useSendPlatformLicenseKeyMutation } from "./hooks";

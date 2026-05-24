@@ -62,9 +62,8 @@ export function EmailDesignBuilderShell({
         flexDirection: "column",
         gap: 0,
         minHeight: 0,
-        mx: { xs: -1, md: -2 },
-        width: { xs: "calc(100% + 16px)", md: "calc(100% + 32px)" },
-        maxWidth: "none",
+        width: "100%",
+        maxWidth: "100%",
       }}
     >
       <Box

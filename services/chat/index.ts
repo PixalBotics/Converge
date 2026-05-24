@@ -9,6 +9,7 @@ export * from "./supervisor.api";
 export * from "./supervisor.types";
 export * from "./wrap-up.api";
 export * from "./wrap-up.types";
+export * from "./agent-distribution.api";
 export * from "./guest.api";
 export * from "./guest.types";
 export * from "./guest-link.api";

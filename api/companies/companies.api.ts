@@ -52,6 +52,27 @@ export async function getCompanySetupDraftLatest(): Promise<unknown> {
   return data;
 }
 
+export async function listCompanySetupDrafts(): Promise<unknown> {
+  const { data } = await apiClient.get("/companies/setup/drafts");
+  return data;
+}
+
+export async function listCompanyPocDirectory(query?: {
+  page?: number;
+  limit?: number;
+  all?: boolean;
+}): Promise<unknown> {
+  const { data } = await apiClient.get("/companies/poc-directory", {
+    params: query ?? {},
+  });
+  return data;
+}
+
+export async function abandonAllCompanySetupDrafts(): Promise<unknown> {
+  const { data } = await apiClient.post("/companies/setup/drafts/abandon-all");
+  return data;
+}
+
 /** GET — full run JSON for one draft id (owner only). */
 export async function getCompanySetupDraftById(id: string): Promise<unknown> {
   const { data } = await apiClient.get(`/companies/setup/draft/${encodeURIComponent(id)}`);

@@ -6,6 +6,7 @@ import { Typography } from "@/components/common";
 import { useAuth } from "@/lib/auth";
 import { OP } from "@/lib/permissions/operational-keys";
 import { EMAIL_ROUTES } from "../email.constants";
+import { useEmailTemplateAccess } from "../hooks/useEmailTemplateAccess";
 import { buildEmailTabHref } from "../email-reseller-storage";
 import { useEmailResellerScope } from "../context/EmailResellerScopeContext";
 import { EmailRouteSegmented } from "./EmailRouteSegmented";
@@ -31,8 +32,8 @@ export function EmailPageHeader() {
   const { resellerId } = useEmailResellerScope();
   const isInternal = user?.userType === "Internal";
 
+  const { canView: canViewDesign } = useEmailTemplateAccess();
   const canViewMail = hasOperational(OP.smtpEmail.view);
-  const canViewDesign = hasOperational(OP.emailTemplate.view);
 
   const connectionTabs = CONNECTION_TABS.filter((t) => !t.internalOnly || isInternal).map((t) => ({
     href: t.href,

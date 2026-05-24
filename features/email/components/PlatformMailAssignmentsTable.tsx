@@ -25,10 +25,18 @@ import { EmailTestStatusCell } from "./EmailTestStatusCell";
 import { PROVIDER_CODE_LABELS, EMAIL_ROUTES } from "../email.constants";
 import { EmailConfigTableCard, EmailHelpAlert } from "../styles/email-configuration.styled";
 import { departmentsFooterRow, footerMutedText, gradientPrimaryButtonSx } from "../styles/email-page.styles";
-import { emailAssignmentsTableSx } from "../styles/email-table.styles";
+import { emailAssignmentsTableSx, emailTablePanelSx } from "../styles/email-table.styles";
 import { EmailStatusChip } from "./EmailStatusChip";
 import { EmailTableActions } from "./EmailTableActions";
 import { EmailTableCardHeader } from "./EmailTableCardHeader";
+import { EmailTableTextCell } from "./EmailTableTextCell";
+
+function formatPlatformSender(fromName?: string | null, fromEmail?: string | null): string {
+  const email = fromEmail?.trim();
+  const name = fromName?.trim();
+  if (!email) return "Platform default";
+  return name ? `${name} <${email}>` : email;
+}
 
 function providerLabel(row: PlatformMailAssignmentListItem): string {
   return (
@@ -104,27 +112,38 @@ export function PlatformMailAssignmentsTable({
 
   const columns = useMemo<DataTableColumn<PlatformMailAssignmentListItem>[]>(
     () => [
-      { id: "resellerName", label: "Reseller" },
+      {
+        id: "resellerName",
+        label: "Reseller",
+        render: (_v, row) => <EmailTableTextCell value={row.resellerName} />,
+      },
       {
         id: "providerName",
         label: "Provider",
-        render: (_, row) => providerLabel(row),
+        render: (_v, row) => <EmailTableTextCell value={providerLabel(row)} muted />,
       },
       {
         id: "fromEmail",
-        label: "From email",
-        render: (v) => (v ? String(v) : "Platform default"),
+        label: "Sender",
+        render: () => (
+          <EmailTableTextCell
+            value={formatPlatformSender(platformQuery.data?.fromName, platformQuery.data?.fromEmail)}
+          />
+        ),
       },
-      { id: "fromName", label: "From name", render: (v) => (v ? String(v) : "—") },
       {
         id: "isEnabled",
         label: "Status",
-        render: (_, row) => <EmailStatusChip active={row.isEnabled} />,
+        render: (_v, row) => (
+          <Box sx={{ display: "inline-flex", flexShrink: 0 }}>
+            <EmailStatusChip active={row.isEnabled} />
+          </Box>
+        ),
       },
       {
         id: "lastTestedAt",
         label: "Last test",
-        render: (_, row) => (
+        render: (_v, row) => (
           <EmailTestStatusCell
             status={row.lastTestStatus}
             testedAt={row.lastTestedAt}
@@ -133,7 +152,7 @@ export function PlatformMailAssignmentsTable({
         ),
       },
     ],
-    [],
+    [platformQuery.data?.fromEmail, platformQuery.data?.fromName],
   );
 
   if (!canView) return null;
@@ -182,8 +201,10 @@ export function PlatformMailAssignmentsTable({
           rows={rows}
           getRowId={(row) => row.id || row.resellerId}
           isLoading={isLoading}
-          minWidth={900}
+          minWidth={1040}
+          size="medium"
           tableSx={emailAssignmentsTableSx}
+          containerSx={emailTablePanelSx}
           emptyState={{
             title: listQuery.isError
               ? "Could not load assignments"

@@ -20,6 +20,7 @@ import { CANNED_PERSONAL } from "../constants/canned-messages";
 import type { AiChatMessage } from "../types/ai-chat";
 import { useAgentCannedResponses } from "../hooks/useAgentCannedResponses";
 import { AiAssistantDrawer } from "./AiAssistantDrawer";
+import { chatSemanticSurface } from "../styles/chat-semantic";
 import {
   CannedReplyCard,
   CannedReplyGrid,
@@ -109,15 +110,41 @@ export function ComposerDrawerTabs({
     );
   }, [cannedTab, cannedFilter, cannedQuery.data]);
 
+  const cannedSurface = chatSemanticSurface(theme, "canned");
+  const aiSurface = chatSemanticSurface(theme, "ai");
+
   return (
     <ComposerFooterShell>
       <ComposerFooterInner>
+        {children}
+
+        <DrawerTabBar>
+          <DrawerTabButton
+            type="button"
+            variant="canned"
+            active={openDrawer === "canned"}
+            onClick={() => toggleDrawer("canned")}
+          >
+            <QuickreplyOutlined sx={{ fontSize: 17 }} />
+            Canned replies
+          </DrawerTabButton>
+          <DrawerTabButton
+            type="button"
+            variant="ai"
+            active={openDrawer === "ai"}
+            onClick={() => toggleDrawer("ai")}
+          >
+            <AutoAwesome sx={{ fontSize: 17 }} />
+            AI assistant
+          </DrawerTabButton>
+        </DrawerTabBar>
+
         <Collapse in={openDrawer !== null} timeout={200} unmountOnExit>
           <ComposerToolsPanel>
             {openDrawer === "canned" ? (
               <>
-                <ComposerToolsHeader>
-                  <QuickreplyOutlined sx={{ fontSize: 18, color: theme.app.dashboard.accentBlue }} />
+                <ComposerToolsHeader sx={{ borderTop: `3px solid ${cannedSurface.accent}` }}>
+                  <QuickreplyOutlined sx={{ fontSize: 18, color: cannedSurface.accent }} />
                   <Typography fontWeight={700} sx={{ fontSize: 14, flex: 1, color: theme.app.text.primary }}>
                     Canned replies
                   </Typography>
@@ -262,8 +289,8 @@ export function ComposerDrawerTabs({
 
             {openDrawer === "ai" ? (
               <>
-                <ComposerToolsHeader>
-                  <AutoAwesome sx={{ fontSize: 18, color: theme.app.dashboard.accentViolet }} />
+                <ComposerToolsHeader sx={{ borderTop: `3px solid ${aiSurface.accent}` }}>
+                  <AutoAwesome sx={{ fontSize: 18, color: aiSurface.accent }} />
                   <Box sx={{ flex: 1, minWidth: 0 }}>
                     <Typography fontWeight={700} sx={{ fontSize: 14, color: theme.app.text.primary }}>
                       AI assistant
@@ -293,29 +320,6 @@ export function ComposerDrawerTabs({
             ) : null}
           </ComposerToolsPanel>
         </Collapse>
-
-        {children}
-
-        <DrawerTabBar>
-          <DrawerTabButton
-            type="button"
-            variant="canned"
-            active={openDrawer === "canned"}
-            onClick={() => toggleDrawer("canned")}
-          >
-            <QuickreplyOutlined sx={{ fontSize: 17 }} />
-            Canned
-          </DrawerTabButton>
-          <DrawerTabButton
-            type="button"
-            variant="ai"
-            active={openDrawer === "ai"}
-            onClick={() => toggleDrawer("ai")}
-          >
-            <AutoAwesome sx={{ fontSize: 17 }} />
-            AI assist
-          </DrawerTabButton>
-        </DrawerTabBar>
       </ComposerFooterInner>
     </ComposerFooterShell>
   );

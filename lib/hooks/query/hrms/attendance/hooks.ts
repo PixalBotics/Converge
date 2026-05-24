@@ -1,7 +1,14 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { attendanceCheckIn, attendanceCheckOut, getMyAttendance, getUserAttendance } from "@/api";
+import {
+  attendanceBreakIn,
+  attendanceBreakOut,
+  attendanceCheckIn,
+  attendanceCheckOut,
+  getMyAttendance,
+  getUserAttendance,
+} from "@/api";
 import type { JsonRecord } from "@/api";
 import { hrmsAttendanceKeys } from "./keys";
 
@@ -51,6 +58,26 @@ export function useAttendanceCheckOutMutation() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (body: JsonRecord) => attendanceCheckOut(body),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: hrmsAttendanceKeys.all });
+    },
+  });
+}
+
+export function useAttendanceBreakInMutation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: JsonRecord) => attendanceBreakIn(body),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: hrmsAttendanceKeys.all });
+    },
+  });
+}
+
+export function useAttendanceBreakOutMutation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: JsonRecord) => attendanceBreakOut(body),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: hrmsAttendanceKeys.all });
     },

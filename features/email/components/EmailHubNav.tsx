@@ -4,6 +4,7 @@ import Box from "@mui/material/Box";
 import { Typography } from "@/components/common";
 import { useAuth } from "@/lib/auth";
 import { OP } from "@/lib/permissions/operational-keys";
+import { useEmailTemplateAccess } from "../hooks/useEmailTemplateAccess";
 import { EMAIL_BASE_PATH, EMAIL_HUB_LABEL, EMAIL_ROUTES } from "../email.constants";
 import { EmailRouteSegmented } from "./EmailRouteSegmented";
 import { pageHeaderRow } from "../styles/email-page.styles";
@@ -21,6 +22,7 @@ type HubTab = {
  */
 export function EmailHubNav() {
   const { hasOperational } = useAuth();
+  const { canView: canViewEmailDesign } = useEmailTemplateAccess();
 
   const tabs: HubTab[] = [
     {
@@ -34,14 +36,14 @@ export function EmailHubNav() {
     {
       href: EMAIL_ROUTES.design,
       label: "Email design",
-      show: hasOperational(OP.emailTemplate.view),
+      show: canViewEmailDesign,
       isActive: (p: string) =>
         p.startsWith(`${EMAIL_ROUTES.design}/`) || p === EMAIL_ROUTES.design,
     },
     {
       href: EMAIL_ROUTES.forms,
       label: "Email forms",
-      show: hasOperational(OP.emailTemplate.view),
+      show: canViewEmailDesign,
       isActive: (p: string) =>
         p.startsWith(`${EMAIL_ROUTES.forms}/`) || p === EMAIL_ROUTES.forms,
     },

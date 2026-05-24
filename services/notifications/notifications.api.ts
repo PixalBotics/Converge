@@ -47,5 +47,6 @@ function normalizeBadgeCounts(raw: unknown): BadgeCounts {
     chat: Number(o.chat ?? 0) || 0,
     qa: Number(o.qa ?? 0) || 0,
     hrms_leave: Number(o.hrms_leave ?? o.hrmsLeave ?? 0) || 0,
+    hrms_attendance: Number(o.hrms_attendance ?? o.hrmsAttendance ?? 0) || 0,
   };
 }

@@ -38,6 +38,7 @@ import {
   patchConversationDraft,
 } from "../utils/conversation-scoped-state";
 import { AgentWrapUpModal } from "./AgentWrapUpModal";
+import { AgentDistributionPrompt } from "./AgentDistributionPrompt";
 import { ChatConversationPanel } from "./ChatConversationPanel";
 import { ChatQueueSidebar } from "./ChatQueueSidebar";
 import { VisitorInfoPanel } from "./VisitorInfoPanel";
@@ -341,6 +342,14 @@ export function ChatOperationsWorkspace() {
   }
 
   const canPickWaiting = !agentChat.atActiveCap;
+  const distributionFormHref =
+    agentChat.pendingWrapUp?.requiresDistributionForm &&
+    agentChat.selectedConversationId &&
+    agentChat.pendingWrapUp.conversationId === agentChat.selectedConversationId
+      ? agentChat.pendingWrapUp.distributionFormPath ??
+        `/dashboard/chat-operations/distribution?conversationId=${encodeURIComponent(agentChat.selectedConversationId)}`
+      : null;
+
   const canSend =
     Boolean(agentChat.selectedConversationId && accessToken) &&
     !agentChat.selectedIsClosed;
@@ -434,6 +443,8 @@ export function ChatOperationsWorkspace() {
               activeWhisper={agentChat.activeWhisper}
               onApplyWhisperToComposer={applyAiToComposer}
               onDismissWhisper={agentChat.dismissWhisper}
+              distributionFormHref={distributionFormHref}
+              distributionSubmitted={Boolean(agentChat.pendingWrapUp?.distributionSubmitted)}
             />
           </Box>
 
@@ -458,15 +469,22 @@ export function ChatOperationsWorkspace() {
         </Box>
       </Box>
 
-      <AgentWrapUpModal
-        open={Boolean(agentChat.pendingWrapUp)}
-        payload={agentChat.pendingWrapUp}
-        onClose={agentChat.dismissWrapUp}
-        onSubmitted={() => {
-          agentChat.dismissWrapUp();
-          void agentChat.refreshQueues();
-        }}
-      />
+      {agentChat.pendingWrapUp?.requiresDistributionForm ? (
+        <AgentDistributionPrompt
+          payload={agentChat.pendingWrapUp}
+          onDismiss={agentChat.dismissWrapUp}
+        />
+      ) : (
+        <AgentWrapUpModal
+          open={Boolean(agentChat.pendingWrapUp)}
+          payload={agentChat.pendingWrapUp}
+          onClose={agentChat.dismissWrapUp}
+          onSubmitted={() => {
+            agentChat.dismissWrapUp();
+            void agentChat.refreshQueues();
+          }}
+        />
+      )}
     </Box>
   );
 }

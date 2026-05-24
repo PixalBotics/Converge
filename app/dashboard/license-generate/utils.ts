@@ -2,6 +2,8 @@ import { asRecord, pickArray } from "../user-page/utils";
 
 export type PlatformLicenseKeyRow = {
   id: string;
+  /** Client root (parent company) id — used for send API. */
+  parentCompanyId: string;
   reseller: string;
   parentCompany: string;
   licenseKey: string;
@@ -23,6 +25,9 @@ function toLicenseKeyRow(item: unknown): PlatformLicenseKeyRow | null {
   if (!id) return null;
 
   const companyObj = asRecord(r.company) ?? asRecord(r.parentCompany) ?? asRecord(r.clientRoot);
+  const parentCompanyId = String(
+    r.companyId ?? r.parentCompanyId ?? companyObj?.id ?? id,
+  ).trim();
   const resellerObj = asRecord(r.reseller) ?? asRecord(companyObj?.reseller);
 
   const parentCompany = String(
@@ -41,6 +46,7 @@ function toLicenseKeyRow(item: unknown): PlatformLicenseKeyRow | null {
 
   return {
     id,
+    parentCompanyId,
     reseller: reseller || "—",
     parentCompany: parentCompany || "—",
     licenseKey: licenseKey || "—",

@@ -21,29 +21,93 @@ export function validateTestToEmail(value?: string | null): string | null {
   return null;
 }
 
-export function extractEmailTestErrorMessage(error: unknown): string {
-  if (isAxiosError(error)) {
-    const data = error.response?.data;
-    if (data && typeof data === "object" && !Array.isArray(data)) {
-      const root = data as Record<string, unknown>;
-      const err = root.error;
-      if (err && typeof err === "object" && !Array.isArray(err)) {
-        const errObj = err as Record<string, unknown>;
-        const msg = readTestMessage(errObj.message);
-        if (msg) return msg;
-        const details = errObj.details;
-        if (details && typeof details === "object" && !Array.isArray(details)) {
-          const fe = (details as Record<string, unknown>).fieldErrors;
-          if (fe && typeof fe === "object" && !Array.isArray(fe)) {
-            const toEmailErr = (fe as Record<string, unknown>).toEmail;
-            if (Array.isArray(toEmailErr) && toEmailErr[0]) return String(toEmailErr[0]);
-            if (typeof toEmailErr === "string" && toEmailErr.trim()) return toEmailErr.trim();
-          }
-        }
+function stripFormLevelPrefix(message: string): string {
+  return message.replace(/^(form:\s*)+/gi, "").trim();
+}
+
+function parseEmbeddedJsonMessage(raw: string): string | null {
+  const start = raw.indexOf("{");
+  if (start === -1) return null;
+  try {
+    const parsed = JSON.parse(raw.slice(start)) as { message?: unknown };
+    const msg = parsed.message;
+    if (typeof msg === "string" && msg.trim()) return msg.trim();
+  } catch {
+    return null;
+  }
+  return null;
+}
+
+function humanizeProviderMessage(detail: string): string {
+  const lower = detail.toLowerCase();
+  if (lower.includes("domain is not verified")) {
+    return (
+      "The From address domain is not verified with your mail provider. " +
+      "Verify the domain in the provider dashboard (for example Resend → Domains), " +
+      "or use a From email on a verified domain under Email → Platform mail."
+    );
+  }
+  if (lower.includes("api key") && lower.includes("invalid")) {
+    return "The mail API key was rejected. Update it under Email configuration and run the test again.";
+  }
+  return detail;
+}
+
+/** Clear, user-facing message for mail test / send failures. */
+export function formatMailTestErrorMessage(raw: string): string {
+  let msg = stripFormLevelPrefix(raw);
+
+  const resendPrefix = /^Resend API error \(\d+\):\s*/i;
+  if (resendPrefix.test(msg)) {
+    msg = msg.replace(resendPrefix, "").trim();
+  }
+
+  const embedded = parseEmbeddedJsonMessage(msg);
+  if (embedded) return humanizeProviderMessage(embedded);
+
+  if (/invalid login|authentication failed|535|username and password/i.test(msg)) {
+    return (
+      "SMTP login failed. Check host, port, encryption, username, and password " +
+      "(for Gmail use an App Password with smtp.gmail.com)."
+    );
+  }
+
+  return humanizeProviderMessage(msg);
+}
+
+function readApiErrorMessage(data: unknown): string | null {
+  if (!data || typeof data !== "object" || Array.isArray(data)) return null;
+  const root = data as Record<string, unknown>;
+  const err = root.error;
+  if (err && typeof err === "object" && !Array.isArray(err)) {
+    const errObj = err as Record<string, unknown>;
+    const msg = readTestMessage(errObj.message);
+    if (msg) return msg;
+    const details = errObj.details;
+    if (details && typeof details === "object" && !Array.isArray(details)) {
+      const fe = (details as Record<string, unknown>).fieldErrors;
+      if (fe && typeof fe === "object" && !Array.isArray(fe)) {
+        const formErr = (fe as Record<string, unknown>).form;
+        if (Array.isArray(formErr) && formErr[0]) return String(formErr[0]);
+        if (typeof formErr === "string" && formErr.trim()) return formErr.trim();
+      }
+      const fields = (details as Record<string, unknown>).fields;
+      if (Array.isArray(fields)) {
+        const first = fields[0] as { message?: unknown } | undefined;
+        if (first?.message) return String(first.message);
       }
     }
   }
-  return extractApiErrorMessageForToast(error) ?? "Test email failed.";
+  return null;
+}
+
+export function extractEmailTestErrorMessage(error: unknown): string {
+  if (isAxiosError(error)) {
+    const fromApi = readApiErrorMessage(error.response?.data);
+    if (fromApi) return formatMailTestErrorMessage(fromApi);
+  }
+  const fallback = extractApiErrorMessageForToast(error) ?? "Test email failed.";
+  return formatMailTestErrorMessage(fallback);
 }
 
 export function readTestMessage(value: unknown): string | null {
@@ -60,7 +124,9 @@ export function mergeTestResultIntoSettings(
     ...settings,
     lastTestStatus: result.success ? "success" : "failed",
     lastTestedAt: result.testedAt ?? new Date().toISOString(),
-    lastTestMessage: readTestMessage(result.message) ?? (result.success ? "Test email sent." : "Test failed."),
+    lastTestMessage:
+      readTestMessage(result.message) ??
+      (result.success ? "Test email sent." : "Test failed."),
   };
 }
 
@@ -69,5 +135,7 @@ export function pickStoredTestMessage(settings?: {
   lastTestStatus?: "success" | "failed" | null;
 }): string | null {
   if (!settings?.lastTestStatus) return null;
-  return readTestMessage(settings.lastTestMessage);
+  const raw = readTestMessage(settings.lastTestMessage);
+  if (!raw) return null;
+  return formatMailTestErrorMessage(raw);
 }

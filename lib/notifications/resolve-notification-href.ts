@@ -139,6 +139,9 @@ function defaultPathForNotification(
     if (conversationId) return withConversationOnChatQa(conversationId);
     return "/dashboard/chat-qa";
   }
+  if (badgeGroup === "hrms_attendance") {
+    return "/dashboard/attendance/team-attendance";
+  }
   if (leaveId) return withLeaveId("/dashboard/leave/approval-inbox", leaveId);
   return "/dashboard/leave/approval-inbox";
 }

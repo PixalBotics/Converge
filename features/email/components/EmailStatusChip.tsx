@@ -22,6 +22,9 @@ export function EmailStatusChip({
         height: 22,
         fontSize: 11,
         fontWeight: 600,
+        flexShrink: 0,
+        display: "inline-flex",
+        maxWidth: "100%",
         bgcolor: active
           ? `${theme.palette.success.main}22`
           : "rgba(255,255,255,0.08)",

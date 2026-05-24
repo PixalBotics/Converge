@@ -22,6 +22,10 @@ export interface AgentWrapUpPayload {
   status?: string;
   chatCompleted?: boolean;
   requiresAgentWrapUp?: boolean;
+  requiresDistributionForm?: boolean;
+  distributionFormPath?: string | null;
+  distributionSubmitted?: boolean;
+  distributionSubmission?: Record<string, unknown> | null;
   wrapUpSubmitted?: boolean;
   submission?: Record<string, unknown> | null;
   form?: {

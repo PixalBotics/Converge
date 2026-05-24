@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Box from "@mui/material/Box";
-import Chip from "@mui/material/Chip";
 import Checkbox from "@mui/material/Checkbox";
 import IconButton from "@mui/material/IconButton";
 import Table from "@mui/material/Table";
@@ -27,6 +26,7 @@ import {
   ToolbarFilterPopover,
   ToolbarFilterPopoverPanel,
   Typography,
+  UserTypeBadge,
   dataTableActionButton,
 } from "@/components/common";
 import type { DataTableColumn } from "@/components/common";
@@ -59,6 +59,7 @@ import {
 import { extractUsersRows } from "@/app/dashboard/user-page/utils";
 import { useAuth, sessionMayPickInternalUserScope } from "@/lib/auth";
 import { canManageDepartmentHeads, canRemoveDepartmentHead } from "@/lib/permissions";
+import { resolveUserKind, type UserKind } from "@/lib/hrms/user-kind";
 import { SearchIcon } from "@/components/common/icons";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
 import {
@@ -70,13 +71,12 @@ import {
 const PAGE_LIMIT = 12;
 const ASSIGN_USER_TABLE_MAX_PX = 340;
 
-type UserKind = "Internal" | "External" | "—";
-
 type HeadRow = {
   id: string;
   userName: string;
   userEmail: string;
   userType: UserKind;
+  resellerName: string;
   parentCompanyName: string;
   departmentId: string;
   departmentName: string;
@@ -87,7 +87,9 @@ type AttendanceRow = {
   employeeName: string;
   userType: UserKind;
   resellerId: string;
+  resellerName: string;
   parentCompanyId: string;
+  parentCompanyName: string;
   poolName: string;
   date: string;
   status: string;
@@ -123,24 +125,27 @@ function formatScopeId(value: string | undefined): string {
   return v || "—";
 }
 
-function parseUserKind(raw: string | undefined): UserKind {
-  const t = (raw ?? "").trim();
-  if (t === "Internal" || t === "External") return t;
-  return "—";
-}
-
 function mapDepartmentHeadItem(r: Record<string, unknown>, idx: number): HeadRow | null {
   const assignmentId = pickStr(r, ["id"]) || "";
   const user = isRecord(r["user"]) ? (r["user"] as Record<string, unknown>) : null;
   const dept = isRecord(r["department"]) ? (r["department"] as Record<string, unknown>) : null;
   const deptParentCompany =
     dept && isRecord(dept["parentCompany"]) ? (dept["parentCompany"] as Record<string, unknown>) : null;
+  const deptReseller =
+    dept && isRecord(dept["reseller"]) ? (dept["reseller"] as Record<string, unknown>) : null;
   const firstName = pickStr(user, ["firstName", "first_name"]) || "";
   const lastName = pickStr(user, ["lastName", "last_name"]) || "";
   const joinedName = `${firstName} ${lastName}`.replace(/\s+/g, " ").trim();
   const name = joinedName || pickStr(r, ["userName"]) || pickStr(user, ["name", "fullName", "userName"]) || "—";
   const email = pickStr(user, ["email"]) || pickStr(r, ["userEmail", "email"]) || "—";
-  const userType = parseUserKind(pickStr(user, ["userType", "type"]) || pickStr(r, ["userType", "user_type"]));
+  const userType = resolveUserKind(
+    pickStr(user, ["userType", "type"]) || pickStr(r, ["userType", "user_type"]),
+    pickStr(dept, ["type"]) || pickStr(r, ["departmentType"]),
+  );
+  const resellerName =
+    pickStr(r, ["resellerName"]) ||
+    pickStr(deptReseller, ["name"]) ||
+    "—";
   const parentCompanyName =
     pickStr(r, ["parentCompanyName"]) ||
     pickStr(deptParentCompany, ["name"]) ||
@@ -149,7 +154,16 @@ function mapDepartmentHeadItem(r: Record<string, unknown>, idx: number): HeadRow
   const departmentName = pickStr(dept, ["name"]) || pickStr(r, ["departmentName"]) || "—";
   const id = assignmentId || `dh-${idx}`;
   if (!id) return null;
-  return { id, userName: name, userEmail: email, userType, parentCompanyName, departmentId, departmentName };
+  return {
+    id,
+    userName: name,
+    userEmail: email,
+    userType,
+    resellerName,
+    parentCompanyName,
+    departmentId,
+    departmentName,
+  };
 }
 
 export default function DepartmentHeadsPage() {
@@ -585,10 +599,16 @@ export default function DepartmentHeadsPage() {
 
   const headsColumns = useMemo<DataTableColumn<HeadRow>[]>(
     () => [
-      { id: "departmentName", label: "Department" },
-      { id: "parentCompanyName", label: "Parent company" },
+      {
+        id: "userType",
+        label: "Type",
+        render: (_v, row) => <UserTypeBadge value={row.userType} />,
+      },
       { id: "userName", label: "User" },
       { id: "userEmail", label: "Email" },
+      { id: "resellerName", label: "Reseller" },
+      { id: "parentCompanyName", label: "Parent company" },
+      { id: "departmentName", label: "Department" },
     ],
     [],
   );
@@ -623,15 +643,49 @@ export default function DepartmentHeadsPage() {
       const employeeName =
         pick(userNested ?? row, ["employeeName", "userName", "name", "firstName"]) || "—";
       const rawType = pickStr(userNested, ["userType", "type"]) || pickStr(row, ["userType", "user_type"]);
-      const userType = parseUserKind(rawType);
-      const resellerId = formatScopeId(pickStr(row, ["resellerId"]) || pickStr(userNested, ["resellerId"]));
+      const poolNested = isRecord(row["pool"]) ? (row["pool"] as Record<string, unknown>) : null;
+      const userPoolNested =
+        userNested && isRecord(userNested["pool"]) ? (userNested["pool"] as Record<string, unknown>) : null;
+      const poolDepartment =
+        (poolNested && isRecord(poolNested["department"]) ? (poolNested["department"] as Record<string, unknown>) : null) ??
+        (userPoolNested && isRecord(userPoolNested["department"])
+          ? (userPoolNested["department"] as Record<string, unknown>)
+          : null);
+      const userType = resolveUserKind(rawType, pickStr(poolDepartment, ["type"]));
+      const poolReseller =
+        poolDepartment && isRecord(poolDepartment["reseller"])
+          ? (poolDepartment["reseller"] as Record<string, unknown>)
+          : null;
+      const poolParentCompany =
+        poolDepartment && isRecord(poolDepartment["parentCompany"])
+          ? (poolDepartment["parentCompany"] as Record<string, unknown>)
+          : null;
+      const userParentCompany =
+        userNested && isRecord(userNested["parentCompany"])
+          ? (userNested["parentCompany"] as Record<string, unknown>)
+          : null;
+      const resellerId = formatScopeId(
+        pickStr(row, ["resellerId"]) ||
+          pickStr(userNested, ["resellerId"]) ||
+          pickStr(poolReseller, ["id"]),
+      );
+      const resellerName =
+        pickStr(row, ["resellerName"]) ||
+        pickStr(poolReseller, ["name"]) ||
+        "—";
       const parentCompanyId = formatScopeId(
         pickStr(row, ["parentCompanyId", "parent_company_id"]) ||
-          pickStr(userNested, ["parentCompanyId", "parent_company_id"]),
+          pickStr(userNested, ["parentCompanyId", "parent_company_id"]) ||
+          pickStr(userParentCompany, ["id"]) ||
+          pickStr(poolParentCompany, ["id"]),
       );
-      const poolNested = row["pool"];
+      const parentCompanyName =
+        pickStr(row, ["parentCompanyName"]) ||
+        pickStr(userParentCompany, ["name"]) ||
+        pickStr(poolParentCompany, ["name"]) ||
+        "—";
       const poolName =
-        pick(isRecord(poolNested) ? (poolNested as Record<string, unknown>) : row, ["name", "poolName"]) ||
+        pick(isRecord(poolNested) ? poolNested : userPoolNested ?? row, ["name", "poolName"]) ||
         pick(row, ["poolName"]) ||
         "—";
       return {
@@ -639,7 +693,9 @@ export default function DepartmentHeadsPage() {
         employeeName,
         userType,
         resellerId,
+        resellerName,
         parentCompanyId,
+        parentCompanyName,
         poolName,
         date: pick(row, ["date", "day", "attendanceDate"]) || "—",
         status: pick(row, ["status"]) || "—",
@@ -660,23 +716,10 @@ export default function DepartmentHeadsPage() {
       {
         id: "userType",
         label: "Type",
-        render: (_v, row) =>
-          row.userType === "—" ? (
-            <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted }}>
-              —
-            </Typography>
-          ) : (
-            <Chip
-              size="small"
-              label={row.userType}
-              color={row.userType === "Internal" ? "primary" : "secondary"}
-              variant="outlined"
-              sx={{ borderColor: "rgba(255,255,255,0.35)" }}
-            />
-          ),
+        render: (_v, row) => <UserTypeBadge value={row.userType} />,
       },
-      { id: "resellerId", label: "Reseller ID" },
-      { id: "parentCompanyId", label: "Parent company ID" },
+      { id: "resellerName", label: "Reseller" },
+      { id: "parentCompanyName", label: "Parent company" },
       { id: "employeeName", label: "Employee" },
       { id: "poolName", label: "Pool" },
       { id: "date", label: "Date (UTC)" },
@@ -684,7 +727,7 @@ export default function DepartmentHeadsPage() {
       { id: "checkIn", label: "Check-in" },
       { id: "checkOut", label: "Check-out" },
     ],
-    [theme],
+    [],
   );
 
   useEffect(() => {

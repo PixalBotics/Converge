@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Add from "@mui/icons-material/Add";
 import DeleteOutline from "@mui/icons-material/DeleteOutline";
@@ -16,12 +16,21 @@ import {
   FormModal,
   SearchBar,
   TablePagination,
+  ToolbarFilterPopover,
   Typography,
 } from "@/components/common";
 import type { DataTableColumn } from "@/components/common";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
-import type { DistributionSetupListItem } from "@/api/distribution/distribution-setup.api";
+import {
+  getDistributionSetup,
+  type DistributionSetupListItem,
+} from "@/api/distribution/distribution-setup.api";
 import { DISTRIBUTION_ROUTES } from "../distribution.constants";
+import {
+  defaultEditWizardStep,
+  distributionWizardStepHref,
+} from "../utils/distribution-wizard-nav";
+import { hydrateWizardFromDetail } from "../utils/hydrate-wizard-from-detail";
 import { useAuth } from "@/lib/auth";
 import { OP } from "@/lib/permissions/operational-keys";
 import { publishAppToast } from "@/lib/notify";
@@ -34,7 +43,9 @@ import { useDistributionSetupsQuery } from "../hooks/useDistributionSetups";
 import {
   useDeleteDistributionSetupMutation,
 } from "../hooks/useDistributionSetupMutations";
-import { clearWizardDraft, writeWizardSetupId } from "../wizard-storage";
+import { clearWizardDraft } from "../wizard-storage";
+import { DistributionListFilterPanel } from "../components/DistributionListFilterPanel";
+import { useWebsiteAssignmentScopeFilters } from "@/features/website-assignments/hooks/useWebsiteAssignmentScopeFilters";
 
 const PAGE_SIZE = 10;
 
@@ -51,12 +62,41 @@ export function DistributionListPage() {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [deleteTarget, setDeleteTarget] = useState<Row | null>(null);
+  const [filterPopoverOpen, setFilterPopoverOpen] = useState(false);
+  const [filterStatus, setFilterStatus] = useState("");
+  const scope = useWebsiteAssignmentScopeFilters();
+
+  const listIsActive =
+    filterStatus === "active" ? true : filterStatus === "draft" ? false : undefined;
 
   const listQuery = useDistributionSetupsQuery({
     page,
     limit: PAGE_SIZE,
     search: search.trim() || undefined,
+    resellerId: scope.filterResellerId.trim() || undefined,
+    parentCompanyId: scope.filterParentCompanyId.trim() || undefined,
+    childCompanyId: scope.filterChildCompanyId.trim() || undefined,
+    isActive: listIsActive,
   });
+
+  const hasActiveFilters = Boolean(
+    filterStatus.trim() || scope.hasScopeFilters,
+  );
+
+  const clearAllFilters = () => {
+    scope.clearScopeFilters();
+    setFilterStatus("");
+  };
+
+  useEffect(() => {
+    setPage(1);
+  }, [
+    search,
+    filterStatus,
+    scope.filterResellerId,
+    scope.filterParentCompanyId,
+    scope.filterChildCompanyId,
+  ]);
 
   const deleteMutation = useDeleteDistributionSetupMutation();
 
@@ -78,8 +118,13 @@ export function DistributionListPage() {
         id: "isActive",
         label: "Status",
         render: (_v, row) => (
-          <Typography variant="medium" sx={{ color: row.isActive ? theme.palette.success.main : theme.app.dashboard.textMuted }}>
-            {row.isActive ? "Active" : "Inactive"}
+          <Typography
+            variant="medium"
+            sx={{
+              color: row.isActive ? theme.palette.success.main : theme.palette.warning.main,
+            }}
+          >
+            {row.isActive ? "Active" : "Draft"}
           </Typography>
         ),
       },
@@ -92,10 +137,18 @@ export function DistributionListPage() {
     router.push(DISTRIBUTION_ROUTES.configure);
   };
 
-  const handleEdit = (row: Row) => {
-    clearWizardDraft();
-    writeWizardSetupId(row.id);
-    router.push(`${DISTRIBUTION_ROUTES.settings}?setupId=${encodeURIComponent(row.id)}`);
+  const handleEdit = async (row: Row) => {
+    try {
+      const detail = await getDistributionSetup(row.id);
+      hydrateWizardFromDetail(detail);
+      const step = defaultEditWizardStep(row.isActive);
+      router.push(distributionWizardStepHref(step, row.id));
+    } catch (err) {
+      publishAppToast({
+        variant: "error",
+        message: extractApiErrorMessageForToast(err, "Could not open distribution setup for edit."),
+      });
+    }
   };
 
   const handleDelete = async () => {
@@ -162,15 +215,36 @@ export function DistributionListPage() {
           ) : null}
         </Box>
 
-        <SearchBar
-          value={search}
-          onChange={(v) => {
-            setSearch(v);
-            setPage(1);
+        <Box
+          sx={{
+            display: "flex",
+            flexWrap: "wrap",
+            gap: 1.5,
+            alignItems: "center",
+            mb: 2,
           }}
-          placeholder="Search client, company, website, department…"
-          sx={{ mb: 2, maxWidth: 420 }}
-        />
+        >
+          <SearchBar
+            value={search}
+            onChange={setSearch}
+            placeholder="Search client, company, website, department…"
+            sx={{ flex: "1 1 240px", minWidth: 0, maxWidth: 420 }}
+          />
+          <ToolbarFilterPopover
+            open={filterPopoverOpen}
+            onOpenChange={setFilterPopoverOpen}
+            active={hasActiveFilters}
+          >
+            <DistributionListFilterPanel
+              {...scope}
+              filterStatus={filterStatus}
+              onFilterStatusChange={setFilterStatus}
+              hasActiveFilters={hasActiveFilters}
+              onClearAll={clearAllFilters}
+              onClose={() => setFilterPopoverOpen(false)}
+            />
+          </ToolbarFilterPopover>
+        </Box>
 
         {listQuery.isError ? (
           <Typography color="error">Could not load distribution setups.</Typography>

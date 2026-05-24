@@ -73,15 +73,30 @@ export function EmailBuilderColorField({
   };
 
   return (
-    <Box>
+    <Box sx={{ minWidth: 0, maxWidth: "100%", width: "100%" }}>
       <Label
         htmlFor={fieldId}
         variant="mediumSmall"
-        sx={{ mb: 0.75, color: d.textMuted, fontWeight: 600 }}
+        sx={{
+          mb: 0.75,
+          color: d.textMuted,
+          fontWeight: 600,
+          display: "block",
+          lineHeight: 1.35,
+        }}
       >
         {label}
       </Label>
-      <Box sx={{ display: "flex", gap: 1, alignItems: "stretch", position: "relative" }}>
+      <Box
+        sx={{
+          display: "flex",
+          gap: 0.75,
+          alignItems: "stretch",
+          position: "relative",
+          width: "100%",
+          minWidth: 0,
+        }}
+      >
         <Box
           component="button"
           type="button"
@@ -91,8 +106,8 @@ export function EmailBuilderColorField({
           sx={{
             m: 0,
             p: 0,
-            width: 48,
-            height: 40,
+            width: 36,
+            height: 36,
             flexShrink: 0,
             borderRadius: 1.25,
             border: `2px solid ${alpha(d.cardBorder, 0.95)}`,
@@ -119,8 +134,8 @@ export function EmailBuilderColorField({
             position: "absolute",
             left: 0,
             top: 0,
-            width: 48,
-            height: 40,
+            width: 36,
+            height: 36,
             opacity: 0,
             cursor: disabled ? "not-allowed" : "pointer",
           }}
@@ -138,14 +153,16 @@ export function EmailBuilderColorField({
           sx={{
             flex: 1,
             minWidth: 0,
-            height: 40,
-            px: 1.25,
-            borderRadius: 1.25,
+            width: 0,
+            height: 36,
+            px: 1,
+            borderRadius: 1,
             border: `1px solid ${d.cardBorder}`,
             bgcolor: d.overlayLight ?? alpha(theme.palette.common.white, 0.04),
             color: theme.palette.text.primary,
-            fontFamily: "inherit",
-            fontSize: 13,
+            fontFamily: "ui-monospace, monospace",
+            fontSize: 12,
+            boxSizing: "border-box",
             outline: "none",
             "&:focus": {
               borderColor: theme.palette.primary.main,
@@ -176,10 +193,48 @@ export function EmailBuilderFieldStack({
           display: "flex",
           flexDirection: "column",
           gap: 1.25,
-          "& > *": { width: "100%" },
+          minWidth: 0,
+          maxWidth: "100%",
+          "& > *": { minWidth: 0, maxWidth: "100%" },
         },
         ...(Array.isArray(sx) ? sx : sx ? [sx] : []),
       ]}
+    >
+      {children}
+    </Box>
+  );
+}
+
+/** Single-column stack for paired fields in the narrow tools rail (avoids clipped 2-col grids). */
+export function EmailBuilderDualFieldGrid({ children }: { children: ReactNode }) {
+  return (
+    <Box
+      sx={{
+        display: "flex",
+        flexDirection: "column",
+        gap: 1.25,
+        minWidth: 0,
+        maxWidth: "100%",
+        "& > *": { minWidth: 0, maxWidth: "100%" },
+      }}
+    >
+      {children}
+    </Box>
+  );
+}
+
+/** Two equal columns when there is room (preset cards, layout toggles). */
+export function EmailBuilderPairGrid({ children }: { children: ReactNode }) {
+  return (
+    <Box
+      sx={{
+        display: "grid",
+        gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)",
+        gap: 0.75,
+        minWidth: 0,
+        maxWidth: "100%",
+        "& > *": { minWidth: 0 },
+      }}
     >
       {children}
     </Box>

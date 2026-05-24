@@ -17,3 +17,27 @@ export async function generatePlatformLicenseKey(
   );
   return data;
 }
+
+export type SendPlatformLicenseKeyBody = {
+  parentCompanyId: string;
+  audience?: "poc" | "all";
+};
+
+export type SendPlatformLicenseKeyResult = {
+  parentCompanyId: string;
+  resellerId: string;
+  licenseKey: string;
+  audience: "poc" | "all";
+  attempted: number;
+  sent: number;
+};
+
+export async function sendPlatformLicenseKey(
+  body: SendPlatformLicenseKeyBody,
+): Promise<{ success: boolean; data: SendPlatformLicenseKeyResult }> {
+  const { data } = await apiClient.post<{ success: boolean; data: SendPlatformLicenseKeyResult }>(
+    "/platform/license-keys/send",
+    body,
+  );
+  return data;
+}

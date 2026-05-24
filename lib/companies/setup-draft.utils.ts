@@ -3,6 +3,9 @@ import type { JsonRecord } from "@/api";
 const DEFAULT_POC_INVITE_PASSWORD = "Admin@123";
 const POC_EMAIL_MAX_LEN = 255;
 
+/** Max POC users per child company (matches backend `MAX_POC_PER_CHILD_COMPANY`). */
+export const MAX_POC_PER_CHILD = 5;
+
 function asRecord(value: unknown): Record<string, unknown> | null {
   if (value && typeof value === "object" && !Array.isArray(value)) {
     return value as Record<string, unknown>;
@@ -32,13 +35,7 @@ export function extractCompanySetupDraftIdFromLatest(data: unknown): string | nu
   return extractCompanySetupDraftId(inner);
 }
 
-export type DraftChildPayload = {
-  name: string;
-  email: string;
-  phone: string;
-  address: string;
-  /** One row per site; empty strings allowed while editing; normalized to `https://` on PATCH. */
-  websiteUrls: string[];
+export type PocDraftSlice = {
   pocFirstName: string;
   pocMiddleName: string;
   pocLastName: string;
@@ -46,35 +43,27 @@ export type DraftChildPayload = {
   roleId: string;
   pocDepartmentMode: "existing" | "new";
   pocDepartmentId: string;
-  /** API `departmentName` — synced from department dropdown label or typed for new dept. */
   pocDepartmentName: string;
   pocDepartmentNewDescription: string;
   pocDesignationMode: "existing" | "new";
   pocDesignationId: string;
-  /** API `designationTitle` — synced from designation dropdown label or typed for new title. */
   pocDesignationTitle: string;
   pocDesignationNewDetails: string;
-  /** External POC / user: sent on `pocInvite` when the API accepts it. */
   pocWideResellerScope: boolean;
 };
 
-function emptyPocSlice(): Pick<
-  DraftChildPayload,
-  | "pocFirstName"
-  | "pocMiddleName"
-  | "pocLastName"
-  | "pocEmail"
-  | "roleId"
-  | "pocDepartmentMode"
-  | "pocDepartmentId"
-  | "pocDepartmentName"
-  | "pocDepartmentNewDescription"
-  | "pocDesignationMode"
-  | "pocDesignationId"
-  | "pocDesignationTitle"
-  | "pocDesignationNewDetails"
-  | "pocWideResellerScope"
-> {
+export type DraftChildPayload = {
+  name: string;
+  email: string;
+  phone: string;
+  address: string;
+  /** One row per site; empty strings allowed while editing; normalized to `https://` on PATCH. */
+  websiteUrls: string[];
+  /** Up to {@link MAX_POC_PER_CHILD} POC invites per child. */
+  pocRows: PocDraftSlice[];
+};
+
+export function emptyPocSlice(): PocDraftSlice {
   return {
     pocFirstName: "",
     pocMiddleName: "",
@@ -93,25 +82,7 @@ function emptyPocSlice(): Pick<
   };
 }
 
-function parsePocFromChildRow(c: Record<string, unknown>): Pick<
-  DraftChildPayload,
-  | "pocFirstName"
-  | "pocMiddleName"
-  | "pocLastName"
-  | "pocEmail"
-  | "roleId"
-  | "pocDepartmentMode"
-  | "pocDepartmentId"
-  | "pocDepartmentName"
-  | "pocDepartmentNewDescription"
-  | "pocDesignationMode"
-  | "pocDesignationId"
-  | "pocDesignationTitle"
-  | "pocDesignationNewDetails"
-  | "pocWideResellerScope"
-> {
-  const poc = asRecord(c.pocInvite);
-  if (!poc) return emptyPocSlice();
+function parsePocFromInviteRecord(poc: Record<string, unknown>): PocDraftSlice {
   const deptName = String(poc.departmentName ?? "").trim();
   const desTitle = String(poc.designationTitle ?? "").trim();
   return {
@@ -132,56 +103,86 @@ function parsePocFromChildRow(c: Record<string, unknown>): Pick<
   };
 }
 
-/** True when POC invite fields are ready for `pocInvite` on PATCH. */
-export function isChildRowPocComplete(r: DraftChildPayload): boolean {
-  const pocEmail = r.pocEmail.trim();
+function parsePocRowsFromChildRow(c: Record<string, unknown>): PocDraftSlice[] {
+  const multi = c.pocInvites;
+  if (Array.isArray(multi) && multi.length > 0) {
+    return multi
+      .map((item) => {
+        const poc = asRecord(item);
+        return poc ? parsePocFromInviteRecord(poc) : null;
+      })
+      .filter((x): x is PocDraftSlice => x !== null)
+      .slice(0, MAX_POC_PER_CHILD);
+  }
+  const single = asRecord(c.pocInvite);
+  if (single) {
+    return [parsePocFromInviteRecord(single)];
+  }
+  return [emptyPocSlice()];
+}
+
+export function isPocSliceEmpty(slice: PocDraftSlice): boolean {
+  return (
+    !slice.pocFirstName.trim() &&
+    !slice.pocLastName.trim() &&
+    !slice.pocEmail.trim()
+  );
+}
+
+/** True when one POC slice is ready for `pocInvite` (department optional). */
+export function isPocSliceComplete(slice: PocDraftSlice): boolean {
+  const pocEmail = slice.pocEmail.trim();
   if (
-    !r.pocFirstName.trim() ||
-    !r.pocLastName.trim() ||
+    !slice.pocFirstName.trim() ||
+    !slice.pocLastName.trim() ||
     !pocEmail ||
     pocEmail.length > POC_EMAIL_MAX_LEN ||
     !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(pocEmail) ||
-    !r.roleId.trim()
+    !slice.roleId.trim()
   ) {
     return false;
   }
-  if (r.pocDepartmentMode === "new") {
-    if (!r.pocDepartmentName.trim()) return false;
-  } else if (!r.pocDepartmentId.trim() || !r.pocDepartmentName.trim()) {
-    return false;
-  }
-  if (r.pocDesignationMode === "new") {
-    if (!r.pocDesignationTitle.trim()) return false;
-  } else if (!r.pocDesignationId.trim() || !r.pocDesignationTitle.trim()) {
+  if (slice.pocDesignationMode === "new") {
+    if (!slice.pocDesignationTitle.trim()) return false;
+  } else if (!slice.pocDesignationId.trim() || !slice.pocDesignationTitle.trim()) {
     return false;
   }
   return true;
 }
 
-/** Builds `pocInvite` JSON for PATCH (parent or child company). */
-export function buildPocInviteForRow(c: DraftChildPayload): JsonRecord | null {
-  if (!isChildRowPocComplete(c)) return null;
-  const pocEmail = c.pocEmail.trim().slice(0, POC_EMAIL_MAX_LEN);
+/** Child row POC set: 1–{@link MAX_POC_PER_CHILD} complete invites; empty slices ignored. */
+export function isChildRowPocComplete(child: DraftChildPayload): boolean {
+  const filled = child.pocRows.filter((s) => !isPocSliceEmpty(s));
+  if (filled.length < 1 || filled.length > MAX_POC_PER_CHILD) return false;
+  return filled.every(isPocSliceComplete);
+}
+
+/** Builds `pocInvite` JSON for one slice. */
+export function buildPocInviteForSlice(slice: PocDraftSlice): JsonRecord | null {
+  if (!isPocSliceComplete(slice)) return null;
+  const pocEmail = slice.pocEmail.trim().slice(0, POC_EMAIL_MAX_LEN);
   const invite: JsonRecord = {
-    firstName: c.pocFirstName.trim(),
-    lastName: c.pocLastName.trim(),
-    /** API DTO uses `pocEmail`, not `email`. */
+    firstName: slice.pocFirstName.trim(),
+    lastName: slice.pocLastName.trim(),
     pocEmail,
     password: DEFAULT_POC_INVITE_PASSWORD,
-    roleId: c.roleId.trim(),
-    departmentName: c.pocDepartmentName.trim(),
-    designationTitle: c.pocDesignationTitle.trim(),
+    roleId: slice.roleId.trim(),
+    designationTitle: slice.pocDesignationTitle.trim(),
   };
-  const mid = c.pocMiddleName.trim();
+  const dept = slice.pocDepartmentName.trim();
+  if (dept) invite.departmentName = dept;
+  const mid = slice.pocMiddleName.trim();
   if (mid) invite.middleName = mid;
-  if (c.pocDepartmentMode === "new" && c.pocDepartmentNewDescription.trim()) {
-    invite.departmentDetails = c.pocDepartmentNewDescription.trim();
-  }
-  /** API rejects `designationDetails` on `pocInvite`; `designationTitle` carries the title. */
-  if (c.pocWideResellerScope) {
+  if (slice.pocWideResellerScope) {
     invite.wideResellerScope = true;
   }
   return invite;
+}
+
+/** @deprecated Use {@link buildPocInviteForSlice} with a single slice. */
+export function buildPocInviteForRow(child: DraftChildPayload): JsonRecord | null {
+  const first = child.pocRows.find((s) => isPocSliceComplete(s));
+  return first ? buildPocInviteForSlice(first) : null;
 }
 
 /** Trim, force `https://`, prepend if host-only (e.g. `example.com` → `https://example.com`). */
@@ -212,7 +213,7 @@ export function emptyDraftChildRow(): DraftChildPayload {
     phone: "",
     address: "",
     websiteUrls: [""],
-    ...emptyPocSlice(),
+    pocRows: [emptyPocSlice()],
   };
 }
 
@@ -266,9 +267,13 @@ export function parseCompanySetupDraftRunForWizard(data: unknown): CompanySetupW
     (nested ? asRecord(nested.resellerParentDraft) : null);
   const modeRaw = String(parentDraft?.mode ?? "").toLowerCase();
   const rootResellerId = String(base.resellerId ?? "").trim();
-  /** Create-mode drafts may still carry `resellerId` on `data` for tree context — treat as existing for the wizard. */
+  const parentCompanyIdOnRun = String(base.parentCompanyId ?? "").trim();
   const setupKind: "new_reseller" | "existing_reseller" =
-    modeRaw === "existing" || rootResellerId.length > 0 ? "existing_reseller" : "new_reseller";
+    modeRaw === "create" && !parentCompanyIdOnRun
+      ? "new_reseller"
+      : modeRaw === "existing" || rootResellerId.length > 0 || parentCompanyIdOnRun.length > 0
+        ? "existing_reseller"
+        : "new_reseller";
 
   const resellerId = String(parentDraft?.resellerId ?? base.resellerId ?? "").trim();
   const parent = asRecord(parentDraft?.parent);
@@ -310,33 +315,38 @@ export function parseCompanySetupDraftRunForWizard(data: unknown): CompanySetupW
             phone: String(c.phone ?? "").trim(),
             address: String(c.address ?? "").trim(),
             websiteUrls: websiteUrls.length > 0 ? websiteUrls : [""],
-            ...parsePocFromChildRow(c),
+            pocRows: parsePocRowsFromChildRow(c),
           };
         });
 
-  const nextActionRaw =
-    base.nextAction ?? (nested && "nextAction" in nested ? nested.nextAction : undefined);
-  const nextAction = String(nextActionRaw ?? "").toLowerCase();
+  const stepRaw = String(base.step ?? (nested ? nested.step : "") ?? "")
+    .trim()
+    .toLowerCase();
+  const hasChildrenDraftInApi = rawChildren.length > 0;
+  const hasSavedChildBasics = draftChildRows.some(
+    (r) =>
+      r.name.trim().length > 0 &&
+      r.email.trim().length > 0 &&
+      r.phone.trim().length > 0 &&
+      r.address.trim().length > 0,
+  );
+  const hasCompleteChild = draftChildRows.some(
+    (r) =>
+      r.name.trim().length > 0 &&
+      r.email.trim().length > 0 &&
+      r.phone.trim().length > 0 &&
+      r.address.trim().length > 0 &&
+      isChildRowPocComplete(r),
+  );
+
+  /** Use API `step` only — do not parse `nextAction` (e.g. "continue to children" falsely matched "child"). */
   let modalStep: 1 | 2 = 1;
-  if (nextAction.includes("child") || nextAction.includes("children")) {
+  if (stepRaw === "children") {
     modalStep = 2;
-  } else {
-    const hasSavedChildBasics = draftChildRows.some(
-      (r) =>
-        r.name.trim().length > 0 &&
-        r.email.trim().length > 0 &&
-        r.phone.trim().length > 0 &&
-        r.address.trim().length > 0,
-    );
-    const hasCompleteChild = draftChildRows.some(
-      (r) =>
-        r.name.trim().length > 0 &&
-        r.email.trim().length > 0 &&
-        r.phone.trim().length > 0 &&
-        r.address.trim().length > 0 &&
-        isChildRowPocComplete(r),
-    );
-    if (hasCompleteChild || hasSavedChildBasics) modalStep = 2;
+  } else if (stepRaw === "reseller_parent" || stepRaw === "" || stepRaw === "completed") {
+    modalStep = 1;
+  } else if (hasChildrenDraftInApi && (hasCompleteChild || hasSavedChildBasics)) {
+    modalStep = 2;
   }
 
   return {
@@ -348,6 +358,19 @@ export function parseCompanySetupDraftRunForWizard(data: unknown): CompanySetupW
     parentAddress,
     draftChildRows,
     modalStep,
+  };
+}
+
+/** Apply parsed draft GET payload into wizard React state. */
+export function readWizardHydrationFromDraft(
+  data: unknown,
+  modalStepOverride?: 1 | 2,
+): (CompanySetupWizardHydration & { modalStep: 1 | 2 }) | null {
+  const parsed = parseCompanySetupDraftRunForWizard(data);
+  if (!parsed) return null;
+  return {
+    ...parsed,
+    modalStep: modalStepOverride ?? parsed.modalStep,
   };
 }
 
@@ -363,8 +386,7 @@ export type ResellerParentDraftPatchInput =
       parent: { name: string; email: string; phone: string; address: string };
     };
 
-/** PATCH step `reseller_parent`. API `mode`: `create` (new tree, no reseller id) | `existing` (under chosen reseller). */
-export function buildResellerParentDraftPatchBody(
+function buildResellerParentDraftPayload(
   opts: ResellerParentDraftPatchInput,
 ): JsonRecord {
   const parent = {
@@ -376,33 +398,44 @@ export function buildResellerParentDraftPatchBody(
 
   if (opts.kind === "new_reseller") {
     return {
-      step: "reseller_parent",
-      finalize: "reseller_parent",
-      resellerParentDraft: {
-        mode: "create",
-        parent,
-      },
+      mode: "create",
+      parent,
     };
   }
 
-  const body: JsonRecord = {
-    step: "reseller_parent",
-    finalize: "reseller_parent",
-    resellerParentDraft: {
-      mode: "existing",
-      resellerId: opts.resellerId.trim(),
-      parent,
-    },
+  const draft: JsonRecord = {
+    mode: "existing",
+    resellerId: opts.resellerId.trim(),
+    parent,
   };
   const pid = opts.parentCompanyId?.trim();
-  if (pid) {
-    (body.resellerParentDraft as JsonRecord).parentCompanyId = pid;
-  }
-  return body;
+  if (pid) draft.parentCompanyId = pid;
+  return draft;
 }
 
-export function buildChildrenDraftPatchBody(children: DraftChildPayload[]): JsonRecord {
-  const mapped = children
+/** Autosave step 1 and move to children — does not create reseller/parent rows until submit. */
+export function buildResellerParentDraftSaveBody(
+  opts: ResellerParentDraftPatchInput,
+): JsonRecord {
+  return {
+    step: "children",
+    resellerParentDraft: buildResellerParentDraftPayload(opts),
+  };
+}
+
+/** PATCH step `reseller_parent` with finalize — used only when explicitly committing step 1 early. */
+export function buildResellerParentDraftPatchBody(
+  opts: ResellerParentDraftPatchInput,
+): JsonRecord {
+  return {
+    step: "reseller_parent",
+    finalize: "reseller_parent",
+    resellerParentDraft: buildResellerParentDraftPayload(opts),
+  };
+}
+
+function mapChildrenDraftRows(children: DraftChildPayload[]): JsonRecord[] {
+  return children
     .filter((c) => c.name.trim().length > 0)
     .map((c) => {
       const row: JsonRecord = {
@@ -411,21 +444,34 @@ export function buildChildrenDraftPatchBody(children: DraftChildPayload[]): Json
         phone: c.phone.trim(),
         address: c.address.trim(),
       };
-      /** API allows only `website` (singular), not `websites`. Use first normalized URL when several are entered. */
       const urls = collectHttpsWebsiteUrls(c.websiteUrls ?? []);
       if (urls.length > 0) {
         row.website = { url: urls[0] };
       }
-      const poc = buildPocInviteForRow(c);
-      if (poc) row.pocInvite = poc;
+      const invites = c.pocRows
+        .map((slice) => buildPocInviteForSlice(slice))
+        .filter((inv): inv is JsonRecord => inv !== null);
+      if (invites.length === 1) {
+        row.pocInvite = invites[0];
+      } else if (invites.length > 1) {
+        row.pocInvites = invites;
+      }
       return row;
     });
+}
+
+/** Debounced step-2 autosave — draft JSON only; no DB companies until submit. */
+export function buildChildrenDraftAutosaveBody(children: DraftChildPayload[]): JsonRecord {
   return {
-    step: "children",
     childrenDraft: {
-      children: mapped,
+      children: mapChildrenDraftRows(children),
     },
   };
+}
+
+/** Explicit save before final submit (same payload shape; kept for call-site clarity). */
+export function buildChildrenDraftPatchBody(children: DraftChildPayload[]): JsonRecord {
+  return buildChildrenDraftAutosaveBody(children);
 }
 
 /** Browser key for resuming company setup after leaving the wizard (same device). */

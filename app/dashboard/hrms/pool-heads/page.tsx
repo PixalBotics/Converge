@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Box from "@mui/material/Box";
-import Chip from "@mui/material/Chip";
 import Checkbox from "@mui/material/Checkbox";
 import IconButton from "@mui/material/IconButton";
 import Table from "@mui/material/Table";
@@ -32,6 +31,7 @@ import {
   ToolbarFilterPopover,
   ToolbarFilterPopoverPanel,
   Typography,
+  UserTypeBadge,
   dataTableActionButton,
 } from "@/components/common";
 import type { DataTableColumn } from "@/components/common";
@@ -65,6 +65,7 @@ import { extractUsersRows } from "@/app/dashboard/user-page/utils";
 import type { UserRow } from "@/app/dashboard/user-page/types";
 import { useAuth, sessionMayPickInternalUserScope } from "@/lib/auth";
 import { canManagePoolHeads, canRemovePoolHead } from "@/lib/permissions";
+import { resolveUserKind, type UserKind } from "@/lib/hrms/user-kind";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
 import {
   departmentsCardHeader,
@@ -73,8 +74,6 @@ import {
 
 const PAGE_LIMIT = 12;
 const ASSIGN_USER_TABLE_MAX_PX = 340;
-
-type UserKind = "Internal" | "External" | "—";
 
 type PoolHeadRow = {
   id: string;
@@ -99,6 +98,7 @@ type AttendanceRow = {
   resellerId: string;
   resellerName: string;
   parentCompanyId: string;
+  parentCompanyName: string;
   poolName: string;
   date: string;
   status: string;
@@ -132,12 +132,6 @@ function extractTotalPages(data: unknown): number {
 function formatScopeId(value: string | undefined): string {
   const v = (value ?? "").trim();
   return v || "—";
-}
-
-function parseUserKind(raw: string | undefined): UserKind {
-  const t = (raw ?? "").trim();
-  if (t === "Internal" || t === "External") return t;
-  return "—";
 }
 
 function mapPoolHeadItem(r: Record<string, unknown>, idx: number): PoolHeadRow | null {
@@ -175,7 +169,9 @@ function mapPoolHeadItem(r: Record<string, unknown>, idx: number): PoolHeadRow |
     "—";
   const userEmail = pickStr(user, ["email"]) || pickStr(r, ["userEmail", "email"]) || "—";
   const rawType = pickStr(user, ["userType", "type", "user_type"]) || pickStr(r, ["userType", "user_type"]);
-  const userType = parseUserKind(rawType);
+  const deptType =
+    pickStr(poolDepartment, ["type"]) || pickStr(dept, ["type"]) || pickStr(r, ["departmentType"]);
+  const userType = resolveUserKind(rawType, deptType);
   const resellerId = formatScopeId(
     pickStr(r, ["resellerId"]) ||
       pickStr(user, ["resellerId", "reseller_id"]) ||
@@ -643,25 +639,52 @@ export default function PoolHeadsPage() {
       const employeeName =
         pick(userNested ?? row, ["employeeName", "userName", "name", "firstName"]) || "—";
       const rawType = pickStr(userNested, ["userType", "type"]) || pickStr(row, ["userType", "user_type"]);
-      const userType = parseUserKind(rawType);
-      const resellerId = formatScopeId(pickStr(row, ["resellerId"]) || pickStr(userNested, ["resellerId"]));
       const poolNested = isRecord(row["pool"]) ? (row["pool"] as Record<string, unknown>) : null;
+      const userPoolNested =
+        userNested && isRecord(userNested["pool"]) ? (userNested["pool"] as Record<string, unknown>) : null;
       const poolDepartment =
-        poolNested && isRecord(poolNested["department"]) ? (poolNested["department"] as Record<string, unknown>) : null;
+        (poolNested && isRecord(poolNested["department"]) ? (poolNested["department"] as Record<string, unknown>) : null) ??
+        (userPoolNested && isRecord(userPoolNested["department"])
+          ? (userPoolNested["department"] as Record<string, unknown>)
+          : null);
+      const userType = resolveUserKind(
+        rawType,
+        pickStr(poolDepartment, ["type"]),
+      );
       const poolReseller =
         poolDepartment && isRecord(poolDepartment["reseller"])
           ? (poolDepartment["reseller"] as Record<string, unknown>)
           : null;
+      const poolParentCompany =
+        poolDepartment && isRecord(poolDepartment["parentCompany"])
+          ? (poolDepartment["parentCompany"] as Record<string, unknown>)
+          : null;
+      const userParentCompany =
+        userNested && isRecord(userNested["parentCompany"])
+          ? (userNested["parentCompany"] as Record<string, unknown>)
+          : null;
+      const resellerId = formatScopeId(
+        pickStr(row, ["resellerId"]) ||
+          pickStr(userNested, ["resellerId"]) ||
+          pickStr(poolReseller, ["id"]),
+      );
       const resellerName =
         pickStr(row, ["resellerName"]) ||
         pickStr(poolReseller, ["name"]) ||
         "—";
       const parentCompanyId = formatScopeId(
         pickStr(row, ["parentCompanyId", "parent_company_id"]) ||
-          pickStr(userNested, ["parentCompanyId", "parent_company_id"]),
+          pickStr(userNested, ["parentCompanyId", "parent_company_id"]) ||
+          pickStr(userParentCompany, ["id"]) ||
+          pickStr(poolParentCompany, ["id"]),
       );
+      const parentCompanyName =
+        pickStr(row, ["parentCompanyName"]) ||
+        pickStr(userParentCompany, ["name"]) ||
+        pickStr(poolParentCompany, ["name"]) ||
+        "—";
       const poolName =
-        pick(isRecord(poolNested) ? (poolNested as Record<string, unknown>) : row, ["name", "poolName"]) ||
+        pick(isRecord(poolNested) ? poolNested : userPoolNested ?? row, ["name", "poolName"]) ||
         pick(row, ["poolName"]) ||
         "—";
       return {
@@ -671,6 +694,7 @@ export default function PoolHeadsPage() {
         resellerId,
         resellerName,
         parentCompanyId,
+        parentCompanyName,
         poolName,
         date: pick(row, ["date", "day", "attendanceDate"]) || "—",
         status: pick(row, ["status"]) || "—",
@@ -722,21 +746,31 @@ export default function PoolHeadsPage() {
 
   const columns = useMemo<DataTableColumn<PoolHeadRow>[]>(
     () => [
+      {
+        id: "userType",
+        label: "Type",
+        render: (_v, row) => <UserTypeBadge value={row.userType} />,
+      },
+      { id: "userName", label: "User" },
+      { id: "userEmail", label: "Email" },
       { id: "resellerName", label: "Reseller" },
       { id: "parentCompanyName", label: "Parent company" },
       { id: "departmentName", label: "Department" },
       { id: "designationName", label: "Designation" },
       { id: "poolName", label: "Pool" },
-      { id: "userName", label: "User" },
-      { id: "userEmail", label: "Email" },
     ],
     [],
   );
 
   const attendanceColumns = useMemo<DataTableColumn<AttendanceRow>[]>(
     () => [
+      {
+        id: "userType",
+        label: "Type",
+        render: (_v, row) => <UserTypeBadge value={row.userType} />,
+      },
       { id: "resellerName", label: "Reseller" },
-      { id: "parentCompanyId", label: "Parent company ID" },
+      { id: "parentCompanyName", label: "Parent company" },
       { id: "employeeName", label: "Member" },
       { id: "poolName", label: "Pool" },
       { id: "date", label: "Date (UTC)" },

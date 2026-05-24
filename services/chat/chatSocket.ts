@@ -42,6 +42,7 @@ type ChatEventMap = {
   agent_wrap_up_form: (payload: unknown) => void;
   agent_wrap_up_required: (payload: unknown) => void;
   agent_wrap_up_submitted: (payload: unknown) => void;
+  agent_distribution_submitted: (payload: unknown) => void;
   agent_assignment_popup: (payload: unknown) => void;
   agent_queue_popup: (payload: unknown) => void;
   monitor_live_update: (payload: MonitorLiveUpdatePayload) => void;
@@ -228,6 +229,12 @@ export class ChatSocketClient {
 
   onAgentWrapUpSubmitted(listener: ChatEventMap["agent_wrap_up_submitted"]): () => void {
     return this.on("agent_wrap_up_submitted", listener);
+  }
+
+  onAgentDistributionSubmitted(
+    listener: ChatEventMap["agent_distribution_submitted"],
+  ): () => void {
+    return this.on("agent_distribution_submitted", listener);
   }
 
   onAgentAssignmentPopup(

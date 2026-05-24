@@ -61,6 +61,8 @@ export const OP = {  accountSetup: {
     attendance: {
       checkIn: "hrms:attendance:checkin",
       checkOut: "hrms:attendance:checkout",
+      breakIn: "hrms:attendance:breakin",
+      breakOut: "hrms:attendance:breakout",
       self: "hrms:attendance:self",
       selfView: "hrms:attendance:self:view",
       view: "hrms:attendance:view",

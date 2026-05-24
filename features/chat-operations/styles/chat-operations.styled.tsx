@@ -7,6 +7,7 @@ import { alpha, styled } from "@mui/material/styles";
 import type { Theme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import { Typography } from "@/components/common";
+import { dashboardCardFill, dashboardSolidSurface } from "./chat-semantic";
 function dash(theme: Theme) {
   return (theme as AppTheme).app.dashboard;
 }
@@ -286,6 +287,9 @@ export const ComposerFooterInner = styled(Box)(({ theme }) => ({
 /** In-flow tools panel — stays inside the thread column (no floating outside the shell). */
 export const ComposerToolsPanel = styled(Box)(({ theme }) => {
   const d = dash(theme);
+  const panelFill =
+    dashboardCardFill(theme, theme.palette.mode === "light" ? 0.65 : 0.45) ??
+    alpha(dashboardSolidSurface(theme), theme.palette.mode === "light" ? 0.65 : 0.45);
   return {
     display: "flex",
     flexDirection: "column",
@@ -293,8 +297,9 @@ export const ComposerToolsPanel = styled(Box)(({ theme }) => {
     maxHeight: "min(36vh, 280px)",
     overflow: "hidden",
     borderRadius: 12,
-    border: `1px solid ${alpha(d.cardBorder, 0.28)}`,
-    background: alpha(d.surfaceDark, 0.5),
+    border: `1px solid ${alpha(d.cardBorder, 0.32)}`,
+    background: panelFill,
+    boxShadow: "inset 0 1px 0 rgba(255,255,255,0.05)",
   };
 });
 
@@ -335,20 +340,23 @@ export const ComposerRow = styled(Box)(({ theme }) => ({
   gap: theme.spacing(1.25),
 }));
 
-export const ComposerInputShell = styled(Box)(({ theme }) => ({
-  flex: 1,
-  display: "flex",
-  alignItems: "flex-end",
-  gap: theme.spacing(0.25),
-  borderRadius: 14,
-  border: `1px solid ${alpha(dash(theme).cardBorder, 0.45)}`,
-  background: alpha(live(theme).messageBg, 0.65),
-  padding: theme.spacing(0.75, 1.25),
-  "&:focus-within": {
-    borderColor: alpha(dash(theme).accentBlue, 0.65),
-    boxShadow: `0 0 0 3px ${alpha(dash(theme).accentBlue, 0.12)}`,
-  },
-}));
+export const ComposerInputShell = styled(Box)(({ theme }) => {
+  const d = dash(theme);
+  return {
+    flex: 1,
+    display: "flex",
+    alignItems: "flex-end",
+    gap: theme.spacing(0.25),
+    borderRadius: 14,
+    border: `1px solid ${alpha(d.cardBorder, 0.45)}`,
+    background: alpha(live(theme).messageBg, theme.palette.mode === "light" ? 0.9 : 0.55),
+    padding: theme.spacing(0.75, 1.25),
+    "&:focus-within": {
+      borderColor: alpha(d.accentBlue, 0.65),
+      boxShadow: `0 0 0 3px ${alpha(d.accentBlue, 0.12)}`,
+    },
+  };
+});
 
 export const ComposerTextField = styled(TextField)(({ theme }) => ({
   flex: 1,
@@ -389,11 +397,12 @@ export const DrawerTabButton = styled("button", {
   const d = dash(theme);
   const accent = variant === "ai" ? d.accentPurple : d.accentBlue;
   return {
+    position: "relative",
     flex: 1,
     border: `1px solid ${alpha(d.cardBorder, active ? 0.55 : 0.3)}`,
     borderRadius: 10,
     cursor: "pointer",
-    padding: theme.spacing(0.65, 1),
+    padding: theme.spacing(0.75, 1.1),
     fontFamily: "inherit",
     fontSize: 12,
     fontWeight: 600,
@@ -402,17 +411,28 @@ export const DrawerTabButton = styled("button", {
     justifyContent: "center",
     gap: theme.spacing(0.6),
     color: active ? text(theme).primary : d.textMuted,
-    background: active
-      ? `linear-gradient(135deg, ${alpha(accent, 0.28)} 0%, ${alpha(d.overlayLight, 0.4)} 100%)`
-      : alpha(d.overlayLight, 0.2),
-    boxShadow: active ? `inset 0 1px 0 ${alpha(theme.palette.common.white, 0.06)}` : "none",
+    background: active ? alpha(accent, 0.14) : alpha(d.overlayLight, 0.2),
     transition: "all 0.15s ease",
+    "&::before": active
+      ? {
+          content: '""',
+          position: "absolute",
+          left: 0,
+          top: "18%",
+          bottom: "18%",
+          width: 3,
+          borderRadius: "0 3px 3px 0",
+          background: accent,
+        }
+      : { display: "none" },
+    "& svg": {
+      color: active ? accent : d.textMuted,
+    },
     "&:hover": {
       color: text(theme).primary,
       borderColor: alpha(accent, 0.45),
-      background: active
-        ? `linear-gradient(135deg, ${alpha(accent, 0.32)} 0%, ${alpha(d.overlayLight, 0.45)} 100%)`
-        : alpha(d.overlayLight, 0.35),
+      background: active ? alpha(accent, 0.18) : alpha(d.overlayLight, 0.35),
+      "& svg": { color: accent },
     },
   };
 });
@@ -426,7 +446,7 @@ export const AiAssistantShell = styled(Box)(({ theme }) => {
     minHeight: 0,
     height: "100%",
     overflow: "hidden",
-    background: `linear-gradient(180deg, ${alpha(d.accentIndigo, 0.1)} 0%, transparent 48%)`,
+    background: `linear-gradient(180deg, ${alpha(d.accentPurple, 0.08)} 0%, transparent 52%)`,
   };
 });
 

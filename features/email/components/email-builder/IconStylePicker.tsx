@@ -62,15 +62,20 @@ export function IconStylePicker({
   const d = theme.app.dashboard;
 
   return (
-    <Box>
+    <Box sx={{ minWidth: 0, maxWidth: "100%" }}>
       <Typography variant="caption" fontWeight={700} sx={{ mb: 0.75, display: "block" }}>
         {label}
       </Typography>
       <Box
         sx={{
           display: "grid",
-          gridTemplateColumns: compact ? "1fr 1fr" : { xs: "1fr 1fr", sm: "repeat(4, 1fr)" },
+          gridTemplateColumns: compact
+            ? "minmax(0, 1fr) minmax(0, 1fr)"
+            : { xs: "minmax(0, 1fr) minmax(0, 1fr)", sm: "repeat(4, minmax(0, 1fr))" },
           gap: 0.75,
+          minWidth: 0,
+          maxWidth: "100%",
+          "& > *": { minWidth: 0 },
         }}
       >
         {EMAIL_ICON_STYLE_OPTIONS.map((opt) => {

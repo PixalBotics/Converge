@@ -1,6 +1,6 @@
-export type NotificationBadgeGroup = "chat" | "qa" | "hrms_leave";
+export type NotificationBadgeGroup = "chat" | "qa" | "hrms_leave" | "hrms_attendance";
 
-export type NotificationSoundKey = "chat" | "qa" | "hrms_leave";
+export type NotificationSoundKey = "chat" | "qa" | "hrms_leave" | "hrms_attendance";
 
 export type NotificationDto = {
   id: string;
@@ -19,6 +19,7 @@ export type BadgeCounts = {
   chat: number;
   qa: number;
   hrms_leave: number;
+  hrms_attendance: number;
 };
 
 export type NotificationSocketEvent = {

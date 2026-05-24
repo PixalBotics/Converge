@@ -6,6 +6,7 @@ import {
   getConversationHistory,
   sendAgentMessage,
 } from "@/services/chat/agent-inbox.api";
+import { fetchAgentWrapUp } from "@/services/chat/wrap-up.api";
 import { getSharedAgentChatSocket } from "@/services/chat/sharedAgentChatSocket";
 import { normalizeServerMessage } from "@/services/chat/normalize-message";
 import type { ChatWhisperSocketPayload } from "@/services/chat/supervisor.types";
@@ -78,7 +79,12 @@ export function useAgentChat(params: UseAgentChatParams): UseAgentChatReturn {
     if (typeof payload !== "object" || !payload) return null;
     const o = payload as Record<string, unknown>;
     if (o.wrapUp && typeof o.wrapUp === "object") return o.wrapUp as AgentWrapUpPayload;
-    if (o.conversationId && (o.requiresAgentWrapUp || o.chatCompleted)) {
+    if (
+      o.conversationId &&
+      (o.requiresDistributionForm ||
+        o.requiresAgentWrapUp ||
+        o.chatCompleted)
+    ) {
       return o as AgentWrapUpPayload;
     }
     return null;
@@ -148,7 +154,11 @@ export function useAgentChat(params: UseAgentChatParams): UseAgentChatReturn {
       if (endedId && endedId === selectedConversationIdRef.current) {
         setSelectedIsClosed(true);
         selectedIsClosedRef.current = true;
-        if (wrapUp?.requiresAgentWrapUp && !wrapUp.wrapUpSubmitted) {
+        const needsDistribution =
+          wrapUp?.requiresDistributionForm && !wrapUp.distributionSubmitted;
+        const needsLegacyWrapUp =
+          wrapUp?.requiresAgentWrapUp && !wrapUp.wrapUpSubmitted;
+        if (needsDistribution || needsLegacyWrapUp) {
           setPendingWrapUp(wrapUp);
         } else {
           clearSelection();
@@ -202,7 +212,11 @@ export function useAgentChat(params: UseAgentChatParams): UseAgentChatReturn {
     (p: unknown) => {
       const wrapUp =
         extractWrapUp(p) ?? (typeof p === "object" && p ? (p as AgentWrapUpPayload) : null);
-      if (wrapUp?.requiresAgentWrapUp && !wrapUp.wrapUpSubmitted) {
+      const needsDistribution =
+        wrapUp?.requiresDistributionForm && !wrapUp.distributionSubmitted;
+      const needsLegacyWrapUp =
+        wrapUp?.requiresAgentWrapUp && !wrapUp.wrapUpSubmitted;
+      if (needsDistribution || needsLegacyWrapUp) {
         setPendingWrapUp(wrapUp);
       }
     },
@@ -227,8 +241,19 @@ export function useAgentChat(params: UseAgentChatParams): UseAgentChatReturn {
         const cid = conversationIdFromSocketPayload(p);
         setPendingWrapUp((prev) => {
           if (!prev) return null;
+          if (cid && prev.conversationId === cid) return null;
           if (cid && prev.conversationId && prev.conversationId !== cid) return prev;
           return null;
+        });
+      },
+      onAgentDistributionSubmitted: (p) => {
+        const cid = conversationIdFromSocketPayload(p);
+        setPendingWrapUp((prev) => {
+          if (!prev) return null;
+          if (cid && prev.conversationId === cid) {
+            return { ...prev, distributionSubmitted: true };
+          }
+          return prev;
         });
       },
       selectedConversationIdRef,
@@ -267,6 +292,27 @@ export function useAgentChat(params: UseAgentChatParams): UseAgentChatReturn {
       setVisitorFromHistory(
         typeof v === "object" && v !== null ? (v as Record<string, unknown>) : null,
       );
+
+      if (readOnly && apiEnabled && params.token) {
+        try {
+          const wrapUp = await fetchAgentWrapUp(conversationId);
+          const needsDistribution =
+            wrapUp.requiresDistributionForm && !wrapUp.distributionSubmitted;
+          const needsLegacy =
+            wrapUp.requiresAgentWrapUp && !wrapUp.wrapUpSubmitted;
+          if (needsDistribution || needsLegacy) {
+            setPendingWrapUp(wrapUp);
+          } else if (
+            selectedConversationIdRef.current === conversationId
+          ) {
+            setPendingWrapUp((prev) =>
+              prev?.conversationId === conversationId ? null : prev,
+            );
+          }
+        } catch {
+          /* no wrap-up / distribution for this chat */
+        }
+      }
     },
     [apiEnabled, closedIdSet, params.token, socketClient, syncMessagesFromMap],
   );
@@ -331,7 +377,29 @@ export function useAgentChat(params: UseAgentChatParams): UseAgentChatReturn {
       await selectConversation(nextId, { readOnly: false });
       return;
     }
-  }, [params.token, queues, selectConversation, selectedConversationId, selectedIsClosed]);
+
+    if (apiEnabled && params.token) {
+      try {
+        const wrapUp = await fetchAgentWrapUp(closingId);
+        const needsDistribution =
+          wrapUp.requiresDistributionForm && !wrapUp.distributionSubmitted;
+        const needsLegacy =
+          wrapUp.requiresAgentWrapUp && !wrapUp.wrapUpSubmitted;
+        if (needsDistribution || needsLegacy) {
+          setPendingWrapUp(wrapUp);
+        }
+      } catch {
+        /* distribution not configured */
+      }
+    }
+  }, [
+    apiEnabled,
+    params.token,
+    queues,
+    selectConversation,
+    selectedConversationId,
+    selectedIsClosed,
+  ]);
 
   const emitTyping = useCallback(() => {
     if (!selectedConversationId || selectedIsClosed) return;

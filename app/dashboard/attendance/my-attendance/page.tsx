@@ -15,6 +15,7 @@ import { useTheme } from "@mui/material/styles";
 import { useAttendanceMeQuery } from "@/lib/hooks/query";
 import { publishAppToast } from "@/lib/notify";
 import { isRecord, unwrapApiData } from "@/lib/utils/core";
+import { formatAttendanceStatus, formatBreakSummary } from "@/lib/utils/hrms/attendance-display";
 import { EmptyAttendanceState } from "../components/EmptyAttendanceState";
 import { useAuth } from "@/lib/auth";
 import { OP } from "@/lib/permissions";
@@ -36,6 +37,8 @@ type AttendanceRow = {
   checkInTime: string;
   checkOutTime: string;
   status: string;
+  breakSummary: string;
+  workedMinutes: string;
 };
 
 function formatDateOnly(value: string): string {
@@ -63,7 +66,11 @@ export default function MyAttendancePage() {
     hasOperational(OP.hrms.attendance.self) ||
     hasOperational(OP.hrms.attendance.view);
   const canMarkAttendance =
-    hasOperational(OP.hrms.attendance.checkIn) || hasOperational(OP.hrms.attendance.checkOut);
+    hasOperational(OP.hrms.attendance.checkIn) ||
+    hasOperational(OP.hrms.attendance.checkOut) ||
+    hasOperational(OP.hrms.attendance.breakIn) ||
+    hasOperational(OP.hrms.attendance.breakOut) ||
+    hasOperational(OP.hrms.attendance.self);
   const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
   const startOfMonth = useMemo(() => `${today.slice(0, 7)}-01`, [today]);
   const [from, setFrom] = useState(startOfMonth);
@@ -108,12 +115,26 @@ export default function MyAttendancePage() {
         }
         return "";
       };
+      const pickNum = (keys: string[]) => {
+        for (const k of keys) {
+          const v = row[k];
+          if (typeof v === "number" && Number.isFinite(v)) return v;
+        }
+        return null;
+      };
+      const taken = pickNum(["breakMinutesTaken"]);
+      const allowed = pickNum(["breakMinutesAllowed"]);
+      const over = pickNum(["overBreakMinutes"]);
+      const worked = pickNum(["workedMinutes"]);
+      const rawStatus = pick(["status"]);
       return {
         id: pick(["id", "attendanceId"]) || `attendance-${idx}`,
         date: formatDateOnly(pick(["date", "day", "attendanceDate"])),
         checkInTime: formatTimeOnly(pick(["checkInAt", "checkIn", "checkInTime", "inTime"])),
         checkOutTime: formatTimeOnly(pick(["checkOutAt", "checkOut", "checkOutTime", "outTime"])),
-        status: pick(["status"]) || "—",
+        status: rawStatus ? formatAttendanceStatus(rawStatus) : "—",
+        breakSummary: formatBreakSummary(taken, allowed, over),
+        workedMinutes: worked != null ? `${worked} min` : "—",
       } as AttendanceRow;
     });
   }, [apiItems]);
@@ -127,7 +148,9 @@ export default function MyAttendancePage() {
         r.date.toLowerCase().includes(q) ||
         r.checkInTime.toLowerCase().includes(q) ||
         r.checkOutTime.toLowerCase().includes(q) ||
-        r.status.toLowerCase().includes(q),
+        r.status.toLowerCase().includes(q) ||
+        r.breakSummary.toLowerCase().includes(q) ||
+        r.workedMinutes.toLowerCase().includes(q),
     );
   }, [search, toBaseRows]);
 
@@ -157,6 +180,8 @@ export default function MyAttendancePage() {
         label: "Status",
         render: (value) => <Box component="span" sx={attendanceStatusTextSx}>{String(value)}</Box>,
       },
+      { id: "breakSummary", label: "Break" },
+      { id: "workedMinutes", label: "Worked" },
     ],
     [],
   );
@@ -265,7 +290,7 @@ export default function MyAttendancePage() {
             rows={tableRows}
             getRowId={(row) => row.id}
             isLoading
-            minWidth={780}
+            minWidth={960}
           />
         ) : tableRows.length === 0 ? (
           <EmptyAttendanceState />
@@ -274,7 +299,7 @@ export default function MyAttendancePage() {
             columns={columns}
             rows={tableRows}
             getRowId={(row) => row.id}
-            minWidth={780}
+            minWidth={960}
           />
         )}
 

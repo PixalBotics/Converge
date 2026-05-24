@@ -3,8 +3,8 @@
 import Box from "@mui/material/Box";
 import { Typography } from "@/components/common";
 import { useAuth } from "@/lib/auth";
-import { OP } from "@/lib/permissions/operational-keys";
 import { EMAIL_ROUTES } from "../email.constants";
+import { useEmailTemplateAccess } from "../hooks/useEmailTemplateAccess";
 import { buildEmailTabHref } from "../email-reseller-storage";
 import { useEmailResellerScope } from "../context/EmailResellerScopeContext";
 import { EmailRouteSegmented } from "./EmailRouteSegmented";
@@ -13,15 +13,15 @@ import { pageHeaderRow } from "../styles/email-page.styles";
 const DESIGN_TABS = [
   { href: EMAIL_ROUTES.designReseller, label: "Reseller designs", internalOnly: false },
   { href: EMAIL_ROUTES.designPlatform, label: "Platform design", internalOnly: true },
-  { href: EMAIL_ROUTES.designAssignment, label: "Use platform design", internalOnly: true },
 ] as const;
 
 export function EmailDesignPageHeader() {
-  const { hasOperational, user } = useAuth();
+  const { user } = useAuth();
+  const { canView } = useEmailTemplateAccess();
   const { resellerId } = useEmailResellerScope();
   const isInternal = user?.userType === "Internal";
 
-  if (!hasOperational(OP.emailTemplate.view)) return null;
+  if (!canView) return null;
 
   const tabs = DESIGN_TABS.filter((t) => !t.internalOnly || isInternal).map((t) => ({
     href: buildEmailTabHref(t.href, resellerId),

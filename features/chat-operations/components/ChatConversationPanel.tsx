@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import MoreVert from "@mui/icons-material/MoreVert";
 import Box from "@mui/material/Box";
+import { alpha } from "@mui/material/styles";
 import IconButton from "@mui/material/IconButton";
 import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
@@ -12,10 +13,9 @@ import { Button, Typography } from "@/components/common";
 import type { AgentAiAction } from "@/api/ai/agent-suggest.api";
 import type { AgentVisitorPresentation, ChatMessage } from "@/services/chat/chat.types";
 import type { AiChatMessage } from "../types/ai-chat";
-import { chatOpsAlertBannerSx } from "../styles/chat-operations.styles";
 import { parseVisitorInfo } from "../utils/visitor-info";
 import type { ChatWhisperSocketPayload } from "@/services/chat/supervisor.types";
-import { AgentWhisperBanner } from "./AgentWhisperBanner";
+import { ChatContextRail } from "./ChatContextRail";
 import { ChatComposer } from "./ChatComposer";
 import { ChatMessageList } from "./ChatMessageList";
 import {
@@ -55,6 +55,9 @@ interface ChatConversationPanelProps {
   activeWhisper?: ChatWhisperSocketPayload | null;
   onApplyWhisperToComposer?: (text: string) => void;
   onDismissWhisper?: () => void;
+  /** When set, show in-chat link to the website distribution form (after close). */
+  distributionFormHref?: string | null;
+  distributionSubmitted?: boolean;
 }
 
 function formatDuration(seconds: number): string {
@@ -93,6 +96,8 @@ export function ChatConversationPanel({
   activeWhisper = null,
   onApplyWhisperToComposer,
   onDismissWhisper,
+  distributionFormHref = null,
+  distributionSubmitted = false,
 }: ChatConversationPanelProps) {
   const theme = useTheme() as AppTheme;
   const visitorInfo = parseVisitorInfo(visitor, conversationMeta ?? undefined);
@@ -180,10 +185,10 @@ export function ChatConversationPanel({
                       ? theme.app.dashboard.accentCyan
                       : theme.palette.success.light,
                   bgcolor: readOnly
-                    ? "rgba(148,163,184,0.12)"
+                    ? alpha(theme.app.dashboard.textMuted, 0.12)
                     : visitorTyping
-                      ? "rgba(34,211,238,0.12)"
-                      : "rgba(34,197,94,0.12)",
+                      ? alpha(theme.app.dashboard.accentCyan, 0.14)
+                      : alpha(theme.palette.success.main, 0.14),
                 }}
               >
                 <Box
@@ -277,22 +282,6 @@ export function ChatConversationPanel({
         </PanelHeader>
       ) : null}
 
-      {readOnly && hasConversation ? (
-        <Box sx={chatOpsAlertBannerSx("muted")}>
-          <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, fontSize: 11 }}>
-            Closed conversation — transcript is read-only. New visitor messages may reopen the chat.
-          </Typography>
-        </Box>
-      ) : null}
-
-      {availabilityHint && hasConversation && !readOnly ? (
-        <Box sx={chatOpsAlertBannerSx("info")}>
-          <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, fontSize: 11 }}>
-            Service window · {availabilityHint}
-          </Typography>
-        </Box>
-      ) : null}
-
       <ChatMessageList
         messages={messages}
         visitorInitials={visitorInfo.initials}
@@ -302,13 +291,16 @@ export function ChatConversationPanel({
         showEmptyPlaceholder={!hasConversation}
       />
 
-      {activeWhisper && onApplyWhisperToComposer && onDismissWhisper ? (
-        <AgentWhisperBanner
-          payload={activeWhisper}
-          onApplyToComposer={onApplyWhisperToComposer}
-          onDismiss={onDismissWhisper}
-        />
-      ) : null}
+      <ChatContextRail
+        hasConversation={hasConversation}
+        readOnly={readOnly}
+        availabilityHint={availabilityHint}
+        distributionFormHref={distributionFormHref}
+        distributionSubmitted={distributionSubmitted}
+        activeWhisper={activeWhisper}
+        onApplyWhisperToComposer={onApplyWhisperToComposer}
+        onDismissWhisper={onDismissWhisper}
+      />
 
       <ChatComposer
         value={composer}

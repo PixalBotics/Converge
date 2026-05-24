@@ -116,8 +116,6 @@ export interface PlatformMailAssignmentListItem extends Record<string, unknown> 
 }
 
 export interface PlatformMailAssignmentBody {
-  fromEmail?: string;
-  fromName?: string;
   isEnabled?: boolean;
 }
 

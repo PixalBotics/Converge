@@ -64,9 +64,9 @@ export function usePublishEmailTemplateMutation(resellerId: string) {
   return useMutation({
     mutationFn: () => publishResellerEmailTemplateDraft(resellerId),
     onSuccess: (data) => {
-      qc.setQueryData(emailKeys.templateDraft(resellerId), data);
+      qc.setQueryData(emailKeys.templatePublished(resellerId), data);
+      void qc.invalidateQueries({ queryKey: emailKeys.templateDraft(resellerId) });
       void qc.invalidateQueries({ queryKey: emailKeys.templatePublishedPreview(resellerId) });
-      void qc.invalidateQueries({ queryKey: emailKeys.templatePublished(resellerId) });
       void qc.invalidateQueries({ queryKey: emailKeys.templateAssignment(resellerId) });
       void qc.invalidateQueries({ queryKey: emailKeys.resellerTemplateVersions(resellerId) });
     },
@@ -231,11 +231,12 @@ export function usePublishPlatformEmailTemplateMutation() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: () => publishPlatformEmailTemplateDraft(),
-    onSuccess: () => {
+    onSuccess: (data) => {
+      qc.setQueryData(emailKeys.platformTemplatePublished(), data);
       void qc.invalidateQueries({ queryKey: emailKeys.platformTemplateDraft() });
-      void qc.invalidateQueries({ queryKey: emailKeys.platformTemplatePublished() });
       void qc.invalidateQueries({ queryKey: emailKeys.platformTemplatePublishedPreview() });
       void qc.invalidateQueries({ queryKey: emailKeys.platformTemplateVersions() });
+      void qc.invalidateQueries({ queryKey: ["email", "design-catalog"] });
     },
   });
 }

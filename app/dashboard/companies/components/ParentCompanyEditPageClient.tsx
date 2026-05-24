@@ -1,26 +1,31 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import Accordion from "@mui/material/Accordion";
-import AccordionDetails from "@mui/material/AccordionDetails";
-import AccordionSummary from "@mui/material/AccordionSummary";
 import Box from "@mui/material/Box";
 import TextField from "@mui/material/TextField";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import BusinessOutlined from "@mui/icons-material/BusinessOutlined";
-import { CheckCircle as CheckCircleIcon } from "@mui/icons-material";
+import ArrowBack from "@mui/icons-material/ArrowBack";
+import ChevronLeft from "@mui/icons-material/ChevronLeft";
+import ChevronRight from "@mui/icons-material/ChevronRight";
+import ContactMailOutlined from "@mui/icons-material/ContactMailOutlined";
+import HubOutlined from "@mui/icons-material/HubOutlined";
+import LanguageOutlined from "@mui/icons-material/LanguageOutlined";
+import LockOutlined from "@mui/icons-material/LockOutlined";
+import OpenInNewOutlined from "@mui/icons-material/OpenInNewOutlined";
+import StorefrontOutlined from "@mui/icons-material/StorefrontOutlined";
 import { alpha, useTheme } from "@mui/material/styles";
 import type { SxProps, Theme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import { Button, InputField, Typography } from "@/components/common";
 import { Label } from "@/components/common/Label";
+import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
 import { textFieldStyles } from "@/components/common/InputField/InputField.styles";
 import type { JsonRecord } from "@/api";
 import type { ParentCompanyChildDetail } from "@/api/types/companies.types";
-import { normalizePocsFromCarrier } from "@/lib/companies/parent-detail-pocs";
-import { CompanyPocSummaryBlock } from "./CompanyPocSummaryBlock";
+import { CompanyEditStepper } from "./CompanyEditStepper";
+import { CompanyEditStepHeader } from "./CompanyEditStepHeader";
+import { CompanyEditChildNav } from "./CompanyEditChildNav";
 import {
   useParentCompanyQuery,
   useUpdateCompanyMutation,
@@ -32,22 +37,27 @@ import { publishAppToast } from "@/lib/notify";
 import { isRecord } from "@/lib/utils/core";
 import { useAuth } from "@/lib/auth";
 import { canCompaniesModuleAction } from "@/lib/permissions";
+import { pageWrapper } from "../overview.styles";
 import {
-  pageHeaderRow,
-  pageWrapper,
-  sectionStack,
-  stepperCheckIcon,
-  stepperDivider,
-  stepperLabelChildDone,
-  stepperLabelChildInactive,
-  stepperLabelResellerActive,
-  stepperLabelResellerDone,
-  stepperNumberCircleActive,
-  stepperNumberCircleInactive,
-  stepperOuter,
-  stepperSegment,
-} from "../overview.styles";
-import { departmentsCard } from "../../website-assigning/website-assigning.styles";
+  companyEditBranchPanelHeaderSx,
+  companyEditBreadcrumbSx,
+  companyEditCardBodySx,
+  companyEditChildLayoutSx,
+  companyEditChipSx,
+  companyEditEditablePanelSx,
+  companyEditFooterActionsSx,
+  companyEditFormGridFullSx,
+  companyEditFormGridSx,
+  companyEditHeroSx,
+  companyEditMainCardSx,
+  companyEditPageSx,
+  companyEditReadOnlyBadgeSx,
+  companyEditReadOnlyPanelSx,
+  companyEditSectionIconSx,
+  companyEditSectionSx,
+  companyEditStep1GridSx,
+  companyEditStickyFooterSx,
+} from "../company-edit.styles";
 import { ChildCompanyPocEditor } from "./ChildCompanyPocEditor";
 import { ChildCompanyWebsitesPanel } from "./ChildCompanyWebsitesPanel";
 
@@ -115,10 +125,9 @@ function toChildPocs(c: ParentCompanyChildDetail): ChildPocRow[] {
       out.push({ ...(pcid ? { companyContactId: pcid } : {}), ...(userId ? { userId } : {}) });
     }
   }
-  return out;
+  return out.slice(0, 5);
 }
 
-/** PATCH /companies/:id — matches OpenAPI (companyEmail, not email). */
 function buildChildPatch(before: ChildFormState, after: ChildFormState): JsonRecord {
   const body: JsonRecord = {};
   if (after.name.trim() !== before.name.trim()) body.name = after.name.trim();
@@ -128,22 +137,52 @@ function buildChildPatch(before: ChildFormState, after: ChildFormState): JsonRec
   return body;
 }
 
-const sectionOverlineSx = (theme: AppTheme) => ({
-  display: "block",
-  letterSpacing: "0.04em",
-  fontSize: "0.6875rem",
-  fontWeight: 600,
-  color: theme.app.dashboard.textMuted,
-  mb: 1.25,
-});
+function childIsDirty(
+  childId: string,
+  childBaselines: Record<string, ChildFormState>,
+  childForms: Record<string, ChildFormState>,
+  childTouched: Record<string, { websites?: boolean; pocs?: boolean }>,
+): boolean {
+  const baseline = childBaselines[childId];
+  const current = childForms[childId];
+  if (baseline && current && Object.keys(buildChildPatch(baseline, current)).length > 0) {
+    return true;
+  }
+  const touched = childTouched[childId];
+  return Boolean(touched?.websites || touched?.pocs);
+}
 
-const stepEyebrowSx = (theme: AppTheme) => ({
-  fontSize: "0.75rem",
-  fontWeight: 600,
-  color: alpha(theme.app.dashboard.textMuted, 0.95),
-  letterSpacing: "0.02em",
-  mb: 0.5,
-});
+function EditSection({
+  icon,
+  title,
+  description,
+  children,
+}: {
+  icon: ReactNode;
+  title: string;
+  description?: string;
+  children: ReactNode;
+}) {
+  const theme = useTheme() as AppTheme;
+  return (
+    <Box sx={companyEditSectionSx}>
+      <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1.5, mb: 2 }}>
+        <Box sx={companyEditSectionIconSx}>{icon}</Box>
+        <Box sx={{ minWidth: 0 }}>
+          <Typography variant="body1" fontWeight={700} sx={{ color: theme.app.dashboard.white95 }}>
+            {title}
+          </Typography>
+          {description ? (
+            <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, mt: 0.35, lineHeight: 1.55 }}>
+              {description}
+            </Typography>
+          ) : null}
+        </Box>
+      </Box>
+      {children}
+    </Box>
+  );
+}
 
 export function ParentCompanyEditPageClient() {
   const theme = useTheme() as AppTheme;
@@ -158,11 +197,14 @@ export function ParentCompanyEditPageClient() {
 
   const setStepInUrl = useCallback(
     (next: 1 | 2) => {
+      if (next === step) return;
       const q = new URLSearchParams(searchParams.toString());
       q.set("step", String(next));
-      router.replace(`/dashboard/companies/${encodeURIComponent(parentId)}/edit?${q.toString()}`);
+      router.push(`/dashboard/companies/${encodeURIComponent(parentId)}/edit?${q.toString()}`, {
+        scroll: false,
+      });
     },
-    [parentId, router, searchParams],
+    [parentId, router, searchParams, step],
   );
 
   const parentQuery = useParentCompanyQuery(parentId, { enabled: parentId.length > 0 });
@@ -185,19 +227,19 @@ export function ParentCompanyEditPageClient() {
 
   const [childForms, setChildForms] = useState<Record<string, ChildFormState>>({});
   const [childBaselines, setChildBaselines] = useState<Record<string, ChildFormState>>({});
-  const [childFieldErrors, setChildFieldErrors] = useState<Record<string, Record<string, string>>>(
-    {},
-  );
+  const [childFieldErrors, setChildFieldErrors] = useState<Record<string, Record<string, string>>>({});
   const [childWebsites, setChildWebsites] = useState<Record<string, ChildWebsiteRow[]>>({});
   const [childWebsitesBase, setChildWebsitesBase] = useState<Record<string, ChildWebsiteRow[]>>({});
   const [childPocs, setChildPocs] = useState<Record<string, ChildPocRow[]>>({});
   const [childPocsBase, setChildPocsBase] = useState<Record<string, ChildPocRow[]>>({});
   const [childTouched, setChildTouched] = useState<Record<string, { websites?: boolean; pocs?: boolean }>>({});
   const [savingChildId, setSavingChildId] = useState<string | null>(null);
+  const [activeChildId, setActiveChildId] = useState<string | null>(null);
   const childFormsHydratedForParent = useRef<string>("");
 
   useEffect(() => {
     childFormsHydratedForParent.current = "";
+    setActiveChildId(null);
   }, [parentId]);
 
   useEffect(() => {
@@ -229,6 +271,7 @@ export function ParentCompanyEditPageClient() {
     setChildPocsBase(nextPocsBase);
     setChildTouched({});
     setChildFieldErrors({});
+    setActiveChildId(detail.children[0]?.id ?? null);
   }, [parentId, detail?.children]);
 
   const handleSaveParent = async (thenGoStep2: boolean) => {
@@ -239,18 +282,14 @@ export function ParentCompanyEditPageClient() {
       patch.name = parentName.trim();
     }
     if (Object.keys(patch).length === 0) {
-      if (thenGoStep2) {
-        setStepInUrl(2);
-      }
+      if (thenGoStep2) setStepInUrl(2);
       return;
     }
     try {
       await updateParentMutation.mutateAsync({ parentId, body: patch });
       setInitialParentName(parentName.trim());
-      publishAppToast({ variant: "success", message: "Parent company updated." });
-      if (thenGoStep2) {
-        setStepInUrl(2);
-      }
+      publishAppToast({ variant: "success", message: "Organization updated." });
+      if (thenGoStep2) setStepInUrl(2);
     } catch (e) {
       const fields = extractNestFieldErrors(e);
       if (Object.keys(fields).length) setParentFieldErrors(fields);
@@ -273,7 +312,8 @@ export function ParentCompanyEditPageClient() {
       }));
     }
     if (touched.pocs) {
-      patch.pocs = (childPocs[childId] ?? []).map((p) => ({
+      const pocRows = (childPocs[childId] ?? []).slice(0, 5);
+      patch.pocs = pocRows.map((p) => ({
         ...(p.companyContactId ? { companyContactId: p.companyContactId } : {}),
         ...(p.userId ? { userId: p.userId } : {}),
         ...(p.pocInvite ? { pocInvite: p.pocInvite } : {}),
@@ -300,7 +340,7 @@ export function ParentCompanyEditPageClient() {
         setChildPocsBase((prev) => ({ ...prev, [childId]: ps.map((x) => ({ ...x })) }));
       }
       setChildTouched((prev) => ({ ...prev, [childId]: {} }));
-      publishAppToast({ variant: "success", message: "Child company updated." });
+      publishAppToast({ variant: "success", message: "Branch saved." });
     } catch (e) {
       let fields = extractNestFieldErrors(e);
       if (fields.companyEmail && !fields.email) {
@@ -335,6 +375,29 @@ export function ParentCompanyEditPageClient() {
   };
 
   const listHref = "/dashboard/companies";
+  const detailHref =
+    parentId.length > 0
+      ? `/dashboard/companies/parent/${encodeURIComponent(parentId)}/detail`
+      : listHref;
+
+  const childCount = detail?.counts?.children ?? detail?.children.length ?? 0;
+  const activeChild = detail?.children.find((c) => c.id === activeChildId) ?? null;
+  const activeChildIndex = detail?.children.findIndex((c) => c.id === activeChildId) ?? -1;
+
+  const getChildNavItem = useCallback(
+    (child: ParentCompanyChildDetail) => {
+      const form = childForms[child.id] ?? toChildForm(child);
+      return {
+        id: child.id,
+        label: form.name.trim() || child.name || "Child company",
+        email: form.email.trim() || String(child.email ?? child.companyEmail ?? ""),
+        dirty: childIsDirty(child.id, childBaselines, childForms, childTouched),
+      };
+    },
+    [childBaselines, childForms, childTouched],
+  );
+
+  const parentNameDirty = parentName.trim() !== initialParentName.trim();
 
   const errorMessage = useMemo(() => {
     if (!parentQuery.isError) return null;
@@ -353,59 +416,75 @@ export function ParentCompanyEditPageClient() {
   }
 
   return (
-    <Box sx={[pageWrapper, { maxWidth: 1040, width: "100%", mx: "auto", pb: 4 }] as SxProps<Theme>}>
-      <Box sx={pageHeaderRow}>
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+    <Box sx={[pageWrapper, companyEditPageSx] as SxProps<Theme>}>
+      <Link href={listHref} style={{ textDecoration: "none", alignSelf: "flex-start" }}>
+        <Box
+          component="span"
+          sx={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 0.75,
+            color: theme.app.dashboard.textMuted,
+            fontSize: "0.875rem",
+            fontWeight: 500,
+            "&:hover": { color: theme.app.dashboard.white95 },
+          }}
+        >
+          <ArrowBack sx={{ fontSize: 18 }} />
+          Back to companies
+        </Box>
+      </Link>
+
+      <Box sx={companyEditHeroSx}>
+        <Box sx={companyEditBreadcrumbSx}>
+          <Link href={listHref}>Companies</Link>
+          <span aria-hidden>/</span>
+          <Link href={detailHref}>{parentName.trim() || "Organization"}</Link>
+          <span aria-hidden>/</span>
+          <span data-current>Edit</span>
+        </Box>
+        <Typography variant="regularLarge" fontWeight={700} color="white" sx={{ mt: 1.25, mb: 0.75, letterSpacing: "-0.02em" }}>
+          Edit company
+        </Typography>
+        <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, maxWidth: 520, lineHeight: 1.65, mb: 1.75 }}>
+          Step 1 updates the parent name. Step 2 lets you edit each child company one at a time.
+        </Typography>
+        <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
+          {detail?.parentCompany.reseller?.name ? (
+            <Box component="span" sx={companyEditChipSx}>
+              <HubOutlined sx={{ fontSize: 16, opacity: 0.85 }} />
+              {detail.parentCompany.reseller.name}
+            </Box>
+          ) : null}
+          {childCount > 0 ? (
+            <Box component="span" sx={companyEditChipSx}>
+              <StorefrontOutlined sx={{ fontSize: 16, opacity: 0.85 }} />
+              {childCount} {childCount === 1 ? "branch" : "branches"}
+            </Box>
+          ) : null}
           <Button
             component={Link}
-            href={listHref}
+            href={detailHref}
             variant="secondary"
-            sx={{ alignSelf: "flex-start", minWidth: 0, px: 2 }}
+            size="small"
+            startIcon={<OpenInNewOutlined sx={{ fontSize: 16 }} />}
+            sx={{ ml: { sm: "auto" } }}
           >
-            ← All companies
+            View overview
           </Button>
-          <Typography variant="regularLarge" fontWeight={700} color="white" sx={{ letterSpacing: "-0.02em" }}>
-            Edit company
-          </Typography>
-          <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, maxWidth: 640, lineHeight: 1.65 }}>
-            Two clear steps: parent & reseller, then each child with company details, contacts, and websites. Save
-            each block when you are done — nothing is auto-lost when you expand another row.
-          </Typography>
         </Box>
       </Box>
 
-      <Box sx={stepperOuter}>
-        <Box sx={stepperSegment}>
-          {step >= 2 ? (
-            <CheckCircleIcon sx={stepperCheckIcon} />
-          ) : (
-            <Box sx={stepperNumberCircleActive}>1</Box>
-          )}
-          <Typography
-            variant="body2"
-            sx={step >= 2 ? stepperLabelResellerDone : stepperLabelResellerActive}
-          >
-            Parent + reseller
-          </Typography>
-        </Box>
-        <Box sx={stepperDivider} />
-        <Box sx={stepperSegment}>
-          {step === 2 ? (
-            <CheckCircleIcon sx={stepperCheckIcon} />
-          ) : (
-            <Box sx={stepperNumberCircleInactive}>2</Box>
-          )}
-          <Typography
-            variant="body2"
-            sx={step === 2 ? stepperLabelChildDone : stepperLabelChildInactive}
-          >
-            Child companies
-          </Typography>
-        </Box>
-      </Box>
+      <CompanyEditStepper
+        step={step}
+        onStepChange={setStepInUrl}
+        parentName={parentName}
+        childCount={childCount}
+        disabled={parentQuery.isLoading && !detail}
+      />
 
       {parentQuery.isLoading ? (
-        <Typography sx={{ color: theme.app.dashboard.textMuted }}>Loading…</Typography>
+        <Typography sx={{ color: theme.app.dashboard.textMuted }}>Loading organization…</Typography>
       ) : null}
 
       {errorMessage ? (
@@ -413,65 +492,87 @@ export function ParentCompanyEditPageClient() {
       ) : null}
 
       {detail && step === 1 ? (
-        <Box
-          sx={{
-            ...departmentsCard,
-            p: { xs: 2, sm: 2.75 },
-            display: "flex",
-            flexDirection: "column",
-            gap: 2,
-            maxWidth: 720,
-            width: "100%",
-            alignSelf: "stretch",
-            borderRadius: "16px",
-            border: `1px solid ${alpha(theme.app.dashboard.cardBorder, 0.55)}`,
-            boxShadow: "none",
-          }}
-        >
-          <Box>
-            <Typography component="p" sx={stepEyebrowSx(theme)}>
-              Step 1 · Parent & reseller
-            </Typography>
-            <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, mt: 0.75, lineHeight: 1.55 }}>
-              Edit the parent on this page (same full-width pattern as child companies on step 2). Use the actions
-              below when you are ready to continue.
-            </Typography>
+        <Box sx={companyEditMainCardSx}>
+          <Box sx={companyEditCardBodySx}>
+            <CompanyEditStepHeader
+              step={1}
+              title="Parent company name"
+              description="This is the main client company in your account. Only the name can be changed here — reseller is shown for reference."
+              tip="When you are done, continue to step 2 to edit child companies (branches, contacts, and websites)."
+            />
+
+            <Box sx={companyEditStep1GridSx}>
+              <Box sx={companyEditEditablePanelSx}>
+                <Typography variant="body2" fontWeight={700} sx={{ color: theme.palette.primary.light, mb: 0.5 }}>
+                  You can edit
+                </Typography>
+                <InputField
+                  label="Parent company name"
+                  value={parentName}
+                  onChange={(e) => setParentName(e.target.value)}
+                  disabled={!canUpdateCompanies}
+                  error={Boolean(parentFieldErrors.name)}
+                  helperText={
+                    parentFieldErrors.name ??
+                    "Shown on invoices, login scope, and across the dashboard."
+                  }
+                  inputProps={{ maxLength: 200 }}
+                />
+                {parentNameDirty ? (
+                  <Typography variant="caption" sx={{ color: theme.palette.warning.light, mt: 1, display: "block" }}>
+                    Unsaved change — click Save before leaving this step.
+                  </Typography>
+                ) : null}
+              </Box>
+
+              <Box sx={companyEditReadOnlyPanelSx}>
+                <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1, mb: 2 }}>
+                  <Typography variant="body2" fontWeight={700} sx={{ color: theme.app.dashboard.textMuted }}>
+                    Reference only
+                  </Typography>
+                  <Box component="span" sx={companyEditReadOnlyBadgeSx}>
+                    <LockOutlined sx={{ fontSize: 12, mr: 0.35, verticalAlign: "middle" }} />
+                    Read-only
+                  </Box>
+                </Box>
+
+                <Box>
+                  <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, fontWeight: 600, display: "block", mb: 0.5 }}>
+                    Reseller
+                  </Typography>
+                  <Typography variant="body1" sx={{ color: theme.app.dashboard.white95, fontWeight: 600 }}>
+                    {detail.parentCompany.reseller?.name ?? "—"}
+                  </Typography>
+                </Box>
+              </Box>
+            </Box>
           </Box>
 
-          <Box sx={{ ...sectionStack, pt: 0.5 }}>
-            <Typography sx={{ ...sectionOverlineSx(theme), mb: 0.25 }}>Parent company</Typography>
-            <InputField
-              label="Parent company name"
-              value={parentName}
-              onChange={(e) => setParentName(e.target.value)}
-              disabled={!canUpdateCompanies}
-              error={Boolean(parentFieldErrors.name)}
-              helperText={parentFieldErrors.name ?? "\u00a0"}
-              inputProps={{ maxLength: 200 }}
-            />
-            <Box>
-              <Typography component="h3" sx={{ ...sectionOverlineSx(theme), mb: 1 }}>
-                Reseller
-              </Typography>
-              <Typography variant="body1" sx={{ color: theme.app.text.primary, fontWeight: 500 }}>
-                {detail.parentCompany.reseller?.name ?? "—"}
-              </Typography>
-            </Box>
-            <CompanyPocSummaryBlock rows={normalizePocsFromCarrier(detail.parentCompany)} />
-            <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1.5, justifyContent: "flex-end", pt: 1 }}>
+          <Box sx={companyEditStickyFooterSx}>
+            <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, maxWidth: 320, lineHeight: 1.5 }}>
+              {childCount > 0
+                ? `${childCount} child ${childCount === 1 ? "company" : "companies"} ready in step 2.`
+                : "No child companies yet — you can still save the parent name."}
+            </Typography>
+            <Box sx={companyEditFooterActionsSx}>
               <Button
                 variant="secondary"
-                disabled={!canUpdateCompanies || updateParentMutation.isPending}
+                disabled={!canUpdateCompanies || updateParentMutation.isPending || !parentNameDirty}
                 onClick={() => void handleSaveParent(false)}
               >
-                {updateParentMutation.isPending ? "Saving…" : "Save parent"}
+                {updateParentMutation.isPending ? "Saving…" : "Save name"}
               </Button>
               <Button
                 variant="primary"
+                sx={gradientPrimaryButtonSx}
                 disabled={!canUpdateCompanies || updateParentMutation.isPending}
                 onClick={() => void handleSaveParent(true)}
               >
-                {updateParentMutation.isPending ? "Saving…" : "Save & go to child companies"}
+                {updateParentMutation.isPending
+                  ? "Saving…"
+                  : parentNameDirty
+                    ? "Save & go to child companies"
+                    : "Continue to child companies"}
               </Button>
             </Box>
           </Box>
@@ -479,175 +580,229 @@ export function ParentCompanyEditPageClient() {
       ) : null}
 
       {detail && step === 2 ? (
-        <Box
-          sx={{
-            ...departmentsCard,
-            p: { xs: 2, sm: 2.75 },
-            display: "flex",
-            flexDirection: "column",
-            gap: 2.25,
-            maxWidth: 900,
-            width: "100%",
-            alignSelf: "stretch",
-            borderRadius: "16px",
-            border: `1px solid ${alpha(theme.app.dashboard.cardBorder, 0.55)}`,
-            boxShadow: "none",
-          }}
-        >
-          <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 2, flexWrap: "wrap" }}>
-            <Box sx={{ display: "flex", flexDirection: "column", gap: 0.75 }}>
-              <Typography component="p" sx={stepEyebrowSx(theme)}>
-                Step 2 · Child companies
-              </Typography>
-              <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, lineHeight: 1.5, maxWidth: 480 }}>
-                {(() => {
-                  const n = detail.counts?.children ?? detail.children.length;
-                  return `${n} ${n === 1 ? "company" : "companies"} under this parent. Expand a row to edit details and review the contact.`;
-                })()}
-              </Typography>
-            </Box>
-            <Button variant="secondary" onClick={() => setStepInUrl(1)} sx={{ flexShrink: 0 }}>
-              Back
-            </Button>
+        <Box sx={companyEditMainCardSx}>
+          <Box sx={companyEditCardBodySx}>
+            <CompanyEditStepHeader
+              step={2}
+              title="Child companies"
+              description="Pick a company from the list, edit its details, then save. Switch between companies anytime — use search when you have many branches."
+              tip="Orange dot = unsaved changes on that child. Save each child before moving on if you changed contacts or websites."
+            />
+
+            {detail.children.length === 0 ? (
+              <Box sx={{ textAlign: "center", py: 6, px: 2 }}>
+                <StorefrontOutlined sx={{ fontSize: 48, color: alpha(theme.app.dashboard.textMuted, 0.5), mb: 2 }} />
+                <Typography variant="mediumLarge" fontWeight={600} color="white" sx={{ mb: 1 }}>
+                  No child companies yet
+                </Typography>
+                <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, maxWidth: 400, mx: "auto", mb: 2.5 }}>
+                  Add child companies from the company setup wizard, then return here to manage each branch.
+                </Typography>
+                <Button variant="secondary" onClick={() => setStepInUrl(1)}>
+                  Back to parent company
+                </Button>
+              </Box>
+            ) : (
+              <Box sx={companyEditChildLayoutSx}>
+                <CompanyEditChildNav
+                  childCompanies={detail.children}
+                  activeChildId={activeChildId}
+                  onSelect={setActiveChildId}
+                  getItem={getChildNavItem}
+                />
+
+                {activeChild ? (
+                  <Box sx={{ minWidth: 0 }}>
+                    {(() => {
+                      const child = activeChild;
+                      const form = childForms[child.id] ?? toChildForm(child);
+                      const fe = childFieldErrors[child.id] ?? {};
+                      const dirty = childIsDirty(child.id, childBaselines, childForms, childTouched);
+                      const label = form.name.trim() || child.name || "Child company";
+                      return (
+                        <>
+                          <Box sx={companyEditBranchPanelHeaderSx}>
+                            <Box sx={{ minWidth: 0 }}>
+                              <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, fontWeight: 600 }}>
+                                {activeChildIndex >= 0
+                                  ? `Child ${activeChildIndex + 1} of ${detail.children.length}`
+                                  : "Selected child"}
+                              </Typography>
+                              <Typography variant="mediumLarge" fontWeight={700} color="white" sx={{ mt: 0.35, lineHeight: 1.3 }}>
+                                {label}
+                              </Typography>
+                              {dirty ? (
+                                <Typography variant="caption" sx={{ color: theme.palette.warning.light, mt: 0.5, display: "block" }}>
+                                  Unsaved changes on this company
+                                </Typography>
+                              ) : null}
+                            </Box>
+                            <Box sx={{ display: "flex", gap: 0.75, flexShrink: 0 }}>
+                              <Button
+                                variant="secondary"
+                                size="small"
+                                disabled={activeChildIndex <= 0}
+                                onClick={() => {
+                                  const prev = detail.children[activeChildIndex - 1];
+                                  if (prev) setActiveChildId(prev.id);
+                                }}
+                                startIcon={<ChevronLeft sx={{ fontSize: 18 }} />}
+                              >
+                                Previous
+                              </Button>
+                              <Button
+                                variant="secondary"
+                                size="small"
+                                disabled={activeChildIndex < 0 || activeChildIndex >= detail.children.length - 1}
+                                onClick={() => {
+                                  const next = detail.children[activeChildIndex + 1];
+                                  if (next) setActiveChildId(next.id);
+                                }}
+                                endIcon={<ChevronRight sx={{ fontSize: 18 }} />}
+                              >
+                                Next
+                              </Button>
+                            </Box>
+                          </Box>
+
+                          <EditSection
+                            icon={<StorefrontOutlined sx={{ fontSize: 22 }} />}
+                            title="Company profile"
+                            description="Basic branch details used in your directory and assignments."
+                          >
+                            <Box sx={companyEditFormGridSx}>
+                              <InputField
+                                label="Company name"
+                                value={form.name}
+                                onChange={(e) => updateChildField(child.id, { name: e.target.value })}
+                                disabled={!canUpdateCompanies}
+                                error={Boolean(fe.name)}
+                                helperText={fe.name ?? " "}
+                                inputProps={{ maxLength: 200 }}
+                              />
+                              <InputField
+                                type="email"
+                                label="Contact email"
+                                value={form.email}
+                                onChange={(e) => updateChildField(child.id, { email: e.target.value })}
+                                disabled={!canUpdateCompanies}
+                                error={Boolean(fe.email)}
+                                helperText={fe.email ?? " "}
+                                inputProps={{ maxLength: 200 }}
+                              />
+                              <InputField
+                                label="Phone"
+                                value={form.phone}
+                                onChange={(e) => updateChildField(child.id, { phone: e.target.value })}
+                                disabled={!canUpdateCompanies}
+                                error={Boolean(fe.phone)}
+                                helperText={fe.phone ?? " "}
+                                inputProps={{ maxLength: 80 }}
+                              />
+                              <Box sx={companyEditFormGridFullSx}>
+                                <Label htmlFor={`child-address-${child.id}`} variant="mediumLarge" sx={{ mb: 0.75 }}>
+                                  Address
+                                </Label>
+                                <TextField
+                                  id={`child-address-${child.id}`}
+                                  fullWidth
+                                  multiline
+                                  minRows={2}
+                                  value={form.address}
+                                  onChange={(e) => updateChildField(child.id, { address: e.target.value })}
+                                  disabled={!canUpdateCompanies}
+                                  error={Boolean(fe.address)}
+                                  helperText={fe.address ?? " "}
+                                  inputProps={{ maxLength: 500, "aria-label": "Address" }}
+                                  variant="outlined"
+                                  sx={textFieldStyles(theme)}
+                                />
+                              </Box>
+                            </Box>
+                          </EditSection>
+
+                          <Box sx={{ mt: 2.5 }}>
+                            <EditSection
+                              icon={<ContactMailOutlined sx={{ fontSize: 22 }} />}
+                              title="Point of contact (POC)"
+                              description="External users for this branch — up to 5 contacts."
+                            >
+                              <ChildCompanyPocEditor
+                                child={child}
+                                resellerId={String(detail.parentCompany.reseller?.id ?? "").trim()}
+                                parentCompanyId={parentId}
+                                pocs={childPocs[child.id] ?? childPocsBase[child.id] ?? []}
+                                onPocsChange={(next) => updateChildPocs(child.id, next)}
+                                disabled={!canUpdateCompanies || savingChildId === child.id}
+                              />
+                            </EditSection>
+                          </Box>
+
+                          <Box sx={{ mt: 2.5 }}>
+                            <EditSection
+                              icon={<LanguageOutlined sx={{ fontSize: 22 }} />}
+                              title="Websites"
+                              description="Websites linked to this child for chat widgets and assignments."
+                            >
+                              <ChildCompanyWebsitesPanel
+                                child={child}
+                                parentCompanyId={parentId}
+                                websites={childWebsites[child.id] ?? childWebsitesBase[child.id] ?? []}
+                                onWebsitesChange={(next) => updateChildWebsites(child.id, next)}
+                                disabled={!canUpdateCompanies || savingChildId === child.id}
+                              />
+                            </EditSection>
+                          </Box>
+                        </>
+                      );
+                    })()}
+                  </Box>
+                ) : null}
+              </Box>
+            )}
           </Box>
 
-          {detail.children.length === 0 ? (
-            <Typography sx={{ color: theme.app.dashboard.textMuted }}>
-              No child companies for this parent.
-            </Typography>
-          ) : (
-            detail.children.map((child) => {
-              const form = childForms[child.id] ?? toChildForm(child);
-              const fe = childFieldErrors[child.id] ?? {};
-              return (
-                <Accordion
-                  key={child.id}
-                  disableGutters
-                  sx={{
-                    bgcolor: alpha(theme.app.dashboard.white95, 0.04),
-                    border: `1px solid ${alpha(theme.app.dashboard.cardBorder, 0.9)}`,
-                    borderRadius: "16px !important",
-                    overflow: "hidden",
-                    "&:before": { display: "none" },
-                    boxShadow: `inset 0 1px 0 ${alpha(theme.app.dashboard.white95, 0.05)}`,
+          {detail.children.length > 0 && activeChild ? (
+            <Box sx={companyEditStickyFooterSx}>
+              <Button variant="secondary" onClick={() => setStepInUrl(1)} sx={{ mr: "auto" }}>
+                ← Parent company
+              </Button>
+              <Box sx={companyEditFooterActionsSx}>
+                <Button
+                  variant="secondary"
+                  size="small"
+                  disabled={activeChildIndex <= 0}
+                  onClick={() => {
+                    const prev = detail.children[activeChildIndex - 1];
+                    if (prev) setActiveChildId(prev.id);
                   }}
+                  startIcon={<ChevronLeft sx={{ fontSize: 18 }} />}
                 >
-                  <AccordionSummary
-                    expandIcon={
-                      <ExpandMoreIcon sx={{ color: alpha(theme.app.dashboard.white95, 0.75), fontSize: 22 }} />
-                    }
-                    sx={{
-                      px: 2,
-                      py: 1.75,
-                      minHeight: 68,
-                      "& .MuiAccordionSummary-content": { my: 1, alignItems: "center", gap: 1.5 },
-                    }}
-                  >
-                    <Box
-                      sx={{
-                        width: 44,
-                        height: 44,
-                        borderRadius: "12px",
-                        flexShrink: 0,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        bgcolor: alpha(theme.palette.primary.main, 0.14),
-                        color: theme.palette.primary.light,
-                      }}
-                    >
-                      <BusinessOutlined sx={{ fontSize: 24 }} />
-                    </Box>
-                    <Box sx={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 0.35, minWidth: 0 }}>
-                      <Typography sx={{ color: theme.app.dashboard.white95, fontWeight: 700, fontSize: "0.975rem" }}>
-                        {form.name.trim() || child.name || "Child company"}
-                      </Typography>
-                      <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted }}>
-                        {child.email || "—"}
-                      </Typography>
-                    </Box>
-                  </AccordionSummary>
-                  <AccordionDetails sx={{ px: 2, pb: 2.75, pt: 0, bgcolor: alpha("#000", 0.08) }}>
-                    <Box sx={{ ...sectionStack, pt: 0.5 }}>
-                      <Typography sx={{ ...sectionOverlineSx(theme), mb: 0.5 }}>
-                        Company details
-                      </Typography>
-                      <InputField
-                        label="Name"
-                        value={form.name}
-                        onChange={(e) => updateChildField(child.id, { name: e.target.value })}
-                        disabled={!canUpdateCompanies}
-                        error={Boolean(fe.name)}
-                        helperText={fe.name ?? "\u00a0"}
-                        inputProps={{ maxLength: 200 }}
-                      />
-                      <InputField
-                        type="email"
-                        label="Email"
-                        value={form.email}
-                        onChange={(e) => updateChildField(child.id, { email: e.target.value })}
-                        disabled={!canUpdateCompanies}
-                        error={Boolean(fe.email)}
-                        helperText={fe.email ?? "\u00a0"}
-                        inputProps={{ maxLength: 200 }}
-                      />
-                      <InputField
-                        label="Phone"
-                        value={form.phone}
-                        onChange={(e) => updateChildField(child.id, { phone: e.target.value })}
-                        disabled={!canUpdateCompanies}
-                        error={Boolean(fe.phone)}
-                        helperText={fe.phone ?? "\u00a0"}
-                        inputProps={{ maxLength: 80 }}
-                      />
-                      <Box sx={{ width: "100%" }}>
-                        <Label htmlFor={`child-address-${child.id}`} variant="mediumLarge" sx={{ mb: 0.75 }}>
-                          Address
-                        </Label>
-                        <TextField
-                          id={`child-address-${child.id}`}
-                          fullWidth
-                          multiline
-                          minRows={2}
-                          value={form.address}
-                          onChange={(e) => updateChildField(child.id, { address: e.target.value })}
-                          disabled={!canUpdateCompanies}
-                          error={Boolean(fe.address)}
-                          helperText={fe.address ?? "\u00a0"}
-                          inputProps={{ maxLength: 500, "aria-label": "Address" }}
-                          variant="outlined"
-                          sx={textFieldStyles(theme)}
-                        />
-                      </Box>
-                      <ChildCompanyPocEditor
-                        child={child}
-                        resellerId={String(detail.parentCompany.reseller?.id ?? "").trim()}
-                        parentCompanyId={parentId}
-                        pocs={childPocs[child.id] ?? childPocsBase[child.id] ?? []}
-                        onPocsChange={(next) => updateChildPocs(child.id, next)}
-                        disabled={!canUpdateCompanies || savingChildId === child.id}
-                      />
-                      <ChildCompanyWebsitesPanel
-                        child={child}
-                        parentCompanyId={parentId}
-                        websites={childWebsites[child.id] ?? childWebsitesBase[child.id] ?? []}
-                        onWebsitesChange={(next) => updateChildWebsites(child.id, next)}
-                        disabled={!canUpdateCompanies || savingChildId === child.id}
-                      />
-                      <Button
-                        variant="primary"
-                        sx={{ alignSelf: "flex-start", mt: 1 }}
-                        disabled={!canUpdateCompanies || savingChildId === child.id}
-                        onClick={() => void handleSaveChild(child.id)}
-                      >
-                        {savingChildId === child.id ? "Saving…" : "Save company details"}
-                      </Button>
-                    </Box>
-                  </AccordionDetails>
-                </Accordion>
-              );
-            })
-          )}
+                  Previous
+                </Button>
+                <Button
+                  variant="primary"
+                  sx={gradientPrimaryButtonSx}
+                  disabled={!canUpdateCompanies || savingChildId === activeChild.id}
+                  onClick={() => void handleSaveChild(activeChild.id)}
+                >
+                  {savingChildId === activeChild.id ? "Saving…" : "Save this child"}
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="small"
+                  disabled={activeChildIndex >= detail.children.length - 1}
+                  onClick={() => {
+                    const next = detail.children[activeChildIndex + 1];
+                    if (next) setActiveChildId(next.id);
+                  }}
+                  endIcon={<ChevronRight sx={{ fontSize: 18 }} />}
+                >
+                  Next
+                </Button>
+              </Box>
+            </Box>
+          ) : null}
         </Box>
       ) : null}
     </Box>

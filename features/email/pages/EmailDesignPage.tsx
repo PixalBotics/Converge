@@ -8,8 +8,7 @@ import Chip from "@mui/material/Chip";
 import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import { Button, Typography } from "@/components/common";
-import { useAuth } from "@/lib/auth";
-import { OP } from "@/lib/permissions/operational-keys";
+import { useEmailTemplateAccess } from "../hooks/useEmailTemplateAccess";
 import type { EmailTemplateBlock, EmailTemplateBlockKey } from "@/api/types/email.types";
 import { EMAIL_ROUTES } from "../email.constants";
 import { EmailSectionLayout } from "../components/EmailSectionLayout";
@@ -45,7 +44,6 @@ import {
   useUsePlatformEmailTemplateMutation,
 } from "../hooks/useEmailTemplate";
 import { useUnsavedChangesGuard } from "../hooks/useUnsavedChangesGuard";
-import { usePlatformAgentFeedbackQuery } from "../hooks/usePlatformAgentFeedback";
 import { extractApiErrorMessageForToast, publishAppToast } from "@/lib/notify";
 import { mergeTemplateBlocks, defaultStyleForBlock } from "../utils/email-block-style";
 import { buildClientEmailPreviewHtml } from "../utils/build-email-preview-html";
@@ -68,22 +66,34 @@ export function EmailDesignPage({ mode = "reseller" }: { mode?: "reseller" | "pl
   const params = useParams();
   const routeResellerId =
     typeof params.resellerId === "string" ? params.resellerId.trim() : "";
-  const { hasOperational } = useAuth();
-  const canUpdate = hasOperational(OP.emailTemplate.update);
-  const canPublish = hasOperational(OP.emailTemplate.publish);
+  const { canView, canUpdate, canPublish } = useEmailTemplateAccess();
   const { resellerId: scopeResellerId, ready } = useEmailResellerScope();
+
+  if (!canView) {
+    return (
+      <EmailSectionLayout title="Email design" description="Transcript email templates.">
+        <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted }}>
+          You do not have permission to view email design.
+        </Typography>
+      </EmailSectionLayout>
+    );
+  }
   const activeResellerId = isPlatform ? null : routeResellerId || (ready ? scopeResellerId : null);
 
   const resellerDraftQuery = useEmailTemplateDraftQuery(activeResellerId, {
-    enabled: !isPlatform && Boolean(activeResellerId),
+    enabled: canView && !isPlatform && Boolean(activeResellerId),
   });
-  const platformDraftQuery = usePlatformEmailTemplateDraftQuery({ enabled: isPlatform });
+  const platformDraftQuery = usePlatformEmailTemplateDraftQuery({
+    enabled: canView && isPlatform,
+  });
   const draftQuery = isPlatform ? platformDraftQuery : resellerDraftQuery;
 
   const resellerPublishedQuery = useEmailTemplatePublishedQuery(activeResellerId, {
-    enabled: !isPlatform && Boolean(activeResellerId),
+    enabled: canView && !isPlatform && Boolean(activeResellerId),
   });
-  const platformPublishedQuery = usePlatformEmailTemplatePublishedQuery({ enabled: isPlatform });
+  const platformPublishedQuery = usePlatformEmailTemplatePublishedQuery({
+    enabled: canView && isPlatform,
+  });
   const publishedQuery = isPlatform ? platformPublishedQuery : resellerPublishedQuery;
 
   const assignmentQuery = useEmailTemplateAssignmentQuery(activeResellerId, {
@@ -122,8 +132,6 @@ export function EmailDesignPage({ mode = "reseller" }: { mode?: "reseller" | "pl
     enabled: !isPlatform && Boolean(activeResellerId) && canUpdate,
   });
   const versionsQuery = isPlatform ? platformVersionsQuery : resellerVersionsQuery;
-
-  const feedbackQuery = usePlatformAgentFeedbackQuery({ enabled: isPlatform });
 
   const restorePlatformMutation = useRestorePlatformEmailTemplateVersionMutation();
   const restoreResellerMutation = useRestoreResellerEmailTemplateVersionMutation(
@@ -175,20 +183,16 @@ export function EmailDesignPage({ mode = "reseller" }: { mode?: "reseller" | "pl
         logoUrl,
         bannerUrl,
         blocks,
-        feedback: feedbackQuery.data
-          ? {
-              ratingEnabled: feedbackQuery.data.ratingEnabled,
-              goodLabel: feedbackQuery.data.goodLabel,
-              poorLabel: feedbackQuery.data.poorLabel,
-              ratingRequired: feedbackQuery.data.ratingRequired,
-              notesEnabled: feedbackQuery.data.notesEnabled,
-              notesPlaceholder: feedbackQuery.data.notesPlaceholder,
-              notesSubmitLabel: feedbackQuery.data.notesSubmitLabel,
-              notesRequired: feedbackQuery.data.notesRequired,
-            }
-          : undefined,
+        feedback: {
+          ratingEnabled: true,
+          goodLabel: "Good",
+          poorLabel: "Poor",
+          notesEnabled: false,
+          notesPlaceholder: "",
+          notesSubmitLabel: "Submit note",
+        },
       }),
-    [primaryColor, emailTheme, logoUrl, bannerUrl, blocks, feedbackQuery.data],
+    [primaryColor, emailTheme, logoUrl, bannerUrl, blocks],
   );
 
   const handleSave = async () => {

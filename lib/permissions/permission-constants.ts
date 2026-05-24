@@ -45,6 +45,8 @@ export const ORG = {
 export const HRMS = {
   ATTENDANCE_CHECKIN: "hrms:attendance:checkin",
   ATTENDANCE_CHECKOUT: "hrms:attendance:checkout",
+  ATTENDANCE_BREAKIN: "hrms:attendance:breakin",
+  ATTENDANCE_BREAKOUT: "hrms:attendance:breakout",
   ATTENDANCE_SELF: "hrms:attendance:self",
   ATTENDANCE_SELF_VIEW: "hrms:attendance:self:view",
   ATTENDANCE_VIEW: "hrms:attendance:view",

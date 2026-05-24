@@ -18,6 +18,7 @@ export interface AgentChatSocketHandlers {
   onChatTransferred?: (payload: unknown) => void;
   onAgentWrapUpForm?: (payload: unknown) => void;
   onAgentWrapUpSubmitted?: (payload: unknown) => void;
+  onAgentDistributionSubmitted?: (payload: unknown) => void;
   selectedConversationIdRef: MutableRefObject<string | null>;
   selectedIsClosedRef: MutableRefObject<boolean>;
 }
@@ -141,6 +142,9 @@ export function useAgentChatSocket(
     const offWrapUpSubmitted = socketClient.onAgentWrapUpSubmitted((p) =>
       getHandlers().onAgentWrapUpSubmitted?.(p),
     );
+    const offDistributionSubmitted = socketClient.onAgentDistributionSubmitted((p) =>
+      getHandlers().onAgentDistributionSubmitted?.(p),
+    );
 
     scheduleRefresh();
     const poll = window.setInterval(scheduleRefresh, POLL_MS);
@@ -169,6 +173,7 @@ export function useAgentChatSocket(
       offWrapUpForm();
       offWrapUpRequired();
       offWrapUpSubmitted();
+      offDistributionSubmitted();
       connectedTokenRef.current = null;
     };
   }, [socketClient, token]);

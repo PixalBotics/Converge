@@ -5,22 +5,17 @@ import Box from "@mui/material/Box";
 import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import { AddCircleIcon } from "@/components/common/icons";
-import { FormModal, InputField, Typography, Button } from "@/components/common";
+import { Typography, Button } from "@/components/common";
 import {
   useCompaniesListQuery,
-  useCompanySetupDraftLatestQuery,
-  useCreateCompanySetupDraftMutation,
+  useCompanySetupDraftsListQuery,
 } from "@/lib/hooks/query";
-import { publishAppToast } from "@/lib/notify";
-import {
-  extractCompanySetupDraftId,
-  extractCompanySetupDraftIdFromLatest,
-  getStoredCompanySetupDraftId,
-  setStoredCompanySetupDraftId,
-} from "@/lib/companies/setup-draft.utils";
+import { setStoredCompanySetupDraftId } from "@/lib/companies/setup-draft.utils";
+import { parseCompanySetupDraftsList } from "@/lib/companies/setup-drafts-list.utils";
 import { CompaniesStatsCards } from "./components/CompaniesStatsCards";
 import { CompaniesTableSection } from "./components/CompaniesTableSection";
 import { CompanySetupWizardModal } from "./components/CompanySetupWizardModal";
+import { CompanySetupDraftsModal } from "./components/CompanySetupDraftsModal";
 import { buildCompaniesTableRows } from "./utils";
 import { pageWrapper, pageHeaderRow } from "./overview.styles";
 import { departmentsAddButton } from "../website-assigning/website-assigning.styles";
@@ -42,29 +37,20 @@ export default function CompaniesPage() {
   const limit = 20;
   const [setupWizardOpen, setSetupWizardOpen] = useState(false);
   const [setupDraftId, setSetupDraftId] = useState<string | null>(null);
-  const [resumeDraftModalOpen, setResumeDraftModalOpen] = useState(false);
-  const [resumeDraftIdInput, setResumeDraftIdInput] = useState("");
-  const [storedDraftAvailable, setStoredDraftAvailable] = useState(false);
+  const [draftsModalOpen, setDraftsModalOpen] = useState(false);
 
-  const refreshStoredDraftFlag = useCallback(() => {
-    setStoredDraftAvailable(!!getStoredCompanySetupDraftId());
+  const draftsListQuery = useCompanySetupDraftsListQuery({
+    enabled: canOpenCompanyDraft,
+  });
+  const draftRows = useMemo(
+    () => parseCompanySetupDraftsList(draftsListQuery.data),
+    [draftsListQuery.data],
+  );
+  const hasDrafts = draftRows.length > 0;
+
+  useEffect(() => {
+    setStoredCompanySetupDraftId(null);
   }, []);
-
-  useEffect(() => {
-    refreshStoredDraftFlag();
-  }, [refreshStoredDraftFlag]);
-
-  const createDraftMutation = useCreateCompanySetupDraftMutation();
-  const latestDraftQuery = useCompanySetupDraftLatestQuery();
-
-  /** Sync browser draft id with server latest in-progress run (GET `/companies/setup/draft/latest`). */
-  useEffect(() => {
-    if (!latestDraftQuery.isSuccess) return;
-    const id = extractCompanySetupDraftIdFromLatest(latestDraftQuery.data);
-    if (!id) return;
-    setStoredCompanySetupDraftId(id);
-    refreshStoredDraftFlag();
-  }, [latestDraftQuery.isSuccess, latestDraftQuery.data, refreshStoredDraftFlag]);
 
   useEffect(() => {
     if (searchInput.trim().length > 0) return;
@@ -94,62 +80,26 @@ export default function CompaniesPage() {
 
   const tableRows = useMemo(() => buildCompaniesTableRows(companiesData), [companiesData]);
 
-  const handleStartSetup = () => {
-    createDraftMutation.mutate(
-      {},
-      {
-        onSuccess: (data) => {
-          const id = extractCompanySetupDraftId(data);
-          if (!id) {
-            publishAppToast({
-              variant: "error",
-              message: "Could not start setup. Please try again.",
-            });
-            return;
-          }
-          setStoredCompanySetupDraftId(id);
-          setSetupDraftId(id);
-          setSetupWizardOpen(true);
-          refreshStoredDraftFlag();
-        },
-      },
-    );
-  };
+  const handleStartSetup = useCallback(() => {
+    setStoredCompanySetupDraftId(null);
+    setSetupDraftId(null);
+    setSetupWizardOpen(true);
+  }, []);
 
   const handleOpenDraftFlow = () => {
-    const stored = getStoredCompanySetupDraftId();
-    if (stored) {
-      setSetupDraftId(stored);
-      setSetupWizardOpen(true);
-      return;
-    }
-    setResumeDraftIdInput("");
-    setResumeDraftModalOpen(true);
+    setDraftsModalOpen(true);
   };
 
-  const handleResumeDraftSubmit = () => {
-    const id = resumeDraftIdInput.trim();
-    if (!id) {
-      publishAppToast({ variant: "error", message: "Enter a draft id to open." });
-      return;
-    }
-    setStoredCompanySetupDraftId(id);
+  const handleResumeDraft = (id: string) => {
     setSetupDraftId(id);
     setSetupWizardOpen(true);
-    setResumeDraftModalOpen(false);
-    setResumeDraftIdInput("");
-    refreshStoredDraftFlag();
+    setDraftsModalOpen(false);
   };
 
-  const handleCloseSetupWizard = (reason: "completed" | "dismissed") => {
-    if (reason === "completed") {
-      setStoredCompanySetupDraftId(null);
-    } else if (setupDraftId) {
-      setStoredCompanySetupDraftId(setupDraftId);
-    }
+  const handleCloseSetupWizard = (_reason: "completed" | "dismissed") => {
     setSetupWizardOpen(false);
     setSetupDraftId(null);
-    refreshStoredDraftFlag();
+    void draftsListQuery.refetch();
   };
 
   return (
@@ -164,10 +114,10 @@ export default function CompaniesPage() {
               variant="secondary"
               sx={{ minWidth: 120, borderRadius: "9999px", py: 1.25, px: 2.5 }}
               onClick={handleOpenDraftFlow}
-              disabled={setupWizardOpen || resumeDraftModalOpen}
+              disabled={setupWizardOpen || draftsModalOpen}
             >
               <Typography component="span" variant="medium" color="inherit">
-                Draft{storedDraftAvailable ? " · saved" : ""}
+                Draft{hasDrafts ? ` (${draftRows.length})` : ""}
               </Typography>
             </Button>
           ) : null}
@@ -176,21 +126,21 @@ export default function CompaniesPage() {
               variant="primary"
               sx={departmentsAddButton}
               onClick={handleStartSetup}
-              disabled={createDraftMutation.isPending || setupWizardOpen}
+              disabled={setupWizardOpen}
             >
               <AddCircleIcon width={16} height={16} />
               <Typography component="span" variant="medium" color="inherit">
-                {createDraftMutation.isPending ? "Starting…" : "Add Reseller / Company"}
+                Add Reseller / Company
               </Typography>
             </Button>
           ) : null}
         </Box>
       </Box>
 
-      {storedDraftAvailable ? (
+      {hasDrafts ? (
         <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, mt: -1 }}>
-          A company setup draft is saved in this browser — use Draft to open the same form, or Add
-          to start a new draft.
+          In-progress setups are in Draft — use Resume there. Add Reseller / Company always starts a
+          new setup.
         </Typography>
       ) : null}
 
@@ -222,29 +172,19 @@ export default function CompaniesPage() {
         canUpdateCompany={canUpdateCompany}
       />
 
-      <FormModal
-        open={resumeDraftModalOpen}
-        title="Open a saved setup"
-        description="Only needed if support or another device gave you a reference to paste. Otherwise use Draft on the toolbar — it opens your last session on this browser."
-        onClose={() => {
-          setResumeDraftModalOpen(false);
-          setResumeDraftIdInput("");
+      <CompanySetupDraftsModal
+        open={draftsModalOpen}
+        onClose={() => setDraftsModalOpen(false)}
+        onResume={handleResumeDraft}
+        onStartNew={() => {
+          setDraftsModalOpen(false);
+          handleStartSetup();
         }}
-        onSave={handleResumeDraftSubmit}
-        primaryButtonLabel="Open"
-        primaryButtonDisabled={!resumeDraftIdInput.trim()}
-        cancelButtonLabel="Cancel"
-        maxWidth={480}
-      >
-        <InputField
-          label="Reference"
-          placeholder="Paste the value you were given"
-          value={resumeDraftIdInput}
-          onChange={(e) => setResumeDraftIdInput(e.target.value)}
-        />
-      </FormModal>
+        startingNew={false}
+      />
 
       <CompanySetupWizardModal
+        key={setupDraftId ?? "company-setup-closed"}
         open={setupWizardOpen}
         draftId={setupDraftId}
         onClose={handleCloseSetupWizard}

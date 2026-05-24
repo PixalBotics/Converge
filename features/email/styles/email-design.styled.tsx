@@ -211,6 +211,7 @@ export const EmailBuilderChrome = styled(Box)(({ theme }) => ({
   display: "flex",
   flex: 1,
   minHeight: 0,
+  height: "100%",
   width: "100%",
   overflow: "hidden",
   background: `linear-gradient(180deg, ${alpha(theme.palette.common.black, 0.18)} 0%, ${alpha(theme.palette.common.black, 0.08)} 100%)`,
@@ -221,6 +222,7 @@ export const EmailBuilderChrome = styled(Box)(({ theme }) => ({
 export const EmailBuilderToolsPanel = styled(Box)({
   flex: 1,
   minWidth: 0,
+  maxWidth: "100%",
   minHeight: 0,
   display: "flex",
   flexDirection: "column",
@@ -236,8 +238,7 @@ export const EmailBuilderToolsScroll = styled(Box)(({ theme }) => {
     overflowX: "hidden",
     WebkitOverflowScrolling: "touch",
     overscrollBehavior: "contain",
-    padding: theme.spacing(1.5, 2, 2.5),
-    scrollbarGutter: "stable",
+    padding: theme.spacing(0.5, 1.5, 2, 1.25),
     scrollbarWidth: "thin",
     scrollbarColor: `${alpha(d.cardBorder, 1)} ${alpha(theme.palette.common.black, 0.28)}`,
     background: `radial-gradient(circle at 0% 0%, ${alpha(theme.palette.primary.main, 0.06)} 0%, transparent 42%), ${alpha(theme.palette.common.black, 0.06)}`,
@@ -354,13 +355,14 @@ export const EmailBuilderCanvasHeader = styled(Box)(({ theme }) => {
   return {
     flexShrink: 0,
     zIndex: 2,
-    margin: theme.spacing(1.5, 2, 0),
-    padding: theme.spacing(1.25, 1.5),
-    borderRadius: theme.spacing(1.75),
-    border: `1px solid ${alpha(d.cardBorder, 0.75)}`,
-    background: d.cardBg ?? alpha(theme.palette.background.paper, 0.92),
-    backdropFilter: d.cardBackdropBlur ?? "blur(12px)",
-    boxShadow: `0 8px 32px ${alpha(theme.palette.common.black, 0.14)}, inset 0 1px 0 ${alpha(theme.palette.common.white, 0.06)}`,
+    margin: theme.spacing(0, 0, 0.75),
+    padding: theme.spacing(1, 1.25),
+    borderRadius: theme.spacing(1.25),
+    border: `1px solid ${alpha(d.cardBorder, 0.65)}`,
+    background: alpha(theme.palette.common.black, 0.12),
+    minWidth: 0,
+    maxWidth: "100%",
+    boxSizing: "border-box",
   };
 });
 
@@ -369,6 +371,8 @@ export const EmailBuilderPanelBody = styled(Box)(({ theme }) => ({
   flexDirection: "column",
   gap: theme.spacing(1.5),
   paddingBottom: theme.spacing(1.5),
+  minWidth: 0,
+  maxWidth: "100%",
 }));
 
 export const EmailBuilderSettingsGroup = styled(Box)(({ theme }) => {
@@ -383,6 +387,9 @@ export const EmailBuilderSettingsGroup = styled(Box)(({ theme }) => {
     background: d.cardBg ?? alpha(theme.palette.background.paper, 0.36),
     backdropFilter: d.cardBackdropBlur ?? "blur(12px)",
     boxShadow: `0 4px 24px ${alpha(theme.palette.common.black, 0.1)}, inset 0 1px 0 ${alpha(theme.palette.common.white, 0.05)}`,
+    minWidth: 0,
+    maxWidth: "100%",
+    boxSizing: "border-box",
   };
 });
 

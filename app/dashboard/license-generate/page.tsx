@@ -20,10 +20,18 @@ import {
   Typography,
 } from "@/components/common";
 import type { DataTableColumn } from "@/components/common";
+import { SendLicenseConfirmModal } from "@/components/common/SendLicenseConfirmModal/SendLicenseConfirmModal";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
 import { GenerateLicenseKeyModal } from "./components/GenerateLicenseKeyModal";
 import { pickItemsArray, toIdNameOption } from "@/app/dashboard/user-page/components/add-user-modal.utils";
-import { useCompaniesSetupResellersQuery, usePlatformLicenseKeysQuery } from "@/lib/hooks";
+import {
+  useCompaniesSetupResellersQuery,
+  usePlatformLicenseKeysQuery,
+  useSendPlatformLicenseKeyMutation,
+} from "@/lib/hooks";
+import { extractApiErrorMessageForToast, publishAppToast } from "@/lib/notify";
+import { useAuth } from "@/lib/auth";
+import { OP } from "@/lib/permissions";
 import { extractParentCompaniesFromByResellerTree } from "@/app/dashboard/user-page/components/add-user-modal.utils";
 import { useCompaniesByResellerQuery } from "@/lib/hooks";
 import {
@@ -50,10 +58,15 @@ const DEFAULT_PAGE_LIMIT = 20;
 
 export default function LicenseGeneratePage() {
   const theme = useTheme() as AppTheme;
+  const { hasOperational } = useAuth();
+  const canSendLicense = hasOperational(OP.license.send);
+  const sendLicenseMutation = useSendPlatformLicenseKeyMutation();
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [generateModalOpen, setGenerateModalOpen] = useState(false);
+  const [sendModalOpen, setSendModalOpen] = useState(false);
+  const [sendTargets, setSendTargets] = useState<PlatformLicenseKeyRow[]>([]);
   const [filterPopoverOpen, setFilterPopoverOpen] = useState(false);
   const [mode, setMode] = useState<"issued" | "missing">("issued");
   const [filterResellerId, setFilterResellerId] = useState("");
@@ -162,6 +175,71 @@ export default function LicenseGeneratePage() {
     rows.length > 0 && rows.every((r) => selected.has(r.id));
   const someSelected = selected.size > 0 && !allSelected;
 
+  const openSendModal = useCallback((targets: PlatformLicenseKeyRow[]) => {
+    if (!canSendLicense) {
+      publishAppToast({ variant: "error", message: "You do not have permission to send license emails." });
+      return;
+    }
+    const issued = targets.filter((row) => row.licenseKey && row.licenseKey !== "—");
+    if (!issued.length) {
+      publishAppToast({ variant: "error", message: "Select a company with an issued license key." });
+      return;
+    }
+    setSendTargets(issued);
+    setSendModalOpen(true);
+  }, [canSendLicense]);
+
+  const handleConfirmSend = useCallback(async () => {
+    if (!sendTargets.length || sendLicenseMutation.isPending) return;
+
+    let totalAttempted = 0;
+    let totalSent = 0;
+    const failures: string[] = [];
+
+    for (const row of sendTargets) {
+      try {
+        const result = await sendLicenseMutation.mutateAsync({
+          parentCompanyId: row.parentCompanyId,
+          audience: "poc",
+        });
+        totalAttempted += result.data.attempted;
+        totalSent += result.data.sent;
+        if (result.data.attempted === 0) {
+          failures.push(`${row.parentCompany}: no POC users found`);
+        } else if (result.data.sent === 0) {
+          failures.push(`${row.parentCompany}: mail could not be delivered`);
+        }
+      } catch (err) {
+        const msg = extractApiErrorMessageForToast(err) ?? "Send failed.";
+        failures.push(`${row.parentCompany}: ${msg}`);
+      }
+    }
+
+    setSendModalOpen(false);
+    setSendTargets([]);
+    setSelected(new Set());
+
+    if (totalSent > 0) {
+      publishAppToast({
+        variant: "success",
+        message:
+          sendTargets.length === 1
+            ? `License email sent to ${totalSent} POC user(s).`
+            : `License emails sent (${totalSent} of ${totalAttempted} recipient(s) across ${sendTargets.length} companies).`,
+      });
+    } else {
+      publishAppToast({
+        variant: "error",
+        message: failures[0] ?? "Could not send license email. Check platform/reseller mail settings.",
+      });
+    }
+  }, [sendLicenseMutation, sendTargets]);
+
+  const sendModalDescription =
+    sendTargets.length === 1
+      ? `Send the license key for ${sendTargets[0]?.parentCompany ?? "this client root"} to its POC contact(s)?`
+      : `Send license keys for ${sendTargets.length} selected parent companies to their POC contact(s)?`;
+
   const columns = useMemo<DataTableColumn<PlatformLicenseKeyRow>[]>(
     () => [
       {
@@ -203,7 +281,16 @@ export default function LicenseGeneratePage() {
           </Typography>
         </Box>
         <Box sx={licenseGenerateHeaderActions}>
-          <Button variant="outlined" type="button" startIcon={<Send sx={{ fontSize: 18 }} />}>
+          <Button
+            variant="outlined"
+            type="button"
+            startIcon={<Send sx={{ fontSize: 18 }} />}
+            disabled={!canSendLicense || selected.size === 0 || mode !== "issued" || sendLicenseMutation.isPending}
+            onClick={() => {
+              const targets = rows.filter((row) => selected.has(row.id));
+              openSendModal(targets);
+            }}
+          >
             Send Selected
           </Button>
           <Button
@@ -224,6 +311,21 @@ export default function LicenseGeneratePage() {
         onGenerated={() => {
           void licenseKeysQuery.refetch();
         }}
+      />
+
+      <SendLicenseConfirmModal
+        open={sendModalOpen}
+        onDismiss={() => {
+          if (sendLicenseMutation.isPending) return;
+          setSendModalOpen(false);
+          setSendTargets([]);
+        }}
+        onConfirm={() => {
+          void handleConfirmSend();
+        }}
+        description={sendModalDescription}
+        confirmDisabled={sendLicenseMutation.isPending}
+        confirmLabel={sendLicenseMutation.isPending ? "Sending…" : "Yes – Send License"}
       />
 
       <DashboardCard sx={licenseGenerateTableCard}>
@@ -319,25 +421,31 @@ export default function LicenseGeneratePage() {
           minWidth={980}
           actionColumn={{
             label: "Action",
-            render: () => (
-              <Link
-                component="button"
-                type="button"
-                onClick={() => {}}
-                sx={{
-                  color: theme.app.text.primary,
-                  textDecoration: "underline",
-                  cursor: "pointer",
-                  fontSize: 14,
-                  background: "none",
-                  border: "none",
-                  fontFamily: "inherit",
-                  p: 0,
-                }}
-              >
-                Send Mail
-              </Link>
-            ),
+            render: (row) =>
+              canSendLicense && mode === "issued" && row.licenseKey !== "—" ? (
+                <Link
+                  component="button"
+                  type="button"
+                  onClick={() => openSendModal([row])}
+                  disabled={sendLicenseMutation.isPending}
+                  sx={{
+                    color: theme.app.text.primary,
+                    textDecoration: "underline",
+                    cursor: "pointer",
+                    fontSize: 14,
+                    background: "none",
+                    border: "none",
+                    fontFamily: "inherit",
+                    p: 0,
+                  }}
+                >
+                  Send Mail
+                </Link>
+              ) : (
+                <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted }}>
+                  —
+                </Typography>
+              ),
           }}
         />
 

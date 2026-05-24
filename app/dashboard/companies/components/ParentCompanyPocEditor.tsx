@@ -20,10 +20,10 @@ import {
 } from "@/lib/hooks/query";
 import { normalizePocsFromCarrier } from "@/lib/companies/parent-detail-pocs";
 import {
-  buildPocInviteForRow,
-  emptyDraftChildRow,
-  isChildRowPocComplete,
-  type DraftChildPayload,
+  buildPocInviteForSlice,
+  emptyPocSlice,
+  isPocSliceComplete,
+  type PocDraftSlice,
 } from "@/lib/companies/setup-draft.utils";
 import { extractNestFieldErrors } from "@/lib/companies/extract-nest-field-errors";
 import { extractApiErrorMessageForToast } from "@/lib/notify/extract-api-message";
@@ -33,12 +33,11 @@ import { pickItemsArray, toIdNameOption } from "@/app/dashboard/user-page/compon
 import { useAuth } from "@/lib/auth";
 import { canCompaniesModuleAction } from "@/lib/permissions";
 
-function pocInviteToDraft(p: CompanyPocInviteSummary): DraftChildPayload {
-  const base = emptyDraftChildRow();
+function pocInviteToDraft(p: CompanyPocInviteSummary): PocDraftSlice {
   const deptName = String(p.departmentName ?? "").trim();
   const desTitle = String(p.designationTitle ?? "").trim();
   return {
-    ...base,
+    ...emptyPocSlice(),
     pocFirstName: String(p.firstName ?? "").trim(),
     pocMiddleName: String(p.middleName ?? "").trim(),
     pocLastName: String(p.lastName ?? "").trim(),
@@ -70,7 +69,7 @@ export function ParentCompanyPocEditor({ parentId, resellerId, parentCompany }: 
 
   const [pocMode, setPocMode] = useState<"existing" | "invite">("existing");
   const [selectedUserId, setSelectedUserId] = useState("");
-  const [inviteRow, setInviteRow] = useState<DraftChildPayload>(() => emptyDraftChildRow());
+  const [inviteRow, setInviteRow] = useState<PocDraftSlice>(() => emptyPocSlice());
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   const displayRows = useMemo(() => normalizePocsFromCarrier(parentCompany), [parentCompany]);
@@ -117,11 +116,11 @@ export function ParentCompanyPocEditor({ parentId, resellerId, parentCompany }: 
     if (invite && typeof invite === "object") {
       setInviteRow(pocInviteToDraft(invite));
     } else {
-      setInviteRow(emptyDraftChildRow());
+      setInviteRow(emptyPocSlice());
     }
   }, [parentId, parentCompany.pocInvite]);
 
-  const updateInviteRow = useCallback((_: number, patch: Partial<DraftChildPayload>) => {
+  const updateInviteRow = useCallback((_: number, patch: Partial<PocDraftSlice>) => {
     setInviteRow((prev) => ({ ...prev, ...patch }));
   }, []);
 
@@ -148,11 +147,14 @@ export function ParentCompanyPocEditor({ parentId, resellerId, parentCompany }: 
 
   const handleSaveInvite = async () => {
     setFieldErrors({});
-    if (!isChildRowPocComplete(inviteRow)) {
-      publishAppToast({ variant: "error", message: "Fill all required POC fields (name, email, role, department, designation)." });
+    if (!isPocSliceComplete(inviteRow)) {
+      publishAppToast({
+        variant: "error",
+        message: "Fill required POC fields (name, email, role, designation). Department is optional.",
+      });
       return;
     }
-    const pocInvite = buildPocInviteForRow(inviteRow);
+    const pocInvite = buildPocInviteForSlice(inviteRow);
     if (!pocInvite) return;
     try {
       await updateParentMutation.mutateAsync({ parentId, body: { pocInvite } });
@@ -175,7 +177,7 @@ export function ParentCompanyPocEditor({ parentId, resellerId, parentCompany }: 
         await updateParentMutation.mutateAsync({ parentId, body: { pocInvite: null } });
       }
       publishAppToast({ variant: "success", message: "Primary contact removed." });
-      setInviteRow(emptyDraftChildRow());
+      setInviteRow(emptyPocSlice());
       setSelectedUserId("");
     } catch (e) {
       const fields = extractNestFieldErrors(e);
@@ -271,6 +273,8 @@ export function ParentCompanyPocEditor({ parentId, resellerId, parentCompany }: 
           <CompanySetupChildPocBlock
             row={inviteRow}
             childIndex={0}
+            pocIndex={0}
+            multiPocOnChild={false}
             updateChildRow={updateInviteRow}
             roleOptions={roleOptions}
             departmentOptions={departmentOptions}

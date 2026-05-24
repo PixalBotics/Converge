@@ -6,6 +6,9 @@ import {
   getCompaniesSetupResellers,
   getCompanySetupDraftById,
   getCompanySetupDraftLatest,
+  abandonAllCompanySetupDrafts,
+  listCompanySetupDrafts,
+  listCompanyPocDirectory,
   getParentCompany,
   listCompanies,
   submitCompanySetupDraft,
@@ -54,6 +57,7 @@ export function useCreateCompanySetupDraftMutation() {
     meta: { skipSuccessToast: true },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: companiesKeys.setupDraftLatest() });
+      void queryClient.invalidateQueries({ queryKey: companiesKeys.setupDrafts() });
     },
   });
 }
@@ -71,6 +75,7 @@ export function useUpdateCompanySetupDraftMutation(options?: { skipGlobalToast?:
         queryKey: companiesKeys.setupDraft(vars.id),
       });
       void queryClient.invalidateQueries({ queryKey: companiesKeys.setupDraftLatest() });
+      void queryClient.invalidateQueries({ queryKey: companiesKeys.setupDrafts() });
     },
   });
 }
@@ -82,6 +87,39 @@ export function useSubmitCompanySetupDraftMutation() {
     meta: { skipSuccessToast: true },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: companiesKeys.all });
+      void queryClient.invalidateQueries({ queryKey: companiesKeys.setupDraftLatest() });
+      void queryClient.invalidateQueries({ queryKey: companiesKeys.setupDrafts() });
+      void queryClient.invalidateQueries({ queryKey: companiesKeys.setupResellers() });
+    },
+  });
+}
+
+export function useCompanySetupDraftsListQuery(options?: { enabled?: boolean }) {
+  return useQuery({
+    queryKey: companiesKeys.setupDrafts(),
+    queryFn: () => listCompanySetupDrafts(),
+    enabled: options?.enabled ?? true,
+  });
+}
+
+export function useCompanyPocDirectoryQuery(
+  params?: { page?: number; limit?: number; all?: boolean },
+  options?: { enabled?: boolean },
+) {
+  return useQuery({
+    queryKey: companiesKeys.pocDirectory(params),
+    queryFn: () => listCompanyPocDirectory(params),
+    enabled: options?.enabled ?? true,
+  });
+}
+
+export function useAbandonAllCompanySetupDraftsMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => abandonAllCompanySetupDrafts(),
+    meta: { skipSuccessToast: true },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: companiesKeys.setupDrafts() });
       void queryClient.invalidateQueries({ queryKey: companiesKeys.setupDraftLatest() });
     },
   });

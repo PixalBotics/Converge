@@ -24,6 +24,9 @@ export {
   useScopedCompanyTreeQuery,
   useCompanySetupDraftByIdQuery,
   useCompanySetupDraftLatestQuery,
+  useAbandonAllCompanySetupDraftsMutation,
+  useCompanySetupDraftsListQuery,
+  useCompanyPocDirectoryQuery,
   useCreateCompanySetupDraftMutation,
   useParentCompanyQuery,
   useSubmitCompanySetupDraftMutation,
@@ -56,7 +59,7 @@ export type {
   WebsiteAssignmentsWebsitesParams,
 } from "./website-assignments";
 export { platformKeys } from "./platform";
-export { useGeneratePlatformLicenseKeyMutation, usePlatformLicenseKeysQuery } from "./platform";
+export { useGeneratePlatformLicenseKeyMutation, usePlatformLicenseKeysQuery, useSendPlatformLicenseKeyMutation } from "./platform";
 export { platformThemeKeys, usePlatformThemeMeQuery, useUpdatePlatformThemeMutation } from "./platform-theme";
 export * from "./ai-knowledge";
 export * from "./hrms";

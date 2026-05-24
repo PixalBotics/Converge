@@ -23,10 +23,11 @@ import {
 import { EMAIL_ROUTES, PROVIDER_CODE_LABELS } from "../email.constants";
 import { EmailConfigTableCard } from "../styles/email-configuration.styled";
 import { departmentsFooterRow, footerMutedText, gradientPrimaryButtonSx } from "../styles/email-page.styles";
-import { emailResellerMailTableSx } from "../styles/email-table.styles";
+import { emailResellerMailTableSx, emailTablePanelSx } from "../styles/email-table.styles";
 import { EmailStatusChip } from "../components/EmailStatusChip";
 import { EmailTableActions } from "../components/EmailTableActions";
 import { EmailTableCardHeader } from "../components/EmailTableCardHeader";
+import { EmailTableTextCell } from "../components/EmailTableTextCell";
 
 type DeleteTarget = { resellerId: string; resellerName: string };
 
@@ -117,17 +118,29 @@ export function ResellerOwnMailPage() {
 
   const columns = useMemo<DataTableColumn<ResellerOwnMailListItem>[]>(
     () => [
-      { id: "resellerName", label: "Reseller" },
+      {
+        id: "resellerName",
+        label: "Reseller",
+        render: (_v, row) => <EmailTableTextCell value={row.resellerName} />,
+      },
       {
         id: "provider",
         label: "Provider",
-        render: (_, row) => providerLabel(row),
+        render: (_v, row) => <EmailTableTextCell value={providerLabel(row)} muted />,
       },
-      { id: "fromEmail", label: "From email", render: (v) => (v ? String(v) : "—") },
+      {
+        id: "fromEmail",
+        label: "From email",
+        render: (_v, row) => <EmailTableTextCell value={row.fromEmail ? String(row.fromEmail) : undefined} />,
+      },
       {
         id: "isEnabled",
         label: "Status",
-        render: (_, row) => <EmailStatusChip active={row.isEnabled} activeLabel="Enabled" inactiveLabel="Disabled" />,
+        render: (_v, row) => (
+          <Box sx={{ display: "inline-flex", flexShrink: 0 }}>
+            <EmailStatusChip active={row.isEnabled} activeLabel="Enabled" inactiveLabel="Disabled" />
+          </Box>
+        ),
       },
     ],
     [],
@@ -174,8 +187,10 @@ export function ResellerOwnMailPage() {
             rows={rows}
             getRowId={(row) => row.resellerId}
             isLoading={isLoading}
-            minWidth={760}
+            minWidth={880}
+            size="medium"
             tableSx={emailResellerMailTableSx}
+            containerSx={emailTablePanelSx}
             emptyState={{
               title: listQuery.isError ? "Could not load list" : "No reseller mail configured yet",
               description: "Click Add reseller mail to configure SMTP or API for a reseller.",

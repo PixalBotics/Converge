@@ -242,6 +242,14 @@ const USERS_GROUP: DashboardNavItem = {
       permission: PAGE.USERS,
       prefixMatch: false,
     },
+    {
+      href: "/dashboard/user-page/poc-list",
+      label: "POC list",
+      section: "activity",
+      iconKey: "users",
+      permission: PAGE.USERS,
+      prefixMatch: false,
+    },
   ],
 };
 
@@ -406,14 +414,6 @@ const EMAIL_GROUP: DashboardNavItem = {
     {
       href: "/dashboard/email/design/platform",
       label: "Platform design",
-      section: "activity",
-      iconKey: "smtpEmail",
-      permission: "page:email-template",
-      internalOnly: true,
-    },
-    {
-      href: "/dashboard/email/design/assignment",
-      label: "Use platform design",
       section: "activity",
       iconKey: "smtpEmail",
       permission: "page:email-template",

@@ -7,6 +7,7 @@ import IconButton from "@mui/material/IconButton";
 import Popover from "@mui/material/Popover";
 import Skeleton from "@mui/material/Skeleton";
 import { alpha, useTheme } from "@mui/material/styles";
+import AccessTimeOutlined from "@mui/icons-material/AccessTimeOutlined";
 import BeachAccessOutlined from "@mui/icons-material/BeachAccessOutlined";
 import ChatBubbleOutline from "@mui/icons-material/ChatBubbleOutline";
 import DoneAllOutlined from "@mui/icons-material/DoneAllOutlined";
@@ -20,6 +21,7 @@ import { useNotificationsContext } from "@/lib/notifications/NotificationsContex
 import { resolveNotificationHref } from "@/lib/notifications/resolve-notification-href";
 import { dashboardHeaderCircleIconButtonSx } from "@/components/layout/dashboard/DashboardHeader/styles/shell.styles";
 import type {
+  BadgeCounts,
   NotificationBadgeGroup,
   NotificationDto,
 } from "@/services/notifications/notifications.types";
@@ -27,14 +29,15 @@ import type { SxProps, Theme } from "@mui/material/styles";
 
 type FilterKey = "all" | NotificationBadgeGroup;
 
-function totalUnread(counts: { chat: number; qa: number; hrms_leave: number }): number {
-  return counts.chat + counts.qa + counts.hrms_leave;
+function totalUnread(counts: BadgeCounts): number {
+  return counts.chat + counts.qa + counts.hrms_leave + counts.hrms_attendance;
 }
 
 const GROUP_LABELS: Record<NotificationBadgeGroup, string> = {
   chat: "Chat",
   qa: "QA",
   hrms_leave: "Leave",
+  hrms_attendance: "Attendance",
 };
 
 const FILTER_TABS: { key: FilterKey; label: string }[] = [
@@ -42,11 +45,13 @@ const FILTER_TABS: { key: FilterKey; label: string }[] = [
   { key: "chat", label: "Chat" },
   { key: "qa", label: "QA" },
   { key: "hrms_leave", label: "Leave" },
+  { key: "hrms_attendance", label: "Attendance" },
 ];
 
 function groupAccent(group: NotificationBadgeGroup, theme: AppTheme): string {
   if (group === "chat") return theme.app.dashboard.accentBlue;
   if (group === "qa") return theme.app.dashboard.accentViolet;
+  if (group === "hrms_attendance") return theme.app.dashboard.accentRedLight;
   return theme.app.dashboard.accentOrange;
 }
 
@@ -65,10 +70,7 @@ function formatNotificationTime(iso: string): string {
   return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
-function countForFilter(
-  key: FilterKey,
-  badgeCounts: { chat: number; qa: number; hrms_leave: number },
-): number {
+function countForFilter(key: FilterKey, badgeCounts: BadgeCounts): number {
   if (key === "all") return totalUnread(badgeCounts);
   return badgeCounts[key];
 }
@@ -77,6 +79,7 @@ function GroupIcon({ group, color }: { group: NotificationBadgeGroup; color: str
   const sx = { fontSize: 18, color };
   if (group === "chat") return <ChatBubbleOutline sx={sx} />;
   if (group === "qa") return <FactCheckOutlined sx={sx} />;
+  if (group === "hrms_attendance") return <AccessTimeOutlined sx={sx} />;
   return <BeachAccessOutlined sx={sx} />;
 }
 
@@ -288,7 +291,7 @@ export function NotificationsBellDrawer() {
     }
   }, [ctx?.drawerOpen]);
 
-  const badgeCounts = ctx?.badgeCounts ?? { chat: 0, qa: 0, hrms_leave: 0 };
+  const badgeCounts = ctx?.badgeCounts ?? { chat: 0, qa: 0, hrms_leave: 0, hrms_attendance: 0 };
   const items = useMemo(() => ctx?.items ?? [], [ctx?.items]);
   const loading = ctx?.loading ?? false;
   const drawerOpen = ctx?.drawerOpen ?? false;

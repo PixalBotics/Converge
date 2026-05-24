@@ -76,6 +76,7 @@ function toUserRow(value: unknown): UserRow | null {
 
   return {
     id,
+    isPoc: row.isPoc === true,
     licenseKey: licenseKey || undefined,
     user: fullName || String(row.name ?? row.fullName ?? row.email ?? "—"),
     email: String(row.email ?? "—"),

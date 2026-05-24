@@ -24,3 +24,37 @@ export function getAuthEmailRules<
     },
   };
 }
+
+export const AUTH_PASSWORD_MESSAGES = {
+  required: "Password is required",
+  minLength: "Password must be at least 8 characters",
+  mismatch: "Passwords do not match",
+} as const;
+
+export function getAuthPasswordRules<
+  TFieldValues extends FieldValues,
+  TFieldName extends FieldPath<TFieldValues>,
+>(): RegisterOptions<TFieldValues, TFieldName> {
+  return {
+    required: AUTH_PASSWORD_MESSAGES.required,
+    minLength: { value: 8, message: AUTH_PASSWORD_MESSAGES.minLength },
+  };
+}
+
+export const AUTH_OTP_MESSAGES = {
+  required: "Verification code is required",
+  invalid: "Enter the 6-digit code from your email",
+} as const;
+
+export function getAuthOtpRules<
+  TFieldValues extends FieldValues,
+  TFieldName extends FieldPath<TFieldValues>,
+>(): RegisterOptions<TFieldValues, TFieldName> {
+  return {
+    required: AUTH_OTP_MESSAGES.required,
+    pattern: {
+      value: /^\d{6}$/,
+      message: AUTH_OTP_MESSAGES.invalid,
+    },
+  };
+}

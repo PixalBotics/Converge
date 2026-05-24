@@ -20,7 +20,8 @@ import {
   EmailBuilderStudioTools,
 } from "../styles/email-design.styled";
 
-const TOOLS_WIDTH = 420;
+/** Tab rail (76px) + tools body; single-column fields need ~300px+ body width. */
+const TOOLS_WIDTH = 460;
 
 export function EmailDesignStudio({
   toolsOpen,

@@ -249,6 +249,16 @@ export const deleteIconButton: SxProps<Theme> = {
   p: 0,
 };
 
+export const childRemoveIconButton: SxProps<Theme> = (theme) => ({
+  alignSelf: "center",
+  flexShrink: 0,
+  color: (theme as AppTheme).app.dashboard.textMuted,
+  "&:hover": {
+    color: (theme as AppTheme).app.text.primary,
+    bgcolor: "rgba(255,255,255,0.06)",
+  },
+});
+
 export const addAnotherButton: SxProps<Theme> = {
   display: "inline-flex",
   alignItems: "center",
@@ -258,6 +268,17 @@ export const addAnotherButton: SxProps<Theme> = {
   background: "transparent",
   p: 0,
   cursor: "pointer",
+};
+
+export const addAnotherButtonRight: SxProps<Theme> = {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 0.8,
+  border: "none",
+  background: "transparent",
+  p: 0,
+  cursor: "pointer",
+  flexShrink: 0,
 };
 
 export const addAnotherIcon: SxProps<Theme> = {

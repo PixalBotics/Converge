@@ -20,7 +20,7 @@ import {
   soundKeyForNotificationType,
 } from "@/lib/notifications/notification-sounds";
 
-const EMPTY_BADGES: BadgeCounts = { chat: 0, qa: 0, hrms_leave: 0 };
+const EMPTY_BADGES: BadgeCounts = { chat: 0, qa: 0, hrms_leave: 0, hrms_attendance: 0 };
 
 export function useNotifications(enabled: boolean) {
   const token = getAccessToken() ?? "";
