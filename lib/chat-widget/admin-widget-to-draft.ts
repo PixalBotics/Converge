@@ -204,7 +204,7 @@ export function mapAdminWidgetResponseToWidgetDraft(
       defaultWidgetDraft.buttonHoverColor,
     iconColor: pickStr(colors ?? {}, ["icon"]) || defaultWidgetDraft.iconColor,
     launcherIconPreset: normalizeLauncherIconPresetFromApi(
-      pickStr(launcher ?? ui ?? {}, ["iconPreset", "launcherIconPreset"]),
+      pickStr(ui ?? {}, ["launcherIconPreset"]),
     ),
     headerTitleAlign: normalizeHeaderAlign(headerAlignRaw),
     headerTitle:

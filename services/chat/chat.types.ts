@@ -49,13 +49,29 @@ export interface VisitorCreateConversationPayload {
   topic?: string;
 }
 
+/** Message row nested in POST /chat/widget/conversations (visitor or AI). */
+export interface WidgetConversationMessageDto {
+  id?: string;
+  conversationId?: string;
+  content?: string;
+  senderType?: string;
+  messageType?: string;
+  createdAt?: string;
+}
+
 /** POST /chat/widget/conversations — response */
 export interface VisitorCreateConversationResponse {
   conversationId: string;
   visitorId: string;
-  status: "assigned" | "waiting" | string;
+  status: "assigned" | "waiting" | "active" | string;
   assignedAgentId: string | null;
   assignedRank: "Primary" | "Secondary" | "Backup" | null;
+  /** Present when the server already generated an AI reply on create (HYBRID / AI_ONLY). */
+  aiMessage?: WidgetConversationMessageDto | null;
+  firstVisitorMessage?: WidgetConversationMessageDto | null;
+  chatMode?: string;
+  handoverRequested?: boolean;
+  queuedForAgent?: boolean;
 }
 
 /** POST .../widget/conversations/:id/messages */
