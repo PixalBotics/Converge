@@ -75,6 +75,7 @@ import { EmbedWidgetTheme } from "@/components/embed/EmbedWidgetTheme";
 import {
   getWidgetRuntimeConfig,
   postWidgetSession,
+  postAiVisitorRespond,
 } from "@/lib/widget-runtime/widget-public-fetch";
 import type { WidgetConfigEnvelope } from "@/lib/widget-runtime/widget-types";
 import { postWidgetRequestHuman } from "@/services/chat/widget-visitor.api";
@@ -881,6 +882,9 @@ function WidgetChatPanel({
       const k = m.id ?? `${m.role}-${m.createdAt}-${m.content}`;
       map.set(k, m);
     };
+    const localAiContents = new Set(
+      localAiMessages.map((m) => m.content?.trim()).filter(Boolean),
+    );
     const apiBootstrap = prechatApiFirstMessageRef.current;
     for (const m of chat.messages) {
       if (
@@ -892,6 +896,13 @@ function WidgetChatPanel({
       if (
         awaitingFirstUserQuestion &&
         (m.role === "agent" || m.role === "system")
+      ) {
+        continue;
+      }
+      if (
+        (m.role === "system" || m.role === "agent") &&
+        m.content &&
+        localAiContents.has(m.content.trim())
       ) {
         continue;
       }
@@ -1038,6 +1049,32 @@ function WidgetChatPanel({
       aiPendingSinceRef.current = Date.now();
     }
     await chat.sendMessage(text);
+
+    if (shouldUseAiBridge) {
+      const originHost =
+        typeof window !== "undefined" ? window.location.hostname : "localhost";
+      try {
+        const aiRes = await postAiVisitorRespond(
+          {
+            message: text,
+            widgetKey,
+            originHost,
+            websiteId,
+            conversationId: chat.conversationId,
+            currentPageUrl: parentPageUrl,
+          },
+          sessionToken,
+        );
+        if (aiRes.ok && aiRes.data.response) {
+          appendAiAssistant(chat.conversationId, aiRes.data.response);
+        }
+      } catch {
+        /* AI reply failed — visitor can retry or escalate */
+      } finally {
+        setAiPending(false);
+        aiPendingSinceRef.current = null;
+      }
+    }
   };
 
   const runHumanHandover = async () => {

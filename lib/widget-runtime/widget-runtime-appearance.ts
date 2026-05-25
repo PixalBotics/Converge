@@ -397,12 +397,15 @@ export function extractRuntimeChatAppearance(
       enabled:
         chatBox?.bannerEnabled === true ||
         ui?.bannerOn === true ||
+        ui?.bannerEnabled === true ||
+        configRecord.bannerOn === true ||
         chatBox?.bannerEnabled === "true" ||
-        ui?.bannerOn === "true",
-      title: strFirst(chatBox?.bannerTitle, ui?.bannerTitle),
-      description: strFirst(chatBox?.bannerDescription, ui?.bannerDescription),
-      imageUrl: strFirst(chatBox?.bannerImageUrl, ui?.bannerImageUrl),
-      mediaType: strFirst(chatBox?.bannerMediaType, ui?.bannerMediaType, "image"),
+        ui?.bannerOn === "true" ||
+        configRecord.bannerOn === "true",
+      title: strFirst(chatBox?.bannerTitle, ui?.bannerTitle, configRecord.bannerTitle),
+      description: strFirst(chatBox?.bannerDescription, ui?.bannerDescription, configRecord.bannerDescription),
+      imageUrl: strFirst(chatBox?.bannerImageUrl, ui?.bannerImageUrl, configRecord.bannerImageUrl),
+      mediaType: strFirst(chatBox?.bannerMediaType, ui?.bannerMediaType, configRecord.bannerMediaType, "image"),
     },
     launcher: {
       buttonLabel: strFirst(
