@@ -11,7 +11,7 @@ const COPY: Record<
 > = {
   chatbot: {
     steps: [
-      "Pick a website and add training (sitemap, one page, or FAQs).",
+      "Pick a website and paste your site URL (or FAQs) — we scrape automatically.",
       "Each add creates a content item. The system reads it and stores searchable pieces.",
       "When a visitor chats on the widget, the bot answers from those pieces for that website only.",
     ],

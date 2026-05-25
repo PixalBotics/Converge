@@ -57,3 +57,33 @@ export function sessionShowPocDeptDesignationPickFromList(
   if (sessionUserType === undefined) return true;
   return sessionUserType !== "Internal";
 }
+
+/**
+ * Narrow client-root scope: reseller internal staff or external user without portfolio-wide access.
+ * Matches backend `isNarrowResellerChannel`.
+ */
+export function sessionIsNarrowClientRootScope(
+  isPlatformAdmin: boolean,
+  user:
+    | {
+        userType?: AuthUserType;
+        wideResellerScope?: boolean;
+        resellerId?: string;
+      }
+    | null
+    | undefined,
+): boolean {
+  if (isPlatformAdmin) return false;
+  const rid = user?.resellerId?.trim();
+  if (!rid) return false;
+  if (user?.userType === "Internal") return true;
+  if (user?.userType === "External" && user.wideResellerScope !== true) return true;
+  return false;
+}
+
+export function resolveSessionParentCompanyId(
+  userParentCompanyId?: string | null,
+  jwtParentCompanyId?: string | null,
+): string {
+  return userParentCompanyId?.trim() || jwtParentCompanyId?.trim() || "";
+}

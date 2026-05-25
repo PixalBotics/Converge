@@ -19,6 +19,7 @@ export type ServiceSchedulingTopic = {
   externalPoolId: string | null;
 };
 
+/** Service hours / operating mode only (GET service-scheduling). */
 export type ServiceSchedulingBundle = {
   websiteId: string;
   parentCompanyId: string;
@@ -29,8 +30,16 @@ export type ServiceSchedulingBundle = {
   gapPolicy: string;
   internalWindows: ServiceScheduleWindow[];
   externalWindows: ServiceScheduleWindow[];
-  topics: ServiceSchedulingTopic[];
+  /** Legacy field — always empty on service-scheduling; use VisitorTopicsBundle. */
+  topics?: ServiceSchedulingTopic[];
   defaultDepartmentId: string | null;
+};
+
+/** Visitor inquire topics only (GET/PUT visitor-topics). */
+export type VisitorTopicsBundle = {
+  websiteId: string;
+  parentCompanyId: string;
+  topics: ServiceSchedulingTopic[];
 };
 
 export type ServiceSchedulingTopicInput = {
@@ -62,6 +71,9 @@ export type UpsertServiceSchedulingBody = {
     endTime: string;
     crossesMidnight?: boolean;
   }>;
-  topics: ServiceSchedulingTopicInput[];
   defaultDepartmentId?: string | null;
+};
+
+export type UpsertVisitorTopicsBody = {
+  topics: ServiceSchedulingTopicInput[];
 };

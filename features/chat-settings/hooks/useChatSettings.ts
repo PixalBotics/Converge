@@ -54,7 +54,7 @@ export function useClosePolicyListQuery(query: ListClosePoliciesQuery, enabled =
 
 export type DepartmentCatalogQueryParams = {
   parentCompanyId: string;
-  /** Scopes external departments to this client; internal departments are reseller-wide (not parent-scoped). */
+  /** Scopes external departments to this client. Internal list uses actor/reseller scope from the API — do not pass resellerId. */
   resellerId?: string;
 };
 
@@ -74,7 +74,6 @@ export function useDepartmentCatalogQuery(
         type: "Internal",
         ...LIST_ALL_QUERY,
       };
-      if (resellerId) internalParams.resellerId = resellerId;
 
       const externalParams: Record<string, unknown> = {
         type: "External",

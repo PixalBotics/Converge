@@ -6,8 +6,7 @@ import Alert from "@mui/material/Alert";
 import Skeleton from "@mui/material/Skeleton";
 import { FormModal } from "@/components/common";
 import { extractApiErrorMessageForToast, publishAppToast } from "@/lib/notify";
-import { useAuth } from "@/lib/auth";
-import { OP } from "@/lib/permissions/operational-keys";
+import { useSmtpEmailAccess } from "../hooks/useSmtpEmailAccess";
 import { ConfigurationResellerSelect } from "./configuration/ConfigurationResellerSelect";
 import { MailConnectionForm } from "./MailConnectionForm";
 import { EmailConnectionTestModal } from "./EmailConnectionTestModal";
@@ -43,9 +42,7 @@ export function ResellerOwnMailModal({
   onClose: () => void;
   onSaved?: () => void;
 }) {
-  const { hasOperational } = useAuth();
-  const canUpdate = hasOperational(OP.smtpEmail.update);
-  const canDelete = hasOperational(OP.smtpEmail.delete);
+  const { canUpdate, canDelete, canTest } = useSmtpEmailAccess();
 
   const [resellerId, setResellerId] = useState(initialResellerId);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
@@ -189,7 +186,7 @@ export function ResellerOwnMailModal({
         title="Test reseller mail"
         description="Configuration saved. Send a test email to confirm this reseller’s mail is working."
         testing={testMutation.isPending}
-        disabled={!hasOperational(OP.smtpEmail.test) || !activeId}
+        disabled={!canTest || !activeId}
         lastTestStatus={settings?.lastTestStatus}
         lastTestedAt={settings?.lastTestedAt}
         lastTestMessage={settings?.lastTestMessage}

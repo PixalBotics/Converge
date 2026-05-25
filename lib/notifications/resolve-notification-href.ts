@@ -38,6 +38,19 @@ export function normalizeNotificationHref(href: string | null | undefined): stri
 
   if (path.startsWith("dashboard/")) path = `/${path}`;
   if (!path.startsWith("/")) return null;
+
+  if (
+    path.startsWith("/hrms/scheduling") ||
+    path.startsWith("/dashboard/hrms/scheduling")
+  ) {
+    const url = new URL(path.split("#")[0] || path, "http://local");
+    const userId = url.searchParams.get("userId")?.trim();
+    if (userId) {
+      return `/dashboard/shifts/user-shift?userId=${encodeURIComponent(userId)}`;
+    }
+    return "/dashboard/shifts/user-shift";
+  }
+
   return path;
 }
 

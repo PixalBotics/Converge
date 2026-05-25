@@ -32,7 +32,9 @@ import {
 } from "@/features/website-assignments/styles/website-assignment-ui.styles";
 import {
   useSaveServiceSchedulingMutation,
+  useSaveVisitorTopicsMutation,
   useServiceSchedulingQuery,
+  useVisitorTopicsQuery,
 } from "../hooks/useServiceScheduling";
 import {
   fromTimeInputValue,
@@ -40,7 +42,8 @@ import {
   toTimeInputValue,
 } from "@/features/website-assignments/utils/schedule-time.utils";
 import {
-  buildSaveBody,
+  buildScheduleSaveBody,
+  buildVisitorTopicsSaveBody,
   bundleToDraft,
   canShowExternalSlots,
   canShowInternalSlots,
@@ -49,8 +52,10 @@ import {
   emptyTopic,
   isTwentyFourHourWindow,
   singleServiceWindow,
+  topicsBundleToDraft,
   twentyFourHourScheduleWindow,
-  validateSchedulingDraft,
+  validateScheduleDraft,
+  validateVisitorTopicsDraft,
   type ServiceSchedulingDraft,
 } from "./service-scheduling-form.utils";
 import type {
@@ -284,15 +289,29 @@ export function ServiceScheduleTab({
 }: ServiceScheduleTabProps) {
   const theme = useTheme() as AppTheme;
   const schedulingQuery = useServiceSchedulingQuery(websiteId, canView);
-  const saveMutation = useSaveServiceSchedulingMutation(websiteId);
+  const visitorTopicsQuery = useVisitorTopicsQuery(websiteId, canView);
+  const saveScheduleMutation = useSaveServiceSchedulingMutation(websiteId);
+  const saveTopicsMutation = useSaveVisitorTopicsMutation(websiteId);
 
   const [draft, setDraft] = useState<ServiceSchedulingDraft>(() => defaultSchedulingDraft());
 
   useEffect(() => {
     if (schedulingQuery.data) {
-      setDraft(bundleToDraft(schedulingQuery.data));
+      setDraft((prev) => ({
+        ...bundleToDraft(schedulingQuery.data),
+        topics: prev.topics,
+      }));
     }
   }, [schedulingQuery.data]);
+
+  useEffect(() => {
+    if (visitorTopicsQuery.data) {
+      setDraft((prev) => ({
+        ...prev,
+        topics: topicsBundleToDraft(visitorTopicsQuery.data),
+      }));
+    }
+  }, [visitorTopicsQuery.data]);
 
   const allowTwentyFourHours = draft.operatingChannels !== "both";
 
@@ -322,15 +341,15 @@ export function ServiceScheduleTab({
   );
 
 
-  const runSave = (afterSuccess?: () => void) => {
-    const err = validateSchedulingDraft(draft);
+  const runSaveSchedule = (afterSuccess?: () => void) => {
+    const err = validateScheduleDraft(draft);
     if (err) {
       publishAppToast({ message: err, variant: "error" });
       return;
     }
-    saveMutation.mutate(buildSaveBody(draft), {
+    saveScheduleMutation.mutate(buildScheduleSaveBody(draft), {
       onSuccess: () => {
-        publishAppToast({ message: "Service scheduling saved", variant: "success" });
+        publishAppToast({ message: "Service schedule saved", variant: "success" });
         afterSuccess?.();
       },
       onError: (e) =>
@@ -341,7 +360,25 @@ export function ServiceScheduleTab({
     });
   };
 
-  const handleSave = () => runSave(onSaved);
+  const runSaveTopics = () => {
+    const err = validateVisitorTopicsDraft(draft.topics);
+    if (err) {
+      publishAppToast({ message: err, variant: "error" });
+      return;
+    }
+    saveTopicsMutation.mutate(buildVisitorTopicsSaveBody(draft.topics), {
+      onSuccess: () => {
+        publishAppToast({ message: "Inquire topics saved", variant: "success" });
+      },
+      onError: (e) =>
+        publishAppToast({
+          message: extractApiErrorMessageForToast(e, "Could not save inquire topics"),
+          variant: "error",
+        }),
+    });
+  };
+
+  const handleSave = () => runSaveSchedule(onSaved);
 
   if (!canView) {
     return (
@@ -351,7 +388,7 @@ export function ServiceScheduleTab({
     );
   }
 
-  if (schedulingQuery.isLoading) {
+  if (schedulingQuery.isLoading || visitorTopicsQuery.isLoading) {
     return (
       <Typography sx={{ color: theme.app.dashboard.textMuted, py: 2 }}>
         Loading service scheduling…
@@ -359,7 +396,7 @@ export function ServiceScheduleTab({
     );
   }
 
-  if (schedulingQuery.isError) {
+  if (schedulingQuery.isError || visitorTopicsQuery.isError) {
     return (
       <Typography sx={{ color: theme.palette.error.light }}>
         Could not load service scheduling. Refresh and try again.
@@ -377,7 +414,7 @@ export function ServiceScheduleTab({
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 0, maxWidth: 1040 }}>
       <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, lineHeight: 1.55, mb: 2 }}>
-        Set operating mode, service hours (or 24 hours), timezone, and visitor topics — then save.
+        Set operating mode and service hours, then save schedule. Inquire topics use a separate API — save them in step 3.
       </Typography>
 
       <SchedulingStepBar activeStep={activeStep} />
@@ -558,16 +595,30 @@ export function ServiceScheduleTab({
           }
           minRows={1}
         />
+        {canEdit ? (
+          <Box sx={{ mt: 2, display: "flex", justifyContent: "flex-end" }}>
+            <Button
+              type="button"
+              variant="primary"
+              sx={gradientPrimaryButtonSx}
+              startIcon={<Save sx={{ fontSize: 18 }} />}
+              disabled={saveTopicsMutation.isPending}
+              onClick={runSaveTopics}
+            >
+              {saveTopicsMutation.isPending ? "Saving…" : "Save inquire topics"}
+            </Button>
+          </Box>
+        ) : null}
       </SchedulingSectionCard>
 
       {canEdit ? (
         <Box sx={scheduleFormActionBarSx}>
           <Box sx={{ minWidth: 0 }}>
             <Typography variant="body2" fontWeight={700} sx={{ color: theme.app.text.primary, mb: 0.35 }}>
-              Save changes
+              Save schedule
             </Typography>
             <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, lineHeight: 1.5 }}>
-              Applies operating mode, hours, and visitor topics for this website.
+              Operating mode and service hours only (not inquire topics).
             </Typography>
           </Box>
           <Button
@@ -575,10 +626,10 @@ export function ServiceScheduleTab({
             variant="primary"
             sx={gradientPrimaryButtonSx}
             startIcon={<Save sx={{ fontSize: 18 }} />}
-            disabled={saveMutation.isPending}
+            disabled={saveScheduleMutation.isPending}
             onClick={handleSave}
           >
-            {saveMutation.isPending ? "Saving…" : "Save schedule"}
+            {saveScheduleMutation.isPending ? "Saving…" : "Save schedule"}
           </Button>
         </Box>
       ) : null}

@@ -30,7 +30,12 @@ import {
   useSendPlatformLicenseKeyMutation,
 } from "@/lib/hooks";
 import { extractApiErrorMessageForToast, publishAppToast } from "@/lib/notify";
-import { useAuth } from "@/lib/auth";
+import {
+  resolveSessionParentCompanyId,
+  sessionIsNarrowClientRootScope,
+  useAuth,
+  useResellerListScope,
+} from "@/lib/auth";
 import { OP } from "@/lib/permissions";
 import { extractParentCompaniesFromByResellerTree } from "@/app/dashboard/user-page/components/add-user-modal.utils";
 import { useCompaniesByResellerQuery } from "@/lib/hooks";
@@ -58,8 +63,23 @@ const DEFAULT_PAGE_LIMIT = 20;
 
 export default function LicenseGeneratePage() {
   const theme = useTheme() as AppTheme;
-  const { hasOperational } = useAuth();
-  const canSendLicense = hasOperational(OP.license.send);
+  const { hasOperational, isPlatformAdmin, user } = useAuth();
+  const { canFilterByResellerId, sessionResellerId } = useResellerListScope();
+  const isNarrowClientScope = useMemo(
+    () => sessionIsNarrowClientRootScope(isPlatformAdmin, user),
+    [isPlatformAdmin, user],
+  );
+  const sessionParentCompanyId = useMemo(
+    () => resolveSessionParentCompanyId(user?.parentCompanyId),
+    [user?.parentCompanyId],
+  );
+  const canSendLicense =
+    hasOperational(OP.license.send) || hasOperational(OP.license.admin);
+  const canGenerateLicense =
+    hasOperational(OP.license.generate) || hasOperational(OP.license.admin);
+  const showResellerColumn = canFilterByResellerId;
+  const showResellerFilter = canFilterByResellerId;
+  const showParentCompanyFilter = canFilterByResellerId && !isNarrowClientScope;
   const sendLicenseMutation = useSendPlatformLicenseKeyMutation();
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
@@ -73,11 +93,14 @@ export default function LicenseGeneratePage() {
   const [filterParentCompanyId, setFilterParentCompanyId] = useState("");
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
 
-  const resellersQuery = useCompaniesSetupResellersQuery({ enabled: true });
+  const resellersQuery = useCompaniesSetupResellersQuery({ enabled: showResellerFilter });
+  const effectiveResellerId = showResellerFilter
+    ? filterResellerId.trim()
+    : sessionResellerId.trim();
   const companiesByResellerQuery = useCompaniesByResellerQuery(
-    filterResellerId,
+    effectiveResellerId,
     { view: "tree", sortBy: "name", sortOrder: "asc", all: true },
-    { enabled: filterResellerId.trim().length > 0 },
+    { enabled: showParentCompanyFilter && effectiveResellerId.length > 0 },
   );
   const resellerOptions = useMemo(() => {
     return pickItemsArray(resellersQuery.data)
@@ -91,7 +114,7 @@ export default function LicenseGeneratePage() {
   }, [resellerOptions, resellersQuery.isLoading]);
 
   const parentCompanyFilterOptions = useMemo(() => {
-    if (!filterResellerId.trim()) return [{ value: "", label: "All parent companies" }];
+    if (!effectiveResellerId) return [{ value: "", label: "All parent companies" }];
     const extracted = extractParentCompaniesFromByResellerTree(companiesByResellerQuery.data).map((o) => ({
       value: o.value,
       label: o.label,
@@ -103,7 +126,11 @@ export default function LicenseGeneratePage() {
         label: companiesByResellerQuery.isLoading ? "Loading parent companies…" : "No parent companies available",
       },
     ];
-  }, [filterResellerId, companiesByResellerQuery.data, companiesByResellerQuery.isLoading]);
+  }, [effectiveResellerId, companiesByResellerQuery.data, companiesByResellerQuery.isLoading]);
+
+  const effectiveParentCompanyId = isNarrowClientScope
+    ? sessionParentCompanyId
+    : filterParentCompanyId.trim();
 
   const listParams = useMemo(() => {
     const params: Record<string, string | number> = {
@@ -113,10 +140,10 @@ export default function LicenseGeneratePage() {
     };
     const q = search.trim();
     if (q) params.search = q;
-    if (filterResellerId.trim()) params.resellerId = filterResellerId.trim();
-    if (filterParentCompanyId.trim()) params.parentCompanyId = filterParentCompanyId.trim();
+    if (effectiveResellerId) params.resellerId = effectiveResellerId;
+    if (effectiveParentCompanyId) params.parentCompanyId = effectiveParentCompanyId;
     return params;
-  }, [mode, page, search, filterResellerId, filterParentCompanyId]);
+  }, [mode, page, search, effectiveResellerId, effectiveParentCompanyId]);
 
   const licenseKeysQuery = usePlatformLicenseKeysQuery(listParams, { scope: "license-generate-page" });
 
@@ -141,13 +168,18 @@ export default function LicenseGeneratePage() {
   }, [searchInput, search]);
 
   useEffect(() => {
-    setPage(1);
-  }, [search, filterResellerId, filterParentCompanyId, mode]);
+    if (showResellerFilter || !sessionResellerId.trim()) return;
+    setFilterResellerId(sessionResellerId);
+  }, [showResellerFilter, sessionResellerId]);
 
   useEffect(() => {
-    // Changing reseller should reset parent company filter.
+    setPage(1);
+  }, [search, effectiveResellerId, effectiveParentCompanyId, mode]);
+
+  useEffect(() => {
+    if (!showParentCompanyFilter) return;
     setFilterParentCompanyId("");
-  }, [filterResellerId]);
+  }, [filterResellerId, showParentCompanyFilter]);
 
   useEffect(() => {
     setPage((p) => (p > pageCount ? pageCount : p));
@@ -262,11 +294,13 @@ export default function LicenseGeneratePage() {
         ),
       },
       { id: "parentCompany", label: "Parent Company" },
-      { id: "reseller", label: "Reseller", cellVariant: "muted" },
+      ...(showResellerColumn
+        ? [{ id: "reseller", label: "Reseller", cellVariant: "muted" as const }]
+        : []),
       { id: "licenseKey", label: "License Key" },
       { id: "createdAt", label: "Created", cellVariant: "muted" },
     ],
-    [allSelected, someSelected, toggleAll, toggleRow, selected]
+    [allSelected, someSelected, toggleAll, toggleRow, selected, showResellerColumn]
   );
 
   return (
@@ -298,6 +332,7 @@ export default function LicenseGeneratePage() {
             variant="primary"
             sx={gradientPrimaryButtonSx}
             startIcon={<AutoAwesome sx={{ fontSize: 18 }} />}
+            disabled={!canGenerateLicense}
             onClick={() => setGenerateModalOpen(true)}
           >
             Generate License
@@ -311,6 +346,10 @@ export default function LicenseGeneratePage() {
         onGenerated={() => {
           void licenseKeysQuery.refetch();
         }}
+        lockedResellerId={showResellerFilter ? undefined : sessionResellerId}
+        lockedParentCompanyId={isNarrowClientScope ? sessionParentCompanyId : undefined}
+        hideResellerPicker={!showResellerFilter}
+        hideParentCompanyPicker={isNarrowClientScope}
       />
 
       <SendLicenseConfirmModal
@@ -354,7 +393,11 @@ export default function LicenseGeneratePage() {
             <ToolbarFilterPopover
               open={filterPopoverOpen}
               onOpenChange={setFilterPopoverOpen}
-              active={Boolean(mode !== "issued" || filterResellerId.trim() || filterParentCompanyId.trim())}
+              active={Boolean(
+                mode !== "issued" ||
+                  (showResellerFilter && filterResellerId.trim()) ||
+                  (showParentCompanyFilter && filterParentCompanyId.trim()),
+              )}
             >
               <ToolbarFilterPopoverPanel
                 footer={
@@ -364,7 +407,7 @@ export default function LicenseGeneratePage() {
                       variant="secondary"
                       onClick={() => {
                         setMode("issued");
-                        setFilterResellerId("");
+                        setFilterResellerId(showResellerFilter ? "" : sessionResellerId);
                         setFilterParentCompanyId("");
                         setSearchInput("");
                         setSearch("");
@@ -389,24 +432,28 @@ export default function LicenseGeneratePage() {
                       { value: "missing", label: "Missing" },
                     ]}
                   />
-                  <SelectField
-                    label="Client Of (Reseller)"
-                    value={filterResellerId}
-                    onChange={(v) => {
-                      setFilterResellerId(v);
-                      setFilterParentCompanyId("");
-                    }}
-                    options={resellerFilterOptions}
-                    menuMaxRows={6}
-                  />
-                  <SelectField
-                    label="Parent Company"
-                    value={filterParentCompanyId}
-                    onChange={setFilterParentCompanyId}
-                    options={parentCompanyFilterOptions}
-                    menuMaxRows={7}
-                    disabled={!filterResellerId.trim()}
-                  />
+                  {showResellerFilter ? (
+                    <SelectField
+                      label="Client Of (Reseller)"
+                      value={filterResellerId}
+                      onChange={(v) => {
+                        setFilterResellerId(v);
+                        setFilterParentCompanyId("");
+                      }}
+                      options={resellerFilterOptions}
+                      menuMaxRows={6}
+                    />
+                  ) : null}
+                  {showParentCompanyFilter ? (
+                    <SelectField
+                      label="Parent Company"
+                      value={filterParentCompanyId}
+                      onChange={setFilterParentCompanyId}
+                      options={parentCompanyFilterOptions}
+                      menuMaxRows={7}
+                      disabled={!effectiveResellerId}
+                    />
+                  ) : null}
                 </Box>
               </ToolbarFilterPopoverPanel>
             </ToolbarFilterPopover>

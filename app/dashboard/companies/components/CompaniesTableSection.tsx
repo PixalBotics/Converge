@@ -49,6 +49,8 @@ type Props = {
   canViewCompanyDetail?: boolean;
   canViewCompanyList?: boolean;
   canUpdateCompany?: boolean;
+  /** When set, Edit is only offered for this client-root parent row. */
+  scopedParentCompanyId?: string;
 };
 
 export function CompaniesTableSection({
@@ -67,7 +69,9 @@ export function CompaniesTableSection({
   canViewCompanyDetail = true,
   canViewCompanyList = true,
   canUpdateCompany = true,
+  scopedParentCompanyId,
 }: Props) {
+  const scopedParentId = scopedParentCompanyId?.trim() ?? "";
   const [childListOpen, setChildListOpen] = useState(false);
   const [childListParentName, setChildListParentName] = useState("");
   const [childListResellerName, setChildListResellerName] = useState("");
@@ -230,10 +234,14 @@ export function CompaniesTableSection({
                   : row.parentCompanyId.trim().length > 0
                     ? `/dashboard/companies/parent/${encodeURIComponent(row.parentCompanyId.trim())}/detail`
                     : "";
-              const editHref =
-                row.parentCompanyId.trim().length > 0
-                  ? `/dashboard/companies/${encodeURIComponent(row.parentCompanyId.trim())}/edit?step=1`
-                  : "";
+              const rowParentId = row.parentCompanyId.trim();
+              const mayEditThisRow =
+                canUpdateCompany &&
+                rowParentId.length > 0 &&
+                (!scopedParentId || rowParentId === scopedParentId);
+              const editHref = mayEditThisRow
+                ? `/dashboard/companies/${encodeURIComponent(rowParentId)}/edit?step=1`
+                : "";
 
               return (
                 <Box
@@ -267,7 +275,7 @@ export function CompaniesTableSection({
                         List
                       </Button>
                     ) : null
-                  ) : editHref && canUpdateCompany ? (
+                  ) : editHref ? (
                     <Button
                       component={Link}
                       href={editHref}

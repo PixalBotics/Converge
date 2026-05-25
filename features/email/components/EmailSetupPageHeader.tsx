@@ -3,7 +3,7 @@
 import Box from "@mui/material/Box";
 import { Typography } from "@/components/common";
 import { useAuth } from "@/lib/auth";
-import { OP } from "@/lib/permissions/operational-keys";
+import { useSmtpEmailAccess } from "../hooks/useSmtpEmailAccess";
 import { EMAIL_ROUTES, EMAIL_SETUP_LABEL } from "../email.constants";
 import { buildEmailTabHref } from "../email-reseller-storage";
 import { useEmailResellerScope } from "../context/EmailResellerScopeContext";
@@ -17,11 +17,12 @@ const SETUP_TABS = [
 ] as const;
 
 export function EmailSetupPageHeader() {
-  const { hasOperational, user } = useAuth();
+  const { user } = useAuth();
+  const { canView } = useSmtpEmailAccess();
   const { resellerId } = useEmailResellerScope();
   const isInternal = user?.userType === "Internal";
 
-  if (!hasOperational(OP.smtpEmail.view)) return null;
+  if (!canView) return null;
 
   const tabs = SETUP_TABS.filter((t) => !t.internalOnly || isInternal).map((t) => ({
     href: buildEmailTabHref(t.href, resellerId),

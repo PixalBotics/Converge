@@ -63,7 +63,13 @@ import {
   childRemoveIconButton,
 } from "../overview.styles";
 import { CompanySetupChildPocsList } from "./CompanySetupChildPocsList";
-import { useAuth, sessionMayPickInternalUserScope } from "@/lib/auth";
+import {
+  useAuth,
+  resolveSessionParentCompanyId,
+  resolveSessionResellerId,
+  sessionIsNarrowClientRootScope,
+  sessionMayPickInternalUserScope,
+} from "@/lib/auth";
 import { canCompaniesModuleAction } from "@/lib/permissions";
 
 export type CompanySetupWizardCloseReason = "completed" | "dismissed";
@@ -84,6 +90,10 @@ export function CompanySetupWizardModal({ open, draftId, onClose }: CompanySetup
     canCompaniesModuleAction(hasPage, hasOperational, "update");
   const canSubmitWizard = canCompaniesModuleAction(hasPage, hasOperational, "create");
   const canCreateNewReseller = sessionMayPickInternalUserScope(isPlatformAdmin, authUser?.userType);
+  const isNarrowClientScope = sessionIsNarrowClientRootScope(isPlatformAdmin, authUser);
+  const sessionParentCompanyId = resolveSessionParentCompanyId(authUser?.parentCompanyId);
+  const sessionResellerId = resolveSessionResellerId(authUser?.resellerId);
+  const [lockedParentCompanyId, setLockedParentCompanyId] = useState("");
   const [modalStep, setModalStep] = useState<1 | 2>(1);
   /** Default: new reseller — no dropdown until user picks “under existing reseller”. */
   const [setupKind, setSetupKind] = useState<SetupKind>("new_reseller");
@@ -245,6 +255,7 @@ export function CompanySetupWizardModal({ open, draftId, onClose }: CompanySetup
       setModalStep(1);
       setSetupKind("new_reseller");
       setResellerId("");
+      setLockedParentCompanyId("");
       setParentCompanyName("");
       setParentEmail("");
       setParentPhone("");
@@ -260,6 +271,17 @@ export function CompanySetupWizardModal({ open, draftId, onClose }: CompanySetup
       setSetupKind("existing_reseller");
     }
   }, [open, canCreateNewReseller, setupKind]);
+
+  useEffect(() => {
+    if (!open) return;
+    if (!isNarrowClientScope) {
+      setLockedParentCompanyId("");
+      return;
+    }
+    setSetupKind("existing_reseller");
+    if (sessionResellerId) setResellerId(sessionResellerId);
+    if (sessionParentCompanyId) setLockedParentCompanyId(sessionParentCompanyId);
+  }, [open, isNarrowClientScope, sessionResellerId, sessionParentCompanyId]);
 
   /** Hydrate form from GET `/companies/setup/draft/{id}` once per open for this draft id. */
   useEffect(() => {
@@ -351,8 +373,10 @@ export function CompanySetupWizardModal({ open, draftId, onClose }: CompanySetup
   );
 
   const isStepOneComplete =
-    parentCompanyName.trim().length > 0 &&
-    (setupKind === "new_reseller" || resellerId.trim().length > 0);
+    lockedParentCompanyId.trim().length > 0
+      ? resellerId.trim().length > 0 || sessionResellerId.length > 0
+      : parentCompanyName.trim().length > 0 &&
+        (setupKind === "new_reseller" || resellerId.trim().length > 0);
 
   const isStepTwoComplete = useMemo(() => {
     const rows = draftChildRows.filter((r) => r.name.trim().length > 0);
@@ -414,8 +438,14 @@ export function CompanySetupWizardModal({ open, draftId, onClose }: CompanySetup
                   }
                 : {
                     kind: "existing_reseller",
-                    resellerId,
-                    parent: parentPayload,
+                    resellerId: resellerId.trim() || sessionResellerId,
+                    parentCompanyId: lockedParentCompanyId.trim() || undefined,
+                    parent: lockedParentCompanyId.trim()
+                      ? {
+                          ...parentPayload,
+                          name: parentPayload.name.trim() || "—",
+                        }
+                      : parentPayload,
                   },
             ),
           });
@@ -547,10 +577,18 @@ export function CompanySetupWizardModal({ open, draftId, onClose }: CompanySetup
     <FormModal
       open={open}
       fieldsScrollRef={wizardFieldsScrollRef}
-      title={modalStep === 1 ? "Reseller / Parent Company" : "Add Child Companies"}
+      title={
+        modalStep === 1
+          ? isNarrowClientScope
+            ? "Add Child Companies"
+            : "Reseller / Parent Company"
+          : "Add Child Companies"
+      }
       description={
         modalStep === 1
-          ? "Choose how this company sits in the hierarchy. Nothing is saved until you click Continue with a complete parent company name."
+          ? isNarrowClientScope
+            ? "Child companies are added under your assigned parent company. Continue to enter branch details and points of contact."
+            : "Choose how this company sits in the hierarchy. Nothing is saved until you click Continue with a complete parent company name."
           : "Add each child company and up to five points of contact. Your work is saved to the draft as you type. Use Save at the end to create everything."
       }
       onClose={handleClose}
@@ -611,9 +649,17 @@ export function CompanySetupWizardModal({ open, draftId, onClose }: CompanySetup
 
       {modalStep === 1 ? (
         <>
-          <Typography variant="medium" color="white" fontWeight={600} sx={{ mb: 1 }}>
-            How should this company sit in the tree?
-          </Typography>
+          {isNarrowClientScope ? (
+            <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, mb: 2 }}>
+              You can add child companies only under your organization. A new parent company or
+              reseller cannot be created from your account.
+            </Typography>
+          ) : (
+            <Typography variant="medium" color="white" fontWeight={600} sx={{ mb: 1 }}>
+              How should this company sit in the tree?
+            </Typography>
+          )}
+          {!isNarrowClientScope ? (
           <Box
             role="radiogroup"
             aria-label="Reseller placement"
@@ -755,8 +801,9 @@ export function CompanySetupWizardModal({ open, draftId, onClose }: CompanySetup
               </Box>
             </DashboardCard>
           </Box>
+          ) : null}
 
-          {setupKind === "existing_reseller" ? (
+          {setupKind === "existing_reseller" && !lockedParentCompanyId ? (
             <Box>
               <SelectField
                 label="Reseller"
@@ -782,26 +829,30 @@ export function CompanySetupWizardModal({ open, draftId, onClose }: CompanySetup
               ) : null}
             </Box>
           ) : null}
-          <InputField
-            label="Parent company name"
-            placeholder="Type the parent company name"
-            value={parentCompanyName}
-            scrollAnchorPath="resellerParentDraft.parent.name"
-            error={!!getCompanySetupFieldError(apiFieldErrors, "resellerParentDraft.parent.name")}
-            helperText={
-              getCompanySetupFieldError(apiFieldErrors, "resellerParentDraft.parent.name") ||
-              undefined
-            }
-            onChange={(event) => {
-              clearResellerParentFieldErrors();
-              setParentCompanyName(event.target.value);
-            }}
-          />
+          {!lockedParentCompanyId ? (
+            <InputField
+              label="Parent company name"
+              placeholder="Type the parent company name"
+              value={parentCompanyName}
+              scrollAnchorPath="resellerParentDraft.parent.name"
+              error={!!getCompanySetupFieldError(apiFieldErrors, "resellerParentDraft.parent.name")}
+              helperText={
+                getCompanySetupFieldError(apiFieldErrors, "resellerParentDraft.parent.name") ||
+                undefined
+              }
+              onChange={(event) => {
+                clearResellerParentFieldErrors();
+                setParentCompanyName(event.target.value);
+              }}
+            />
+          ) : null}
           {!isStepOneComplete && (
             <Typography variant="body2" sx={stepOneIncompleteHint}>
-              {setupKind === "new_reseller"
-                ? "Enter the parent company name to continue."
-                : "Pick a reseller from the list and enter the parent company name."}
+              {lockedParentCompanyId
+                ? "Your session is missing reseller context. Contact an administrator."
+                : setupKind === "new_reseller"
+                  ? "Enter the parent company name to continue."
+                  : "Pick a reseller from the list and enter the parent company name."}
             </Typography>
           )}
         </>

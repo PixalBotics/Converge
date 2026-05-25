@@ -485,8 +485,9 @@ export const DASHBOARD_NAV_ITEMS: readonly DashboardNavItem[] = PAGE_PERMISSION_
     if (!first || permission !== first) return [];
     return [COMMERCIAL_ACCOUNT_GROUP];
   }
-  if (permission === "page:smtp-email") return [EMAIL_GROUP];
-  if (permission === "page:email-template") return [];
+  if (permission === "page:smtp-email" || permission === "page:email-template") {
+    return [EMAIL_GROUP];
+  }
   if (permission === "page:settings" || permission === "page:observability:logs") {
     return permission === "page:settings" ? [SETTINGS_GROUP] : [];
   }

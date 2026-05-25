@@ -19,13 +19,21 @@ import { CompanySetupDraftsModal } from "./components/CompanySetupDraftsModal";
 import { buildCompaniesTableRows } from "./utils";
 import { pageWrapper, pageHeaderRow } from "./overview.styles";
 import { departmentsAddButton } from "../website-assigning/website-assigning.styles";
-import { useAuth } from "@/lib/auth";
+import {
+  resolveSessionParentCompanyId,
+  sessionIsNarrowClientRootScope,
+  useAuth,
+} from "@/lib/auth";
 import { canCompaniesModuleAction } from "@/lib/permissions";
 
 export default function CompaniesPage() {
   const theme = useTheme() as AppTheme;
-  const { hasPage, hasOperational } = useAuth();
+  const { isPlatformAdmin, user: authUser, hasPage, hasOperational } = useAuth();
+  const isNarrowClientScope = sessionIsNarrowClientRootScope(isPlatformAdmin, authUser);
+  const sessionParentCompanyId = resolveSessionParentCompanyId(authUser?.parentCompanyId);
   const canCreateCompany = canCompaniesModuleAction(hasPage, hasOperational, "create");
+  const canRunCompanySetup =
+    canCreateCompany && (!isNarrowClientScope || Boolean(sessionParentCompanyId));
   const canUpdateCompany = canCompaniesModuleAction(hasPage, hasOperational, "update");
   const canViewCompanyDetail = canCompaniesModuleAction(hasPage, hasOperational, "detail");
   const canViewCompanyList = canCompaniesModuleAction(hasPage, hasOperational, "list");
@@ -121,7 +129,7 @@ export default function CompaniesPage() {
               </Typography>
             </Button>
           ) : null}
-          {canCreateCompany ? (
+          {canRunCompanySetup ? (
             <Button
               variant="primary"
               sx={departmentsAddButton}
@@ -130,7 +138,7 @@ export default function CompaniesPage() {
             >
               <AddCircleIcon width={16} height={16} />
               <Typography component="span" variant="medium" color="inherit">
-                Add Reseller / Company
+                {isNarrowClientScope ? "Add Child Company" : "Add Reseller / Company"}
               </Typography>
             </Button>
           ) : null}
@@ -170,6 +178,7 @@ export default function CompaniesPage() {
         canViewCompanyDetail={canViewCompanyDetail}
         canViewCompanyList={canViewCompanyList}
         canUpdateCompany={canUpdateCompany}
+        scopedParentCompanyId={isNarrowClientScope ? sessionParentCompanyId : undefined}
       />
 
       <CompanySetupDraftsModal

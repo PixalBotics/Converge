@@ -4,11 +4,12 @@ import type { CreateKnowledgeSourceResult } from "@/api/ai-knowledge/types";
 export type AiTrainingKbVariant = "assistant" | "chatbot";
 
 export const CHATBOT_SOURCE_TYPE_OPTIONS: { label: string; value: ChatbotSourceType }[] = [
+  { label: "Website URL (auto scrape)", value: "URL" },
   { label: "Visitor FAQs (paste text)", value: "FAQ" },
-  { label: "Single page", value: "URL" },
-  { label: "Crawl website", value: "WEB_CRAWL" },
-  { label: "Sitemap import", value: "SITEMAP" },
 ];
+
+export const CHATBOT_WEBSITE_URL_HELPER =
+  "Paste your homepage or any page on your registered domain. We find sitemap.xml automatically (robots.txt), scrape your site, and index it — no sitemap link needed.";
 
 export const FAQ_PASTE_EXAMPLE_CHATBOT = `What is your return policy?
 Returns accepted within 14 days with receipt.
@@ -22,7 +23,11 @@ A: Open CRM → Users → Reset password, then confirm by email.
 What is the escalation path for billing disputes?
 Route to Billing L2 via the #billing-escalations channel.`;
 
-export const KB_WEB_MAX_PAGES_HINT = 25;
+/** Shown in UI; backend default is higher (see KB_WEB_MAX_PAGES). */
+export const KB_WEB_MAX_PAGES_HINT = 500;
+
+export const KB_BACKGROUND_TRAINING_STARTED_MESSAGE =
+  "Site training started in the background. This page will update automatically — large sites may take several minutes. When status is Indexed, the AI can answer from that content.";
 
 export const ASSISTANT_SOURCE_TYPE_OPTIONS: { label: string; value: AssistantSourceType }[] = [
   { label: "FAQ / policy text", value: "FAQ" },
@@ -65,6 +70,9 @@ export function isWebSourceType(sourceType: string): boolean {
 }
 
 export function sourceTypeHumanLabel(sourceType: string): string {
+  if (sourceType === "SITEMAP" || sourceType === "WEB_CRAWL") {
+    return "Website URL (auto scrape)";
+  }
   const found =
     CHATBOT_SOURCE_TYPE_OPTIONS.find((o) => o.value === sourceType) ??
     ASSISTANT_SOURCE_TYPE_OPTIONS.find((o) => o.value === sourceType);
@@ -92,7 +100,7 @@ export function sourceCategoriesForVariant(
       {
         id: "website",
         label: "Website scraping",
-        description: "Import pages from your registered site — one page, crawl, or sitemap.",
+        description: "Paste your website URL — we find the sitemap and scrape automatically.",
       },
       {
         id: "faq",
@@ -138,38 +146,15 @@ export function sourceMethodCardsForCategory(
   if (category === "website" && variant === "chatbot") {
     return [
       {
-        value: "SITEMAP",
-        title: "Sitemap import (recommended)",
-        summary: `Read ${host}/sitemap.xml, then scrape listed pages into the knowledge base.`,
-        bestFor: "Most of your site is already in a sitemap (typical for Shopify, WordPress, etc.).",
-        flowSteps: [
-          "You submit the sitemap URL on your registered domain.",
-          "We download the XML and collect page URLs (up to 25 pages per job).",
-          "Each page is opened, main content is extracted, and split into chunks.",
-          "Chunks are embedded and saved — the visitor chatbot can answer from them.",
-        ],
-      },
-      {
-        value: "WEB_CRAWL",
-        title: "Crawl from a start page",
-        summary: `Start at a URL on ${host} and follow internal links (same host, up to ~${KB_WEB_MAX_PAGES_HINT} pages).`,
-        bestFor: "No sitemap handy, or you only want a section (e.g. /help or /products).",
-        flowSteps: [
-          "You provide a starting URL (usually your homepage or a section root).",
-          "We fetch the page and discover same-domain links.",
-          "Up to 25 pages are visited, content extracted, and chunked.",
-          "Everything is indexed for the public widget chatbot.",
-        ],
-      },
-      {
         value: "URL",
-        title: "Single page only",
-        summary: "Import one specific page (pricing, shipping policy, etc.).",
-        bestFor: "One important page, or a quick test before a full sitemap import.",
+        title: "Website URL",
+        summary: `Paste any page on ${host} — we auto-find the sitemap and scrape your site.`,
+        bestFor: "You only need your homepage; no sitemap.xml link required.",
         flowSteps: [
-          "You paste one https URL on your registered domain.",
-          "We fetch that page and extract readable text.",
-          "Content is chunked and indexed for the chatbot.",
+          "You paste one https URL (usually your homepage).",
+          "We read robots.txt, discover sitemap.xml, and collect page URLs.",
+          `Up to ~${KB_WEB_MAX_PAGES_HINT} pages are scraped, chunked, and embedded in the background.`,
+          "When status is Indexed, the visitor chatbot can answer from that content.",
         ],
       },
     ];
@@ -288,11 +273,9 @@ export function sourceInputLabel(sourceType: string): string {
     case "SOP":
       return "Procedure text";
     case "SITEMAP":
-      return "Sitemap URL";
     case "WEB_CRAWL":
-      return "Start URL (homepage or section)";
     case "URL":
-      return "Page URL";
+      return "Website URL";
     default:
       return isFileUploadSourceType(sourceType) ? "Document URL (optional if uploading)" : "Source";
   }
@@ -310,11 +293,9 @@ export function sourceRefHelperText(
     case "SOP":
       return "Paste the full procedure (minimum 20 characters).";
     case "URL":
-      return `Must be on your registered website host. We fetch this page, extract text, and index it.`;
     case "WEB_CRAWL":
-      return `Same host only. We follow internal links and index up to ~${KB_WEB_MAX_PAGES_HINT} pages — large sites can take about a minute.`;
     case "SITEMAP":
-      return `Usually https://your-domain/sitemap.xml. We read listed URLs (up to ${KB_WEB_MAX_PAGES_HINT}) and scrape each page into the knowledge base.`;
+      return CHATBOT_WEBSITE_URL_HELPER;
     case "PDF":
       return variant === "assistant"
         ? "Public PDF URL, or upload a file below (max 100 MB)."
@@ -340,18 +321,16 @@ export function isValidOptionalMetadataJson(raw: string): boolean {
 }
 
 export function defaultSourceTypeForVariant(variant: AiTrainingKbVariant): string {
-  return variant === "chatbot" ? "SITEMAP" : "FAQ";
+  return variant === "chatbot" ? "URL" : "FAQ";
 }
 
 export function submitLabelForSourceType(sourceType: string, createBusy: boolean): string {
-  if (createBusy) return "Working…";
+  if (createBusy) return "Starting training…";
   switch (sourceType) {
     case "SITEMAP":
-      return "Import sitemap & index pages";
     case "WEB_CRAWL":
-      return "Start crawl & index";
     case "URL":
-      return "Import page & index";
+      return "Start site training";
     case "FAQ":
       return "Save FAQs & index";
     case "SOP":
@@ -408,12 +387,18 @@ export function toastMessageForCreateResult(result: CreateKnowledgeSourceResult)
       message: result.errorMessage?.trim() || "Indexing failed. Check the source list for details.",
     };
   }
+  if (result.status === "processing") {
+    return {
+      variant: "success",
+      message: KB_BACKGROUND_TRAINING_STARTED_MESSAGE,
+    };
+  }
   const chunks = result.indexedChunks ?? 0;
   return {
     variant: "success",
     message:
       result.status === "indexed"
-        ? `Source indexed successfully (${chunks} chunk${chunks === 1 ? "" : "s"}).`
+        ? `Training complete — indexed ${chunks} searchable piece${chunks === 1 ? "" : "s"}.`
         : "Source created. Indexing may still be in progress.",
   };
 }

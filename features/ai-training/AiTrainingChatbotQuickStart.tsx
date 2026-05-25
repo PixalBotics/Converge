@@ -1,7 +1,7 @@
 "use client";
 
 import AutoAwesome from "@mui/icons-material/AutoAwesome";
-import MapOutlined from "@mui/icons-material/MapOutlined";
+import LanguageOutlined from "@mui/icons-material/LanguageOutlined";
 import QuizOutlined from "@mui/icons-material/QuizOutlined";
 import Box from "@mui/material/Box";
 import Stack from "@mui/material/Stack";
@@ -9,7 +9,7 @@ import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import { Button, Typography } from "@/components/common";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
-import { KB_WEB_MAX_PAGES_HINT, suggestedSourceRef } from "./ai-training-kb.utils";
+import { suggestedSourceRef } from "./ai-training-kb.utils";
 
 export function AiTrainingChatbotQuickStart({
   websiteName,
@@ -17,7 +17,7 @@ export function AiTrainingChatbotQuickStart({
   registeredWebsiteUrl,
   disabled,
   busy,
-  onImportSitemap,
+  onTrainWebsite,
   onAddFaq,
 }: {
   websiteName: string;
@@ -25,12 +25,12 @@ export function AiTrainingChatbotQuickStart({
   registeredWebsiteUrl: string;
   disabled: boolean;
   busy: boolean;
-  onImportSitemap: () => void;
+  onTrainWebsite: () => void;
   onAddFaq: () => void;
 }) {
   const theme = useTheme() as AppTheme;
-  const sitemapUrl = registeredWebsiteUrl.trim()
-    ? suggestedSourceRef("SITEMAP", registeredWebsiteUrl)
+  const siteUrl = registeredWebsiteUrl.trim()
+    ? suggestedSourceRef("URL", registeredWebsiteUrl)
     : "";
 
   return (
@@ -52,17 +52,17 @@ export function AiTrainingChatbotQuickStart({
       <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, display: "block", mb: 2 }}>
         {registeredHost ? (
           <>
-            We will read <strong>{registeredHost}</strong>
-            {sitemapUrl ? (
+            Paste your site URL on <strong>{registeredHost}</strong>
+            {siteUrl ? (
               <>
                 {" "}
-                from <span style={{ fontFamily: "monospace" }}>{sitemapUrl}</span>
+                (e.g. <span style={{ fontFamily: "monospace" }}>{siteUrl}</span>)
               </>
             ) : null}
-            , scrape up to {KB_WEB_MAX_PAGES_HINT} pages, and index them for the visitor bot.
+            . We find the sitemap and scrape in the background — no sitemap.xml link needed.
           </>
         ) : (
-          "Add a website URL in settings before importing."
+          "Add a website URL in settings before training."
         )}
       </Typography>
 
@@ -72,10 +72,10 @@ export function AiTrainingChatbotQuickStart({
           variant="primary"
           sx={{ ...gradientPrimaryButtonSx, flex: 1 }}
           disabled={disabled || busy || !registeredHost}
-          onClick={onImportSitemap}
-          startIcon={<MapOutlined />}
+          onClick={onTrainWebsite}
+          startIcon={<LanguageOutlined />}
         >
-          {busy ? "Importing site…" : "Import entire site (sitemap)"}
+          {busy ? "Starting training…" : "Train from website URL"}
         </Button>
         <Button
           type="button"
@@ -85,7 +85,7 @@ export function AiTrainingChatbotQuickStart({
           onClick={onAddFaq}
           startIcon={<QuizOutlined />}
         >
-          Add visitor FAQs instead
+          Add visitor FAQs
         </Button>
       </Stack>
     </Box>

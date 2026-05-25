@@ -5,6 +5,8 @@ import type {
   ServiceSchedulingTopic,
   ServiceSchedulingTopicInput,
   UpsertServiceSchedulingBody,
+  UpsertVisitorTopicsBody,
+  VisitorTopicsBundle,
 } from "@/services/chat/service-scheduling.types";
 import {
   normalizeDaysOfWeek,
@@ -92,9 +94,14 @@ export function bundleToDraft(bundle: ServiceSchedulingBundle) {
         ? bundle.externalWindows.map((w) => normalizeScheduleWindow({ ...w }))
         : [emptyScheduleWindow()],
     ),
-    topics: bundle.topics.length > 0 ? bundle.topics.map((t) => ({ ...t })) : [emptyTopic(0)],
+    topics: [emptyTopic(0)],
     defaultDepartmentId: bundle.defaultDepartmentId,
   };
+}
+
+export function topicsBundleToDraft(topicsBundle: VisitorTopicsBundle | undefined) {
+  const topics = topicsBundle?.topics ?? [];
+  return topics.length > 0 ? topics.map((t) => ({ ...t })) : [emptyTopic(0)];
 }
 
 export type ServiceSchedulingDraft = ReturnType<typeof bundleToDraft>;
@@ -137,7 +144,9 @@ export function topicsForSave(topics: ServiceSchedulingTopic[]): ServiceScheduli
   }));
 }
 
-export function buildSaveBody(draft: ReturnType<typeof bundleToDraft>): UpsertServiceSchedulingBody {
+export function buildScheduleSaveBody(
+  draft: ReturnType<typeof bundleToDraft>,
+): UpsertServiceSchedulingBody {
   const internalTz = draft.internalTimezone.trim();
   const externalTz = draft.externalTimezone.trim();
   const body: UpsertServiceSchedulingBody = {
@@ -146,7 +155,6 @@ export function buildSaveBody(draft: ReturnType<typeof bundleToDraft>): UpsertSe
     internalTimezone: internalTz,
     externalTimezone: externalTz,
     gapPolicy: draft.gapPolicy,
-    topics: topicsForSave(draft.topics),
     defaultDepartmentId: draft.defaultDepartmentId?.trim() || null,
   };
   if (canShowInternalSlots(draft.operatingChannels)) {
@@ -158,7 +166,16 @@ export function buildSaveBody(draft: ReturnType<typeof bundleToDraft>): UpsertSe
   return body;
 }
 
-export function validateSchedulingDraft(
+/** @deprecated Use buildScheduleSaveBody */
+export const buildSaveBody = buildScheduleSaveBody;
+
+export function buildVisitorTopicsSaveBody(
+  topics: ServiceSchedulingTopic[],
+): UpsertVisitorTopicsBody {
+  return { topics: topicsForSave(topics) };
+}
+
+export function validateScheduleDraft(
   draft: ReturnType<typeof bundleToDraft>,
 ): string | null {
   if (canShowInternalSlots(draft.operatingChannels) && !draft.internalTimezone.trim()) {
@@ -183,11 +200,22 @@ export function validateSchedulingDraft(
       return "Select at least one weekday for each external service window.";
     }
   }
-  for (const t of draft.topics) {
+  return null;
+}
+
+export function validateVisitorTopicsDraft(topics: ServiceSchedulingTopic[]): string | null {
+  for (const t of topics) {
     if (!t.routingKey.trim()) return "Each topic needs a routing key.";
     if (!t.clientLabel.trim()) return "Each topic needs a client label.";
     if (!t.internalDepartmentId.trim()) return "Each topic needs an internal department.";
     if (!t.externalDepartmentId.trim()) return "Each topic needs an external department.";
   }
   return null;
+}
+
+/** @deprecated Use validateScheduleDraft + validateVisitorTopicsDraft */
+export function validateSchedulingDraft(
+  draft: ReturnType<typeof bundleToDraft>,
+): string | null {
+  return validateScheduleDraft(draft) ?? validateVisitorTopicsDraft(draft.topics);
 }

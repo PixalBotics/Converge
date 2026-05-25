@@ -95,10 +95,7 @@ export function WidgetInquiryOptionsEditor({
   const parentCompanyId = detail?.parentCompanyId?.trim() ?? "";
 
   const departmentsQuery = useDepartmentCatalogQuery(
-    {
-      parentCompanyId,
-      resellerId: detail?.resellerId?.trim(),
-    },
+    { parentCompanyId },
     Boolean(parentCompanyId),
   );
 
@@ -141,8 +138,7 @@ export function WidgetInquiryOptionsEditor({
           onSaved?.(saved);
           publishAppToast({
             variant: "success",
-            message:
-              "Inquiry topics saved for this website. They now appear in service scheduling.",
+            message: "Inquire topics saved for this website.",
           });
         },
         onError: (e) => {
@@ -192,13 +188,13 @@ export function WidgetInquiryOptionsEditor({
             py: 1,
           }}
         >
-          Loaded from service scheduling for this website. Edit here or in scheduling — both stay in
-          sync when you save.
+          Loaded from inquire topics for this website. Edit here or in service scheduling — both stay
+          in sync when you save.
         </Typography>
       ) : (
         <Typography variant="body2" sx={{ color: muted, mb: 1.5 }}>
-          Required for routing and agent assignment. Saved to this website (same data as service
-          scheduling → Visitor topics).
+          Required for routing and agent assignment. Saved via the visitor-topics API (separate from
+          service schedule hours).
         </Typography>
       )}
       <VisitorTopicsEditor
@@ -229,3 +225,6 @@ export function WidgetInquiryOptionsEditor({
     </>
   );
 }
+
+
+

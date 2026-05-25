@@ -1,4 +1,4 @@
-export type KnowledgeSourceStatus = "pending" | "indexed" | "failed";
+export type KnowledgeSourceStatus = "pending" | "processing" | "indexed" | "failed";
 
 export type ChatbotSourceType = "URL" | "WEB_CRAWL" | "SITEMAP" | "FAQ";
 

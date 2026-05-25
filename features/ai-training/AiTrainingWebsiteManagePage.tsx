@@ -7,6 +7,7 @@ import SmartToyOutlined from "@mui/icons-material/SmartToyOutlined";
 import Box from "@mui/material/Box";
 import Checkbox from "@mui/material/Checkbox";
 import FormControlLabel from "@mui/material/FormControlLabel";
+import Alert from "@mui/material/Alert";
 import LinearProgress from "@mui/material/LinearProgress";
 import Stack from "@mui/material/Stack";
 import { useTheme } from "@mui/material/styles";
@@ -36,6 +37,7 @@ import {
 import {
   hostFromWebsiteUrl,
   isReindexBulkResult,
+  KB_BACKGROUND_TRAINING_STARTED_MESSAGE,
   toastMessageForCreateResult,
   type AiTrainingKbVariant,
 } from "./ai-training-kb.utils";
@@ -111,11 +113,30 @@ export function AiTrainingWebsiteManagePage({ variant }: { variant: AiTrainingKb
     [websiteId, statusFilter, listOffset],
   );
 
-  const chatbotList = useAiChatbotSourcesQuery(listParams, { enabled: isChatbot && Boolean(websiteId) });
-  const assistantList = useAiAssistantKbSourcesQuery(listParams, { enabled: !isChatbot && Boolean(websiteId) });
+  const chatbotList = useAiChatbotSourcesQuery(listParams, {
+    enabled: isChatbot && Boolean(websiteId),
+    refetchInterval: (query) => {
+      const items = query.state.data?.items ?? [];
+      return items.some((i) => i.status === "processing" || i.status === "pending")
+        ? 5000
+        : false;
+    },
+  });
+  const assistantList = useAiAssistantKbSourcesQuery(listParams, {
+    enabled: !isChatbot && Boolean(websiteId),
+    refetchInterval: (query) => {
+      const items = query.state.data?.items ?? [];
+      return items.some((i) => i.status === "processing" || i.status === "pending")
+        ? 5000
+        : false;
+    },
+  });
   const sourcesQuery = isChatbot ? chatbotList : assistantList;
 
   const listItems = sourcesQuery.data?.items ?? [];
+  const hasBackgroundTraining = listItems.some(
+    (i) => i.status === "processing" || i.status === "pending",
+  );
   const listTotal = sourcesQuery.data?.total ?? 0;
   const reindexBusy = reindexChatbot.isPending || reindexAssistant.isPending;
 
@@ -221,8 +242,14 @@ export function AiTrainingWebsiteManagePage({ variant }: { variant: AiTrainingKb
         </Button>
       }
     >
-      {(reindexBusy || sourcesQuery.isFetching) && websiteId ? (
+      {(reindexBusy || sourcesQuery.isFetching || hasBackgroundTraining) && websiteId ? (
         <LinearProgress sx={{ borderRadius: 1 }} />
+      ) : null}
+
+      {hasBackgroundTraining ? (
+        <Alert severity="info" sx={{ borderRadius: 1 }}>
+          {KB_BACKGROUND_TRAINING_STARTED_MESSAGE}
+        </Alert>
       ) : null}
 
       {registeredHost ? (
@@ -237,8 +264,9 @@ export function AiTrainingWebsiteManagePage({ variant }: { variant: AiTrainingKb
           Training content items
         </Typography>
         <Typography variant="small" sx={{ color: theme.app.dashboard.textMuted, mb: 2, maxWidth: 640 }}>
-          Each item is something you added (sitemap, page, FAQ, PDF, etc.). Status{" "}
-          <strong>Indexed</strong> means the bot can use it. Click a row to preview searchable pieces.
+          Each item is something you added (sitemap, page, FAQ, PDF, etc.).{" "}
+          <strong>Training…</strong> runs in the background; <strong>Indexed</strong> means the AI can use it.
+          Click a row to preview searchable pieces.
         </Typography>
         <AiTrainingSourcesTable
           variant={variant}

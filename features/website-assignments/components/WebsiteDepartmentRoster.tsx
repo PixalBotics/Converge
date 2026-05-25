@@ -14,7 +14,7 @@ import type {
   WebsiteDepartmentRosterRow,
 } from "@/api/types/website-assignments.types";
 import type { ServiceSchedulingTopic } from "@/services/chat/service-scheduling.types";
-import { useServiceSchedulingQuery } from "@/features/chat-settings/hooks/useServiceScheduling";
+import { useVisitorTopicsQuery } from "@/features/chat-settings/hooks/useServiceScheduling";
 import { emptyStatePanelSx } from "../styles/website-assignment-ui.styles";
 import { buildVisitorTopicContexts } from "../utils/roster-topic.utils";
 import { TopicAgentRosterPanel } from "./TopicAgentRosterPanel";
@@ -86,8 +86,8 @@ export function WebsiteDepartmentRoster({
   canAssign,
 }: WebsiteDepartmentRosterProps) {
   const theme = useTheme() as AppTheme;
-  const schedulingQuery = useServiceSchedulingQuery(websiteId, true);
-  const topics = schedulingQuery.data?.topics ?? [];
+  const visitorTopicsQuery = useVisitorTopicsQuery(websiteId, true);
+  const topics = visitorTopicsQuery.data?.topics ?? [];
 
   if (departmentRoster.length === 0 && topics.length === 0) {
     const schedulingHref = `/dashboard/website-assigning/website/${encodeURIComponent(websiteId)}/service-scheduling`;

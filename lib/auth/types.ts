@@ -15,6 +15,8 @@ export interface User {
   resellerId?: string;
   /** External portfolio admin (`/auth/me` or JWT). */
   wideResellerScope?: boolean;
+  /** Client root (parent company) from JWT or `/auth/me`. */
+  parentCompanyId?: string;
 }
 
 export interface LoginCredentials {

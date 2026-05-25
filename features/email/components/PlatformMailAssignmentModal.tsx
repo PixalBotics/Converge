@@ -6,8 +6,7 @@ import Skeleton from "@mui/material/Skeleton";
 import Switch from "@mui/material/Switch";
 import { FormModal } from "@/components/common";
 import { extractApiErrorMessageForToast, publishAppToast } from "@/lib/notify";
-import { useAuth } from "@/lib/auth";
-import { OP } from "@/lib/permissions/operational-keys";
+import { useSmtpEmailAccess } from "../hooks/useSmtpEmailAccess";
 import { ConfigurationResellerSelect } from "./configuration/ConfigurationResellerSelect";
 import {
   useDeletePlatformMailAssignmentMutation,
@@ -35,9 +34,7 @@ export function PlatformMailAssignmentModal({
   onClose: () => void;
   onSaved?: () => void;
 }) {
-  const { hasOperational } = useAuth();
-  const canUpdate = hasOperational(OP.smtpEmail.update);
-  const canDelete = hasOperational(OP.smtpEmail.delete);
+  const { canUpdate, canDelete } = useSmtpEmailAccess();
 
   const [resellerId, setResellerId] = useState(initialResellerId);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);

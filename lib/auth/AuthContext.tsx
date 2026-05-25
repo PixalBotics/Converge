@@ -57,6 +57,7 @@ type AccessTokenPayload = {
   email?: string;
   roles?: string[];
   resellerId?: string;
+  parentCompanyId?: string;
   wideResellerScope?: boolean;
 };
 
@@ -79,6 +80,8 @@ type ApiUser = {
   reseller_id?: string;
   wideResellerScope?: boolean;
   wide_reseller_scope?: boolean;
+  parentCompanyId?: string;
+  parent_company_id?: string;
 };
 
 function parseApiUserType(user: ApiUser): AuthUserType | undefined {
@@ -148,6 +151,10 @@ function mapApiUserToUser(user: ApiUser): User | null {
   const wr: unknown = user.wideResellerScope ?? user.wide_reseller_scope;
   const wideResellerScope =
     wr === true || wr === "true" || wr === 1 || wr === "1";
+  const parentCompanyId =
+    (typeof user.parentCompanyId === "string" && user.parentCompanyId.trim()) ||
+    (typeof user.parent_company_id === "string" && user.parent_company_id.trim()) ||
+    undefined;
   return {
     id: user.id,
     email: user.email,
@@ -159,6 +166,7 @@ function mapApiUserToUser(user: ApiUser): User | null {
     poolName,
     resellerId,
     wideResellerScope,
+    parentCompanyId,
   };
 }
 
@@ -192,6 +200,10 @@ function getUserFromAccessToken(): User | null {
     typeof payload.resellerId === "string" && payload.resellerId.trim()
       ? payload.resellerId.trim()
       : undefined;
+  const parentCompanyId =
+    typeof payload.parentCompanyId === "string" && payload.parentCompanyId.trim()
+      ? payload.parentCompanyId.trim()
+      : undefined;
   return {
     id: payload.userId,
     email: payload.email,
@@ -200,6 +212,7 @@ function getUserFromAccessToken(): User | null {
     roleLabel: firstRole,
     resellerId,
     wideResellerScope: payload.wideResellerScope === true,
+    parentCompanyId,
   };
 }
 

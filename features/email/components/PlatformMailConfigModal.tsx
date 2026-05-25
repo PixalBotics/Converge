@@ -5,8 +5,7 @@ import Box from "@mui/material/Box";
 import Skeleton from "@mui/material/Skeleton";
 import { FormModal } from "@/components/common";
 import { extractApiErrorMessageForToast, publishAppToast } from "@/lib/notify";
-import { useAuth } from "@/lib/auth";
-import { OP } from "@/lib/permissions/operational-keys";
+import { useSmtpEmailAccess } from "../hooks/useSmtpEmailAccess";
 import { MailConnectionForm } from "./MailConnectionForm";
 import { EmailConnectionTestModal } from "./EmailConnectionTestModal";
 import { useOwnMailProviderForm } from "../hooks/useOwnMailProviderForm";
@@ -33,10 +32,7 @@ export function PlatformMailConfigModal({
   onClose: () => void;
   onSaved?: () => void;
 }) {
-  const { hasOperational } = useAuth();
-  const canView = hasOperational(OP.smtpEmail.view);
-  const canUpdate = hasOperational(OP.smtpEmail.update);
-  const canDelete = hasOperational(OP.smtpEmail.delete);
+  const { canView, canUpdate, canDelete, canTest } = useSmtpEmailAccess();
 
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [testModalOpen, setTestModalOpen] = useState(false);
@@ -141,7 +137,7 @@ export function PlatformMailConfigModal({
         title="Test platform mail"
         description="Configuration saved. Send a test email to confirm your platform mail is working."
         testing={testMutation.isPending}
-        disabled={!hasOperational(OP.smtpEmail.test)}
+        disabled={!canTest}
         lastTestStatus={settings?.lastTestStatus}
         lastTestedAt={settings?.lastTestedAt}
         lastTestMessage={settings?.lastTestMessage}

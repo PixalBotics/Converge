@@ -85,5 +85,5 @@ export function rosterHrmsStatusLabel(ctx: {
 }
 
 export function hrmsSchedulingHref(userId: string): string {
-  return `/dashboard/hrms/scheduling?userId=${encodeURIComponent(userId)}`;
+  return `/dashboard/shifts/user-shift?userId=${encodeURIComponent(userId)}`;
 }

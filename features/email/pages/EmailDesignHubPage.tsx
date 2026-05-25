@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import PaletteOutlined from "@mui/icons-material/PaletteOutlined";
 import Box from "@mui/material/Box";
@@ -18,6 +18,7 @@ import type { DataTableColumn } from "@/components/common";
 import { AddCircleIcon } from "@/components/common/icons";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
 import { iconGlyphSx } from "@/lib/design-system";
+import { useAuth } from "@/lib/auth";
 import { useEmailTemplateAccess } from "../hooks/useEmailTemplateAccess";
 import { EMAIL_ROUTES } from "../email.constants";
 import { EmailAddResellerDesignModal } from "../components/EmailAddResellerDesignModal";
@@ -65,7 +66,17 @@ function formatPublishedAt(value: string | null): string {
 export function EmailDesignHubPage() {
   const theme = useTheme() as AppTheme;
   const router = useRouter();
+  const { user } = useAuth();
   const { canView, canUpdate } = useEmailTemplateAccess();
+
+  const scopedResellerId = user?.resellerId?.trim();
+  const isExternalReseller =
+    user?.userType === "External" && Boolean(scopedResellerId);
+
+  useEffect(() => {
+    if (!canView || !isExternalReseller || !scopedResellerId) return;
+    router.replace(EMAIL_ROUTES.designResellerEdit(scopedResellerId));
+  }, [canView, isExternalReseller, scopedResellerId, router]);
 
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
@@ -110,6 +121,10 @@ export function EmailDesignHubPage() {
 
   if (!canView) {
     return <Typography variant="medium">Access denied.</Typography>;
+  }
+
+  if (isExternalReseller) {
+    return null;
   }
 
   const addButton = canUpdate ? (

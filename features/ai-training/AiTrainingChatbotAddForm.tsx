@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import LanguageOutlined from "@mui/icons-material/LanguageOutlined";
-import MapOutlined from "@mui/icons-material/MapOutlined";
 import QuizOutlined from "@mui/icons-material/QuizOutlined";
 import Box from "@mui/material/Box";
 import Stack from "@mui/material/Stack";
@@ -20,13 +19,15 @@ import {
 } from "./faq-builder.utils";
 import { aiTrainingFilterGridSx } from "./ai-training-ui.styles";
 import {
+  CHATBOT_WEBSITE_URL_HELPER,
   hostFromWebsiteUrl,
   submitLabelForSourceType,
   suggestedSourceRef,
 } from "./ai-training-kb.utils";
 import type { useAiTrainingHierarchy } from "./use-ai-training-hierarchy";
 
-export type ChatbotTrainingMethod = "SITEMAP" | "URL" | "FAQ";
+/** UI method; website imports always use API sourceType `URL` (auto sitemap). */
+export type ChatbotTrainingMethod = "URL" | "FAQ";
 
 const CHATBOT_METHODS: {
   value: ChatbotTrainingMethod;
@@ -35,15 +36,9 @@ const CHATBOT_METHODS: {
   icon: ReactNode;
 }[] = [
   {
-    value: "SITEMAP",
-    title: "Sitemap (full site)",
-    summary: "Import from sitemap.xml — up to ~25 pages",
-    icon: <MapOutlined />,
-  },
-  {
     value: "URL",
-    title: "Single page URL",
-    summary: "One page only — pricing, FAQ page, etc.",
+    title: "Website URL",
+    summary: "Paste your homepage — we find sitemap & scrape automatically",
     icon: <LanguageOutlined />,
   },
   {
@@ -75,7 +70,7 @@ export function AiTrainingChatbotAddForm({
   onCancelHref: string;
 }) {
   const theme = useTheme() as AppTheme;
-  const [method, setMethod] = useState<ChatbotTrainingMethod>(initialMethod ?? "SITEMAP");
+  const [method, setMethod] = useState<ChatbotTrainingMethod>(initialMethod ?? "URL");
   const [sourceRef, setSourceRef] = useState("");
   const [title, setTitle] = useState("");
   const [faqRows, setFaqRows] = useState<FaqBuilderRow[]>(() => [createEmptyFaqRow()]);
@@ -91,9 +86,7 @@ export function AiTrainingChatbotAddForm({
 
   useEffect(() => {
     if (!registeredUrl.trim()) return;
-    if (method === "SITEMAP") {
-      setSourceRef(suggestedSourceRef("SITEMAP", registeredUrl));
-    } else if (method === "URL") {
+    if (method === "URL") {
       setSourceRef(suggestedSourceRef("URL", registeredUrl));
     } else {
       setSourceRef("");
@@ -111,7 +104,7 @@ export function AiTrainingChatbotAddForm({
     const ref = method === "FAQ" ? compileFaqRowsToSourceRef(faqRows) : sourceRef.trim();
     await onSubmit({
       websiteId,
-      sourceType: method,
+      sourceType: method === "FAQ" ? "FAQ" : "URL",
       sourceRef: ref,
       title: title.trim() || undefined,
     });
@@ -120,8 +113,8 @@ export function AiTrainingChatbotAddForm({
   return (
     <DashboardCard sx={{ p: 2.5 }}>
       <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, mb: 2 }}>
-        Step 1 — website. Step 2 — how to train. Step 3 — paste URL or FAQs. After save you can review items on the
-        website detail page.
+        Step 1 — pick website. Step 2 — paste your site URL or FAQs. We handle sitemap discovery and
+        scraping in the background.
       </Typography>
 
       <Typography variant="body2" fontWeight={600} color="white" sx={{ mb: 1 }}>
@@ -169,7 +162,7 @@ export function AiTrainingChatbotAddForm({
 
       {registeredHost ? (
         <Alert severity="info" variant="outlined" sx={{ mb: 2, bgcolor: "transparent" }}>
-          Scraping must use domain: <strong>{registeredHost}</strong>
+          Use a URL on <strong>{registeredHost}</strong> — we find the sitemap and scrape for you.
         </Alert>
       ) : websiteId ? (
         <Alert severity="warning" variant="outlined" sx={{ mb: 2, bgcolor: "transparent" }}>
@@ -183,7 +176,7 @@ export function AiTrainingChatbotAddForm({
       <Box
         sx={{
           display: "grid",
-          gridTemplateColumns: { xs: "1fr", sm: "repeat(3, 1fr)" },
+          gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)" },
           gap: 1,
           mb: 2,
         }}
@@ -235,13 +228,16 @@ export function AiTrainingChatbotAddForm({
       ) : (
         <Stack spacing={1.5}>
           <InputField
-            label={method === "SITEMAP" ? "Sitemap URL" : "Page URL"}
+            label="Website URL"
             value={sourceRef}
             onChange={(e) => setSourceRef(e.target.value)}
             placeholder={
-              registeredUrl ? suggestedSourceRef(method, registeredUrl) : "https://your-domain.com/..."
+              registeredUrl ? suggestedSourceRef("URL", registeredUrl) : "https://your-domain.com"
             }
           />
+          <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted }}>
+            {CHATBOT_WEBSITE_URL_HELPER}
+          </Typography>
           <InputField
             label="Label (optional)"
             value={title}
@@ -262,7 +258,7 @@ export function AiTrainingChatbotAddForm({
           disabled={!canSubmit || createBusy}
           onClick={() => void handleSubmit()}
         >
-          {createBusy ? "Training…" : submitLabelForSourceType(method, false)}
+          {createBusy ? "Starting training…" : submitLabelForSourceType(method, false)}
         </Button>
       </Box>
     </DashboardCard>

@@ -1,6 +1,8 @@
 export {
   resolveSessionResellerId,
+  resolveSessionParentCompanyId,
   sessionCanFilterByResellerId,
+  sessionIsNarrowClientRootScope,
   sessionMayPickInternalUserScope,
   sessionMayAssignWideResellerScope,
   sessionShowPocDeptDesignationPickFromList,

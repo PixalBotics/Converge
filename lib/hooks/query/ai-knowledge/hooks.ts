@@ -30,23 +30,37 @@ import { aiAssistantKbKeys, aiChatbotKnowledgeKeys } from "./keys";
 
 export function useAiChatbotSourcesQuery(
   params: ListKnowledgeSourcesParams | undefined,
-  options?: { enabled?: boolean },
+  options?: {
+    enabled?: boolean;
+    refetchInterval?:
+      | number
+      | false
+      | ((query: { state: { data?: { items: { status: string }[] } } }) => number | false);
+  },
 ) {
   return useQuery({
     queryKey: aiChatbotKnowledgeKeys.sources(params),
     queryFn: () => listAiChatbotSources(params),
     enabled: (options?.enabled ?? true) && Boolean(params?.websiteId?.trim()),
+    refetchInterval: options?.refetchInterval,
   });
 }
 
 export function useAiAssistantKbSourcesQuery(
   params: ListKnowledgeSourcesParams | undefined,
-  options?: { enabled?: boolean },
+  options?: {
+    enabled?: boolean;
+    refetchInterval?:
+      | number
+      | false
+      | ((query: { state: { data?: { items: { status: string }[] } } }) => number | false);
+  },
 ) {
   return useQuery({
     queryKey: aiAssistantKbKeys.sources(params),
     queryFn: () => listAiAssistantKbSources(params),
     enabled: (options?.enabled ?? true) && Boolean(params?.websiteId?.trim()),
+    refetchInterval: options?.refetchInterval,
   });
 }
 

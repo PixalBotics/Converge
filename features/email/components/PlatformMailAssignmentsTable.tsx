@@ -11,8 +11,7 @@ import { Button, DataTable, Typography } from "@/components/common";
 import type { DataTableColumn } from "@/components/common";
 import type { PlatformMailAssignmentListItem } from "../types";
 import { AddCircleIcon } from "@/components/common/icons";
-import { OP } from "@/lib/permissions/operational-keys";
-import { useAuth } from "@/lib/auth";
+import { useSmtpEmailAccess } from "../hooks/useSmtpEmailAccess";
 import { extractApiErrorMessageForToast, publishAppToast } from "@/lib/notify";
 import { PlatformMailAssignmentModal } from "./PlatformMailAssignmentModal";
 import { EmailDeleteConfirmModal } from "./EmailDeleteConfirmModal";
@@ -57,10 +56,7 @@ export function PlatformMailAssignmentsTable({
   const theme = useTheme() as AppTheme;
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { hasOperational } = useAuth();
-  const canView = hasOperational(OP.smtpEmail.view);
-  const canUpdate = hasOperational(OP.smtpEmail.update);
-  const canDelete = hasOperational(OP.smtpEmail.delete);
+  const { canView, canUpdate, canDelete } = useSmtpEmailAccess();
 
   const platformQuery = usePlatformEmailSettingsQuery({ enabled: canView });
   const listQuery = usePlatformMailAssignmentListQuery({ enabled: canView });
