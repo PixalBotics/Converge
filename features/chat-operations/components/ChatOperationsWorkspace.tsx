@@ -399,7 +399,7 @@ export function ChatOperationsWorkspace() {
       if (!accessToken || !conversationId) return;
       if (needsWebsite(action) && !websiteIdEffective.trim()) {
         publishAppToast({
-          variant: "warning",
+          variant: "error",
           message:
             "Select a chat from your queue or wait for history to load so the copilot can resolve the website.",
         });

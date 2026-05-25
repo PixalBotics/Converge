@@ -87,8 +87,8 @@ export async function fetchWidgetTranscript(
         : {};
 
     const messagesRaw = Array.isArray(o.messages) ? o.messages : [];
-    const messages: WidgetTranscriptMessage[] = messagesRaw
-      .map((row) => {
+    const messages = messagesRaw
+      .map((row): WidgetTranscriptMessage | null => {
         if (!row || typeof row !== "object") return null;
         const m = row as Record<string, unknown>;
         const id = typeof m.id === "string" ? m.id : "";
@@ -105,16 +105,18 @@ export async function fetchWidgetTranscript(
             ? m.createdAt
             : new Date().toISOString();
         if (!id || !content.trim()) return null;
-        return {
+        const out: WidgetTranscriptMessage = {
           id,
           content,
           senderType,
-          messageType:
-            typeof m.messageType === "string" ? m.messageType : undefined,
           createdAt,
         };
+        if (typeof m.messageType === "string") {
+          out.messageType = m.messageType;
+        }
+        return out;
       })
-      .filter((m): m is WidgetTranscriptMessage => m != null);
+      .filter((m): m is WidgetTranscriptMessage => m !== null);
 
     const visitor =
       o.visitor !== null && typeof o.visitor === "object" && !Array.isArray(o.visitor)
