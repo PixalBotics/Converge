@@ -175,6 +175,7 @@ export function PoolMembersPanel({
           all: true,
           departmentId,
           unassignedPoolOnly: true,
+          headRole: "none",
           ...(poolId ? { excludePoolHeadOfPoolId: poolId } : {}),
         }
       : undefined,
