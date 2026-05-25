@@ -51,6 +51,14 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  async rewrites() {
+    return [
+      {
+        source: "/widget-static/:path*",
+        destination: `${process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001"}/widget-static/:path*`,
+      },
+    ];
+  },
   async redirects() {
     return [
       { source: "/login", destination: "/auth/login", permanent: true },

@@ -277,6 +277,7 @@ export default function ChatWidgetButtonDesignPage() {
             insetBottomPx={previewBottomPx}
             insetSidePx={previewSidePx}
             buttonColor={selectedButtonColor || "#2AA9E0"}
+            hoverColor={selectedHoverColor || "#1C8DC2"}
             iconColor={selectedIconColor || "#FFFFFF"}
             iconDataUrl={iconDataUrl}
             launcherIconPreset={launcherIconPreset}

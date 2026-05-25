@@ -61,6 +61,11 @@ export function useVisitorChat(
   const widgetTokenRef = useRef<string | null | undefined>(
     options?.widgetSessionToken,
   );
+  const optionsRef = useRef(options);
+
+  useEffect(() => {
+    optionsRef.current = options;
+  }, [options]);
 
   useEffect(() => {
     conversationIdRef.current = conversationId;
@@ -103,7 +108,6 @@ export function useVisitorChat(
     const token = widgetTokenRef.current;
     socketClient.connect({
       authToken: token ?? undefined,
-      forceNew: true,
     });
     setIsConnected(socketClient.isConnected());
 
@@ -130,8 +134,6 @@ export function useVisitorChat(
       setAgentTypingFromOther(false);
     });
 
-    const getHandlers = () => options ?? {};
-
     const offAssigned = socketClient.onChatAssigned((payload: unknown) => {
       const cid = conversationIdRef.current;
       if (
@@ -141,7 +143,7 @@ export function useVisitorChat(
         (payload as { conversationId?: string }).conversationId === cid
       ) {
         setAssigned(true);
-        getHandlers().onChatAssigned?.();
+        optionsRef.current?.onChatAssigned?.();
       }
     });
     const offQueued = socketClient.onChatQueued((payload: unknown) => {
@@ -152,7 +154,7 @@ export function useVisitorChat(
         payload &&
         (payload as { conversationId?: string }).conversationId === cid
       ) {
-        getHandlers().onChatQueued?.();
+        optionsRef.current?.onChatQueued?.();
       }
     });
     const offClosed = socketClient.onChatClosed(() => {
@@ -173,7 +175,7 @@ export function useVisitorChat(
       offQueued();
       offClosed();
     };
-  }, [options, socketClient, upsertMessage]);
+  }, [socketClient, upsertMessage]);
 
   const joinRoom = useCallback(
     (roomConversationId: string) => {

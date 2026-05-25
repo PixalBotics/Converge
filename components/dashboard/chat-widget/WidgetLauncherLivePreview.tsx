@@ -24,6 +24,7 @@ export function WidgetLauncherLivePreview({
   insetBottomPx,
   insetSidePx,
   buttonColor,
+  hoverColor,
   iconColor,
   iconDataUrl,
   launcherIconPreset,
@@ -35,6 +36,7 @@ export function WidgetLauncherLivePreview({
   insetBottomPx: number;
   insetSidePx: number;
   buttonColor: string;
+  hoverColor?: string;
   iconColor: string;
   iconDataUrl: string;
   launcherIconPreset: LauncherIconPresetId;
@@ -96,6 +98,12 @@ export function WidgetLauncherLivePreview({
               alignItems: "center",
               justifyContent: "center",
               zIndex: 2,
+              cursor: "pointer",
+              transition: "background-color 0.2s ease, transform 0.15s ease",
+              "&:hover": {
+                bgcolor: hoverColor || fabColor,
+                transform: "scale(1.08)",
+              },
               ...fabPosition,
             }}
           >
