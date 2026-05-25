@@ -46,7 +46,7 @@ export const DEFAULT_CHAT_OPERATIONS: ChatOperationsJson = {
       guestLinkRecipient: true,
     },
     notify: { currentAgent: true, poolHead: true },
-    approval: { mode: "current_agent_or_pool_head" },
+    approval: { mode: "immediate" },
     whisper: { supervisorSuggestionEnabled: true, agentMustClickSend: true },
   },
   qa: {

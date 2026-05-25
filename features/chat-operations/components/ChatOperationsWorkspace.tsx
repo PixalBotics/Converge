@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "next/navigation";
 import Box from "@mui/material/Box";
 import { getAccessToken, postAgentAiSuggestion, formatAgentSuggestResponse } from "@/api";
@@ -14,6 +15,7 @@ import {
 import { useNotificationsContext } from "@/lib/notifications/NotificationsContext";
 import { useAgentChat } from "@/lib/hooks/chat/useAgentChat";
 import { mergeSx } from "@/lib/mui/merge-sx";
+import { extractApiErrorMessageForToast, publishAppToast } from "@/lib/notify";
 import {
   ChatLiveHubScopeCard,
   ChatLivePageHeader,
@@ -21,10 +23,14 @@ import {
   ChatScopeFiltersPanel,
   ChatWebsiteAgentsTable,
   conversationMatchesScope,
+  isUnassignedActiveChat,
   useChatScopeFilters,
   useChatWebsiteAgents,
   type ChatWebsiteAgentRow,
 } from "@/features/chat-shared";
+import { monitorRowsToConversationSummaries } from "@/features/chat-shared/utils/monitor-to-inbox-summary";
+import { chatMonitorKeys } from "@/features/chat-monitor/hooks/keys";
+import { useChatMonitor } from "@/features/chat-monitor/hooks/useChatMonitor";
 import {
   chatLiveAgentStackSx,
   chatLiveQueueStatPillSx,
@@ -33,6 +39,7 @@ import type { AgentVisitorPresentation, ConversationSummary } from "@/services/c
 import { extractVisitorPresentation } from "@/services/chat/visitor-presentation";
 import type { ChatQueueTab } from "./ChatQueueSidebar";
 import { postAgentWebsiteAvailabilityCheck } from "@/services/chat/agent-inbox.api";
+import { fetchMonitorClosed, fetchMonitorLive } from "@/services/chat/monitor.api";
 import type { AiChatMessage } from "../types/ai-chat";
 import {
   getConversationAiState,
@@ -41,7 +48,6 @@ import {
   patchConversationDraft,
 } from "../utils/conversation-scoped-state";
 import { AgentWrapUpModal } from "./AgentWrapUpModal";
-import { AgentDistributionPrompt } from "./AgentDistributionPrompt";
 import { ChatConversationPanel } from "./ChatConversationPanel";
 import { ChatQueueSidebar } from "./ChatQueueSidebar";
 import { VisitorInfoPanel } from "./VisitorInfoPanel";
@@ -63,6 +69,7 @@ function needsWebsite(action: AgentAiAction): boolean {
 export function ChatOperationsWorkspace() {
   const { user, hasOperational, hasPage, permissionsSyncing } = useAuth();
   const gates = useChatApiGates();
+  const monitorApiEnabled = gates.monitor;
   const { canFilterByResellerId } = useResellerListScope();
   const notifications = useNotificationsContext();
   const searchParams = useSearchParams();
@@ -97,7 +104,76 @@ export function ChatOperationsWorkspace() {
   const [agentSearch, setAgentSearch] = useState("");
   const [teamView, setTeamView] = useState(showScopeFilters);
 
+  const scopeMonitor = useChatMonitor(null, {
+    apiEnabled: teamView && monitorApiEnabled,
+  });
+  const hubDepartmentOptions = useMemo(
+    () => [
+      { value: "", label: "All departments" },
+      ...scopeMonitor.filterOptions.departments.map((d) => ({
+        value: d.id,
+        label: d.label,
+      })),
+    ],
+    [scopeMonitor.filterOptions.departments],
+  );
+  const hubPoolOptions = useMemo(
+    () => [
+      { value: "", label: "All pools" },
+      ...scopeMonitor.filterOptions.pools.map((p) => ({
+        value: p.id,
+        label: p.label,
+      })),
+    ],
+    [scopeMonitor.filterOptions.pools],
+  );
+
   const websiteIdScope = scopeFilters.filters.websiteId.trim();
+  const superviseAgent =
+    teamView &&
+    Boolean(teamAgent?.userId) &&
+    Boolean(websiteIdScope) &&
+    monitorApiEnabled;
+
+  const teamMonitorFilters = useMemo(
+    () => ({
+      websiteId: websiteIdScope,
+      agentId: teamAgent?.userId,
+    }),
+    [teamAgent?.userId, websiteIdScope],
+  );
+
+  const teamLiveQuery = useQuery({
+    queryKey: chatMonitorKeys.live(teamMonitorFilters),
+    queryFn: () => fetchMonitorLive(teamMonitorFilters),
+    enabled: inboxAllowed && superviseAgent,
+  });
+
+  const teamClosedQuery = useQuery({
+    queryKey: chatMonitorKeys.closed(teamMonitorFilters),
+    queryFn: () => fetchMonitorClosed(teamMonitorFilters),
+    enabled: inboxAllowed && superviseAgent,
+  });
+
+  const supervisedActive = useMemo(() => {
+    const rows = monitorRowsToConversationSummaries(teamLiveQuery.data ?? []);
+    return rows.filter(
+      (c) =>
+        (c.status === "assigned" || c.status === "active") &&
+        !isUnassignedActiveChat(c),
+    );
+  }, [teamLiveQuery.data]);
+
+  const supervisedWaiting = useMemo(() => {
+    const rows = monitorRowsToConversationSummaries(teamLiveQuery.data ?? []);
+    return rows.filter((c) => c.status === "waiting" && !isUnassignedActiveChat(c));
+  }, [teamLiveQuery.data]);
+
+  const supervisedClosed = useMemo(
+    () => monitorRowsToConversationSummaries(teamClosedQuery.data ?? []),
+    [teamClosedQuery.data],
+  );
+
   const agentsQuery = useChatWebsiteAgents(
     websiteIdScope,
     scopeFilters.filters.parentCompanyId,
@@ -120,6 +196,24 @@ export function ChatOperationsWorkspace() {
     inboxAllowed,
   ]);
 
+  useEffect(() => {
+    if (!superviseAgent || agentChat.selectedConversationId) return;
+    const pick = [...supervisedActive, ...supervisedWaiting];
+    if (pick.length !== 1) return;
+    const row = pick[0];
+    void agentChat.selectConversation(row.id, {
+      assigneeAgentId:
+        row.assignedAgentId ??
+        (typeof row.agentId === "string" ? row.agentId : null),
+    });
+  }, [
+    agentChat.selectConversation,
+    agentChat.selectedConversationId,
+    superviseAgent,
+    supervisedActive,
+    supervisedWaiting,
+  ]);
+
   const composer = getConversationDraft(
     draftsByConversation,
     agentChat.selectedConversationId,
@@ -135,30 +229,39 @@ export function ChatOperationsWorkspace() {
   const filterByScope = useCallback(
     (rows: ConversationSummary[]) =>
       rows.filter((c) => {
-        if (
-          teamView &&
-          teamAgent?.userId &&
-          c.assignedAgentId &&
-          c.assignedAgentId !== teamAgent.userId
-        ) {
-          return false;
+        if (isUnassignedActiveChat(c)) return false;
+        if (teamView && teamAgent?.userId && !superviseAgent) {
+          const aid =
+            c.assignedAgentId ??
+            (typeof c.agentId === "string" ? c.agentId : null);
+          if (aid && aid !== teamAgent.userId) return false;
         }
         return conversationMatchesScope(c, scopeFilters.filters, scopeFilters.websiteIdsInScope);
       }),
-    [scopeFilters.filters, scopeFilters.websiteIdsInScope, teamAgent?.userId, teamView],
+    [
+      scopeFilters.filters,
+      scopeFilters.websiteIdsInScope,
+      superviseAgent,
+      teamAgent?.userId,
+      teamView,
+    ],
   );
 
+  const activeSource = superviseAgent ? supervisedActive : agentChat.activeChats;
+  const waitingSource = superviseAgent ? supervisedWaiting : agentChat.waitingChats;
+  const closedSource = superviseAgent ? supervisedClosed : agentChat.closedChats;
+
   const activeFiltered = useMemo(
-    () => (showScopeFilters ? filterByScope(agentChat.activeChats) : agentChat.activeChats),
-    [agentChat.activeChats, filterByScope, showScopeFilters],
+    () => (showScopeFilters && !superviseAgent ? filterByScope(activeSource) : activeSource),
+    [activeSource, filterByScope, showScopeFilters, superviseAgent],
   );
   const waitingFiltered = useMemo(
-    () => (showScopeFilters ? filterByScope(agentChat.waitingChats) : agentChat.waitingChats),
-    [agentChat.waitingChats, filterByScope, showScopeFilters],
+    () => (showScopeFilters && !superviseAgent ? filterByScope(waitingSource) : waitingSource),
+    [filterByScope, showScopeFilters, superviseAgent, waitingSource],
   );
   const closedFiltered = useMemo(
-    () => (showScopeFilters ? filterByScope(agentChat.closedChats) : agentChat.closedChats),
-    [agentChat.closedChats, filterByScope, showScopeFilters],
+    () => (showScopeFilters && !superviseAgent ? filterByScope(closedSource) : closedSource),
+    [closedSource, filterByScope, showScopeFilters, superviseAgent],
   );
 
   const list: ConversationSummary[] =
@@ -168,10 +271,13 @@ export function ChatOperationsWorkspace() {
         ? waitingFiltered
         : closedFiltered;
 
+  const queuePool = superviseAgent
+    ? [...supervisedActive, ...supervisedWaiting, ...supervisedClosed]
+    : [...agentChat.activeChats, ...agentChat.waitingChats, ...agentChat.closedChats];
+
   const selectedSummary =
-    [...agentChat.activeChats, ...agentChat.waitingChats, ...agentChat.closedChats].find(
-      (c) => c.id === agentChat.selectedConversationId,
-    ) ?? list.find((c) => c.id === agentChat.selectedConversationId);
+    queuePool.find((c) => c.id === agentChat.selectedConversationId) ??
+    list.find((c) => c.id === agentChat.selectedConversationId);
 
   const visitorPresentation: AgentVisitorPresentation | null = selectedSummary
     ? extractVisitorPresentation(selectedSummary)
@@ -180,13 +286,21 @@ export function ChatOperationsWorkspace() {
     selectedSummary && typeof selectedSummary === "object"
       ? (selectedSummary as Record<string, unknown>)
       : null;
-  const assignedAgentLabel = user?.displayName?.trim() || user?.email?.trim() || "You";
+  const viewingOtherAgent = Boolean(
+    superviseAgent && teamAgent?.userId && teamAgent.userId !== user?.id,
+  );
+  const assignedAgentLabel =
+    (viewingOtherAgent ? teamAgent?.displayName : null)?.trim() ||
+    user?.displayName?.trim() ||
+    user?.email?.trim() ||
+    "You";
   const assignedAgentId =
     typeof selectedSummary?.assignedAgentId === "string"
       ? selectedSummary.assignedAgentId
       : null;
   const websiteIdEffective =
     (typeof selectedSummary?.websiteId === "string" ? selectedSummary.websiteId : "").trim() ||
+    agentChat.selectedWebsiteId?.trim() ||
     fallbackWebsiteId.trim() ||
     "";
   const departmentIdEffective =
@@ -211,12 +325,20 @@ export function ChatOperationsWorkspace() {
           accessToken,
         );
         if (cancelled) return;
+        if (res == null) {
+          setAvailabilityHint(null);
+          return;
+        }
         const text =
           typeof res === "string"
             ? res
             : res && typeof res === "object"
               ? JSON.stringify(res)
               : String(res);
+        if (!text.trim() || text === "null") {
+          setAvailabilityHint(null);
+          return;
+        }
         setAvailabilityHint(text.length > 120 ? `${text.slice(0, 120)}…` : text);
       } catch {
         if (!cancelled) setAvailabilityHint(null);
@@ -275,7 +397,14 @@ export function ChatOperationsWorkspace() {
     async (prompt: string, action: AgentAiAction = "coach_reply") => {
       const conversationId = agentChat.selectedConversationId;
       if (!accessToken || !conversationId) return;
-      if (needsWebsite(action) && !websiteIdEffective.trim()) return;
+      if (needsWebsite(action) && !websiteIdEffective.trim()) {
+        publishAppToast({
+          variant: "warning",
+          message:
+            "Select a chat from your queue or wait for history to load so the copilot can resolve the website.",
+        });
+        return;
+      }
 
       const userId = `ai-u-${Date.now()}`;
       const pendingId = `ai-a-${Date.now()}`;
@@ -318,18 +447,26 @@ export function ChatOperationsWorkspace() {
             ),
           });
         });
-      } catch {
+      } catch (err) {
+        const apiMsg = extractApiErrorMessageForToast(err);
         setAiByConversation((prev) => {
           const current = getConversationAiState(prev, conversationId);
           return patchConversationAiState(prev, conversationId, {
             busy: false,
             messages: current.messages.map((m) =>
               m.id === pendingId
-                ? { ...m, content: "Assistant request failed. Try again.", pending: false }
+                ? {
+                    ...m,
+                    content: apiMsg ?? "Assistant request failed. Try again.",
+                    pending: false,
+                  }
                 : m,
             ),
           });
         });
+        if (apiMsg) {
+          publishAppToast({ variant: "error", message: apiMsg });
+        }
       }
     },
     [accessToken, agentChat.selectedConversationId, draftsByConversation, websiteIdEffective],
@@ -337,14 +474,33 @@ export function ChatOperationsWorkspace() {
 
   const sendNow = async () => {
     const id = agentChat.selectedConversationId;
-    if (!id) return;
-    await agentChat.sendMessage(composer.trim());
-    setDraftsByConversation((prev) => patchConversationDraft(prev, id, ""));
+    if (!id || !composer.trim()) return;
+    try {
+      await agentChat.sendMessage(composer.trim());
+      setDraftsByConversation((prev) => patchConversationDraft(prev, id, ""));
+    } catch (err) {
+      publishAppToast({
+        variant: "error",
+        message:
+          extractApiErrorMessageForToast(err) ??
+          agentChat.sendBlockedReason ??
+          "Could not send message.",
+      });
+    }
   };
 
   const handleSelectConversation = (id: string) => {
-    void agentChat.selectConversation(id, { readOnly: queueTab === "closed" });
+    const row = queuePool.find((c) => c.id === id);
+    const assigneeAgentId =
+      row?.assignedAgentId ??
+      (typeof row?.agentId === "string" ? row.agentId : null);
+    void agentChat.selectConversation(id, {
+      readOnly: queueTab === "closed" || viewingOtherAgent,
+      assigneeAgentId,
+    });
   };
+
+  const sendBlockedHint = agentChat.sendBlockedReason;
 
   if (permissionsSyncing) {
     return (
@@ -359,24 +515,39 @@ export function ChatOperationsWorkspace() {
       <Box sx={chatOpsPageWrapper}>
         <PermissionDeniedPanel
           title="Agent inbox not available"
-          description="Requires page:chat and chat:access on GET /auth/me (from a chat bundle on the role). Sign out and back in after role changes."
+          description="Requires page:chat-inbox (or legacy page:chat) and chat:access on GET /auth/me (e.g. chat:bundle:agent). Sign out and back in after role changes."
         />
       </Box>
     );
   }
 
   const canPickWaiting = !agentChat.atActiveCap;
-  const distributionFormHref =
-    agentChat.pendingWrapUp?.requiresDistributionForm &&
+  const wrapUpForSelected =
+    agentChat.pendingWrapUp &&
     agentChat.selectedConversationId &&
     agentChat.pendingWrapUp.conversationId === agentChat.selectedConversationId
-      ? agentChat.pendingWrapUp.distributionFormPath ??
-        `/dashboard/chat-operations/distribution?conversationId=${encodeURIComponent(agentChat.selectedConversationId)}`
+      ? agentChat.pendingWrapUp
+      : null;
+
+  const distributionFormHref =
+    wrapUpForSelected?.requiresDistributionForm
+      ? wrapUpForSelected.distributionFormPath ??
+        `/dashboard/chat-operations/distribution?conversationId=${encodeURIComponent(agentChat.selectedConversationId!)}`
+      : null;
+
+  const closeFormHref =
+    wrapUpForSelected?.requiresAgentWrapUp && !wrapUpForSelected.requiresDistributionForm
+      ? `/dashboard/chat-operations?conversationId=${encodeURIComponent(agentChat.selectedConversationId!)}&wrapUp=1`
       : null;
 
   const canSend =
     Boolean(agentChat.selectedConversationId && accessToken) &&
-    !agentChat.selectedIsClosed;
+    agentChat.canSendMessage &&
+    !viewingOtherAgent;
+  const agentReadOnly =
+    viewingOtherAgent ||
+    Boolean(agentChat.sendBlockedReason) ||
+    agentChat.selectedIsClosed;
 
   return (
     <ChatLivePageShell
@@ -439,7 +610,9 @@ export function ChatOperationsWorkspace() {
                 websiteOptions={scopeFilters.websiteOptions}
                 agentSearch={agentSearch}
                 onAgentSearchChange={setAgentSearch}
-                showDepartmentPool={false}
+                showDepartmentPool
+                departmentOptions={hubDepartmentOptions}
+                poolOptions={hubPoolOptions}
               />
               {websiteIdScope ? (
                 <ChatWebsiteAgentsTable
@@ -447,7 +620,10 @@ export function ChatOperationsWorkspace() {
                   isLoading={agentsQuery.isLoading}
                   isError={agentsQuery.isError}
                   selectedAgentUserId={teamAgent?.userId}
-                  onSelectAgent={setTeamAgent}
+                  onSelectAgent={(row) => {
+                    setTeamAgent(row);
+                    agentChat.clearSelection();
+                  }}
                   websiteLabel={
                     scopeFilters.websiteOptions.find((w) => w.value === websiteIdScope)?.label
                   }
@@ -521,7 +697,7 @@ export function ChatOperationsWorkspace() {
               visitor={agentChat.visitorFromHistory}
               conversationMeta={conversationMeta}
               visitorPresentation={visitorPresentation}
-              readOnly={agentChat.selectedIsClosed}
+              readOnly={agentReadOnly}
               assignedAgentLabel={assignedAgentLabel}
               visitorTyping={agentChat.visitorTypingSelected && !agentChat.selectedIsClosed}
               composer={composer}
@@ -544,7 +720,8 @@ export function ChatOperationsWorkspace() {
               aiBusy={aiBusy}
               websiteRequiredDisabled={!websiteIdEffective.trim()}
               availabilityHint={
-                availabilityHint && websiteIdEffective ? availabilityHint : null
+                sendBlockedHint ??
+                (availabilityHint && websiteIdEffective ? availabilityHint : null)
               }
               websiteId={websiteIdEffective || null}
               departmentId={departmentIdEffective}
@@ -552,7 +729,9 @@ export function ChatOperationsWorkspace() {
               onApplyWhisperToComposer={applyAiToComposer}
               onDismissWhisper={agentChat.dismissWhisper}
               distributionFormHref={distributionFormHref}
-              distributionSubmitted={Boolean(agentChat.pendingWrapUp?.distributionSubmitted)}
+              distributionSubmitted={Boolean(wrapUpForSelected?.distributionSubmitted)}
+              closeFormHref={closeFormHref}
+              wrapUpSubmitted={Boolean(wrapUpForSelected?.wrapUpSubmitted)}
             />
           </Box>
 
@@ -560,6 +739,7 @@ export function ChatOperationsWorkspace() {
             <VisitorInfoPanel
               visitor={agentChat.visitorFromHistory}
               conversationId={agentChat.selectedConversationId}
+              websiteId={websiteIdEffective || null}
               conversationMeta={conversationMeta}
               visitorPresentation={visitorPresentation}
               assignedAgentId={assignedAgentId}
@@ -577,22 +757,15 @@ export function ChatOperationsWorkspace() {
         </Box>
       </Box>
 
-      {agentChat.pendingWrapUp?.requiresDistributionForm ? (
-        <AgentDistributionPrompt
-          payload={agentChat.pendingWrapUp}
-          onDismiss={agentChat.dismissWrapUp}
-        />
-      ) : (
-        <AgentWrapUpModal
-          open={Boolean(agentChat.pendingWrapUp)}
-          payload={agentChat.pendingWrapUp}
-          onClose={agentChat.dismissWrapUp}
-          onSubmitted={() => {
-            agentChat.dismissWrapUp();
-            void agentChat.refreshQueues();
-          }}
-        />
-      )}
+      <AgentWrapUpModal
+        open={searchParams.get("wrapUp") === "1" && Boolean(wrapUpForSelected?.requiresAgentWrapUp)}
+        payload={wrapUpForSelected}
+        onClose={agentChat.dismissWrapUp}
+        onSubmitted={() => {
+          agentChat.dismissWrapUp();
+          void agentChat.refreshQueues();
+        }}
+      />
     </ChatLivePageShell>
   );
 }

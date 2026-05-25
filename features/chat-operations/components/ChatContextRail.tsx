@@ -27,6 +27,8 @@ type Props = {
   availabilityHint?: string | null;
   distributionFormHref?: string | null;
   distributionSubmitted?: boolean;
+  closeFormHref?: string | null;
+  wrapUpSubmitted?: boolean;
   activeWhisper?: ChatWhisperSocketPayload | null;
   onApplyWhisperToComposer?: (text: string) => void;
   onDismissWhisper?: () => void;
@@ -38,6 +40,8 @@ export function ChatContextRail({
   availabilityHint = null,
   distributionFormHref = null,
   distributionSubmitted = false,
+  closeFormHref = null,
+  wrapUpSubmitted = false,
   activeWhisper = null,
   onApplyWhisperToComposer,
   onDismissWhisper,
@@ -90,6 +94,24 @@ export function ChatContextRail({
       });
     }
 
+    if (readOnly && closeFormHref) {
+      list.push({
+        id: "close-form",
+        tone: "info",
+        title: "Wrap-up",
+        content: (
+          <ChatDistributionLinkBanner
+            embedded
+            href={closeFormHref}
+            submitted={wrapUpSubmitted}
+            hint="Chat closed — complete the wrap-up form for this conversation."
+            buttonLabel="Open wrap-up form"
+            submittedHint="Wrap-up already submitted for this chat."
+          />
+        ),
+      });
+    }
+
     if (availabilityHint && !readOnly) {
       list.push({
         id: "availability",
@@ -109,6 +131,8 @@ export function ChatContextRail({
     availabilityHint,
     distributionFormHref,
     distributionSubmitted,
+    closeFormHref,
+    wrapUpSubmitted,
     hasConversation,
     onApplyWhisperToComposer,
     onDismissWhisper,

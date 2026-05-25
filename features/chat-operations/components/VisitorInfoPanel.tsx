@@ -26,6 +26,11 @@ import { SupervisorToolsPanel } from "./SupervisorToolsPanel";
 import { GuestLinkPanel } from "./GuestLinkPanel";
 import { useConversationSupervisor } from "../hooks/useConversationSupervisor";
 import { canUseSupervisorTools } from "@/lib/permissions/chat-access";
+import { fetchWebsiteChatSettings } from "@/services/chat/chat-settings.api";
+import {
+  DEFAULT_CHAT_OPERATIONS,
+  mergeChatOperationsJson,
+} from "@/services/chat/chat-settings.defaults";
 import {
   chatOpsPaneTitleSx,
 } from "../styles/chat-operations.styles";
@@ -44,6 +49,7 @@ import {
 interface VisitorInfoPanelProps {
   visitor: Record<string, unknown> | null;
   conversationId: string | null;
+  websiteId?: string | null;
   conversationMeta?: Record<string, unknown> | null;
   visitorPresentation?: AgentVisitorPresentation | null;
   assignedAgentId?: string | null;
@@ -84,6 +90,7 @@ function accordionSx(theme: AppTheme): object {
 export function VisitorInfoPanel({
   visitor,
   conversationId,
+  websiteId = null,
   conversationMeta,
   visitorPresentation = null,
   assignedAgentId = null,
@@ -103,6 +110,45 @@ export function VisitorInfoPanel({
   const originLine = visitorPresentation?.originLabel?.trim() || null;
   const locationLine = visitorPresentation?.locationLabel?.trim() || parsed.location?.label || null;
   const [expanded, setExpanded] = useState<string | false>("contact");
+  const [guestAccessEnabled, setGuestAccessEnabled] = useState(false);
+  const [takeoverApprovalMode, setTakeoverApprovalMode] = useState<
+    "immediate" | "current_agent_or_pool_head"
+  >("immediate");
+
+  useEffect(() => {
+    const wid = websiteId?.trim();
+    if (!wid) {
+      setGuestAccessEnabled(false);
+      setTakeoverApprovalMode("immediate");
+      return;
+    }
+    let cancelled = false;
+    void fetchWebsiteChatSettings(wid)
+      .then((bundle) => {
+        if (cancelled) return;
+        const ops = mergeChatOperationsJson(
+          DEFAULT_CHAT_OPERATIONS,
+          bundle.settings.operationsJson,
+        );
+        const guest = ops.guestAccess as { enabled?: boolean } | undefined;
+        setGuestAccessEnabled(Boolean(guest?.enabled));
+        const mode = (ops.takeover as { approval?: { mode?: string } } | undefined)
+          ?.approval?.mode;
+        setTakeoverApprovalMode(
+          mode === "immediate" ? "immediate" : "current_agent_or_pool_head",
+        );
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setGuestAccessEnabled(false);
+          setTakeoverApprovalMode("immediate");
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [websiteId]);
+
   const supervisorEnabled =
     canUseSupervisorTools(hasOperational) && Boolean(conversationId) && !supervisorReadOnly;
   const supervisor = useConversationSupervisor(conversationId, supervisorEnabled);
@@ -319,6 +365,7 @@ export function VisitorInfoPanel({
               conversationId={conversationId}
               hasOperational={hasOperational}
               disabled={supervisorReadOnly || closeDisabled}
+              guestAccessEnabled={guestAccessEnabled}
             />
           </Box>
 
@@ -330,6 +377,7 @@ export function VisitorInfoPanel({
                 currentUserId={currentUserId}
                 hasOperational={hasOperational}
                 supervisor={supervisor}
+                takeoverApprovalMode={takeoverApprovalMode}
               />
             </Box>
           ) : null}

@@ -24,7 +24,16 @@ export function EmbedWidgetBanner({
         bgcolor: appearance.chatBox.backgroundColor,
       }}
     >
-      {banner.imageUrl && banner.mediaType !== "video" ? (
+      {banner.mediaType === "video" && banner.videoUrl ? (
+        <Box
+          component="video"
+          src={banner.videoUrl}
+          controls
+          playsInline
+          muted
+          sx={{ width: "100%", maxHeight: 160, display: "block", bgcolor: "#000" }}
+        />
+      ) : banner.imageUrl ? (
         <Box
           component="img"
           src={banner.imageUrl}

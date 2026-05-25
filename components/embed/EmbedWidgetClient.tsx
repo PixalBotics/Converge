@@ -26,6 +26,7 @@ import MuiButton from "@mui/material/Button";
 import TextField from "@mui/material/TextField";
 import { Typography } from "@/components/common";
 import { EmbedActionButton } from "@/components/embed/EmbedActionButton";
+import { EmbedVideoWelcome } from "@/components/embed/EmbedVideoWelcome";
 import { EmbedInputField } from "@/components/embed/EmbedInputField";
 import { normalizeChatMessageText } from "@/lib/safe-markdown/text";
 import { useVisitorChat } from "@/lib/hooks/chat/useVisitorChat";
@@ -75,15 +76,21 @@ import { EmbedWidgetTheme } from "@/components/embed/EmbedWidgetTheme";
 import {
   getWidgetRuntimeConfig,
   postWidgetSession,
-  postAiVisitorRespond,
 } from "@/lib/widget-runtime/widget-public-fetch";
 import type { WidgetConfigEnvelope } from "@/lib/widget-runtime/widget-types";
-import { postWidgetRequestHuman } from "@/services/chat/widget-visitor.api";
+import {
+  fetchWidgetTranscript,
+  postWidgetRequestHuman,
+} from "@/services/chat/widget-visitor.api";
 import { decodeJwtExpMs } from "@/lib/widget-runtime/jwt-expiry";
 import {
+  clearConversationId,
   generateClientSessionId,
   persistConversationId,
+  persistHybridEscalated,
   persistVisitorSessionId,
+  readConversationId,
+  readHybridEscalatedConversationId,
   readVisitorSessionId,
   saveWidgetJwt,
 } from "@/lib/widget-runtime/browser-storage";
@@ -453,6 +460,7 @@ function FloatingChatEmbed({
             >
               {!greetingAck ? (
                 <Stack spacing={2} sx={{ pt: 0.5 }}>
+                  <EmbedVideoWelcome appearance={appearance} />
                   <EmbedWidgetBanner banner={appearance.banner} appearance={appearance} />
                   <Typography
                     variant="body2"
@@ -828,6 +836,7 @@ function WidgetChatPanel({
   const aiPendingSinceRef = useRef<number | null>(null);
   /** HYBRID only: set true when visitor taps "Talk to a human" — never from API shouldEscalate (that was forcing queue UI + repeated handoff replies). */
   const [escalated, setEscalated] = useState(false);
+  const escalatedRef = useRef(false);
   const [handoverStatus, setHandoverStatus] = useState<string | null>(null);
   const [handoverBusy, setHandoverBusy] = useState(false);
   const [localAiMessages, setLocalAiMessages] = useState<ChatMessage[]>([]);
@@ -836,6 +845,7 @@ function WidgetChatPanel({
   /** AI/HYBRID: hide socket AI replies until the visitor sends a composer message. */
   const [awaitingFirstUserQuestion, setAwaitingFirstUserQuestion] = useState(false);
   const startConversationRef = useRef<(() => Promise<void>) | null>(null);
+  const [resumeChecked, setResumeChecked] = useState(false);
 
   const visitorSessionId = useMemo(() => {
     const existing = readVisitorSessionId(siteKey);
@@ -847,10 +857,15 @@ function WidgetChatPanel({
 
   const pageUrlGetter = useCallback(() => parentPageUrl, [parentPageUrl]);
 
+  useEffect(() => {
+    escalatedRef.current = escalated;
+  }, [escalated]);
+
   const chat = useVisitorChat({
     autoConnect: false,
     widgetSessionToken: sessionToken,
     getCurrentPageUrl: pageUrlGetter,
+    getSkipServerAiReply: () => escalatedRef.current,
     onChatAssigned: () => {
       setHandoverStatus("An agent has joined your chat.");
     },
@@ -860,6 +875,91 @@ function WidgetChatPanel({
       );
     },
   });
+
+  useEffect(() => {
+    const stored = readHybridEscalatedConversationId(siteKey);
+    if (stored && chat.conversationId && stored === chat.conversationId) {
+      setEscalated(true);
+      escalatedRef.current = true;
+      setLocalAiMessages([]);
+    }
+  }, [chat.conversationId, siteKey]);
+
+  const { resumeConversation } = chat;
+
+  useEffect(() => {
+    if (chat.conversationId) {
+      setResumeChecked(true);
+      return;
+    }
+    let cancelled = false;
+    const storedConvId = readConversationId(siteKey);
+    if (!storedConvId) {
+      setResumeChecked(true);
+      return;
+    }
+    void (async () => {
+      const res = await fetchWidgetTranscript(
+        storedConvId,
+        websiteId,
+        sessionToken,
+      );
+      if (cancelled) return;
+      if (!res.ok) {
+        clearConversationId(siteKey);
+        setResumeChecked(true);
+        return;
+      }
+      const { data } = res;
+      if (data.chatCompleted || !data.canSendMessages) {
+        clearConversationId(siteKey);
+        setResumeChecked(true);
+        return;
+      }
+      resumeConversation({
+        conversationId: storedConvId,
+        visitorId: data.visitor?.id ?? null,
+        status: data.status,
+        messages: data.messages,
+      });
+      persistConversationId(siteKey, storedConvId);
+      if (data.handoverRequested) {
+        setEscalated(true);
+        escalatedRef.current = true;
+        setLocalAiMessages([]);
+      }
+      const hasVisitorTurn = data.messages.some(
+        (m) => (m.senderType || "").toLowerCase() === "visitor",
+      );
+      if (hasVisitorTurn) {
+        setAwaitingFirstUserQuestion(false);
+      }
+      const visitor = data.visitor;
+      if (visitor?.name?.trim() || visitor?.email?.trim()) {
+        setPrechatDone(true);
+      } else if (!needsPrechatGate) {
+        setPrechatDone(true);
+      }
+      if (data.queuedForAgent) {
+        setHandoverStatus(
+          "You are in the queue. The next available teammate will join shortly.",
+        );
+      } else if (data.assignedAgentId) {
+        setHandoverStatus("An agent has joined your chat.");
+      }
+      setResumeChecked(true);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    chat.conversationId,
+    needsPrechatGate,
+    resumeConversation,
+    sessionToken,
+    siteKey,
+    websiteId,
+  ]);
 
   useEffect(() => {
     if (!aiPending) return;
@@ -899,6 +999,9 @@ function WidgetChatPanel({
       ) {
         continue;
       }
+      if (escalated && m.role === "system") {
+        continue;
+      }
       if (
         (m.role === "system" || m.role === "agent") &&
         m.content &&
@@ -912,7 +1015,7 @@ function WidgetChatPanel({
     return [...map.values()].sort((a, b) =>
       String(a.createdAt).localeCompare(String(b.createdAt)),
     );
-  }, [awaitingFirstUserQuestion, chat.messages, localAiMessages]);
+  }, [awaitingFirstUserQuestion, chat.messages, escalated, localAiMessages]);
 
   const assistantHandlesChat =
     mode === "AI_ONLY" || (mode === "HYBRID" && !escalated);
@@ -988,6 +1091,35 @@ function WidgetChatPanel({
         deferInitialAiReply: mode === "AI_ONLY" || mode === "HYBRID",
       });
       persistConversationId(siteKey, created.conversationId);
+      if (created.resumed) {
+        if (created.handoverRequested) {
+          setEscalated(true);
+          escalatedRef.current = true;
+          setLocalAiMessages([]);
+        }
+        const tr = await fetchWidgetTranscript(
+          created.conversationId,
+          websiteId,
+          sessionToken,
+        );
+        if (tr.ok) {
+          chat.resumeConversation({
+            conversationId: created.conversationId,
+            visitorId: tr.data.visitor?.id ?? created.visitorId,
+            status: tr.data.status,
+            messages: tr.data.messages,
+          });
+          if (
+            tr.data.messages.some(
+              (m) => (m.senderType || "").toLowerCase() === "visitor",
+            )
+          ) {
+            setAwaitingFirstUserQuestion(false);
+          }
+        }
+        setPrechatDone(true);
+        return;
+      }
       prechatApiFirstMessageRef.current = firstMessage;
       if (mode === "AI_ONLY" || mode === "HYBRID") {
         setAwaitingFirstUserQuestion(true);
@@ -1009,6 +1141,7 @@ function WidgetChatPanel({
       mode,
       parentPageUrl,
       selectedInquiry,
+      sessionToken,
       siteKey,
       visitorSessionId,
       websiteId,
@@ -1020,9 +1153,16 @@ function WidgetChatPanel({
   };
 
   useEffect(() => {
-    if (needsPrechatGate || prechatDone || chat.conversationId) return;
+    if (
+      !resumeChecked ||
+      needsPrechatGate ||
+      prechatDone ||
+      chat.conversationId
+    ) {
+      return;
+    }
     void startConversationRef.current?.();
-  }, [needsPrechatGate, prechatDone, chat.conversationId]);
+  }, [resumeChecked, needsPrechatGate, prechatDone, chat.conversationId]);
 
   const onPrechatSubmit = form.handleSubmit(async (values) => {
     if (hasInquiryStep && !selectedInquiry) return;
@@ -1049,31 +1189,9 @@ function WidgetChatPanel({
       aiPendingSinceRef.current = Date.now();
     }
     await chat.sendMessage(text);
-
-    if (shouldUseAiBridge) {
-      const originHost =
-        typeof window !== "undefined" ? window.location.hostname : "localhost";
-      try {
-        const aiRes = await postAiVisitorRespond(
-          {
-            message: text,
-            widgetKey,
-            originHost,
-            websiteId,
-            conversationId: chat.conversationId,
-            currentPageUrl: parentPageUrl,
-          },
-          sessionToken,
-        );
-        if (aiRes.ok && aiRes.data.response) {
-          appendAiAssistant(chat.conversationId, aiRes.data.response);
-        }
-      } catch {
-        /* AI reply failed — visitor can retry or escalate */
-      } finally {
-        setAiPending(false);
-        aiPendingSinceRef.current = null;
-      }
+    if (!shouldUseAiBridge) {
+      setAiPending(false);
+      aiPendingSinceRef.current = null;
     }
   };
 
@@ -1081,6 +1199,11 @@ function WidgetChatPanel({
     if (!chat.conversationId || handoverBusy) return;
     setHandoverBusy(true);
     setEscalated(true);
+    escalatedRef.current = true;
+    setLocalAiMessages([]);
+    if (chat.conversationId) {
+      persistHybridEscalated(siteKey, chat.conversationId);
+    }
     setHandoverStatus(null);
     const res = await postWidgetRequestHuman(
       chat.conversationId,
@@ -1090,7 +1213,16 @@ function WidgetChatPanel({
     setHandoverBusy(false);
     if (res.ok) {
       setHandoverStatus(res.data.message);
+      if (res.data.handoverRequested) {
+        setEscalated(true);
+        escalatedRef.current = true;
+        if (chat.conversationId) {
+          persistHybridEscalated(siteKey, chat.conversationId);
+        }
+      }
     } else {
+      setEscalated(false);
+      escalatedRef.current = false;
       setHandoverStatus(res.message || "Could not reach a teammate right now.");
     }
   };
@@ -1117,7 +1249,10 @@ function WidgetChatPanel({
       return (
         <Box sx={{ ...embedContainerSx, color: appearance?.colors.bodyText }}>
           {appearance ? (
-            <EmbedWidgetBanner banner={appearance.banner} appearance={appearance} />
+            <>
+              <EmbedVideoWelcome appearance={appearance} />
+              <EmbedWidgetBanner banner={appearance.banner} appearance={appearance} />
+            </>
           ) : null}
           {welcomeLine ? (
             <Typography
@@ -1174,7 +1309,10 @@ function WidgetChatPanel({
     return (
       <Box sx={{ ...embedContainerSx, color: appearance?.colors.bodyText }}>
         {appearance ? (
-          <EmbedWidgetBanner banner={appearance.banner} appearance={appearance} />
+          <>
+            <EmbedVideoWelcome appearance={appearance} />
+            <EmbedWidgetBanner banner={appearance.banner} appearance={appearance} />
+          </>
         ) : null}
         <Typography
           variant="subtitle2"

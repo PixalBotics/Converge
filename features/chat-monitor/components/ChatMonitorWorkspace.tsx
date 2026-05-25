@@ -89,8 +89,12 @@ export function ChatMonitorWorkspace({
     if (!monitorApiEnabled) return;
     monitor.setFilters({
       websiteId: websiteId || undefined,
-      departmentId: scopeFilters.filters.departmentId.trim() || undefined,
-      poolId: scopeFilters.filters.poolId.trim() || undefined,
+      departmentId: agentFilterActive
+        ? undefined
+        : scopeFilters.filters.departmentId.trim() || undefined,
+      poolId: agentFilterActive
+        ? undefined
+        : scopeFilters.filters.poolId.trim() || undefined,
       status: scopeFilters.filters.status.trim() || undefined,
       agentId: agentFilterActive ? teamAgent?.userId : undefined,
     });
@@ -199,10 +203,27 @@ export function ChatMonitorWorkspace({
 
   const handlePickTeamAgent = (row: ChatWebsiteAgentRow) => {
     setTeamAgent(row);
-    if (!scopeFilters.filters.departmentId.trim() && row.departmentId) {
-      scopeFilters.patchFilters({ departmentId: row.departmentId });
-    }
+    monitor.clearSelection();
   };
+
+  useEffect(() => {
+    if (!monitorApiEnabled || !agentFilterActive || monitor.selectedConversationId) return;
+    const pickFrom = monitor.listTab === "live" ? scopedLive : scopedClosed;
+    if (pickFrom.length !== 1) return;
+    const id = pickFrom[0]?.id;
+    if (!id) return;
+    void monitor.selectConversation(id);
+    router.replace(`/dashboard/chat-monitor/${encodeURIComponent(id)}`, { scroll: false });
+  }, [
+    agentFilterActive,
+    monitor.listTab,
+    monitor.selectedConversationId,
+    monitor.selectConversation,
+    monitorApiEnabled,
+    router,
+    scopedClosed,
+    scopedLive,
+  ]);
 
   const websiteLabel = scopeFilters.websiteOptions.find((w) => w.value === websiteId)?.label;
 
@@ -383,6 +404,7 @@ export function ChatMonitorWorkspace({
                 messages={monitor.messages}
                 visitor={monitor.visitorFromHistory}
                 loading={monitor.transcriptLoading}
+                loadError={monitor.transcriptError}
                 currentUserId={user?.id ?? null}
                 hasOperational={hasOperational}
                 monitorReadOnly={monitorReadOnly}

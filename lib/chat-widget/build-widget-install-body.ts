@@ -7,6 +7,7 @@ import { buildChatColorsFromWidgetDraft } from "./widget-colors-draft";
 import { CHAT_WIZARD_PATCH_DEFAULTS } from "./chat-wizard-patch-defaults";
 import type { TextUsFormFieldDraft, WidgetDraft } from "./widgetDraft";
 import { applyAiTypeToWidgetConfig } from "./widget-ai-type";
+import { normalizeWidgetInquiryOptions } from "./widget-inquiry.types";
 
 export interface WidgetInstallationAssetUrls {
   buttonIconPublicUrl?: string;
@@ -205,12 +206,22 @@ export function buildChatWizardStep1Config(
   };
 }
 
-/** Step 2 PATCH `config`: `designJson` (colors + chatBox + theme + ui.backgroundColor) + full `config.ui` shell. */
+/** `behavior.inquiryOptions` for widget JSON (embed pills + inline routing ids). */
+export function buildInquiryBehaviorPatchFromDraft(draft: WidgetDraft): JsonRecord {
+  const inquiryOptions =
+    draft.inquiryOn === false
+      ? []
+      : normalizeWidgetInquiryOptions(draft.inquiryOptions ?? []);
+  return { behavior: { inquiryOptions } };
+}
+
+/** Step 2 PATCH `config`: chat surface + inquiry JSON. */
 export function buildChatWizardStep2Config(
   draft: WidgetDraft,
   assetUrls?: WidgetInstallationAssetUrls,
 ): JsonRecord {
   return {
+    ...buildInquiryBehaviorPatchFromDraft(draft),
     theme: {
       ...buildThemeScalarsFromDraft(draft),
       designJson: buildDesignJsonPatchFromDraft(draft, "chat_surface", assetUrls),
@@ -250,17 +261,7 @@ export function buildChatWizardStep3Config(draft: WidgetDraft): JsonRecord {
       inquiryOptions:
         draft.inquiryOn === false
           ? []
-          : draft.inquiryOptions && draft.inquiryOptions.length > 0
-            ? draft.inquiryOptions.map((row) => ({
-                label: row.label,
-                routingKey: row.routingKey,
-                serviceChannel: row.serviceChannel,
-                internalDepartmentId: row.internalDepartmentId,
-                externalDepartmentId: row.externalDepartmentId,
-                internalPoolId: row.internalPoolId,
-                externalPoolId: row.externalPoolId,
-              }))
-            : [...def.inquiryOptions],
+          : normalizeWidgetInquiryOptions(draft.inquiryOptions ?? []),
       videoWelcomeOn: draft.videoWelcomeOn ?? false,
       videoWelcomeUrl: draft.videoWelcomeUrl?.trim() || undefined,
       welcomeMessage: draft.welcomeMessageBehavior ?? def.welcomeMessage,
@@ -470,7 +471,9 @@ export type ChatWidgetWizardPatchScope =
   /** Step 2: `theme.designJson.chat` (chatBox + header text color) + `config.ui`. */
   | "chat_surface"
   /** Step 3: `chatMode`, `allowedDomains`, `behavior`, `session`, `form`, `response`. */
-  | "notifications_only";
+  | "notifications_only"
+  /** Inquiry topics only: `behavior.inquiryOptions` (visitor-topics sync uses same helper). */
+  | "inquiry_only";
 
 /**
  * Body for `PATCH /widgets/:widgetKey` — `UpdateWidgetConfigurationDto`:
@@ -522,6 +525,17 @@ export function buildWidgetPatchConfigurationBody(input: {
       publishNow,
       widgetType,
       config: buildChatWizardStep3Config(draft),
+    };
+    if (embedAllowAnyOrigin !== undefined)
+      body.embedAllowAnyOrigin = embedAllowAnyOrigin;
+    return body;
+  }
+
+  if (widgetType === "CHAT" && input.chatWizardPatchScope === "inquiry_only") {
+    const body: JsonRecord = {
+      publishNow,
+      widgetType,
+      config: buildInquiryBehaviorPatchFromDraft(draft),
     };
     if (embedAllowAnyOrigin !== undefined)
       body.embedAllowAnyOrigin = embedAllowAnyOrigin;

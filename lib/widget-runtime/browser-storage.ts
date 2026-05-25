@@ -37,6 +37,32 @@ export function readConversationId(siteKey: string): string | null {
   return localStorage.getItem(`${WIDGET_CONVERSATION_PREFIX}${siteKey}`);
 }
 
+export function clearConversationId(siteKey: string) {
+  if (typeof localStorage === "undefined") return;
+  localStorage.removeItem(`${WIDGET_CONVERSATION_PREFIX}${siteKey}`);
+}
+
+const HYBRID_ESCALATED_PREFIX = "ic.widget.hybridEscalated.";
+
+/** HYBRID: visitor tapped “Talk to agent” — survives widget reload. */
+export function persistHybridEscalated(siteKey: string, conversationId: string) {
+  if (typeof localStorage === "undefined") return;
+  localStorage.setItem(
+    `${HYBRID_ESCALATED_PREFIX}${siteKey}`,
+    conversationId,
+  );
+}
+
+export function readHybridEscalatedConversationId(siteKey: string): string | null {
+  if (typeof localStorage === "undefined") return null;
+  return localStorage.getItem(`${HYBRID_ESCALATED_PREFIX}${siteKey}`);
+}
+
+export function clearHybridEscalated(siteKey: string) {
+  if (typeof localStorage === "undefined") return;
+  localStorage.removeItem(`${HYBRID_ESCALATED_PREFIX}${siteKey}`);
+}
+
 export function generateClientSessionId() {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto)
     return crypto.randomUUID();

@@ -41,6 +41,10 @@ import {
   type WidgetInquiryOption,
 } from "@/lib/chat-widget/widget-inquiry.types";
 import { useInquiryTopicsForWebsite } from "@/lib/chat-widget/use-inquiry-topics-for-website";
+import {
+  persistVisitorTopicsIfValid,
+  syncInquiryToWidgetJson,
+} from "@/lib/chat-widget/sync-inquiry-topics";
 
 export default function ChatWidgetBoxDesignPage() {
   const router = useRouter();
@@ -229,10 +233,26 @@ export default function ChatWidgetBoxDesignPage() {
           messagePlaceholder: messagePlaceholder.trim(),
           backgroundColor: backgroundColor.trim() || "#f8fafc",
           inquiryOn,
-          inquiryOptions: inquiryOn ? inquiryOptions : [],
+          inquiryOptions: inquiryOn
+            ? normalizeWidgetInquiryOptions(inquiryOptions)
+            : [],
           ...widgetChatColorsDraftToPatch(chatColors),
         });
         const latest = readChatWizardDraft(editKey || undefined);
+        if (wizardWebsiteId && inquiryOn && latest.inquiryOptions?.length) {
+          try {
+            await persistVisitorTopicsIfValid(
+              wizardWebsiteId,
+              normalizeWidgetInquiryOptions(latest.inquiryOptions),
+            );
+          } catch {
+            publishAppToast({
+              variant: "error",
+              message:
+                "Chat box saved, but visitor topics could not sync to scheduling. Use Save inquiry topics or assign both departments per topic.",
+            });
+          }
+        }
         const patchInner = await patchRemoteWidgetConfiguration({
           widgetKey: rk,
           widgetKind: "chat",
@@ -460,7 +480,7 @@ export default function ChatWidgetBoxDesignPage() {
 
       <SchedulingSectionCard
         title="Inquiry topics"
-        subtitle="Loads from service scheduling when topics are already saved for this website. Same data appears under scheduling → Visitor topics."
+        subtitle="Save or Next writes topics to visitor-topics (routing) and widget JSON (embed pills). Publish from Script when done."
       >
         <Box
           sx={{
@@ -493,25 +513,26 @@ export default function ChatWidgetBoxDesignPage() {
             if (rows.length > 0) setInquiryOn(true);
             const editKey = resolveEditWidgetKeyForNavigation(editWidgetKey);
             const prev = readChatWizardDraft(editKey || undefined);
+            const mergedDraft = {
+              ...prev,
+              inquiryOptions: rows,
+              inquiryOn: rows.length > 0,
+            };
             saveChatWizardDraft(editKey || undefined, {
               inquiryOptions: rows,
               inquiryOn: rows.length > 0,
             });
             const rk = resolveRemoteWidgetKeyForChatWizard(editKey || undefined, prev);
             if (rk) {
-              void patchRemoteWidgetConfiguration({
-                widgetKey: rk,
-                widgetKind: "chat",
-                draft: { ...prev, inquiryOptions: rows, inquiryOn: rows.length > 0 },
-                publishNow: false,
-                chatWizardPatchScope: "notifications_only",
-              }).catch(() => {
-                publishAppToast({
-                  variant: "error",
-                  message:
-                    "Topics saved for the website, but widget draft sync failed. Publish again from notifications.",
-                });
-              });
+              void syncInquiryToWidgetJson({ widgetKey: rk, draft: mergedDraft }).catch(
+                () => {
+                  publishAppToast({
+                    variant: "error",
+                    message:
+                      "Topics saved for the website, but widget JSON sync failed. Click Next on this step or publish again.",
+                  });
+                },
+              );
             }
           }}
         />

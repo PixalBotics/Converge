@@ -58,6 +58,8 @@ interface ChatConversationPanelProps {
   /** When set, show in-chat link to the website distribution form (after close). */
   distributionFormHref?: string | null;
   distributionSubmitted?: boolean;
+  closeFormHref?: string | null;
+  wrapUpSubmitted?: boolean;
 }
 
 function formatDuration(seconds: number): string {
@@ -98,6 +100,8 @@ export function ChatConversationPanel({
   onDismissWhisper,
   distributionFormHref = null,
   distributionSubmitted = false,
+  closeFormHref = null,
+  wrapUpSubmitted = false,
 }: ChatConversationPanelProps) {
   const theme = useTheme() as AppTheme;
   const visitorInfo = parseVisitorInfo(visitor, conversationMeta ?? undefined);
@@ -297,6 +301,8 @@ export function ChatConversationPanel({
         availabilityHint={availabilityHint}
         distributionFormHref={distributionFormHref}
         distributionSubmitted={distributionSubmitted}
+        closeFormHref={closeFormHref}
+        wrapUpSubmitted={wrapUpSubmitted}
         activeWhisper={activeWhisper}
         onApplyWhisperToComposer={onApplyWhisperToComposer}
         onDismissWhisper={onDismissWhisper}

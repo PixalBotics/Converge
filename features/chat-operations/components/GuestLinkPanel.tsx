@@ -29,12 +29,15 @@ interface GuestLinkPanelProps {
   conversationId: string | null;
   hasOperational: (p: string) => boolean;
   disabled?: boolean;
+  /** When false, panel is hidden (website `guestAccess.enabled`). */
+  guestAccessEnabled?: boolean;
 }
 
 export function GuestLinkPanel({
   conversationId,
   hasOperational,
   disabled = false,
+  guestAccessEnabled = false,
 }: GuestLinkPanelProps) {
   const theme = useTheme() as AppTheme;
   const token = getAccessToken() ?? "";
@@ -61,7 +64,7 @@ export function GuestLinkPanel({
     void refresh();
   }, [refresh]);
 
-  if (!conversationId || !canSend) return null;
+  if (!guestAccessEnabled || !conversationId || !canSend) return null;
 
   const runSend = async () => {
     if (!token) return;

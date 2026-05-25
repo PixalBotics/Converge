@@ -48,6 +48,7 @@ export function useChatMonitor(
   );
   const [isConnected, setIsConnected] = useState(false);
   const [transcriptLoading, setTranscriptLoading] = useState(false);
+  const [transcriptError, setTranscriptError] = useState<string | null>(null);
 
   const messageMapRef = useRef(new Map<string, ChatMessage>());
   const selectedIdRef = useRef<string | null>(null);
@@ -93,7 +94,10 @@ export function useChatMonitor(
   const loadTranscript = useCallback(
     async (conversationId: string, opts?: { silent?: boolean }) => {
       if (!apiEnabled || !token) return;
-      if (!opts?.silent) setTranscriptLoading(true);
+      if (!opts?.silent) {
+        setTranscriptLoading(true);
+        setTranscriptError(null);
+      }
       try {
         const history = await fetchMonitorTranscript(conversationId);
         messageMapRef.current.clear();
@@ -108,6 +112,17 @@ export function useChatMonitor(
         const sc = (history as { supervisorControlUserId?: string | null })
           .supervisorControlUserId;
         setSupervisorControlUserId(sc ?? null);
+      } catch (err: unknown) {
+        if (!opts?.silent) {
+          const msg =
+            err && typeof err === "object" && "message" in err
+              ? String((err as { message: unknown }).message)
+              : "Could not load transcript.";
+          setTranscriptError(msg);
+          messageMapRef.current.clear();
+          syncMessagesFromMap();
+          setVisitorFromHistory(null);
+        }
       } finally {
         if (!opts?.silent) setTranscriptLoading(false);
       }
@@ -156,6 +171,7 @@ export function useChatMonitor(
     setMessages([]);
     setVisitorFromHistory(null);
     setSupervisorControlUserId(null);
+    setTranscriptError(null);
   }, [socketClient]);
 
   const initialAppliedRef = useRef(false);
@@ -258,6 +274,7 @@ export function useChatMonitor(
     visitorFromHistory,
     supervisorControlUserId,
     transcriptLoading,
+    transcriptError,
     isConnected,
     selectConversation,
     clearSelection,

@@ -63,7 +63,13 @@ export interface RuntimeBannerAppearance {
   title: string;
   description: string;
   imageUrl: string;
+  videoUrl: string;
   mediaType: string;
+}
+
+export interface RuntimeVideoWelcomeAppearance {
+  enabled: boolean;
+  url: string;
 }
 
 /** Greeting bubble shown before the pre-chat form in the embed widget. */
@@ -96,6 +102,7 @@ export interface RuntimeChatAppearance {
   form: RuntimeFormAppearance;
   formEnabled: boolean;
   banner: RuntimeBannerAppearance;
+  videoWelcome: RuntimeVideoWelcomeAppearance;
   inquiryOptions: RuntimeInquiryOption[];
   handoverTriggerText: string;
   agentHandoverEnabled: boolean;
@@ -405,7 +412,18 @@ export function extractRuntimeChatAppearance(
       title: strFirst(chatBox?.bannerTitle, ui?.bannerTitle, configRecord.bannerTitle),
       description: strFirst(chatBox?.bannerDescription, ui?.bannerDescription, configRecord.bannerDescription),
       imageUrl: strFirst(chatBox?.bannerImageUrl, ui?.bannerImageUrl, configRecord.bannerImageUrl),
+      videoUrl: strFirst(
+        ui?.bannerVideoUrl,
+        chatBox?.bannerVideoUrl,
+        configRecord.bannerVideoUrl,
+      ),
       mediaType: strFirst(chatBox?.bannerMediaType, ui?.bannerMediaType, configRecord.bannerMediaType, "image"),
+    },
+    videoWelcome: {
+      enabled:
+        behavior?.videoWelcomeOn === true ||
+        configRecord.videoWelcomeOn === true,
+      url: strFirst(behavior?.videoWelcomeUrl, configRecord.videoWelcomeUrl),
     },
     launcher: {
       buttonLabel: strFirst(

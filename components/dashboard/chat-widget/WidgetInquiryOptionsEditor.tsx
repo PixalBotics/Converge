@@ -138,7 +138,7 @@ export function WidgetInquiryOptionsEditor({
           onSaved?.(saved);
           publishAppToast({
             variant: "success",
-            message: "Inquire topics saved for this website.",
+            message: "Inquire topics saved (scheduling + widget JSON).",
           });
         },
         onError: (e) => {
@@ -188,13 +188,12 @@ export function WidgetInquiryOptionsEditor({
             py: 1,
           }}
         >
-          Loaded from inquire topics for this website. Edit here or in service scheduling — both stay
-          in sync when you save.
+          Loaded from inquire topics for this website. Save writes scheduling DB and widget JSON
+          (behavior.inquiryOptions) for the embed.
         </Typography>
       ) : (
         <Typography variant="body2" sx={{ color: muted, mb: 1.5 }}>
-          Required for routing and agent assignment. Saved via the visitor-topics API (separate from
-          service schedule hours).
+          Required for routing and agent assignment. Save updates visitor-topics and widget JSON.
         </Typography>
       )}
       <VisitorTopicsEditor

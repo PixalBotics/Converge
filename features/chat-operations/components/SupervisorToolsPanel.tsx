@@ -29,6 +29,8 @@ interface SupervisorToolsPanelProps {
   currentUserId?: string;
   hasOperational: (p: string) => boolean;
   supervisor: ReturnType<typeof useConversationSupervisor>;
+  /** From website `operations_json.takeover.approval.mode`. */
+  takeoverApprovalMode?: "immediate" | "current_agent_or_pool_head";
 }
 
 export function SupervisorToolsPanel({
@@ -37,6 +39,7 @@ export function SupervisorToolsPanel({
   currentUserId,
   hasOperational,
   supervisor,
+  takeoverApprovalMode = "immediate",
 }: SupervisorToolsPanelProps) {
   const theme = useTheme() as AppTheme;
   const [whisperText, setWhisperText] = useState("");
@@ -46,7 +49,9 @@ export function SupervisorToolsPanel({
 
   const showWhisper = canWhisper(hasOperational);
   const showTakeover = canRequestTakeover(hasOperational);
-  const showApprove = canApproveTakeover(hasOperational);
+  const showApprove =
+    takeoverApprovalMode !== "immediate" && canApproveTakeover(hasOperational);
+  const takeoverImmediate = takeoverApprovalMode === "immediate";
 
   if (!conversationId || (!showWhisper && !showTakeover && !showApprove)) {
     return null;
@@ -67,7 +72,11 @@ export function SupervisorToolsPanel({
     <ChatSideToolCard
       accent="supervisor"
       title="Supervisor tools"
-      subtitle="Whispers are never visible to visitors. Takeover transfers assignment when approved."
+      subtitle={
+        takeoverImmediate
+          ? "Whispers are never visible to visitors. Take over assigns you immediately."
+          : "Whispers are never visible to visitors. Takeover transfers assignment when approved."
+      }
     >
       {showWhisper && assignedAgentId && assignedAgentId !== currentUserId ? (
         <Box sx={{ mb: 2 }}>
@@ -112,7 +121,9 @@ export function SupervisorToolsPanel({
             sx={{ mt: 1 }}
           />
           <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, display: "block", my: 0.5 }}>
-            Leave target blank to assign to yourself when approved.
+            {takeoverImmediate
+              ? "Leave target blank to take over yourself."
+              : "Leave target blank to assign to yourself when approved."}
           </Typography>
           <Button
             type="button"
@@ -120,7 +131,7 @@ export function SupervisorToolsPanel({
             size="small"
             fullWidth
             sx={gradientPrimaryButtonSx}
-            disabled={busy || pending.length > 0}
+            disabled={busy || (!takeoverImmediate && pending.length > 0)}
             onClick={() =>
               void run(async () => {
                 await supervisor.requestTakeover({
@@ -132,12 +143,12 @@ export function SupervisorToolsPanel({
               })
             }
           >
-            Request takeover
+            {takeoverImmediate ? "Take over chat" : "Request takeover"}
           </Button>
         </Box>
       ) : null}
 
-      {supervisor.takeoverRequests.length > 0 ? (
+      {!takeoverImmediate && supervisor.takeoverRequests.length > 0 ? (
         <>
           <Divider sx={{ my: 1.5, borderColor: alpha(theme.app.dashboard.cardBorder, 0.3) }} />
           <Typography variant="caption" sx={{ fontWeight: 600, mb: 1, display: "block" }}>

@@ -74,6 +74,8 @@ export interface VisitorCreateConversationResponse {
   chatMode?: string;
   handoverRequested?: boolean;
   queuedForAgent?: boolean;
+  /** True when an open chat for this visitor session was reused instead of creating a new row. */
+  resumed?: boolean;
 }
 
 /** POST .../widget/conversations/:id/messages */

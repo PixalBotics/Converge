@@ -24,6 +24,7 @@ interface MonitorTranscriptPanelProps {
   messages: ChatMessage[];
   visitor: Record<string, unknown> | null;
   loading: boolean;
+  loadError?: string | null;
   currentUserId?: string | null;
   hasOperational?: (p: string) => boolean;
   monitorReadOnly?: boolean;
@@ -37,6 +38,7 @@ export function MonitorTranscriptPanel({
   messages,
   visitor,
   loading,
+  loadError = null,
   currentUserId = null,
   hasOperational = () => false,
   monitorReadOnly = false,
@@ -94,7 +96,13 @@ export function MonitorTranscriptPanel({
         </PanelHeader>
       ) : null}
 
-      {loading ? (
+      {loadError ? (
+        <Box sx={{ p: 3 }}>
+          <Typography sx={{ color: theme.palette.error.main, fontSize: 14 }}>
+            {loadError}
+          </Typography>
+        </Box>
+      ) : loading ? (
         <Box sx={{ p: 3 }}>
           <Typography sx={{ color: theme.app.dashboard.textMuted }}>Loading transcript…</Typography>
         </Box>

@@ -3,12 +3,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createConversation, sendVisitorMessage } from "@/services/chat/chatApi";
 import { createChatSocketClient } from "@/services/chat/chatSocket";
+import { normalizeServerMessage } from "@/services/chat/normalize-message";
 import type {
   ChatMessage,
   TypingPayload,
   VisitorCreateConversationPayload,
   VisitorCreateConversationResponse,
 } from "@/services/chat/chat.types";
+import type { WidgetTranscriptMessage } from "@/services/chat/widget-visitor.api";
 
 export interface UseVisitorChatOptions {
   autoConnect?: boolean;
@@ -17,6 +19,8 @@ export interface UseVisitorChatOptions {
   getCurrentPageUrl?: () => string;
   onChatAssigned?: () => void;
   onChatQueued?: () => void;
+  /** When true, ignore server-persisted AI rows (HYBRID after “Talk to agent”). */
+  getSkipServerAiReply?: () => boolean;
 }
 
 export interface UseVisitorChatReturn {
@@ -30,6 +34,13 @@ export interface UseVisitorChatReturn {
   startConversation: (
     payload: VisitorCreateConversationPayload,
   ) => Promise<VisitorCreateConversationResponse>;
+  /** Restore socket + messages after embed reload (localStorage conversation id). */
+  resumeConversation: (params: {
+    conversationId: string;
+    visitorId?: string | null;
+    status?: string;
+    messages: WidgetTranscriptMessage[];
+  }) => void;
   sendMessage: (
     content: string,
     options?: { messageType?: string },
@@ -121,7 +132,10 @@ export function useVisitorChat(
 
     const offVisitorMessage = socketClient.onVisitorMessage(upsertMessage);
     const offAgentMessage = socketClient.onAgentMessage(upsertMessage);
-    const offAiMessage = socketClient.onAiMessage(upsertMessage);
+    const offAiMessage = socketClient.onAiMessage((message) => {
+      if (optionsRef.current?.getSkipServerAiReply?.() === true) return;
+      upsertMessage(message);
+    });
 
     const offTyping = socketClient.onTyping((payload: TypingPayload) => {
       const cid = conversationIdRef.current;
@@ -211,6 +225,40 @@ export function useVisitorChat(
     [joinRoom, socketClient],
   );
 
+  const resumeConversation = useCallback(
+    (params: {
+      conversationId: string;
+      visitorId?: string | null;
+      status?: string;
+      messages: WidgetTranscriptMessage[];
+    }) => {
+      const token = widgetTokenRef.current;
+      socketClient.connect({
+        authToken: token ?? undefined,
+        forceNew: true,
+      });
+      messageMapRef.current.clear();
+      for (const row of params.messages) {
+        const normalized = normalizeServerMessage({
+          id: row.id,
+          conversationId: params.conversationId,
+          content: row.content,
+          senderType: row.senderType,
+          createdAt: row.createdAt,
+        });
+        if (normalized) {
+          messageMapRef.current.set(stableMessageDedupeKey(normalized), normalized);
+        }
+      }
+      setMessages(Array.from(messageMapRef.current.values()));
+      setConversationId(params.conversationId);
+      setVisitorId(params.visitorId ?? null);
+      setAssigned(params.status === "assigned");
+      joinRoom(params.conversationId);
+    },
+    [joinRoom, socketClient],
+  );
+
   const sendMessage = useCallback(
     async (content: string, sendOpts?: { messageType?: string }) => {
       if (!conversationId) {
@@ -227,11 +275,31 @@ export function useVisitorChat(
       };
 
       upsertMessage(optimisticMessage);
-      await sendVisitorMessage(conversationId, {
+      const raw = await sendVisitorMessage(conversationId, {
         message: content,
         currentPageUrl: pageUrl,
         ...(sendOpts?.messageType ? { messageType: sendOpts.messageType } : {}),
       });
+      const skipAi = optionsRef.current?.getSkipServerAiReply?.() === true;
+      if (!skipAi && raw && typeof raw === "object") {
+        const envelope = raw as {
+          aiMessage?: {
+            id?: string;
+            content?: string;
+            createdAt?: string;
+            senderType?: string;
+          };
+        };
+        const aiRow = envelope.aiMessage;
+        if (aiRow?.content?.trim()) {
+          const normalized = normalizeServerMessage({
+            ...aiRow,
+            conversationId,
+            senderType: aiRow.senderType ?? "ai",
+          });
+          if (normalized) upsertMessage(normalized);
+        }
+      }
     },
     [conversationId, resolvePageUrl, upsertMessage],
   );
@@ -254,6 +322,7 @@ export function useVisitorChat(
     isConnected,
     agentTypingSeen: agentTypingFromOther,
     startConversation,
+    resumeConversation,
     sendMessage,
     emitTyping,
     emitStopTyping,

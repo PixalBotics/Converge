@@ -19,10 +19,141 @@ function peelSuccessEnvelope(raw: unknown, maxDepth = 4): unknown {
   return cur;
 }
 
+export type WidgetTranscriptMessage = {
+  id: string;
+  senderType: string;
+  content: string;
+  messageType?: string;
+  createdAt: string;
+};
+
+export type WidgetTranscriptResult = {
+  id: string;
+  status: string;
+  chatCompleted: boolean;
+  canSendMessages: boolean;
+  handoverRequested?: boolean;
+  queuedForAgent?: boolean;
+  assignedAgentId?: string | null;
+  visitor?: {
+    id?: string;
+    name?: string | null;
+    email?: string | null;
+    phone?: string | null;
+  } | null;
+  messages: WidgetTranscriptMessage[];
+};
+
+export async function fetchWidgetTranscript(
+  conversationId: string,
+  websiteId: string,
+  widgetBearerToken?: string,
+): Promise<
+  { ok: true; data: WidgetTranscriptResult } | { ok: false; message: string }
+> {
+  const base = getResolvedPublicApiBaseUrl();
+  const url =
+    `${base}/chat/widget/conversations/${encodeURIComponent(conversationId)}` +
+    `/transcript?websiteId=${encodeURIComponent(websiteId)}`;
+
+  try {
+    const res = await fetch(url, {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+        ...(widgetBearerToken
+          ? { Authorization: `Bearer ${widgetBearerToken}` }
+          : {}),
+      },
+    });
+
+    if (!res.ok) {
+      let message = `${res.status} ${res.statusText}`;
+      try {
+        const maybe = await res.json();
+        if (maybe?.message && typeof maybe.message === "string") {
+          message = maybe.message;
+        }
+      } catch {
+        /* ignore */
+      }
+      return { ok: false, message };
+    }
+
+    const raw = peelSuccessEnvelope(await res.json());
+    const o =
+      raw !== null && typeof raw === "object" && !Array.isArray(raw)
+        ? (raw as Record<string, unknown>)
+        : {};
+
+    const messagesRaw = Array.isArray(o.messages) ? o.messages : [];
+    const messages: WidgetTranscriptMessage[] = messagesRaw
+      .map((row) => {
+        if (!row || typeof row !== "object") return null;
+        const m = row as Record<string, unknown>;
+        const id = typeof m.id === "string" ? m.id : "";
+        const content =
+          typeof m.content === "string"
+            ? m.content
+            : typeof m.message === "string"
+              ? m.message
+              : "";
+        const senderType =
+          typeof m.senderType === "string" ? m.senderType : "visitor";
+        const createdAt =
+          typeof m.createdAt === "string"
+            ? m.createdAt
+            : new Date().toISOString();
+        if (!id || !content.trim()) return null;
+        return {
+          id,
+          content,
+          senderType,
+          messageType:
+            typeof m.messageType === "string" ? m.messageType : undefined,
+          createdAt,
+        };
+      })
+      .filter((m): m is WidgetTranscriptMessage => m != null);
+
+    const visitor =
+      o.visitor !== null && typeof o.visitor === "object" && !Array.isArray(o.visitor)
+        ? (o.visitor as WidgetTranscriptResult["visitor"])
+        : null;
+
+    return {
+      ok: true,
+      data: {
+        id: typeof o.id === "string" ? o.id : conversationId,
+        status: typeof o.status === "string" ? o.status : "active",
+        chatCompleted: o.chatCompleted === true,
+        canSendMessages: o.canSendMessages !== false,
+        handoverRequested: o.handoverRequested === true,
+        queuedForAgent: o.queuedForAgent === true,
+        assignedAgentId:
+          typeof o.assignedAgentId === "string"
+            ? o.assignedAgentId
+            : typeof o.agentId === "string"
+              ? o.agentId
+              : null,
+        visitor,
+        messages,
+      },
+    };
+  } catch (e) {
+    return {
+      ok: false,
+      message: e instanceof Error ? e.message : "Network error",
+    };
+  }
+}
+
 export type WidgetRequestHumanResult = {
   message: string;
   assignedAgentId: string | null;
   queuedForAgent: boolean;
+  handoverRequested?: boolean;
+  handoverPending?: boolean;
 };
 
 export async function postWidgetRequestHuman(
@@ -79,6 +210,10 @@ export async function postWidgetRequestHuman(
         assignedAgentId:
           typeof o.assignedAgentId === "string" ? o.assignedAgentId : null,
         queuedForAgent: o.queuedForAgent === true,
+        handoverRequested: o.handoverRequested === true,
+        handoverPending:
+          o.handoverPending === true ||
+          ("handoverPending" in o && o.handoverPending === true),
       },
     };
   } catch (e) {

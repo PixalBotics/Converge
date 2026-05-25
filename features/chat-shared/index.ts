@@ -22,6 +22,7 @@ export type { MultiUserCheckboxPickerProps } from "./components/MultiUserCheckbo
 export { useChatScopeFilters } from "./hooks/useChatScopeFilters";
 export {
   conversationMatchesScope,
+  isUnassignedActiveChat,
   monitorRowMatchesScope,
   qaRowMatchesScope,
 } from "./utils/scope-match";

@@ -12,10 +12,16 @@ export function ChatDistributionLinkBanner({
   href,
   submitted,
   embedded = false,
+  hint = "Chat closed — open the distribution form to send the transcript to a department.",
+  buttonLabel = "Open distribution form",
+  submittedHint = "Distribution already submitted for this chat.",
 }: {
   href: string;
   submitted?: boolean;
   embedded?: boolean;
+  hint?: string;
+  buttonLabel?: string;
+  submittedHint?: string;
 }) {
   const theme = useTheme() as AppTheme;
   const router = useRouter();
@@ -23,7 +29,7 @@ export function ChatDistributionLinkBanner({
   if (submitted) {
     return (
       <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, fontSize: 12 }}>
-        Distribution already submitted for this chat.
+        {submittedHint}
       </Typography>
     );
   }
@@ -50,7 +56,7 @@ export function ChatDistributionLinkBanner({
       }}
     >
       <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, fontSize: 11 }}>
-        Chat closed — open the distribution form to send the transcript to a department.
+        {hint}
       </Typography>
       <Button
         type="button"
@@ -59,7 +65,7 @@ export function ChatDistributionLinkBanner({
         sx={{ ...gradientPrimaryButtonSx, py: 0.5, px: 1.5, fontSize: 12 }}
         onClick={() => router.push(href)}
       >
-        Open distribution form
+        {buttonLabel}
       </Button>
     </Box>
   );

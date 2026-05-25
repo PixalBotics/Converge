@@ -41,6 +41,7 @@ import {
 } from "@/lib/chat-widget/widget-ai-type";
 import { normalizeWidgetInquiryOptions } from "@/lib/chat-widget/widget-inquiry.types";
 import { useInquiryTopicsForWebsite } from "@/lib/chat-widget/use-inquiry-topics-for-website";
+import { mergeDraftAllowedDomains } from "@/lib/chat-widget/default-allowed-domains";
 
 export default function ChatWidgetNotificationsPage() {
   const router = useRouter();
@@ -144,7 +145,7 @@ export default function ChatWidgetNotificationsPage() {
     if (topicsFromScheduling.length > 0) {
       setInquiryOn(true);
       saveChatWizardDraft(editKey, {
-        inquiryOptions: topicsFromScheduling,
+        inquiryOptions: normalizeWidgetInquiryOptions(topicsFromScheduling),
         inquiryOn: true,
       });
       return;
@@ -238,10 +239,9 @@ export default function ChatWidgetNotificationsPage() {
         saveChatWizardDraft(editKey || undefined, {
           chatMode,
           aiType: shouldShowWidgetAiType(chatMode) ? aiType : undefined,
-          allowedDomains: allowedDomainsInput
-            .split(",")
-            .map((s) => s.trim())
-            .filter(Boolean),
+          allowedDomains: mergeDraftAllowedDomains(
+            allowedDomainsInput.split(",").map((s) => s.trim()),
+          ),
           browserNotification,
           soundNotification,
           notificationEnabled: browserNotification || soundNotification,
