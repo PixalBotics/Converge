@@ -15,9 +15,7 @@ export function useEmailTemplateAccess() {
     hasPage(PAGE_EMAIL_TEMPLATE);
 
   const canUpdate =
-    isPlatformAdmin ||
-    hasOperational(OP.emailTemplate.update) ||
-    hasOperational(OP.emailTemplate.create);
+    isPlatformAdmin || hasOperational(OP.emailTemplate.update);
 
   const canPublish =
     isPlatformAdmin || hasOperational(OP.emailTemplate.publish);

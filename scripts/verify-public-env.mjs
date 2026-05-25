@@ -67,6 +67,7 @@ const RECOMMENDED = [
 ];
 
 const isNetlify = process.env.NETLIFY === "true";
+const isVercel = process.env.VERCEL === "1";
 const isCi = process.env.CI === "true";
 
 const env = loadMergedEnv();
@@ -77,7 +78,11 @@ if (missing.length > 0) {
   for (const { key, hint } of missing) {
     console.error(`  • ${key}  (${hint})`);
   }
-  if (isNetlify || isCi) {
+  if (isVercel) {
+    console.error(
+      "\nSet variables in Vercel → Project → Settings → Environment Variables (Production).\n",
+    );
+  } else if (isNetlify || isCi) {
     console.error(
       "\nSet variables in Netlify → Site configuration → Environment variables.\n",
     );

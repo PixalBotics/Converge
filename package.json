@@ -6,6 +6,7 @@
     "dev": "cross-env NODE_OPTIONS=--max-old-space-size=8192 next dev",
     "dev:clean": "npm run clean:next && npm run dev",
     "build": "cross-env NODE_OPTIONS=--max-old-space-size=8192 next build",
+    "build:vercel": "npm run check:imports && npm run verify:env:prod && cross-env VERCEL=1 NODE_ENV=production NODE_OPTIONS=--max-old-space-size=8192 next build",
     "build:netlify": "npm run check:imports && npm run verify:env:prod && cross-env NETLIFY=true NODE_ENV=production NODE_OPTIONS=--max-old-space-size=8192 next build",
     "build:prod": "npm run check:imports && npm run verify:env:prod && npm run clean:next && cross-env NODE_ENV=production NODE_OPTIONS=--max-old-space-size=8192 next build",
     "check:imports": "node scripts/check-duplicate-imports.mjs",
