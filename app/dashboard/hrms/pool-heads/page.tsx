@@ -545,8 +545,9 @@ export default function PoolHeadsPage() {
       ? {
           all: true,
           userType: assignUserTypeFilter,
+          headRole: "none",
           ...(assignUserTypeFilter === "External"
-            ? { resellerId: assignExternalResellerId.trim(), parentCompanyId: assignExternalParentCompanyId.trim() }
+            ? { parentCompanyId: assignExternalParentCompanyId.trim() }
             : {}),
           departmentId: assignDepartmentId.trim(),
         }
