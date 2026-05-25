@@ -39,7 +39,7 @@ import {
 } from "@/features/website-assignments/styles/website-assignment-ui.styles";
 import { SchedulingSectionCard } from "@/features/website-assignments/components/ServiceSchedulingSections";
 import { assignWebsiteFormGridSx } from "./assign-website-modal.styles";
-import { formatWebsiteSelectLabel } from "@/lib/websites/format-website-select-label";
+import { websiteAssignmentItemToSelectOption } from "@/lib/websites/format-website-select-label";
 
 export type AssignWebsiteModalPreset = {
   websiteId: string;
@@ -212,14 +212,7 @@ export function AssignWebsiteModal({ open, onClose, onAssign, preset }: AssignWe
     }
     return [
       { value: "", label: "Select website" },
-      ...items.map((w) => {
-        const name = (w.name ?? "").trim() || "Website";
-        const url = (w.url ?? "").trim();
-        return {
-          value: w.websiteId,
-          label: formatWebsiteSelectLabel(name, url, w.websiteId),
-        };
-      }),
+      ...items.map((w) => websiteAssignmentItemToSelectOption(w)),
     ];
   }, [websitesQuery.data?.data?.items, websitesQuery.isFetching]);
 

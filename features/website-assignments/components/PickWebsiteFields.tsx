@@ -20,7 +20,7 @@ import {
 import { assignWebsiteFormGridSx } from "@/components/common/AssignWebsiteModal/assign-website-modal.styles";
 import { SchedulingSectionCard } from "@/features/website-assignments/components/ServiceSchedulingSections";
 import { assignmentStepChipSx, assignmentStepRowSx } from "../styles/website-assignment-ui.styles";
-import { formatWebsiteSelectLabel } from "@/lib/websites/format-website-select-label";
+import { websiteAssignmentItemToSelectOption } from "@/lib/websites/format-website-select-label";
 import type { PickWebsitePreset } from "./PickWebsiteModal";
 
 export type PickWebsiteFieldsProps = {
@@ -141,14 +141,7 @@ export function PickWebsiteFields({
     }
     return [
       { value: "", label: "Select website" },
-      ...availableWebsiteItems.map((w) => {
-        const name = (w.name ?? "").trim() || "Website";
-        const url = (w.url ?? "").trim();
-        return {
-          value: w.websiteId,
-          label: formatWebsiteSelectLabel(name, url, w.websiteId),
-        };
-      }),
+      ...availableWebsiteItems.map((w) => websiteAssignmentItemToSelectOption(w)),
     ];
   }, [websiteItems, availableWebsiteItems, websitesQuery.isFetching, excludeSet.size]);
 

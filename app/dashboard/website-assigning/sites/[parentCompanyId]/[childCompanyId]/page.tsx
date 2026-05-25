@@ -18,6 +18,8 @@ import {
 } from "@/components/common";
 import type { DataTableColumn } from "@/components/common";
 import type { WebsiteAssignmentScopeItem } from "@/api/types/website-assignments.types";
+import { WebsiteUrlDisplay } from "@/features/website-assignments/components/WebsiteUrlDisplay";
+import { resolveWebsiteRowUrlLabels } from "@/lib/websites/format-website-display-url";
 import { WebsiteAssignmentTableActions } from "@/features/website-assignments/components/WebsiteAssignmentTableActions";
 import { clearAllDepartmentRosters } from "@/features/website-assignments/utils/clear-website-roster";
 import { extractApiErrorMessageForToast, publishAppToast } from "@/lib/notify";
@@ -54,8 +56,8 @@ type SiteRow = {
 function itemToRow(item: WebsiteAssignmentScopeItem): SiteRow {
   return {
     id: item.websiteId,
-    websiteName: item.name || "—",
-    websiteUrl: item.url || "—",
+    websiteName: (item.name ?? "").trim(),
+    websiteUrl: (item.url ?? "").trim() || "—",
     filledSlots: item.filledSlots ?? item.assignedCount ?? 0,
     uniqueMemberCount: item.uniqueMemberCount ?? 0,
     expectedRosterSlots: item.expectedRosterSlots ?? 0,
@@ -146,17 +148,12 @@ export default function WebsiteSitesByOrgPage() {
         id: "websiteName",
         label: "Website",
         render: (_, row) => (
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 0.35, minWidth: 0 }}>
-            <Typography variant="body2" fontWeight={600} sx={{ color: theme.app.text.primary }}>
-              {row.websiteName}
-            </Typography>
-            <Typography
-              variant="caption"
-              sx={{ color: theme.app.dashboard.textMuted, wordBreak: "break-all", lineHeight: 1.45 }}
-            >
-              {row.websiteUrl}
-            </Typography>
-          </Box>
+          <WebsiteUrlDisplay
+            name={row.websiteName || undefined}
+            url={row.websiteUrl}
+            mutedSx={{ color: theme.app.dashboard.textMuted }}
+            sx={{ color: theme.app.text.primary }}
+          />
         ),
       },
       {

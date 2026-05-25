@@ -35,6 +35,7 @@ import {
 import { useWebsiteAssignmentGates } from "@/lib/permissions/use-website-assignment-gates";
 import { buildWebsitesInScopeParams, useWebsiteAssignmentsWebsitesQuery } from "@/lib/hooks";
 import type { WebsiteAssignmentScopeItem } from "@/api/types/website-assignments.types";
+import { WebsiteUrlDisplay } from "@/features/website-assignments/components/WebsiteUrlDisplay";
 import {
   websiteAssignmentFilterCard,
   websiteAssignmentFilterIconBox,
@@ -67,7 +68,7 @@ function itemToRow(item: WebsiteAssignmentScopeItem): ScheduleRow {
   const url = (item.url ?? "").trim();
   return {
     id: item.websiteId,
-    websiteName: name || url || "Website",
+    websiteName: name,
     websiteUrl: url || "—",
     parentCompany: item.parentCompanyName || "—",
     childCompany: item.childCompanyName || "—",
@@ -159,17 +160,11 @@ export default function ServiceSchedulesPage() {
         id: "website",
         label: "Website",
         render: (_, row) => (
-          <Box>
-            <Typography variant="body2" fontWeight={600}>
-              {row.websiteName}
-            </Typography>
-            <Typography
-              variant="caption"
-              sx={{ color: theme.app.dashboard.textMuted, wordBreak: "break-all" }}
-            >
-              {row.websiteUrl}
-            </Typography>
-          </Box>
+          <WebsiteUrlDisplay
+            name={row.websiteName || undefined}
+            url={row.websiteUrl}
+            mutedSx={{ color: theme.app.dashboard.textMuted }}
+          />
         ),
       },
       {

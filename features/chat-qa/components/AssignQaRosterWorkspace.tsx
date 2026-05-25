@@ -29,7 +29,7 @@ import {
   pickItemsArray,
   toIdNameOption,
 } from "@/app/dashboard/user-page/components/add-user-modal.utils";
-import { formatWebsiteSelectLabel } from "@/lib/websites/format-website-select-label";
+import { websiteAssignmentItemToSelectOption } from "@/lib/websites/format-website-select-label";
 import { assignWebsiteFormGridSx } from "@/components/common/AssignWebsiteModal/assign-website-modal.styles";
 import { mergeSx } from "@/lib/mui/merge-sx";
 import {
@@ -167,10 +167,7 @@ export function AssignQaRosterWorkspace({ preset }: { preset?: QaAssignPreset | 
     }
     return [
       { value: "", label: "Select website…" },
-      ...items.map((w) => ({
-        value: w.websiteId,
-        label: formatWebsiteSelectLabel(w.name, w.url, w.websiteId),
-      })),
+      ...items.map((w) => websiteAssignmentItemToSelectOption(w)),
     ];
   }, [websitesQuery.data, websitesQuery.isLoading]);
 

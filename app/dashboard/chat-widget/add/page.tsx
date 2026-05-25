@@ -19,7 +19,7 @@ import { Button, Typography, SelectField } from "@/components/common";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
 import { WidgetFlowShell } from "@/features/chat-widget";
 import { useResellerListScope } from "@/lib/auth";
-import { formatWebsiteSelectLabel } from "@/lib/websites/format-website-select-label";
+import { websiteAssignmentItemToSelectOption } from "@/lib/websites/format-website-select-label";
 import {
   buildWebsitesInScopeParams,
   useCompaniesSetupResellersQuery,
@@ -204,14 +204,7 @@ export default function WidgetTypeSelectionPage() {
     }
     return [
       { value: "", label: "Select website" },
-      ...websiteRows.map((w) => {
-        const name = (w.name ?? "").trim() || "Website";
-        const url = (w.url ?? "").trim();
-        return {
-          value: w.websiteId,
-          label: formatWebsiteSelectLabel(name, url, w.websiteId),
-        };
-      }),
+      ...websiteRows.map((w) => websiteAssignmentItemToSelectOption(w)),
     ];
   }, [websiteRows, websitesQuery.isFetching]);
 

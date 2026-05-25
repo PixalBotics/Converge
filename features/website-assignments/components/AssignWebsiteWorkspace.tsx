@@ -44,7 +44,7 @@ import { WebsiteAssignmentFlowStepper } from "@/features/website-assignments/com
 import { SchedulingSectionCard } from "@/features/website-assignments/components/ServiceSchedulingSections";
 import { emptyStatePanelSx } from "@/features/website-assignments/styles/website-assignment-ui.styles";
 import { assignWebsiteFormGridSx } from "@/components/common/AssignWebsiteModal/assign-website-modal.styles";
-import { formatWebsiteSelectLabel } from "@/lib/websites/format-website-select-label";
+import { websiteAssignmentItemToSelectOption } from "@/lib/websites/format-website-select-label";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
 import {
   websiteAssignmentHeaderActions,
@@ -210,14 +210,7 @@ export function AssignWebsiteWorkspace({ preset }: { preset?: AssignWebsitePrese
     }
     return [
       { value: "", label: "Select website" },
-      ...items.map((w) => {
-        const name = (w.name ?? "").trim() || "Website";
-        const url = (w.url ?? "").trim();
-        return {
-          value: w.websiteId,
-          label: formatWebsiteSelectLabel(name, url, w.websiteId),
-        };
-      }),
+      ...items.map((w) => websiteAssignmentItemToSelectOption(w)),
     ];
   }, [websitesQuery.data?.data?.items, websitesQuery.isFetching]);
 

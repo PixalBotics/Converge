@@ -56,6 +56,8 @@ import {
   websiteAssignmentTableToolbar,
 } from "./website-assigning.styles";
 import type { WebsiteAssignmentScopeItem } from "@/api/types/website-assignments.types";
+import { WebsiteUrlDisplay } from "@/features/website-assignments/components/WebsiteUrlDisplay";
+import { resolveWebsiteRowUrlLabels } from "@/lib/websites/format-website-display-url";
 import { groupWebsitesByParentChild, sitesListHref } from "./group-websites-by-org";
 
 /** One API page size — avoids loading thousands of rows at once. */
@@ -149,7 +151,7 @@ export default function WebsiteAssigningPage() {
       parentCompanyId: item.parentCompanyId,
       childCompany: item.childCompanyName || "-",
       childCompanyId: item.childCompanyId,
-      websiteName: (item.name ?? "").trim() || (item.url ?? "").trim() || "Website",
+      websiteName: (item.name ?? "").trim(),
       websiteUrl: (item.url ?? "").trim() || "—",
       assignedCount: item.filledSlots ?? item.assignedCount ?? 0,
       filledSlots: item.filledSlots ?? item.assignedCount ?? 0,
@@ -208,21 +210,12 @@ export default function WebsiteAssigningPage() {
         id: "website",
         label: "Website",
         render: (_, row) => (
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 0.35, minWidth: 0 }}>
-            <Typography variant="body2" fontWeight={600} sx={{ color: theme.app.text.primary }}>
-              {row.websiteName}
-            </Typography>
-            <Typography
-              variant="caption"
-              sx={{
-                color: theme.app.dashboard.textMuted,
-                wordBreak: "break-all",
-                lineHeight: 1.45,
-              }}
-            >
-              {row.websiteUrl}
-            </Typography>
-          </Box>
+          <WebsiteUrlDisplay
+            name={row.websiteName || undefined}
+            url={row.websiteUrl}
+            mutedSx={{ color: theme.app.dashboard.textMuted }}
+            sx={{ color: theme.app.text.primary }}
+          />
         ),
       },
       {
@@ -552,11 +545,7 @@ export default function WebsiteAssigningPage() {
         title="Clear all agent slots?"
         description={
           clearTarget
-            ? `Remove every Primary, Secondary, and Backup assignment for ${
-                clearTarget.websiteName && clearTarget.websiteName !== "—"
-                  ? clearTarget.websiteName
-                  : clearTarget.websiteUrl
-              }. Service scheduling is kept.`
+            ? `Remove every Primary, Secondary, and Backup assignment for ${resolveWebsiteRowUrlLabels(clearTarget.websiteName, clearTarget.websiteUrl).primary}. Service scheduling is kept.`
             : undefined
         }
         onClose={() => !clearing && setClearTarget(null)}

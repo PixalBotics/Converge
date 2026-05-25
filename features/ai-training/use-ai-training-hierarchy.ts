@@ -18,6 +18,7 @@ import {
   useWebsiteAssignmentsWebsitesQuery,
 } from "@/lib/hooks";
 import { extractApiErrorMessageForToast } from "@/lib/notify/extract-api-message";
+import { websiteAssignmentItemToSelectOption } from "@/lib/websites/format-website-select-label";
 
 export function useAiTrainingHierarchy() {
   const { user } = useAuth();
@@ -145,12 +146,7 @@ export function useAiTrainingHierarchy() {
     }
     return [
       { value: "", label: "Select website" },
-      ...websiteRows.map((w) => {
-        const name = (w.name ?? "").trim() || "Website";
-        const url = (w.url ?? "").trim();
-        const label = url ? `${name} — ${url}`.slice(0, 120) : name;
-        return { value: w.websiteId, label };
-      }),
+      ...websiteRows.map((w) => websiteAssignmentItemToSelectOption(w)),
     ];
   }, [websiteRows, websitesQuery.isFetching]);
 
