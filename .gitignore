@@ -5,6 +5,7 @@ node_modules/
 .next/
 .next-dev/
 .next-release/
+.next-embed-dev/
 out/
 
 # Production
