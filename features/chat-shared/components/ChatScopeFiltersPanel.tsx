@@ -5,7 +5,7 @@ import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import { Button, Calendar, SelectField, Typography } from "@/components/common";
 import type { ChatScopeFilterState } from "../types";
-import { chatLiveFilterGridSx } from "../styles/chat-live.styles";
+import { websiteAssignmentFilterGrid } from "@/app/dashboard/website-assigning/website-assigning.styles";
 
 interface ChatScopeFiltersPanelProps {
   filters: ChatScopeFilterState;
@@ -58,7 +58,7 @@ export function ChatScopeFiltersPanel({
       ) : null}
       <Box
         sx={{
-          ...chatLiveFilterGridSx,
+          ...websiteAssignmentFilterGrid,
           ...(compact
             ? {
                 gap: 1.25,

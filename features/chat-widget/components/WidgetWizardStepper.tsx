@@ -37,8 +37,14 @@ const WIDGET_WIZARD_STEPS = [
   {
     index: 2,
     label: "Notifications",
-    hint: "Routing & forms",
+    hint: "Alerts & forms",
     path: "/dashboard/chat-widget/add/chat/notifications",
+  },
+  {
+    index: 3,
+    label: "Install",
+    hint: "Publish & embed",
+    path: "/dashboard/chat-widget/add/chat/script",
   },
 ] as const;
 
@@ -82,7 +88,7 @@ export function WidgetWizardStepper({ currentStep }: WidgetWizardStepperProps) {
         <Typography variant="small" fontWeight={600} sx={{ color: theme.app.dashboard.textMuted }}>
           Step {safeStep + 1} of {STEP_COUNT}
           {" · "}
-          Draft saves on each Next — publish on Install
+          Draft saves on each Next — full publish on Install (step 4)
         </Typography>
         <Typography variant="caption" sx={{ color: theme.palette.primary.light, fontWeight: 600 }}>
           {Math.round(progressPct)}% complete

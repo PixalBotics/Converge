@@ -38,8 +38,13 @@ export async function synchronizeAuthSession(): Promise<AuthSessionSyncResult> {
       await refreshSessionWithStoredRefresh();
       rotated = true;
     } catch {
-      await terminateAuthSession("refresh_failed");
-      return { status: "invalid" };
+      try {
+        await refreshSessionWithStoredRefresh();
+        rotated = true;
+      } catch {
+        await terminateAuthSession("refresh_failed");
+        return { status: "invalid" };
+      }
     }
   }
 
@@ -58,8 +63,15 @@ export async function synchronizeAuthSession(): Promise<AuthSessionSyncResult> {
       await verifyBearer();
       return { status: "refreshed" };
     } catch {
-      await terminateAuthSession("verify_failed");
-      return { status: "invalid" };
+      try {
+        await new Promise((r) => setTimeout(r, 200));
+        await refreshSessionWithStoredRefresh();
+        await verifyBearer();
+        return { status: "refreshed" };
+      } catch {
+        await terminateAuthSession("verify_failed");
+        return { status: "invalid" };
+      }
     }
   }
 }

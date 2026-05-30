@@ -36,6 +36,7 @@ type ChatEventMap = {
   chat_closed: (payload: unknown) => void;
   chat_completed: (payload: unknown) => void;
   chat_transferred: (payload: unknown) => void;
+  chat_supervisor_control: (payload: unknown) => void;
   chat_whisper: (payload: unknown) => void;
   takeover_requested: (payload: unknown) => void;
   takeover_update: (payload: unknown) => void;
@@ -257,6 +258,10 @@ export class ChatSocketClient {
 
   onChatTransferred(listener: ChatEventMap["chat_transferred"]): () => void {
     return this.on("chat_transferred", listener);
+  }
+
+  onSupervisorControl(listener: ChatEventMap["chat_supervisor_control"]): () => void {
+    return this.on("chat_supervisor_control", listener);
   }
 
   onChatHandover(listener: ChatEventMap["chat_handover"]): () => void {

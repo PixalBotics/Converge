@@ -60,6 +60,43 @@ export function EmbedWidgetTheme({
           root: {
             textTransform: "none",
             fontFamily: c.fontFamily,
+            boxShadow: "none",
+          },
+        },
+      },
+      MuiIconButton: {
+        defaultProps: {
+          disableRipple: true,
+        },
+        styleOverrides: {
+          root: {
+            boxShadow: "none !important",
+            backgroundImage: "none",
+            filter: "none",
+            "&:hover": { boxShadow: "none !important" },
+            "&:active": { boxShadow: "none !important" },
+            "&:focus": { boxShadow: "none !important" },
+            "&:focus-visible": { boxShadow: "none !important" },
+            "&.Mui-focusVisible": { boxShadow: "none !important" },
+          },
+        },
+      },
+      MuiPaper: {
+        defaultProps: {
+          elevation: 0,
+        },
+        styleOverrides: {
+          root: {
+            backgroundImage: "none",
+            boxShadow: "none",
+          },
+        },
+      },
+      MuiFab: {
+        styleOverrides: {
+          root: {
+            boxShadow: "none",
+            "&:hover": { boxShadow: "none" },
           },
         },
       },

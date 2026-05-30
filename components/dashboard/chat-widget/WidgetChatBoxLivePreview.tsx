@@ -30,7 +30,7 @@ import type { WidgetInstallChatMode } from "@/lib/chat-widget/widgetDraft";
 
 
 
-export type ChatBoxPreviewTab = "chat" | "prechat";
+export type ChatBoxPreviewTab = "greeting" | "chat" | "prechat";
 
 
 
@@ -578,6 +578,35 @@ function PrechatPreview({ model }: { model: ChatBoxLivePreviewModel }) {
 
 
 
+function GreetingPreview({ model }: { model: ChatBoxLivePreviewModel }) {
+  const c = model.colors;
+  const headerTextAlign = model.headerAlign === "Left" ? "left" : "center";
+  return (
+    <PreviewShell model={model}>
+      <Box
+        sx={{
+          px: 1.5,
+          py: 1.1,
+          bgcolor: model.buttonColor,
+          color: model.textColor,
+        }}
+      >
+        <Typography variant="subtitle2" sx={{ color: "inherit", fontWeight: 700, textAlign: headerTextAlign }}>
+          {model.headerTitle || "Live chat"}
+        </Typography>
+      </Box>
+      <Stack spacing={1.5} sx={{ p: 1.5, flex: 1 }}>
+        <Bubble bg={c.greetingBubbleBg} color={c.greetingBubbleText} alignSelf="flex-start">
+          {model.greetingMessage.trim() || "Add a panel greeting on this step."}
+        </Bubble>
+        <Button type="button" variant="primary" tabIndex={-1} sx={{ alignSelf: "stretch", bgcolor: model.buttonColor }}>
+          Continue
+        </Button>
+      </Stack>
+    </PreviewShell>
+  );
+}
+
 function ChatPreview({ model }: { model: ChatBoxLivePreviewModel }) {
 
   const c = model.colors;
@@ -746,20 +775,6 @@ function ChatPreview({ model }: { model: ChatBoxLivePreviewModel }) {
 
 
 
-        <Box sx={{ display: "flex", alignItems: "flex-start", gap: 0.75 }}>
-
-          <AgentAvatar />
-
-          <Bubble bg={c.greetingBubbleBg} color={c.greetingBubbleText} alignSelf="flex-start">
-
-            {model.greetingMessage || "Welcome! How can we help?"}
-
-          </Bubble>
-
-        </Box>
-
-
-
         {model.firstMessage.trim() ? (
 
           <Box sx={{ display: "flex", alignItems: "flex-start", gap: 0.75 }}>
@@ -865,7 +880,7 @@ export function WidgetChatBoxLivePreview({ model }: { model: ChatBoxLivePreviewM
 
   const theme = useTheme() as AppTheme;
 
-  const [tab, setTab] = useState<ChatBoxPreviewTab>("chat");
+  const [tab, setTab] = useState<ChatBoxPreviewTab>("greeting");
 
   const width = clampBox(model.boxWidth, 280, 460, 350);
 
@@ -885,7 +900,7 @@ export function WidgetChatBoxLivePreview({ model }: { model: ChatBoxLivePreviewM
 
       <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, display: "block", mb: 1 }}>
 
-        Chat panel and visitor form — handover button appears in Chat when Hybrid mode is on.
+        Open panel: greeting → chat → visitor form (matches live embed).
 
       </Typography>
 
@@ -907,12 +922,12 @@ export function WidgetChatBoxLivePreview({ model }: { model: ChatBoxLivePreviewM
 
       >
 
-        <ToggleButton value="chat" sx={{ textTransform: "none", fontSize: 12 }}>
-
-          Chat
-
+        <ToggleButton value="greeting" sx={{ textTransform: "none", fontSize: 12 }}>
+          Greeting
         </ToggleButton>
-
+        <ToggleButton value="chat" sx={{ textTransform: "none", fontSize: 12 }}>
+          Chat
+        </ToggleButton>
         <ToggleButton value="prechat" sx={{ textTransform: "none", fontSize: 12 }}>
           Visitor form
         </ToggleButton>
@@ -936,6 +951,7 @@ export function WidgetChatBoxLivePreview({ model }: { model: ChatBoxLivePreviewM
 
       >
 
+        {tab === "greeting" ? <GreetingPreview model={model} /> : null}
         {tab === "chat" ? <ChatPreview model={model} /> : null}
         {tab === "prechat" ? <PrechatPreview model={model} /> : null}
 

@@ -54,7 +54,7 @@ export function GuestChatPage() {
               Secure chat view
             </Typography>
             <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, lineHeight: 1.45 }}>
-              Department guest access — read-only transcript unless your link allows whisper or takeover.
+              Department guest access — read-only transcript; supervisors may whisper to the assigned agent.
             </Typography>
           </Box>
         </Box>

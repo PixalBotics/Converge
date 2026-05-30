@@ -7,8 +7,10 @@ import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import { Typography } from "@/components/common";
 import { WidgetAccentDensityPreview } from "@/components/dashboard/chat-widget/WidgetAccentDensityPreview";
+import { WidgetProactiveTeaserBubble } from "@/components/embed/WidgetProactiveTeaserBubble";
 import { LauncherPresetIcon } from "@/lib/chat-widget/launcherIcons";
-import type { LauncherIconPresetId } from "@/lib/chat-widget/widgetDraft";
+import { parseProactiveSecondaryCtaFromUi } from "@/lib/chat-widget/proactive-teaser-types";
+import type { LauncherIconPresetId, WidgetDraft } from "@/lib/chat-widget/widgetDraft";
 
 const LAUNCHER_PX = 52;
 
@@ -28,6 +30,10 @@ export function WidgetLauncherLivePreview({
   iconColor,
   iconDataUrl,
   launcherIconPreset,
+  proactiveTeaser = "",
+  proactiveTeaserActive = false,
+  proactiveTeaserAvatarUrl = "",
+  proactiveSecondaryCta,
   accent,
   density,
 }: {
@@ -40,6 +46,10 @@ export function WidgetLauncherLivePreview({
   iconColor: string;
   iconDataUrl: string;
   launcherIconPreset: LauncherIconPresetId;
+  proactiveTeaser?: string;
+  proactiveTeaserActive?: boolean;
+  proactiveTeaserAvatarUrl?: string;
+  proactiveSecondaryCta?: ReturnType<typeof parseProactiveSecondaryCtaFromUi>;
   accent: string;
   density: string;
 }) {
@@ -89,22 +99,44 @@ export function WidgetLauncherLivePreview({
             sx={{
               position: "absolute",
               bottom: insetBottomPx,
+              display: "flex",
+              flexDirection: "column",
+              alignItems:
+                buttonPosition === "left"
+                  ? "flex-start"
+                  : buttonPosition === "center"
+                    ? "center"
+                    : "flex-end",
+              gap: 1,
+              zIndex: 2,
+              ...fabPosition,
+            }}
+          >
+            {proactiveTeaserActive ? (
+              <WidgetProactiveTeaserBubble
+                text={proactiveTeaser}
+                avatarUrl={proactiveTeaserAvatarUrl}
+                secondaryCta={proactiveSecondaryCta}
+              />
+            ) : null}
+          <Box
+            sx={{
               width: LAUNCHER_PX,
               height: LAUNCHER_PX,
+              flexShrink: 0,
               borderRadius: launcherShapeRadius(buttonShape),
               bgcolor: fabColor,
-              boxShadow: "0 10px 24px rgba(15, 23, 42, 0.28)",
+              boxShadow: "none",
+              overflow: "hidden",
               display: "inline-flex",
               alignItems: "center",
               justifyContent: "center",
-              zIndex: 2,
               cursor: "pointer",
               transition: "background-color 0.2s ease, transform 0.15s ease",
               "&:hover": {
                 bgcolor: hoverColor || fabColor,
                 transform: "scale(1.08)",
               },
-              ...fabPosition,
             }}
           >
             {iconDataUrl ? (
@@ -114,6 +146,7 @@ export function WidgetLauncherLivePreview({
             ) : (
               <ChatRounded sx={{ color: iconColor || "#FFFFFF", fontSize: 26 }} />
             )}
+          </Box>
           </Box>
         </Box>
       </Box>

@@ -72,6 +72,11 @@ const LIVE_CHAT_GROUP: DashboardNavItem = {
     chatNavItem(PAGE.CHAT_CLOSE_POLICY, "/dashboard/chat-settings", "Settings", "chatWidget"),
     chatNavItem(PAGE.CHAT_CANNED, "/dashboard/chat-canned", "Canned messages", "chatWidget"),
     chatNavItem(PAGE.CHAT_INVOLVEMENT, "/dashboard/chat-involvement", "Involvement", "chatWidget"),
+    chatNavItem(PAGE.AI_ASSISTANT, "/dashboard/ai-training/assistant", "AI Assistant", "aiTraining", [
+      OP.aiAssistant.use,
+      OP.aiAssistant.trainingView,
+      OP.chat.access,
+    ]),
   ],
 };
 
@@ -79,6 +84,7 @@ const CHAT_AI_NAV: readonly DashboardNavItem[] = [
   chatNavItem(PAGE.AI_ASSISTANT, "/dashboard/ai-training/assistant", "AI Assistant", "aiTraining", [
     OP.aiAssistant.use,
     OP.aiAssistant.trainingView,
+    OP.chat.access,
   ]),
   chatNavItem(PAGE.AI_CHATBOT, "/dashboard/ai-training/chatbot", "AI Chatbot", "aiTraining", [
     OP.aiChatbot.trainingView,

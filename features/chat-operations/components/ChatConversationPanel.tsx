@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import MoreVert from "@mui/icons-material/MoreVert";
 import Box from "@mui/material/Box";
 import { alpha } from "@mui/material/styles";
@@ -16,6 +16,7 @@ import type { AiChatMessage } from "../types/ai-chat";
 import { parseVisitorInfo } from "../utils/visitor-info";
 import type { ChatWhisperSocketPayload } from "@/services/chat/supervisor.types";
 import { ChatContextRail } from "./ChatContextRail";
+import { ChatWhisperComposerStrip } from "./ChatWhisperComposerStrip";
 import { ChatComposer } from "./ChatComposer";
 import { ChatMessageList } from "./ChatMessageList";
 import {
@@ -60,6 +61,7 @@ interface ChatConversationPanelProps {
   distributionSubmitted?: boolean;
   closeFormHref?: string | null;
   wrapUpSubmitted?: boolean;
+  requiresDistributionForm?: boolean;
 }
 
 function formatDuration(seconds: number): string {
@@ -102,6 +104,7 @@ export function ChatConversationPanel({
   distributionSubmitted = false,
   closeFormHref = null,
   wrapUpSubmitted = false,
+  requiresDistributionForm = false,
 }: ChatConversationPanelProps) {
   const theme = useTheme() as AppTheme;
   const visitorInfo = parseVisitorInfo(visitor, conversationMeta ?? undefined);
@@ -139,8 +142,25 @@ export function ChatConversationPanel({
 
   const hasConversation = Boolean(conversationId);
 
+  const transcriptDisplay = useMemo(
+    () => ({
+      requiresDistributionForm,
+      distributionFormHref,
+    }),
+    [requiresDistributionForm, distributionFormHref],
+  );
+
   return (
-    <PanelColumn sx={{ height: "100%", overflow: "hidden" }}>
+    <PanelColumn
+      sx={{
+        flex: 1,
+        minHeight: 0,
+        height: "100%",
+        overflow: "hidden",
+        display: "flex",
+        flexDirection: "column",
+      }}
+    >
       {hasConversation ? (
         <PanelHeader
           sx={{
@@ -286,27 +306,48 @@ export function ChatConversationPanel({
         </PanelHeader>
       ) : null}
 
-      <ChatMessageList
-        messages={messages}
-        visitorInitials={visitorInfo.initials}
-        visitorTyping={visitorTyping}
-        visitorDisplayName={visitorInfo.displayName}
-        agentDisplayName={assignedAgentLabel}
-        showEmptyPlaceholder={!hasConversation}
-      />
+      <Box
+        sx={{
+          flex: 1,
+          minHeight: 0,
+          overflow: "hidden",
+          display: "flex",
+          flexDirection: "column",
+        }}
+      >
+        <ChatMessageList
+          conversationId={conversationId}
+          messages={messages}
+          transcriptDisplay={transcriptDisplay}
+          visitorInitials={visitorInfo.initials}
+          visitorTyping={visitorTyping}
+          visitorDisplayName={visitorInfo.displayName}
+          agentDisplayName={assignedAgentLabel}
+          showEmptyPlaceholder={!hasConversation}
+        />
+      </Box>
 
       <ChatContextRail
         hasConversation={hasConversation}
+        messages={messages}
         readOnly={readOnly}
         availabilityHint={availabilityHint}
         distributionFormHref={distributionFormHref}
         distributionSubmitted={distributionSubmitted}
         closeFormHref={closeFormHref}
         wrapUpSubmitted={wrapUpSubmitted}
-        activeWhisper={activeWhisper}
-        onApplyWhisperToComposer={onApplyWhisperToComposer}
-        onDismissWhisper={onDismissWhisper}
       />
+
+      {activeWhisper && onApplyWhisperToComposer && onDismissWhisper && !readOnly ? (
+        <ChatWhisperComposerStrip
+          payload={activeWhisper}
+          onInsert={(text) => {
+            onApplyWhisperToComposer(text);
+            onDismissWhisper();
+          }}
+          onDismiss={onDismissWhisper}
+        />
+      ) : null}
 
       <ChatComposer
         value={composer}

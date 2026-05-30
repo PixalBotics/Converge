@@ -326,7 +326,7 @@ export function WidgetSnapshotPreview({
     if (!parsed || !parsed.hasRenderable) {
       return (
         <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted }}>
-          No theme blocks found under <code>latestVersion.config.theme.designJson</code>. Save the widget
+          No theme blocks found under <code>draft.config.theme.designJson</code>. Save the widget
           or open the editor snapshot below.
         </Typography>
       );

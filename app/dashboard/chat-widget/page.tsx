@@ -343,7 +343,6 @@ export default function ChatWidgetPage() {
           </Typography>
         ),
       },
-      { id: "publishedVersionNo", label: "Version", cellVariant: "muted" },
       {
         id: "statusLabel",
         label: "Status",

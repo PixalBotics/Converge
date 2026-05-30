@@ -10,13 +10,15 @@ export function isUnassignedActiveChat(c: ConversationSummary): boolean {
   if (agentId) return false;
   if (c.handoverRequested === true) return false;
   const status = String(c.status ?? "");
-  /** HYBRID handover / AGENT_ONLY queue — show in agent waiting list. */
+  /** Queued for human — show in waiting list, not active. */
   if (status === "waiting") return false;
+  if (c.queuedForAgent === true) return false;
   const chatMode = String(
     (c as { chatMode?: string }).chatMode ?? c.chatMode ?? "",
   ).toUpperCase();
+  if (chatMode === "AGENT_ONLY" && !agentId) return true;
   if (chatMode === "HYBRID" && status === "active") return true;
-  return status === "active";
+  return status === "active" && !agentId;
 }
 
 export function conversationMatchesScope(

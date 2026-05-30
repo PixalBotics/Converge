@@ -23,7 +23,7 @@ interface MonitorActionsPanelProps {
   currentUserId: string | null | undefined;
   hasOperational: (p: string) => boolean;
   readOnly?: boolean;
-  onActionComplete?: () => void;
+  onActionComplete?: (payload?: unknown) => void;
   onMessageSent?: () => void;
 }
 
@@ -91,7 +91,7 @@ export function MonitorActionsPanel({
       <ChatSideToolCard
         accent="supervisor"
         title="Monitor actions"
-        subtitle="Whisper to the assigned agent, take direct control, or request a transfer while monitoring."
+        subtitle="Whisper to the assigned agent or take direct control while monitoring."
       >
         <InputField
           label="Whisper to agent"
@@ -127,8 +127,12 @@ export function MonitorActionsPanel({
             disabled={busy}
             onClick={() =>
               void run(async () => {
-                await startDirectSupervisorControl(conversationId);
+                const ctrl = await startDirectSupervisorControl(conversationId);
                 setStatus("You are controlling this chat. The assigned agent is read-only.");
+                onActionComplete?.({
+                  conversationId,
+                  supervisorControlUserId: ctrl.supervisorControlUserId,
+                });
               })
             }
           >
@@ -182,25 +186,6 @@ export function MonitorActionsPanel({
             </Button>
           </>
         )}
-
-        {!isControlling ? (
-          <Button
-            type="button"
-            variant="secondary"
-            size="small"
-            fullWidth
-            sx={{ mt: 1, minWidth: 0 }}
-            disabled={busy}
-            onClick={() =>
-              void run(async () => {
-                await supervisor.requestTakeover({});
-                setStatus("Takeover request submitted (if approval is required).");
-              })
-            }
-          >
-            Request transfer takeover
-          </Button>
-        ) : null}
 
         {canClose ? (
           <>

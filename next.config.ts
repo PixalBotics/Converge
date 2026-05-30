@@ -5,12 +5,15 @@ import path from "path";
 // Locally we use custom dirs so dev (`.next-dev`) and prod (`.next-release`) do not fight on Windows.
 const isVercel = process.env.VERCEL === "1";
 const isNetlify = process.env.NETLIFY === "true";
+const isEmbedDev = process.env.WIDGET_EMBED_DEV === "1";
 const distDir =
   isVercel || isNetlify
     ? ".next"
-    : process.env.NODE_ENV === "production"
-      ? ".next-release"
-      : ".next-dev";
+    : isEmbedDev
+      ? ".next-embed-dev"
+      : process.env.NODE_ENV === "production"
+        ? ".next-release"
+        : ".next-dev";
 
 const isProduction = process.env.NODE_ENV === "production";
 

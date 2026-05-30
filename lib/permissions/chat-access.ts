@@ -84,11 +84,14 @@ export function canWidgetSettingsFromArrays(perms: AuthPermissionArrays): boolea
 }
 
 export function canAiAssistantFromArrays(perms: AuthPermissionArrays): boolean {
+  /** All inbox agents get copilot for now; revoke `ai-assistant:use` later per role if needed. */
+  if (canAgentChatFromArrays(perms)) {
+    return true;
+  }
   return (
     (canPermissionCode(PAGE.AI_ASSISTANT, perms) || hasLegacyChatModule(perms)) &&
     (canPermissionCode(OP.aiAssistant.use, perms) ||
-      canPermissionCode(OP.aiAssistant.trainingView, perms) ||
-      canPermissionCode(OP.chat.access, perms))
+      canPermissionCode(OP.aiAssistant.trainingView, perms))
   );
 }
 
@@ -199,10 +202,11 @@ export function buildChatLiveNavItems(
     items.push({ href: "/dashboard/chat-widget", label: "Widget" });
   }
   if (
-    (hasPage(PAGE.AI_ASSISTANT) || hasPage(PAGE.CHAT)) &&
-    (hasOperational(OP.aiAssistant.use) ||
-      hasOperational(OP.aiAssistant.trainingView) ||
-      hasOperational(OP.chat.access))
+    canAccessChatInbox(hasOperational, hasPage) ||
+    ((hasPage(PAGE.AI_ASSISTANT) || hasPage(PAGE.CHAT)) &&
+      (hasOperational(OP.aiAssistant.use) ||
+        hasOperational(OP.aiAssistant.trainingView) ||
+        hasOperational(OP.chat.access)))
   ) {
     items.push({ href: "/dashboard/ai-training/assistant", label: "AI Assistant" });
   }

@@ -3,7 +3,7 @@ import { getApiBaseUrl } from "../config";
 import { joinUrl } from "../http/http-path";
 import { clearTokens, getRefreshToken } from "../storage/auth-cookies";
 import type { LogoutRequestBody } from "../types/auth.types";
-import { AUTH_PATHS } from "@/lib/auth/auth-paths";
+import { AUTH_PATHS, isEmbedAppPath } from "@/lib/auth/auth-paths";
 import { clearImpersonationSession } from "@/lib/auth/impersonation-session";
 import { dismissAppBoundary } from "@/lib/app-boundaries";
 import {
@@ -51,6 +51,13 @@ export function terminateAuthSession(
   reason: AuthSessionTeardownReason = "refresh_failed",
 ): Promise<void> {
   if (terminateInFlight) return terminateInFlight;
+
+  if (
+    typeof window !== "undefined" &&
+    isEmbedAppPath(window.location.pathname)
+  ) {
+    return Promise.resolve();
+  }
 
   terminateInFlight = (async () => {
     sessionTerminated = true;

@@ -39,8 +39,11 @@ function toEmbedVideoSrc(url: string): string | null {
 
 export function EmbedVideoWelcome({
   appearance,
+  inset = false,
 }: {
   appearance: RuntimeChatAppearance;
+  /** Inside chat bubble — no outer margin/border (wrapper provides it). */
+  inset?: boolean;
 }) {
   const { videoWelcome } = appearance;
   if (!videoWelcome.enabled || !videoWelcome.url.trim()) return null;
@@ -53,11 +56,12 @@ export function EmbedVideoWelcome({
   return (
     <Box
       sx={{
-        mb: 1.5,
+        mb: inset ? 0 : 1.5,
         borderRadius: `${appearance.borderRadiusPx}px`,
         overflow: "hidden",
-        border: `1px solid ${appearance.colors.inputBorder}`,
+        border: inset ? "none" : `1px solid ${appearance.colors.inputBorder}`,
         bgcolor: "#000",
+        width: "100%",
       }}
     >
       {isDirect ? (

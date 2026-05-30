@@ -54,11 +54,15 @@ export function normalizeServerMessage(payload: unknown): ChatMessage | null {
     (typeof pl.messageId === "string" && pl.messageId) ||
     undefined;
 
+  const createdAtRaw = pl.createdAt ?? pl.created_at ?? pl.timestamp;
   const createdAt =
-    (typeof pl.createdAt === "string" && pl.createdAt) ||
-    (typeof pl.created_at === "string" && pl.created_at) ||
-    (typeof pl.timestamp === "string" && pl.timestamp) ||
-    undefined;
+    typeof createdAtRaw === "string"
+      ? createdAtRaw
+      : createdAtRaw instanceof Date
+        ? createdAtRaw.toISOString()
+        : typeof createdAtRaw === "number" && Number.isFinite(createdAtRaw)
+          ? new Date(createdAtRaw).toISOString()
+          : undefined;
 
   const senderId =
     (typeof pl.senderId === "string" && pl.senderId) ||

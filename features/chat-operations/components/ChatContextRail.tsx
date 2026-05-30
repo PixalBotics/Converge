@@ -10,14 +10,17 @@ import Box from "@mui/material/Box";
 import { alpha, useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import { Typography } from "@/components/common";
-import type { ChatWhisperSocketPayload } from "@/services/chat/supervisor.types";
 import { chatSemanticSurface } from "../styles/chat-semantic";
-import { AgentWhisperBanner } from "./AgentWhisperBanner";
+import type { ChatMessage } from "@/services/chat/chat.types";
+import {
+  transcriptHasCloseFormLink,
+  transcriptHasDistributionFormLink,
+} from "../utils/inbox-transcript-messages";
 import { ChatDistributionLinkBanner } from "./ChatDistributionLinkBanner";
 
 type ContextItem = {
   id: string;
-  tone: "whisper" | "info" | "warning" | "muted";
+  tone: "info" | "warning" | "muted";
   title: string;
   content: ReactNode;
 };
@@ -29,10 +32,9 @@ type Props = {
   distributionSubmitted?: boolean;
   closeFormHref?: string | null;
   wrapUpSubmitted?: boolean;
-  activeWhisper?: ChatWhisperSocketPayload | null;
-  onApplyWhisperToComposer?: (text: string) => void;
-  onDismissWhisper?: () => void;
   hasConversation: boolean;
+  /** Hide duplicate wrap-up banner when the transcript already has the close-form card. */
+  messages?: ChatMessage[];
 };
 
 export function ChatContextRail({
@@ -42,10 +44,8 @@ export function ChatContextRail({
   distributionSubmitted = false,
   closeFormHref = null,
   wrapUpSubmitted = false,
-  activeWhisper = null,
-  onApplyWhisperToComposer,
-  onDismissWhisper,
   hasConversation,
+  messages = [],
 }: Props) {
   const theme = useTheme() as AppTheme;
   const [expanded, setExpanded] = useState(true);
@@ -53,22 +53,6 @@ export function ChatContextRail({
   const items = useMemo((): ContextItem[] => {
     if (!hasConversation) return [];
     const list: ContextItem[] = [];
-
-    if (activeWhisper && onApplyWhisperToComposer && onDismissWhisper) {
-      list.push({
-        id: "whisper",
-        tone: "whisper",
-        title: "Supervisor whisper",
-        content: (
-          <AgentWhisperBanner
-            embedded
-            payload={activeWhisper}
-            onApplyToComposer={onApplyWhisperToComposer}
-            onDismiss={onDismissWhisper}
-          />
-        ),
-      });
-    }
 
     if (readOnly) {
       list.push({
@@ -94,7 +78,12 @@ export function ChatContextRail({
       });
     }
 
-    if (readOnly && closeFormHref) {
+    if (
+      readOnly &&
+      closeFormHref &&
+      !transcriptHasCloseFormLink(messages) &&
+      !transcriptHasDistributionFormLink(messages)
+    ) {
       list.push({
         id: "close-form",
         tone: "info",
@@ -127,15 +116,13 @@ export function ChatContextRail({
 
     return list;
   }, [
-    activeWhisper,
     availabilityHint,
     distributionFormHref,
     distributionSubmitted,
     closeFormHref,
     wrapUpSubmitted,
     hasConversation,
-    onApplyWhisperToComposer,
-    onDismissWhisper,
+    messages,
     readOnly,
     theme.app.dashboard.textMuted,
   ]);
@@ -222,7 +209,7 @@ export function ChatContextRail({
                     {item.title}
                   </Typography>
                 </Box>
-                <Box sx={{ p: item.id === "whisper" ? 0 : 1.25 }}>{item.content}</Box>
+                <Box sx={{ p: 1.25 }}>{item.content}</Box>
               </Box>
             );
           })}

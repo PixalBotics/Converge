@@ -1,7 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { createConversation, sendVisitorMessage } from "@/services/chat/chatApi";
+import {
+  createWidgetConversation,
+  fetchWidgetTranscript,
+  sendWidgetVisitorMessage,
+} from "@/services/chat/widget-visitor.api";
 import { createChatSocketClient } from "@/services/chat/chatSocket";
 import { normalizeServerMessage } from "@/services/chat/normalize-message";
 import type {
@@ -16,11 +20,16 @@ export interface UseVisitorChatOptions {
   autoConnect?: boolean;
   /** Widget session JWT (`POST /widget/session`). Required for authenticated Socket.IO in production. */
   widgetSessionToken?: string | null;
+  websiteId?: string | null;
   getCurrentPageUrl?: () => string;
   onChatAssigned?: () => void;
   onChatQueued?: () => void;
+  /** Fired when a supervisor takes/releases direct control (takeover). */
+  onSupervisorControl?: () => void;
   /** When true, ignore server-persisted AI rows (HYBRID after “Talk to agent”). */
   getSkipServerAiReply?: () => boolean;
+  /** Agent/AI socket replies (for launcher badge + browser notify when panel closed). */
+  onIncomingReply?: (message: ChatMessage) => void;
 }
 
 export interface UseVisitorChatReturn {
@@ -49,6 +58,8 @@ export interface UseVisitorChatReturn {
   emitStopTyping: () => void;
   joinRoom: (conversationId: string) => void;
   leaveRoom: (conversationId: string) => void;
+  /** Reload messages from REST (fallback when socket payload is missed). */
+  refreshTranscript: () => Promise<void>;
 }
 
 function stableMessageDedupeKey(message: ChatMessage): string {
@@ -73,6 +84,7 @@ export function useVisitorChat(
     options?.widgetSessionToken,
   );
   const optionsRef = useRef(options);
+  const refreshTranscriptRef = useRef<(() => Promise<void>) | null>(null);
 
   useEffect(() => {
     optionsRef.current = options;
@@ -85,6 +97,26 @@ export function useVisitorChat(
   useEffect(() => {
     widgetTokenRef.current = options?.widgetSessionToken;
   }, [options?.widgetSessionToken]);
+
+  const reconnectSocket = useCallback(
+    (forceNew: boolean) => {
+      const token = widgetTokenRef.current;
+      socketClient.connect({
+        authToken: token ?? undefined,
+        forceNew,
+      });
+      const cid = conversationIdRef.current;
+      if (cid) {
+        socketClient.joinRoom({ conversationId: cid });
+      }
+      setIsConnected(socketClient.isConnected());
+    },
+    [socketClient],
+  );
+
+  useEffect(() => {
+    reconnectSocket(true);
+  }, [options?.widgetSessionToken, reconnectSocket]);
 
   const resolvePageUrl = useCallback(() => {
     const fromOpt = options?.getCurrentPageUrl?.();
@@ -116,25 +148,48 @@ export function useVisitorChat(
   }, []);
 
   useEffect(() => {
-    const token = widgetTokenRef.current;
-    socketClient.connect({
-      authToken: token ?? undefined,
+    const offSocketConnect = socketClient.onSocketConnect(() => {
+      setIsConnected(true);
+      const cid = conversationIdRef.current;
+      if (cid) {
+        socketClient.joinRoom({ conversationId: cid });
+      }
     });
-    setIsConnected(socketClient.isConnected());
-
-    const offSocketConnect = socketClient.onSocketConnect(() =>
-      setIsConnected(true),
-    );
     const offSocketDisconnect = socketClient.onSocketDisconnect(() =>
       setIsConnected(false),
     );
     const offConnected = socketClient.onConnected(() => setIsConnected(true));
 
     const offVisitorMessage = socketClient.onVisitorMessage(upsertMessage);
-    const offAgentMessage = socketClient.onAgentMessage(upsertMessage);
+    const offAgentMessage = socketClient.onAgentMessage((message) => {
+      upsertMessage(message);
+      if (message.role === "agent") {
+        setAssigned(true);
+        optionsRef.current?.onIncomingReply?.(message);
+      }
+    });
+    const offSupervisorControl = socketClient.onSupervisorControl((payload) => {
+      const cid = conversationIdRef.current;
+      if (
+        !cid ||
+        typeof payload !== "object" ||
+        !payload ||
+        (payload as { conversationId?: string }).conversationId !== cid
+      ) {
+        return;
+      }
+      const released = (payload as { released?: boolean }).released === true;
+      if (!released) {
+        setAssigned(true);
+        optionsRef.current?.onChatAssigned?.();
+      }
+      optionsRef.current?.onSupervisorControl?.();
+      void refreshTranscriptRef.current?.();
+    });
     const offAiMessage = socketClient.onAiMessage((message) => {
       if (optionsRef.current?.getSkipServerAiReply?.() === true) return;
       upsertMessage(message);
+      optionsRef.current?.onIncomingReply?.(message);
     });
 
     const offTyping = socketClient.onTyping((payload: TypingPayload) => {
@@ -182,6 +237,7 @@ export function useVisitorChat(
       offSocketDisconnect();
       offVisitorMessage();
       offAgentMessage();
+      offSupervisorControl();
       offAiMessage();
       offTyping();
       offStopTyping();
@@ -212,10 +268,12 @@ export function useVisitorChat(
       const token = widgetTokenRef.current;
       socketClient.connect({
         authToken: token ?? undefined,
-        forceNew: true,
       });
 
-      const created = await createConversation(payload);
+      const created = await createWidgetConversation(
+        payload,
+        widgetTokenRef.current ?? undefined,
+      );
       setConversationId(created.conversationId);
       setVisitorId(created.visitorId ?? null);
       setAssigned(created.status === "assigned");
@@ -235,7 +293,6 @@ export function useVisitorChat(
       const token = widgetTokenRef.current;
       socketClient.connect({
         authToken: token ?? undefined,
-        forceNew: true,
       });
       messageMapRef.current.clear();
       for (const row of params.messages) {
@@ -259,6 +316,37 @@ export function useVisitorChat(
     [joinRoom, socketClient],
   );
 
+  const refreshTranscript = useCallback(async () => {
+    const cid = conversationIdRef.current;
+    const wid = optionsRef.current?.websiteId?.trim();
+    if (!cid || !wid) return;
+    const res = await fetchWidgetTranscript(
+      cid,
+      wid,
+      widgetTokenRef.current ?? undefined,
+    );
+    if (!res.ok) return;
+    messageMapRef.current.clear();
+    for (const row of res.data.messages) {
+      const normalized = normalizeServerMessage({
+        id: row.id,
+        conversationId: cid,
+        content: row.content,
+        senderType: row.senderType,
+        createdAt: row.createdAt,
+      });
+      if (normalized) {
+        messageMapRef.current.set(stableMessageDedupeKey(normalized), normalized);
+      }
+    }
+    setMessages(Array.from(messageMapRef.current.values()));
+    setAssigned(Boolean(res.data.assignedAgentId) || res.data.status === "assigned");
+  }, []);
+
+  useEffect(() => {
+    refreshTranscriptRef.current = refreshTranscript;
+  }, [refreshTranscript]);
+
   const sendMessage = useCallback(
     async (content: string, sendOpts?: { messageType?: string }) => {
       if (!conversationId) {
@@ -275,11 +363,15 @@ export function useVisitorChat(
       };
 
       upsertMessage(optimisticMessage);
-      const raw = await sendVisitorMessage(conversationId, {
-        message: content,
-        currentPageUrl: pageUrl,
-        ...(sendOpts?.messageType ? { messageType: sendOpts.messageType } : {}),
-      });
+      const raw = await sendWidgetVisitorMessage(
+        conversationId,
+        {
+          message: content,
+          currentPageUrl: pageUrl,
+          ...(sendOpts?.messageType ? { messageType: sendOpts.messageType } : {}),
+        },
+        widgetTokenRef.current ?? undefined,
+      );
       const skipAi = optionsRef.current?.getSkipServerAiReply?.() === true;
       if (!skipAi && raw && typeof raw === "object") {
         const envelope = raw as {
@@ -328,5 +420,6 @@ export function useVisitorChat(
     emitStopTyping,
     joinRoom,
     leaveRoom,
+    refreshTranscript,
   };
 }

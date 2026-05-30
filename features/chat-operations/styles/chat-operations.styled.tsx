@@ -122,6 +122,18 @@ export const MessageThread = styled(Box)({
   gap: 0,
   scrollbarWidth: "thin",
   background: "transparent",
+  "&::-webkit-scrollbar": { width: 6 },
+  "&::-webkit-scrollbar-track": { background: "transparent" },
+  "&::-webkit-scrollbar-thumb": {
+    borderRadius: 3,
+    backgroundColor: "rgba(128, 128, 128, 0.28)",
+  },
+  "&::-webkit-scrollbar-button": {
+    display: "none",
+    width: 0,
+    height: 0,
+  },
+  "&::-webkit-scrollbar-corner": { background: "transparent" },
 });
 
 export const DateDivider = styled(Box)(({ theme }) => ({

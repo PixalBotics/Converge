@@ -1,22 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  APPEARANCE_PRESETS,
-  PICK_COLOR_PRESET_ID,
-} from "@/lib/theme/appearance-presets";
+import { useAppearance } from "@/lib/theme/appearance-context";
 import { normalizeHex } from "@/lib/theme/custom-accent-theme";
+import { readPlatformThemeBackgroundColor } from "@/api/types/platform-theme.types";
 import { usePlatformThemeMeQuery, useUpdatePlatformThemeMutation } from "@/lib/hooks/query";
 import { parseBackgroundColor, persistBackgroundColorHex } from "./styles";
 
-type Setters = {
-  setPresetId: (id: string) => void;
-  setCustomAccentHex: (hex: string) => void;
-};
-
-export function useThemeAppearanceSave(
-  presetId: string,
-  customAccentHex: string,
-  { setPresetId, setCustomAccentHex }: Setters,
-) {
+export function useThemeAppearanceSave(presetId: string, customAccentHex: string) {
+  const { applyAccountTheme } = useAppearance();
   const platformThemeQuery = usePlatformThemeMeQuery();
   const { mutate: savePlatformTheme, isPending: isSavingTheme } = useUpdatePlatformThemeMutation();
 
@@ -32,24 +22,14 @@ export function useThemeAppearanceSave(
       return;
     }
 
-    const bg = parseBackgroundColor(platformThemeQuery.data.data.backgroundColor);
+    const bg = parseBackgroundColor(readPlatformThemeBackgroundColor(platformThemeQuery.data));
     setSyncedHex(bg);
-
-    if (bg) {
-      const presetMatch = APPEARANCE_PRESETS.find((p) => p.previewBar.toLowerCase() === bg.toLowerCase());
-      if (presetMatch) {
-        setPresetId(presetMatch.id);
-      } else {
-        setPresetId(PICK_COLOR_PRESET_ID);
-        setCustomAccentHex(bg);
-      }
-    }
+    if (bg) applyAccountTheme(bg);
   }, [
     platformThemeQuery.isFetched,
     platformThemeQuery.isError,
     platformThemeQuery.data,
-    setPresetId,
-    setCustomAccentHex,
+    applyAccountTheme,
   ]);
 
   const persistHex = useMemo(
@@ -70,11 +50,13 @@ export function useThemeAppearanceSave(
       {
         onSuccess: (env) => {
           if (!env.success) return;
-          setSyncedHex(parseBackgroundColor(env.data.backgroundColor));
+          const bg = parseBackgroundColor(readPlatformThemeBackgroundColor(env));
+          setSyncedHex(bg);
+          if (bg) applyAccountTheme(bg);
         },
       },
     );
-  }, [normalizedPersistHex, savePlatformTheme]);
+  }, [normalizedPersistHex, savePlatformTheme, applyAccountTheme]);
 
   return {
     platformThemeQuery,

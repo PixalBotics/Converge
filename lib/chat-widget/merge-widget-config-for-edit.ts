@@ -64,7 +64,7 @@ function mergeSettingsJson(base: JsonRecord, patch: JsonRecord): JsonRecord {
 const CONFIG_OBJECT_KEYS = new Set<string>(["theme", "settingsJson", ...NESTED_SECTION_KEYS]);
 
 /**
- * Edit hydration: `latestVersion.config` is authoritative; `draftConfig` only overlays
+ * Edit hydration: draft `config` is authoritative; published `config` only fills missing keys
  * non-empty sections so empty `form: {}` / `behavior: {}` patches do not wipe saved values.
  */
 export function mergeWidgetConfigForEdit(

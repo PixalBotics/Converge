@@ -1,8 +1,8 @@
 "use client";
 
-import Link from "@mui/material/Link";
 import { Typography } from "@/components/common";
 import type { ChatMessage } from "@/services/chat/chat.types";
+import { ChatMessageAttachmentCard } from "./ChatMessageAttachmentCard";
 
 function readHref(message: ChatMessage): string | null {
   const meta = message.metadata;
@@ -37,19 +37,55 @@ function readLinkLabel(message: ChatMessage): string | null {
   return null;
 }
 
-/** Renders chat message body with clickable links for form / distribution messages. */
+function readFormKind(message: ChatMessage): string | undefined {
+  const meta = message.metadata;
+  if (!meta) return undefined;
+  const attachment = meta.attachmentMetadata;
+  if (attachment && typeof attachment === "object") {
+    const kind = (attachment as Record<string, unknown>).formKind;
+    if (typeof kind === "string") return kind;
+  }
+  return undefined;
+}
+
+function attachmentTitle(message: ChatMessage, messageType: string | null): string {
+  const label = readLinkLabel(message);
+  if (label) return label;
+  if (messageType === "distribution_link") return "Open distribution form";
+  if (messageType === "close_form_link") return "Open wrap-up form";
+  return "Open form";
+}
+
+function introLines(message: ChatMessage, href: string, linkLabel: string | null): string[] {
+  return message.content
+    .split("\n")
+    .filter(
+      (line) =>
+        line.trim() &&
+        line.trim() !== href &&
+        line.trim() !== linkLabel &&
+        !line.trim().startsWith("http"),
+    );
+}
+
+/** Renders chat message body with form attachment cards for distribution / wrap-up links. */
 export function ChatMessageContent({ message }: { message: ChatMessage }) {
   const messageType = readMessageType(message);
   const href = readHref(message);
   const linkLabel = readLinkLabel(message);
 
-  if (
+  const isFormAttachment =
     href &&
     (messageType === "distribution_link" ||
-      message.content.includes(href))
-  ) {
-    const lines = message.content.split("\n");
-    const intro = lines.filter((line) => line.trim() && line.trim() !== href && line.trim() !== linkLabel);
+      messageType === "close_form_link" ||
+      message.content.includes(href));
+
+  if (isFormAttachment && href) {
+    const intro = introLines(message, href, linkLabel);
+    const formKind =
+      readFormKind(message) ??
+      (messageType === "distribution_link" ? "distribution" : messageType === "close_form_link" ? "close" : undefined);
+
     return (
       <>
         {intro.map((line, i) => (
@@ -69,33 +105,18 @@ export function ChatMessageContent({ message }: { message: ChatMessage }) {
             {line}
           </Typography>
         ))}
-        {linkLabel ? (
-          <Typography
-            component="span"
-            sx={{
-              display: "block",
-              fontWeight: 600,
-              color: "inherit",
-              fontSize: "inherit",
-              mb: 0.5,
-            }}
-          >
-            {linkLabel}
-          </Typography>
-        ) : null}
-        <Link
+        <ChatMessageAttachmentCard
           href={href}
-          target="_blank"
-          rel="noopener noreferrer"
-          sx={{
-            color: "inherit",
-            fontWeight: 600,
-            textDecoration: "underline",
-            wordBreak: "break-all",
-          }}
-        >
-          {href}
-        </Link>
+          title={attachmentTitle(message, messageType)}
+          subtitle={
+            formKind === "distribution"
+              ? "Send the transcript to the right department after close."
+              : formKind === "close"
+                ? "Complete wrap-up for this conversation."
+                : undefined
+          }
+          formKind={formKind}
+        />
       </>
     );
   }

@@ -4,6 +4,7 @@ node_modules/
 # Next.js
 .next/
 .next-dev/
+.next-embed-dev/
 .next-release/
 .next-embed-dev/
 out/

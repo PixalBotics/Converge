@@ -56,12 +56,15 @@ interface VisitorInfoPanelProps {
   currentUserId?: string;
   hasOperational: (p: string) => boolean;
   supervisorRefreshToken?: number;
+  onSupervisorActivity?: (payload?: unknown) => void;
   supervisorReadOnly?: boolean;
   showWebsiteFallback?: boolean;
   fallbackWebsiteId?: string;
   onFallbackWebsiteIdChange?: (value: string) => void;
   onCloseChat?: () => void | Promise<void>;
   closeDisabled?: boolean;
+  /** Monitor workstation renders supervisor tools in a separate column strip. */
+  hideSupervisorTools?: boolean;
 }
 
 function DetailField({ label, value }: { label: string; value: string }) {
@@ -97,12 +100,14 @@ export function VisitorInfoPanel({
   currentUserId,
   hasOperational,
   supervisorRefreshToken = 0,
+  onSupervisorActivity,
   supervisorReadOnly = false,
   showWebsiteFallback = false,
   fallbackWebsiteId = "",
   onFallbackWebsiteIdChange,
   onCloseChat,
   closeDisabled = false,
+  hideSupervisorTools = false,
 }: VisitorInfoPanelProps) {
   const theme = useTheme() as AppTheme;
   const parsed = parseVisitorInfo(visitor, conversationMeta ?? undefined);
@@ -111,15 +116,10 @@ export function VisitorInfoPanel({
   const locationLine = visitorPresentation?.locationLabel?.trim() || parsed.location?.label || null;
   const [expanded, setExpanded] = useState<string | false>("contact");
   const [guestAccessEnabled, setGuestAccessEnabled] = useState(false);
-  const [takeoverApprovalMode, setTakeoverApprovalMode] = useState<
-    "immediate" | "current_agent_or_pool_head"
-  >("immediate");
-
   useEffect(() => {
     const wid = websiteId?.trim();
     if (!wid) {
       setGuestAccessEnabled(false);
-      setTakeoverApprovalMode("immediate");
       return;
     }
     let cancelled = false;
@@ -132,16 +132,10 @@ export function VisitorInfoPanel({
         );
         const guest = ops.guestAccess as { enabled?: boolean } | undefined;
         setGuestAccessEnabled(Boolean(guest?.enabled));
-        const mode = (ops.takeover as { approval?: { mode?: string } } | undefined)
-          ?.approval?.mode;
-        setTakeoverApprovalMode(
-          mode === "immediate" ? "immediate" : "current_agent_or_pool_head",
-        );
       })
       .catch(() => {
         if (!cancelled) {
           setGuestAccessEnabled(false);
-          setTakeoverApprovalMode("immediate");
         }
       });
     return () => {
@@ -369,7 +363,7 @@ export function VisitorInfoPanel({
             />
           </Box>
 
-          {supervisorEnabled ? (
+          {supervisorEnabled && !hideSupervisorTools ? (
             <Box sx={{ px: 2, pb: 1 }}>
               <SupervisorToolsPanel
                 conversationId={conversationId}
@@ -377,7 +371,6 @@ export function VisitorInfoPanel({
                 currentUserId={currentUserId}
                 hasOperational={hasOperational}
                 supervisor={supervisor}
-                takeoverApprovalMode={takeoverApprovalMode}
               />
             </Box>
           ) : null}

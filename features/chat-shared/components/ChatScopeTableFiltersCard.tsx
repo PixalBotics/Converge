@@ -113,7 +113,13 @@ export function ChatScopeTableFiltersCard({
           >
             {hint}
           </Typography>
-          <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: { xs: "stretch", sm: "flex-end" },
+            }}
+          >
             <ToolbarFilterPopover
               open={filterPopoverOpen}
               onOpenChange={onFilterPopoverOpenChange}

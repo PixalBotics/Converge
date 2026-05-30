@@ -1,21 +1,36 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { usePathname } from "next/navigation";
 import { AppRouterCacheProvider } from "@mui/material-nextjs/v15-appRouter";
 import { ThemeRegistry } from "@/components/theme-registry";
 import { GlassToastProvider } from "@/components/common";
 import { QueryProvider } from "@/lib/hooks";
-import { AuthProvider } from "@/lib/auth";
+import { AuthProvider, isEmbedAppPath } from "@/lib/auth";
 import { AppBoundaryProvider } from "./AppBoundaryProvider";
 import { AppRouteSuspense } from "./AppRouteSuspense";
 import { DevConsoleFilter } from "./DevConsoleFilter";
 import { ReactErrorBoundary } from "./ReactErrorBoundary";
 
 /**
- * Single client boundary for the root tree (MUI cache, theme, toasts, RQ, auth).
- * Keeps `app/layout.tsx` as a thin server entry.
+ * Embed iframe: no dashboard auth, cookies, or session sync — visitor widget JWT only.
  */
-export function AppRootProviders({ children }: { children: ReactNode }) {
+function EmbedAppProviders({ children }: { children: ReactNode }) {
+  return (
+    <AppRouterCacheProvider options={{ key: "mui-embed" }}>
+      <DevConsoleFilter />
+      <ThemeRegistry>
+        <GlassToastProvider>
+          <ReactErrorBoundary>
+            <AppRouteSuspense>{children}</AppRouteSuspense>
+          </ReactErrorBoundary>
+        </GlassToastProvider>
+      </ThemeRegistry>
+    </AppRouterCacheProvider>
+  );
+}
+
+function DashboardAppProviders({ children }: { children: ReactNode }) {
   return (
     <AppRouterCacheProvider options={{ key: "mui" }}>
       <DevConsoleFilter />
@@ -34,4 +49,15 @@ export function AppRootProviders({ children }: { children: ReactNode }) {
       </ThemeRegistry>
     </AppRouterCacheProvider>
   );
+}
+
+/**
+ * Root providers: dashboard routes get auth; `/embed/*` is isolated for visitor widget runtime.
+ */
+export function AppRootProviders({ children }: { children: ReactNode }) {
+  const pathname = usePathname();
+  if (isEmbedAppPath(pathname ?? "")) {
+    return <EmbedAppProviders>{children}</EmbedAppProviders>;
+  }
+  return <DashboardAppProviders>{children}</DashboardAppProviders>;
 }

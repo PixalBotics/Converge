@@ -1,5 +1,8 @@
 import type { ChatOperationsJson, ServiceSchedule } from "./chat-settings.types";
 
+/** Mirrors backend — takeover request flow removed. */
+export const CHAT_TAKEOVER_REQUESTS_ENABLED = false;
+
 export const DEFAULT_SERVICE_SCHEDULE: ServiceSchedule = {
   timezone: "Asia/Karachi",
   gapPolicy: "queue_until_next_window",
@@ -34,11 +37,12 @@ export const DEFAULT_CHAT_OPERATIONS: ChatOperationsJson = {
       viewTranscript: true,
       viewVisitorPii: true,
       whisper: true,
-      takeoverRequest: true,
+      takeoverRequest: false,
     },
   },
   takeover: {
     enabled: false,
+    directControlEnabled: true,
     requesters: {
       poolHead: true,
       departmentHead: true,

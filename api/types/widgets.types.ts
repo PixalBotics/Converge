@@ -33,8 +33,10 @@ export interface AdminWidgetTableRow extends Record<string, unknown> {
   childCompany: string;
   resellerName: string;
   widgetTypeLabel: string;
-  publishedVersionNo: string;
-  latestDraftVersionNo: string;
+  /** "Yes" when embed snapshot is published. */
+  publishedLabel: string;
+  /** "Pending" when website draft is newer than published embed. */
+  draftPendingLabel: string;
   hasUnpublishedDraft: boolean;
   chatEnabled: boolean;
   textUsEnabled: boolean;

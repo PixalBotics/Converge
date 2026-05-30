@@ -1,12 +1,11 @@
 "use client";
 
 import Box from "@mui/material/Box";
-import { useRouter } from "next/navigation";
 import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
-import { Button, Typography } from "@/components/common";
-import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
+import { Typography } from "@/components/common";
 import { chatOpsAlertBannerSx } from "../styles/chat-operations.styles";
+import { ChatMessageAttachmentCard } from "./ChatMessageAttachmentCard";
 
 export function ChatDistributionLinkBanner({
   href,
@@ -24,7 +23,10 @@ export function ChatDistributionLinkBanner({
   submittedHint?: string;
 }) {
   const theme = useTheme() as AppTheme;
-  const router = useRouter();
+  const formKind =
+    buttonLabel.toLowerCase().includes("wrap") || hint.toLowerCase().includes("wrap-up")
+      ? "close"
+      : "distribution";
 
   if (submitted) {
     return (
@@ -34,39 +36,27 @@ export function ChatDistributionLinkBanner({
     );
   }
 
+  if (embedded) {
+    return (
+      <ChatMessageAttachmentCard
+        href={href}
+        title={buttonLabel}
+        subtitle={hint}
+        formKind={formKind}
+      />
+    );
+  }
+
   return (
-    <Box
-      sx={{
-        ...(embedded
-          ? {
-              display: "flex",
-              flexWrap: "wrap",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: 1,
-            }
-          : {
-              ...chatOpsAlertBannerSx("info"),
-              display: "flex",
-              flexWrap: "wrap",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: 1,
-            }),
-      }}
-    >
-      <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, fontSize: 11 }}>
+    <Box sx={{ ...chatOpsAlertBannerSx("info"), p: 1.25 }}>
+      <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, fontSize: 11, mb: 0.75 }}>
         {hint}
       </Typography>
-      <Button
-        type="button"
-        variant="primary"
-        size="small"
-        sx={{ ...gradientPrimaryButtonSx, py: 0.5, px: 1.5, fontSize: 12 }}
-        onClick={() => router.push(href)}
-      >
-        {buttonLabel}
-      </Button>
+      <ChatMessageAttachmentCard
+        href={href}
+        title={buttonLabel}
+        formKind={formKind}
+      />
     </Box>
   );
 }

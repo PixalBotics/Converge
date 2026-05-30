@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import FilterList from "@mui/icons-material/FilterList";
 import Box from "@mui/material/Box";
 import {
@@ -16,7 +16,8 @@ import {
   websiteAssignmentSearchFieldWrapper,
   websiteAssignmentSearchRow,
 } from "@/app/dashboard/website-assigning/website-assigning.styles";
-import { ChatScopeFiltersPanel } from "./ChatScopeFiltersPanel";
+import { ChatScopeFilterPopoverPanel } from "./ChatScopeFilterPopoverPanel";
+import { hasActiveChatScopeFilters } from "../utils/chat-scope-filters-active";
 import type { ChatScopeFilterState } from "../types";
 
 type ChatLiveHubScopeCardProps = {
@@ -54,15 +55,9 @@ export function ChatLiveHubScopeCard({
 }: ChatLiveHubScopeCardProps) {
   const [filterOpen, setFilterOpen] = useState(false);
 
-  const hasActive = Boolean(
-    filters.resellerId.trim() ||
-      filters.parentCompanyId.trim() ||
-      filters.childCompanyId.trim() ||
-      filters.websiteId.trim() ||
-      filters.departmentId.trim() ||
-      filters.poolId.trim() ||
-      filters.status.trim() ||
-      agentSearch.trim(),
+  const hasActive = useMemo(
+    () => hasActiveChatScopeFilters(filters) || Boolean(agentSearch.trim()),
+    [agentSearch, filters],
   );
 
   return (
@@ -90,8 +85,7 @@ export function ChatLiveHubScopeCard({
           />
         </Box>
         <ToolbarFilterPopover open={filterOpen} onOpenChange={setFilterOpen} active={hasActive}>
-          <ChatScopeFiltersPanel
-            compact
+          <ChatScopeFilterPopoverPanel
             filters={filters}
             onPatch={onPatch}
             onReset={onReset}
@@ -106,6 +100,9 @@ export function ChatLiveHubScopeCard({
             departmentOptions={departmentOptions}
             poolOptions={poolOptions}
             statusOptions={statusOptions}
+            hasActiveFilters={hasActive}
+            onClose={() => setFilterOpen(false)}
+            title="Scope filters"
             hint="Reseller → company → website. Department and pool narrow the agent table and chat queue."
           />
         </ToolbarFilterPopover>

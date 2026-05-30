@@ -1,3 +1,4 @@
+/** Widget-only JWT storage (sessionStorage). Never write to dashboard auth cookies. */
 export const WIDGET_SESSION_KEY = "ic.widget.sessionToken.v1";
 export const WIDGET_CONVERSATION_PREFIX = "ic.widget.conv.";
 

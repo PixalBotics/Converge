@@ -648,18 +648,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     };
 
+    let focusDebounce: ReturnType<typeof setTimeout> | null = null;
+
     // Handles browser back/forward restores (bfcache) and tab focus resumes.
     const handleLifecycleSync = () => {
       if (isSkipHydrationPath()) {
         return;
       }
-      void syncFromServer();
+      if (focusDebounce) clearTimeout(focusDebounce);
+      focusDebounce = setTimeout(() => {
+        focusDebounce = null;
+        void syncFromServer();
+      }, 1500);
     };
     window.addEventListener("pageshow", handleLifecycleSync);
     window.addEventListener("focus", handleLifecycleSync);
 
     return () => {
       active = false;
+      if (focusDebounce) clearTimeout(focusDebounce);
       window.removeEventListener("pageshow", handleLifecycleSync);
       window.removeEventListener("focus", handleLifecycleSync);
     };

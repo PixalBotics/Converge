@@ -6,7 +6,7 @@ import Box from "@mui/material/Box";
 import CircularProgress from "@mui/material/CircularProgress";
 import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
-import { Button, Typography } from "@/components/common";
+import { Button, SelectField, Typography } from "@/components/common";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
 import {
   VisitorTopicsEditor,
@@ -73,6 +73,8 @@ export type WidgetInquiryOptionsEditorProps = {
   topicsLoading?: boolean;
   loadedFromScheduling?: boolean;
   onSaved?: (rows: WidgetInquiryOption[]) => void;
+  inquiryFallbackRoutingKey?: string;
+  onFallbackRoutingKeyChange?: (routingKey: string) => void;
 };
 
 export function WidgetInquiryOptionsEditor({
@@ -83,6 +85,8 @@ export function WidgetInquiryOptionsEditor({
   topicsLoading = false,
   loadedFromScheduling = false,
   onSaved,
+  inquiryFallbackRoutingKey = "",
+  onFallbackRoutingKeyChange,
 }: WidgetInquiryOptionsEditorProps) {
   const theme = useTheme() as AppTheme;
   const wid = websiteId?.trim() ?? "";
@@ -112,6 +116,19 @@ export function WidgetInquiryOptionsEditor({
   );
 
   const editorRows = useMemo(() => value.map(toEditorRow), [value]);
+
+  const fallbackTopicOptions = useMemo(
+    () =>
+      value
+        .filter((o) => o.routingKey.trim())
+        .map((o) => ({ label: o.label || o.routingKey, value: o.routingKey })),
+    [value],
+  );
+
+  const resolvedFallbackKey =
+    inquiryFallbackRoutingKey.trim() ||
+    fallbackTopicOptions[0]?.value ||
+    "";
 
   const handleEditorChange = useCallback(
     (rows: VisitorTopicEditorRow[]) => {
@@ -196,6 +213,18 @@ export function WidgetInquiryOptionsEditor({
           Required for routing and agent assignment. Save updates visitor-topics and widget JSON.
         </Typography>
       )}
+      {fallbackTopicOptions.length > 0 ? (
+        <Box sx={{ mb: 2 }}>
+          <SelectField
+            label="Fallback topic (skip / general routing)"
+            value={resolvedFallbackKey}
+            onChange={(v) => onFallbackRoutingKeyChange?.(v)}
+            options={fallbackTopicOptions}
+            searchable={false}
+            menuMaxRows={8}
+          />
+        </Box>
+      ) : null}
       <VisitorTopicsEditor
         topics={editorRows}
         onChange={handleEditorChange}
@@ -224,6 +253,8 @@ export function WidgetInquiryOptionsEditor({
     </>
   );
 }
+
+
 
 
 

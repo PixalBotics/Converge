@@ -16,6 +16,7 @@ export interface AgentChatSocketHandlers {
   onTakeoverRequested?: (payload: unknown) => void;
   onTakeoverUpdate?: (payload: unknown) => void;
   onChatTransferred?: (payload: unknown) => void;
+  onSupervisorControl?: (payload: unknown) => void;
   onAgentWrapUpForm?: (payload: unknown) => void;
   onAgentWrapUpSubmitted?: (payload: unknown) => void;
   onAgentDistributionSubmitted?: (payload: unknown) => void;
@@ -130,6 +131,10 @@ export function useAgentChatSocket(
       scheduleRefresh();
       getHandlers().onChatTransferred?.(p);
     });
+    const offSupervisorControl = socketClient.onSupervisorControl((p) => {
+      scheduleRefresh();
+      getHandlers().onSupervisorControl?.(p);
+    });
     const offWhisper = socketClient.onChatWhisper((p) => getHandlers().onChatWhisper?.(p));
     const offTakeoverReq = socketClient.onTakeoverRequested((p) =>
       getHandlers().onTakeoverRequested?.(p),
@@ -167,6 +172,7 @@ export function useAgentChatSocket(
       offClosed();
       offCompleted();
       offTransferred();
+      offSupervisorControl();
       offWhisper();
       offTakeoverReq();
       offTakeoverUpd();

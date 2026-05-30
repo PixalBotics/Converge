@@ -129,6 +129,13 @@ export const ROUTE_RULES: readonly RouteRule[] = [
     prefixMatch: true,
   },
   {
+    permission: "page:chat-inbox",
+    href: "/dashboard/ai-training/assistant",
+    iconKey: "aiTraining",
+    label: "AI Assistant",
+    prefixMatch: true,
+  },
+  {
     permission: "page:ai-chatbot",
     href: "/dashboard/ai-training/chatbot",
     iconKey: "aiTraining",

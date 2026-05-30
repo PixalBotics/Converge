@@ -7,17 +7,26 @@ import type { WidgetInquiryOption } from "@/lib/chat-widget/widget-inquiry.types
 import type { WidgetDraft } from "@/lib/chat-widget/widgetDraft";
 import { patchRemoteWidgetConfiguration } from "@/lib/chat-widget/widget-remote-sync";
 
+export type PersistVisitorTopicsResult =
+  | { ok: true }
+  | { ok: false; error: string };
+
 /** `website_visitor_topics` — routing source of truth when rows are complete. */
 export async function persistVisitorTopicsIfValid(
   websiteId: string | undefined,
   rows: WidgetInquiryOption[],
-): Promise<boolean> {
+): Promise<PersistVisitorTopicsResult> {
   const wid = websiteId?.trim();
-  if (!wid || rows.length === 0) return false;
+  if (!wid) {
+    return { ok: false, error: "Select a website before saving inquiry topics." };
+  }
+  if (rows.length === 0) {
+    return { ok: false, error: "Add at least one inquiry topic before saving." };
+  }
   const err = validateVisitorTopicsForSave(rows);
-  if (err) return false;
+  if (err) return { ok: false, error: err };
   await saveVisitorTopics(wid, { topics: rows.map(widgetInquiryToTopicInput) });
-  return true;
+  return { ok: true };
 }
 
 /** PATCH `config.behavior.inquiryOptions` on the widget draft (embed JSON). */

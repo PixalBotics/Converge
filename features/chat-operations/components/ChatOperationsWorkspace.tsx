@@ -18,9 +18,9 @@ import { mergeSx } from "@/lib/mui/merge-sx";
 import { extractApiErrorMessageForToast, publishAppToast } from "@/lib/notify";
 import {
   ChatLiveHubScopeCard,
-  ChatLivePageHeader,
   ChatLivePageShell,
-  ChatScopeFiltersPanel,
+  ChatLiveViewSwitch,
+  ChatScopeFiltersToolbar,
   ChatWebsiteAgentsTable,
   conversationMatchesScope,
   isUnassignedActiveChat,
@@ -33,7 +33,6 @@ import { chatMonitorKeys } from "@/features/chat-monitor/hooks/keys";
 import { useChatMonitor } from "@/features/chat-monitor/hooks/useChatMonitor";
 import {
   chatLiveAgentStackSx,
-  chatLiveQueueStatPillSx,
 } from "@/features/chat-shared/styles/chat-live.styles";
 import type { AgentVisitorPresentation, ConversationSummary } from "@/services/chat/chat.types";
 import { extractVisitorPresentation } from "@/services/chat/visitor-presentation";
@@ -166,7 +165,13 @@ export function ChatOperationsWorkspace() {
 
   const supervisedWaiting = useMemo(() => {
     const rows = monitorRowsToConversationSummaries(teamLiveQuery.data ?? []);
-    return rows.filter((c) => c.status === "waiting" && !isUnassignedActiveChat(c));
+    return rows.filter(
+      (c) =>
+        (c.status === "waiting" ||
+          c.queuedForAgent === true ||
+          c.handoverRequested === true) &&
+        !isUnassignedActiveChat(c),
+    );
   }, [teamLiveQuery.data]);
 
   const supervisedClosed = useMemo(
@@ -398,11 +403,6 @@ export function ChatOperationsWorkspace() {
       const conversationId = agentChat.selectedConversationId;
       if (!accessToken || !conversationId) return;
       if (needsWebsite(action) && !websiteIdEffective.trim()) {
-        publishAppToast({
-          variant: "error",
-          message:
-            "Select a chat from your queue or wait for history to load so the copilot can resolve the website.",
-        });
         return;
       }
 
@@ -477,6 +477,7 @@ export function ChatOperationsWorkspace() {
     if (!id || !composer.trim()) return;
     try {
       await agentChat.sendMessage(composer.trim());
+      agentChat.dismissWhisper();
       setDraftsByConversation((prev) => patchConversationDraft(prev, id, ""));
     } catch (err) {
       publishAppToast({
@@ -550,46 +551,49 @@ export function ChatOperationsWorkspace() {
     agentChat.selectedIsClosed;
 
   return (
-    <ChatLivePageShell
-      variant="workstation"
-      sx={showScopeFilters ? undefined : chatLiveAgentStackSx}
-    >
-      <ChatLivePageHeader
-        title="Agent inbox"
-        subtitle={
-          showScopeFilters
-            ? teamView
-              ? "Choose a website, then optionally an agent. Queue updates as you filter."
-              : "Your personal assignments across scoped websites."
-            : "Your assigned queue — reply, insert canned responses, and wrap up when required."
-        }
-        navPreset="triage"
-        viewSwitch={
-          showScopeFilters
-            ? {
-                options: [
-                  { id: "team", label: "By website" },
-                  { id: "mine", label: "My queue" },
-                ],
-                value: teamView ? "team" : "mine",
-                onChange: (id) => {
-                  setTeamView(id === "team");
-                  setTeamAgent(null);
-                },
-                ariaLabel: "Agent inbox view",
-              }
-            : undefined
-        }
-        trailing={
-          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75, justifyContent: "flex-end" }}>
-            <Box sx={chatLiveQueueStatPillSx("active")}>Active {activeFiltered.length}</Box>
-            <Box sx={chatLiveQueueStatPillSx("waiting")}>Waiting {waitingFiltered.length}</Box>
-            <Box sx={chatLiveQueueStatPillSx("closed")}>Closed {closedFiltered.length}</Box>
-          </Box>
-        }
-      />
+    <ChatLivePageShell variant="workstation" sx={chatLiveAgentStackSx}>
       {showScopeFilters ? (
         <>
+          <Box
+            sx={{
+              flexShrink: 0,
+              display: "flex",
+              flexWrap: "wrap",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 1,
+              px: { xs: 0.5, md: 1 },
+              pt: 0.5,
+              pb: 0.25,
+            }}
+          >
+            <ChatLiveViewSwitch
+              options={[
+                { id: "team", label: "By website" },
+                { id: "mine", label: "My queue" },
+              ]}
+              value={teamView ? "team" : "mine"}
+              onChange={(id) => {
+                setTeamView(id === "team");
+                setTeamAgent(null);
+              }}
+              ariaLabel="Agent inbox view"
+            />
+            {!teamView ? (
+              <ChatScopeFiltersToolbar
+                filters={scopeFilters.filters}
+                onPatch={scopeFilters.patchFilters}
+                onReset={scopeFilters.resetFilters}
+                canFilterByResellerId={scopeFilters.canFilterByResellerId}
+                resellerOptions={scopeFilters.resellerOptions}
+                parentCompanyOptions={scopeFilters.parentCompanyOptions}
+                childCompanyOptions={scopeFilters.childCompanyOptions}
+                websiteOptions={scopeFilters.websiteOptions}
+                title="Queue filters"
+                hint="Your personal agent queue across scoped websites."
+              />
+            ) : null}
+          </Box>
           {teamView ? (
             <>
               <ChatLiveHubScopeCard
@@ -630,21 +634,7 @@ export function ChatOperationsWorkspace() {
                 />
               ) : null}
             </>
-          ) : (
-            <DashboardCard sx={{ flexShrink: 0, p: { xs: 1.5, md: 2 }, height: "auto", minHeight: 0 }}>
-              <ChatScopeFiltersPanel
-                filters={scopeFilters.filters}
-                onPatch={scopeFilters.patchFilters}
-                onReset={scopeFilters.resetFilters}
-                canFilterByResellerId={scopeFilters.canFilterByResellerId}
-                resellerOptions={scopeFilters.resellerOptions}
-                parentCompanyOptions={scopeFilters.parentCompanyOptions}
-                childCompanyOptions={scopeFilters.childCompanyOptions}
-                websiteOptions={scopeFilters.websiteOptions}
-                hint="Your personal agent queue across scoped websites."
-              />
-            </DashboardCard>
-          )}
+          ) : null}
         </>
       ) : null}
       <Box sx={chatOpsWorkspaceShell}>
@@ -690,7 +680,10 @@ export function ChatOperationsWorkspace() {
             />
           </Box>
 
-          <Box data-chat-pane="thread">
+          <Box
+            data-chat-pane="thread"
+            sx={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}
+          >
             <ChatConversationPanel
               conversationId={agentChat.selectedConversationId}
               messages={agentChat.messages}
@@ -726,12 +719,13 @@ export function ChatOperationsWorkspace() {
               websiteId={websiteIdEffective || null}
               departmentId={departmentIdEffective}
               activeWhisper={agentChat.activeWhisper}
-              onApplyWhisperToComposer={applyAiToComposer}
+              onApplyWhisperToComposer={pushCannedToComposer}
               onDismissWhisper={agentChat.dismissWhisper}
               distributionFormHref={distributionFormHref}
               distributionSubmitted={Boolean(wrapUpForSelected?.distributionSubmitted)}
               closeFormHref={closeFormHref}
               wrapUpSubmitted={Boolean(wrapUpForSelected?.wrapUpSubmitted)}
+              requiresDistributionForm={Boolean(wrapUpForSelected?.requiresDistributionForm)}
             />
           </Box>
 
@@ -746,6 +740,7 @@ export function ChatOperationsWorkspace() {
               currentUserId={user?.id}
               hasOperational={hasOperational}
               supervisorRefreshToken={agentChat.supervisorRefreshToken}
+              onSupervisorActivity={(payload) => agentChat.onSupervisorActivity(payload)}
               supervisorReadOnly={agentChat.selectedIsClosed}
               showWebsiteFallback={Boolean(
                 agentChat.selectedConversationId && !selectedSummary?.websiteId,

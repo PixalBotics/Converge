@@ -1,3 +1,5 @@
+import type { WidgetExperienceV1 } from "./widget-experience";
+
 export type WidgetTypeDto = "CHAT" | "TEXT_US" | "BOTH" | string;
 
 export type WidgetModeDto = "AI_ONLY" | "AGENT_ONLY" | "HYBRID" | string;
@@ -20,11 +22,23 @@ export interface WidgetConfigEnvelope {
   surfaces: WidgetSurfacesDto;
   featureFlags: WidgetFeatureFlagsDto;
   embedAllowAnyOrigin?: boolean;
-  versionNo?: number;
   status: string;
   allowedDomains?: string[];
   /** Chat mode sometimes appears at envelope root (`chatMode`) instead of `config.mode`. */
   chatMode?: WidgetModeDto;
+  /** Compiled v1 document from publish snapshot (preferred for embed). */
+  experience?: WidgetExperienceV1;
+  /** Three-origin hints from API env (app / api / optional CDN loader). */
+  embed?: {
+    appOrigin?: string | null;
+    apiOrigin?: string | null;
+    scriptSrc?: string | null;
+    cdnOrigin?: string | null;
+  };
+  /** Flattened legacy embed settings (older API payloads only). */
+  clientSettings?: Record<string, unknown>;
+  /** Published theme editor snapshot for embed colors/layout (same as `clientSettings.theme.designJson`). */
+  themeDesignJson?: Record<string, unknown>;
   config?: {
     mode?: WidgetModeDto;
     welcomeMessage?: string;

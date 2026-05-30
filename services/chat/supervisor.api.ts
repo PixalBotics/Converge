@@ -5,6 +5,7 @@ import type {
   ChatWhisper,
   CreateWhisperBody,
   RequestTakeoverBody,
+  RequestTakeoverResult,
 } from "./supervisor.types";
 
 function conversationPath(conversationId: string): string {
@@ -45,12 +46,12 @@ export async function fetchTakeoverRequests(
 export async function requestConversationTakeover(
   conversationId: string,
   body: RequestTakeoverBody,
-): Promise<unknown> {
+): Promise<RequestTakeoverResult> {
   const { data } = await apiClient.post<unknown>(
     `${conversationPath(conversationId)}/takeover/request`,
     body,
   );
-  return unwrapChatHttpData(data);
+  return unwrapChatHttpData<RequestTakeoverResult>(data);
 }
 
 export async function approveTakeoverRequest(

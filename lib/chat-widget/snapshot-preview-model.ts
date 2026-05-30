@@ -14,12 +14,23 @@ export interface ParsedSnapshotPreview {
   hasRenderable: boolean;
 }
 
+function configRootFromSnapshot(snapshot: JsonRecord): JsonRecord | undefined {
+  const draft = snapshot.draft as JsonRecord | undefined;
+  if (draft?.config && typeof draft.config === "object") {
+    return draft.config as JsonRecord;
+  }
+  const cs = snapshot.configSnapshot;
+  if (cs && typeof cs === "object" && !Array.isArray(cs)) {
+    return cs as JsonRecord;
+  }
+  return undefined;
+}
+
 function designJsonFromSnapshot(snapshot: JsonRecord): JsonRecord | null {
-  const lv = snapshot.latestVersion as JsonRecord | undefined;
-  const cfg = lv?.config as JsonRecord | undefined;
+  const cfg = configRootFromSnapshot(snapshot);
   const theme = cfg?.theme as JsonRecord | undefined;
-  const fromLv = theme?.designJson as JsonRecord | undefined;
-  if (fromLv && typeof fromLv === "object") return fromLv;
+  const fromCfg = theme?.designJson as JsonRecord | undefined;
+  if (fromCfg && typeof fromCfg === "object") return fromCfg;
 
   const cs = snapshot.configSnapshot as JsonRecord | undefined;
   const t2 = cs?.theme as JsonRecord | undefined;
@@ -52,8 +63,7 @@ export function parseSnapshotForPreview(snapshot: JsonRecord | null): ParsedSnap
       ? (dj.textUs as JsonRecord)
       : undefined;
 
-  const lv = snapshot.latestVersion as JsonRecord | undefined;
-  const cfg = lv?.config as JsonRecord | undefined;
+  const cfg = configRootFromSnapshot(snapshot);
   const mode = typeof cfg?.mode === "string" ? cfg.mode : undefined;
 
   const hasRenderable =

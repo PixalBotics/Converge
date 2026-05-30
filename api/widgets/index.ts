@@ -7,7 +7,6 @@ export {
   patchWidgetConfiguration,
   deleteWidget,
   publishWidget,
-  rollbackWidget,
   uploadWidgetAsset,
   widgetResponseData,
 } from "./widgets.api";

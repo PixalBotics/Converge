@@ -54,7 +54,7 @@ export interface UseAgentChatReturn {
   dismissWrapUp: () => void;
   activeWhisper: ChatWhisperSocketPayload | null;
   dismissWhisper: () => void;
-  onSupervisorActivity: () => void;
+  onSupervisorActivity: (payload?: unknown) => void;
   supervisorRefreshToken: number;
   /** True when the current user may post a visitor-visible reply. */
   canSendMessage: boolean;
@@ -237,12 +237,27 @@ export function useAgentChat(params: UseAgentChatParams): UseAgentChatReturn {
     [params.agentId],
   );
 
-  const handleTakeoverActivity = useCallback(() => {
-    void queues.refreshQueues();
-    setSupervisorTick((n) => n + 1);
-    const cid = selectedConversationIdRef.current;
-    if (cid) void selectConversationRef.current(cid, { readOnly: selectedIsClosedRef.current });
-  }, [queues]);
+  const handleTakeoverActivity = useCallback(
+    (payload?: unknown) => {
+      void queues.refreshQueues();
+      setSupervisorTick((n) => n + 1);
+      if (typeof payload === "object" && payload !== null) {
+        const p = payload as Record<string, unknown>;
+        if (typeof p.toAgentId === "string" && p.toAgentId.trim()) {
+          setConversationAssigneeId(p.toAgentId.trim());
+        }
+        if (typeof p.supervisorControlUserId === "string") {
+          setSupervisorControlUserId(p.supervisorControlUserId.trim() || null);
+        }
+        if (p.released === true) {
+          setSupervisorControlUserId(null);
+        }
+      }
+      const cid = selectedConversationIdRef.current;
+      if (cid) void selectConversationRef.current(cid, { readOnly: selectedIsClosedRef.current });
+    },
+    [queues],
+  );
 
   const handleChatResumed = useCallback(
     async (payload: unknown) => {
@@ -289,9 +304,8 @@ export function useAgentChat(params: UseAgentChatParams): UseAgentChatReturn {
       onChatResumed: handleChatResumed,
       onVisitorTyping: setVisitorTypingSelected,
       onChatWhisper: handleChatWhisper,
-      onTakeoverRequested: handleTakeoverActivity,
-      onTakeoverUpdate: handleTakeoverActivity,
       onChatTransferred: handleTakeoverActivity,
+      onSupervisorControl: handleTakeoverActivity,
       onAgentWrapUpForm: handleAgentWrapUpForm,
       onAgentWrapUpSubmitted: (p) => {
         const cid = conversationIdFromSocketPayload(p);
@@ -445,6 +459,8 @@ export function useAgentChat(params: UseAgentChatParams): UseAgentChatReturn {
       });
 
       try {
+        setActiveWhisper(null);
+
         const useSupervisorSend =
           supervisorControlUserId != null &&
           supervisorControlUserId === params.agentId;
@@ -581,7 +597,7 @@ export function useAgentChat(params: UseAgentChatParams): UseAgentChatReturn {
     },
     activeWhisper,
     dismissWhisper: () => setActiveWhisper(null),
-    onSupervisorActivity: () => setSupervisorTick((n) => n + 1),
+    onSupervisorActivity: handleTakeoverActivity,
     supervisorRefreshToken: supervisorTick,
     canSendMessage,
     sendBlockedReason,
