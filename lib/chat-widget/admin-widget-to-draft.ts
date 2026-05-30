@@ -2,10 +2,18 @@ import { isRecord } from "@/lib/utils";
 import type { JsonRecord } from "@/api/types/common.types";
 import { widgetResponseData } from "@/api/widgets/widgets.api";
 import type { WidgetDraft, WidgetInstallChatMode } from "./widgetDraft";
-import { defaultWidgetDraft } from "./widgetDraft";
+import {
+  defaultWidgetDraft,
+  normalizeButtonPosition,
+  normalizeButtonShape,
+} from "./widgetDraft";
 import { normalizeWidgetInquiryOptions } from "./widget-inquiry.types";
 import { mapApiChatColorsToDraft, widgetChatColorsDraftToPatch } from "./widget-colors-draft";
 import { parseAiTypeFromConfigRoot } from "./widget-ai-type";
+import {
+  normalizeLauncherBadgeMode,
+  normalizeWidgetSoundId,
+} from "@/lib/widget-runtime/widget-notifications";
 
 function pickStr(obj: unknown, keys: string[]): string {
   if (!isRecord(obj)) return "";
@@ -58,13 +66,6 @@ function normalizeChatMode(raw: string): WidgetInstallChatMode | undefined {
   const u = raw.toUpperCase();
   if (u === "AI_ONLY" || u === "AGENT_ONLY" || u === "HYBRID") return u as WidgetInstallChatMode;
   return undefined;
-}
-
-function shapeToButtonShape(shape: string): WidgetDraft["buttonShape"] {
-  const s = shape.toLowerCase();
-  if (s === "square") return "square";
-  if (s === "rounded" || s === "pill") return "rounded";
-  return "circle";
 }
 
 function pickRecord(obj: unknown, keys: string[]): JsonRecord | null {
@@ -160,7 +161,10 @@ export function mapAdminWidgetResponseToWidgetDraft(
     }),
     allowedDomains: allowedDomains?.length ? allowedDomains : undefined,
     themeName: pickStr(theme ?? {}, ["name"]) || defaultWidgetDraft.themeName,
-    themePrimaryColor: pickStr(theme ?? {}, ["primaryColor", "primary_color"]) || undefined,
+    themePrimaryColor:
+      pickStr(theme ?? {}, ["primaryColor", "primary_color"]) ||
+      pickStr(colors ?? {}, ["button"]) ||
+      defaultWidgetDraft.themePrimaryColor,
     themeSecondaryColor:
       pickStr(theme ?? {}, ["secondaryColor", "secondary_color"]) ||
       defaultWidgetDraft.themeSecondaryColor,
@@ -186,10 +190,16 @@ export function mapAdminWidgetResponseToWidgetDraft(
       isRecord(dj) && typeof dj.accent === "string" ? dj.accent : defaultWidgetDraft.themeDesignJsonAccent,
     themeDesignJsonDensity:
       isRecord(dj) && typeof dj.density === "string" ? dj.density : defaultWidgetDraft.themeDesignJsonDensity,
-    buttonShape: launcher ? shapeToButtonShape(pickStr(launcher, ["shape"]) || "circle") : defaultWidgetDraft.buttonShape,
-    buttonPosition:
-      (pickStr(launcher ?? ui ?? theme ?? {}, ["position", "buttonPosition"]) as WidgetDraft["buttonPosition"]) ||
-      defaultWidgetDraft.buttonPosition,
+    buttonShape: normalizeButtonShape(
+      (launcher ? pickStr(launcher, ["shape"]) : "") ||
+        pickStr(ui ?? {}, ["buttonShape"]) ||
+        pickStr(theme ?? {}, ["buttonShape", "button_shape"]),
+    ),
+    buttonPosition: normalizeButtonPosition(
+      (launcher ? pickStr(launcher, ["position"]) : "") ||
+        pickStr(ui ?? {}, ["buttonPosition"]) ||
+        pickStr(theme ?? {}, ["buttonPosition", "position"]),
+    ),
     launcherInsetBottomPx:
       pickNum(launcher ?? ui ?? {}, ["insetBottomPx", "launcherInsetBottomPx"]) ??
       defaultWidgetDraft.launcherInsetBottomPx,
@@ -197,6 +207,9 @@ export function mapAdminWidgetResponseToWidgetDraft(
       pickNum(launcher ?? ui ?? {}, ["insetSidePx", "launcherInsetSidePx"]) ??
       defaultWidgetDraft.launcherInsetSidePx,
     buttonColor: pickStr(colors ?? {}, ["button"]) || pickStr(theme ?? {}, ["primaryColor"]) || defaultWidgetDraft.buttonColor,
+    iconDataUrl:
+      pickStr(ui ?? {}, ["buttonIconUrl", "button_icon_url"]) ||
+      defaultWidgetDraft.iconDataUrl,
     buttonHoverColor:
       pickStr(colors ?? {}, ["buttonHover", "button_hover"]) ||
       pickStr(ui ?? {}, ["buttonHoverColor", "button_hover_color"]) ||
@@ -235,10 +248,41 @@ export function mapAdminWidgetResponseToWidgetDraft(
       pickStr(chatBox ?? ui ?? {}, ["bannerDescription"]) || defaultWidgetDraft.bannerDescription,
     bannerMediaType:
       (pickStr(chatBox ?? ui ?? {}, ["bannerMediaType"]) as WidgetDraft["bannerMediaType"]) ||
-      defaultWidgetDraft.bannerMediaType,
+      (pickStr(chatBox ?? ui ?? {}, ["bannerVideoUrl", "banner_video_url"])
+        ? "video"
+        : defaultWidgetDraft.bannerMediaType),
+    bannerDataUrl:
+      pickStr(chatBox ?? ui ?? {}, ["bannerVideoUrl", "banner_video_url"]) ||
+      pickStr(chatBox ?? ui ?? {}, ["bannerImageUrl", "banner_image_url"]) ||
+      defaultWidgetDraft.bannerDataUrl,
     boxWidth: pickNum(chatBox ?? ui ?? {}, ["boxWidth", "width"]) ?? defaultWidgetDraft.boxWidth,
     boxHeight: pickNum(chatBox ?? ui ?? {}, ["boxHeight", "height"]) ?? defaultWidgetDraft.boxHeight,
     buttonLabel: pickStr(ui ?? {}, ["buttonLabel"]) || defaultWidgetDraft.buttonLabel,
+    proactiveTeaserEnabled:
+      pickBool(ui ?? {}, ["proactiveTeaserEnabled"]) ?? defaultWidgetDraft.proactiveTeaserEnabled,
+    proactiveTeaser:
+      pickStr(ui ?? {}, ["proactiveTeaser"]) || defaultWidgetDraft.proactiveTeaser,
+    proactiveTeaserAvatarEnabled:
+      pickBool(ui ?? {}, ["proactiveTeaserAvatarEnabled"]) ??
+      defaultWidgetDraft.proactiveTeaserAvatarEnabled,
+    panelGreetingEnabled:
+      pickBool(ui ?? {}, ["panelGreetingEnabled"]) ?? defaultWidgetDraft.panelGreetingEnabled,
+    chatWelcomeEnabled:
+      pickBool(ui ?? {}, ["chatWelcomeEnabled"]) ?? defaultWidgetDraft.chatWelcomeEnabled,
+    proactiveTeaserAvatarDataUrl: pickStr(ui ?? {}, ["proactiveTeaserAvatarUrl"]) || "",
+    proactiveSecondaryCtaEnabled:
+      pickBool(ui ?? {}, ["proactiveSecondaryCtaEnabled"]) ??
+      defaultWidgetDraft.proactiveSecondaryCtaEnabled,
+    proactiveSecondaryCtaLabel:
+      pickStr(ui ?? {}, ["proactiveSecondaryCtaLabel"]) ||
+      defaultWidgetDraft.proactiveSecondaryCtaLabel,
+    proactiveSecondaryCtaHref:
+      pickStr(ui ?? {}, ["proactiveSecondaryCtaHref"]) ||
+      defaultWidgetDraft.proactiveSecondaryCtaHref,
+    proactiveSecondaryCtaKind:
+      (pickStr(ui ?? {}, ["proactiveSecondaryCtaKind"]) as WidgetDraft["proactiveSecondaryCtaKind"]) ||
+      defaultWidgetDraft.proactiveSecondaryCtaKind,
+    motionEnabled: pickBool(behavior ?? {}, ["motionEnabled"]) ?? defaultWidgetDraft.motionEnabled,
     firstMessage: pickStr(ui ?? {}, ["firstMessage"]) || defaultWidgetDraft.firstMessage,
     messagePlaceholder: pickStr(ui ?? {}, ["messagePlaceholder"]) || defaultWidgetDraft.messagePlaceholder,
     backgroundColor:
@@ -267,6 +311,17 @@ export function mapAdminWidgetResponseToWidgetDraft(
       pickNum(behavior ?? {}, ["autoOpenDelaySeconds"]) ??
       pickNum(config ?? {}, ["autoPopupDelaySeconds"]) ??
       defaultWidgetDraft.autoOpenDelaySeconds,
+    autoOpenOnReturnVisit:
+      pickBool(behavior ?? {}, ["autoOpenOnReturnVisit", "autoOpenReturnVisit"]) ??
+      defaultWidgetDraft.autoOpenOnReturnVisit,
+    notificationSoundId: normalizeWidgetSoundId(
+      pickStr(behavior ?? {}, ["notificationSoundId", "soundId"]) ||
+        defaultWidgetDraft.notificationSoundId,
+    ),
+    launcherBadgeMode: normalizeLauncherBadgeMode(
+      pickStr(behavior ?? {}, ["launcherBadgeMode", "launcherBadge"]) ||
+        defaultWidgetDraft.launcherBadgeMode,
+    ),
     fileUploadEnabled:
       pickBool(behavior ?? {}, ["fileUploadEnabled"]) ??
       pickBool(config ?? {}, ["fileUploadEnabled"]) ??
@@ -288,6 +343,12 @@ export function mapAdminWidgetResponseToWidgetDraft(
     allowedDomainsText:
       pickStr(behavior ?? {}, ["allowedDomainsText"]) || defaultWidgetDraft.allowedDomainsText,
     inquiryOn: inquiryOptions != null ? inquiryOptions.length > 0 : defaultWidgetDraft.inquiryOn,
+    inquiryRequired: pickBool(behavior ?? {}, ["inquiryRequired"]) ?? false,
+    inquirySkipLabel:
+      pickStr(behavior ?? {}, ["inquirySkipLabel"]) || defaultWidgetDraft.inquirySkipLabel,
+    inquiryFallbackRoutingKey:
+      pickStr(behavior ?? {}, ["inquiryFallbackRoutingKey"]) ||
+      defaultWidgetDraft.inquiryFallbackRoutingKey,
     inquiryOptions: inquiryOptions?.length ? inquiryOptions : defaultWidgetDraft.inquiryOptions,
     persistVisitorSession:
       pickBool(session ?? {}, ["persistVisitorSession"]) ?? defaultWidgetDraft.persistVisitorSession,

@@ -27,9 +27,10 @@ import {
   useWebsiteAssignmentsWebsitesQuery,
 } from "@/lib/hooks";
 import {
-  createRemoteWidgetDraft,
+  createRemoteWidgetDraftWithMeta,
   isServerWidgetDraftAlive,
 } from "@/lib/chat-widget/widget-remote-sync";
+import { appendWizardSaveTraceToSession } from "@/lib/chat-widget/widget-wizard-save-trace";
 import {
   readChatWizardDraft,
   resetCreateWizardDraft,
@@ -308,9 +309,19 @@ export default function WidgetTypeSelectionPage() {
                 setCreatingDraft(true);
                 try {
                   if (needNewRemote) {
-                    const created = await createRemoteWidgetDraft({
+                    const created = await createRemoteWidgetDraftWithMeta({
                       draft: base,
                       widgetKind: kind,
+                    });
+                    appendWizardSaveTraceToSession({
+                      stepKey: "website",
+                      stepLabel: "Step 0 — Website & type",
+                      method: created.meta.method,
+                      path: created.meta.path,
+                      scope: "create",
+                      publishNow: created.meta.publishNow,
+                      requestBody: created.meta.requestBody,
+                      responseBody: created.meta.inner,
                     });
                     const fromScheduling = await loadInquiryTopicsFromScheduling(wid);
                     saveChatWizardDraft(null, {

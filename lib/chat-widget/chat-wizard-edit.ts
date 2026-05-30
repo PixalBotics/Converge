@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { usePathname, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import type { JsonRecord } from "@/api/types/common.types";
 import { getWidgetSnapshot, widgetResponseData } from "@/api/widgets/widgets.api";
 import { extractApiErrorMessageForToast } from "@/lib/notify/extract-api-message";
@@ -72,11 +72,9 @@ export function useChatWidgetWizardEdit(): {
   /** Re-fetch widget from API and refresh form state (edit flow). */
   reloadFromServer: () => Promise<void>;
 } {
-  const pathname = usePathname();
   const searchParams = useSearchParams();
   const editWidgetKey = (searchParams.get(CHAT_WIDGET_EDIT_QUERY_PARAM) ?? "").trim();
   const isEdit = Boolean(editWidgetKey);
-  const searchParamsKey = searchParams.toString();
 
   const [draftReady, setDraftReady] = useState(!isEdit);
   const [hydrateError, setHydrateError] = useState<string | null>(null);
@@ -107,7 +105,13 @@ export function useChatWidgetWizardEdit(): {
             mapped.inquiryOn = true;
           }
         }
-        replaceEditWizardDraftFromApi(editWidgetKey, mapped);
+        replaceEditWizardDraftFromApi(editWidgetKey, {
+          ...mapped,
+          websiteId:
+            mapped.websiteId?.trim() ||
+            (typeof data.websiteId === "string" ? data.websiteId : undefined) ||
+            (typeof data.website_id === "string" ? data.website_id : undefined),
+        });
       } catch (e) {
         if (!cancelled) {
           setHydrateError(extractApiErrorMessageForToast(e) ?? "Failed to load widget for editing.");
@@ -120,7 +124,7 @@ export function useChatWidgetWizardEdit(): {
     return () => {
       cancelled = true;
     };
-  }, [editWidgetKey, pathname, searchParamsKey, reloadToken]);
+  }, [editWidgetKey, reloadToken]);
 
   return {
     editWidgetKey,

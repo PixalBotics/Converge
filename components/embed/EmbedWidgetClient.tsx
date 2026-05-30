@@ -8,14 +8,17 @@ import Box from "@mui/material/Box";
 import Checkbox from "@mui/material/Checkbox";
 import Divider from "@mui/material/Divider";
 import FormControlLabel from "@mui/material/FormControlLabel";
+import Badge from "@mui/material/Badge";
 import IconButton from "@mui/material/IconButton";
 import Link from "@mui/material/Link";
 import Paper from "@mui/material/Paper";
 import Stack from "@mui/material/Stack";
 import {
+  type MutableRefObject,
   type ReactNode,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -26,7 +29,17 @@ import MuiButton from "@mui/material/Button";
 import TextField from "@mui/material/TextField";
 import { Typography } from "@/components/common";
 import { EmbedActionButton } from "@/components/embed/EmbedActionButton";
-import { EmbedVideoWelcome } from "@/components/embed/EmbedVideoWelcome";
+import { WidgetProactiveTeaserBubble } from "@/components/embed/WidgetProactiveTeaserBubble";
+import { EmbedChatBubble } from "@/components/embed/EmbedChatBubble";
+import {
+  EmbedChatHeaderStatusChip,
+  EmbedChatPanelHeaderRow,
+} from "@/components/embed/EmbedChatHeaderStatus";
+import {
+  resolveEmbedPanelHeaderStatus,
+  type EmbedPanelHeaderStatus,
+} from "@/lib/widget-runtime/embed-panel-header-status";
+import { EmbedChatMediaBubbles } from "@/components/embed/EmbedChatMediaBubble";
 import { EmbedInputField } from "@/components/embed/EmbedInputField";
 import { normalizeChatMessageText } from "@/lib/safe-markdown/text";
 import { useVisitorChat } from "@/lib/hooks/chat/useVisitorChat";
@@ -39,6 +52,7 @@ import {
   buildDefaultFormValues,
   buildDynamicPrechatZod,
   buildVisitorPayloadParts,
+  buildVisitorTranscriptDisplay,
   extractPrechatFieldsFromWidgetConfig,
   isPrechatBootstrapVisitorMessage,
   resolvePersonalizedAssistantWelcome,
@@ -47,7 +61,6 @@ import {
 import {
   extractRuntimeChatAppearance,
   resolveEmbedGreetingMessage,
-  launcherBorderRadius,
   launcherEmbedRootSx,
   resolveRuntimeConfigRecord,
   type RuntimeChatAppearance,
@@ -56,22 +69,42 @@ import {
   EMBED_LAUNCHER_SIZE_PX,
   postEmbedHostResize,
 } from "@/lib/widget-runtime/embed-host-messaging";
+import {
+  notifyWidgetIncoming,
+  requestWidgetNotificationPermission,
+  truncateNotificationPreview,
+  unlockWidgetAudio,
+} from "@/lib/widget-runtime/widget-notifications";
+import {
+  hasWidgetReturnVisit,
+  markWidgetReturnVisit,
+  shouldRunWidgetAutoOpen,
+} from "@/lib/widget-runtime/widget-visit-lifecycle";
 import { useEmbedHostResize } from "@/lib/widget-runtime/use-embed-host-resize";
 import {
   embedBodyTextSx,
-  embedGreetingBubbleSx,
+  embedComposerInputSx,
+  embedComposerRowSx,
+  embedChatBubbleInnerSx,
+  embedChatBubbleShellSx,
   embedHandoverButtonSx,
+  embedPrechatFormBubbleInnerSx,
+  embedPrechatFormBubbleShellSx,
   embedInputFieldSx,
   embedInquiryPillSx,
+  embedLauncherFabSx,
   embedLabelTextSx,
-  embedMessageBubbleSx,
   embedMutedTextSx,
   embedNativeInputStyle,
   embedPanelPaperSx,
+  embedPanelMessageListSx,
+  embedEmbeddedChatPanelSx,
+  embedComposerFooterSx,
+  embedTeaserPreviewSx,
+  embedTranscriptBubbleInnerSx,
   embedSendButtonSx,
   resolveEmbedMessageBubbleRole,
 } from "@/lib/widget-runtime/embed-theme-sx";
-import { EmbedWidgetBanner } from "@/components/embed/EmbedWidgetBanner";
 import { EmbedWidgetTheme } from "@/components/embed/EmbedWidgetTheme";
 import {
   getWidgetRuntimeConfig,
@@ -266,10 +299,7 @@ function EmbedLoadingLauncher() {
         aria-label="Loading chat widget"
         disabled
         sx={{
-          width: EMBED_LAUNCHER_SIZE_PX,
-          height: EMBED_LAUNCHER_SIZE_PX,
-          bgcolor: loadingAppearance.launcher.buttonColor,
-          color: loadingAppearance.launcher.iconColor,
+          ...embedLauncherFabSx(loadingAppearance, "circle", EMBED_LAUNCHER_SIZE_PX),
           opacity: 0.85,
         }}
       >
@@ -319,40 +349,119 @@ function FloatingChatEmbed({
   textUsBelow?: ReactNode;
 }) {
   const [launcherOpen, setLauncherOpen] = useState(false);
+  const [panelHeaderStatus, setPanelHeaderStatus] =
+    useState<EmbedPanelHeaderStatus | null>(null);
+  const launcherOpenRef = useRef(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [launcherPreview, setLauncherPreview] = useState("");
+  const siteKey = `${widgetKey}:${websiteId}`;
+  const formEnabledForGate = appearance.formEnabled ?? true;
+  const inquiryAllowedForMode =
+    mode !== "AI_ONLY" && (appearance.inquiryOptions?.length ?? 0) > 0;
+  const needsPrechatGate = formEnabledForGate || inquiryAllowedForMode;
   const greetingMessage = useMemo(
     () => resolveEmbedGreetingMessage(appearance, welcomeText),
     [appearance, welcomeText],
   );
-  const hasGreetingStep = greetingMessage.length > 0;
-  const [greetingAck, setGreetingAck] = useState(!hasGreetingStep);
+  /** Launcher-only greeting step when there is no pre-chat form / inquiry gate (welcome lives in the form otherwise). */
+  const hasGreetingStep = !needsPrechatGate && greetingMessage.length > 0;
+  const [greetingAck, setGreetingAck] = useState(
+    () => !hasGreetingStep || readWelcomeAcknowledged(widgetKey),
+  );
 
   useEffect(() => {
-    setGreetingAck(!hasGreetingStep);
+    setGreetingAck(!hasGreetingStep || readWelcomeAcknowledged(widgetKey));
   }, [widgetKey, hasGreetingStep]);
 
   useEffect(() => {
-    if (!appearance.autoOpenEnabled || appearance.autoOpenDelaySeconds <= 0) return;
+    launcherOpenRef.current = launcherOpen;
+    if (launcherOpen) {
+      setUnreadCount(0);
+      setLauncherPreview("");
+    } else {
+      setPanelHeaderStatus(null);
+    }
+  }, [launcherOpen]);
+
+  useEffect(() => {
+    if (!greetingAck) {
+      setPanelHeaderStatus(null);
+    }
+  }, [greetingAck]);
+
+  useEffect(() => {
+    requestWidgetNotificationPermission();
+  }, []);
+
+  useEffect(() => {
+    const hasPersistedConversation = Boolean(readConversationId(siteKey));
+    if (
+      !shouldRunWidgetAutoOpen({
+        widgetKey,
+        autoOpenEnabled: appearance.autoOpenEnabled,
+        autoOpenDelaySeconds: appearance.autoOpenDelaySeconds,
+        autoOpenOnReturnVisit: appearance.autoOpenOnReturnVisit,
+        hasPersistedConversation,
+      })
+    ) {
+      return;
+    }
     const id = window.setTimeout(() => {
+      unlockWidgetAudio();
       setLauncherOpen(true);
       postEmbedHostResize(true, appearance);
+      markWidgetReturnVisit(widgetKey);
     }, appearance.autoOpenDelaySeconds * 1000);
     return () => window.clearTimeout(id);
-  }, [appearance.autoOpenEnabled, appearance.autoOpenDelaySeconds, appearance]);
+  }, [
+    appearance.autoOpenDelaySeconds,
+    appearance.autoOpenEnabled,
+    appearance.autoOpenOnReturnVisit,
+    siteKey,
+    widgetKey,
+  ]);
+
+  const handleIncomingAlert = useCallback(
+    (preview: string) => {
+      const panelOpen = launcherOpenRef.current;
+      const tabHidden = typeof document !== "undefined" && document.hidden;
+      if (panelOpen && !tabHidden) return;
+
+      const text = truncateNotificationPreview(preview);
+      if (!text) return;
+
+      if (!panelOpen) {
+        setLauncherPreview(text);
+        if (appearance.launcherBadgeMode !== "none") {
+          setUnreadCount((c) => Math.min(99, c + 1));
+        }
+      }
+
+      notifyWidgetIncoming(appearance, text, {
+        launcherOpen: panelOpen,
+        playSound: true,
+      });
+    },
+    [appearance],
+  );
 
   const acknowledgeGreeting = () => {
     setGreetingAck(true);
+    writeWelcomeAcknowledged(widgetKey);
   };
 
   const closeLauncher = () => {
     setLauncherOpen(false);
     postEmbedHostResize(false, appearance);
-    setGreetingAck(!hasGreetingStep);
+    setGreetingAck(!hasGreetingStep || readWelcomeAcknowledged(widgetKey));
+    markWidgetReturnVisit(widgetKey);
   };
 
   const { launcher, chatBox } = appearance;
   useEmbedHostResize(launcherOpen, appearance);
 
   const openLauncher = () => {
+    unlockWidgetAudio();
     setLauncherOpen(true);
     postEmbedHostResize(true, appearance);
   };
@@ -391,6 +500,7 @@ function FloatingChatEmbed({
       }}
     >
       <Box
+        onPointerDown={() => unlockWidgetAudio()}
         sx={{
           display: "flex",
           flexDirection: "column",
@@ -401,29 +511,36 @@ function FloatingChatEmbed({
           maxWidth: `calc(100vw - ${sidePad}px)`,
         }}
       >
-        {launcherOpen ? (
+        {(launcherOpen || greetingAck) ? (
           <Paper
-            elevation={12}
+            elevation={0}
             sx={{
+              transition: appearance.motionEnabled
+                ? "opacity 0.22s ease, transform 0.22s ease"
+                : undefined,
               width: chatBox.boxWidth,
               height: chatBox.boxHeight,
               maxWidth: `calc(100vw - ${sidePad}px)`,
               maxHeight: "min(85vh, calc(100vh - 96px))",
-              display: "flex",
+              display: launcherOpen ? "flex" : "none",
               flexDirection: "column",
               flexShrink: 0,
               ...embedPanelPaperSx(appearance),
             }}
+            aria-hidden={!launcherOpen}
           >
             <Stack
               direction="row"
               alignItems="center"
               justifyContent="space-between"
+              spacing={0.5}
               sx={{
                 px: 2,
-                py: 1.25,
+                py: 1,
                 bgcolor: chatBox.headerBg,
                 color: chatBox.headerTextColor,
+                gap: 0.5,
+                minHeight: 40,
               }}
             >
               <Typography
@@ -432,18 +549,29 @@ function FloatingChatEmbed({
                 sx={{
                   letterSpacing: 0.02,
                   flex: 1,
-                  textAlign: chatBox.headerAlign,
+                  minWidth: 0,
+                  textAlign: panelHeaderStatus ? "left" : chatBox.headerAlign,
                   color: "inherit",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
                 }}
               >
                 {chatBox.headerTitle}
               </Typography>
+              {panelHeaderStatus ? (
+                <EmbedChatHeaderStatusChip
+                  appearance={appearance}
+                  status={panelHeaderStatus}
+                  onHeader
+                />
+              ) : null}
               <IconButton
                 type="button"
                 aria-label="Minimize widget"
                 size="small"
                 onClick={closeLauncher}
-                sx={{ color: "inherit", ml: 1 }}
+                sx={{ color: "inherit", flexShrink: 0 }}
               >
                 <CloseRounded fontSize="small" />
               </IconButton>
@@ -453,21 +581,19 @@ function FloatingChatEmbed({
               sx={{
                 flex: 1,
                 minHeight: 0,
-                overflowY: "auto",
+                overflow: "hidden",
+                display: "flex",
+                flexDirection: "column",
                 p: greetingAck ? 0 : appearance.densityTokens.panelPaddingPx / 8,
                 bgcolor: chatBox.backgroundColor,
               }}
             >
               {!greetingAck ? (
                 <Stack spacing={2} sx={{ pt: 0.5 }}>
-                  <EmbedVideoWelcome appearance={appearance} />
-                  <EmbedWidgetBanner banner={appearance.banner} appearance={appearance} />
-                  <Typography
-                    variant="body2"
-                    sx={embedGreetingBubbleSx(appearance)}
-                  >
+                  <EmbedChatMediaBubbles appearance={appearance} />
+                  <EmbedChatBubble appearance={appearance} role="greeting">
                     {greetingMessage}
-                  </Typography>
+                  </EmbedChatBubble>
                   <EmbedActionButton
                     type="button"
                     appearance={appearance}
@@ -478,11 +604,27 @@ function FloatingChatEmbed({
                   </EmbedActionButton>
                 </Stack>
               ) : (
-                <Box sx={{ display: "flex", flexDirection: "column", gap: 0 }}>
-                  <Box sx={{ p: greetingAck ? appearance.densityTokens.panelPaddingPx / 8 : 0 }}>
+                <Box
+                  sx={{
+                    display: "flex",
+                    flexDirection: "column",
+                    flex: 1,
+                    minHeight: 0,
+                    overflow: "hidden",
+                  }}
+                >
+                  <Box
+                    sx={{
+                      flex: 1,
+                      minHeight: 0,
+                      overflow: "hidden",
+                      display: "flex",
+                      flexDirection: "column",
+                    }}
+                  >
                     <WidgetChatPanel
                       embedded
-                      greetingAlreadyShown={hasGreetingStep}
+                      greetingAlreadyShown={needsPrechatGate}
                       widgetKey={widgetKey}
                       websiteId={websiteId}
                       parentPageUrl={parentPageUrl}
@@ -490,6 +632,9 @@ function FloatingChatEmbed({
                       sessionToken={sessionToken}
                       configRecord={configRecord}
                       appearance={appearance}
+                      launcherOpenRef={launcherOpenRef}
+                      onIncomingWhileClosed={handleIncomingAlert}
+                      onHeaderStatusChange={setPanelHeaderStatus}
                     />
                   </Box>
                   {textUsBelow ? (
@@ -504,40 +649,89 @@ function FloatingChatEmbed({
           </Paper>
         ) : null}
 
-        <IconButton
-          type="button"
-          aria-label={
-            launcherOpen
-              ? "Close widget window"
-              : launcher.buttonLabel?.trim() || "Open chat widget"
+        {!launcherOpen && launcherPreview ? (
+          <Paper
+            elevation={0}
+            onClick={openLauncher}
+            sx={embedTeaserPreviewSx(appearance)}
+          >
+            <Typography variant="caption" sx={{ display: "block", fontWeight: 600, mb: 0.25 }}>
+              New message
+            </Typography>
+            <Typography variant="body2" sx={{ fontSize: 13 }}>
+              {launcherPreview}
+            </Typography>
+          </Paper>
+        ) : !launcherOpen && launcher.proactiveTeaserActive ? (
+          <WidgetProactiveTeaserBubble
+            text={launcher.proactiveTeaser}
+            avatarUrl={launcher.proactiveTeaserAvatarUrl}
+            secondaryCta={launcher.proactiveSecondaryCta}
+            onOpenChat={openLauncher}
+            backgroundColor="#ffffff"
+            textColor={appearance.bodyTextColor}
+            motionEnabled={appearance.motionEnabled}
+          />
+        ) : null}
+
+        <Badge
+          overlap="circular"
+          invisible={
+            launcherOpen ||
+            appearance.launcherBadgeMode === "none" ||
+            (appearance.launcherBadgeMode === "count" && unreadCount <= 0) ||
+            (appearance.launcherBadgeMode === "dot" && unreadCount <= 0)
           }
-          onClick={toggleLauncher}
+          badgeContent={
+            appearance.launcherBadgeMode === "count" && unreadCount > 0
+              ? unreadCount > 9
+                ? "9+"
+                : unreadCount
+              : undefined
+          }
+          variant={appearance.launcherBadgeMode === "dot" ? "dot" : "standard"}
           sx={{
-            width: EMBED_LAUNCHER_SIZE_PX,
-            height: EMBED_LAUNCHER_SIZE_PX,
-            flexShrink: 0,
-            borderRadius: launcherBorderRadius(launcher.shape),
-            bgcolor: launcher.buttonColor,
-            color: launcher.iconColor,
-            boxShadow: "0 8px 28px rgba(0,0,0,0.28)",
-            "&:hover": {
+            "& .MuiBadge-badge": {
               bgcolor: launcher.buttonHoverColor,
-              color: launcher.iconColor,
+              color: "#fff",
+              fontWeight: 700,
             },
           }}
         >
-          {launcherOpen ? (
-            <CloseRounded sx={{ fontSize: 28 }} />
-          ) : launcher.iconPreset ? (
-            <LauncherPresetIcon
-              presetId={launcher.iconPreset}
-              color={launcher.iconColor}
-              fontSizePx={30}
-            />
-          ) : (
-            <ChatRounded sx={{ fontSize: 30 }} />
-          )}
-        </IconButton>
+          <IconButton
+            type="button"
+            disableRipple
+            disableFocusRipple
+            aria-label={
+              launcherOpen
+                ? "Close widget window"
+                : unreadCount > 0
+                  ? `Open chat, ${unreadCount} new message${unreadCount === 1 ? "" : "s"}`
+                  : launcher.buttonLabel?.trim() || "Open chat widget"
+            }
+            onClick={toggleLauncher}
+            sx={embedLauncherFabSx(appearance, launcher.shape, EMBED_LAUNCHER_SIZE_PX)}
+          >
+            {launcherOpen ? (
+              <CloseRounded sx={{ fontSize: 28 }} />
+            ) : launcher.iconUrl ? (
+              <Box
+                component="img"
+                src={launcher.iconUrl}
+                alt=""
+                sx={{ width: 30, height: 30, objectFit: "contain", display: "block" }}
+              />
+            ) : launcher.iconPreset ? (
+              <LauncherPresetIcon
+                presetId={launcher.iconPreset}
+                color={launcher.iconColor}
+                fontSizePx={30}
+              />
+            ) : (
+              <ChatRounded sx={{ fontSize: 30 }} />
+            )}
+          </IconButton>
+        </Badge>
       </Box>
     </Box>
   );
@@ -660,10 +854,16 @@ function FloatingTextUsEmbed({
           sx={{
             width: 58,
             height: 58,
+            borderRadius: "50%",
             bgcolor: "secondary.main",
             color: "secondary.contrastText",
-            boxShadow: "0 8px 28px rgba(0,0,0,0.28)",
-            "&:hover": { bgcolor: "secondary.dark", color: "secondary.contrastText" },
+            boxShadow: "none",
+            overflow: "hidden",
+            "&:hover": {
+              bgcolor: "secondary.dark",
+              color: "secondary.contrastText",
+              boxShadow: "none",
+            },
           }}
         >
           {launcherOpen ? (
@@ -783,6 +983,9 @@ function WidgetChatPanel({
   sessionToken,
   configRecord,
   appearance,
+  launcherOpenRef,
+  onIncomingWhileClosed,
+  onHeaderStatusChange,
 }: {
   embedded?: boolean;
   /** Greeting bubble was shown in the launcher shell before this panel. */
@@ -794,6 +997,9 @@ function WidgetChatPanel({
   sessionToken: string;
   configRecord: Record<string, unknown>;
   appearance?: RuntimeChatAppearance;
+  launcherOpenRef?: MutableRefObject<boolean>;
+  onIncomingWhileClosed?: (preview: string) => void;
+  onHeaderStatusChange?: (status: EmbedPanelHeaderStatus | null) => void;
 }) {
   const sendPlaceholder =
     appearance?.chatBox.sendPlaceholder ?? "Write a message…";
@@ -815,21 +1021,23 @@ function WidgetChatPanel({
 
   const formEnabled = appearance?.formEnabled ?? true;
   const inquiryOptions: RuntimeInquiryOption[] = appearance?.inquiryOptions ?? [];
-  const hasInquiryStep = inquiryOptions.length > 0;
+  const hasInquiryStep =
+    mode !== "AI_ONLY" && inquiryOptions.length > 0;
+  const inquiryRequired = appearance?.inquiryRequired ?? false;
+  const inquiryFallback = appearance?.inquiryFallback ?? null;
+  const inquirySkipLabel = appearance?.inquirySkipLabel ?? "General question";
   const needsPrechatGate = formEnabled || hasInquiryStep;
   const [prechatDone, setPrechatDone] = useState(!needsPrechatGate);
-  const [prechatStep, setPrechatStep] = useState<"inquiry" | "form">(
-    hasInquiryStep ? "inquiry" : "form",
-  );
   const [consentAccepted, setConsentAccepted] = useState(false);
   const [selectedInquiry, setSelectedInquiry] = useState<RuntimeInquiryOption | null>(
     null,
   );
+  const [inquiryPickError, setInquiryPickError] = useState(false);
 
   useEffect(() => {
     setPrechatDone(!needsPrechatGate);
-    setPrechatStep(hasInquiryStep ? "inquiry" : "form");
     setSelectedInquiry(null);
+    setInquiryPickError(false);
     if (!appearance?.consentRequired) setConsentAccepted(true);
   }, [needsPrechatGate, hasInquiryStep, appearance?.consentRequired]);
   const [aiPending, setAiPending] = useState(false);
@@ -840,6 +1048,7 @@ function WidgetChatPanel({
   const [handoverStatus, setHandoverStatus] = useState<string | null>(null);
   const [handoverBusy, setHandoverBusy] = useState(false);
   const [localAiMessages, setLocalAiMessages] = useState<ChatMessage[]>([]);
+  const [prechatTranscriptBubble, setPrechatTranscriptBubble] = useState<string | null>(null);
   /** API `firstMessage` on create — hidden from transcript; not sent to AI as a user question. */
   const prechatApiFirstMessageRef = useRef<string | null>(null);
   /** AI/HYBRID: hide socket AI replies until the visitor sends a composer message. */
@@ -861,12 +1070,38 @@ function WidgetChatPanel({
     escalatedRef.current = escalated;
   }, [escalated]);
 
+  const refreshTranscriptRef = useRef<(() => Promise<void>) | null>(null);
+
   const chat = useVisitorChat({
     autoConnect: false,
     widgetSessionToken: sessionToken,
+    websiteId,
     getCurrentPageUrl: pageUrlGetter,
     getSkipServerAiReply: () => escalatedRef.current,
+    onSupervisorControl: () => {
+      void refreshTranscriptRef.current?.();
+    },
+    onIncomingReply: (message) => {
+      const role = (message.role || "").toLowerCase();
+      if (role === "agent") {
+        setAwaitingFirstUserQuestion(false);
+      }
+      if (!onIncomingWhileClosed) return;
+      /** AI socket payloads normalize to `system`; agent stays `agent`. */
+      if (role !== "agent" && role !== "system") return;
+      const panelOpen = launcherOpenRef?.current === true;
+      const tabHidden = typeof document !== "undefined" && document.hidden;
+      if (panelOpen && !tabHidden) return;
+      const text = message.content?.trim();
+      if (text) onIncomingWhileClosed(text);
+    },
     onChatAssigned: () => {
+      setAwaitingFirstUserQuestion(false);
+      if (mode === "HYBRID") {
+        setEscalated(true);
+        escalatedRef.current = true;
+        setLocalAiMessages([]);
+      }
       setHandoverStatus("An agent has joined your chat.");
     },
     onChatQueued: () => {
@@ -875,6 +1110,10 @@ function WidgetChatPanel({
       );
     },
   });
+
+  useEffect(() => {
+    refreshTranscriptRef.current = chat.refreshTranscript;
+  }, [chat.refreshTranscript]);
 
   useEffect(() => {
     const stored = readHybridEscalatedConversationId(siteKey);
@@ -945,6 +1184,11 @@ function WidgetChatPanel({
           "You are in the queue. The next available teammate will join shortly.",
         );
       } else if (data.assignedAgentId) {
+        setAwaitingFirstUserQuestion(false);
+        if (data.handoverRequested || mode === "HYBRID") {
+          setEscalated(true);
+          escalatedRef.current = true;
+        }
         setHandoverStatus("An agent has joined your chat.");
       }
       setResumeChecked(true);
@@ -954,6 +1198,7 @@ function WidgetChatPanel({
     };
   }, [
     chat.conversationId,
+    mode,
     needsPrechatGate,
     resumeConversation,
     sessionToken,
@@ -993,10 +1238,8 @@ function WidgetChatPanel({
       ) {
         continue;
       }
-      if (
-        awaitingFirstUserQuestion &&
-        (m.role === "agent" || m.role === "system")
-      ) {
+      /** Hide AI lines until the visitor sends a composer message; never hide human agents. */
+      if (awaitingFirstUserQuestion && m.role === "system") {
         continue;
       }
       if (escalated && m.role === "system") {
@@ -1012,10 +1255,20 @@ function WidgetChatPanel({
       add(m);
     }
     localAiMessages.forEach(add);
+    const hasVisitorTurn = [...map.values()].some((m) => m.role === "visitor");
+    if (prechatTranscriptBubble?.trim() && !hasVisitorTurn) {
+      add({
+        id: "prechat-display",
+        role: "visitor",
+        content: prechatTranscriptBubble.trim(),
+        createdAt: new Date().toISOString(),
+        conversationId: chat.conversationId ?? "",
+      });
+    }
     return [...map.values()].sort((a, b) =>
       String(a.createdAt).localeCompare(String(b.createdAt)),
     );
-  }, [awaitingFirstUserQuestion, chat.messages, escalated, localAiMessages]);
+  }, [awaitingFirstUserQuestion, chat.messages, chat.conversationId, escalated, localAiMessages, prechatTranscriptBubble]);
 
   const assistantHandlesChat =
     mode === "AI_ONLY" || (mode === "HYBRID" && !escalated);
@@ -1037,6 +1290,32 @@ function WidgetChatPanel({
         : hasActiveConversation
           ? "Live"
           : "Connecting…";
+
+  const headerStatus = useMemo(() => {
+    if (!appearance) return null;
+    return resolveEmbedPanelHeaderStatus({
+      showOfflineBanner,
+      offlineMessage: appearance.offlineMessage,
+      handoverStatus,
+      agentTypingSeen: chat.agentTypingSeen,
+      aiPending,
+      hybridEscalatedWaiting: mode === "HYBRID" && escalated && !handoverStatus,
+      statusLabel,
+    });
+  }, [
+    aiPending,
+    appearance,
+    chat.agentTypingSeen,
+    escalated,
+    handoverStatus,
+    mode,
+    showOfflineBanner,
+    statusLabel,
+  ]);
+
+  useEffect(() => {
+    onHeaderStatusChange?.(embedded ? headerStatus : null);
+  }, [embedded, headerStatus, onHeaderStatusChange]);
 
   const appendAiAssistant = (
     conversationId: string,
@@ -1063,14 +1342,16 @@ function WidgetChatPanel({
         setPrechatDone(true);
         return;
       }
+      const effectiveInquiry =
+        selectedInquiry ?? (!inquiryRequired && inquiryFallback ? inquiryFallback : null);
       const { visitor, firstMessage } = buildVisitorPayloadParts(
         values,
         fields,
         visitorSessionId,
-        selectedInquiry?.label,
+        effectiveInquiry?.label,
       );
-      const routingTargets = selectedInquiry
-        ? resolveInquiryRoutingTargets(selectedInquiry)
+      const routingTargets = effectiveInquiry
+        ? resolveInquiryRoutingTargets(effectiveInquiry)
         : {
             departmentId: null,
             poolId: null,
@@ -1082,12 +1363,12 @@ function WidgetChatPanel({
         firstMessage,
         currentPageUrl: parentPageUrl,
         referrerUrl: typeof document !== "undefined" ? document.referrer : "",
-        routingKey: selectedInquiry?.routingKey,
+        routingKey: effectiveInquiry?.routingKey,
         serviceChannel:
           routingTargets.serviceChannel === "external" ? "External" : "Internal",
         inquiryDepartmentId: routingTargets.departmentId ?? undefined,
         inquiryPoolId: routingTargets.poolId ?? undefined,
-        inquiryLabel: selectedInquiry?.label,
+        inquiryLabel: effectiveInquiry?.label,
         deferInitialAiReply: mode === "AI_ONLY" || mode === "HYBRID",
       });
       persistConversationId(siteKey, created.conversationId);
@@ -1121,6 +1402,13 @@ function WidgetChatPanel({
         return;
       }
       prechatApiFirstMessageRef.current = firstMessage;
+      setPrechatTranscriptBubble(
+        buildVisitorTranscriptDisplay(
+          values as Record<string, unknown>,
+          fields,
+          effectiveInquiry?.label,
+        ),
+      );
       if (mode === "AI_ONLY" || mode === "HYBRID") {
         setAwaitingFirstUserQuestion(true);
         appendAiAssistant(
@@ -1141,6 +1429,8 @@ function WidgetChatPanel({
       mode,
       parentPageUrl,
       selectedInquiry,
+      inquiryRequired,
+      inquiryFallback,
       sessionToken,
       siteKey,
       visitorSessionId,
@@ -1165,11 +1455,53 @@ function WidgetChatPanel({
   }, [resumeChecked, needsPrechatGate, prechatDone, chat.conversationId]);
 
   const onPrechatSubmit = form.handleSubmit(async (values) => {
-    if (hasInquiryStep && !selectedInquiry) return;
+    if (hasInquiryStep && inquiryRequired && !selectedInquiry) {
+      setInquiryPickError(true);
+      return;
+    }
+    setInquiryPickError(false);
     await beginConversation(values as Record<string, unknown>);
   });
 
+  const proceedWithInquirySkip = () => {
+    if (!inquiryFallback) return;
+    setSelectedInquiry(inquiryFallback);
+    setInquiryPickError(false);
+    if (!formEnabled) {
+      void beginConversation(buildDefaultFormValues(fields) as Record<string, unknown>);
+    }
+  };
+
   const [draft, setDraft] = useState("");
+  const messageListRef = useRef<HTMLDivElement | null>(null);
+
+  const scrollTranscriptToBottom = useCallback((instant = true) => {
+    const el = messageListRef.current;
+    if (!el) return;
+    if (instant) {
+      el.scrollTop = el.scrollHeight;
+      return;
+    }
+    el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+  }, []);
+
+  useLayoutEffect(() => {
+    if (!prechatDone) return;
+    scrollTranscriptToBottom(true);
+  }, [
+    mergeDisplayMessages,
+    prechatDone,
+    aiPending,
+    chat.agentTypingSeen,
+    handoverStatus,
+    scrollTranscriptToBottom,
+  ]);
+
+  /** Keep view pinned to latest while composing (focus/layout was jumping scroll up). */
+  useLayoutEffect(() => {
+    if (!prechatDone || !draft) return;
+    scrollTranscriptToBottom(true);
+  }, [draft, prechatDone, scrollTranscriptToBottom]);
 
   const sendDraft = async () => {
     const text = normalizeChatMessageText(draft);
@@ -1189,6 +1521,7 @@ function WidgetChatPanel({
       aiPendingSinceRef.current = Date.now();
     }
     await chat.sendMessage(text);
+    scrollTranscriptToBottom(true);
     if (!shouldUseAiBridge) {
       setAiPending(false);
       aiPendingSinceRef.current = null;
@@ -1228,7 +1561,19 @@ function WidgetChatPanel({
   };
 
   const embedContainerSx = embedded
-    ? { border: "none", borderRadius: 0, p: 1, bgcolor: "transparent", boxShadow: "none" }
+    ? {
+        border: "none",
+        borderRadius: 0,
+        p: 0,
+        bgcolor: "transparent",
+        boxShadow: "none",
+        flex: 1,
+        minHeight: 0,
+        overflowY: "auto" as const,
+        overflowX: "hidden" as const,
+        display: "flex",
+        flexDirection: "column",
+      }
     : {
         border: "1px solid",
         borderColor: "divider",
@@ -1238,119 +1583,133 @@ function WidgetChatPanel({
       };
 
   if (!prechatDone) {
-    const welcomeLine =
-      !greetingAlreadyShown && appearance
-        ? resolveEmbedGreetingMessage(appearance).trim() ||
-          appearance.firstMessage?.trim() ||
-          ""
-        : "";
-
-    if (prechatStep === "inquiry" && hasInquiryStep) {
-      return (
-        <Box sx={{ ...embedContainerSx, color: appearance?.colors.bodyText }}>
-          {appearance ? (
-            <>
-              <EmbedVideoWelcome appearance={appearance} />
-              <EmbedWidgetBanner banner={appearance.banner} appearance={appearance} />
-            </>
-          ) : null}
-          {welcomeLine ? (
-            <Typography
-              variant="body2"
-              sx={{ mb: 1.5, ...(appearance ? embedGreetingBubbleSx(appearance) : {}) }}
-            >
-              {welcomeLine}
-            </Typography>
-          ) : null}
-          <Typography
-            variant="subtitle2"
-            sx={{ mb: 0.5, ...(appearance ? embedBodyTextSx(appearance) : {}) }}
-          >
-            What would you like help with?
-          </Typography>
-          <Stack
-            direction="row"
-            spacing={appearance?.densityTokens.stackGapMultiplier ?? 1}
-            flexWrap="wrap"
-            sx={{ mb: 1 }}
-          >
-            {inquiryOptions.map((opt) => (
-              <MuiButton
-                key={`${opt.routingKey}-${opt.label}`}
-                type="button"
-                variant="outlined"
-                onClick={() => {
-                  setSelectedInquiry(opt);
-                  if (formEnabled) {
-                    setPrechatStep("form");
-                  } else {
-                    void beginConversation(
-                      buildDefaultFormValues(fields) as Record<string, unknown>,
-                    );
-                  }
-                }}
-                sx={
-                  appearance
-                    ? embedInquiryPillSx(
-                        appearance,
-                        selectedInquiry?.routingKey === opt.routingKey,
-                      )
-                    : undefined
-                }
-              >
-                {opt.label}
-              </MuiButton>
-            ))}
-          </Stack>
-        </Box>
-      );
-    }
+    const panelWelcome = appearance
+      ? resolveEmbedGreetingMessage(appearance).trim()
+      : "";
+    const chatWelcome = appearance?.firstMessage?.trim() ?? "";
+    const showPrechatForm = formEnabled;
 
     return (
-      <Box sx={{ ...embedContainerSx, color: appearance?.colors.bodyText }}>
-        {appearance ? (
-          <>
-            <EmbedVideoWelcome appearance={appearance} />
-            <EmbedWidgetBanner banner={appearance.banner} appearance={appearance} />
-          </>
-        ) : null}
-        <Typography
-          variant="subtitle2"
-          sx={{ mb: 0.5, ...(appearance ? embedBodyTextSx(appearance) : {}) }}
-        >
-          {appearance?.form.title ?? "Before we start"}
-        </Typography>
-        {appearance?.form.subtitle ? (
-          <Typography variant="body2" sx={{ mb: 1, ...embedMutedTextSx(appearance) }}>
-            {appearance.form.subtitle}
-          </Typography>
-        ) : null}
-        {selectedInquiry ? (
-          <Typography variant="caption" sx={{ mb: 1, ...(appearance ? embedMutedTextSx(appearance) : {}) }}>
-            Topic: {selectedInquiry.label}
-            {hasInquiryStep ? (
-              <>
-                {" · "}
-                <Link
-                  component="button"
-                  type="button"
-                  underline="hover"
-                  sx={{ color: appearance?.launcher.buttonColor, font: "inherit" }}
-                  onClick={() => setPrechatStep("inquiry")}
-                >
-                  Change
-                </Link>
-              </>
-            ) : null}
-          </Typography>
-        ) : null}
+      <Box
+        sx={
+          [
+            embedContainerSx,
+            appearance ? { color: appearance.colors.bodyText } : {},
+          ] as const
+        }
+      >
+        <Stack spacing={1.25} sx={{ width: "100%", alignItems: "stretch" }}>
+          {appearance ? <EmbedChatMediaBubbles appearance={appearance} /> : null}
+          {appearance && panelWelcome ? (
+            <EmbedChatBubble appearance={appearance} role="greeting">
+              {panelWelcome}
+            </EmbedChatBubble>
+          ) : null}
+          {appearance && chatWelcome && chatWelcome !== panelWelcome ? (
+            <EmbedChatBubble appearance={appearance} role="assistant">
+              {chatWelcome}
+            </EmbedChatBubble>
+          ) : null}
 
-        <Stack
-          component="form"
-          spacing={1.25 * (appearance?.densityTokens.stackGapMultiplier ?? 1)}
-          onSubmit={onPrechatSubmit}
-        >
-          {fields.map((f) => (
+          <Box
+            component={showPrechatForm ? "form" : "div"}
+            onSubmit={showPrechatForm ? onPrechatSubmit : undefined}
+            sx={appearance ? embedPrechatFormBubbleShellSx() : { width: "100%" }}
+          >
+            <Box sx={appearance ? embedPrechatFormBubbleInnerSx(appearance) : { width: "100%" }}>
+            <Stack spacing={1 * (appearance?.densityTokens.stackGapMultiplier ?? 1)}>
+              {appearance?.form.title?.trim() || !hasInquiryStep ? (
+                <Box>
+                  <Typography
+                    variant="subtitle2"
+                    component="p"
+                    sx={{
+                      m: 0,
+                      mb: appearance?.form.subtitle ? 0.35 : 0,
+                      fontWeight: 600,
+                      color: "inherit",
+                      fontFamily: appearance?.colors.fontFamily,
+                      fontSize: appearance?.colors.bodyFontSizePx,
+                    }}
+                  >
+                    {appearance?.form.title?.trim() || "Before we start"}
+                  </Typography>
+                  {appearance?.form.subtitle ? (
+                    <Typography
+                      variant="body2"
+                      component="p"
+                      sx={{
+                        m: 0,
+                        opacity: 0.88,
+                        color: "inherit",
+                        fontFamily: appearance?.colors.fontFamily,
+                        fontSize: appearance?.colors.bodyFontSizePx,
+                      }}
+                    >
+                      {appearance.form.subtitle}
+                    </Typography>
+                  ) : null}
+                </Box>
+              ) : null}
+
+              {hasInquiryStep && appearance ? (
+                <Box>
+                  <Typography
+                    variant="body2"
+                    component="p"
+                    sx={{ m: 0, mb: 0.75, color: "inherit", fontFamily: appearance.colors.fontFamily }}
+                  >
+                    {`What would you like help with?${inquiryRequired ? " (pick one)" : ""}`}
+                  </Typography>
+                  <Stack
+                    direction="row"
+                    spacing={appearance.densityTokens.stackGapMultiplier ?? 1}
+                    flexWrap="wrap"
+                    sx={{ mt: 0.75, mb: 0.25 }}
+                  >
+                    {inquiryOptions.map((opt) => (
+                      <MuiButton
+                        key={`${opt.routingKey}-${opt.label}`}
+                        type="button"
+                        variant="outlined"
+                        onClick={() => {
+                          setSelectedInquiry(opt);
+                          setInquiryPickError(false);
+                          if (!formEnabled) {
+                            void beginConversation(
+                              buildDefaultFormValues(fields) as Record<string, unknown>,
+                            );
+                          }
+                        }}
+                        sx={embedInquiryPillSx(
+                          appearance,
+                          selectedInquiry?.routingKey === opt.routingKey,
+                        )}
+                      >
+                        {opt.label}
+                      </MuiButton>
+                    ))}
+                  </Stack>
+                  {!inquiryRequired && inquiryFallback ? (
+                    <MuiButton
+                      type="button"
+                      variant="text"
+                      size="small"
+                      onClick={proceedWithInquirySkip}
+                      sx={{ mt: 0.25, textTransform: "none", color: appearance.colors.mutedText }}
+                    >
+                      {inquirySkipLabel}
+                    </MuiButton>
+                  ) : null}
+                  {inquiryPickError ? (
+                    <Typography variant="caption" color="error" sx={{ display: "block", mt: 0.5 }}>
+                      Please choose a topic to continue.
+                    </Typography>
+                  ) : null}
+                </Box>
+              ) : null}
+
+              {fields.map((f) => (
             <PrechatFieldRenderer
               key={f.key}
               field={f}
@@ -1398,16 +1757,20 @@ function WidgetChatPanel({
               {appearance.privacyNotice}
             </Typography>
           ) : null}
-          {appearance ? (
-            <EmbedActionButton
-              type="submit"
-              appearance={appearance}
-              fullWidth
-              disabled={appearance.consentRequired ? !consentAccepted : false}
-            >
-              {appearance.form.submitLabel ?? "Start chat"}
-            </EmbedActionButton>
-          ) : null}
+              {showPrechatForm && appearance ? (
+                <EmbedActionButton
+                  type="submit"
+                  appearance={appearance}
+                  fullWidth
+                  disabled={appearance.consentRequired ? !consentAccepted : false}
+                  sx={{ mt: 0.5 }}
+                >
+                  {appearance.form.submitLabel ?? "Start chat"}
+                </EmbedActionButton>
+              ) : null}
+            </Stack>
+            </Box>
+          </Box>
         </Stack>
       </Box>
     );
@@ -1416,113 +1779,65 @@ function WidgetChatPanel({
   return (
     <Box
       sx={
-        embedded
-          ? {
-              border: "none",
-              borderRadius: 0,
-              p: 1,
-              bgcolor: "transparent",
-              display: "flex",
-              flexDirection: "column",
-              gap: 1,
-              minHeight: 280,
-            }
-          : {
-              border: "1px solid",
-              borderColor: "divider",
-              borderRadius: 2,
-              p: 1.5,
-              bgcolor: panelBg ?? "background.paper",
-              display: "flex",
-              flexDirection: "column",
-              gap: 1,
-              minHeight: 320,
-            }
+        embedded && appearance
+          ? embedEmbeddedChatPanelSx(appearance)
+          : embedded
+            ? {
+                border: "none",
+                borderRadius: 0,
+                p: 1,
+                bgcolor: "transparent",
+                display: "flex",
+                flexDirection: "column",
+                flex: 1,
+                minHeight: 0,
+                overflow: "hidden",
+                gap: 0.75,
+              }
+            : {
+                border: "1px solid",
+                borderColor: "divider",
+                borderRadius: 2,
+                p: 1.5,
+                bgcolor: panelBg ?? "background.paper",
+                display: "flex",
+                flexDirection: "column",
+                gap: 1,
+                minHeight: 320,
+              }
       }
     >
-      <Stack direction="row" alignItems="center" justifyContent="space-between">
-        <Typography variant="subtitle2" sx={appearance ? embedBodyTextSx(appearance) : undefined}>
-          Conversation
-        </Typography>
-        <Typography variant="caption" sx={appearance ? embedMutedTextSx(appearance) : undefined}>
-          {statusLabel}
-        </Typography>
-      </Stack>
-
-      {showOfflineBanner ? (
-        <Typography variant="caption" sx={appearance ? embedMutedTextSx(appearance) : undefined}>
-          {appearance!.offlineMessage}
-        </Typography>
-      ) : null}
-
-      {handoverStatus ? (
-        <Typography variant="caption" sx={appearance ? embedMutedTextSx(appearance) : undefined}>
-          {handoverStatus}
-        </Typography>
-      ) : mode === "HYBRID" && escalated ? (
-        <Typography variant="caption" sx={appearance ? embedMutedTextSx(appearance) : undefined}>
-          Waiting for an available teammate — you can keep typing here.
-        </Typography>
-      ) : null}
-
-      {chat.agentTypingSeen ? (
-        <Typography variant="caption" sx={appearance ? embedMutedTextSx(appearance) : undefined}>
-          Someone is typing…
-        </Typography>
-      ) : null}
-
-      {aiPending ? (
-        <Typography variant="caption" sx={appearance ? embedMutedTextSx(appearance) : undefined}>
-          Assistant is thinking…
-        </Typography>
+      {!embedded && appearance ? (
+        <EmbedChatPanelHeaderRow
+          appearance={appearance}
+          title={appearance.chatBox.headerTitle || "Conversation"}
+          status={headerStatus}
+        />
       ) : null}
 
       <Stack
-        spacing={appearance?.densityTokens.stackGapMultiplier ?? 1}
-        sx={{
-          flex: 1,
-          overflowY: "auto",
-          minHeight: 160,
-          maxHeight: 280,
-          pr: 0.5,
-        }}
+        ref={messageListRef}
+        spacing={0.75 * (appearance?.densityTokens.stackGapMultiplier ?? 1)}
+        sx={
+          appearance
+            ? (embedPanelMessageListSx(appearance) as object)
+            : { flex: 1, minHeight: 0, overflowY: "auto" }
+        }
       >
+        {appearance ? (
+          <EmbedChatMediaBubbles appearance={appearance} compact />
+        ) : null}
         {!mergeDisplayMessages.length &&
         appearance?.chatBox.greetingMessage &&
         !greetingAlreadyShown ? (
-          <Box
-            sx={{
-              alignSelf: "flex-start",
-              maxWidth: "88%",
-              px: 1.25,
-              py: 1,
-              borderRadius: 2,
-              ...embedGreetingBubbleSx(appearance),
-            }}
-          >
-            <Typography variant="body2" sx={{ color: "inherit" }}>
-              {appearance.chatBox.greetingMessage}
-            </Typography>
-          </Box>
+          <EmbedChatBubble appearance={appearance} role="greeting">
+            {appearance.chatBox.greetingMessage}
+          </EmbedChatBubble>
         ) : null}
-        {!mergeDisplayMessages.length &&
-        appearance?.firstMessage?.trim() &&
-        mode === "AGENT_ONLY" ? (
-          <Box
-            sx={{
-              alignSelf: "flex-start",
-              maxWidth: "88%",
-              px: 1.25,
-              py: 1,
-              borderRadius: 2,
-              bgcolor: appearance.colors.incomingBubbleBg,
-              color: appearance.colors.incomingBubbleText,
-            }}
-          >
-            <Typography variant="body2" sx={{ color: "inherit" }}>
-              {appearance.firstMessage}
-            </Typography>
-          </Box>
+        {!mergeDisplayMessages.length && appearance?.firstMessage?.trim() ? (
+          <EmbedChatBubble appearance={appearance} role="assistant">
+            {appearance.firstMessage}
+          </EmbedChatBubble>
         ) : null}
         {mergeDisplayMessages.map((m) => (
           <MessageBubble
@@ -1533,13 +1848,26 @@ function WidgetChatPanel({
         ))}
       </Stack>
 
-      <Stack direction="row" spacing={1} alignItems="center">
-        <Box sx={{ flex: 1 }} onKeyDown={(ev) => {
-          if (ev.key === "Enter" && !ev.shiftKey) {
-            ev.preventDefault();
-            void sendDraft();
-          }
-        }}>
+      <Stack
+        direction="row"
+        sx={
+          appearance
+            ? ({
+                ...(embedComposerRowSx(appearance) as Record<string, unknown>),
+                ...(embedComposerFooterSx(appearance) as Record<string, unknown>),
+              } as const)
+            : { display: "flex", alignItems: "center", gap: 1, width: "100%" }
+        }
+      >
+        <Box
+          sx={{ flex: 1, minWidth: 0 }}
+          onKeyDown={(ev) => {
+            if (ev.key === "Enter" && !ev.shiftKey) {
+              ev.preventDefault();
+              void sendDraft();
+            }
+          }}
+        >
           <TextField
             name="composer"
             value={draft}
@@ -1547,9 +1875,13 @@ function WidgetChatPanel({
             placeholder={sendPlaceholder}
             fullWidth
             variant="outlined"
+            size="small"
             sx={
               appearance
-                ? { ...embedInputFieldSx(appearance), "& .MuiFormHelperText-root": { display: "none" } }
+                ? {
+                    ...embedComposerInputSx(appearance),
+                    "& .MuiFormHelperText-root": { display: "none" },
+                  }
                 : { "& .MuiFormHelperText-root": { display: "none" } }
             }
           />
@@ -1557,9 +1889,10 @@ function WidgetChatPanel({
         <IconButton
           onClick={() => void sendDraft()}
           aria-label="Send"
+          size="small"
           sx={appearance ? embedSendButtonSx(appearance) : { color: accentColor ?? "primary.main" }}
         >
-          <Send />
+          <Send fontSize="small" />
         </IconButton>
       </Stack>
 
@@ -1808,14 +2141,11 @@ function MessageBubble({
   const alignRight = bubbleRole === "visitor";
 
   return (
-    <Box sx={{ alignSelf: alignRight ? "flex-end" : "flex-start", maxWidth: "92%" }}>
+    <Box sx={appearance ? embedChatBubbleShellSx(alignRight ? "end" : "start") : {}}>
       <Box
-        sx={{
-          px: 1.25,
-          py: 1,
-          borderRadius: 2,
-          ...(appearance ? embedMessageBubbleSx(appearance, bubbleRole) : {}),
-        }}
+        sx={
+          appearance ? embedTranscriptBubbleInnerSx(appearance, bubbleRole) : {}
+        }
       >
         <Typography
           variant="body2"

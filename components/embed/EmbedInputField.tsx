@@ -58,6 +58,7 @@ export function EmbedInputField({
         id={fieldId}
         name={name}
         fullWidth
+        margin="dense"
         variant="outlined"
         type={multiline ? undefined : type}
         multiline={multiline}

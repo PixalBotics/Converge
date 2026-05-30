@@ -7,10 +7,17 @@ import { buildChatColorsFromWidgetDraft } from "./widget-colors-draft";
 import { CHAT_WIZARD_PATCH_DEFAULTS } from "./chat-wizard-patch-defaults";
 import type { TextUsFormFieldDraft, WidgetDraft } from "./widgetDraft";
 import { applyAiTypeToWidgetConfig } from "./widget-ai-type";
+import { accumulateWizardInstallConfigFromSaveTrace } from "./merge-wizard-draft-for-publish";
+import { mergeWidgetConfigForEdit } from "./merge-widget-config-for-edit";
 import { normalizeWidgetInquiryOptions } from "./widget-inquiry.types";
+import {
+  normalizeLauncherBadgeMode,
+  normalizeWidgetSoundId,
+} from "@/lib/widget-runtime/widget-notifications";
 
 export interface WidgetInstallationAssetUrls {
   buttonIconPublicUrl?: string;
+  teaserAvatarPublicUrl?: string;
   bannerImagePublicUrl?: string;
   bannerVideoPublicUrl?: string;
 }
@@ -26,10 +33,28 @@ const defaultTextUsFormFields = (): JsonRecord[] => [
  * Whitelisted `theme.designJson.chat.chatBox` only (backend rejects headerAlign,
  * greetingMessage, bannerMediaType — those live on `config.ui` via buildChatShellUiFromDraft).
  */
+/** `theme.designJson.chat.launcher` — synced with `config.ui` on save. */
+function buildLauncherDesignJsonFromDraft(
+  draft: WidgetDraft,
+  assetUrls?: WidgetInstallationAssetUrls,
+): JsonRecord {
+  const urls = mergeDraftAssetUrls(draft, assetUrls);
+  const launcher: JsonRecord = {
+    shape: themeButtonShapeForPatch(draft),
+    position: draft.buttonPosition,
+    insetBottomPx: draft.launcherInsetBottomPx,
+    insetSidePx: draft.launcherInsetSidePx,
+    iconPreset: draft.launcherIconPreset || "phosphor-chat-dots",
+  };
+  if (urls.buttonIconPublicUrl) launcher.iconUrl = urls.buttonIconPublicUrl;
+  return launcher;
+}
+
 function buildChatBoxPayloadFromDraft(
   draft: WidgetDraft,
   assetUrls?: WidgetInstallationAssetUrls,
 ): JsonRecord {
+  const urls = mergeDraftAssetUrls(draft, assetUrls);
   const chatBox: JsonRecord = {
     headerTitle: draft.headerTitle,
     sendPlaceholder: draft.sendPlaceholder,
@@ -40,8 +65,8 @@ function buildChatBoxPayloadFromDraft(
     bannerDescription: draft.bannerDescription,
   };
 
-  if (assetUrls?.bannerImagePublicUrl) chatBox.bannerImageUrl = assetUrls.bannerImagePublicUrl;
-  if (assetUrls?.bannerVideoPublicUrl) chatBox.bannerVideoUrl = assetUrls.bannerVideoPublicUrl;
+  if (urls.bannerImagePublicUrl) chatBox.bannerImageUrl = urls.bannerImagePublicUrl;
+  if (urls.bannerVideoPublicUrl) chatBox.bannerVideoUrl = urls.bannerVideoPublicUrl;
 
   return chatBox;
 }
@@ -49,6 +74,37 @@ function buildChatBoxPayloadFromDraft(
 function resolvePanelBackground(draft: WidgetDraft): string {
   const def = CHAT_WIZARD_PATCH_DEFAULTS;
   return draft.backgroundColor?.trim() || def.backgroundColor;
+}
+
+function isHttpAssetUrl(value: string | undefined): value is string {
+  const v = value?.trim();
+  return Boolean(v && (v.startsWith("http://") || v.startsWith("https://")));
+}
+
+function mergeDraftAssetUrls(
+  draft: WidgetDraft,
+  assetUrls?: WidgetInstallationAssetUrls,
+): WidgetInstallationAssetUrls {
+  const merged: WidgetInstallationAssetUrls = { ...(assetUrls ?? {}) };
+  if (!merged.buttonIconPublicUrl && isHttpAssetUrl(draft.iconDataUrl)) {
+    merged.buttonIconPublicUrl = draft.iconDataUrl.trim();
+  }
+  if (
+    !merged.teaserAvatarPublicUrl &&
+    isHttpAssetUrl(draft.proactiveTeaserAvatarDataUrl)
+  ) {
+    merged.teaserAvatarPublicUrl = draft.proactiveTeaserAvatarDataUrl.trim();
+  }
+  if (isHttpAssetUrl(draft.bannerDataUrl)) {
+    if (draft.bannerMediaType === "video") {
+      if (!merged.bannerVideoPublicUrl) {
+        merged.bannerVideoPublicUrl = draft.bannerDataUrl.trim();
+      }
+    } else if (!merged.bannerImagePublicUrl) {
+      merged.bannerImagePublicUrl = draft.bannerDataUrl.trim();
+    }
+  }
+  return merged;
 }
 
 /** `theme.designJson.theme` — synced with `chat.colors.panelBackground` + `config.ui.backgroundColor`. */
@@ -76,15 +132,21 @@ export function buildDesignJsonPatchFromDraft(
   const panel = resolvePanelBackground(draft);
   const chat: JsonRecord = {
     colors: buildChatColorsFromWidgetDraft(draft),
+    launcher: buildLauncherDesignJsonFromDraft(draft, assetUrls),
   };
   if (scope === "chat_surface" || scope === "full") {
     chat.chatBox = buildChatBoxPayloadFromDraft(draft, assetUrls);
   }
-  return {
+  const patch: JsonRecord = {
     chat,
     theme: buildDesignJsonThemeTokensFromDraft(draft),
     ui: { backgroundColor: panel },
   };
+  const accent = draft.themeDesignJsonAccent?.trim();
+  const density = draft.themeDesignJsonDensity?.trim();
+  if (accent) patch.accent = accent;
+  if (density) patch.density = density;
+  return patch;
 }
 
 /** `theme.designJson.chat` block (colors + optional chatBox). */
@@ -126,6 +188,8 @@ export function buildLauncherUiFromDraft(
   draft: WidgetDraft,
   assetUrls?: WidgetInstallationAssetUrls,
 ): JsonRecord {
+  const urls = mergeDraftAssetUrls(draft, assetUrls);
+  const def = CHAT_WIZARD_PATCH_DEFAULTS;
   const ui: JsonRecord = {
     buttonShape: draft.buttonShape,
     buttonPosition: draft.buttonPosition,
@@ -133,8 +197,21 @@ export function buildLauncherUiFromDraft(
     launcherInsetSidePx: draft.launcherInsetSidePx,
     launcherIconPreset: draft.launcherIconPreset || "phosphor-chat-dots",
     buttonHoverColor: draft.buttonHoverColor,
+    proactiveTeaserEnabled: draft.proactiveTeaserEnabled !== false,
+    proactiveTeaser: (draft.proactiveTeaser ?? def.proactiveTeaser).trim(),
+    proactiveTeaserAvatarEnabled: draft.proactiveTeaserAvatarEnabled === true,
+    proactiveSecondaryCtaEnabled: draft.proactiveSecondaryCtaEnabled === true,
+    proactiveSecondaryCtaLabel: draft.proactiveSecondaryCtaLabel?.trim() || undefined,
+    proactiveSecondaryCtaHref: draft.proactiveSecondaryCtaHref?.trim() || undefined,
+    proactiveSecondaryCtaKind: draft.proactiveSecondaryCtaKind?.trim() || undefined,
+    buttonLabel: draft.buttonLabel ?? def.buttonLabel,
   };
-  if (assetUrls?.buttonIconPublicUrl) ui.buttonIconUrl = assetUrls.buttonIconPublicUrl;
+  if (urls.buttonIconPublicUrl) ui.buttonIconUrl = urls.buttonIconPublicUrl;
+  if (urls.teaserAvatarPublicUrl) {
+    ui.proactiveTeaserAvatarUrl = urls.teaserAvatarPublicUrl;
+  } else if (draft.proactiveTeaserAvatarDataUrl?.trim().startsWith("http")) {
+    ui.proactiveTeaserAvatarUrl = draft.proactiveTeaserAvatarDataUrl.trim();
+  }
   return ui;
 }
 
@@ -146,22 +223,42 @@ export function buildChatBoxOnlyDesignJson(
   return { chatBox: buildChatBoxPayloadFromDraft(draft, assetUrls) };
 }
 
-/** `config.ui` chat shell + launcher (includes `backgroundColor` for panel sync). */
-export function buildChatShellUiFromDraft(
+/** `theme.designJson` for step 2 — merges chatBox + panel tokens only (preserves step 1 launcher/colors on server). */
+export function buildChatSurfaceDesignJsonPatchFromDraft(
+  draft: WidgetDraft,
+  assetUrls?: WidgetInstallationAssetUrls,
+): JsonRecord {
+  const panel = resolvePanelBackground(draft);
+  const patch: JsonRecord = {
+    chat: buildChatBoxOnlyDesignJson(draft, assetUrls),
+    theme: buildDesignJsonThemeTokensFromDraft(draft),
+    ui: { backgroundColor: panel },
+  };
+  const accent = draft.themeDesignJsonAccent?.trim();
+  const density = draft.themeDesignJsonDensity?.trim();
+  if (accent) patch.accent = accent;
+  if (density) patch.density = density;
+  return patch;
+}
+
+/** Step 2+ panel `config.ui` — chat shell only; do not re-send launcher (step 1 owns FAB). */
+export function buildChatPanelUiFromDraft(
   draft: WidgetDraft,
   assetUrls?: WidgetInstallationAssetUrls,
 ): JsonRecord {
   const def = CHAT_WIZARD_PATCH_DEFAULTS;
+  const urls = mergeDraftAssetUrls(draft, assetUrls);
   const headerAlign = (draft.headerTitleAlign ?? "Center").toLowerCase();
   const panel = resolvePanelBackground(draft);
   const ui: JsonRecord = {
-    ...buildLauncherUiFromDraft(draft, assetUrls),
     buttonLabel: draft.buttonLabel ?? def.buttonLabel,
     headerTitle: draft.headerTitle,
     headerTitleAlign: headerAlign,
     header: { align: headerAlign, companyName: draft.headerTitle },
     firstMessage: draft.firstMessage ?? def.firstMessage,
     greetingMessage: draft.greetingMessage,
+    panelGreetingEnabled: draft.panelGreetingEnabled !== false,
+    chatWelcomeEnabled: draft.chatWelcomeEnabled !== false,
     sendPlaceholder: draft.sendPlaceholder,
     messagePlaceholder: draft.messagePlaceholder ?? def.messagePlaceholder,
     bannerOn: draft.bannerOn,
@@ -177,8 +274,47 @@ export function buildChatShellUiFromDraft(
     height: draft.boxHeight,
     popupEnabled: draft.popupEnabled ?? def.popupEnabled,
   };
-  if (assetUrls?.bannerImagePublicUrl) ui.bannerImageUrl = assetUrls.bannerImagePublicUrl;
-  if (assetUrls?.bannerVideoPublicUrl) ui.bannerVideoUrl = assetUrls.bannerVideoPublicUrl;
+  if (urls.bannerImagePublicUrl) ui.bannerImageUrl = urls.bannerImagePublicUrl;
+  if (urls.bannerVideoPublicUrl) ui.bannerVideoUrl = urls.bannerVideoPublicUrl;
+  return ui;
+}
+
+/** `config.ui` chat shell + launcher (includes `backgroundColor` for panel sync). */
+export function buildChatShellUiFromDraft(
+  draft: WidgetDraft,
+  assetUrls?: WidgetInstallationAssetUrls,
+): JsonRecord {
+  const def = CHAT_WIZARD_PATCH_DEFAULTS;
+  const urls = mergeDraftAssetUrls(draft, assetUrls);
+  const headerAlign = (draft.headerTitleAlign ?? "Center").toLowerCase();
+  const panel = resolvePanelBackground(draft);
+  const ui: JsonRecord = {
+    ...buildLauncherUiFromDraft(draft, assetUrls),
+    buttonLabel: draft.buttonLabel ?? def.buttonLabel,
+    headerTitle: draft.headerTitle,
+    headerTitleAlign: headerAlign,
+    header: { align: headerAlign, companyName: draft.headerTitle },
+    firstMessage: draft.firstMessage ?? def.firstMessage,
+    greetingMessage: draft.greetingMessage,
+    panelGreetingEnabled: draft.panelGreetingEnabled !== false,
+    chatWelcomeEnabled: draft.chatWelcomeEnabled !== false,
+    sendPlaceholder: draft.sendPlaceholder,
+    messagePlaceholder: draft.messagePlaceholder ?? def.messagePlaceholder,
+    bannerOn: draft.bannerOn,
+    bannerEnabled: draft.bannerOn,
+    bannerTitle: draft.bannerTitle,
+    bannerDescription: draft.bannerDescription,
+    bannerMediaType: draft.bannerMediaType,
+    backgroundImageUrl: "",
+    backgroundColor: panel,
+    boxWidth: draft.boxWidth,
+    boxHeight: draft.boxHeight,
+    width: draft.boxWidth,
+    height: draft.boxHeight,
+    popupEnabled: draft.popupEnabled ?? def.popupEnabled,
+  };
+  if (urls.bannerImagePublicUrl) ui.bannerImageUrl = urls.bannerImagePublicUrl;
+  if (urls.bannerVideoPublicUrl) ui.bannerVideoUrl = urls.bannerVideoPublicUrl;
   return ui;
 }
 
@@ -215,7 +351,7 @@ export function buildInquiryBehaviorPatchFromDraft(draft: WidgetDraft): JsonReco
   return { behavior: { inquiryOptions } };
 }
 
-/** Step 2 PATCH `config`: chat surface + inquiry JSON. */
+/** Step 2 PATCH `config`: chat surface + inquiry JSON (does not overwrite step 1 launcher). */
 export function buildChatWizardStep2Config(
   draft: WidgetDraft,
   assetUrls?: WidgetInstallationAssetUrls,
@@ -223,10 +359,9 @@ export function buildChatWizardStep2Config(
   return {
     ...buildInquiryBehaviorPatchFromDraft(draft),
     theme: {
-      ...buildThemeScalarsFromDraft(draft),
-      designJson: buildDesignJsonPatchFromDraft(draft, "chat_surface", assetUrls),
+      designJson: buildChatSurfaceDesignJsonPatchFromDraft(draft, assetUrls),
     },
-    ui: buildChatShellUiFromDraft(draft, assetUrls),
+    ui: buildChatPanelUiFromDraft(draft, assetUrls),
   };
 }
 
@@ -236,7 +371,7 @@ export function buildFullChatConfigFromDraft(
   assetUrls?: WidgetInstallationAssetUrls,
 ): JsonRecord {
   const routing = buildChatWizardStep3Config(draft);
-  return {
+  const config: JsonRecord = {
     ...routing,
     theme: {
       ...buildThemeScalarsFromDraft(draft),
@@ -244,6 +379,24 @@ export function buildFullChatConfigFromDraft(
     },
     ui: buildChatShellUiFromDraft(draft, assetUrls),
   };
+  applyAiTypeToWidgetConfig(config, draft);
+  return config;
+}
+
+/**
+ * Step 4 publish body: merge steps 1→3 Network PATCH configs (save trace), then fill gaps from draft.
+ * Ensures install publish matches what each wizard step actually saved.
+ */
+export function buildFullChatPublishConfigFromDraft(
+  draft: WidgetDraft,
+  assetUrls?: WidgetInstallationAssetUrls,
+): JsonRecord {
+  const fromDraft = buildFullChatConfigFromDraft(draft, assetUrls);
+  const fromTrace = accumulateWizardInstallConfigFromSaveTrace();
+  if (Object.keys(fromTrace).length === 0) return fromDraft;
+  const merged = mergeWidgetConfigForEdit(fromDraft, fromTrace);
+  applyAiTypeToWidgetConfig(merged, draft);
+  return merged;
 }
 
 /** Step 3 PATCH `config`: routing, domains, behavior, session, form, response. */
@@ -262,11 +415,23 @@ export function buildChatWizardStep3Config(draft: WidgetDraft): JsonRecord {
         draft.inquiryOn === false
           ? []
           : normalizeWidgetInquiryOptions(draft.inquiryOptions ?? []),
+      inquiryRequired: draft.inquiryRequired === true,
+      inquirySkipLabel: draft.inquirySkipLabel?.trim() || "General question",
+      inquiryFallbackRoutingKey: draft.inquiryFallbackRoutingKey?.trim() || undefined,
       videoWelcomeOn: draft.videoWelcomeOn ?? false,
       videoWelcomeUrl: draft.videoWelcomeUrl?.trim() || undefined,
       welcomeMessage: draft.welcomeMessageBehavior ?? def.welcomeMessage,
       autoOpenEnabled: draft.autoOpenEnabled ?? def.autoOpenEnabled,
       autoOpenDelaySeconds: draft.autoOpenDelaySeconds ?? def.autoOpenDelaySeconds,
+      autoOpenOnReturnVisit: draft.autoOpenOnReturnVisit ?? def.autoOpenOnReturnVisit,
+      notificationSoundId: normalizeWidgetSoundId(
+        draft.soundNotification === false
+          ? "none"
+          : (draft.notificationSoundId ?? def.notificationSoundId),
+      ),
+      launcherBadgeMode: normalizeLauncherBadgeMode(
+        draft.launcherBadgeMode ?? def.launcherBadgeMode,
+      ),
       fileUploadEnabled: draft.fileUploadEnabled ?? def.fileUploadEnabled,
       emojiEnabled: draft.emojiEnabled ?? def.emojiEnabled,
       consentRequired: draft.consentRequired ?? def.consentRequired,
@@ -274,6 +439,7 @@ export function buildChatWizardStep3Config(draft: WidgetDraft): JsonRecord {
       privacyPolicyUrl: draft.privacyPolicyUrl ?? def.privacyPolicyUrl,
       privacyNotice: draft.privacyNotice ?? def.privacyNotice,
       allowedDomainsText: draft.allowedDomainsText ?? def.allowedDomainsText,
+      motionEnabled: draft.motionEnabled !== false,
     },
     session: {
       persistVisitorSession: draft.persistVisitorSession ?? def.persistVisitorSession,
@@ -491,13 +657,6 @@ export function buildWidgetPatchConfigurationBody(input: {
   const { draft, widgetType, publishNow, assetUrls, embedAllowAnyOrigin } =
     input;
 
-  const wid = draft.websiteId?.trim();
-  if (!wid) {
-    throw new Error(
-      "Widget draft is missing websiteId; complete the website step first.",
-    );
-  }
-
   if (widgetType === "CHAT" && input.chatWizardPatchScope === "launcher_only") {
     const body: JsonRecord = {
       publishNow,
@@ -542,6 +701,25 @@ export function buildWidgetPatchConfigurationBody(input: {
     return body;
   }
 
+  if (widgetType === "CHAT" && !input.chatWizardPatchScope) {
+    const config = buildFullChatPublishConfigFromDraft(draft, assetUrls);
+    const body: JsonRecord = {
+      publishNow,
+      config,
+      widgetType,
+    };
+    if (embedAllowAnyOrigin !== undefined)
+      body.embedAllowAnyOrigin = embedAllowAnyOrigin;
+    return body;
+  }
+
+  const wid = draft.websiteId?.trim();
+  if (!wid) {
+    throw new Error(
+      "Widget draft is missing websiteId; complete the website step first.",
+    );
+  }
+
   const install = buildWidgetInstallationPayload({
     websiteId: wid,
     widgetType,
@@ -583,10 +761,6 @@ export function buildWidgetPatchConfigurationBody(input: {
 
   if (install.allowedDomains !== undefined)
     config.allowedDomains = install.allowedDomains;
-
-  if (widgetType === "CHAT") {
-    Object.assign(config, buildFullChatConfigFromDraft(draft, assetUrls));
-  }
 
   const body: JsonRecord = {
     publishNow,

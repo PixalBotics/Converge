@@ -87,29 +87,21 @@ export async function deleteWidget(widgetKey: string): Promise<void> {
 
 export async function publishWidget(
   widgetKey: string,
-  body?: JsonRecord,
 ): Promise<ApiEnvelope<JsonRecord>> {
   const { data } = await apiClient.post<ApiEnvelope<JsonRecord>>(
     `/widgets/${encodeURIComponent(widgetKey)}/publish`,
-    body ?? {},
-  );
-  return data;
-}
-
-export async function rollbackWidget(
-  widgetKey: string,
-  body: JsonRecord,
-): Promise<ApiEnvelope<JsonRecord>> {
-  const { data } = await apiClient.post<ApiEnvelope<JsonRecord>>(
-    `/widgets/${encodeURIComponent(widgetKey)}/rollback`,
-    body,
   );
   return data;
 }
 
 export async function uploadWidgetAsset(params: {
   websiteId: string;
-  assetType: "button_icon" | "banner_image" | "banner_video" | "background_image";
+  assetType:
+    | "button_icon"
+    | "teaser_avatar"
+    | "banner_image"
+    | "banner_video"
+    | "background_image";
   file: File;
 }): Promise<JsonRecord> {
   const form = new FormData();

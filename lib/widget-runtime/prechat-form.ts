@@ -240,7 +240,7 @@ export function resolvePersonalizedAssistantWelcome(
   const tpl = template?.trim();
   if (tpl) {
     const withName = tpl.replace(NAME_PLACEHOLDER_RE, name);
-    if (withName !== tpl) return withName;
+    return withName !== tpl ? withName : tpl;
   }
   return `Hi ${name}, how can I help you today? You can ask me anything.`;
 }

@@ -6,6 +6,11 @@ import {
   normalizeWidgetInquiryOptions,
   type WidgetInquiryOption,
 } from "./widget-inquiry.types";
+import {
+  buildApiWidgetEmbedScript,
+  resolveWidgetApiOrigin,
+  resolveWidgetEmbedAppOrigin,
+} from "./widget-embed-api-origin";
 
 export type WidgetKind = "chat" | "text";
 
@@ -93,6 +98,21 @@ export interface WidgetDraft {
   themeLineHeightPx?: number;
   themeDesignJsonAccent?: string;
   themeDesignJsonDensity?: string;
+  /** Step 1 — closed-state invitation bubble above FAB */
+  proactiveTeaserEnabled?: boolean;
+  proactiveTeaser?: string;
+  proactiveTeaserAvatarEnabled?: boolean;
+  proactiveTeaserAvatarDataUrl?: string;
+  /** Step 2 — Continue step before chat */
+  panelGreetingEnabled?: boolean;
+  /** Step 2 — first agent bubble in transcript */
+  chatWelcomeEnabled?: boolean;
+  proactiveSecondaryCtaEnabled?: boolean;
+  proactiveSecondaryCtaLabel?: string;
+  proactiveSecondaryCtaHref?: string;
+  proactiveSecondaryCtaKind?: "whatsapp" | "link" | "";
+  /** Subtle panel / teaser transitions on embed (default on). */
+  motionEnabled?: boolean;
   /** Step 2 PATCH `config.ui` */
   buttonLabel?: string;
   firstMessage?: string;
@@ -132,10 +152,19 @@ export interface WidgetDraft {
   videoWelcomeUrl?: string;
   /** When false, inquiry topic pills are hidden (step 2 toggle). */
   inquiryOn?: boolean;
+  /** When true, visitor must pick a topic pill (default false = skip allowed). */
+  inquiryRequired?: boolean;
+  inquirySkipLabel?: string;
+  /** Routes visitors who skip topic selection (`behavior.inquiryFallbackRoutingKey`). */
+  inquiryFallbackRoutingKey?: string;
   inquiryOptions?: WidgetInquiryOption[];
   welcomeMessageBehavior?: string;
   autoOpenEnabled?: boolean;
   autoOpenDelaySeconds?: number;
+  /** When false, auto-open runs only on first visit (per browser). */
+  autoOpenOnReturnVisit?: boolean;
+  notificationSoundId?: "soft" | "chime" | "ping" | "none";
+  launcherBadgeMode?: "count" | "dot" | "none";
   fileUploadEnabled?: boolean;
   emojiEnabled?: boolean;
   consentRequired?: boolean;
@@ -215,6 +244,17 @@ export const defaultWidgetDraft: WidgetDraft = {
   themeDesignJsonAccent: "blue",
   themeDesignJsonDensity: "comfortable",
   buttonLabel: "Chat with us",
+  proactiveTeaserEnabled: true,
+  proactiveTeaser: "Any questions? Let us know!",
+  proactiveTeaserAvatarEnabled: false,
+  proactiveTeaserAvatarDataUrl: "",
+  panelGreetingEnabled: true,
+  chatWelcomeEnabled: true,
+  proactiveSecondaryCtaEnabled: false,
+  proactiveSecondaryCtaLabel: "Contact us on WhatsApp",
+  proactiveSecondaryCtaHref: "https://wa.me/",
+  proactiveSecondaryCtaKind: "whatsapp",
+  motionEnabled: true,
   firstMessage: "Hi! How can we help today?",
   messagePlaceholder: "Write here…",
   backgroundColor: "#f8fafc",
@@ -229,13 +269,16 @@ export const defaultWidgetDraft: WidgetDraft = {
   welcomeMessageBehavior: "Thanks for reaching out.",
   autoOpenEnabled: false,
   autoOpenDelaySeconds: 10,
+  autoOpenOnReturnVisit: false,
+  notificationSoundId: "chime",
+  launcherBadgeMode: "count",
   fileUploadEnabled: true,
   emojiEnabled: true,
   consentRequired: true,
   consentText: "I agree to the chat terms and privacy policy.",
   privacyPolicyUrl: "https://www.example.com/privacy",
   privacyNotice: "We process messages per our privacy policy.",
-  allowedDomainsText: "Only use this widget on approved domains.",
+  allowedDomainsText: "",
   persistVisitorSession: true,
   sessionTtlMinutes: 120,
   formEnabled: true,
@@ -255,6 +298,8 @@ export const defaultWidgetDraft: WidgetDraft = {
   responseAgentHandoverEnabled: true,
   responseHandoverTriggerText: "Talk to agent",
   inquiryOn: false,
+  inquiryRequired: false,
+  inquirySkipLabel: "General question",
   inquiryOptions: normalizeWidgetInquiryOptions(["Billing", "Technical", "Sales"]),
 };
 
@@ -272,7 +317,7 @@ const LAUNCHER_PRESET_IDS = new Set<string>([
   "phosphor-chat-teardrop",
 ]);
 
-function normalizeLauncherIconPreset(value: unknown): LauncherIconPresetId {
+export function normalizeLauncherIconPreset(value: unknown): LauncherIconPresetId {
   if (value === "") return "";
   if (typeof value === "string" && LAUNCHER_PRESET_IDS.has(value)) {
     return value as LauncherIconPresetId;
@@ -294,6 +339,58 @@ function normalizeChatMode(value: unknown): WidgetInstallChatMode | undefined {
   return CHAT_MODES.has(up) ? (up as WidgetInstallChatMode) : undefined;
 }
 
+/** Coerce persisted / API launcher shape tokens (matches backend + admin mapper). */
+export function normalizeButtonShape(value: unknown): WidgetDraft["buttonShape"] {
+  const s = String(value ?? "").toLowerCase();
+  if (s === "square") return "square";
+  if (s === "rounded" || s === "pill") return "rounded";
+  return "circle";
+}
+
+/** Coerce persisted / API launcher position tokens. */
+export function normalizeButtonPosition(value: unknown): WidgetDraft["buttonPosition"] {
+  const s = String(value ?? "").toLowerCase();
+  if (s === "left" || s === "center" || s === "right") return s;
+  return "right";
+}
+
+/** Launcher FAB fields for wizard closed-state previews (step 2+). */
+export function resolveLauncherPreviewFromDraft(
+  draft: Partial<WidgetDraft>,
+): Pick<
+  WidgetDraft,
+  | "buttonShape"
+  | "buttonPosition"
+  | "launcherInsetBottomPx"
+  | "launcherInsetSidePx"
+  | "buttonColor"
+  | "buttonHoverColor"
+  | "iconColor"
+  | "iconDataUrl"
+  | "launcherIconPreset"
+> {
+  return {
+    buttonShape: normalizeButtonShape(draft.buttonShape),
+    buttonPosition: normalizeButtonPosition(draft.buttonPosition),
+    launcherInsetBottomPx: clampLauncherInsetPx(
+      draft.launcherInsetBottomPx,
+      defaultWidgetDraft.launcherInsetBottomPx,
+    ),
+    launcherInsetSidePx: clampLauncherInsetPx(
+      draft.launcherInsetSidePx,
+      defaultWidgetDraft.launcherInsetSidePx,
+    ),
+    buttonColor:
+      draft.buttonColor?.trim() ||
+      draft.themePrimaryColor?.trim() ||
+      defaultWidgetDraft.buttonColor,
+    buttonHoverColor: draft.buttonHoverColor ?? defaultWidgetDraft.buttonHoverColor,
+    iconColor: draft.iconColor ?? defaultWidgetDraft.iconColor,
+    iconDataUrl: draft.iconDataUrl ?? "",
+    launcherIconPreset: normalizeLauncherIconPreset(draft.launcherIconPreset),
+  };
+}
+
 /** Merge defaults + partial stored JSON with the same coercion as `readWidgetDraft`. */
 export function mergePartialWidgetDraft(parsed: Partial<WidgetDraft>): WidgetDraft {
   return {
@@ -301,6 +398,8 @@ export function mergePartialWidgetDraft(parsed: Partial<WidgetDraft>): WidgetDra
     ...parsed,
     chatMode: normalizeChatMode(parsed.chatMode) ?? defaultWidgetDraft.chatMode,
     aiType: normalizeWidgetAiType(parsed.aiType ?? defaultWidgetDraft.aiType),
+    buttonShape: normalizeButtonShape(parsed.buttonShape),
+    buttonPosition: normalizeButtonPosition(parsed.buttonPosition),
     launcherIconPreset: normalizeLauncherIconPreset(parsed.launcherIconPreset),
     launcherInsetBottomPx: clampLauncherInsetPx(
       parsed.launcherInsetBottomPx,
@@ -356,39 +455,26 @@ export function saveWidgetDraft(update: Partial<WidgetDraft>) {
   }
 }
 
-function resolveWidgetEmbedOrigin(): string {
-  const originRaw =
-    (typeof window !== "undefined" && window.location?.origin
-      ? window.location.origin
-      : null) ??
-    process.env.NEXT_PUBLIC_WIDGET_EMBED_ORIGIN ??
-    "";
-
-  return typeof originRaw === "string" && originRaw.length > 0
-    ? originRaw.replace(/\/+$/, "")
-    : "https://your-app.example";
-}
-
-/** Unified loader tag used after install (`GET .../embed-snippet` may return fuller HTML). */
+/** Customer embed snippet (iframe loader on dashboard origin). */
 export function buildUnifiedWidgetEmbedScript(input: {
   widgetKey: string;
   appOrigin?: string;
+  apiOrigin?: string;
 }) {
-  const origin = (input.appOrigin ?? resolveWidgetEmbedOrigin()).replace(
-    /\/+$/,
-    "",
-  );
-  return `<!-- Unified widget loader (session JWT fetched at runtime via POST /widget/session) -->
-<script src="${origin}/widget.js" data-widget-key="${input.widgetKey}" data-app-origin="${origin}" defer></script>`;
+  return buildApiWidgetEmbedScript({
+    widgetKey: input.widgetKey,
+    appOrigin: input.appOrigin ?? input.apiOrigin,
+  });
 }
+
+export { resolveWidgetApiOrigin, resolveWidgetEmbedAppOrigin };
 
 export function buildWidgetScript(
   draft: WidgetDraft,
-  options?: { appOrigin?: string },
+  options?: { apiOrigin?: string; appOrigin?: string },
 ) {
-  const origin = options?.appOrigin ?? resolveWidgetEmbedOrigin();
-  return buildUnifiedWidgetEmbedScript({
+  return buildApiWidgetEmbedScript({
     widgetKey: draft.widgetId || "YOUR_WIDGET_KEY",
-    appOrigin: origin,
+    apiOrigin: options?.apiOrigin ?? options?.appOrigin,
   });
 }

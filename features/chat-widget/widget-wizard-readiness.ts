@@ -1,5 +1,7 @@
 import type { WidgetDraft } from "@/lib/chat-widget/widgetDraft";
+import { defaultWidgetDraft } from "@/lib/chat-widget/widgetDraft";
 import { normalizeWidgetInquiryOptions } from "@/lib/chat-widget/widget-inquiry.types";
+import { isProactiveTeaserFeatureOn, resolveProactiveTeaser } from "@/lib/chat-widget/widget-feature-toggles";
 
 export type WidgetWizardCheckItem = {
   id: string;
@@ -9,6 +11,7 @@ export type WidgetWizardCheckItem = {
 };
 
 export function buildWidgetWizardChecklist(draft: WidgetDraft): WidgetWizardCheckItem[] {
+  const def = defaultWidgetDraft;
   const websiteOk = Boolean(draft.websiteId?.trim());
   const remoteOk = Boolean(draft.remoteWidgetKey?.trim() || draft.widgetId?.trim());
   const inquiry = normalizeWidgetInquiryOptions(draft.inquiryOptions ?? []);
@@ -22,12 +25,15 @@ export function buildWidgetWizardChecklist(draft: WidgetDraft): WidgetWizardChec
     .map((d) => d.trim())
     .filter(Boolean);
   const domainsText = (draft.allowedDomainsText ?? "").trim();
+  const teaserResolved = resolveProactiveTeaser(draft);
+  const panelGreeting = (draft.greetingMessage ?? "").trim();
+  const chatWelcome = (draft.firstMessage ?? "").trim();
 
   return [
     {
       id: "website",
       label: "Website linked",
-      detail: websiteOk ? draft.websiteId : "Pick a website on step 1",
+      detail: websiteOk ? draft.websiteId : "Pick a website on Add Widget",
       ok: websiteOk,
     },
     {
@@ -39,14 +45,40 @@ export function buildWidgetWizardChecklist(draft: WidgetDraft): WidgetWizardChec
     {
       id: "launcher",
       label: "Launcher styling",
-      detail: draft.buttonColor?.trim() ? `Color ${draft.buttonColor}` : "Default colors",
+      detail: draft.buttonColor?.trim() ? `Color ${draft.buttonColor}` : "Set on Button step",
       ok: Boolean(draft.buttonColor?.trim()),
     },
     {
-      id: "panel",
-      label: "Chat panel copy",
-      detail: draft.firstMessage?.trim() || draft.greetingMessage?.trim() ? "Greeting set" : "Add first message",
-      ok: Boolean(draft.firstMessage?.trim() || draft.greetingMessage?.trim()),
+      id: "teaser",
+      label: "Invitation bubble",
+      detail: !isProactiveTeaserFeatureOn(draft)
+        ? "Off (Button step)"
+        : teaserResolved.active
+          ? (teaserResolved.text || "CTA only").slice(0, 48)
+          : "Enable + add message on Button step",
+      ok: !isProactiveTeaserFeatureOn(draft) || teaserResolved.active,
+    },
+    {
+      id: "panelGreeting",
+      label: "Panel greeting",
+      detail:
+        draft.panelGreetingEnabled === false
+          ? "Off (skip Continue step)"
+          : panelGreeting
+            ? "Continue step copy set"
+            : "Add on Chat box step",
+      ok: draft.panelGreetingEnabled === false || Boolean(panelGreeting),
+    },
+    {
+      id: "chatWelcome",
+      label: "Chat welcome",
+      detail:
+        draft.chatWelcomeEnabled === false
+          ? "Off (no first bubble)"
+          : chatWelcome
+            ? "First chat bubble set"
+            : "Add on Chat box step",
+      ok: draft.chatWelcomeEnabled === false || Boolean(chatWelcome),
     },
     {
       id: "inquiry",
@@ -91,19 +123,19 @@ export function buildWidgetWizardChecklist(draft: WidgetDraft): WidgetWizardChec
     },
     {
       id: "publish",
-      label: "Ready to publish",
-      detail: draft.requiresPublishBeforeEmbed
-        ? "Publish on Install step for live embed"
-        : draft.completed
-          ? "Published"
-          : "Finish Install & Publish",
-      ok: draft.completed === true || !draft.requiresPublishBeforeEmbed,
+      label: "Published to production",
+      detail: draft.completed
+        ? "Install step completed — embed is live"
+        : draft.requiresPublishBeforeEmbed
+          ? "Unpublished draft on server — finish Install (publish)"
+          : "Finish step 4 (Install) to publish and get embed code",
+      ok: draft.completed === true,
     },
   ];
 }
 
 export function widgetWizardReadyToPublish(draft: WidgetDraft): boolean {
   const items = buildWidgetWizardChecklist(draft);
-  const required = ["website", "draft", "mode"];
+  const required = ["website", "draft", "mode", "panelGreeting", "chatWelcome"];
   return required.every((id) => items.find((i) => i.id === id)?.ok);
 }

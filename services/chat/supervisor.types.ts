@@ -43,3 +43,20 @@ export interface ChatWhisperSocketPayload {
   whisper: ChatWhisper;
   agentMustClickSend: boolean;
 }
+
+export type RequestTakeoverResult =
+  | {
+      mode: "direct";
+      supervisorControlUserId: string;
+      agentId: string;
+      agentReadOnly: boolean;
+    }
+  | {
+      executed: boolean;
+      request: ChatTakeoverRequest;
+      transfer?: {
+        conversationId: string;
+        fromAgentId: string;
+        toAgentId: string;
+      };
+    };

@@ -17,7 +17,13 @@ export const APP_PATHS = {
 } as const;
 
 /** Extra prefixes that skip `/auth/me` hydrate (not in `AUTH_PATHS`). */
-const EXTRA_SKIP_REMOTE_AUTH_PREFIXES = ["/signup", "/chat/guest"] as const;
+const EXTRA_SKIP_REMOTE_AUTH_PREFIXES = ["/signup", "/chat/guest", "/embed"] as const;
+
+/** Public embed iframe routes — no dashboard AuthProvider or login redirects. */
+export function isEmbedAppPath(pathname: string): boolean {
+  const path = pathname.trim() || "/";
+  return path === "/embed" || path.startsWith("/embed/");
+}
 
 const SKIP_REMOTE_AUTH_PREFIXES: readonly string[] = [
   ...Object.values(AUTH_PATHS),

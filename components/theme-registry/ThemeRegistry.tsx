@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ThemeProvider } from "@mui/material/styles";
 import CssBaseline from "@mui/material/CssBaseline";
 import {
@@ -27,9 +27,12 @@ export default function ThemeRegistry({ children }: { children: React.ReactNode 
   const mounted = useMounted();
   const [presetId, setPresetIdState] = useState(DEFAULT_APPEARANCE_PRESET_ID);
   const [customAccentHex, setCustomAccentHexState] = useState(DEFAULT_CUSTOM_ACCENT_HEX);
+  /** When set, `/auth/me` or explicit account theme must win over stale localStorage. */
+  const accountThemeAppliedRef = useRef(false);
 
   useEffect(() => {
     if (!mounted) return;
+    if (accountThemeAppliedRef.current) return;
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored && APPEARANCE_PRESET_BY_ID[stored]) {
@@ -69,6 +72,7 @@ export default function ThemeRegistry({ children }: { children: React.ReactNode 
   const applyAccountTheme = useCallback((backgroundColor: string | null | undefined) => {
     const resolved = resolveAppearanceFromAccountBackgroundColor(backgroundColor);
     if (!resolved) return;
+    accountThemeAppliedRef.current = true;
     if (resolved.kind === "custom") {
       setCustomAccentHex(resolved.hex);
       return;

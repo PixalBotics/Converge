@@ -163,7 +163,12 @@ export function resolveWidgetColorTokens(input: ResolveWidgetColorTokensInput): 
     designTheme?.backgroundColor,
     "#ffffff",
   );
-  const headerBackground = strFirst(colors?.headerBackground, colors?.header_background, primary);
+  const headerBackground = strFirst(
+    colors?.headerBackground,
+    colors?.header_background,
+    theme?.primaryColor,
+    primary,
+  );
   const headerText = strFirst(
     colors?.headerText,
     colors?.header_text,

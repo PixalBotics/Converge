@@ -16,6 +16,7 @@ import type { AppTheme } from "@/theme/theme";
 
 import { DashboardCard, Typography } from "@/components/common";
 
+import { WidgetDraftStatusBar } from "@/features/chat-widget/components/WidgetDraftStatusBar";
 import { WidgetWizardStepper } from "@/features/chat-widget/components/WidgetWizardStepper";
 
 import {
@@ -38,7 +39,7 @@ import {
 
 
 
-const WIDGET_WIZARD_STEP_COUNT = 3;
+const WIDGET_WIZARD_STEP_COUNT = 4;
 
 
 
@@ -54,7 +55,7 @@ export interface WidgetFlowShellProps {
 
   footer?: ReactNode | null;
 
-  /** Zero-based wizard step index (0 = button, 1 = box, 2 = notifications). */
+  /** Zero-based wizard step index (0 = button, 1 = box, 2 = notifications, 3 = install). */
 
   currentStep?: number;
 
@@ -128,7 +129,7 @@ export function WidgetFlowShell({
 
       {stepIndex !== undefined ? <WidgetWizardStepper currentStep={stepIndex} /> : null}
 
-
+      {stepIndex !== undefined ? <WidgetDraftStatusBar variant="wizard" /> : null}
 
       <DashboardCard sx={distributionWizardMainCardSx}>
 

@@ -1,4 +1,10 @@
 import { getResolvedPublicApiBaseUrl } from "@/lib/public-api/resolved-base-url";
+import { WIDGET_FETCH_CREDENTIALS } from "@/lib/widget-runtime/widget-fetch-credentials";
+import type {
+  VisitorCreateConversationPayload,
+  VisitorCreateConversationResponse,
+  VisitorSendMessagePayload,
+} from "./chat.types";
 
 function peelSuccessEnvelope(raw: unknown, maxDepth = 4): unknown {
   let cur: unknown = raw;
@@ -17,6 +23,84 @@ function peelSuccessEnvelope(raw: unknown, maxDepth = 4): unknown {
     break;
   }
   return cur;
+}
+
+async function widgetVisitorFetchJson<T>(
+  path: string,
+  init: RequestInit,
+  widgetBearerToken?: string,
+): Promise<{ ok: true; data: T } | { ok: false; message: string }> {
+  const base = getResolvedPublicApiBaseUrl();
+  const url = `${base}${path.startsWith("/") ? path : `/${path}`}`;
+
+  try {
+    const res = await fetch(url, {
+      ...init,
+      credentials: WIDGET_FETCH_CREDENTIALS,
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        ...(init.headers ?? {}),
+        ...(widgetBearerToken
+          ? { Authorization: `Bearer ${widgetBearerToken}` }
+          : {}),
+      },
+    });
+
+    if (!res.ok) {
+      let message = `${res.status} ${res.statusText}`;
+      try {
+        const maybe = await res.json();
+        if (maybe?.message && typeof maybe.message === "string") {
+          message = maybe.message;
+        }
+      } catch {
+        /* ignore */
+      }
+      return { ok: false, message };
+    }
+
+    return { ok: true, data: peelSuccessEnvelope(await res.json()) as T };
+  } catch (e) {
+    return {
+      ok: false,
+      message: e instanceof Error ? e.message : "Network error",
+    };
+  }
+}
+
+/**
+ * Public widget chat REST — never uses dashboard `apiClient` (same-origin iframe shares cookies).
+ */
+export async function createWidgetConversation(
+  payload: VisitorCreateConversationPayload,
+  widgetBearerToken?: string,
+): Promise<VisitorCreateConversationResponse> {
+  const result = await widgetVisitorFetchJson<VisitorCreateConversationResponse>(
+    "/chat/widget/conversations",
+    { method: "POST", body: JSON.stringify(payload) },
+    widgetBearerToken,
+  );
+  if (!result.ok) {
+    throw new Error(result.message);
+  }
+  return result.data;
+}
+
+export async function sendWidgetVisitorMessage(
+  conversationId: string,
+  payload: VisitorSendMessagePayload,
+  widgetBearerToken?: string,
+): Promise<unknown> {
+  const result = await widgetVisitorFetchJson<unknown>(
+    `/chat/widget/conversations/${encodeURIComponent(conversationId)}/messages`,
+    { method: "POST", body: JSON.stringify(payload) },
+    widgetBearerToken,
+  );
+  if (!result.ok) {
+    throw new Error(result.message);
+  }
+  return result.data;
 }
 
 export type WidgetTranscriptMessage = {
@@ -59,6 +143,7 @@ export async function fetchWidgetTranscript(
   try {
     const res = await fetch(url, {
       method: "GET",
+      credentials: WIDGET_FETCH_CREDENTIALS,
       headers: {
         Accept: "application/json",
         ...(widgetBearerToken
@@ -87,34 +172,29 @@ export async function fetchWidgetTranscript(
         : {};
 
     const messagesRaw = Array.isArray(o.messages) ? o.messages : [];
-    const messages: WidgetTranscriptMessage[] = messagesRaw
-      .map((row) => {
-        if (!row || typeof row !== "object") return null;
-        const m = row as Record<string, unknown>;
-        const id = typeof m.id === "string" ? m.id : "";
-        const content =
-          typeof m.content === "string"
-            ? m.content
-            : typeof m.message === "string"
-              ? m.message
-              : "";
-        const senderType =
-          typeof m.senderType === "string" ? m.senderType : "visitor";
-        const createdAt =
-          typeof m.createdAt === "string"
-            ? m.createdAt
-            : new Date().toISOString();
-        if (!id || !content.trim()) return null;
-        return {
-          id,
-          content,
-          senderType,
-          messageType:
-            typeof m.messageType === "string" ? m.messageType : undefined,
-          createdAt,
-        };
-      })
-      .filter((m): m is WidgetTranscriptMessage => m != null);
+    const messages: WidgetTranscriptMessage[] = [];
+    for (const row of messagesRaw) {
+      if (!row || typeof row !== "object") continue;
+      const m = row as Record<string, unknown>;
+      const id = typeof m.id === "string" ? m.id : "";
+      const content =
+        typeof m.content === "string"
+          ? m.content
+          : typeof m.message === "string"
+            ? m.message
+            : "";
+      const senderType = typeof m.senderType === "string" ? m.senderType : "visitor";
+      const createdAt =
+        typeof m.createdAt === "string" ? m.createdAt : new Date().toISOString();
+      if (!id || !content.trim()) continue;
+      messages.push({
+        id,
+        content,
+        senderType,
+        messageType: typeof m.messageType === "string" ? m.messageType : undefined,
+        createdAt,
+      });
+    }
 
     const visitor =
       o.visitor !== null && typeof o.visitor === "object" && !Array.isArray(o.visitor)
@@ -171,6 +251,7 @@ export async function postWidgetRequestHuman(
   try {
     const res = await fetch(url, {
       method: "POST",
+      credentials: WIDGET_FETCH_CREDENTIALS,
       headers: {
         Accept: "application/json",
         "Content-Type": "application/json",

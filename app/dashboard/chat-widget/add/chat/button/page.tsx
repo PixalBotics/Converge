@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import ChatRounded from "@mui/icons-material/ChatRounded";
 import CloudUploadOutlined from "@mui/icons-material/CloudUploadOutlined";
 import Box from "@mui/material/Box";
+import Switch from "@mui/material/Switch";
 import IconButton from "@mui/material/IconButton";
 import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
@@ -14,10 +15,13 @@ import { WidgetFlowShell } from "@/features/chat-widget";
 import { WidgetWizardPageLayout } from "@/features/chat-widget/components/WidgetWizardPageLayout";
 import { SchedulingSectionCard } from "@/features/website-assignments/components/ServiceSchedulingSections";
 import { LAUNCHER_ICON_PRESETS, LauncherPresetIcon } from "@/lib/chat-widget/launcherIcons";
+import { mergeWizardDraftForPublish } from "@/lib/chat-widget/merge-wizard-draft-for-publish";
 import {
-  patchRemoteWidgetConfiguration,
+  patchRemoteWidgetConfigurationWithMeta,
   summarizePatchResult,
 } from "@/lib/chat-widget/widget-remote-sync";
+import { persistAssetUrlsOnDraft } from "@/lib/chat-widget/resolve-widget-draft-asset-urls";
+import { useWidgetWizardSaveTrace } from "@/features/chat-widget/components/WidgetWizardSaveTraceContext";
 import { extractApiErrorMessageForToast } from "@/lib/notify/extract-api-message";
 import { publishAppToast } from "@/lib/notify";
 import {
@@ -38,10 +42,18 @@ import {
   DESIGN_ACCENT_SELECT_OPTIONS,
   DESIGN_DENSITY_SELECT_OPTIONS,
 } from "@/lib/chat-widget/design-accent-density";
+import { proactiveTeaserPreviewFromDraft } from "@/lib/chat-widget/proactive-teaser-from-draft";
 import {
   defaultWidgetDraft,
   type LauncherIconPresetId,
+  type WidgetDraft,
 } from "@/lib/chat-widget/widgetDraft";
+import { WidgetWizardStepGuide } from "@/features/chat-widget/components/WidgetWizardStepGuide";
+import {
+  WidgetTextField,
+  WidgetUrlField,
+} from "@/features/chat-widget/components/WidgetFormFields";
+import { FIELD_MAX, validateSingleHttpUrl } from "@/lib/chat-widget/widget-field-validation";
 
 function parseInsetPxString(raw: string, fallback: number): number {
   const n = Number.parseInt(raw.trim(), 10);
@@ -58,6 +70,7 @@ function clampNum(raw: string, min: number, max: number, fallback: number): numb
 export default function ChatWidgetButtonDesignPage() {
   const router = useRouter();
   const theme = useTheme() as AppTheme;
+  const { recordSave } = useWidgetWizardSaveTrace();
   const { editWidgetKey, draftReady, hydrateError } = useChatWidgetWizardEdit();
   const [buttonShape, setButtonShape] = useState<"circle" | "rounded" | "square">("circle");
   const [buttonPosition, setButtonPosition] = useState("right");
@@ -69,9 +82,35 @@ export default function ChatWidgetButtonDesignPage() {
   const [launcherIconPreset, setLauncherIconPreset] = useState<LauncherIconPresetId>("phosphor-chat-circle");
   const [launcherInsetBottom, setLauncherInsetBottom] = useState("28");
   const [launcherInsetSide, setLauncherInsetSide] = useState("28");
+  const [proactiveTeaserEnabled, setProactiveTeaserEnabled] = useState(
+    defaultWidgetDraft.proactiveTeaserEnabled ?? true,
+  );
+  const [proactiveTeaser, setProactiveTeaser] = useState(
+    defaultWidgetDraft.proactiveTeaser ?? "Any questions? Let us know!",
+  );
+  const [proactiveAvatarEnabled, setProactiveAvatarEnabled] = useState(
+    defaultWidgetDraft.proactiveTeaserAvatarEnabled ?? false,
+  );
+  const [proactiveAvatarDataUrl, setProactiveAvatarDataUrl] = useState("");
+  const [proactiveAvatarFileName, setProactiveAvatarFileName] = useState("");
+  const [proactiveCtaEnabled, setProactiveCtaEnabled] = useState(
+    defaultWidgetDraft.proactiveSecondaryCtaEnabled ?? false,
+  );
+  const [proactiveCtaLabel, setProactiveCtaLabel] = useState(
+    defaultWidgetDraft.proactiveSecondaryCtaLabel ?? "Contact us on WhatsApp",
+  );
+  const [proactiveCtaHref, setProactiveCtaHref] = useState(
+    defaultWidgetDraft.proactiveSecondaryCtaHref ?? "https://wa.me/",
+  );
+  const proactiveAvatarUploadRef = useRef<HTMLInputElement | null>(null);
   const iconUploadRef = useRef<HTMLInputElement | null>(null);
   const [saving, setSaving] = useState(false);
   const [checklistRefreshKey, setChecklistRefreshKey] = useState(0);
+
+  const remoteWidgetKey = useMemo(() => {
+    const d = readChatWizardDraft(resolveEditWidgetKeyForNavigation(editWidgetKey) || undefined);
+    return resolveRemoteWidgetKeyForChatWizard(editWidgetKey, d);
+  }, [editWidgetKey, draftReady, checklistRefreshKey]);
 
   const [themeName, setThemeName] = useState(defaultWidgetDraft.themeName ?? "Brand Default");
   const [themePrimaryColor, setThemePrimaryColor] = useState(
@@ -117,6 +156,18 @@ export default function ChatWidgetButtonDesignPage() {
     setLauncherIconPreset(d.launcherIconPreset);
     setLauncherInsetBottom(String(d.launcherInsetBottomPx ?? 28));
     setLauncherInsetSide(String(d.launcherInsetSidePx ?? 28));
+    setProactiveTeaserEnabled(d.proactiveTeaserEnabled !== false);
+    setProactiveTeaser(d.proactiveTeaser ?? defaultWidgetDraft.proactiveTeaser ?? "");
+    setProactiveAvatarEnabled(d.proactiveTeaserAvatarEnabled === true);
+    setProactiveAvatarDataUrl(d.proactiveTeaserAvatarDataUrl ?? "");
+    setProactiveAvatarFileName(d.proactiveTeaserAvatarDataUrl ? "Agent avatar" : "");
+    setProactiveCtaEnabled(d.proactiveSecondaryCtaEnabled ?? false);
+    setProactiveCtaLabel(
+      d.proactiveSecondaryCtaLabel ?? defaultWidgetDraft.proactiveSecondaryCtaLabel ?? "",
+    );
+    setProactiveCtaHref(
+      d.proactiveSecondaryCtaHref ?? defaultWidgetDraft.proactiveSecondaryCtaHref ?? "",
+    );
     setThemeName(d.themeName ?? "Brand Default");
     setThemePrimaryColor(d.themePrimaryColor ?? "");
     setThemeSecondaryColor(d.themeSecondaryColor ?? "#64748b");
@@ -145,6 +196,39 @@ export default function ChatWidgetButtonDesignPage() {
   const previewBottomPx = parseInsetPxString(launcherInsetBottom, 28);
   const previewSidePx = parseInsetPxString(launcherInsetSide, 28);
 
+  const teaserPreview = useMemo(
+    () =>
+      proactiveTeaserPreviewFromDraft({
+        proactiveTeaserEnabled,
+        proactiveTeaser,
+        proactiveTeaserAvatarEnabled: proactiveAvatarEnabled,
+        proactiveTeaserAvatarDataUrl: proactiveAvatarDataUrl,
+        proactiveSecondaryCtaEnabled: proactiveCtaEnabled,
+        proactiveSecondaryCtaLabel: proactiveCtaLabel,
+        proactiveSecondaryCtaHref: proactiveCtaHref,
+        proactiveSecondaryCtaKind: proactiveCtaEnabled ? "whatsapp" : "",
+      } as WidgetDraft),
+    [
+      proactiveTeaserEnabled,
+      proactiveTeaser,
+      proactiveAvatarEnabled,
+      proactiveAvatarDataUrl,
+      proactiveCtaEnabled,
+      proactiveCtaLabel,
+      proactiveCtaHref,
+    ],
+  );
+
+  const handleProactiveAvatarUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setProactiveAvatarFileName(file.name);
+    const reader = new FileReader();
+    reader.onload = () =>
+      setProactiveAvatarDataUrl(typeof reader.result === "string" ? reader.result : "");
+    reader.readAsDataURL(file);
+  };
+
   const handleNext = () => {
     if (saving) return;
     const bottomPx = parseInsetPxString(launcherInsetBottom, 28);
@@ -161,6 +245,17 @@ export default function ChatWidgetButtonDesignPage() {
         });
         router.push("/dashboard/chat-widget/add");
         return;
+      }
+
+      if (proactiveCtaEnabled) {
+        const ctaErr = validateSingleHttpUrl(proactiveCtaHref, {
+          required: true,
+          label: "Secondary button link",
+        });
+        if (ctaErr) {
+          publishAppToast({ variant: "error", message: ctaErr });
+          return;
+        }
       }
 
       setSaving(true);
@@ -186,6 +281,14 @@ export default function ChatWidgetButtonDesignPage() {
           iconColor: selectedIconColor || "#FFFFFF",
           iconDataUrl,
           launcherIconPreset,
+          proactiveTeaserEnabled,
+          proactiveTeaser: proactiveTeaser.trim(),
+          proactiveTeaserAvatarEnabled: proactiveAvatarEnabled,
+          proactiveTeaserAvatarDataUrl: proactiveAvatarEnabled ? proactiveAvatarDataUrl : "",
+          proactiveSecondaryCtaEnabled: proactiveCtaEnabled,
+          proactiveSecondaryCtaLabel: proactiveCtaLabel.trim(),
+          proactiveSecondaryCtaHref: proactiveCtaHref.trim(),
+          proactiveSecondaryCtaKind: proactiveCtaEnabled ? "whatsapp" : "",
           completed: false,
           widgetId: prev.widgetId?.startsWith("wgt_") ? prev.widgetId : rk,
           themeName: themeName.trim() || "Brand Default",
@@ -205,22 +308,42 @@ export default function ChatWidgetButtonDesignPage() {
           themeDesignJsonDensity: themeDesignJsonDensity.trim() || "comfortable",
         });
         const latest = readChatWizardDraft(editKey || undefined);
-        const patchInner = await patchRemoteWidgetConfiguration({
+        const patchMeta = await patchRemoteWidgetConfigurationWithMeta({
           widgetKey: rk,
           widgetKind: "chat",
           draft: latest,
           publishNow: false,
           chatWizardPatchScope: "launcher_only",
         });
-        const sum = summarizePatchResult(patchInner);
+        recordSave({
+          stepKey: "button",
+          stepLabel: "Step 1 — Button",
+          method: patchMeta.method,
+          path: patchMeta.path,
+          scope: patchMeta.scope,
+          publishNow: patchMeta.publishNow,
+          requestBody: patchMeta.requestBody,
+          responseBody: patchMeta.inner,
+        });
+        const sum = summarizePatchResult(patchMeta.inner);
+        if (patchMeta.assetUrls) {
+          saveChatWizardDraft(editKey || undefined, persistAssetUrlsOnDraft(latest, patchMeta.assetUrls));
+        }
+        if (patchMeta.assetErrors?.length) {
+          publishAppToast({
+            variant: "error",
+            message: patchMeta.assetErrors.join(" "),
+          });
+        }
         saveChatWizardDraft(editKey || undefined, {
+          ...mergeWizardDraftForPublish(readChatWizardDraft(editKey || undefined)),
           requiresPublishBeforeEmbed: sum.requiresPublishBeforeEmbed,
         });
         setChecklistRefreshKey((k) => k + 1);
         router.push(
           withChatEditQuery(
             "/dashboard/chat-widget/add/chat/box",
-            resolveEditWidgetKeyForNavigation(editKey),
+            resolveEditWidgetKeyForNavigation(editKey) || rk,
           ),
         );
       } catch (e) {
@@ -281,11 +404,16 @@ export default function ChatWidgetButtonDesignPage() {
             iconColor={selectedIconColor || "#FFFFFF"}
             iconDataUrl={iconDataUrl}
             launcherIconPreset={launcherIconPreset}
+            proactiveTeaser={teaserPreview.text}
+            proactiveTeaserActive={teaserPreview.active}
+            proactiveTeaserAvatarUrl={teaserPreview.avatarUrl}
+            proactiveSecondaryCta={teaserPreview.secondaryCta}
             accent={themeDesignJsonAccent}
             density={themeDesignJsonDensity}
           />
         }
       >
+        <WidgetWizardStepGuide step="button" />
         <SchedulingSectionCard title="Launcher shape & position" subtitle="Floating button geometry and screen placement.">
       <Typography variant="mediumLarge" sx={{ color: theme.app.text.primary, mb: -1.25 }}>Button Shape</Typography>
       <Box sx={{ display: "flex", gap: 1.5, flexWrap: "wrap", mt: 0.75 }}>
@@ -362,6 +490,101 @@ export default function ChatWidgetButtonDesignPage() {
           fallback="#ffffff"
         />
       </Box>
+
+      <SchedulingSectionCard
+        title="Invitation bubble"
+        subtitle="Optional callout above the launcher when chat is closed. Turn off if you only want the FAB."
+      >
+        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1 }}>
+          <Typography variant="body2" sx={{ color: theme.app.text.primary, fontWeight: 600 }}>
+            Show invitation bubble
+          </Typography>
+          <Switch
+            checked={proactiveTeaserEnabled}
+            onChange={(_, checked) => setProactiveTeaserEnabled(checked)}
+            color="success"
+          />
+        </Box>
+        {proactiveTeaserEnabled ? (
+          <>
+        <WidgetTextField
+          label="Invitation message"
+          name="proactive-teaser"
+          placeholder="Any questions? Let us know!"
+          value={proactiveTeaser}
+          onChange={setProactiveTeaser}
+          maxLength={FIELD_MAX.message}
+          helperText="Shown in the bubble above the chat button while the widget is closed."
+        />
+        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mt: 1 }}>
+          <Typography variant="body2" sx={{ color: theme.app.text.primary, fontWeight: 600 }}>
+            Show agent avatar
+          </Typography>
+          <Switch
+            checked={proactiveAvatarEnabled}
+            onChange={(_, checked) => setProactiveAvatarEnabled(checked)}
+            color="success"
+          />
+        </Box>
+        {proactiveAvatarEnabled ? (
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mt: 1 }}>
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => proactiveAvatarUploadRef.current?.click()}
+          >
+            {proactiveAvatarFileName || "Upload agent avatar"}
+          </Button>
+          <input
+            ref={proactiveAvatarUploadRef}
+            type="file"
+            accept="image/*"
+            hidden
+            onChange={handleProactiveAvatarUpload}
+          />
+          {proactiveAvatarDataUrl ? (
+            <Box
+              component="img"
+              src={proactiveAvatarDataUrl}
+              alt=""
+              sx={{ width: 40, height: 40, borderRadius: "50%", objectFit: "cover" }}
+            />
+          ) : null}
+        </Box>
+        ) : null}
+        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mt: 1.5 }}>
+          <Typography variant="body2" sx={{ color: theme.app.text.primary, fontWeight: 600 }}>
+            Secondary button (e.g. WhatsApp)
+          </Typography>
+          <Switch
+            checked={proactiveCtaEnabled}
+            onChange={(_, checked) => setProactiveCtaEnabled(checked)}
+            color="success"
+          />
+        </Box>
+        {proactiveCtaEnabled ? (
+          <>
+            <WidgetTextField
+              label="Secondary button label"
+              name="proactive-cta-label"
+              value={proactiveCtaLabel}
+              onChange={setProactiveCtaLabel}
+              maxLength={FIELD_MAX.shortLabel}
+              helperText="e.g. Chat on WhatsApp"
+            />
+            <WidgetUrlField
+              label="Secondary button link"
+              name="proactive-cta-href"
+              value={proactiveCtaHref}
+              onChange={setProactiveCtaHref}
+              required={proactiveCtaEnabled}
+              helperText="One https link only — opens in a new tab."
+            />
+          </>
+        ) : null}
+          </>
+        ) : null}
+      </SchedulingSectionCard>
 
       <Typography variant="mediumLarge" sx={{ color: theme.app.text.primary, mb: -1.25 }}>
         Default launcher icon

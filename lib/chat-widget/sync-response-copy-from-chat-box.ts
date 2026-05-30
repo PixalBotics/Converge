@@ -16,6 +16,8 @@ export function syncResponseCopyFromChatBox(draft: WidgetDraft): Partial<WidgetD
     responseAiPromptHint:
       draft.responseAiPromptHint?.trim() || def.responseAiPromptHint,
     welcomeMessageBehavior:
-      draft.welcomeMessageBehavior?.trim() || def.welcomeMessageBehavior,
+      draft.firstMessage?.trim() ||
+      draft.welcomeMessageBehavior?.trim() ||
+      def.welcomeMessageBehavior,
   };
 }

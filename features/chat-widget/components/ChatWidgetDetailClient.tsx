@@ -30,6 +30,7 @@ import { publishAppToast } from "@/lib/notify";
 import { extractApiErrorMessageForToast } from "@/lib/notify/extract-api-message";
 import { parseSnapshotForPreview } from "@/lib/chat-widget/snapshot-preview-model";
 import { WidgetSnapshotPreview } from "./WidgetSnapshotPreview";
+import { WidgetDeployStatusCard } from "./WidgetDeployStatusCard";
 
 function safePrettyJson(value: unknown, maxChars = 24_000): string {
   try {
@@ -257,13 +258,17 @@ export function ChatWidgetDetailClient({
         </Box>
       </Box>
 
+      {!loading && !error && widgetKey.trim() ? (
+        <WidgetDeployStatusCard widgetKey={widgetKey} />
+      ) : null}
+
       {variant === "manage" ? (
         <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, maxWidth: 720 }}>
-          Copy the embed snippet or rotate the deploy key. Full step-by-step editing still uses{" "}
+          Copy the embed snippet or rotate the deploy key. Full step-by-step editing uses the{" "}
           <Box component="span" sx={{ fontWeight: 700 }}>
-            Add Widget
+            configuration wizard
           </Box>{" "}
-          in the wizard; this screen is for inspection and operations.
+          (Button → Chat box → Notifications → Install). Publish from Deployment above when ready.
         </Typography>
       ) : null}
 

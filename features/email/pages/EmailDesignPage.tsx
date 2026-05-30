@@ -59,15 +59,8 @@ function normalizeBlocksFromApi(
 }
 
 export function EmailDesignPage({ mode = "reseller" }: { mode?: "reseller" | "platform" }) {
-  const isPlatform = mode === "platform";
   const theme = useTheme() as AppTheme;
-  const isWide = useMediaQuery(theme.breakpoints.up("md"));
-  const router = useRouter();
-  const params = useParams();
-  const routeResellerId =
-    typeof params.resellerId === "string" ? params.resellerId.trim() : "";
-  const { canView, canUpdate, canPublish } = useEmailTemplateAccess();
-  const { resellerId: scopeResellerId, ready } = useEmailResellerScope();
+  const { canView } = useEmailTemplateAccess();
 
   if (!canView) {
     return (
@@ -78,6 +71,21 @@ export function EmailDesignPage({ mode = "reseller" }: { mode?: "reseller" | "pl
       </EmailSectionLayout>
     );
   }
+
+  return <EmailDesignEditor mode={mode} />;
+}
+
+function EmailDesignEditor({ mode = "reseller" }: { mode?: "reseller" | "platform" }) {
+  const isPlatform = mode === "platform";
+  const theme = useTheme() as AppTheme;
+  const isWide = useMediaQuery(theme.breakpoints.up("md"));
+  const router = useRouter();
+  const params = useParams();
+  const routeResellerId =
+    typeof params.resellerId === "string" ? params.resellerId.trim() : "";
+  const { canView, canUpdate, canPublish } = useEmailTemplateAccess();
+  const { resellerId: scopeResellerId, ready } = useEmailResellerScope();
+
   const activeResellerId = isPlatform ? null : routeResellerId || (ready ? scopeResellerId : null);
 
   const resellerDraftQuery = useEmailTemplateDraftQuery(activeResellerId, {

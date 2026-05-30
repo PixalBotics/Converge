@@ -11,14 +11,19 @@ export const chatLivePageStackSx: SxProps<Theme> = {
   flexDirection: "column",
   flex: 1,
   minHeight: 0,
+  maxHeight: "100%",
   minWidth: 0,
+  overflow: "hidden",
   gap: { xs: 1.25, md: 1.75 },
 };
 
-/** Agent inbox without scope filters — tighter header-to-workspace rhythm. */
+/** Agent inbox — no extra page header gap; grid starts immediately. */
 export const chatLiveAgentStackSx: SxProps<Theme> = {
   ...chatLivePageStackSx,
-  gap: { xs: 1, md: 1.25 },
+  gap: 0,
+  flex: 1,
+  minHeight: 0,
+  height: "100%",
 };
 
 export const chatLiveFilterCardSx: SxProps<Theme> = (theme) => {
@@ -57,7 +62,7 @@ export const chatLiveFilterGridSx: SxProps<Theme> = {
     xl: "repeat(4, 1fr)",
   },
   gap: 1.25,
-  alignItems: "start",
+  alignItems: "end",
 };
 
 export const chatLiveNavStripSx: SxProps<Theme> = {
@@ -66,6 +71,13 @@ export const chatLiveNavStripSx: SxProps<Theme> = {
   alignItems: "center",
   gap: { xs: 0.5, md: 0.75 },
   width: "100%",
+};
+
+/** Filter button row on chat workstation toolbars (inbox / monitor). */
+export const chatLiveToolbarFilterRowSx: SxProps<Theme> = {
+  display: "inline-flex",
+  flexShrink: 0,
+  alignItems: "center",
 };
 
 export const chatLiveNavRowSx: SxProps<Theme> = {

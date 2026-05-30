@@ -7,11 +7,7 @@ import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import { Button, InputField, Typography } from "@/components/common";
 import { ChatSideToolCard } from "@/features/chat-shared";
-import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
-import {
-  createGuestWhisper,
-  requestGuestTakeover,
-} from "@/services/chat/guest.api";
+import { createGuestWhisper } from "@/services/chat/guest.api";
 import type { StoredGuestSession } from "@/lib/chat/guest-session";
 
 interface GuestSupervisorActionsProps {
@@ -35,13 +31,11 @@ export function GuestSupervisorActions({
 }: GuestSupervisorActionsProps) {
   const theme = useTheme() as AppTheme;
   const [whisperText, setWhisperText] = useState("");
-  const [takeoverNote, setTakeoverNote] = useState("");
-  const [targetAgentId, setTargetAgentId] = useState("");
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
 
-  const { whisper, takeoverRequest } = session.permissions;
-  if (!whisper && !takeoverRequest) return null;
+  const { whisper } = session.permissions;
+  if (!whisper) return null;
 
   const run = async (fn: () => Promise<void>) => {
     setBusy(true);
@@ -69,8 +63,7 @@ export function GuestSupervisorActions({
       }}
     >
       <ChatSideToolCard accent="supervisor" title="Supervisor actions" subtitle={sessionLabel}>
-      {whisper ? (
-        <Box sx={{ mb: 1.5 }}>
+        <Box>
           <InputField
             label="Whisper to assigned agent"
             value={whisperText}
@@ -99,55 +92,15 @@ export function GuestSupervisorActions({
             Send whisper
           </Button>
         </Box>
-      ) : null}
 
-      {takeoverRequest ? (
-        <Box>
-          <InputField
-            label="Takeover note (optional)"
-            value={takeoverNote}
-            onChange={(e) => setTakeoverNote(e.target.value)}
-            disabled={busy}
-          />
-          <InputField
-            label="Target agent ID (optional)"
-            value={targetAgentId}
-            onChange={(e) => setTargetAgentId(e.target.value)}
-            disabled={busy}
-            sx={{ mt: 1 }}
-          />
-          <Button
-            type="button"
-            variant="primary"
-            size="small"
-            fullWidth
-            sx={{ ...gradientPrimaryButtonSx, mt: 1 }}
-            disabled={busy}
-            onClick={() =>
-              void run(async () => {
-                await requestGuestTakeover(session.conversationId, session.accessToken, {
-                  ...(targetAgentId.trim() ? { targetAgentId: targetAgentId.trim() } : {}),
-                  ...(takeoverNote.trim() ? { note: takeoverNote.trim() } : {}),
-                });
-                setTakeoverNote("");
-                setTargetAgentId("");
-                setStatus("Takeover request submitted.");
-              })
-            }
-          >
-            Request takeover
-          </Button>
-        </Box>
-      ) : null}
-
-      {status ? (
-        <>
-          <Divider sx={{ my: 1, borderColor: theme.app.dashboard.cardBorder }} />
-          <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted }}>
-            {status}
-          </Typography>
-        </>
-      ) : null}
+        {status ? (
+          <>
+            <Divider sx={{ my: 1, borderColor: theme.app.dashboard.cardBorder }} />
+            <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted }}>
+              {status}
+            </Typography>
+          </>
+        ) : null}
       </ChatSideToolCard>
     </Box>
   );

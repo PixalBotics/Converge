@@ -13,7 +13,12 @@ export { AuthProvider, useAuth } from "./AuthContext";
 export type { AuthGateState } from "./AuthContext";
 export { validateCredentials, createSession, isSessionValid, MOCK_LOGIN_HINT } from "./mockAuth";
 export type { User, LoginCredentials, AuthSession, AuthUserType } from "./types";
-export { AUTH_PATHS, APP_PATHS, shouldSkipRemoteAuthHydration } from "./auth-paths";
+export {
+  AUTH_PATHS,
+  APP_PATHS,
+  isEmbedAppPath,
+  shouldSkipRemoteAuthHydration,
+} from "./auth-paths";
 export type { AuthPathValue } from "./auth-paths";
 export {
   getAuthEmailRules,

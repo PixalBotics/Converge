@@ -14,22 +14,21 @@ import {
 } from "./conversation-normalizers";
 import { chatAuthHeaders, unwrapChatHttpData } from "./http";
 
+/** @deprecated Use `createWidgetConversation` from `widget-visitor.api` (no dashboard session side effects). */
 export async function createConversation(
   payload: VisitorCreateConversationPayload,
 ): Promise<VisitorCreateConversationResponse> {
-  const { data } = await apiClient.post<unknown>("/chat/widget/conversations", payload);
-  return unwrapChatHttpData<VisitorCreateConversationResponse>(data);
+  const { createWidgetConversation } = await import("./widget-visitor.api");
+  return createWidgetConversation(payload);
 }
 
+/** @deprecated Use `sendWidgetVisitorMessage` from `widget-visitor.api`. */
 export async function sendVisitorMessage(
   conversationId: string,
   payload: VisitorSendMessagePayload,
 ): Promise<unknown> {
-  const { data } = await apiClient.post<unknown>(
-    `/chat/widget/conversations/${encodeURIComponent(conversationId)}/messages`,
-    payload,
-  );
-  return unwrapChatHttpData(data);
+  const { sendWidgetVisitorMessage } = await import("./widget-visitor.api");
+  return sendWidgetVisitorMessage(conversationId, payload);
 }
 
 export async function sendAgentMessage(

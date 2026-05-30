@@ -49,14 +49,20 @@ export function useChatMonitor(
   const [isConnected, setIsConnected] = useState(false);
   const [transcriptLoading, setTranscriptLoading] = useState(false);
   const [transcriptError, setTranscriptError] = useState<string | null>(null);
+  const [visitorTyping, setVisitorTyping] = useState(false);
 
   const messageMapRef = useRef(new Map<string, ChatMessage>());
   const selectedIdRef = useRef<string | null>(null);
+  const selectedIsClosedRef = useRef(false);
   const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     selectedIdRef.current = selectedConversationId;
   }, [selectedConversationId]);
+
+  useEffect(() => {
+    selectedIsClosedRef.current = listTab === "closed";
+  }, [listTab]);
 
   const capabilitiesQuery = useQuery({
     queryKey: chatMonitorKeys.capabilities(),
@@ -172,6 +178,7 @@ export function useChatMonitor(
     setVisitorFromHistory(null);
     setSupervisorControlUserId(null);
     setTranscriptError(null);
+    setVisitorTyping(false);
   }, [socketClient]);
 
   const initialAppliedRef = useRef(false);
@@ -196,9 +203,18 @@ export function useChatMonitor(
         scheduleListRefreshRef.current();
       },
       onChatResumed: () => scheduleListRefreshRef.current(),
-      onVisitorTyping: () => {},
+      onVisitorTyping: (typing) => setVisitorTyping(typing),
+      onSupervisorControl: (payload) => {
+        const cid = conversationIdFromSocketPayload(payload);
+        if (cid && cid === selectedIdRef.current && payload && typeof payload === "object") {
+          const sc = (payload as { supervisorControlUserId?: string | null })
+            .supervisorControlUserId;
+          if (sc !== undefined) setSupervisorControlUserId(sc);
+        }
+        scheduleListRefreshRef.current();
+      },
       selectedConversationIdRef: selectedIdRef,
-      selectedIsClosedRef: { current: false },
+      selectedIsClosedRef,
     },
     setIsConnected,
   );
@@ -275,6 +291,7 @@ export function useChatMonitor(
     supervisorControlUserId,
     transcriptLoading,
     transcriptError,
+    visitorTyping,
     isConnected,
     selectConversation,
     clearSelection,

@@ -8,6 +8,9 @@ import type { AppTheme } from "@/theme/theme";
 import { Typography } from "@/components/common";
 import { distributionWizardDraftNoticeSx } from "@/app/dashboard/distribution-setup/wizard.styles";
 import { WidgetWizardConfigChecklist } from "@/features/chat-widget/components/WidgetWizardConfigChecklist";
+import { WidgetDraftStatusBar } from "@/features/chat-widget/components/WidgetDraftStatusBar";
+import { WidgetPublishStatusChip } from "@/features/chat-widget/components/WidgetPublishStatusChip";
+import { WidgetWizardSaveTracePanel } from "@/features/chat-widget/components/WidgetWizardSaveTraceContext";
 
 export type WidgetWizardPageLayoutProps = {
   children: ReactNode;
@@ -37,6 +40,8 @@ export function WidgetWizardPageLayout({
       }}
     >
       <Box sx={{ display: "flex", flexDirection: "column", gap: 0, minWidth: 0 }}>
+        <WidgetDraftStatusBar variant="wizard" />
+        <WidgetWizardSaveTracePanel />
         {draftNotice ? (
           <Box sx={distributionWizardDraftNoticeSx}>
             <InfoOutlined sx={{ fontSize: 20, mt: 0.15, flexShrink: 0 }} />
@@ -68,11 +73,12 @@ export function WidgetWizardPageLayout({
             boxShadow: "0 12px 40px rgba(0,0,0,0.12)",
           }}
         >
+          <WidgetPublishStatusChip />
           <Typography fontWeight={700} sx={{ fontSize: 15, mb: 0.5 }}>
             Live preview (draft)
           </Typography>
           <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, display: "block", mb: 1.5 }}>
-            Updates as you edit. Publish on Install for the live embed.
+            Matches your edits here — customer sites update after you publish on Install.
           </Typography>
           {preview}
         </Box>

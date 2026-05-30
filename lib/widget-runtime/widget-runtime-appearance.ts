@@ -24,16 +24,41 @@ import {
   toRuntimeInquiryOptions,
   type RuntimeInquiryOption,
 } from "@/lib/chat-widget/widget-inquiry.types";
+import {
+  configRecordFromEnvelope,
+  inquiryFallbackFromExperience,
+  inquiryOptionsFromExperience,
+  parseWidgetExperienceV1,
+} from "./widget-experience";
 import type { WidgetConfigEnvelope } from "./widget-types";
+import {
+  normalizeLauncherBadgeMode,
+  normalizeWidgetSoundId,
+  type WidgetLauncherBadgeMode,
+  type WidgetSoundId,
+} from "./widget-notifications";
+import {
+  resolveProactiveTeaser,
+  resolvePanelGreetingCopy,
+  resolveChatWelcomeCopy,
+} from "@/lib/chat-widget/widget-feature-toggles";
+import type { ProactiveSecondaryCta } from "@/lib/chat-widget/proactive-teaser-types";
 
 export interface RuntimeLauncherAppearance {
   /** `config.ctaButtonText` / `ui.buttonLabel` — FAB accessibility label. */
   buttonLabel: string;
+  /** Invitation bubble above FAB when widget is closed (not unread preview). */
+  proactiveTeaserActive: boolean;
+  proactiveTeaser: string;
+  proactiveTeaserAvatarUrl: string;
+  proactiveSecondaryCta: ProactiveSecondaryCta;
   position: "left" | "center" | "right";
   shape: string;
   insetBottomPx: number;
   insetSidePx: number;
   iconPreset: LauncherIconPresetId;
+  /** Published `ui.buttonIconUrl` — overrides preset when set. */
+  iconUrl: string;
   buttonColor: string;
   buttonHoverColor: string;
   iconColor: string;
@@ -104,6 +129,9 @@ export interface RuntimeChatAppearance {
   banner: RuntimeBannerAppearance;
   videoWelcome: RuntimeVideoWelcomeAppearance;
   inquiryOptions: RuntimeInquiryOption[];
+  inquiryRequired: boolean;
+  inquirySkipLabel: string;
+  inquiryFallback: RuntimeInquiryOption | null;
   handoverTriggerText: string;
   agentHandoverEnabled: boolean;
   botEnabled: boolean;
@@ -115,6 +143,14 @@ export interface RuntimeChatAppearance {
   emojiEnabled: boolean;
   autoOpenEnabled: boolean;
   autoOpenDelaySeconds: number;
+  /** When false, auto-open only on first site visit (localStorage marker). */
+  autoOpenOnReturnVisit: boolean;
+  notificationEnabled: boolean;
+  soundNotification: boolean;
+  notificationSoundId: WidgetSoundId;
+  launcherBadgeMode: WidgetLauncherBadgeMode;
+  fallbackNotificationText: string;
+  motionEnabled: boolean;
   /** `theme.designJson.accent` / `density` — panel spacing + accent family. */
   designAccent: DesignAccentId;
   designDensity: DesignDensityId;
@@ -233,10 +269,7 @@ export function resolveRuntimeConfigRecord(envelope: WidgetConfigEnvelope): Reco
     allowedDomains: envelope.allowedDomains,
   };
 
-  const cfg =
-    envelope.config !== undefined && isObj(envelope.config)
-      ? ({ ...envelope.config } as Record<string, unknown>)
-      : {};
+  let cfg = configRecordFromEnvelope(envelope);
 
   const settingsJson = cfg.settingsJson;
   if (isObj(settingsJson)) {
@@ -288,17 +321,25 @@ export function extractRuntimeChatAppearance(
     theme?.buttonHoverColor,
     buttonColor,
   );
-  const iconColor = strFirst(colors?.icon, designTokens?.iconColor, resolvedColors.outgoingBubbleText);
+  const iconColor = strFirst(
+    colors?.icon,
+    theme?.textColor,
+    designTokens?.iconColor,
+    resolvedColors.outgoingBubbleText,
+  );
   const headerTextColor = resolvedColors.headerText;
   const bodyTextColor = resolvedColors.bodyText;
   const mutedTextColor = resolvedColors.mutedText;
 
-  const panelGreetingMessage = strFirst(
-    configRecord.greetingMessage,
-    chatBox?.greetingMessage,
-    ui?.greetingMessage,
-    behavior?.welcomeMessage,
-    "How can we help?",
+  const panelGreetingMessage = resolvePanelGreetingCopy(
+    strFirst(
+      configRecord.greetingMessage,
+      chatBox?.greetingMessage,
+      ui?.greetingMessage,
+      behavior?.welcomeMessage,
+      "How can we help?",
+    ),
+    { ...ui, ...djUi, panelGreetingEnabled: ui?.panelGreetingEnabled },
   );
 
   const welcomeMessage = strFirst(
@@ -336,15 +377,34 @@ export function extractRuntimeChatAppearance(
     ),
   );
 
+  const notificationEnabled = runtimeBoolFirst(
+    true,
+    behavior?.notificationEnabled,
+    behavior?.browserNotification,
+  );
+  const soundNotification = behavior?.soundNotification === true;
+  const notificationSoundId = normalizeWidgetSoundId(
+    behavior?.notificationSoundId ?? behavior?.soundId,
+  );
+  const launcherBadgeMode = normalizeLauncherBadgeMode(
+    behavior?.launcherBadgeMode ?? behavior?.launcherBadge,
+  );
+  const fallbackNotificationText = strFirst(
+    behavior?.fallbackNotificationText,
+    behavior?.fallbackNotification,
+    configRecord.fallbackNotificationText,
+    "You have a new message from support.",
+  );
+  const autoOpenOnReturnVisit =
+    behavior?.autoOpenOnReturnVisit === true || behavior?.autoOpenReturnVisit === true;
+
   return {
     colors: resolvedColors,
     welcomeMessage,
     panelGreetingMessage,
-    firstMessage: strFirst(
-      ui?.firstMessage,
-      configRecord.firstMessage,
-      chatBox?.firstMessage,
-      "",
+    firstMessage: resolveChatWelcomeCopy(
+      strFirst(ui?.firstMessage, configRecord.firstMessage, chatBox?.firstMessage, ""),
+      { ...ui, ...djUi },
     ),
     offlineMessage: strFirst(
       response?.offlineMessage,
@@ -390,11 +450,49 @@ export function extractRuntimeChatAppearance(
     emojiEnabled: runtimeBoolFirst(true, configRecord.emojiEnabled, behavior?.emojiEnabled),
     autoOpenEnabled,
     autoOpenDelaySeconds,
+    autoOpenOnReturnVisit,
+    notificationEnabled,
+    soundNotification,
+    notificationSoundId,
+    launcherBadgeMode,
+    fallbackNotificationText,
+    motionEnabled: behavior?.motionEnabled !== false,
     designAccent,
     designDensity,
     accentPalette,
     densityTokens,
-    inquiryOptions: parseInquiryOptions(behavior),
+    inquiryOptions: (() => {
+      const chatMode = String(configRecord.mode ?? configRecord.chatMode ?? "").toUpperCase();
+      if (chatMode === "AI_ONLY") return [];
+      const exp = parseWidgetExperienceV1(configRecord._experience);
+      if (exp?.inquiry.enabled) return inquiryOptionsFromExperience(exp);
+      return parseInquiryOptions(behavior);
+    })(),
+    inquiryRequired: (() => {
+      const exp = parseWidgetExperienceV1(configRecord._experience);
+      if (exp) return exp.inquiry.required;
+      return behavior?.inquiryRequired === true;
+    })(),
+    inquirySkipLabel: strFirst(
+      behavior?.inquirySkipLabel,
+      "General question",
+    ),
+    inquiryFallback: (() => {
+      const exp = parseWidgetExperienceV1(configRecord._experience);
+      if (exp) return inquiryFallbackFromExperience(exp);
+      const key = strFirst(behavior?.inquiryFallbackRoutingKey);
+      const opts = parseInquiryOptions(behavior);
+      if (key) {
+        return opts.find((o) => o.routingKey === key) ?? opts[0] ?? null;
+      }
+      return (
+        opts.find(
+          (o) => o.internalDepartmentId?.trim() || o.externalDepartmentId?.trim(),
+        ) ??
+        opts[0] ??
+        null
+      );
+    })(),
     form: {
       title: strFirst(formCfg?.title, configRecord.preChatFormText, "Before we start"),
       subtitle: strFirst(formCfg?.subtitle, "Tell us who you are"),
@@ -425,17 +523,23 @@ export function extractRuntimeChatAppearance(
         configRecord.videoWelcomeOn === true,
       url: strFirst(behavior?.videoWelcomeUrl, configRecord.videoWelcomeUrl),
     },
-    launcher: {
+    launcher: (() => {
+      const teaser = resolveProactiveTeaser({ ...djUi, ...ui });
+      return {
       buttonLabel: strFirst(
         configRecord.ctaButtonText,
         ui?.buttonLabel,
         djUi?.buttonLabel,
         "Chat with us",
       ),
+      proactiveTeaserActive: teaser.active,
+      proactiveTeaser: teaser.text,
+      proactiveTeaserAvatarUrl: teaser.avatarUrl,
+      proactiveSecondaryCta: teaser.secondaryCta,
       position: normalizePosition(
-        strFirst(launcher?.position, ui?.buttonPosition, theme?.position, "right"),
+        strFirst(ui?.buttonPosition, theme?.position, launcher?.position, "right"),
       ),
-      shape: strFirst(launcher?.shape, ui?.buttonShape, theme?.buttonShape, "circle"),
+      shape: strFirst(ui?.buttonShape, theme?.buttonShape, launcher?.shape, "circle"),
       insetBottomPx: numFirst(
         launcher?.insetBottomPx,
         ui?.launcherInsetBottomPx,
@@ -447,14 +551,17 @@ export function extractRuntimeChatAppearance(
         strFirst(
           launcher?.iconPreset,
           ui?.launcherIconPreset,
+          ui?.iconPreset,
           djUi?.launcherIconPreset,
           "phosphor-chat-circle",
         ),
       ),
+      iconUrl: strFirst(launcher?.iconUrl, ui?.buttonIconUrl),
       buttonColor,
       buttonHoverColor: buttonHover,
       iconColor,
-    },
+    };
+    })(),
     chatBox: {
       headerTitle: strFirst(chatBox?.headerTitle, ui?.headerTitle, "Live chat"),
       headerAlign: normalizeHeaderAlign(

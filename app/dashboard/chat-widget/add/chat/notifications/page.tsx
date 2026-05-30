@@ -3,16 +3,19 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Box from "@mui/material/Box";
+import Stack from "@mui/material/Stack";
 import Switch from "@mui/material/Switch";
 import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import { Button, InputField, SelectField, Typography } from "@/components/common";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
 import { WidgetFlowShell } from "@/features/chat-widget";
+import { mergeWizardDraftForPublish } from "@/lib/chat-widget/merge-wizard-draft-for-publish";
 import {
-  patchRemoteWidgetConfiguration,
+  patchRemoteWidgetConfigurationWithMeta,
   summarizePatchResult,
 } from "@/lib/chat-widget/widget-remote-sync";
+import { useWidgetWizardSaveTrace } from "@/features/chat-widget/components/WidgetWizardSaveTraceContext";
 import { extractApiErrorMessageForToast } from "@/lib/notify/extract-api-message";
 import { publishAppToast } from "@/lib/notify";
 import {
@@ -25,6 +28,8 @@ import {
 } from "@/lib/chat-widget/chat-wizard-edit";
 import { WidgetBehaviorLivePreview } from "@/components/dashboard/chat-widget/WidgetBehaviorLivePreview";
 import { WidgetWizardPageLayout } from "@/features/chat-widget/components/WidgetWizardPageLayout";
+import { WidgetWizardSiteChromePreview } from "@/features/chat-widget/components/WidgetWizardSiteChromePreview";
+import Link from "next/link";
 import { WidgetWizardToggleRow } from "@/features/chat-widget/components/WidgetWizardToggleRow";
 import { SchedulingSectionCard } from "@/features/website-assignments/components/ServiceSchedulingSections";
 import { readWidgetChatColorsFromDraft } from "@/lib/chat-widget/widget-colors-draft";
@@ -42,11 +47,33 @@ import {
 import { normalizeWidgetInquiryOptions } from "@/lib/chat-widget/widget-inquiry.types";
 import { useInquiryTopicsForWebsite } from "@/lib/chat-widget/use-inquiry-topics-for-website";
 import { mergeDraftAllowedDomains } from "@/lib/chat-widget/default-allowed-domains";
+import { WidgetWizardStepGuide } from "@/features/chat-widget/components/WidgetWizardStepGuide";
+import {
+  WidgetDomainListField,
+  WidgetNumericField,
+  WidgetTextField,
+  WidgetUrlField,
+} from "@/features/chat-widget/components/WidgetFormFields";
+import {
+  FIELD_MAX,
+  parseDomainListInput,
+  validateDomainListInput,
+  validateSingleHttpUrl,
+  validateVideoEmbedUrl,
+} from "@/lib/chat-widget/widget-field-validation";
+import {
+  normalizeLauncherBadgeMode,
+  normalizeWidgetSoundId,
+} from "@/lib/widget-runtime/widget-notifications";
+import { useWizardLauncherChrome } from "@/lib/chat-widget/use-wizard-launcher-preview";
+import { resolveWizardLauncherPreview } from "@/lib/chat-widget/widget-wizard-save-trace";
 
 export default function ChatWidgetNotificationsPage() {
   const router = useRouter();
   const theme = useTheme() as AppTheme;
+  const { recordSave } = useWidgetWizardSaveTrace();
   const { editWidgetKey, draftReady, hydrateError } = useChatWidgetWizardEdit();
+  const d0 = defaultWidgetDraft;
   const [browserNotification, setBrowserNotification] = useState(true);
   const [soundNotification, setSoundNotification] = useState(false);
   const [chatMode, setChatMode] = useState<WidgetInstallChatMode>("HYBRID");
@@ -56,15 +83,31 @@ export default function ChatWidgetNotificationsPage() {
   const [videoWelcomeUrl, setVideoWelcomeUrl] = useState("");
   const [saving, setSaving] = useState(false);
   const [checklistRefreshKey, setChecklistRefreshKey] = useState(0);
+  const { chromeDraft } = useWizardLauncherChrome(
+    editWidgetKey,
+    draftReady,
+    checklistRefreshKey,
+  );
   const [fallbackText, setFallbackText] = useState(
     "You have a new message from support.",
   );
-
-  const d0 = defaultWidgetDraft;
+  const [motionEnabled, setMotionEnabled] = useState(d0.motionEnabled !== false);
   const [botEnabled, setBotEnabled] = useState(d0.botEnabled ?? true);
-  const [inquiryOn, setInquiryOn] = useState(d0.inquiryOn ?? false);
+  const [inquiryRequired, setInquiryRequired] = useState(d0.inquiryRequired ?? false);
+  const [inquirySkipLabel, setInquirySkipLabel] = useState(
+    d0.inquirySkipLabel ?? "General question",
+  );
   const [autoOpenEnabled, setAutoOpenEnabled] = useState(d0.autoOpenEnabled ?? false);
+  const [autoOpenOnReturnVisit, setAutoOpenOnReturnVisit] = useState(
+    d0.autoOpenOnReturnVisit ?? false,
+  );
   const [autoOpenDelayStr, setAutoOpenDelayStr] = useState(String(d0.autoOpenDelaySeconds ?? 10));
+  const [notificationSoundId, setNotificationSoundId] = useState<
+    "soft" | "chime" | "ping" | "none"
+  >(d0.notificationSoundId ?? "chime");
+  const [launcherBadgeMode, setLauncherBadgeMode] = useState<"count" | "dot" | "none">(
+    d0.launcherBadgeMode ?? "count",
+  );
   const [consentRequired, setConsentRequired] = useState(d0.consentRequired ?? true);
   const [consentText, setConsentText] = useState(d0.consentText ?? "");
   const [privacyPolicyUrl, setPrivacyPolicyUrl] = useState(d0.privacyPolicyUrl ?? "");
@@ -117,7 +160,14 @@ export default function ChatWidgetNotificationsPage() {
     setFallbackText(d.fallbackNotificationText ?? def.fallbackNotificationText ?? "");
     setBotEnabled(d.botEnabled ?? def.botEnabled ?? true);
     setAutoOpenEnabled(d.autoOpenEnabled ?? d.popupEnabled ?? false);
+    setAutoOpenOnReturnVisit(d.autoOpenOnReturnVisit ?? def.autoOpenOnReturnVisit ?? false);
     setAutoOpenDelayStr(String(d.autoOpenDelaySeconds ?? def.autoOpenDelaySeconds ?? 10));
+    setNotificationSoundId(
+      normalizeWidgetSoundId(d.notificationSoundId ?? def.notificationSoundId ?? "chime"),
+    );
+    setLauncherBadgeMode(
+      normalizeLauncherBadgeMode(d.launcherBadgeMode ?? def.launcherBadgeMode ?? "count"),
+    );
     setConsentRequired(d.consentRequired ?? def.consentRequired ?? true);
     setConsentText(d.consentText ?? def.consentText ?? "");
     setPrivacyPolicyUrl(d.privacyPolicyUrl ?? def.privacyPolicyUrl ?? "");
@@ -132,9 +182,12 @@ export default function ChatWidgetNotificationsPage() {
     setPrechatMessageRequired(d.prechatMessageRequired ?? def.prechatMessageRequired ?? false);
     setResponseOfflineMessage(d.responseOfflineMessage ?? def.responseOfflineMessage ?? "");
     setResponseAgentHandoverEnabled(d.responseAgentHandoverEnabled ?? def.responseAgentHandoverEnabled ?? true);
+    setMotionEnabled(d.motionEnabled !== false);
     setResponseHandoverTriggerText(
       d.responseHandoverTriggerText ?? def.responseHandoverTriggerText ?? "Talk to agent",
     );
+    setInquiryRequired(d.inquiryRequired ?? def.inquiryRequired ?? false);
+    setInquirySkipLabel(d.inquirySkipLabel ?? def.inquirySkipLabel ?? "General question");
   }, [draftReady, editWidgetKey]);
 
   useEffect(() => {
@@ -143,7 +196,6 @@ export default function ChatWidgetNotificationsPage() {
     const def = defaultWidgetDraft;
 
     if (topicsFromScheduling.length > 0) {
-      setInquiryOn(true);
       saveChatWizardDraft(editKey, {
         inquiryOptions: normalizeWidgetInquiryOptions(topicsFromScheduling),
         inquiryOn: true,
@@ -152,15 +204,27 @@ export default function ChatWidgetNotificationsPage() {
     }
 
     const d = readChatWizardDraft(editKey);
-    const inquiryArr = normalizeWidgetInquiryOptions(d.inquiryOptions ?? def.inquiryOptions);
-    setInquiryOn(d.inquiryOn ?? inquiryArr.length > 0);
+    setInquiryRequired(d.inquiryRequired ?? def.inquiryRequired ?? false);
+    setInquirySkipLabel(d.inquirySkipLabel ?? def.inquirySkipLabel ?? "General question");
   }, [draftReady, editWidgetKey, inquiryTopicsLoading, schedulingTopicsFingerprint]);
 
+  const inquiryOnFromDraft = useMemo(() => {
+    if (!draftReady) return false;
+    const d = readChatWizardDraft(resolveEditWidgetKeyForNavigation(editWidgetKey) || undefined);
+    const opts = normalizeWidgetInquiryOptions(d.inquiryOptions ?? []);
+    return d.inquiryOn === true || opts.length > 0;
+  }, [draftReady, editWidgetKey, checklistRefreshKey]);
+
   const inquiryOptionsList = useMemo(() => {
-    if (!inquiryOn || !draftReady) return [];
+    if (!inquiryOnFromDraft || !draftReady) return [];
     const d = readChatWizardDraft(resolveEditWidgetKeyForNavigation(editWidgetKey) || undefined);
     return normalizeWidgetInquiryOptions(d.inquiryOptions).map((o) => o.label);
-  }, [inquiryOn, draftReady, editWidgetKey]);
+  }, [inquiryOnFromDraft, draftReady, editWidgetKey]);
+
+  const remoteWidgetKey = useMemo(() => {
+    const d = readChatWizardDraft(resolveEditWidgetKeyForNavigation(editWidgetKey) || undefined);
+    return resolveRemoteWidgetKeyForChatWizard(editWidgetKey, d);
+  }, [editWidgetKey, draftReady, checklistRefreshKey]);
 
   const behaviorPreviewModel = useMemo(() => {
     const draft = draftReady
@@ -183,7 +247,7 @@ export default function ChatWidgetNotificationsPage() {
       prechatMessageEnabled,
       consentRequired,
       consentText: consentText.trim(),
-      inquiryOn,
+      inquiryOn: inquiryOnFromDraft,
       inquiryOptions: inquiryOptionsList,
       handoverEnabled: responseAgentHandoverEnabled,
       handoverTriggerText: responseHandoverTriggerText.trim(),
@@ -211,7 +275,7 @@ export default function ChatWidgetNotificationsPage() {
     prechatMessageEnabled,
     consentRequired,
     consentText,
-    inquiryOn,
+    inquiryOnFromDraft,
     inquiryOptionsList,
     responseAgentHandoverEnabled,
     responseHandoverTriggerText,
@@ -233,14 +297,59 @@ export default function ChatWidgetNotificationsPage() {
         return;
       }
 
+      if (videoWelcomeOn) {
+        const videoErr = validateVideoEmbedUrl(videoWelcomeUrl);
+        if (videoErr) {
+          publishAppToast({ variant: "error", message: videoErr });
+          return;
+        }
+      }
+      if (consentRequired && privacyPolicyUrl.trim()) {
+        const privacyErr = validateSingleHttpUrl(privacyPolicyUrl, {
+          label: "Privacy policy URL",
+        });
+        if (privacyErr) {
+          publishAppToast({ variant: "error", message: privacyErr });
+          return;
+        }
+      }
+      const domainErr = validateDomainListInput(allowedDomainsInput);
+      if (domainErr) {
+        publishAppToast({ variant: "error", message: domainErr });
+        return;
+      }
+
       setSaving(true);
       try {
         const autoOpenDelay = Math.min(300, Math.max(0, Number.parseInt(autoOpenDelayStr, 10) || 10));
+        const draftBefore = readChatWizardDraft(editKey || undefined);
+        const inquiryOn = draftBefore.inquiryOn === true || normalizeWidgetInquiryOptions(draftBefore.inquiryOptions ?? []).length > 0;
+        const launcherFromStep1 = resolveWizardLauncherPreview(prev);
         saveChatWizardDraft(editKey || undefined, {
+          ...launcherFromStep1,
+          buttonShape: launcherFromStep1.buttonShape,
+          buttonPosition: launcherFromStep1.buttonPosition,
+          launcherInsetBottomPx: launcherFromStep1.launcherInsetBottomPx,
+          launcherInsetSidePx: launcherFromStep1.launcherInsetSidePx,
+          buttonColor: launcherFromStep1.buttonColor,
+          buttonHoverColor: launcherFromStep1.buttonHoverColor,
+          iconColor: launcherFromStep1.iconColor,
+          iconDataUrl: launcherFromStep1.iconDataUrl,
+          launcherIconPreset: launcherFromStep1.launcherIconPreset,
+          proactiveTeaserEnabled: prev.proactiveTeaserEnabled,
+          proactiveTeaser: prev.proactiveTeaser,
+          proactiveTeaserAvatarEnabled: prev.proactiveTeaserAvatarEnabled,
+          proactiveTeaserAvatarDataUrl: prev.proactiveTeaserAvatarDataUrl,
+          proactiveSecondaryCtaEnabled: prev.proactiveSecondaryCtaEnabled,
+          proactiveSecondaryCtaLabel: prev.proactiveSecondaryCtaLabel,
+          proactiveSecondaryCtaHref: prev.proactiveSecondaryCtaHref,
+          proactiveSecondaryCtaKind: prev.proactiveSecondaryCtaKind,
+          themeDesignJsonAccent: prev.themeDesignJsonAccent,
+          themeDesignJsonDensity: prev.themeDesignJsonDensity,
           chatMode,
           aiType: shouldShowWidgetAiType(chatMode) ? aiType : undefined,
           allowedDomains: mergeDraftAllowedDomains(
-            allowedDomainsInput.split(",").map((s) => s.trim()),
+            parseDomainListInput(allowedDomainsInput),
           ),
           browserNotification,
           soundNotification,
@@ -248,14 +357,22 @@ export default function ChatWidgetNotificationsPage() {
           fallbackNotificationText: fallbackText.trim() || "New message from support",
           videoWelcomeOn,
           videoWelcomeUrl: videoWelcomeUrl.trim(),
-          botEnabled,
+          botEnabled: chatMode === "AGENT_ONLY" ? false : botEnabled,
           inquiryOn,
+          inquiryRequired: inquiryOn ? inquiryRequired : false,
+          inquirySkipLabel: inquirySkipLabel.trim() || "General question",
+          inquiryFallbackRoutingKey: draftBefore.inquiryFallbackRoutingKey?.trim() || undefined,
           inquiryOptions: inquiryOn
-            ? normalizeWidgetInquiryOptions(readChatWizardDraft(editKey || undefined).inquiryOptions)
+            ? normalizeWidgetInquiryOptions(draftBefore.inquiryOptions)
             : [],
           autoOpenEnabled,
+          autoOpenOnReturnVisit,
           autoOpenDelaySeconds: autoOpenDelay,
           popupEnabled: autoOpenEnabled,
+          notificationSoundId: normalizeWidgetSoundId(
+            soundNotification ? notificationSoundId : "none",
+          ),
+          launcherBadgeMode: normalizeLauncherBadgeMode(launcherBadgeMode),
           consentRequired,
           consentText: consentText.trim(),
           privacyPolicyUrl: privacyPolicyUrl.trim(),
@@ -271,10 +388,11 @@ export default function ChatWidgetNotificationsPage() {
           responseOfflineMessage: responseOfflineMessage.trim(),
           responseAgentHandoverEnabled,
           responseHandoverTriggerText: responseHandoverTriggerText.trim() || "Talk to agent",
+          motionEnabled,
           ...syncResponseCopyFromChatBox(prev),
         });
         const latest = readChatWizardDraft(editKey || undefined);
-        const patchInner = await patchRemoteWidgetConfiguration({
+        const patchMeta = await patchRemoteWidgetConfigurationWithMeta({
           widgetKey: rk,
           widgetKind: "chat",
           draft: latest,
@@ -282,15 +400,26 @@ export default function ChatWidgetNotificationsPage() {
           embedAllowAnyOrigin: false,
           chatWizardPatchScope: "notifications_only",
         });
-        const sum = summarizePatchResult(patchInner);
+        recordSave({
+          stepKey: "notifications",
+          stepLabel: "Step 3 — Notifications",
+          method: patchMeta.method,
+          path: patchMeta.path,
+          scope: patchMeta.scope,
+          publishNow: patchMeta.publishNow,
+          requestBody: patchMeta.requestBody,
+          responseBody: patchMeta.inner,
+        });
+        const sum = summarizePatchResult(patchMeta.inner);
         saveChatWizardDraft(editKey || undefined, {
+          ...mergeWizardDraftForPublish(readChatWizardDraft(editKey || undefined)),
           requiresPublishBeforeEmbed: sum.requiresPublishBeforeEmbed,
         });
         setChecklistRefreshKey((k) => k + 1);
         router.push(
           withChatEditQuery(
             "/dashboard/chat-widget/add/chat/script",
-            resolveEditWidgetKeyForNavigation(editKey),
+            resolveEditWidgetKeyForNavigation(editKey) || rk,
           ),
         );
       } catch (e) {
@@ -323,7 +452,7 @@ export default function ChatWidgetNotificationsPage() {
             disabled={saving || !draftReady}
             onClick={handleSaveAndNext}
           >
-            {saving ? "Saving…" : "Next"}
+            {saving ? "Saving…" : "Next: Install & publish"}
           </Button>
         </>
       }
@@ -340,8 +469,14 @@ export default function ChatWidgetNotificationsPage() {
       ) : null}
       <WidgetWizardPageLayout
         checklistRefreshKey={checklistRefreshKey}
-        preview={<WidgetBehaviorLivePreview model={behaviorPreviewModel} />}
+        preview={
+          <Stack spacing={2.5}>
+            <WidgetWizardSiteChromePreview draft={chromeDraft} />
+            <WidgetBehaviorLivePreview model={behaviorPreviewModel} />
+          </Stack>
+        }
       >
+        <WidgetWizardStepGuide step="notifications" />
         <SchedulingSectionCard
           title="Notification settings"
           subtitle="Browser and sound alerts when the visitor tab is in the background."
@@ -356,13 +491,46 @@ export default function ChatWidgetNotificationsPage() {
             checked={soundNotification}
             onChange={setSoundNotification}
           />
+          {soundNotification ? (
+            <Box sx={{ mt: 1.5 }}>
+              <SelectField
+                label="Sound style"
+                value={notificationSoundId}
+                onChange={(v) =>
+                  setNotificationSoundId(v as "soft" | "chime" | "ping" | "none")
+                }
+                options={[
+                  { label: "Chime", value: "chime" },
+                  { label: "Soft", value: "soft" },
+                  { label: "Ping", value: "ping" },
+                ]}
+                searchable={false}
+                menuMaxRows={4}
+              />
+            </Box>
+          ) : null}
           <Box sx={{ mt: 1.5 }}>
-            <InputField
+            <SelectField
+              label="Launcher alert on new message"
+              value={launcherBadgeMode}
+              onChange={(v) => setLauncherBadgeMode(v as "count" | "dot" | "none")}
+              options={[
+                { label: "Count badge (1, 2, …)", value: "count" },
+                { label: "Dot only", value: "dot" },
+                { label: "Hidden", value: "none" },
+              ]}
+              searchable={false}
+              menuMaxRows={4}
+            />
+          </Box>
+          <Box sx={{ mt: 1.5 }}>
+            <WidgetTextField
               label="Fallback notification text"
               name="fallback"
               value={fallbackText}
-              onChange={(e) => setFallbackText(e.target.value)}
-              inputProps={{ maxLength: 120 }}
+              onChange={setFallbackText}
+              maxLength={FIELD_MAX.title}
+              helperText="Shown when a new message arrives in the background."
             />
           </Box>
         </SchedulingSectionCard>
@@ -399,32 +567,35 @@ export default function ChatWidgetNotificationsPage() {
                 />
               </Box>
               {responseAgentHandoverEnabled ? (
-                <InputField
+                <WidgetTextField
                   label="Talk to agent button label"
                   name="handover-label"
                   value={responseHandoverTriggerText}
-                  onChange={(e) => setResponseHandoverTriggerText(e.target.value)}
+                  onChange={setResponseHandoverTriggerText}
+                  maxLength={FIELD_MAX.shortLabel}
                   placeholder="Talk to agent"
                 />
               ) : null}
             </>
           ) : null}
           <Box sx={{ mt: 1.5 }}>
-            <InputField
+            <WidgetTextField
               label="Offline message"
               name="resp-offline"
               value={responseOfflineMessage}
-              onChange={(e) => setResponseOfflineMessage(e.target.value)}
+              onChange={setResponseOfflineMessage}
+              maxLength={FIELD_MAX.message}
               placeholder="We are offline; leave a message and we will reply."
+              helperText="When no agent is available on the site."
             />
           </Box>
           <Box sx={{ mt: 1.5 }}>
-            <InputField
-              label="Allowed domains (comma-separated hosts, optional)"
+            <WidgetDomainListField
+              label="Allowed website domains"
               name="allowed-domains"
               value={allowedDomainsInput}
-              onChange={(e) => setAllowedDomainsInput(e.target.value)}
-              placeholder="example.com, app.example.com"
+              onChange={setAllowedDomainsInput}
+              helperText="Where the embed may load — hostnames only (not full page URLs)."
             />
           </Box>
         </SchedulingSectionCard>
@@ -433,27 +604,74 @@ export default function ChatWidgetNotificationsPage() {
           title="Widget behavior"
           subtitle="Bot, inquiry pills, and auto-open."
         >
-          <WidgetWizardToggleRow label="Bot enabled" checked={botEnabled} onChange={setBotEnabled} />
-          <WidgetWizardToggleRow label="Inquiry topic pills" checked={inquiryOn} onChange={setInquiryOn} />
-          {inquiryOn ? (
-            <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, mb: 1 }}>
-              Topics are edited on <strong>Chat Box Design</strong> (
-              {inquiryOptionsList.length} topic
-              {inquiryOptionsList.length === 1 ? "" : "s"}
-              {inquiryOptionsList.length ? `: ${inquiryOptionsList.join(", ")}` : ""}).
-            </Typography>
+          {chatMode !== "AGENT_ONLY" ? (
+            <WidgetWizardToggleRow
+              label="AI bot enabled"
+              description="Turn off to stop automatic AI replies (Hybrid / AI only)."
+              checked={botEnabled}
+              onChange={setBotEnabled}
+            />
           ) : (
-            <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, mb: 1 }}>
-              Topic pills are hidden. Enable them on the Chat Box Design step.
+            <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, display: "block", mb: 1 }}>
+              Agent-only mode — live agents reply; AI bot is off.
             </Typography>
           )}
+          <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, mb: 1 }}>
+            Inquiry topic pills:{" "}
+            <strong>{inquiryOnFromDraft ? "On" : "Off"}</strong>
+            {inquiryOnFromDraft
+              ? ` (${inquiryOptionsList.length} topic${inquiryOptionsList.length === 1 ? "" : "s"}${inquiryOptionsList.length ? `: ${inquiryOptionsList.join(", ")}` : ""})`
+              : ""}
+            . Edit topics and fallback on{" "}
+            <Box
+              component={Link}
+              href={withChatEditQuery(
+                "/dashboard/chat-widget/add/chat/box",
+                resolveEditWidgetKeyForNavigation(editWidgetKey),
+              )}
+              sx={{ color: theme.palette.primary.light, fontWeight: 600 }}
+            >
+              Chat Box Design
+            </Box>
+            .
+          </Typography>
+          {inquiryOnFromDraft ? (
+            <>
+              <WidgetWizardToggleRow
+                label="Require topic selection"
+                description="When off, visitors can use the general fallback topic (routes via fallback department)."
+                checked={inquiryRequired}
+                onChange={setInquiryRequired}
+              />
+              <WidgetTextField
+                label="Skip / general topic label"
+                name="inquiry-skip-label"
+                value={inquirySkipLabel}
+                onChange={setInquirySkipLabel}
+                maxLength={FIELD_MAX.shortLabel}
+              />
+            </>
+          ) : null}
           <WidgetWizardToggleRow label="Auto-open widget" checked={autoOpenEnabled} onChange={setAutoOpenEnabled} />
-          <InputField
+          <WidgetWizardToggleRow
+            label="Auto-open on return visits"
+            description="When off, auto-open runs only the first time this browser sees the widget."
+            checked={autoOpenOnReturnVisit}
+            onChange={setAutoOpenOnReturnVisit}
+          />
+          <WidgetNumericField
             label="Auto-open delay (seconds)"
             name="auto-open-delay"
             value={autoOpenDelayStr}
-            onChange={(e) => setAutoOpenDelayStr(e.target.value)}
-            inputProps={{ inputMode: "numeric" }}
+            onChange={setAutoOpenDelayStr}
+            min={0}
+            max={300}
+          />
+          <WidgetWizardToggleRow
+            label="Subtle animations"
+            description="Teaser slide-in and panel open transition on the live embed."
+            checked={motionEnabled}
+            onChange={setMotionEnabled}
           />
         </SchedulingSectionCard>
 
@@ -467,12 +685,13 @@ export default function ChatWidgetNotificationsPage() {
             onChange={setVideoWelcomeOn}
           />
           {videoWelcomeOn ? (
-            <InputField
+            <WidgetUrlField
               label="Video URL (YouTube / Vimeo)"
               name="video-welcome-url"
               value={videoWelcomeUrl}
-              onChange={(e) => setVideoWelcomeUrl(e.target.value)}
-              placeholder="https://www.youtube.com/watch?v=..."
+              onChange={setVideoWelcomeUrl}
+              videoEmbed
+              helperText="One embed link — shown before chat starts."
             />
           ) : null}
         </SchedulingSectionCard>
@@ -482,18 +701,20 @@ export default function ChatWidgetNotificationsPage() {
           subtitle="Collect visitor details before chat starts. Greeting and chat copy stay on Chat Box Design."
         >
           <WidgetWizardToggleRow label="Form enabled" checked={formEnabled} onChange={setFormEnabled} />
-          <InputField label="Form title" name="form-title" value={formTitle} onChange={(e) => setFormTitle(e.target.value)} />
-          <InputField
+          <WidgetTextField label="Form title" name="form-title" value={formTitle} onChange={setFormTitle} maxLength={FIELD_MAX.title} />
+          <WidgetTextField
             label="Form subtitle"
             name="form-subtitle"
             value={formSubtitle}
-            onChange={(e) => setFormSubtitle(e.target.value)}
+            onChange={setFormSubtitle}
+            maxLength={FIELD_MAX.message}
           />
-          <InputField
+          <WidgetTextField
             label="Start chat button label"
             name="form-submit"
             value={formSubmitLabel}
-            onChange={(e) => setFormSubmitLabel(e.target.value)}
+            onChange={setFormSubmitLabel}
+            maxLength={FIELD_MAX.shortLabel}
           />
           <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, mb: 0.5, mt: 0.5 }}>
             Fields to show
@@ -523,17 +744,19 @@ export default function ChatWidgetNotificationsPage() {
           </Box>
           {consentRequired ? (
             <>
-              <InputField
+              <WidgetTextField
                 label="Consent text"
                 name="consent-text"
                 value={consentText}
-                onChange={(e) => setConsentText(e.target.value)}
+                onChange={setConsentText}
+                maxLength={FIELD_MAX.message}
               />
-              <InputField
+              <WidgetUrlField
                 label="Privacy policy URL"
                 name="privacy-url"
                 value={privacyPolicyUrl}
-                onChange={(e) => setPrivacyPolicyUrl(e.target.value)}
+                onChange={setPrivacyPolicyUrl}
+                helperText="Link opened from the consent checkbox."
               />
             </>
           ) : null}

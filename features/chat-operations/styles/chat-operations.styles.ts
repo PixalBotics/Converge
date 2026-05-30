@@ -7,16 +7,18 @@ function dash(theme: Theme) {
   return (theme as AppTheme).app.dashboard;
 }
 
-/** Full-bleed inbox workstation (Intercom / Front style). */
+/** Full-bleed inbox workstation (Intercom / Front style) — fills main column under dashboard header. */
 export const chatOpsPageWrapper: SxProps<Theme> = {
-  width: { xs: "calc(100% + 24px)", sm: "calc(100% + 32px)", md: "calc(100% + 40px)" },
+  width: { xs: "calc(100% + 8px)", sm: "calc(100% + 12px)", md: "calc(100% + 16px)" },
   maxWidth: "none",
-  mx: { xs: -1.5, sm: -2, md: -2.5 },
+  mx: { xs: -0.5, sm: -0.75, md: -1 },
   display: "flex",
   flexDirection: "column",
   flex: 1,
-  minHeight: { xs: 480, lg: "calc(100vh - 10.5rem)" },
+  minHeight: 0,
+  height: "100%",
   minWidth: 0,
+  overflow: "hidden",
 };
 
 /** Single shell — theme card surface (works with dynamic presets). */

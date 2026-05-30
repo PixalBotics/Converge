@@ -27,7 +27,6 @@ export {
   patchWidgetConfiguration,
   deleteWidget,
   publishWidget,
-  rollbackWidget,
   uploadWidgetAsset,
   widgetResponseData,
 } from "./widgets";
@@ -52,7 +51,9 @@ export type {
   PlatformThemeMeData,
   PlatformThemeMeEnvelope,
   PlatformThemePatchBody,
+  PlatformThemeView,
 } from "./types/platform-theme.types";
+export { readPlatformThemeBackgroundColor } from "./types/platform-theme.types";
 export {
   clearTokens,
   getAccessToken,

@@ -15,17 +15,26 @@ import { Button, Typography } from "@/components/common";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
 import { WidgetFlowShell } from "@/features/chat-widget";
 import { WidgetWizardConfigChecklist } from "@/features/chat-widget/components/WidgetWizardConfigChecklist";
+import { WidgetEmbedArchitectureHint } from "@/features/chat-widget/components/WidgetEmbedArchitectureHint";
+import { WidgetEmbedTestLink } from "@/features/chat-widget/components/WidgetEmbedTestLink";
+import { WidgetWizardSiteChromePreview } from "@/features/chat-widget/components/WidgetWizardSiteChromePreview";
+import {
+  WidgetWizardSaveTracePanel,
+  useWidgetWizardSaveTrace,
+} from "@/features/chat-widget/components/WidgetWizardSaveTraceContext";
 import { LauncherPresetIcon } from "@/lib/chat-widget/launcherIcons";
 import { buildUnifiedWidgetEmbedScript, type WidgetDraft } from "@/lib/chat-widget/widgetDraft";
 import {
   readChatWizardDraft,
   resolveEditWidgetKeyForNavigation,
+  resolveRemoteWidgetKeyForChatWizard,
   saveChatWizardDraft,
   useChatWidgetWizardEdit,
 } from "@/lib/chat-widget/chat-wizard-edit";
+import { mergeWizardDraftForPublish } from "@/lib/chat-widget/merge-wizard-draft-for-publish";
 import {
-  createRemoteWidgetDraft,
-  patchRemoteWidgetConfiguration,
+  createRemoteWidgetDraftWithMeta,
+  patchRemoteWidgetConfigurationWithMeta,
 } from "@/lib/chat-widget/widget-remote-sync";
 import {
   pickInstallWidgetKeys,
@@ -34,6 +43,12 @@ import {
 } from "@/lib/chat-widget/widget-install-response";
 import { uploadDraftWidgetAssets } from "@/lib/chat-widget/upload-widget-draft-assets";
 import { extractApiErrorMessageForToast } from "@/lib/notify/extract-api-message";
+import { publishAppToast } from "@/lib/notify";
+import {
+  buildApiWidgetEmbedScript,
+  normalizeEmbedSnippetForApi,
+  resolveWidgetEmbedAppOrigin,
+} from "@/lib/chat-widget/widget-embed-api-origin";
 
 function launcherSandboxHorizontalSx(position: WidgetDraft["buttonPosition"], sidePx: number): Record<string, string | number> {
   if (position === "left") return { left: sidePx, right: "auto", transform: "none" };
@@ -49,6 +64,7 @@ type InstallUiState =
 export default function ChatWidgetScriptPage() {
   const router = useRouter();
   const theme = useTheme() as AppTheme;
+  const { recordSave } = useWidgetWizardSaveTrace();
   const { editWidgetKey, draftReady, hydrateError } = useChatWidgetWizardEdit();
   const [copied, setCopied] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
@@ -79,17 +95,23 @@ export default function ChatWidgetScriptPage() {
       setInstallUi({ phase: "loading" });
 
       try {
-        const assetUrls = await uploadDraftWidgetAssets({
+        const { urls: assetUrls, errors: assetErrors } = await uploadDraftWidgetAssets({
           websiteId: typed.websiteId,
           draft: typed,
         });
+        if (assetErrors.length > 0) {
+          publishAppToast({
+            variant: "error",
+            message: assetErrors.join(" "),
+          });
+        }
 
         let widgetKey = typed.remoteWidgetKey?.trim() || "";
 
         if (editKey) {
           widgetKey = editKey;
         } else if (!widgetKey) {
-          const created = await createRemoteWidgetDraft({
+          const created = await createRemoteWidgetDraftWithMeta({
             draft: typed,
             widgetKind: "chat",
           });
@@ -102,16 +124,33 @@ export default function ChatWidgetScriptPage() {
           });
         }
 
-        const patchInner = await patchRemoteWidgetConfiguration({
+        const draftForPublish = mergeWizardDraftForPublish(
+          readChatWizardDraft(editKey || undefined),
+        );
+        saveChatWizardDraft(editKey || undefined, draftForPublish);
+
+        const patchMeta = await patchRemoteWidgetConfigurationWithMeta({
           widgetKey,
           widgetKind: "chat",
-          draft: readChatWizardDraft(editKey || undefined),
+          draft: draftForPublish,
           publishNow: true,
           assetUrls,
+          embedAllowAnyOrigin: false,
         });
         if (cancelled) return;
 
-        const keys = pickInstallWidgetKeys(patchInner);
+        recordSave({
+          stepKey: "install",
+          stepLabel: "Step 4 — Install (publish)",
+          method: patchMeta.method,
+          path: patchMeta.path,
+          scope: patchMeta.scope,
+          publishNow: patchMeta.publishNow,
+          requestBody: patchMeta.requestBody,
+          responseBody: patchMeta.inner,
+        });
+
+        const keys = pickInstallWidgetKeys(patchMeta.inner);
 
         const finalKey = keys.widgetKey || widgetKey;
         if (!finalKey) {
@@ -124,13 +163,10 @@ export default function ChatWidgetScriptPage() {
           widgetId: finalKey,
           remoteWidgetKey: finalKey,
           completed: true,
-          requiresPublishBeforeEmbed: pickRequiresPublishBeforeEmbed(patchInner),
+          requiresPublishBeforeEmbed: pickRequiresPublishBeforeEmbed(patchMeta.inner),
         });
 
-        const appOrigin =
-          (typeof window !== "undefined" ? window.location.origin : "") ||
-          process.env.NEXT_PUBLIC_WIDGET_EMBED_ORIGIN ||
-          "";
+        const appOrigin = resolveWidgetEmbedAppOrigin();
 
         let embedMarkup: string | null = null;
         try {
@@ -140,16 +176,14 @@ export default function ChatWidgetScriptPage() {
           /* optional richer snippet */
         }
 
-        const fallbackScript = buildUnifiedWidgetEmbedScript({
+        const fallbackScript = buildApiWidgetEmbedScript({
           widgetKey: finalKey,
-          appOrigin:
-            typeof appOrigin === "string" && appOrigin.length > 0
-              ? appOrigin
-              : "https://your-app.example",
+          appOrigin,
         });
 
-        const finalMarkup =
+        const rawMarkup =
           embedMarkup && embedMarkup.trim().length > 0 ? embedMarkup : fallbackScript;
+        const finalMarkup = normalizeEmbedSnippetForApi(rawMarkup, appOrigin);
 
         if (!cancelled) {
           setInstallUi({
@@ -179,11 +213,14 @@ export default function ChatWidgetScriptPage() {
       ? installUi.draft
       : readChatWizardDraft(resolveEditWidgetKeyForNavigation(editWidgetKey) || undefined);
 
+  const appOrigin = resolveWidgetEmbedAppOrigin();
+
   const chatScript =
     installUi.phase === "ready"
       ? installUi.embedMarkup
-      : buildUnifiedWidgetEmbedScript({
+      : buildApiWidgetEmbedScript({
           widgetKey: draft.widgetId?.startsWith("wgt_") ? draft.widgetId : "YOUR_WIDGET_KEY",
+          appOrigin,
         });
 
   const previewPanelHeight = draft ? Math.max(320, Math.min(640, draft.boxHeight)) : 400;
@@ -201,8 +238,9 @@ export default function ChatWidgetScriptPage() {
   return (
     <WidgetFlowShell
       pageTitle="Widget Script"
-      subtitle="Paste this script on your website to activate the widget"
-      cardTitle="Widget Script"
+      subtitle="Publish to production, then paste the embed snippet on your site"
+      cardTitle="Install & publish"
+      currentStep={3}
       footer={
         <>
           <Button type="button" variant="secondary" onClick={() => setShowPreview((prev) => !prev)}>Preview Widget</Button>
@@ -219,6 +257,18 @@ export default function ChatWidgetScriptPage() {
         </>
       }
     >
+      {(() => {
+        const rk = resolveRemoteWidgetKeyForChatWizard(
+          editWidgetKey,
+          readChatWizardDraft(resolveEditWidgetKeyForNavigation(editWidgetKey) || undefined),
+        );
+        return (
+          <>
+            <WidgetWizardSaveTracePanel />
+          </>
+        );
+      })()}
+
       {waitingHydrate ? (
         <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted }}>
           Loading widget…
@@ -253,6 +303,7 @@ export default function ChatWidgetScriptPage() {
       >
         <Box sx={{ minWidth: 0 }}>
       <Typography variant="mediumLarge" sx={{ color: theme.app.text.primary, mb: -1.2 }}>Embed Code</Typography>
+      <WidgetEmbedArchitectureHint />
       <Box
         sx={{
           border: `1px solid ${theme.app.dashboard.cardBorder}`,
@@ -265,7 +316,14 @@ export default function ChatWidgetScriptPage() {
           {chatScript}
         </Typography>
       </Box>
-      <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted }}>
+      {installUi.phase === "ready" && draft.remoteWidgetKey ? (
+        <WidgetEmbedTestLink
+          widgetKey={draft.remoteWidgetKey}
+          websiteId={draft.websiteId}
+          requiresPublishBeforeEmbed={draft.requiresPublishBeforeEmbed}
+        />
+      ) : null}
+      <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, mt: 1 }}>
         {installUi.phase === "ready"
           ? "Deployed from dashboard. Rotate deploy keys from Widget admin APIs when needed."
           : installUi.phase === "error"
@@ -279,8 +337,11 @@ export default function ChatWidgetScriptPage() {
             Live preview
           </Typography>
           <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, mb: 1.25 }}>
-            Preview is anchored to the bottom of this frame (inside the card only), not fullscreen.
+            Closed-state chrome matches your Button step; open panel is a static mock — use Open embed preview for the real runtime.
           </Typography>
+          <Box sx={{ mb: 2 }}>
+            <WidgetWizardSiteChromePreview draft={draft} />
+          </Box>
           <Box
             sx={{
               position: "relative",

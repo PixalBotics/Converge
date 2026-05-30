@@ -35,7 +35,6 @@ export default function ThemeCustomizeClient() {
   const { platformThemeQuery, syncedHex, needsSave, isSavingTheme, handleSaveTheme } = useThemeAppearanceSave(
     presetId,
     customAccentHex,
-    { setPresetId, setCustomAccentHex },
   );
 
   const defaultThemePresets = useMemo(() => getDefaultThemePresets(presets), [presets]);
