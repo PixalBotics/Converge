@@ -319,6 +319,7 @@ export function ComposerDrawerTabs({
                     disabled={aiDisabled}
                     websiteRequiredDisabled={websiteRequiredDisabled}
                     hasConversation={hasConversation}
+                    embedded
                   />
                 </ComposerToolsBody>
               </>

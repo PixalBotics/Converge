@@ -127,7 +127,7 @@ export function WidgetDomainListField({
       helperText={
         validationError ??
         helperText ??
-        "Hostnames only, comma-separated — e.g. example.com, www.example.com"
+        "Hostnames only, comma-separated — e.g. example.com, localhost:3000"
       }
       placeholder={rest.placeholder ?? "example.com, app.example.com"}
       inputProps={{ maxLength: FIELD_MAX.domainList }}

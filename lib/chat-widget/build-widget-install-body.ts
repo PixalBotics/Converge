@@ -10,6 +10,7 @@ import { applyAiTypeToWidgetConfig } from "./widget-ai-type";
 import { accumulateWizardInstallConfigFromSaveTrace } from "./merge-wizard-draft-for-publish";
 import { mergeWidgetConfigForEdit } from "./merge-widget-config-for-edit";
 import { normalizeWidgetInquiryOptions } from "./widget-inquiry.types";
+import { buildInquiryBehaviorPatchFields } from "@/lib/widget-runtime/widget-experience";
 import {
   normalizeLauncherBadgeMode,
   normalizeWidgetSoundId,
@@ -28,6 +29,13 @@ const defaultTextUsFormFields = (): JsonRecord[] => [
   { key: "message", label: "Message", fieldType: "textarea", required: false },
   { key: "phone", label: "Phone", fieldType: "phone", required: false },
 ];
+
+/** Backend UpdateWidgetConfigurationDto rejects unknown top-level `config` keys. */
+function sanitizeWidgetPatchConfig(config: JsonRecord): JsonRecord {
+  const out = { ...config };
+  delete out.inquiry;
+  return out;
+}
 
 /**
  * Whitelisted `theme.designJson.chat.chatBox` only (backend rejects headerAlign,
@@ -342,13 +350,17 @@ export function buildChatWizardStep1Config(
   };
 }
 
-/** `behavior.inquiryOptions` for widget JSON (embed pills + inline routing ids). */
+/** `config.behavior.inquiryOptions` for widget JSON (embed pills + routing ids). */
 export function buildInquiryBehaviorPatchFromDraft(draft: WidgetDraft): JsonRecord {
-  const inquiryOptions =
-    draft.inquiryOn === false
-      ? []
-      : normalizeWidgetInquiryOptions(draft.inquiryOptions ?? []);
-  return { behavior: { inquiryOptions } };
+  return {
+    behavior: buildInquiryBehaviorPatchFields({
+      inquiryOn: draft.inquiryOn,
+      inquiryOptions: draft.inquiryOptions,
+      inquiryRequired: draft.inquiryRequired,
+      inquirySkipLabel: draft.inquirySkipLabel,
+      inquiryFallbackRoutingKey: draft.inquiryFallbackRoutingKey,
+    }),
+  };
 }
 
 /** Step 2 PATCH `config`: chat surface + inquiry JSON (does not overwrite step 1 launcher). */
@@ -402,6 +414,13 @@ export function buildFullChatPublishConfigFromDraft(
 /** Step 3 PATCH `config`: routing, domains, behavior, session, form, response. */
 export function buildChatWizardStep3Config(draft: WidgetDraft): JsonRecord {
   const def = CHAT_WIZARD_PATCH_DEFAULTS;
+  const inquiryBehavior = buildInquiryBehaviorPatchFields({
+    inquiryOn: draft.inquiryOn,
+    inquiryOptions: draft.inquiryOptions,
+    inquiryRequired: draft.inquiryRequired,
+    inquirySkipLabel: draft.inquirySkipLabel,
+    inquiryFallbackRoutingKey: draft.inquiryFallbackRoutingKey,
+  });
   const config: JsonRecord = {
     chatMode: (draft.chatMode ?? "HYBRID") as WidgetChatModeApi,
     behavior: {
@@ -411,13 +430,7 @@ export function buildChatWizardStep3Config(draft: WidgetDraft): JsonRecord {
       soundNotification: draft.soundNotification ?? false,
       fallbackNotificationText:
         draft.fallbackNotificationText ?? "New message from support",
-      inquiryOptions:
-        draft.inquiryOn === false
-          ? []
-          : normalizeWidgetInquiryOptions(draft.inquiryOptions ?? []),
-      inquiryRequired: draft.inquiryRequired === true,
-      inquirySkipLabel: draft.inquirySkipLabel?.trim() || "General question",
-      inquiryFallbackRoutingKey: draft.inquiryFallbackRoutingKey?.trim() || undefined,
+      ...inquiryBehavior,
       videoWelcomeOn: draft.videoWelcomeOn ?? false,
       videoWelcomeUrl: draft.videoWelcomeUrl?.trim() || undefined,
       welcomeMessage: draft.welcomeMessageBehavior ?? def.welcomeMessage,
@@ -657,60 +670,31 @@ export function buildWidgetPatchConfigurationBody(input: {
   const { draft, widgetType, publishNow, assetUrls, embedAllowAnyOrigin } =
     input;
 
+  const withConfig = (config: JsonRecord): JsonRecord => ({
+    publishNow,
+    widgetType,
+    config: sanitizeWidgetPatchConfig(config),
+    ...(embedAllowAnyOrigin !== undefined ? { embedAllowAnyOrigin } : {}),
+  });
+
   if (widgetType === "CHAT" && input.chatWizardPatchScope === "launcher_only") {
-    const body: JsonRecord = {
-      publishNow,
-      widgetType,
-      config: buildChatWizardStep1Config(draft, assetUrls),
-    };
-    if (embedAllowAnyOrigin !== undefined)
-      body.embedAllowAnyOrigin = embedAllowAnyOrigin;
-    return body;
+    return withConfig(buildChatWizardStep1Config(draft, assetUrls));
   }
 
   if (widgetType === "CHAT" && input.chatWizardPatchScope === "chat_surface") {
-    const body: JsonRecord = {
-      publishNow,
-      widgetType,
-      config: buildChatWizardStep2Config(draft, assetUrls),
-    };
-    if (embedAllowAnyOrigin !== undefined)
-      body.embedAllowAnyOrigin = embedAllowAnyOrigin;
-    return body;
+    return withConfig(buildChatWizardStep2Config(draft, assetUrls));
   }
 
   if (widgetType === "CHAT" && input.chatWizardPatchScope === "notifications_only") {
-    const body: JsonRecord = {
-      publishNow,
-      widgetType,
-      config: buildChatWizardStep3Config(draft),
-    };
-    if (embedAllowAnyOrigin !== undefined)
-      body.embedAllowAnyOrigin = embedAllowAnyOrigin;
-    return body;
+    return withConfig(buildChatWizardStep3Config(draft));
   }
 
   if (widgetType === "CHAT" && input.chatWizardPatchScope === "inquiry_only") {
-    const body: JsonRecord = {
-      publishNow,
-      widgetType,
-      config: buildInquiryBehaviorPatchFromDraft(draft),
-    };
-    if (embedAllowAnyOrigin !== undefined)
-      body.embedAllowAnyOrigin = embedAllowAnyOrigin;
-    return body;
+    return withConfig(buildInquiryBehaviorPatchFromDraft(draft));
   }
 
   if (widgetType === "CHAT" && !input.chatWizardPatchScope) {
-    const config = buildFullChatPublishConfigFromDraft(draft, assetUrls);
-    const body: JsonRecord = {
-      publishNow,
-      config,
-      widgetType,
-    };
-    if (embedAllowAnyOrigin !== undefined)
-      body.embedAllowAnyOrigin = embedAllowAnyOrigin;
-    return body;
+    return withConfig(buildFullChatPublishConfigFromDraft(draft, assetUrls));
   }
 
   const wid = draft.websiteId?.trim();
@@ -762,14 +746,6 @@ export function buildWidgetPatchConfigurationBody(input: {
   if (install.allowedDomains !== undefined)
     config.allowedDomains = install.allowedDomains;
 
-  const body: JsonRecord = {
-    publishNow,
-    config,
-    widgetType,
-  };
-
-  if (embedAllowAnyOrigin !== undefined)
-    body.embedAllowAnyOrigin = embedAllowAnyOrigin;
-
+  const body: JsonRecord = withConfig(config);
   return body;
 }

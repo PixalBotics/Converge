@@ -306,7 +306,8 @@ export const ComposerToolsPanel = styled(Box)(({ theme }) => {
     display: "flex",
     flexDirection: "column",
     flexShrink: 0,
-    maxHeight: "min(36vh, 280px)",
+    maxHeight: "min(52vh, 420px)",
+    minHeight: 320,
     overflow: "hidden",
     borderRadius: 12,
     border: `1px solid ${alpha(d.cardBorder, 0.32)}`,
@@ -495,12 +496,12 @@ export const AiOnlineDot = styled(Box)(({ theme }) => ({
 
 export const AiChatThread = styled(Box)(({ theme }) => ({
   flex: 1,
-  minHeight: 0,
+  minHeight: 200,
   overflowY: "auto",
-  padding: theme.spacing(1.25, 1.5),
+  padding: theme.spacing(1.5, 1.75),
   display: "flex",
   flexDirection: "column",
-  gap: theme.spacing(1),
+  gap: theme.spacing(1.25),
   scrollbarWidth: "thin",
 }));
 
@@ -511,8 +512,8 @@ export const AiChatBubble = styled(Box, {
   const isUser = role === "user";
   return {
     alignSelf: isUser ? "flex-end" : "flex-start",
-    maxWidth: "92%",
-    padding: theme.spacing(0.9, 1.15),
+    maxWidth: "88%",
+    padding: theme.spacing(1.1, 1.35),
     borderRadius: isUser ? "12px 12px 4px 12px" : "12px 12px 12px 4px",
     fontSize: 13,
     lineHeight: 1.5,
@@ -555,7 +556,7 @@ export const AiQuickChip = styled("button", {
 
 export const AiInputFooter = styled(Box)(({ theme }) => ({
   flexShrink: 0,
-  padding: theme.spacing(1.25, 1.5, 1.25),
+  padding: theme.spacing(1.5, 1.75, 1.5),
   borderTop: `1px solid ${alpha(dash(theme).cardBorder, 0.35)}`,
   background: alpha(dash(theme).overlayLight, 0.12),
 }));

@@ -4,8 +4,9 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "next/navigation";
 import Box from "@mui/material/Box";
-import { getAccessToken, postAgentAiSuggestion, formatAgentSuggestResponse } from "@/api";
+import { getAccessToken, postAgentAiSuggestion, parseAgentSuggestResponse } from "@/api";
 import type { AgentAiAction } from "@/api/ai/agent-suggest.api";
+import { buildAgentCopilotInput, agentAiActionNeedsWebsite } from "@/lib/ai/agent-copilot-input";
 import { useAuth, useResellerListScope } from "@/lib/auth";
 import { DashboardCard, PermissionDeniedPanel, Typography } from "@/components/common";
 import {
@@ -57,12 +58,7 @@ import {
 } from "../styles/chat-operations.styles";
 
 function needsWebsite(action: AgentAiAction): boolean {
-  return (
-    action === "suggested_reply" ||
-    action === "knowledge_lookup" ||
-    action === "coach_reply" ||
-    action === "rewrite_tone"
-  );
+  return agentAiActionNeedsWebsite(action);
 }
 
 export function ChatOperationsWorkspace() {
@@ -424,10 +420,12 @@ export function ChatOperationsWorkspace() {
       });
 
       try {
-        const input =
-          draftContext.length > 0
-            ? `${prompt}\n\n---\nDraft reply:\n${draftContext}`
-            : prompt;
+        const input = buildAgentCopilotInput({
+          prompt,
+          action,
+          transcript: agentChat.messages,
+          draftReply: draftContext,
+        });
 
         const data = await postAgentAiSuggestion({
           action,
@@ -437,13 +435,20 @@ export function ChatOperationsWorkspace() {
           ...(action === "rewrite_tone" ? { tone: "professional" } : {}),
         });
 
-        const reply = formatAgentSuggestResponse(data);
+        const parsed = parseAgentSuggestResponse(data);
         setAiByConversation((prev) => {
           const current = getConversationAiState(prev, conversationId);
           return patchConversationAiState(prev, conversationId, {
             busy: false,
             messages: current.messages.map((m) =>
-              m.id === pendingId ? { ...m, content: reply, pending: false } : m,
+              m.id === pendingId
+                ? {
+                    ...m,
+                    content: parsed.reply,
+                    sources: parsed.sources.length ? parsed.sources : undefined,
+                    pending: false,
+                  }
+                : m,
             ),
           });
         });
@@ -469,7 +474,7 @@ export function ChatOperationsWorkspace() {
         }
       }
     },
-    [accessToken, agentChat.selectedConversationId, draftsByConversation, websiteIdEffective],
+    [accessToken, agentChat.messages, agentChat.selectedConversationId, draftsByConversation, websiteIdEffective],
   );
 
   const sendNow = async () => {
