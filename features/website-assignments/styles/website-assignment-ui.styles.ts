@@ -1,5 +1,9 @@
 import { alpha } from "@mui/material/styles";
 import type { SxProps, Theme } from "@mui/material/styles";
+import {
+  dashboardCardSurfaceProps,
+  dashboardSolidSurface,
+} from "@/features/chat-operations/styles/chat-semantic";
 import type { AppTheme } from "@/theme/theme";
 
 export const assignmentStepRowSx: SxProps<Theme> = {
@@ -50,7 +54,7 @@ export const departmentCardSx: SxProps<Theme> = (theme) => {
     mb: 2,
     borderRadius: 2.5,
     border: `1px solid ${t.app.dashboard.cardBorder}`,
-    bgcolor: alpha(t.app.dashboard.cardBg ?? t.app.dashboard.pillBg, 0.4),
+    ...dashboardCardSurfaceProps(theme, 0.4),
     transition: "border-color 0.2s ease, box-shadow 0.2s ease",
     "&:hover": {
       borderColor: alpha(t.palette.primary.main, 0.35),
@@ -262,7 +266,7 @@ export const scheduleFormActionBarSx: SxProps<Theme> = (theme) => {
     position: "sticky",
     bottom: 0,
     zIndex: 2,
-    bgcolor: alpha(t.app.dashboard.cardBg ?? "#0f1419", 0.92),
+    bgcolor: alpha(dashboardSolidSurface(theme), 0.92),
     backdropFilter: "blur(8px)",
     borderRadius: "0 0 12px 12px",
     mx: -0.5,

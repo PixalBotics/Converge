@@ -18,6 +18,12 @@ import {
   sortMessagesChronologically,
   stableMessageDedupeKey,
 } from "./agent-chat.utils";
+import {
+  CHAT_DISCONNECTED_SYNC_MS,
+  CHAT_RECONNECT_SYNC_DEBOUNCE_MS,
+  scheduleJoinRoomRetries,
+} from "./chat-socket-delivery";
+import { subscribeAgentChatMessageSync } from "./agent-chat-message-sync-bus";
 import { useAgentInboxQueues } from "./useAgentInboxQueues";
 import { useAgentChatSocket } from "./useAgentChatSocket";
 
@@ -87,6 +93,7 @@ export function useAgentChat(params: UseAgentChatParams): UseAgentChatReturn {
   const messageMapRef = useRef(new Map<string, ChatMessage>());
   const selectedConversationIdRef = useRef<string | null>(null);
   const selectedIsClosedRef = useRef(false);
+  const messageSyncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const selectConversationRef = useRef<
     (
       id: string,
@@ -162,6 +169,9 @@ export function useAgentChat(params: UseAgentChatParams): UseAgentChatReturn {
     setMessages(sortMessagesChronologically(Array.from(messageMapRef.current.values())));
   }, []);
 
+  const refreshQueuesRef = useRef(queues.refreshQueues);
+  refreshQueuesRef.current = queues.refreshQueues;
+
   const upsertMessage = useCallback(
     (message: ChatMessage) => {
       if (selectedIsClosedRef.current && message.role !== "system") return;
@@ -185,12 +195,41 @@ export function useAgentChat(params: UseAgentChatParams): UseAgentChatReturn {
     [syncMessagesFromMap],
   );
 
+  const syncSelectedHistory = useCallback(async () => {
+    const cid = selectedConversationIdRef.current;
+    if (!cid || !apiEnabled || !params.token || selectedIsClosedRef.current) return;
+    try {
+      const history = await getConversationHistory(cid, params.token);
+      if (selectedConversationIdRef.current !== cid) return;
+      for (const msg of history.messages) {
+        messageMapRef.current.set(stableMessageDedupeKey(msg), msg);
+      }
+      syncMessagesFromMap();
+    } catch {
+      /* transient — next reconnect sync will retry */
+    }
+  }, [apiEnabled, params.token, syncMessagesFromMap]);
+
+  const handleVisitorMessage = useCallback(
+    (message: ChatMessage) => {
+      const cid = selectedConversationIdRef.current;
+      if (!cid) return;
+      if (message.conversationId.toLowerCase() !== cid.toLowerCase()) {
+        void refreshQueuesRef.current();
+        return;
+      }
+      upsertMessage(message);
+    },
+    [upsertMessage],
+  );
+
   const clearSelection = useCallback(() => {
     const prevId = selectedConversationIdRef.current;
     if (prevId && !selectedIsClosedRef.current) {
       socketClient.leaveRoom({ conversationId: prevId });
     }
     setSelectedConversationId(null);
+    selectedConversationIdRef.current = null;
     setSelectedWebsiteId(null);
     setSelectedIsClosed(false);
     selectedIsClosedRef.current = false;
@@ -276,9 +315,6 @@ export function useAgentChat(params: UseAgentChatParams): UseAgentChatReturn {
     [queues, socketClient],
   );
 
-  const refreshQueuesRef = useRef(queues.refreshQueues);
-  refreshQueuesRef.current = queues.refreshQueues;
-
   const handleAgentWrapUpForm = useCallback(
     (p: unknown) => {
       const wrapUp =
@@ -298,8 +334,9 @@ export function useAgentChat(params: UseAgentChatParams): UseAgentChatReturn {
     apiEnabled ? params.token : "",
     socketClient,
     {
-      onVisitorMessage: upsertMessage,
+      onVisitorMessage: handleVisitorMessage,
       onRefreshQueues: () => void refreshQueuesRef.current(),
+      onReconnectHistorySync: () => void syncSelectedHistory(),
       onSessionEnded: handleSessionEnded,
       onChatResumed: handleChatResumed,
       onVisitorTyping: setVisitorTypingSelected,
@@ -332,6 +369,40 @@ export function useAgentChat(params: UseAgentChatParams): UseAgentChatReturn {
     setIsConnected,
   );
 
+  useEffect(() => {
+    if (!apiEnabled) return undefined;
+    return subscribeAgentChatMessageSync((conversationId) => {
+      if (
+        selectedConversationIdRef.current?.toLowerCase() !==
+        conversationId.toLowerCase()
+      ) {
+        return;
+      }
+      if (messageSyncTimerRef.current) clearTimeout(messageSyncTimerRef.current);
+      messageSyncTimerRef.current = setTimeout(() => {
+        messageSyncTimerRef.current = null;
+        void syncSelectedHistory();
+      }, CHAT_RECONNECT_SYNC_DEBOUNCE_MS);
+    });
+  }, [apiEnabled, syncSelectedHistory]);
+
+  useEffect(
+    () => () => {
+      if (messageSyncTimerRef.current) clearTimeout(messageSyncTimerRef.current);
+    },
+    [],
+  );
+
+  useEffect(() => {
+    if (!apiEnabled || !selectedConversationId || selectedIsClosed || isConnected) {
+      return undefined;
+    }
+    const poll = window.setInterval(() => {
+      void syncSelectedHistory();
+    }, CHAT_DISCONNECTED_SYNC_MS);
+    return () => window.clearInterval(poll);
+  }, [apiEnabled, isConnected, selectedConversationId, selectedIsClosed, syncSelectedHistory]);
+
   const selectConversation = useCallback(
     async (
       conversationId: string,
@@ -345,6 +416,7 @@ export function useAgentChat(params: UseAgentChatParams): UseAgentChatReturn {
       }
 
       setSelectedConversationId(conversationId);
+      selectedConversationIdRef.current = conversationId;
       setSelectedIsClosed(readOnly);
       selectedIsClosedRef.current = readOnly;
       setVisitorTypingSelected(false);
@@ -360,6 +432,13 @@ export function useAgentChat(params: UseAgentChatParams): UseAgentChatReturn {
 
       if (!readOnly) {
         socketClient.joinRoom({ conversationId });
+        scheduleJoinRoomRetries(
+          (cid) => socketClient.joinRoom({ conversationId: cid }),
+          conversationId,
+          () =>
+            selectedConversationIdRef.current?.toLowerCase() ===
+            conversationId.toLowerCase(),
+        );
       }
 
       if (!apiEnabled || !params.token) return;

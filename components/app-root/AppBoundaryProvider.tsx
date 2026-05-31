@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   dismissAppBoundary,
   publishAppBoundary,
@@ -100,10 +100,17 @@ function defaultActionsForBoundary(
 
 export function AppBoundaryProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
+  const pathname = usePathname();
   const { logout } = useAuth();
   const [boundary, setBoundary] = useState<AppBoundaryState | null>(null);
 
   useEffect(() => subscribeAppBoundary(setBoundary), []);
+
+  useEffect(() => {
+    if (shouldSkipRemoteAuthHydration(pathname)) {
+      dismissAppBoundary("session_expired");
+    }
+  }, [pathname]);
 
   const dismiss = useCallback(() => {
     dismissAppBoundary();

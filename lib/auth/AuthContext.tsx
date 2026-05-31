@@ -17,11 +17,14 @@ import type { AuthUserType, User, LoginCredentials } from "./types";
 import {
   getAccessToken,
   getMe,
+  getRefreshToken,
   registerAuthSessionTeardown,
+  refreshSessionWithStoredRefresh,
   resetAuthSessionTerminatedFlag,
   setTokenPair,
   synchronizeAuthSession,
 } from "@/api";
+import { isAuthSessionTerminated } from "@/api/session/terminate-auth-session";
 import { useLoginMutation, useLogoutMutation } from "@/lib/hooks";
 import { extractApiErrorMessageForToast } from "@/lib/notify";
 import { AUTH_PATHS, shouldSkipRemoteAuthHydration } from "./auth-paths";
@@ -44,6 +47,11 @@ import {
   type PermissionsByType,
 } from "./permissions-model";
 import { dismissAppBoundary, publishAuthErrorBoundary } from "@/lib/app-boundaries";
+import { isAccessTokenExpiringSoon } from "./access-token";
+import {
+  initTokenCrossTabSync,
+  registerCrossTabTokenListener,
+} from "./token-cross-tab-sync";
 import { extractResellerIdFromMePayload } from "./extract-reseller-id";
 import { resolveDashboardLandingHref } from "@/lib/permissions";
 import { useAppearance } from "@/lib/theme/appearance-context";
@@ -334,19 +342,51 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsLoading(false);
   }, []);
 
-  const blockAuthSession = useCallback((error?: unknown) => {
-    setUser(null);
-    setPermissionsByType(undefined);
-    setIsPlatformAdmin(false);
-    setIsImpersonating(false);
-    setAuthGate("blocked");
-    publishAuthErrorBoundary(error);
-  }, []);
-
   const allowAuthSession = useCallback(() => {
     dismissAppBoundary();
     setAuthGate("ready");
   }, []);
+
+  /** Public auth pages: no `/auth/me`, verify, or refresh on load/focus. */
+  const isSkipHydrationPath = useCallback(() => {
+    if (typeof window === "undefined") return false;
+    return shouldSkipRemoteAuthHydration(window.location.pathname);
+  }, []);
+
+  const blockAuthSession = useCallback(
+    (error?: unknown) => {
+      if (isAuthSessionTerminated()) return;
+      if (isSkipHydrationPath()) return;
+
+      void (async () => {
+        if (
+          isAxiosError(error) &&
+          error.response?.status === 401 &&
+          getRefreshToken()
+        ) {
+          try {
+            await refreshSessionWithStoredRefresh();
+            if (isAuthSessionTerminated()) return;
+            allowAuthSession();
+            dismissAppBoundary("session_expired");
+            return;
+          } catch {
+            /* refresh exhausted */
+          }
+        }
+
+        if (isAuthSessionTerminated()) return;
+
+        setUser(null);
+        setPermissionsByType(undefined);
+        setIsPlatformAdmin(false);
+        setIsImpersonating(false);
+        setAuthGate("blocked");
+        publishAuthErrorBoundary(error);
+      })();
+    },
+    [allowAuthSession, isSkipHydrationPath],
+  );
 
   const rbacEnabled = useMemo(() => isRbacActive(permissionsByType), [permissionsByType]);
 
@@ -470,6 +510,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [pullRemoteAuthSession]);
 
   useEffect(() => {
+    registerCrossTabTokenListener((payload) => {
+      setTokenPair(
+        {
+          accessToken: payload.accessToken,
+          refreshToken: payload.refreshToken,
+        },
+        {
+          accessExpiresIn: payload.accessExpiresIn,
+          refreshExpiresIn: payload.refreshExpiresIn,
+        },
+      );
+      void pullRemoteAuthSession({ type: "merge", login: undefined });
+    });
+    return initTokenCrossTabSync();
+  }, [pullRemoteAuthSession]);
+
+  useEffect(() => {
     registerAuthSessionTeardown(async ({ reason }) => {
       setUser(null);
       setPermissionsByType(undefined);
@@ -505,12 +562,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     prevPathnameRef.current = current;
   }, [pathname, pullRemoteAuthSession]);
-
-  /** Public auth pages: no `/auth/me`, verify, or refresh on load/focus. */
-  const isSkipHydrationPath = useCallback(() => {
-    if (typeof window === "undefined") return false;
-    return shouldSkipRemoteAuthHydration(window.location.pathname);
-  }, []);
 
   const runSessionHydration = useCallback(async () => {
     if (isSkipHydrationPath()) {
@@ -606,6 +657,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (isSkipHydrationPath()) {
         return;
       }
+      const access = getAccessToken();
+      const refresh = getRefreshToken();
+      if (!access && !refresh) {
+        return;
+      }
+      if (access && !isAccessTokenExpiringSoon(access)) {
+        return;
+      }
       try {
         const session = await synchronizeAuthSession();
         if (!active) return;
@@ -653,6 +712,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Handles browser back/forward restores (bfcache) and tab focus resumes.
     const handleLifecycleSync = () => {
       if (isSkipHydrationPath()) {
+        return;
+      }
+      const access = getAccessToken();
+      const refresh = getRefreshToken();
+      if (!access && !refresh) {
+        return;
+      }
+      if (access && !isAccessTokenExpiringSoon(access)) {
         return;
       }
       if (focusDebounce) clearTimeout(focusDebounce);

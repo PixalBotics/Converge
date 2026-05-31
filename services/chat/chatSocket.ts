@@ -94,7 +94,9 @@ export class ChatSocketClient {
 
   joinRoom(payload: JoinLeaveRoomPayload): void {
     this.joinedRooms.add(payload.conversationId);
-    this.connection.emit("join_room", { conversationId: payload.conversationId });
+    if (this.connection.isConnected()) {
+      this.connection.emit("join_room", { conversationId: payload.conversationId });
+    }
   }
 
   leaveRoom(payload: JoinLeaveRoomPayload): void {
@@ -162,6 +164,11 @@ export class ChatSocketClient {
     });
   }
 
+  /** Raw payload — use when conversationId may be omitted (widget embed). */
+  onVisitorMessageRaw(listener: (payload: unknown) => void): () => void {
+    return this.on("visitor_message", listener);
+  }
+
   onAgentMessage(listener: ChatEventMap["agent_message"]): () => void {
     return this.on("agent_message", (payload: unknown) => {
       const m = normalizeServerMessage(payload);
@@ -169,11 +176,19 @@ export class ChatSocketClient {
     });
   }
 
+  onAgentMessageRaw(listener: (payload: unknown) => void): () => void {
+    return this.on("agent_message", listener);
+  }
+
   onAiMessage(listener: ChatEventMap["ai_message"]): () => void {
     return this.on("ai_message", (payload: unknown) => {
       const m = normalizeServerMessage(payload);
       if (m) listener(m);
     });
+  }
+
+  onAiMessageRaw(listener: (payload: unknown) => void): () => void {
+    return this.on("ai_message", listener);
   }
 
   onTyping(listener: ChatEventMap["typing"]): () => void {

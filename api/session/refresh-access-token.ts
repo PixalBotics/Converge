@@ -2,7 +2,12 @@ import axios from "axios";
 import { getApiBaseUrl } from "../config";
 import { joinUrl } from "../http/http-path";
 import { getRefreshToken, setTokenPair } from "../storage/auth-cookies";
-import type { ApiEnvelope, AuthTokenPair } from "../types/auth.types";
+import type { ApiEnvelope, AuthTokenPair, LoginSuccessData } from "../types/auth.types";
+import {
+  releaseCrossTabRefreshLock,
+  tryAcquireCrossTabRefreshLock,
+  waitForCrossTabTokenUpdate,
+} from "@/lib/auth/token-cross-tab-sync";
 
 let refreshInFlight: Promise<AuthTokenPair> | null = null;
 
@@ -25,33 +30,58 @@ export function waitForSessionRefresh(): Promise<void> {
 }
 
 function parseRefreshTokenPair(
-  data: AuthTokenPair | ApiEnvelope<AuthTokenPair>,
+  data: AuthTokenPair | ApiEnvelope<AuthTokenPair | LoginSuccessData>,
 ): AuthTokenPair {
   if (typeof data === "object" && data !== null && "success" in data) {
-    const envelope = data as ApiEnvelope<AuthTokenPair>;
+    const envelope = data as ApiEnvelope<AuthTokenPair | LoginSuccessData>;
     if (envelope.success === false) {
       throw new Error(envelope.message?.trim() || "Refresh token rejected");
     }
   }
 
-  const tokenPair =
+  const root =
     typeof data === "object" && data !== null && "data" in data
-      ? (data as ApiEnvelope<AuthTokenPair>).data
-      : (data as AuthTokenPair);
+      ? (data as ApiEnvelope<AuthTokenPair | LoginSuccessData>).data
+      : (data as AuthTokenPair | LoginSuccessData);
 
-  if (!tokenPair?.accessToken?.trim() || !tokenPair?.refreshToken?.trim()) {
+  const tokenPair =
+    root && typeof root === "object" && "accessToken" in root
+      ? {
+          accessToken: String(root.accessToken ?? "").trim(),
+          refreshToken: String(root.refreshToken ?? "").trim(),
+        }
+      : null;
+
+  if (!tokenPair?.accessToken || !tokenPair.refreshToken) {
     throw new Error("Invalid refresh response payload");
   }
 
-  return {
-    accessToken: tokenPair.accessToken.trim(),
-    refreshToken: tokenPair.refreshToken.trim(),
-  };
+  return tokenPair;
+}
+
+function refreshCookieHints(
+  data: AuthTokenPair | ApiEnvelope<AuthTokenPair | LoginSuccessData>,
+): { accessExpiresIn?: string; refreshExpiresIn?: string } | undefined {
+  const root =
+    typeof data === "object" && data !== null && "data" in data
+      ? (data as ApiEnvelope<LoginSuccessData>).data
+      : (data as LoginSuccessData);
+  if (!root || typeof root !== "object") return undefined;
+  const accessExpiresIn =
+    "expiresIn" in root && typeof root.expiresIn === "string" ? root.expiresIn : undefined;
+  const refreshExpiresIn =
+    "refreshExpiresIn" in root && typeof root.refreshExpiresIn === "string"
+      ? root.refreshExpiresIn
+      : undefined;
+  if (!accessExpiresIn && !refreshExpiresIn) return undefined;
+  return { accessExpiresIn, refreshExpiresIn };
 }
 
 async function postRefreshOnce(refreshToken: string): Promise<AuthTokenPair> {
   const baseURL = getApiBaseUrl();
-  const { data } = await axios.post<AuthTokenPair | ApiEnvelope<AuthTokenPair>>(
+  const { data } = await axios.post<
+    AuthTokenPair | ApiEnvelope<AuthTokenPair | LoginSuccessData>
+  >(
     joinUrl(baseURL, "/auth/refresh"),
     { refreshToken },
     {
@@ -60,7 +90,7 @@ async function postRefreshOnce(refreshToken: string): Promise<AuthTokenPair> {
     },
   );
   const tokenPair = parseRefreshTokenPair(data);
-  setTokenPair(tokenPair);
+  setTokenPair(tokenPair, refreshCookieHints(data));
   return tokenPair;
 }
 
@@ -69,15 +99,36 @@ async function refreshWithStoredToken(): Promise<AuthTokenPair> {
   if (!refreshToken) {
     throw new Error("Missing refresh token");
   }
-  try {
-    return await postRefreshOnce(refreshToken);
-  } catch (first) {
-    await new Promise((r) => setTimeout(r, 200));
-    const retryToken = getRefreshToken();
-    if (!retryToken || retryToken === refreshToken) {
-      throw first;
+
+  const ownsLock = tryAcquireCrossTabRefreshLock();
+  if (!ownsLock) {
+    const synced = await waitForCrossTabTokenUpdate();
+    if (synced?.accessToken && synced.refreshToken) {
+      const pair = {
+        accessToken: synced.accessToken,
+        refreshToken: synced.refreshToken,
+      };
+      setTokenPair(pair, {
+        accessExpiresIn: synced.accessExpiresIn,
+        refreshExpiresIn: synced.refreshExpiresIn,
+      });
+      return pair;
     }
-    return postRefreshOnce(retryToken);
+  }
+
+  try {
+    try {
+      return await postRefreshOnce(refreshToken);
+    } catch (first) {
+      await new Promise((r) => setTimeout(r, 200));
+      const retryToken = getRefreshToken();
+      if (!retryToken || retryToken === refreshToken) {
+        throw first;
+      }
+      return postRefreshOnce(retryToken);
+    }
+  } finally {
+    if (ownsLock) releaseCrossTabRefreshLock();
   }
 }
 
@@ -94,7 +145,7 @@ function flushUnauthorizedQueue(error: unknown | null, accessToken: string | nul
 }
 
 /**
- * Calls POST /auth/refresh with the refresh cookie, persists the new pair, returns tokens.
+ * Calls POST /auth/refresh with the refresh token, persists the new pair, returns tokens.
  * Uses raw axios so interceptors cannot recurse. Concurrent callers share one flight.
  */
 export function refreshSessionWithStoredRefresh(): Promise<AuthTokenPair> {
