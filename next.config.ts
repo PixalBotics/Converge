@@ -38,18 +38,35 @@ const nextConfig: NextConfig = {
   },
   async headers() {
     if (!isProduction) return [];
-    return [
+
+    const sharedSecurityHeaders = [
+      { key: "X-DNS-Prefetch-Control", value: "on" },
+      { key: "X-Content-Type-Options", value: "nosniff" },
+      { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
       {
-        source: "/:path*",
+        key: "Permissions-Policy",
+        value: "camera=(), microphone=(), geolocation=()",
+      },
+    ] as const;
+
+    return [
+      /**
+       * Visitor widget iframe — must be embeddable on customer sites (cross-origin).
+       * No X-Frame-Options; CSP frame-ancestors allows any parent.
+       */
+      {
+        source: "/embed/:path*",
         headers: [
-          { key: "X-DNS-Prefetch-Control", value: "on" },
+          ...sharedSecurityHeaders,
+          { key: "Content-Security-Policy", value: "frame-ancestors *" },
+        ],
+      },
+      /** Dashboard + auth — keep clickjacking protection. Excludes /embed/* via lookahead. */
+      {
+        source: "/((?!embed/).*)",
+        headers: [
+          ...sharedSecurityHeaders,
           { key: "X-Frame-Options", value: "SAMEORIGIN" },
-          { key: "X-Content-Type-Options", value: "nosniff" },
-          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-          {
-            key: "Permissions-Policy",
-            value: "camera=(), microphone=(), geolocation=()",
-          },
         ],
       },
     ];

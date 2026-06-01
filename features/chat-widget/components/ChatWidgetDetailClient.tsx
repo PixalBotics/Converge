@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import ArrowBack from "@mui/icons-material/ArrowBack";
 import ContentCopy from "@mui/icons-material/ContentCopy";
+import RefreshRounded from "@mui/icons-material/RefreshRounded";
 import Box from "@mui/material/Box";
 import Dialog from "@mui/material/Dialog";
 import DialogActions from "@mui/material/DialogActions";
@@ -23,6 +24,10 @@ import { Button, DashboardCard, Typography } from "@/components/common";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
 import { buildUnifiedWidgetEmbedScript } from "@/lib/chat-widget/widgetDraft";
 import {
+  normalizeEmbedSnippetForApi,
+  resolveWidgetEmbedAppOrigin,
+} from "@/lib/chat-widget/widget-embed-api-origin";
+import {
   pickEmbedSessionExpiresIn,
   readEmbedSnippetMarkup,
 } from "@/lib/chat-widget/widget-install-response";
@@ -32,26 +37,68 @@ import { parseSnapshotForPreview } from "@/lib/chat-widget/snapshot-preview-mode
 import { WidgetSnapshotPreview } from "./WidgetSnapshotPreview";
 import { WidgetDeployStatusCard } from "./WidgetDeployStatusCard";
 
-function safePrettyJson(value: unknown, maxChars = 24_000): string {
-  try {
-    const s = JSON.stringify(value, null, 2);
-    if (s.length <= maxChars) return s;
-    return `${s.slice(0, maxChars)}\n… (truncated)`;
-  } catch {
-    return String(value);
-  }
+type SummaryRow = { label: string; value: string };
+
+function formatIsoDate(value: unknown): string {
+  if (!value) return "—";
+  const d = new Date(String(value));
+  if (Number.isNaN(d.getTime())) return String(value);
+  return d.toLocaleString();
 }
 
-function pickScalarSummary(obj: JsonRecord): Array<{ k: string; v: string }> {
-  const out: Array<{ k: string; v: string }> = [];
-  for (const [k, v] of Object.entries(obj)) {
-    if (v === null || v === undefined) continue;
-    const t = typeof v;
-    if (t === "string" || t === "number" || t === "boolean") {
-      out.push({ k, v: String(v) });
-    }
-  }
-  return out.slice(0, 24);
+function deployStateLabel(state: unknown): string {
+  const s = String(state ?? "");
+  if (s === "live") return "Live";
+  if (s === "live_with_pending_draft") return "Live (unsaved draft)";
+  if (s === "draft_only") return "Draft only";
+  return s || "—";
+}
+
+function formatWidgetAdminSummary(admin: JsonRecord): SummaryRow[] {
+  const website = admin.website as JsonRecord | undefined;
+  const deploy = admin.deploy as JsonRecord | undefined;
+  const surfaces = Array.isArray(admin.surfaces)
+    ? (admin.surfaces as string[]).join(", ")
+    : "";
+  const domains = Array.isArray(admin.allowedDomains)
+    ? (admin.allowedDomains as string[]).join(", ")
+    : "";
+
+  return [
+    {
+      label: "Website",
+      value: String(website?.name ?? website?.url ?? "—"),
+    },
+    {
+      label: "Website URL",
+      value: String(website?.url ?? "—"),
+    },
+    {
+      label: "Widget type",
+      value: String(admin.widgetType ?? "—"),
+    },
+    ...(surfaces
+      ? [{ label: "Surfaces", value: surfaces }]
+      : []),
+    {
+      label: "Status",
+      value: deployStateLabel(deploy?.state),
+    },
+    {
+      label: "Published",
+      value: formatIsoDate(deploy?.liveAt),
+    },
+    {
+      label: "Last saved",
+      value: formatIsoDate(deploy?.draftSavedAt),
+    },
+    {
+      label: "Allowed domains",
+      value: admin.embedAllowAnyOrigin
+        ? "Any website (embed unrestricted)"
+        : domains || "None configured",
+    },
+  ];
 }
 
 export type ChatWidgetDetailVariant = "view" | "manage";
@@ -74,6 +121,8 @@ export function ChatWidgetDetailClient({
   const [iframeKey, setIframeKey] = useState(0);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+
+  const embedAppOrigin = resolveWidgetEmbedAppOrigin();
 
   const load = useCallback(async () => {
     if (!widgetKey.trim()) return;
@@ -114,45 +163,41 @@ export function ChatWidgetDetailClient({
   }, [load]);
 
   const adminSummary = useMemo(
-    () => (admin ? pickScalarSummary(admin) : []),
+    () => (admin ? formatWidgetAdminSummary(admin) : []),
     [admin],
   );
 
   const previewSrc = useMemo(() => {
-    if (typeof window === "undefined" || !widgetKey.trim()) return "";
-    const origin = window.location.origin;
-    const parentHost = window.location.hostname || "localhost";
+    if (!widgetKey.trim() || !embedAppOrigin) return "";
+    const parentHost =
+      typeof window !== "undefined" ? window.location.hostname || "localhost" : "localhost";
+    const parentPage =
+      typeof window !== "undefined"
+        ? `${window.location.origin}/dashboard/chat-widget/${encodeURIComponent(widgetKey)}`
+        : "";
     const q = new URLSearchParams({
       widgetKey,
       parentHost,
-      parentPage: `${origin}/dashboard/chat-widget/${encodeURIComponent(widgetKey)}`,
+      parentPage,
     });
-    return `${origin}/embed/widget?${q.toString()}`;
-  }, [widgetKey]);
+    return `${embedAppOrigin}/embed/widget?${q.toString()}`;
+  }, [widgetKey, embedAppOrigin]);
 
   const snapshotPreview = useMemo(
     () => parseSnapshotForPreview(snapshot),
     [snapshot],
   );
 
-  const snapshotConfig =
-    snapshot &&
-    typeof snapshot.configSnapshot === "object" &&
-    snapshot.configSnapshot !== null
-      ? snapshot.configSnapshot
-      : snapshot;
+  const displayEmbedSnippet = useMemo(() => {
+    if (!widgetKey.trim()) return "";
+    const raw =
+      snippetHtml?.trim() ||
+      buildUnifiedWidgetEmbedScript({ widgetKey, appOrigin: embedAppOrigin });
+    return normalizeEmbedSnippetForApi(raw, embedAppOrigin);
+  }, [snippetHtml, widgetKey, embedAppOrigin]);
 
   const handleCopySnippet = async () => {
-    const unified = widgetKey.trim()
-      ? buildUnifiedWidgetEmbedScript({
-          widgetKey,
-          appOrigin:
-            typeof window !== "undefined"
-              ? window.location.origin
-              : process.env.NEXT_PUBLIC_WIDGET_EMBED_ORIGIN ?? "",
-        })
-      : "";
-    const text = snippetHtml?.trim() || unified.trim() || "";
+    const text = displayEmbedSnippet.trim();
     if (!text) {
       publishAppToast({
         variant: "error",
@@ -162,7 +207,7 @@ export function ChatWidgetDetailClient({
     }
     try {
       await navigator.clipboard.writeText(text);
-      publishAppToast({ variant: "success", message: "Snippet copied." });
+      publishAppToast({ variant: "success", message: "Embed snippet copied." });
     } catch {
       publishAppToast({ variant: "error", message: "Could not copy to clipboard." });
     }
@@ -264,11 +309,8 @@ export function ChatWidgetDetailClient({
 
       {variant === "manage" ? (
         <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, maxWidth: 720 }}>
-          Copy the embed snippet or rotate the deploy key. Full step-by-step editing uses the{" "}
-          <Box component="span" sx={{ fontWeight: 700 }}>
-            configuration wizard
-          </Box>{" "}
-          (Button → Chat box → Notifications → Install). Publish from Deployment above when ready.
+          Copy the embed snippet below and paste it on your website. Use Edit configuration for the
+          step-by-step wizard, then publish when you are ready.
         </Typography>
       ) : null}
 
@@ -301,11 +343,11 @@ export function ChatWidgetDetailClient({
           <Box sx={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
             <DashboardCard sx={{ p: 2, display: "flex", flexDirection: "column", gap: 2, height: "auto" }}>
               <Typography variant="mediumLarge" color="white" fontWeight={600}>
-                Administration summary
+                Widget summary
               </Typography>
               {adminSummary.length === 0 ? (
                 <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted }}>
-                  No scalar fields returned. See raw JSON below.
+                  No widget details available.
                 </Typography>
               ) : (
                 <Box
@@ -316,96 +358,116 @@ export function ChatWidgetDetailClient({
                     gap: { xs: 0.5, sm: 1 },
                     m: 0,
                     "& dt": { color: theme.app.dashboard.textMuted, fontSize: "0.8rem" },
-                    "& dd": { m: 0, color: theme.app.text.primary, fontSize: "0.875rem", wordBreak: "break-word" },
+                    "& dd": {
+                      m: 0,
+                      color: theme.app.text.primary,
+                      fontSize: "0.875rem",
+                      wordBreak: "break-word",
+                    },
                   }}
                 >
-                  {adminSummary.map(({ k, v }) => (
-                    <Box key={k} sx={{ display: "contents" }}>
+                  {adminSummary.map(({ label, value }) => (
+                    <Box key={label} sx={{ display: "contents" }}>
                       <Typography component="dt" variant="body2">
-                        {k}
+                        {label}
                       </Typography>
                       <Typography component="dd" variant="body2">
-                        {v}
+                        {value}
                       </Typography>
                     </Box>
                   ))}
                 </Box>
               )}
-              <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted, mt: 1 }}>
-                Raw (GET /widgets/:key)
-              </Typography>
-              <Box
-                component="pre"
-                sx={{
-                  m: 0,
-                  p: 1.5,
-                  borderRadius: 1,
-                  maxHeight: 280,
-                  overflow: "auto",
-                  fontSize: "0.75rem",
-                  bgcolor: alpha(theme.palette.common.black, 0.25),
-                  border: `1px solid ${theme.app.dashboard.cardBorder}`,
-                  color: theme.app.dashboard.textMuted,
-                }}
-              >
-                {safePrettyJson(admin)}
-              </Box>
             </DashboardCard>
 
             <DashboardCard sx={{ p: 2, display: "flex", flexDirection: "column", gap: 1.5 }}>
               <Typography variant="mediumLarge" color="white" fontWeight={600}>
-                Editor snapshot
+                Embed code
               </Typography>
               <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted }}>
-                Latest configuration row from GET /widgets/:key/snapshot (includes config snapshot for
-                theming and behavior).
+                Paste this script before the closing <Box component="span">&lt;/body&gt;</Box> tag on
+                your website.
               </Typography>
-              <Box
-                component="pre"
-                sx={{
-                  m: 0,
-                  p: 1.5,
-                  borderRadius: 1,
-                  maxHeight: 420,
-                  overflow: "auto",
-                  fontSize: "0.75rem",
-                  bgcolor: alpha(theme.palette.common.black, 0.25),
-                  border: `1px solid ${theme.app.dashboard.cardBorder}`,
-                  color: theme.app.dashboard.textMuted,
-                }}
-              >
-                {safePrettyJson(snapshotConfig ?? snapshot)}
+              {displayEmbedSnippet.trim() ? (
+                <Box
+                  sx={{
+                    border: `1px solid ${theme.app.dashboard.cardBorder}`,
+                    borderRadius: 1.5,
+                    p: 1.5,
+                    bgcolor: theme.app.dashboard.overlayLight,
+                  }}
+                >
+                  <Typography
+                    component="pre"
+                    variant="body2"
+                    sx={{
+                      color: theme.app.dashboard.textMuted,
+                      wordBreak: "break-word",
+                      whiteSpace: "pre-wrap",
+                      m: 0,
+                      fontSize: "0.8rem",
+                    }}
+                  >
+                    {displayEmbedSnippet}
+                  </Typography>
+                </Box>
+              ) : (
+                <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted }}>
+                  Publish the widget to generate an embed snippet.
+                </Typography>
+              )}
+              <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
+                <Button
+                  type="button"
+                  variant="primary"
+                  size="small"
+                  sx={gradientPrimaryButtonSx}
+                  startIcon={<ContentCopy sx={{ fontSize: 16 }} />}
+                  onClick={() => void handleCopySnippet()}
+                  disabled={!displayEmbedSnippet.trim()}
+                >
+                  Copy embed snippet
+                </Button>
               </Box>
             </DashboardCard>
+
+            {snapshotPreview?.hasRenderable ? (
+              <DashboardCard sx={{ p: 2, display: "flex", flexDirection: "column", gap: 1.5 }}>
+                <Typography variant="mediumLarge" color="white" fontWeight={600}>
+                  Saved design preview
+                </Typography>
+                <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted }}>
+                  Visual preview from your saved configuration (draft or published).
+                </Typography>
+                <WidgetSnapshotPreview parsed={snapshotPreview} />
+              </DashboardCard>
+            ) : null}
           </Box>
 
           <Box sx={{ minWidth: 0 }}>
             <DashboardCard sx={{ p: 2, display: "flex", flexDirection: "column", gap: 2, height: "auto" }}>
-              <Typography variant="mediumLarge" color="white" fontWeight={600}>
-                Live preview
-              </Typography>
+              <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1 }}>
+                <Typography variant="mediumLarge" color="white" fontWeight={600}>
+                  Live preview
+                </Typography>
+                {previewSrc ? (
+                  <Button
+                    type="button"
+                    variant="outlined"
+                    size="small"
+                    startIcon={<RefreshRounded sx={{ fontSize: 16 }} />}
+                    onClick={() => setIframeKey((k) => k + 1)}
+                  >
+                    Refresh
+                  </Button>
+                ) : null}
+              </Box>
               <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted }}>
-                Uses your latest saved version from{" "}
-                <Box component="span" sx={{ fontFamily: "monospace", fontSize: "0.82rem" }}>
-                  GET /widgets/…/snapshot
-                </Box>{" "}
-                (draft or published theme in DB)—not the generic visitor runtime unless you open the embed
-                below.
-              </Typography>
-              <WidgetSnapshotPreview parsed={snapshotPreview} />
-
-              <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted, mt: 1 }}>
-                Visitor embed (optional)
-              </Typography>
-              <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted }}>
-                Same loader as a live site. The embed obtains a short-lived JWT via{" "}
-                <Box component="span" sx={{ fontFamily: "monospace", fontSize: "0.82rem" }}>
-                  POST /widget/session
-                </Box>{" "}
-                (widgetKey + allowed domain).{" "}
+                Same widget visitors see on your site after you publish and add your domain to the
+                allow list.
                 {sessionExpiresIn.trim()
-                  ? `Session TTL hint: ${sessionExpiresIn.trim()}.`
-                  : "Publish and allow your domain for a live preview."}
+                  ? ` Visitor sessions expire after ${sessionExpiresIn.trim()}.`
+                  : null}
               </Typography>
               <Box
                 sx={{
@@ -438,37 +500,11 @@ export function ChatWidgetDetailClient({
                 ) : (
                   <Box sx={{ py: 6, px: 2, textAlign: "center" }}>
                     <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted }}>
-                      Embed iframe unavailable
+                      Live preview unavailable — check embed host configuration.
                     </Typography>
                   </Box>
                 )}
               </Box>
-
-              {(variant === "manage" || snippetHtml?.trim() || widgetKey.trim()) && (
-                <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    size="small"
-                    startIcon={<ContentCopy sx={{ fontSize: 16 }} />}
-                    onClick={() => void handleCopySnippet()}
-                    disabled={!snippetHtml?.trim() && !widgetKey.trim()}
-                  >
-                    Copy embed snippet
-                  </Button>
-                </Box>
-              )}
-              {variant !== "manage" && (snippetHtml?.trim() || widgetKey.trim()) ? (
-                <Button
-                  type="button"
-                  variant="outlined"
-                  size="small"
-                  startIcon={<ContentCopy sx={{ fontSize: 16 }} />}
-                  onClick={() => void handleCopySnippet()}
-                >
-                  Copy embed snippet
-                </Button>
-              ) : null}
             </DashboardCard>
           </Box>
         </Box>
@@ -478,8 +514,8 @@ export function ChatWidgetDetailClient({
         <DialogTitle>Delete this widget?</DialogTitle>
         <DialogContent>
           <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted }}>
-            Soft-deletes this widget on the server (configuration, versions, keys, snippets). The website row is
-            not removed.
+            This removes the widget configuration from your account. Your website record is not
+            deleted.
           </Typography>
           <Typography variant="body2" sx={{ mt: 1.5, fontFamily: "monospace", wordBreak: "break-all" }}>
             {widgetKey}
