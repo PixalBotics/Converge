@@ -28,6 +28,7 @@ import {
   resolveWidgetEmbedAppOrigin,
 } from "@/lib/chat-widget/widget-embed-api-origin";
 import {
+  pickEmbedAppOrigin,
   pickEmbedSessionExpiresIn,
   readEmbedSnippetMarkup,
 } from "@/lib/chat-widget/widget-install-response";
@@ -117,12 +118,31 @@ export function ChatWidgetDetailClient({
   const [admin, setAdmin] = useState<JsonRecord | null>(null);
   const [snapshot, setSnapshot] = useState<JsonRecord | null>(null);
   const [snippetHtml, setSnippetHtml] = useState<string | null>(null);
+  const [snippetEmbedOrigin, setSnippetEmbedOrigin] = useState("");
   const [sessionExpiresIn, setSessionExpiresIn] = useState("");
   const [iframeKey, setIframeKey] = useState(0);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
-  const embedAppOrigin = resolveWidgetEmbedAppOrigin();
+  const embedAppOrigin = useMemo(() => {
+    const browserOrigin =
+      typeof window !== "undefined" ? window.location.origin : undefined;
+    return resolveWidgetEmbedAppOrigin({
+      browserOrigin,
+      apiEmbedAppOrigin: snippetEmbedOrigin,
+    });
+  }, [snippetEmbedOrigin]);
+
+  const embedOriginMisconfigured = useMemo(() => {
+    const envEmbed = process.env.NEXT_PUBLIC_WIDGET_EMBED_ORIGIN?.trim() ?? "";
+    if (!envEmbed) return false;
+    try {
+      const api = process.env.NEXT_PUBLIC_API_BASE_URL?.trim().replace(/\/+$/, "") ?? "";
+      return Boolean(api && new URL(envEmbed).origin === new URL(api).origin);
+    } catch {
+      return false;
+    }
+  }, []);
 
   const load = useCallback(async () => {
     if (!widgetKey.trim()) return;
@@ -142,8 +162,10 @@ export function ChatWidgetDetailClient({
         const snippetRes = await getWidgetEmbedSnippet(widgetKey);
         html = readEmbedSnippetMarkup(snippetRes);
         ttl = pickEmbedSessionExpiresIn(snippetRes);
+        setSnippetEmbedOrigin(pickEmbedAppOrigin(snippetRes));
       } catch {
         /* optional for draft-only widgets */
+        setSnippetEmbedOrigin("");
       }
       setSessionExpiresIn(ttl);
       setSnippetHtml(html);
@@ -153,6 +175,7 @@ export function ChatWidgetDetailClient({
       setSnapshot(null);
       setSessionExpiresIn("");
       setSnippetHtml(null);
+      setSnippetEmbedOrigin("");
     } finally {
       setLoading(false);
     }
@@ -469,6 +492,30 @@ export function ChatWidgetDetailClient({
                   ? ` Visitor sessions expire after ${sessionExpiresIn.trim()}.`
                   : null}
               </Typography>
+              {embedOriginMisconfigured ? (
+                <Typography
+                  variant="body2"
+                  sx={{
+                    color: theme.palette.warning.light,
+                    p: 1.25,
+                    borderRadius: 1,
+                    border: `1px solid ${theme.palette.warning.main}`,
+                    bgcolor: alpha(theme.palette.warning.main, 0.08),
+                  }}
+                >
+                  Misconfiguration: <code>NEXT_PUBLIC_WIDGET_EMBED_ORIGIN</code> matches your API
+                  URL. Set it to this dashboard host ({typeof window !== "undefined" ? window.location.origin : "Netlify app URL"}), not Render. Preview uses the dashboard host automatically.
+                </Typography>
+              ) : null}
+              {!previewSrc && embedAppOrigin === "" ? (
+                <Typography variant="body2" sx={{ color: theme.palette.error.light }}>
+                  Could not resolve embed host. Set{" "}
+                  <Box component="span" sx={{ fontFamily: "monospace" }}>
+                    NEXT_PUBLIC_WIDGET_EMBED_ORIGIN
+                  </Box>{" "}
+                  to your Next.js app URL on Netlify, then redeploy.
+                </Typography>
+              ) : null}
               <Box
                 sx={{
                   position: "relative",
