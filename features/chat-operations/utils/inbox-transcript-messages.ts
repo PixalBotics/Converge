@@ -1,5 +1,6 @@
 import { sortMessagesChronologically } from "@/lib/hooks/chat/agent-chat.utils";
 import type { ChatMessage } from "@/services/chat/chat.types";
+import { resolveDashboardHref } from "./resolve-dashboard-href";
 
 function readMessageType(message: ChatMessage): string | null {
   const mt = message.metadata?.messageType;
@@ -16,11 +17,11 @@ function remapCloseFormToDistribution(
   message: ChatMessage,
   distributionFormHref: string,
 ): ChatMessage {
-  const href = distributionFormHref.trim();
-  const intro = "Chat closed — open the distribution form to send the transcript to a department:";
+  const href = resolveDashboardHref(distributionFormHref.trim());
+  const intro = "Chat closed — open the distribution form to send the transcript to a department.";
   return {
     ...message,
-    content: href ? `${intro}\n${href}` : intro,
+    content: intro,
     metadata: {
       ...(message.metadata ?? {}),
       messageType: "distribution_link",
@@ -100,12 +101,20 @@ export function transcriptHasDistributionFormLink(messages: ChatMessage[]): bool
 function readFormHref(message: ChatMessage): string | null {
   const meta = message.metadata;
   if (!meta || typeof meta !== "object") return null;
-  const direct = meta.href;
-  if (typeof direct === "string" && direct.trim()) return direct.trim();
   const att = meta.attachmentMetadata;
+  if (att && typeof att === "object") {
+    const path = (att as { path?: unknown }).path;
+    if (typeof path === "string" && path.trim()) {
+      return resolveDashboardHref(path.trim());
+    }
+  }
+  const direct = meta.href;
+  if (typeof direct === "string" && direct.trim()) {
+    return resolveDashboardHref(direct.trim());
+  }
   if (att && typeof att === "object" && typeof (att as { href?: unknown }).href === "string") {
     const href = (att as { href: string }).href.trim();
-    return href || null;
+    return href ? resolveDashboardHref(href) : null;
   }
   return null;
 }

@@ -44,6 +44,7 @@ import { EmbedChatMediaBubbles } from "@/components/embed/EmbedChatMediaBubble";
 import { EmbedInputField } from "@/components/embed/EmbedInputField";
 import { normalizeChatMessageText } from "@/lib/safe-markdown/text";
 import { useVisitorChat } from "@/lib/hooks/chat/useVisitorChat";
+import { isHiddenFromVisitorWidget } from "@/lib/hooks/chat/visitor-widget-messages";
 import { LauncherPresetIcon } from "@/lib/chat-widget/launcherIcons";
 import {
   resolveInquiryRoutingTargets,
@@ -1227,6 +1228,9 @@ function WidgetChatPanel({
     );
     const apiBootstrap = prechatApiFirstMessageRef.current;
     for (const m of chat.messages) {
+      if (isHiddenFromVisitorWidget(m)) {
+        continue;
+      }
       if (
         m.role === "visitor" &&
         isPrechatBootstrapVisitorMessage(m.content, apiBootstrap)

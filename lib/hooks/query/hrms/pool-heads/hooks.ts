@@ -3,6 +3,8 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { assignPoolHead, listPoolHeads, listPoolHeadsAttendance, removePoolHead } from "@/api";
 import type { JsonRecord } from "@/api";
+import { hrmsPoolMembersKeys } from "../pool-members/keys";
+import { usersKeys } from "../../users";
 import { hrmsPoolHeadsKeys } from "./keys";
 
 export type HrmsPoolHeadsListParams = {
@@ -57,6 +59,8 @@ export function useAssignPoolHeadMutation() {
     mutationFn: (body: JsonRecord) => assignPoolHead(body),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: hrmsPoolHeadsKeys.all });
+      void qc.invalidateQueries({ queryKey: hrmsPoolMembersKeys.all });
+      void qc.invalidateQueries({ queryKey: usersKeys.lists() });
     },
   });
 }

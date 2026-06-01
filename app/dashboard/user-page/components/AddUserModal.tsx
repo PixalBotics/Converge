@@ -258,6 +258,7 @@ export function AddUserModal({
     hydratedEditUserIdRef.current = null;
     setRoleLabelHint("");
     setDepartmentLabelHint("");
+    setPhone("");
   }, [trimmedEditId]);
 
   useEffect(() => {
@@ -487,10 +488,11 @@ export function AddUserModal({
     const fn = firstName.trim();
     const ln = lastName.trim();
     const em = email.trim();
-    if (!fn || !ln || !em) {
+    const ph = phone.trim();
+    if (!fn || !em) {
       publishAppToast({
         variant: "error",
-        message: "Please enter first name, last name, and email.",
+        message: "Please enter first name and email.",
       });
       return;
     }
@@ -538,8 +540,13 @@ export function AddUserModal({
 
     const body: JsonRecord = {
       firstName: fn,
-      lastName: ln,
+      ...(mode === "edit"
+        ? { lastName: ln || null }
+        : ln
+          ? { lastName: ln }
+          : {}),
       email: em,
+      ...(mode === "edit" || ph ? { phoneNo: ph || null } : {}),
       userType,
       roleId: roleValue.trim(),
       departmentId: departmentValue.trim(),
@@ -611,7 +618,7 @@ export function AddUserModal({
           disabled={mode === "edit" && isEditLoading}
         />
         <InputField
-          label="Last Name"
+          label="Last Name (optional)"
           placeholder="Last Name"
           value={lastName}
           onChange={(e) => setLastName(e.target.value)}
