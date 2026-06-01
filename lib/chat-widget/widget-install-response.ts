@@ -40,6 +40,13 @@ export function readEmbedSnippetMarkup(payload: unknown): string | null {
   return null;
 }
 
+/** Next.js embed host from `GET .../embed-snippet` (must not be the Nest API). */
+export function pickEmbedAppOrigin(payload: unknown): string {
+  const inner = widgetResponseData<JsonRecord>(payload);
+  const v = inner.embedAppOrigin ?? inner.embed_app_origin;
+  return typeof v === "string" && v.trim() ? v.trim().replace(/\/+$/, "") : "";
+}
+
 /** JWT TTL hint from `GET .../embed-snippet` (e.g. `30m`). */
 export function pickEmbedSessionExpiresIn(payload: unknown): string {
   const inner = widgetResponseData<JsonRecord>(payload);

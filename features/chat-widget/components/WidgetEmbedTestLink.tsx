@@ -6,6 +6,7 @@ import Box from "@mui/material/Box";
 import Link from "@mui/material/Link";
 import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
+import { resolveWidgetEmbedAppOrigin } from "@/lib/chat-widget/widget-embed-api-origin";
 import { Typography } from "@/components/common";
 
 export function WidgetEmbedTestLink({
@@ -22,10 +23,11 @@ export function WidgetEmbedTestLink({
   const key = widgetKey.trim();
   if (!key.startsWith("wgt_")) return null;
 
-  const origin =
-    typeof window !== "undefined"
-      ? window.location.origin
-      : process.env.NEXT_PUBLIC_WIDGET_EMBED_ORIGIN ?? "";
+  const origin = resolveWidgetEmbedAppOrigin({
+    browserOrigin:
+      typeof window !== "undefined" ? window.location.origin : undefined,
+  });
+  if (!origin) return null;
 
   const params = new URLSearchParams({ widgetKey: key });
   if (websiteId?.trim()) params.set("websiteId", websiteId.trim());
