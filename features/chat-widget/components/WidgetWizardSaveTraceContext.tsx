@@ -117,6 +117,7 @@ export function WidgetWizardSaveTracePanel() {
     if (latestKey) setExpandedKey(latestKey);
   }, [latestKey]);
 
+  if (process.env.NODE_ENV !== "development") return null;
   if (!ctx || ctx.entries.length === 0) return null;
 
   const latest = ctx.entries[0];

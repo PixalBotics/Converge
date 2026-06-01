@@ -10,6 +10,8 @@ export function WidgetEmbedArchitectureHint() {
   const theme = useTheme() as AppTheme;
   const { appOrigin, apiOrigin, scriptSrc } = resolveWidgetEmbedArchitecture();
 
+  if (process.env.NODE_ENV !== "development") return null;
+
   return (
     <Box
       sx={{
