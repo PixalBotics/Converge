@@ -2,3 +2,4 @@
 export { default as DashboardSidebar, SIDEBAR_WIDTH } from "./DashboardSidebar/index";
 export { default as DashboardHeader } from "./DashboardHeader/index";
 export { OperationalViewGate } from "./OperationalViewGate";
+export { ImpersonationBanner } from "./ImpersonationBanner";

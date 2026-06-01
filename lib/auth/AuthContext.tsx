@@ -24,10 +24,13 @@ import {
   setTokenPair,
   synchronizeAuthSession,
 } from "@/api";
+import type { LoginSuccessData } from "@/api";
 import { isAuthSessionTerminated } from "@/api/session/terminate-auth-session";
 import { useLoginMutation, useLogoutMutation } from "@/lib/hooks";
+import { clearAppQueryCache } from "@/lib/hooks/query/core/app-query-cache";
 import { extractApiErrorMessageForToast } from "@/lib/notify";
 import { AUTH_PATHS, shouldSkipRemoteAuthHydration } from "./auth-paths";
+import { registerApplyLoginAsSession } from "./apply-login-as-session";
 import {
   clearImpersonationSession,
   getImpersonationSession,
@@ -502,6 +505,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [allowAuthSession, blockAuthSession, syncAccountThemeFromMePayload],
   );
 
+  /** Apply impersonated user + permissions from login-as response (replace, never merge). */
+  const applyLoginAsSessionFromResponse = useCallback(
+    (response: LoginSuccessData) => {
+      const loginPerms = extractPermissionsByType(response);
+      const mappedUser = mapApiUserToUser(response.user as ApiUser);
+      const platformAdmin =
+        extractIsPlatformAdmin(response) ||
+        isJwtPlatformAdmin(decodeJwtPayload(getAccessToken() ?? ""));
+
+      flushSync(() => {
+        setPermissionsByType(loginPerms ?? undefined);
+        setUser(mappedUser ?? getUserFromAccessToken());
+        setIsImpersonating(isImpersonatingSessionActive());
+        setIsPlatformAdmin(platformAdmin);
+        setAuthGate("ready");
+        setIsLoading(false);
+      });
+      applyAccountTheme(response.user?.theme?.backgroundColor ?? null);
+      accountThemeFromMeAppliedRef.current = true;
+      allowAuthSession();
+    },
+    [allowAuthSession, applyAccountTheme],
+  );
+
+  useEffect(() => {
+    registerApplyLoginAsSession(applyLoginAsSessionFromResponse);
+    return () => registerApplyLoginAsSession(null);
+  }, [applyLoginAsSessionFromResponse]);
+
   useEffect(() => {
     registerAfterTokenSessionSync(async () => {
       await pullRemoteAuthSession({ type: "replace" });
@@ -871,6 +903,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return false;
     }
     try {
+      clearAppQueryCache();
       setTokenPair(session.originalTokenPair);
       const mePayload = await getMe({ permissionsBreakdown: true });
       const meUser = extractUserFromMePayload(mePayload);
@@ -878,13 +911,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const incoming = extractPermissionsByType(mePayload);
       const platformAdmin =
         extractIsPlatformAdmin(mePayload) || isJwtPlatformAdmin(decodeJwtPayload(getAccessToken() ?? ""));
-      let mergedPermissions: PermissionsByType | undefined;
+      let restoredPermissions: PermissionsByType | undefined;
       flushSync(() => {
-        setPermissionsByType((prev) => {
-          const merged = mergePermissionsByType(prev, incoming) ?? incoming ?? prev;
-          mergedPermissions = merged ?? undefined;
-          return merged ?? undefined;
-        });
+        restoredPermissions = incoming ?? undefined;
+        setPermissionsByType(restoredPermissions);
         setUser(mappedMeUser ?? getUserFromAccessToken());
         setIsPlatformAdmin(platformAdmin);
       });
@@ -896,7 +926,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const isDemoUser = actor?.email?.trim().toLowerCase() === "demo@gmail.com";
       router.replace(
         resolveDashboardLandingHref({
-          permissionsByType: mergedPermissions,
+          permissionsByType: restoredPermissions,
           isPlatformAdmin: platformAdmin,
           isDemoUser: Boolean(isDemoUser),
         }),

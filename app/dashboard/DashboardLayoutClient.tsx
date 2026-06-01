@@ -8,7 +8,7 @@ import { LoadingScreen, PermissionDeniedPanel } from "@/components/common";
 import { AUTH_PATHS, useAuth } from "@/lib/auth";
 import { PERMISSION_BUCKET_PAGE, toPermissionSet } from "@/lib/auth/permissions-model";
 import { canAccessDashboardPath, getFirstAccessibleDashboardPath } from "@/lib/permissions";
-import { DashboardSidebar, DashboardHeader, OperationalViewGate } from "@/components/layout/dashboard";
+import { DashboardSidebar, DashboardHeader, OperationalViewGate, ImpersonationBanner } from "@/components/layout/dashboard";
 import { AgentDashboardProviders } from "@/components/notifications/AgentDashboardProviders";
 import {
   dashboardChatWorkstationMainSx,
@@ -156,6 +156,7 @@ export default function DashboardLayoutClient({
       <Box sx={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, minHeight: 0 }}>
         <Box sx={{ flexShrink: 0, mb: chatWorkstation ? { xs: 0, md: 0.5 } : undefined }}>
           <DashboardHeader onMenuClick={() => setSidebarOpen(true)} />
+          <ImpersonationBanner />
         </Box>
         <Box
           component="main"

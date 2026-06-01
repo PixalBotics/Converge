@@ -97,10 +97,10 @@ export function UsersTableSection(props: Props) {
     totalEntries,
     onEditUser,
   } = props;
-  const { hasOperational, user: authUser } = useAuth();
+  const { hasOperational, user: authUser, isImpersonating } = useAuth();
   const loginAsMutation = useLoginAsMutation();
   const softDeleteUserMutation = useSoftDeleteUserMutation();
-  const canUseLoginAs = hasOperational("user:login-as");
+  const canUseLoginAs = hasOperational("user:login-as") && !isImpersonating;
   const canDeleteUser = hasOperational("user:delete");
   const canEditUser = hasOperational("user:update") || hasOperational("user:edit");
   const [deleteTarget, setDeleteTarget] = useState<UserRow | null>(null);

@@ -3,7 +3,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getMe, login, loginAs, logout } from "@/api";
 import type { LoginAsRequestBody, LoginRequestBody } from "@/api";
+import { requestApplyLoginAsSession } from "@/lib/auth/apply-login-as-session";
 import { requestAfterTokenSessionSync } from "@/lib/auth/after-token-session-sync";
+import { clearAppQueryCache } from "../core/app-query-cache";
 import { authKeys } from "./keys";
 
 export function useMeQuery(options?: {
@@ -45,7 +47,10 @@ export function useLoginAsMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (body: LoginAsRequestBody) => loginAs(body),
-    onSuccess: () => {
+    onSuccess: (data) => {
+      requestApplyLoginAsSession(data);
+      clearAppQueryCache();
+      queryClient.clear();
       void queryClient.invalidateQueries({ queryKey: authKeys.all });
       requestAfterTokenSessionSync();
     },
