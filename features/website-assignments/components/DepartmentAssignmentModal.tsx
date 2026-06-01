@@ -125,7 +125,7 @@ export function DepartmentAssignmentModal({
       fitContent
       maxWidth={920}
       title={`Manage agents — ${department.departmentName}`}
-      description="Use the user table: pick one Primary, one Secondary, and one Backup per channel for this department."
+      description="Use the table to pick one Primary, one Secondary, and one Backup agent per channel for this department."
       onClose={onClose}
       onSave={() => void handleSave()}
       primaryButtonLabel={saving ? "Saving…" : "Save assignments"}

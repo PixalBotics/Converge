@@ -93,9 +93,9 @@ export function ChatContextRail({
             embedded
             href={closeFormHref}
             submitted={wrapUpSubmitted}
-            hint="Chat closed — complete the wrap-up form for this conversation."
+            hint="This chat is closed. Complete the post-close wrap-up form to record disposition and session details."
             buttonLabel="Open wrap-up form"
-            submittedHint="Wrap-up already submitted for this chat."
+            submittedHint="Wrap-up has been submitted for this conversation."
           />
         ),
       });

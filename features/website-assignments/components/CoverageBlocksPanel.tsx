@@ -142,7 +142,7 @@ export function CoverageBlocksPanel({
   const handleEnableBlocks = () => {
     if (!chatServiceHours) {
       publishAppToast({
-        message: "Pehle service scheduling mein chat service hours set karein.",
+        message: "Set chat service hours in service scheduling before configuring duty periods.",
         variant: "error",
       });
       return;
@@ -306,8 +306,8 @@ export function CoverageBlocksPanel({
                   variant="caption"
                   sx={{ color: theme.app.dashboard.textMuted, lineHeight: 1.55, display: "block", flex: 1 }}
                 >
-                  Ek hi Primary, Secondary aur Backup poore chat service hours ke liye. Sab se aasan —
-                  neeche team select karein aur <strong>Save team</strong> dabayein.
+                  Use one Primary, Secondary, and Backup team for the full chat service window. Select
+                  agents below and click <strong>Save team (full day)</strong>.
                 </Typography>
               </Box>
 
@@ -337,8 +337,8 @@ export function CoverageBlocksPanel({
                     flex: 1,
                   }}
                 >
-                  Din ko periods mein split karein — maslan subah 9–1 alag team, dopahar 1–6 alag team.
-                  Ek agent sirf apne period mein dikhega; agla period alag team ho sakti hai.
+                  Split the day into duty periods — for example, a morning team (9 AM–1 PM) and an
+                  afternoon team (1 PM–6 PM). Each period can have a different roster.
                 </Typography>
                 {canEdit ? (
                   <Button
@@ -403,11 +403,10 @@ export function CoverageBlocksPanel({
           >
             <InfoOutlined sx={{ color: theme.palette.info.light, fontSize: 20, mt: 0.2 }} />
             <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, lineHeight: 1.55 }}>
-              <strong>3 steps:</strong> (1) Har period ka start/end time set karein — chat hours ke andar.
-              (2) Har period ke liye alag Primary / Secondary / Backup choose karein. (3) Neeche{" "}
-              <strong>Save all periods</strong> dabayein. Jo agent pehle period mein hai, agle period ki
-              list mein tab tak nahi dikhega jab tak uska time overlap na kare — period khatam hone ke baad
-              woh agle period mein pick ho sakta hai.
+              <strong>3 steps:</strong> (1) Set start and end times for each period within chat service
+              hours. (2) Choose a separate Primary, Secondary, and Backup team for each period. (3) Click{" "}
+              <strong>Save all periods</strong> below. Agents assigned to an earlier period are hidden
+              from later periods while times overlap; they become available again after their period ends.
             </Typography>
           </Box>
 

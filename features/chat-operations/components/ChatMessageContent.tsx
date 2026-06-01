@@ -110,9 +110,9 @@ export function ChatMessageContent({ message }: { message: ChatMessage }) {
           title={attachmentTitle(message, messageType)}
           subtitle={
             formKind === "distribution"
-              ? "Send the transcript to the right department after close."
+              ? "Send the transcript to the selected department."
               : formKind === "close"
-                ? "Complete wrap-up for this conversation."
+                ? "Complete the post-close wrap-up form for this conversation."
                 : undefined
           }
           formKind={formKind}

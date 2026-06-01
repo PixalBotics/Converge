@@ -42,17 +42,39 @@ export function useAgentSessionSockets(enabled: boolean): void {
     const offAssignment = socketClient.onAgentAssignmentPopup((payload) => {
       playNotificationSound("chat");
       const cid = conversationIdFromSocketPayload(payload);
+      const title =
+        typeof payload === "object" &&
+        payload &&
+        typeof (payload as { inboxTitle?: string }).inboxTitle === "string"
+          ? (payload as { inboxTitle: string }).inboxTitle.trim()
+          : "";
       publishAppToast({
-        message: cid ? `New chat assigned · ${cid.slice(0, 8)}` : "New chat assigned",
+        message: title
+          ? `New chat assigned · ${title}`
+          : cid
+            ? `New chat assigned · ${cid.slice(0, 8)}`
+            : "A new chat has been assigned to you",
         variant: "success",
       });
       scheduleRefresh();
     });
 
-    const offQueue = socketClient.onAgentQueuePopup(() => {
+    const offQueue = socketClient.onAgentQueuePopup((payload) => {
       playNotificationSound("chat");
+      const title =
+        typeof payload === "object" &&
+        payload &&
+        typeof (payload as { inboxTitle?: string }).inboxTitle === "string"
+          ? (payload as { inboxTitle: string }).inboxTitle.trim()
+          : typeof payload === "object" &&
+              payload &&
+              typeof (payload as { displayName?: string }).displayName === "string"
+            ? (payload as { displayName: string }).displayName.trim()
+            : "";
       publishAppToast({
-        message: "Visitor waiting in queue",
+        message: title
+          ? `Visitor waiting in queue · ${title}`
+          : "A visitor is waiting in your department queue",
         variant: "success",
       });
       scheduleRefresh();

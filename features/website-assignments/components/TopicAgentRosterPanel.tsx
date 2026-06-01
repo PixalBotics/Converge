@@ -207,10 +207,32 @@ export function TopicAgentRosterPanel({
           <Typography variant="body2" fontWeight={700} sx={{ mb: 0.75 }}>
             Routing for this selection
           </Typography>
+          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75, mb: 0.75 }}>
+            <Chip
+              label={channel}
+              size="small"
+              color={channel === "External" ? "warning" : "info"}
+              sx={{ fontWeight: 700 }}
+            />
+            <Chip
+              label={`Topic: ${selectedTopic.clientLabel}`}
+              size="small"
+              variant="outlined"
+            />
+            <Chip
+              label={`Dept: ${activeDepartmentLabel}`}
+              size="small"
+              variant="outlined"
+            />
+            {activeTopicPoolId ? (
+              <Chip label="Pool-restricted roster" size="small" variant="outlined" />
+            ) : null}
+          </Box>
           <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, display: "block" }}>
-            Topic <strong>{selectedTopic.clientLabel}</strong> ({selectedTopic.routingKey}) ·{" "}
-            <strong>{channel}</strong> chats use department{" "}
+            Visitor topic <strong>{selectedTopic.routingKey}</strong> routes{" "}
+            <strong>{channel.toLowerCase()}</strong> chats to department{" "}
             <strong>{activeDepartmentLabel}</strong>
+            {activeTopicPoolId ? " (linked pool members only)" : ""}.
           </Typography>
         </Box>
       ) : null}
