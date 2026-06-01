@@ -19,7 +19,7 @@ import type { ServiceChannel, WebsiteAssignmentTier } from "@/api/types/website-
 import type { RosterUserHrmsContext } from "@/api/types/roster-hrms-context.types";
 import { useDepartmentRosterHrmsContextQuery, useUsersListQuery } from "@/lib/hooks";
 import { useQaRosterExclusionsQuery } from "@/features/chat-settings/hooks/useChatSettings";
-import { buildRosterUserOptions } from "../utils/roster-user-options";
+import { buildRosterUserOptions, formatRosterSelectLabel } from "../utils/roster-user-options";
 import {
   formatRosterShiftLabel,
   formatSelectedUserShiftLine,
@@ -90,7 +90,7 @@ export function RosterUsersPickerTable({
   );
 
   const userOptions = useMemo(() => {
-    const base = buildRosterUserOptions(usersQuery.data, departmentId);
+    const base = buildRosterUserOptions(usersQuery.data, departmentId, channel);
     const qaIds = new Set(qaExclusionsQuery.data?.qaReviewerUserIds ?? []);
     return base.map((u) =>
       qaIds.has(u.id)
@@ -101,7 +101,15 @@ export function RosterUsersPickerTable({
           }
         : u,
     );
-  }, [usersQuery.data, departmentId, qaExclusionsQuery.data?.qaReviewerUserIds]);
+  }, [usersQuery.data, departmentId, channel, qaExclusionsQuery.data?.qaReviewerUserIds]);
+
+  const eligibleCount = useMemo(
+    () => userOptions.filter((u) => !u.disabled).length,
+    [userOptions],
+  );
+
+  const channelChipColor =
+    channel === "External" ? theme.palette.warning.main : theme.palette.info.main;
 
   const hrmsUserIds = useMemo(() => {
     const ids = new Set<string>();
@@ -145,7 +153,11 @@ export function RosterUsersPickerTable({
       const blockedReason = blockedInOtherBlocks?.get(u.id);
       if (blockedReason && !selectedIds.has(u.id)) return false;
       if (!q) return true;
-      return u.label.toLowerCase().includes(q);
+      const haystack = [u.name, u.email, u.department, u.pool, u.userType, u.label]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      return haystack.includes(q);
     });
   }, [userOptions, userSearch, blockedInOtherBlocks, draft]);
 
@@ -224,6 +236,52 @@ export function RosterUsersPickerTable({
 
   return (
     <Box sx={{ opacity: disabled ? 0.5 : 1 }}>
+      <Box
+        sx={{
+          mb: 2,
+          p: 1.5,
+          borderRadius: 2,
+          border: `1px solid ${channelChipColor}44`,
+          bgcolor: `${channelChipColor}10`,
+        }}
+      >
+        <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75, mb: 1 }}>
+          <Chip
+            label={channel}
+            size="small"
+            sx={{
+              fontWeight: 700,
+              bgcolor: `${channelChipColor}22`,
+              color: channel === "External" ? theme.palette.warning.light : theme.palette.info.light,
+            }}
+          />
+          {departmentName ? (
+            <Chip label={`Dept: ${departmentName}`} size="small" variant="outlined" />
+          ) : null}
+          {poolId ? (
+            <Chip label="Pool-restricted list" size="small" variant="outlined" />
+          ) : null}
+          {!usersQuery.isLoading ? (
+            <Chip
+              label={`${eligibleCount} eligible user${eligibleCount === 1 ? "" : "s"}`}
+              size="small"
+              variant="outlined"
+            />
+          ) : null}
+        </Box>
+        <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, lineHeight: 1.5 }}>
+          Select one agent per column in the table below (click the same radio again to clear). Only{" "}
+          <strong>{channel.toLowerCase()}</strong> users
+          {departmentName ? (
+            <>
+              {" "}
+              for <strong>{departmentName}</strong>
+            </>
+          ) : null}
+          {poolId ? " in the linked pool" : " in this department"} are shown.
+        </Typography>
+      </Box>
+
       {showHoursBanner ? (
         <Box
           sx={{
@@ -247,25 +305,6 @@ export function RosterUsersPickerTable({
           </Typography>
         </Box>
       ) : null}
-      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1, mb: 1.5, alignItems: "center" }}>
-        <Typography variant="body2" fontWeight={600}>
-          {channel} team
-          {departmentName ? ` · ${departmentName}` : ""}
-        </Typography>
-        <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted }}>
-          Pick one user per column (click again to clear).
-          {showHrmsShift ?
-            " Internal agents chat only during their HRMS shift (break/leave skipped)."
-          : channel === "External" ?
-            " External agents: no HRMS shift — assign from the linked pool."
-          : null}
-        </Typography>
-        {poolId ? (
-          <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, width: "100%" }}>
-            Only members of the topic-linked pool can be saved to this roster.
-          </Typography>
-        ) : null}
-      </Box>
 
       {hiddenByBlockCount > 0 ? (
         <Typography
@@ -295,7 +334,10 @@ export function RosterUsersPickerTable({
           {selectedSummary.map(({ tier, userId, label, shiftLine, statusLabel, missingShift }) => (
             <Box key={tier} sx={{ mb: selectedSummary.length > 1 ? 0.75 : 0 }}>
               <Typography variant="caption" sx={{ display: "block", lineHeight: 1.5 }}>
-                <strong>{tier}:</strong> {label}
+                <strong>{tier}:</strong>{" "}
+                {userOptions.find((o) => o.id === userId)
+                  ? formatRosterSelectLabel(userOptions.find((o) => o.id === userId)!)
+                  : label}
               </Typography>
               {websiteHoursLabel ? (
                 <Typography
@@ -375,9 +417,12 @@ export function RosterUsersPickerTable({
           <Table size="small" stickyHeader>
             <TableHead>
               <TableRow>
-                <TableCell sx={{ fontWeight: 700, minWidth: 140 }}>User</TableCell>
+                <TableCell sx={{ fontWeight: 700, minWidth: 160 }}>User</TableCell>
+                <TableCell sx={{ fontWeight: 700, minWidth: 88 }}>Type</TableCell>
+                <TableCell sx={{ fontWeight: 700, minWidth: 120 }}>Department</TableCell>
+                <TableCell sx={{ fontWeight: 700, minWidth: 100 }}>Pool</TableCell>
                 {showHrmsColumn ? (
-                  <TableCell sx={{ fontWeight: 700, minWidth: 200 }}>HRMS shift</TableCell>
+                  <TableCell sx={{ fontWeight: 700, minWidth: 180 }}>HRMS shift</TableCell>
                 ) : null}
                 <TableCell sx={{ fontWeight: 700, width: 72 }} align="center">
                   Primary
@@ -393,7 +438,7 @@ export function RosterUsersPickerTable({
             <TableBody>
               {filteredUsers.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={showHrmsColumn ? 5 : 4}>
+                  <TableCell colSpan={showHrmsColumn ? 8 : 7}>
                     <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, py: 1 }}>
                       No users match your search.
                     </Typography>
@@ -418,13 +463,46 @@ export function RosterUsersPickerTable({
                     >
                       <TableCell>
                         <Typography variant="body2" fontWeight={500}>
-                          {user.label.split(" · ")[0]}
+                          {user.name}
                         </Typography>
+                        {user.email ? (
+                          <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted }}>
+                            {user.email}
+                          </Typography>
+                        ) : null}
+                        {blocked ? (
+                          <Typography variant="caption" sx={{ color: theme.palette.warning.light, display: "block" }}>
+                            {user.disabledReason ?? "Not eligible"}
+                          </Typography>
+                        ) : null}
+                      </TableCell>
+                      <TableCell>
+                        <Chip
+                          label={user.userType}
+                          size="small"
+                          sx={{
+                            height: 22,
+                            fontSize: 11,
+                            fontWeight: 700,
+                            bgcolor:
+                              user.userType === "External"
+                                ? `${theme.palette.warning.main}22`
+                                : `${theme.palette.info.main}22`,
+                            color:
+                              user.userType === "External"
+                                ? theme.palette.warning.light
+                                : theme.palette.info.light,
+                          }}
+                        />
+                      </TableCell>
+                      <TableCell>
                         <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted }}>
-                          {user.label.includes(" · ")
-                            ? user.label.split(" · ").slice(1).join(" · ")
-                            : user.id.slice(0, 8)}
-                          {blocked ? ` · ${user.disabledReason ?? "Not eligible"}` : ""}
+                          {user.department ?? "—"}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted }}>
+                          {user.pool ?? "—"}
                         </Typography>
                       </TableCell>
                       {showHrmsColumn ? (

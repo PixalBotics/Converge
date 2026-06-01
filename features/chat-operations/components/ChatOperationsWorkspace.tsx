@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import Box from "@mui/material/Box";
 import { getAccessToken, postAgentAiSuggestion, parseAgentSuggestResponse } from "@/api";
 import type { AgentAiAction } from "@/api/ai/agent-suggest.api";
@@ -47,7 +47,6 @@ import {
   patchConversationAiState,
   patchConversationDraft,
 } from "../utils/conversation-scoped-state";
-import { AgentWrapUpModal } from "./AgentWrapUpModal";
 import { ChatConversationPanel } from "./ChatConversationPanel";
 import { ChatQueueSidebar } from "./ChatQueueSidebar";
 import { VisitorInfoPanel } from "./VisitorInfoPanel";
@@ -68,6 +67,7 @@ export function ChatOperationsWorkspace() {
   const { canFilterByResellerId } = useResellerListScope();
   const notifications = useNotificationsContext();
   const searchParams = useSearchParams();
+  const router = useRouter();
   const inboxAllowed = gates.agentInbox;
   const showScopeFilters = needsChatScopeFilters(hasOperational, canFilterByResellerId);
   const accessToken = inboxAllowed ? getAccessToken() ?? "" : "";
@@ -81,6 +81,13 @@ export function ChatOperationsWorkspace() {
       void markAllChatNotificationsRead("chat");
     }
   }, [inboxAllowed, markAllChatNotificationsRead]);
+
+  useEffect(() => {
+    if (searchParams.get("wrapUp") !== "1" || !conversationIdFromUrl) return;
+    router.replace(
+      `/dashboard/chat-operations/wrap-up?conversationId=${encodeURIComponent(conversationIdFromUrl)}`,
+    );
+  }, [conversationIdFromUrl, router, searchParams]);
 
   const agentChat = useAgentChat({
     token: accessToken,
@@ -543,7 +550,8 @@ export function ChatOperationsWorkspace() {
 
   const closeFormHref =
     wrapUpForSelected?.requiresAgentWrapUp && !wrapUpForSelected.requiresDistributionForm
-      ? `/dashboard/chat-operations?conversationId=${encodeURIComponent(agentChat.selectedConversationId!)}&wrapUp=1`
+      ? wrapUpForSelected.wrapUpFormPath ??
+        `/dashboard/chat-operations/wrap-up?conversationId=${encodeURIComponent(agentChat.selectedConversationId!)}`
       : null;
 
   const canSend =
@@ -757,15 +765,6 @@ export function ChatOperationsWorkspace() {
         </Box>
       </Box>
 
-      <AgentWrapUpModal
-        open={searchParams.get("wrapUp") === "1" && Boolean(wrapUpForSelected?.requiresAgentWrapUp)}
-        payload={wrapUpForSelected}
-        onClose={agentChat.dismissWrapUp}
-        onSubmitted={() => {
-          agentChat.dismissWrapUp();
-          void agentChat.refreshQueues();
-        }}
-      />
     </ChatLivePageShell>
   );
 }

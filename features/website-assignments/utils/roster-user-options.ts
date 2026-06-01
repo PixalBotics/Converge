@@ -1,9 +1,14 @@
-import { extractUsersRows } from "@/app/dashboard/user-page/utils";
+import { extractUsersRows, parseUserListType } from "@/app/dashboard/user-page/utils";
 import { unwrapApiData } from "@/lib/utils/core";
 
 export type RosterUserOption = {
   id: string;
   label: string;
+  name: string;
+  email?: string;
+  department?: string;
+  pool?: string;
+  userType: "Internal" | "External";
   disabled: boolean;
   disabledReason?: string;
 };
@@ -50,9 +55,44 @@ function rosterBlocked(
   return { blocked: false };
 }
 
+function buildOptionFromRow(
+  raw: Record<string, unknown>,
+  departmentId: string,
+  fallbackUserType: "Internal" | "External",
+): RosterUserOption | null {
+  const id = String(raw.id ?? "").trim();
+  if (!id) return null;
+  const name =
+    [raw.firstName, raw.lastName].filter(Boolean).join(" ").trim() ||
+    String(raw.email ?? "User");
+  const email = String(raw.email ?? "").trim() || undefined;
+  const department =
+    String(raw.departmentName ?? asRecord(raw.department)?.name ?? "").trim() || undefined;
+  const pool =
+    String(raw.poolName ?? asRecord(raw.pool)?.name ?? "").trim() || undefined;
+  const userType = parseUserListType(raw as Parameters<typeof parseUserListType>[0]);
+  const parts = [name];
+  if (email) parts.push(email);
+  if (department) parts.push(department);
+  if (pool) parts.push(`Pool: ${pool}`);
+  const { blocked, reason } = rosterBlocked(raw, departmentId);
+  return {
+    id,
+    name,
+    email,
+    department,
+    pool,
+    userType: userType || fallbackUserType,
+    label: parts.join(" · "),
+    disabled: blocked,
+    disabledReason: reason,
+  };
+}
+
 export function buildRosterUserOptions(
   payload: unknown,
   departmentId: string,
+  channel: "Internal" | "External" = "Internal",
 ): RosterUserOption[] {
   const layer = unwrapApiData(payload);
   const list = Array.isArray(layer)
@@ -65,42 +105,39 @@ export function buildRosterUserOptions(
     .map((item) => {
       const raw = asRecord(item);
       if (!raw) return null;
-      const id = String(raw.id ?? "").trim();
-      if (!id) return null;
-      const name = [raw.firstName, raw.lastName].filter(Boolean).join(" ").trim() || String(raw.email ?? "User");
-      const email = String(raw.email ?? "").trim();
-      const dept = String(
-        raw.departmentName ?? asRecord(raw.department)?.name ?? "",
-      ).trim();
-      const pool = String(raw.poolName ?? asRecord(raw.pool)?.name ?? "").trim();
-      const parts = [name];
-      if (email) parts.push(email);
-      if (dept) parts.push(dept);
-      if (pool) parts.push(`Pool: ${pool}`);
-      const { blocked, reason } = rosterBlocked(raw, departmentId);
-      return {
-        id,
-        label: parts.join(" · "),
-        disabled: blocked,
-        disabledReason: reason,
-      };
+      return buildOptionFromRow(raw, departmentId, channel);
     })
-    .filter((o) => o != null) as RosterUserOption[];
+    .filter((o): o is RosterUserOption => o != null);
 
   if (fromList.length > 0) return fromList;
 
   return extractUsersRows(payload).map((row) => {
-    const { blocked, reason } = rosterBlocked(row as Record<string, unknown>, departmentId);
-    const pool = String((row as Record<string, unknown>).poolName ?? "").trim();
-    const parts = [row.user];
-    if (row.email && row.email !== "—") parts.push(row.email);
-    if (row.department && row.department !== "—") parts.push(row.department);
+    const raw = row as Record<string, unknown>;
+    const { blocked, reason } = rosterBlocked(raw, departmentId);
+    const pool = String(raw.poolName ?? "").trim() || undefined;
+    const name = row.user;
+    const email = row.email && row.email !== "—" ? row.email : undefined;
+    const department =
+      row.department && row.department !== "—" ? row.department : undefined;
+    const parts = [name];
+    if (email) parts.push(email);
+    if (department) parts.push(department);
     if (pool) parts.push(`Pool: ${pool}`);
     return {
       id: row.id,
+      name,
+      email,
+      department,
+      pool,
+      userType: channel,
       label: parts.join(" · "),
       disabled: blocked,
       disabledReason: reason,
     };
   });
+}
+
+export function formatRosterSelectLabel(option: RosterUserOption): string {
+  const typeTag = option.userType === "External" ? "External" : "Internal";
+  return `[${typeTag}] ${option.label}`;
 }

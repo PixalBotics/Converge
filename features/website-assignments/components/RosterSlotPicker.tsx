@@ -71,8 +71,8 @@ export function RosterSlotPicker({
   );
 
   const userOptions = useMemo(
-    () => buildRosterUserOptions(usersQuery.data, departmentId),
-    [usersQuery.data, departmentId],
+    () => buildRosterUserOptions(usersQuery.data, departmentId, channel),
+    [usersQuery.data, departmentId, channel],
   );
 
   const selectableCount = useMemo(

@@ -15,6 +15,16 @@ export interface AgentWrapUpFormField {
   maxLength?: number;
 }
 
+export interface AgentWrapUpEmailField {
+  fieldKey: string;
+  label: string;
+  fieldType: string;
+  isRequired: boolean;
+  enabled: boolean;
+  sortOrder: number;
+  readOnly: boolean;
+}
+
 export interface AgentWrapUpPayload {
   conversationId: string;
   websiteId?: string;
@@ -24,6 +34,11 @@ export interface AgentWrapUpPayload {
   requiresAgentWrapUp?: boolean;
   requiresDistributionForm?: boolean;
   distributionFormPath?: string | null;
+  wrapUpFormPath?: string | null;
+  closeForm?: {
+    fields: AgentWrapUpEmailField[];
+    prefilledValues: Record<string, string>;
+  } | null;
   distributionSubmitted?: boolean;
   distributionSubmission?: Record<string, unknown> | null;
   wrapUpSubmitted?: boolean;
@@ -48,4 +63,5 @@ export interface SubmitAgentWrapUpBody {
   agentNotes: string;
   outcomeTag?: string;
   csatScore?: number;
+  formValues?: Record<string, string>;
 }
