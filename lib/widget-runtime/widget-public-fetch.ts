@@ -2,6 +2,7 @@ import { getResolvedPublicApiBaseUrl } from "@/lib/public-api/resolved-base-url"
 import { WIDGET_FETCH_CREDENTIALS } from "./widget-fetch-credentials";
 import {
   configRecordFromEnvelope,
+  hydrateExperienceInquiryFromBehavior,
   parseWidgetExperienceV1,
 } from "./widget-experience";
 import type {
@@ -167,7 +168,23 @@ export function normalizePublicWidgetConfigEnvelope(
     parseWidgetExperienceV1(o.experience) ??
     parseWidgetExperienceV1(isRecord(o.clientSettings) ? o.clientSettings._experience : null);
 
-  const configParts: unknown[] = experience
+  const legacyInquiryConfig = mergeWidgetConfigParts(
+    o.config,
+    o.configSnapshot,
+    o.publishedConfig,
+  );
+  const experienceWithLegacyInquiry =
+    experience && isRecord(legacyInquiryConfig.behavior)
+      ? hydrateExperienceInquiryFromBehavior({
+          ...experience,
+          behavior: {
+            ...(isRecord(experience.behavior) ? experience.behavior : {}),
+            ...legacyInquiryConfig.behavior,
+          },
+        })
+      : experience;
+
+  const configParts: unknown[] = experienceWithLegacyInquiry
     ? []
     : [o.config, o.configSnapshot, o.publishedConfig, o.settingsJson];
 
@@ -177,9 +194,9 @@ export function normalizePublicWidgetConfigEnvelope(
       ? o.theme_design_json
       : undefined;
 
-  let mergedConfig = experience
+  let mergedConfig = experienceWithLegacyInquiry
     ? configRecordFromEnvelope({
-        experience,
+        experience: experienceWithLegacyInquiry,
         chatMode:
           typeof o.chatMode === "string"
             ? o.chatMode
@@ -189,7 +206,7 @@ export function normalizePublicWidgetConfigEnvelope(
       })
     : mergeWidgetConfigParts(...configParts);
 
-  if (!experience && isRecord(mergedConfig.theme)) {
+  if (!experienceWithLegacyInquiry && isRecord(mergedConfig.theme)) {
     const theme = mergedConfig.theme;
     const dj = isRecord(theme.designJson) ? theme.designJson : null;
     if (dj) {
@@ -273,7 +290,7 @@ export function normalizePublicWidgetConfigEnvelope(
         ? (o.allowed_domains as string[])
         : undefined,
     chatMode,
-    experience: experience ?? undefined,
+    experience: experienceWithLegacyInquiry ?? undefined,
     embed: embedRaw
       ? {
           appOrigin:
@@ -290,7 +307,9 @@ export function normalizePublicWidgetConfigEnvelope(
     themeDesignJson,
     /** Legacy fat snapshot; omitted when API returns `experience` only. */
     config:
-      !experience && Object.keys(mergedConfig).length > 0 ? mergedConfig : undefined,
+      !experienceWithLegacyInquiry && Object.keys(mergedConfig).length > 0
+        ? mergedConfig
+        : undefined,
   };
 }
 

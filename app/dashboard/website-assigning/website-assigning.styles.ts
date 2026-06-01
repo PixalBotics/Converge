@@ -1,5 +1,6 @@
 import { alpha } from "@mui/material/styles";
 import type { SxProps, Theme } from "@mui/material/styles";
+import { dashboardCardSurfaceProps } from "@/features/chat-operations/styles/chat-semantic";
 import type { AppTheme } from "@/theme/theme";
 import { cardPadding, pageWrapper } from "../dashboard.styles";
 
@@ -31,12 +32,14 @@ export const websiteAssignmentHeroSx: SxProps<Theme> = (theme) => {
 
 export const websiteAssignmentModernCardSx: SxProps<Theme> = (theme) => {
   const t = theme as AppTheme;
+  const blur = t.app.dashboard.cardBackdropBlur ?? "blur(12px)";
   return {
     p: { xs: 1.5, sm: 2, md: 2.5 },
     borderRadius: 3,
     border: `1px solid ${alpha(t.app.dashboard.cardBorder, 0.9)}`,
-    bgcolor: alpha(t.app.dashboard.cardBg ?? t.app.dashboard.pillBg, 0.55),
-    backdropFilter: "blur(12px)",
+    ...dashboardCardSurfaceProps(theme, 0.55),
+    backdropFilter: blur,
+    WebkitBackdropFilter: blur,
     boxShadow: `0 12px 40px ${alpha(t.palette.common.black, 0.14)}`,
   };
 };
@@ -164,6 +167,7 @@ export const websiteAssignmentSectionIconSx: SxProps<Theme> = (theme) => {
 
 export const websiteAssignmentUserDetailCard: SxProps<Theme> = (theme) => {
   const t = theme as AppTheme;
+  const blur = t.app.dashboard.cardBackdropBlur ?? "blur(10px)";
   return {
     p: { xs: 1.5, sm: 2, md: 2.5 },
     display: "flex",
@@ -172,8 +176,9 @@ export const websiteAssignmentUserDetailCard: SxProps<Theme> = (theme) => {
     mb: 2.5,
     borderRadius: 3,
     border: `1px solid ${alpha(t.app.dashboard.cardBorder, 0.85)}`,
-    bgcolor: alpha(t.app.dashboard.cardBg ?? t.app.dashboard.pillBg, 0.5),
-    backdropFilter: "blur(10px)",
+    ...dashboardCardSurfaceProps(theme, 0.5),
+    backdropFilter: blur,
+    WebkitBackdropFilter: blur,
     boxShadow: `0 10px 36px ${alpha(t.palette.common.black, 0.12)}`,
   };
 };

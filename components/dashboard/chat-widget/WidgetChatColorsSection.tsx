@@ -5,7 +5,7 @@ import Box from "@mui/material/Box";
 import Collapse from "@mui/material/Collapse";
 import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
-import { Button, InputField, Typography } from "@/components/common";
+import { Button, Typography } from "@/components/common";
 import { WidgetColorPickerField } from "@/components/dashboard/chat-widget/WidgetColorPickerField";
 import {
   deriveWidgetChatColorsDraft,

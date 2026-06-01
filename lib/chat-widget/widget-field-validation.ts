@@ -59,7 +59,9 @@ export function parseDomainListInput(raw: string): string[] {
       if (!part) return "";
       if (URL_PROTOCOL.test(part)) {
         try {
-          return new URL(part).hostname.toLowerCase();
+          const u = new URL(part);
+          const host = u.hostname.toLowerCase();
+          return u.port ? `${host}:${u.port}` : host;
         } catch {
           return "";
         }
@@ -67,6 +69,33 @@ export function parseDomainListInput(raw: string): string[] {
       return part.replace(/^\/+|\/+$/g, "").split("/")[0]?.toLowerCase() ?? "";
     })
     .filter(Boolean);
+}
+
+const DOMAIN_HOST_RE =
+  /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$/i;
+const IPV4_RE = /^(?:\d{1,3}\.){3}\d{1,3}$/;
+
+function isValidIpv4(host: string): boolean {
+  if (!IPV4_RE.test(host)) return false;
+  return host.split(".").every((octet) => {
+    const n = Number.parseInt(octet, 10);
+    return n >= 0 && n <= 255;
+  });
+}
+
+/** Allow production domains plus local dev hosts (localhost, 127.0.0.1) with optional port. */
+export function isValidAllowedDomainHost(host: string): boolean {
+  const lower = host.trim().toLowerCase();
+  if (!lower) return false;
+
+  const portMatch = /^(.+):(\d{1,5})$/.exec(lower);
+  const hostname = portMatch?.[1] ?? lower;
+  const port = portMatch ? Number.parseInt(portMatch[2]!, 10) : null;
+  if (port !== null && (port < 1 || port > 65535)) return false;
+
+  if (hostname === "localhost") return true;
+  if (isValidIpv4(hostname)) return true;
+  return DOMAIN_HOST_RE.test(hostname);
 }
 
 export function formatDomainListForInput(domains: string[]): string {
@@ -87,7 +116,7 @@ export function validateDomainListInput(raw: string): string | null {
     if (host.includes(" ")) {
       return "Domains cannot contain spaces.";
     }
-    if (!/^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$/i.test(host)) {
+    if (!isValidAllowedDomainHost(host)) {
       return `Invalid domain: ${part}`;
     }
   }

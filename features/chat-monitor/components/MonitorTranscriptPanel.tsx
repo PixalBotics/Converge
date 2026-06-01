@@ -8,9 +8,10 @@ import type { AppTheme } from "@/theme/theme";
 import {
   getAccessToken,
   postAgentAiSuggestion,
-  formatAgentSuggestResponse,
+  parseAgentSuggestResponse,
 } from "@/api";
 import type { AgentAiAction } from "@/api/ai/agent-suggest.api";
+import { buildAgentCopilotInput, agentAiActionNeedsWebsite } from "@/lib/ai/agent-copilot-input";
 import { Button, Typography } from "@/components/common";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
 import { ChatComposer } from "@/features/chat-operations/components/ChatComposer";
@@ -40,12 +41,7 @@ import {
 import { canSupervisorCloseChat } from "@/lib/permissions/chat-access";
 import { extractApiErrorMessageForToast, publishAppToast } from "@/lib/notify";
 function needsWebsite(action: AgentAiAction): boolean {
-  return (
-    action === "suggested_reply" ||
-    action === "knowledge_lookup" ||
-    action === "coach_reply" ||
-    action === "rewrite_tone"
-  );
+  return agentAiActionNeedsWebsite(action);
 }
 
 interface MonitorTranscriptPanelProps {
@@ -184,10 +180,12 @@ export function MonitorTranscriptPanel({
       });
 
       try {
-        const input =
-          draftContext.length > 0
-            ? `${prompt}\n\n---\nDraft reply:\n${draftContext}`
-            : prompt;
+        const input = buildAgentCopilotInput({
+          prompt,
+          action,
+          transcript: messages,
+          draftReply: draftContext,
+        });
         const data = await postAgentAiSuggestion({
           action,
           input,
@@ -195,13 +193,20 @@ export function MonitorTranscriptPanel({
           ...(websiteId?.trim() ? { websiteId: websiteId.trim() } : {}),
           ...(action === "rewrite_tone" ? { tone: "professional" } : {}),
         });
-        const reply = formatAgentSuggestResponse(data);
+        const parsed = parseAgentSuggestResponse(data);
         setAiByConversation((prev) => {
           const current = getConversationAiState(prev, conversationId);
           return patchConversationAiState(prev, conversationId, {
             busy: false,
             messages: current.messages.map((m) =>
-              m.id === pendingId ? { ...m, content: reply, pending: false } : m,
+              m.id === pendingId
+                ? {
+                    ...m,
+                    content: parsed.reply,
+                    sources: parsed.sources.length ? parsed.sources : undefined,
+                    pending: false,
+                  }
+                : m,
             ),
           });
         });
@@ -224,7 +229,7 @@ export function MonitorTranscriptPanel({
         });
       }
     },
-    [conversationId, draftsByConversation, websiteId],
+    [conversationId, draftsByConversation, messages, websiteId],
   );
 
   const sendToVisitor = useCallback(async () => {

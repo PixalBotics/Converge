@@ -1,5 +1,9 @@
 import type { WidgetInquiryOption } from "@/lib/chat-widget/widget-inquiry.types";
-import { toRuntimeInquiryOptions } from "@/lib/chat-widget/widget-inquiry.types";
+import {
+  normalizeWidgetInquiryOptions,
+  resolveInquiryRoutingTargets,
+  toRuntimeInquiryOptions,
+} from "@/lib/chat-widget/widget-inquiry.types";
 
 export const WIDGET_EXPERIENCE_SCHEMA_VERSION = 1;
 
@@ -58,6 +62,87 @@ function isRecord(v: unknown): v is Record<string, unknown> {
   return Boolean(v) && typeof v === "object" && !Array.isArray(v);
 }
 
+/** Map widget draft rows to compiled `experience.inquiry.topics` (public embed shape). */
+export function widgetInquiryToExperienceTopic(
+  option: WidgetInquiryOption,
+): WidgetExperienceInquiryTopic {
+  const { departmentId, poolId, serviceChannel } = resolveInquiryRoutingTargets(option);
+  return {
+    label: option.label.trim(),
+    routingKey: option.routingKey.trim(),
+    serviceChannel,
+    departmentId,
+    poolId,
+  };
+}
+
+/** When publish snapshot omits `inquiry.topics`, recover from `behavior.inquiryOptions`. */
+export function hydrateExperienceInquiryFromBehavior(
+  experience: WidgetExperienceV1,
+): WidgetExperienceV1 {
+  if (experience.inquiry.topics.length > 0) return experience;
+
+  const behavior = isRecord(experience.behavior) ? experience.behavior : {};
+  const opts = normalizeWidgetInquiryOptions(behavior.inquiryOptions);
+  if (opts.length === 0) return experience;
+
+  const topics = opts
+    .map(widgetInquiryToExperienceTopic)
+    .filter((t) => t.label && t.routingKey);
+
+  const fallbackKey =
+    experience.inquiry.fallbackRoutingKey?.trim() ||
+    (typeof behavior.inquiryFallbackRoutingKey === "string"
+      ? behavior.inquiryFallbackRoutingKey.trim()
+      : "") ||
+    null;
+
+  const skipLabel = String(
+    behavior.inquirySkipLabel ?? experience.inquiry.skipLabel ?? "General question",
+  );
+
+  const required =
+    experience.inquiry.required === true || behavior.inquiryRequired === true;
+
+  return {
+    ...experience,
+    inquiry: {
+      ...experience.inquiry,
+      enabled: true,
+      required: required && topics.length > 0,
+      skipLabel,
+      fallbackRoutingKey: fallbackKey,
+      topics,
+      fallback: fallbackKey
+        ? topics.find((t) => t.routingKey === fallbackKey) ?? null
+        : experience.inquiry.fallback,
+    },
+  };
+}
+
+/** Widget PATCH DTO: inquiry lives under `config.behavior` only (not `config.inquiry`). */
+export function buildInquiryBehaviorPatchFields(params: {
+  inquiryOn?: boolean;
+  inquiryOptions?: WidgetInquiryOption[];
+  inquiryRequired?: boolean;
+  inquirySkipLabel?: string;
+  inquiryFallbackRoutingKey?: string;
+}): Record<string, unknown> {
+  const inquiryOptions =
+    params.inquiryOn === false
+      ? []
+      : normalizeWidgetInquiryOptions(params.inquiryOptions ?? []);
+  const fallbackKey = params.inquiryFallbackRoutingKey?.trim() || null;
+  const skipLabel = params.inquirySkipLabel?.trim() || "General question";
+
+  return {
+    inquiryOptions,
+    inquiryRequired: params.inquiryRequired === true,
+    inquirySkipLabel: skipLabel,
+    ...(fallbackKey ? { inquiryFallbackRoutingKey: fallbackKey } : {}),
+  };
+}
+
 export function parseWidgetExperienceV1(raw: unknown): WidgetExperienceV1 | null {
   if (!isRecord(raw) || raw.schemaVersion !== WIDGET_EXPERIENCE_SCHEMA_VERSION) {
     return null;
@@ -104,7 +189,7 @@ export function parseWidgetExperienceV1(raw: unknown): WidgetExperienceV1 | null
         }
       : null;
 
-  return {
+  const parsed: WidgetExperienceV1 = {
     schemaVersion: WIDGET_EXPERIENCE_SCHEMA_VERSION,
     mode: String(raw.mode ?? "HYBRID"),
     content: {
@@ -153,6 +238,8 @@ export function parseWidgetExperienceV1(raw: unknown): WidgetExperienceV1 | null
     behavior: isRecord(raw.behavior) ? raw.behavior : {},
     session: isRecord(raw.session) ? raw.session : {},
   };
+
+  return hydrateExperienceInquiryFromBehavior(parsed);
 }
 
 export function experienceTopicToWidgetInquiry(
@@ -178,7 +265,14 @@ export function applyExperienceToConfigRecord(
 ): Record<string, unknown> {
   if (!experience) return config;
 
-  const inquiryOptions = experience.inquiry.topics.map(experienceTopicToWidgetInquiry);
+  const inquiryOptionsFromTopics = experience.inquiry.topics.map(experienceTopicToWidgetInquiry);
+  const inquiryOptionsFromBehavior = normalizeWidgetInquiryOptions(
+    isRecord(experience.behavior) ? experience.behavior.inquiryOptions : [],
+  );
+  const inquiryOptions =
+    inquiryOptionsFromTopics.length > 0
+      ? inquiryOptionsFromTopics
+      : inquiryOptionsFromBehavior;
   const panel = experience.design.panel;
   const launcher = experience.design.launcher;
   const banner = experience.design.banner;
@@ -264,25 +358,29 @@ export function applyExperienceToConfigRecord(
 export function inquiryOptionsFromExperience(
   experience: WidgetExperienceV1 | null,
 ): ReturnType<typeof toRuntimeInquiryOptions> {
-  if (!experience?.inquiry.enabled) return [];
+  if (!experience) return [];
+  const hydrated = hydrateExperienceInquiryFromBehavior(experience);
+  if (!hydrated.inquiry.enabled && hydrated.inquiry.topics.length === 0) return [];
   return toRuntimeInquiryOptions(
-    experience.inquiry.topics.map(experienceTopicToWidgetInquiry),
+    hydrated.inquiry.topics.map(experienceTopicToWidgetInquiry),
   );
 }
 
 export function inquiryFallbackFromExperience(
   experience: WidgetExperienceV1 | null,
 ): ReturnType<typeof toRuntimeInquiryOptions>[number] | null {
-  if (!experience?.inquiry.enabled) return null;
-  const key = experience.inquiry.fallbackRoutingKey?.trim();
+  if (!experience) return null;
+  const hydrated = hydrateExperienceInquiryFromBehavior(experience);
+  if (!hydrated.inquiry.enabled && hydrated.inquiry.topics.length === 0) return null;
+  const key = hydrated.inquiry.fallbackRoutingKey?.trim();
   if (key) {
-    const match = experience.inquiry.topics.find((t) => t.routingKey === key);
+    const match = hydrated.inquiry.topics.find((t) => t.routingKey === key);
     if (match) {
       return toRuntimeInquiryOptions([experienceTopicToWidgetInquiry(match)])[0] ?? null;
     }
   }
-  if (!experience.inquiry.fallback) return null;
-  const opt = experienceTopicToWidgetInquiry(experience.inquiry.fallback);
+  if (!hydrated.inquiry.fallback) return null;
+  const opt = experienceTopicToWidgetInquiry(hydrated.inquiry.fallback);
   return toRuntimeInquiryOptions([opt])[0] ?? null;
 }
 

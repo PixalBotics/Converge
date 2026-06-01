@@ -19,7 +19,6 @@ import {
 import type { DataTableColumn } from "@/components/common";
 import type { WebsiteAssignmentScopeItem } from "@/api/types/website-assignments.types";
 import { WebsiteUrlDisplay } from "@/features/website-assignments/components/WebsiteUrlDisplay";
-import { resolveWebsiteRowUrlLabels } from "@/lib/websites/format-website-display-url";
 import { WebsiteAssignmentTableActions } from "@/features/website-assignments/components/WebsiteAssignmentTableActions";
 import { clearAllDepartmentRosters } from "@/features/website-assignments/utils/clear-website-roster";
 import { extractApiErrorMessageForToast, publishAppToast } from "@/lib/notify";

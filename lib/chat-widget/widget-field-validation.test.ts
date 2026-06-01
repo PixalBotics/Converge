@@ -21,5 +21,13 @@ describe("widget-field-validation", () => {
   it("validates domain list", () => {
     expect(validateDomainListInput("not a domain!!!")).not.toBeNull();
     expect(validateDomainListInput("example.com")).toBeNull();
+    expect(validateDomainListInput("localhost:3000")).toBeNull();
+    expect(validateDomainListInput("localhost")).toBeNull();
+    expect(validateDomainListInput("127.0.0.1:3000")).toBeNull();
+  });
+
+  it("preserves port when parsing localhost urls", () => {
+    expect(parseDomainListInput("http://localhost:3000/demo")).toEqual(["localhost:3000"]);
+    expect(parseDomainListInput("localhost:3000")).toEqual(["localhost:3000"]);
   });
 });

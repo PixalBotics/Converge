@@ -104,7 +104,7 @@ export default function CompaniesPage() {
     setDraftsModalOpen(false);
   };
 
-  const handleCloseSetupWizard = (_reason: "completed" | "dismissed") => {
+  const handleCloseSetupWizard = () => {
     setSetupWizardOpen(false);
     setSetupDraftId(null);
     void draftsListQuery.refetch();

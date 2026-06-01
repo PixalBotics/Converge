@@ -107,11 +107,6 @@ export default function ChatWidgetButtonDesignPage() {
   const [saving, setSaving] = useState(false);
   const [checklistRefreshKey, setChecklistRefreshKey] = useState(0);
 
-  const remoteWidgetKey = useMemo(() => {
-    const d = readChatWizardDraft(resolveEditWidgetKeyForNavigation(editWidgetKey) || undefined);
-    return resolveRemoteWidgetKeyForChatWizard(editWidgetKey, d);
-  }, [editWidgetKey, draftReady, checklistRefreshKey]);
-
   const [themeName, setThemeName] = useState(defaultWidgetDraft.themeName ?? "Brand Default");
   const [themePrimaryColor, setThemePrimaryColor] = useState(
     defaultWidgetDraft.themePrimaryColor ?? "",

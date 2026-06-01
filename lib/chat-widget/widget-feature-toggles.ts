@@ -19,6 +19,16 @@ function uiRecord(draft: WidgetDraft): Record<string, unknown> {
   };
 }
 
+function normalizeUi(
+  raw: Record<string, unknown> | WidgetDraft | null | undefined,
+): Record<string, unknown> {
+  if (!raw) return {};
+  if (typeof raw === "object" && "type" in raw) {
+    return uiRecord(raw as WidgetDraft);
+  }
+  return raw as Record<string, unknown>;
+}
+
 /** Master switch: closed-state invitation bubble (off = FAB only). */
 export function isProactiveTeaserFeatureOn(
   raw: Record<string, unknown> | WidgetDraft | null | undefined,
@@ -38,14 +48,14 @@ export type ResolvedProactiveTeaser = {
 export function resolveProactiveTeaser(
   raw: Record<string, unknown> | WidgetDraft | null | undefined,
 ): ResolvedProactiveTeaser {
-  const u = raw && "type" in (raw as WidgetDraft) ? uiRecord(raw as WidgetDraft) : (raw ?? {});
+  const u = normalizeUi(raw);
   const inactive: ResolvedProactiveTeaser = {
     active: false,
     text: "",
     avatarUrl: "",
     secondaryCta: { enabled: false, label: "", href: "", kind: "" },
   };
-  if (!isProactiveTeaserFeatureOn(u)) return inactive;
+  if (!isProactiveTeaserFeatureOn(raw)) return inactive;
 
   const text = String(u.proactiveTeaser ?? "").trim();
   const secondaryCta = parseProactiveSecondaryCtaFromUi(u);

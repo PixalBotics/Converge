@@ -14,6 +14,7 @@ import {
   isAccessTokenExpiringSoon,
   isDashboardAccessToken,
 } from "@/lib/auth/access-token";
+import { applyRotatedAuthHeaders } from "@/lib/auth/apply-rotated-auth-headers";
 import { pathFromConfig } from "./http-path";
 import { isPublicAuthRoute, isWidgetVisitorRoute } from "./public-routes";
 
@@ -42,9 +43,6 @@ apiClient.interceptors.request.use(async (config) => {
   await waitForSessionRefresh();
 
   let token = getAccessToken();
-  if (token && !isDashboardAccessToken(token)) {
-    token = null;
-  }
 
   if (token && isAccessTokenExpiringSoon(token)) {
     try {
@@ -55,6 +53,10 @@ apiClient.interceptors.request.use(async (config) => {
     }
   }
 
+  if (token && !isDashboardAccessToken(token)) {
+    token = null;
+  }
+
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -62,10 +64,30 @@ apiClient.interceptors.request.use(async (config) => {
 });
 
 apiClient.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    applyRotatedAuthHeaders(response.headers as Record<string, unknown>);
+    return response;
+  },
   async (error: AxiosError) => {
     const originalRequest = error.config as RetryableRequest | undefined;
     const status = error.response?.status;
+    const headersRotated = applyRotatedAuthHeaders(
+      error.response?.headers as Record<string, unknown>,
+    );
+
+    if (
+      status === 401 &&
+      originalRequest &&
+      !originalRequest._retry &&
+      headersRotated
+    ) {
+      const token = getAccessToken();
+      if (token && isDashboardAccessToken(token)) {
+        originalRequest._retry = true;
+        originalRequest.headers.Authorization = `Bearer ${token}`;
+        return apiClient(originalRequest);
+      }
+    }
 
     if (
       status !== 401 ||

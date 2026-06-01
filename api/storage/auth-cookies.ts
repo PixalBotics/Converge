@@ -7,6 +7,13 @@ import {
   AUTH_COOKIE_ACCESS,
   AUTH_COOKIE_REFRESH,
 } from "@/lib/auth/auth-cookie-names";
+import { resolveTokenCookieMaxAgeSec } from "@/lib/auth/token-cookie-max-age";
+import { broadcastTokenPairUpdate } from "@/lib/auth/token-cross-tab-sync";
+
+export type TokenCookieHints = {
+  accessExpiresIn?: string | null;
+  refreshExpiresIn?: string | null;
+};
 
 function isBrowser(): boolean {
   return typeof document !== "undefined";
@@ -61,17 +68,40 @@ export function getTokenPair(): AuthTokenPair | null {
   return { accessToken, refreshToken };
 }
 
-export function setTokenPair(tokens: AuthTokenPair): void {
-  writeCookieRaw(AUTH_COOKIE_ACCESS, tokens.accessToken, ACCESS_TOKEN_COOKIE_MAX_AGE_SEC);
-  writeCookieRaw(
-    AUTH_COOKIE_REFRESH,
+export function setTokenPair(tokens: AuthTokenPair, hints?: TokenCookieHints): void {
+  const accessMax = resolveTokenCookieMaxAgeSec(
+    tokens.accessToken,
+    hints?.accessExpiresIn,
+    ACCESS_TOKEN_COOKIE_MAX_AGE_SEC,
+  );
+  const refreshMax = resolveTokenCookieMaxAgeSec(
     tokens.refreshToken,
+    hints?.refreshExpiresIn,
     REFRESH_TOKEN_COOKIE_MAX_AGE_SEC,
   );
+
+  writeCookieRaw(AUTH_COOKIE_ACCESS, tokens.accessToken, accessMax);
+  writeCookieRaw(AUTH_COOKIE_REFRESH, tokens.refreshToken, refreshMax);
+
+  broadcastTokenPairUpdate({
+    accessToken: tokens.accessToken,
+    refreshToken: tokens.refreshToken,
+    accessExpiresIn: hints?.accessExpiresIn,
+    refreshExpiresIn: hints?.refreshExpiresIn,
+    at: Date.now(),
+  });
 }
 
-export function setAccessToken(accessToken: string): void {
-  writeCookieRaw(AUTH_COOKIE_ACCESS, accessToken, ACCESS_TOKEN_COOKIE_MAX_AGE_SEC);
+export function setAccessToken(accessToken: string, accessExpiresIn?: string | null): void {
+  writeCookieRaw(
+    AUTH_COOKIE_ACCESS,
+    accessToken,
+    resolveTokenCookieMaxAgeSec(
+      accessToken,
+      accessExpiresIn,
+      ACCESS_TOKEN_COOKIE_MAX_AGE_SEC,
+    ),
+  );
 }
 
 export function clearTokens(): void {

@@ -63,8 +63,6 @@ export function useWizardLauncherChrome(
     });
   }, [
     editWidgetKey,
-    draftReady,
-    refreshKey,
     launcherChrome,
     overrides?.buttonLabel,
     overrides?.themePrimaryColor,

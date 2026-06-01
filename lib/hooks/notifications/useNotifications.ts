@@ -21,6 +21,8 @@ import {
 } from "@/lib/notifications/notification-sounds";
 import { extractApiErrorMessageForToast } from "@/lib/notify/extract-api-message";
 import { publishAppToast } from "@/lib/notify";
+import { publishAgentChatMessageSync } from "@/lib/hooks/chat/agent-chat-message-sync-bus";
+import { conversationIdFromNotificationPayload } from "@/lib/hooks/chat/chat-socket-delivery";
 import type { NotificationBadgeGroup } from "@/services/notifications/notifications.types";
 
 const EMPTY_BADGES: BadgeCounts = { chat: 0, qa: 0, hrms_leave: 0, hrms_attendance: 0 };
@@ -72,6 +74,10 @@ export function useNotifications(enabled: boolean) {
         n.soundKey ?? soundKeyForNotificationType(n.type) ?? null;
       if (soundKey) playNotificationSound(soundKey);
       else playSoundForNotificationType(n.type);
+      if (n.badgeGroup === "chat" || String(n.type).toLowerCase().includes("chat")) {
+        const cid = conversationIdFromNotificationPayload(n);
+        if (cid) publishAgentChatMessageSync(cid);
+      }
     }
     if (payload.event === "read" && payload.notification) {
       setItems((prev) =>

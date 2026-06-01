@@ -269,7 +269,7 @@ export function resolveRuntimeConfigRecord(envelope: WidgetConfigEnvelope): Reco
     allowedDomains: envelope.allowedDomains,
   };
 
-  let cfg = configRecordFromEnvelope(envelope);
+  const cfg = configRecordFromEnvelope(envelope);
 
   const settingsJson = cfg.settingsJson;
   if (isObj(settingsJson)) {
@@ -464,9 +464,13 @@ export function extractRuntimeChatAppearance(
     inquiryOptions: (() => {
       const chatMode = String(configRecord.mode ?? configRecord.chatMode ?? "").toUpperCase();
       if (chatMode === "AI_ONLY") return [];
+      const fromBehavior = parseInquiryOptions(behavior);
       const exp = parseWidgetExperienceV1(configRecord._experience);
-      if (exp?.inquiry.enabled) return inquiryOptionsFromExperience(exp);
-      return parseInquiryOptions(behavior);
+      if (exp) {
+        const fromExp = inquiryOptionsFromExperience(exp);
+        if (fromExp.length > 0) return fromExp;
+      }
+      return fromBehavior;
     })(),
     inquiryRequired: (() => {
       const exp = parseWidgetExperienceV1(configRecord._experience);

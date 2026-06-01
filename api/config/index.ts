@@ -12,6 +12,6 @@ export function getApiBaseUrl(): string {
   return normalizeBaseUrl(raw);
 }
 
-/** Cookie Max-Age (seconds). Align with JWT TTL from your issuer when known. */
-export const ACCESS_TOKEN_COOKIE_MAX_AGE_SEC = 60 * 60; // 1h fallback
-export const REFRESH_TOKEN_COOKIE_MAX_AGE_SEC = 60 * 60 * 24 * 14; // 14d
+/** Cookie Max-Age (seconds). Fallback when JWT `exp` / API `expiresIn` are unavailable. */
+export const ACCESS_TOKEN_COOKIE_MAX_AGE_SEC = 60 * 60 * 24 * 7; // 7d — JWT_ACCESS_EXPIRES_IN
+export const REFRESH_TOKEN_COOKIE_MAX_AGE_SEC = 60 * 60 * 24 * 30; // 30d — JWT_REFRESH_EXPIRES_IN

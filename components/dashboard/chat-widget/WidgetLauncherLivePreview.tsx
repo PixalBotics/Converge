@@ -10,7 +10,7 @@ import { WidgetAccentDensityPreview } from "@/components/dashboard/chat-widget/W
 import { WidgetProactiveTeaserBubble } from "@/components/embed/WidgetProactiveTeaserBubble";
 import { LauncherPresetIcon } from "@/lib/chat-widget/launcherIcons";
 import { parseProactiveSecondaryCtaFromUi } from "@/lib/chat-widget/proactive-teaser-types";
-import type { LauncherIconPresetId, WidgetDraft } from "@/lib/chat-widget/widgetDraft";
+import type { LauncherIconPresetId } from "@/lib/chat-widget/widgetDraft";
 
 const LAUNCHER_PX = 52;
 

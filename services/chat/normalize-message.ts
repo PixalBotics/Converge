@@ -23,6 +23,15 @@ function inferRole(payload: Record<string, unknown>): ChatParticipantRole {
   }
   if (userTypeRaw === "visitor") return "visitor";
   if (userTypeRaw === "agent") return "agent";
+  if (
+    userTypeRaw === "staff" ||
+    userTypeRaw === "operator" ||
+    userTypeRaw === "human" ||
+    userTypeRaw === "support" ||
+    userTypeRaw === "advisor"
+  ) {
+    return "agent";
+  }
   if (userTypeRaw === "ai") return "system";
   const senderRaw = coerceString(payload.sender ?? payload.sentBy ?? payload.messageSender).toLowerCase();
   if (senderRaw.includes("visitor")) return "visitor";

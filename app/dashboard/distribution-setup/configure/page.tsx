@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Box from "@mui/material/Box";
-import type { SxProps, Theme } from "@mui/material/styles";
 import LanguageOutlined from "@mui/icons-material/LanguageOutlined";
 import { Button, Typography } from "@/components/common";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";

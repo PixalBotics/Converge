@@ -13,6 +13,7 @@ import IconButton from "@mui/material/IconButton";
 import Link from "@mui/material/Link";
 import Paper from "@mui/material/Paper";
 import Stack from "@mui/material/Stack";
+import type { SxProps, Theme } from "@mui/material/styles";
 import {
   type MutableRefObject,
   type ReactNode,
@@ -76,21 +77,17 @@ import {
   unlockWidgetAudio,
 } from "@/lib/widget-runtime/widget-notifications";
 import {
-  hasWidgetReturnVisit,
   markWidgetReturnVisit,
   shouldRunWidgetAutoOpen,
 } from "@/lib/widget-runtime/widget-visit-lifecycle";
 import { useEmbedHostResize } from "@/lib/widget-runtime/use-embed-host-resize";
 import {
-  embedBodyTextSx,
   embedComposerInputSx,
   embedComposerRowSx,
-  embedChatBubbleInnerSx,
   embedChatBubbleShellSx,
   embedHandoverButtonSx,
   embedPrechatFormBubbleInnerSx,
   embedPrechatFormBubbleShellSx,
-  embedInputFieldSx,
   embedInquiryPillSx,
   embedLauncherFabSx,
   embedLabelTextSx,
@@ -414,9 +411,7 @@ function FloatingChatEmbed({
     }, appearance.autoOpenDelaySeconds * 1000);
     return () => window.clearTimeout(id);
   }, [
-    appearance.autoOpenDelaySeconds,
-    appearance.autoOpenEnabled,
-    appearance.autoOpenOnReturnVisit,
+    appearance,
     siteKey,
     widgetKey,
   ]);
@@ -1560,7 +1555,7 @@ function WidgetChatPanel({
     }
   };
 
-  const embedContainerSx = embedded
+  const embedContainerSx: SxProps<Theme> = embedded
     ? {
         border: "none",
         borderRadius: 0,
@@ -1591,12 +1586,10 @@ function WidgetChatPanel({
 
     return (
       <Box
-        sx={
-          [
-            embedContainerSx,
-            appearance ? { color: appearance.colors.bodyText } : {},
-          ] as const
-        }
+        sx={[
+          embedContainerSx,
+          appearance ? { color: appearance.colors.bodyText } : {},
+        ]}
       >
         <Stack spacing={1.25} sx={{ width: "100%", alignItems: "stretch" }}>
           {appearance ? <EmbedChatMediaBubbles appearance={appearance} /> : null}
@@ -2157,12 +2150,4 @@ function MessageBubble({
       </Box>
     </Box>
   );
-}
-
-function safeHostname(pageUrl: string): string {
-  try {
-    return new URL(pageUrl).hostname || "localhost";
-  } catch {
-    return typeof window !== "undefined" ? window.location.hostname : "localhost";
-  }
 }

@@ -457,8 +457,7 @@ export function embedIconButtonAccentSx(appearance: RuntimeChatAppearance): SxPr
 
 /** Composer row — pill input + circular send (matches industrial embed pattern). */
 export function embedComposerRowSx(appearance: RuntimeChatAppearance): SxProps<Theme> {
-  const c = appearance.colors;
-  const radius = Math.max(20, appearance.borderRadiusPx + 8);
+  void appearance;
   return {
     display: "flex",
     alignItems: "center",
