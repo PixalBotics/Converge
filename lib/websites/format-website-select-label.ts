@@ -1,7 +1,4 @@
-import {
-  formatWebsiteDisplayUrl,
-  resolveWebsiteRowUrlLabels,
-} from "./format-website-display-url";
+import { resolveWebsiteRowUrlLabels } from "./format-website-display-url";
 
 /** Max width for SelectField / autocomplete options (single line). */
 export const WEBSITE_SELECT_LABEL_MAX_LEN = 44;

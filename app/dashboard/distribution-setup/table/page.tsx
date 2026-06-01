@@ -269,29 +269,30 @@ export default function DistributionTablePage() {
   const rangeStart = filteredRows.length === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
   const rangeEnd = Math.min(page * PAGE_SIZE, filteredRows.length);
 
-  const isRowEditable = (row: DistributionTableRow) =>
-    row.isDraft || editingId === row.id;
+  const renderCell = useCallback(
+    (
+      row: DistributionTableRow,
+      field: keyof Pick<DistributionTableRow, "department" | "to" | "cc" | "bcc">,
+    ) => {
+      const editable = row.isDraft || editingId === row.id;
+      if (editable) {
+        return <RowTextField row={row} field={field} theme={theme} updateRowField={updateRowField} />;
+      }
 
-  const renderCell = (
-    row: DistributionTableRow,
-    field: keyof Pick<DistributionTableRow, "department" | "to" | "cc" | "bcc">,
-  ) => {
-    if (isRowEditable(row)) {
-      return <RowTextField row={row} field={field} theme={theme} updateRowField={updateRowField} />;
-    }
+      if (field === "department") {
+        return (
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1, minWidth: 0 }}>
+            <Typography variant="medium" sx={{ color: theme.app.dashboard.white95, fontWeight: 600 }}>
+              {row.department || "—"}
+            </Typography>
+          </Box>
+        );
+      }
 
-    if (field === "department") {
-      return (
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1, minWidth: 0 }}>
-          <Typography variant="medium" sx={{ color: theme.app.dashboard.white95, fontWeight: 600 }}>
-            {row.department || "—"}
-          </Typography>
-        </Box>
-      );
-    }
-
-    return row[field] || "—";
-  };
+      return row[field] || "—";
+    },
+    [editingId, theme, updateRowField],
+  );
 
   const columns = useMemo<DataTableColumn<DistributionTableRow>[]>(
     () => [
@@ -321,7 +322,7 @@ export default function DistributionTablePage() {
       { id: "cc", label: "CC", cellVariant: "muted", render: (_v, row) => renderCell(row, "cc") },
       { id: "bcc", label: "BCC", cellVariant: "muted", render: (_v, row) => renderCell(row, "bcc") },
     ],
-    [theme, editingId, rows],
+    [theme, renderCell],
   );
 
   const actionColumn = useMemo(

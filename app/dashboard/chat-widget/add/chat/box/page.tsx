@@ -7,7 +7,7 @@ import Box from "@mui/material/Box";
 import Switch from "@mui/material/Switch";
 import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
-import { Button, InputField, SelectField, Typography } from "@/components/common";
+import { Button, SelectField, Typography } from "@/components/common";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
 import { WidgetFlowShell } from "@/features/chat-widget";
 import { mergeWizardDraftForPublish } from "@/lib/chat-widget/merge-wizard-draft-for-publish";
@@ -72,7 +72,6 @@ export default function ChatWidgetBoxDesignPage() {
     defaultWidgetDraft.bannerDescription ?? "",
   );
   const [headerBrandColor, setHeaderBrandColor] = useState("#1ed760");
-  const [iconColor, setIconColor] = useState("#FFFFFF");
   const [themeSecondaryColor, setThemeSecondaryColor] = useState(
     defaultWidgetDraft.themeSecondaryColor ?? "#64748b",
   );
@@ -142,11 +141,6 @@ export default function ChatWidgetBoxDesignPage() {
     inquiryTopicsTouchedRef.current = false;
   }, [editWidgetKey]);
 
-  const remoteWidgetKey = useMemo(() => {
-    const d = readChatWizardDraft(resolveEditWidgetKeyForNavigation(editWidgetKey) || undefined);
-    return resolveRemoteWidgetKeyForChatWizard(editWidgetKey, d);
-  }, [editWidgetKey, draftReady, checklistRefreshKey, inquiryOptions.length]);
-
   const {
     topicsFromScheduling,
     isLoading: inquiryTopicsLoading,
@@ -172,7 +166,6 @@ export default function ChatWidgetBoxDesignPage() {
     setHeaderBrandColor(
       d.themePrimaryColor?.trim() || d.buttonColor?.trim() || "#1ed760",
     );
-    setIconColor(d.iconColor || "#FFFFFF");
     setThemeSecondaryColor(d.themeSecondaryColor ?? "#64748b");
     setTextColor(d.textColor || "#d62cad");
     setBannerDataUrl(d.bannerDataUrl || "");
@@ -233,7 +226,7 @@ export default function ChatWidgetBoxDesignPage() {
         def.inquiryFallbackRoutingKey ||
         "",
     );
-  }, [draftReady, editWidgetKey, inquiryTopicsLoading, schedulingTopicsFingerprint]);
+  }, [draftReady, editWidgetKey, inquiryTopicsLoading, schedulingTopicsFingerprint, topicsFromScheduling]);
 
   const handleBannerUpload = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];

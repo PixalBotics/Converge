@@ -11,6 +11,8 @@ import {
 export function RootLayoutShell({ children }: { children: ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
+      {/* App Router root layout: font preconnect/stylesheet belong in <head>. */}
+      {/* eslint-disable-next-line @next/next/no-head-element */}
       <head>
         {shouldLoadGoogleFontsStylesheet() ? (
           <>

@@ -52,11 +52,13 @@ export class SocketConnection {
         ...getStableSocketDefaults(),
         ...(this.options || {}),
         ...(config?.options || {}),
-        auth: this.authToken ? { token: this.authToken } : undefined,
+        auth: this.authToken ? { token: this.authToken } : {},
       });
       this.attachStoredListeners(this.socket);
     } else if (!this.socket.connected) {
-      this.socket.auth = this.authToken ? { token: this.authToken } : undefined;
+      if (this.authToken) {
+        this.socket.auth = { token: this.authToken };
+      }
       this.socket.connect();
     }
 

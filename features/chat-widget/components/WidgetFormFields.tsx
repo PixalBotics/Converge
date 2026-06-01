@@ -29,6 +29,7 @@ export function WidgetTextField({
   maxLength?: number;
   showCharCount?: boolean;
   validate?: (value: string) => string | null;
+  helperText?: string;
 }) {
   const [touched, setTouched] = useState(false);
   const validationError = useMemo(
@@ -67,6 +68,7 @@ export function WidgetUrlField({
   required?: boolean;
   /** YouTube / Vimeo only */
   videoEmbed?: boolean;
+  helperText?: string;
 }) {
   const [touched, setTouched] = useState(false);
   const validationError = useMemo(() => {
@@ -106,6 +108,7 @@ export function WidgetDomainListField({
 }: BaseProps & {
   value: string;
   onChange: (value: string) => void;
+  helperText?: string;
 }) {
   const [touched, setTouched] = useState(false);
   const validationError = useMemo(() => {
@@ -145,12 +148,14 @@ export function WidgetNumericField({
   onChange,
   min,
   max,
+  helperText,
   ...rest
 }: BaseProps & {
   value: string;
   onChange: (value: string) => void;
   min: number;
   max: number;
+  helperText?: string;
 }) {
   return (
     <InputField
@@ -158,7 +163,7 @@ export function WidgetNumericField({
       type="text"
       value={value}
       onChange={(e) => onChange(clampIntegerString(e.target.value, min, max))}
-      helperText={rest.helperText ?? `Between ${min} and ${max}`}
+      helperText={helperText ?? `Between ${min} and ${max}`}
       inputProps={{
         inputMode: "numeric",
         pattern: "[0-9]*",

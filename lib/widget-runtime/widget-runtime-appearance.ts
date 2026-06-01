@@ -269,7 +269,7 @@ export function resolveRuntimeConfigRecord(envelope: WidgetConfigEnvelope): Reco
     allowedDomains: envelope.allowedDomains,
   };
 
-  let cfg = configRecordFromEnvelope(envelope);
+  const cfg = configRecordFromEnvelope(envelope);
 
   const settingsJson = cfg.settingsJson;
   if (isObj(settingsJson)) {

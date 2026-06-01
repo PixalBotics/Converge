@@ -38,7 +38,6 @@ import { isRecord } from "@/lib/utils/core";
 import { useAuth } from "@/lib/auth";
 import { CompanyClientPermissionsPanel } from "@/features/companies/components/CompanyClientPermissionsPanel";
 import { canCompaniesModuleAction } from "@/lib/permissions";
-import { OP } from "@/lib/permissions/operational-keys";
 import { pageWrapper } from "../overview.styles";
 import {
   companyEditBranchPanelHeaderSx,

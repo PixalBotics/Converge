@@ -7,7 +7,7 @@ import Stack from "@mui/material/Stack";
 import Switch from "@mui/material/Switch";
 import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
-import { Button, InputField, SelectField, Typography } from "@/components/common";
+import { Button, SelectField, Typography } from "@/components/common";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
 import { WidgetFlowShell } from "@/features/chat-widget";
 import { mergeWizardDraftForPublish } from "@/lib/chat-widget/merge-wizard-draft-for-publish";
@@ -206,25 +206,20 @@ export default function ChatWidgetNotificationsPage() {
     const d = readChatWizardDraft(editKey);
     setInquiryRequired(d.inquiryRequired ?? def.inquiryRequired ?? false);
     setInquirySkipLabel(d.inquirySkipLabel ?? def.inquirySkipLabel ?? "General question");
-  }, [draftReady, editWidgetKey, inquiryTopicsLoading, schedulingTopicsFingerprint]);
+  }, [draftReady, editWidgetKey, inquiryTopicsLoading, schedulingTopicsFingerprint, topicsFromScheduling]);
 
   const inquiryOnFromDraft = useMemo(() => {
     if (!draftReady) return false;
     const d = readChatWizardDraft(resolveEditWidgetKeyForNavigation(editWidgetKey) || undefined);
     const opts = normalizeWidgetInquiryOptions(d.inquiryOptions ?? []);
     return d.inquiryOn === true || opts.length > 0;
-  }, [draftReady, editWidgetKey, checklistRefreshKey]);
+  }, [draftReady, editWidgetKey]);
 
   const inquiryOptionsList = useMemo(() => {
     if (!inquiryOnFromDraft || !draftReady) return [];
     const d = readChatWizardDraft(resolveEditWidgetKeyForNavigation(editWidgetKey) || undefined);
     return normalizeWidgetInquiryOptions(d.inquiryOptions).map((o) => o.label);
   }, [inquiryOnFromDraft, draftReady, editWidgetKey]);
-
-  const remoteWidgetKey = useMemo(() => {
-    const d = readChatWizardDraft(resolveEditWidgetKeyForNavigation(editWidgetKey) || undefined);
-    return resolveRemoteWidgetKeyForChatWizard(editWidgetKey, d);
-  }, [editWidgetKey, draftReady, checklistRefreshKey]);
 
   const behaviorPreviewModel = useMemo(() => {
     const draft = draftReady

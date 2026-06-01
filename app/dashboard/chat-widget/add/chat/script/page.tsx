@@ -23,11 +23,10 @@ import {
   useWidgetWizardSaveTrace,
 } from "@/features/chat-widget/components/WidgetWizardSaveTraceContext";
 import { LauncherPresetIcon } from "@/lib/chat-widget/launcherIcons";
-import { buildUnifiedWidgetEmbedScript, type WidgetDraft } from "@/lib/chat-widget/widgetDraft";
+import type { WidgetDraft } from "@/lib/chat-widget/widgetDraft";
 import {
   readChatWizardDraft,
   resolveEditWidgetKeyForNavigation,
-  resolveRemoteWidgetKeyForChatWizard,
   saveChatWizardDraft,
   useChatWidgetWizardEdit,
 } from "@/lib/chat-widget/chat-wizard-edit";
@@ -206,7 +205,7 @@ export default function ChatWidgetScriptPage() {
     return () => {
       cancelled = true;
     };
-  }, [draftReady, editWidgetKey]);
+  }, [draftReady, editWidgetKey, recordSave]);
 
   const draft =
     installUi.phase === "ready"
@@ -257,17 +256,7 @@ export default function ChatWidgetScriptPage() {
         </>
       }
     >
-      {(() => {
-        const rk = resolveRemoteWidgetKeyForChatWizard(
-          editWidgetKey,
-          readChatWizardDraft(resolveEditWidgetKeyForNavigation(editWidgetKey) || undefined),
-        );
-        return (
-          <>
-            <WidgetWizardSaveTracePanel />
-          </>
-        );
-      })()}
+      <WidgetWizardSaveTracePanel />
 
       {waitingHydrate ? (
         <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted }}>

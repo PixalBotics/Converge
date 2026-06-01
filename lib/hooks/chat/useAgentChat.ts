@@ -260,7 +260,7 @@ export function useAgentChat(params: UseAgentChatParams): UseAgentChatReturn {
         }
       }
     },
-    [clearSelection, extractWrapUp, queues],
+    [extractWrapUp, queues],
   );
 
   const handleChatWhisper = useCallback(
@@ -578,7 +578,7 @@ export function useAgentChat(params: UseAgentChatParams): UseAgentChatReturn {
     [
       params.agentId,
       params.token,
-      queues.refreshQueues,
+      queues,
       selectedConversationId,
       selectedIsClosed,
       sendBlockedReason,

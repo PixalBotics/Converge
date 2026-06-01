@@ -9,7 +9,6 @@ import type { TextUsFormFieldDraft, WidgetDraft } from "./widgetDraft";
 import { applyAiTypeToWidgetConfig } from "./widget-ai-type";
 import { accumulateWizardInstallConfigFromSaveTrace } from "./merge-wizard-draft-for-publish";
 import { mergeWidgetConfigForEdit } from "./merge-widget-config-for-edit";
-import { normalizeWidgetInquiryOptions } from "./widget-inquiry.types";
 import { buildInquiryBehaviorPatchFields } from "@/lib/widget-runtime/widget-experience";
 import {
   normalizeLauncherBadgeMode,

@@ -12,7 +12,6 @@ import { InputField, SelectField, Typography } from "@/components/common";
 import { useDesignationsListQuery } from "@/lib/hooks/query";
 import { pickItemsArray, toIdNameOption } from "@/app/dashboard/user-page/components/add-user-modal.utils";
 import {
-  childrenDraftFieldPath,
   childrenDraftPocFieldPath,
   getCompanySetupFieldError,
 } from "@/lib/companies/company-setup-draft-field-paths";
@@ -139,10 +138,13 @@ export function CompanySetupChildPocBlock({
     designationsQuery.isLoading,
   ]);
 
-  const roleSelectOptions =
-    roleOptions.length > 0
-      ? roleOptions
-      : [{ value: "", label: rolesLoading ? "Loading…" : "— Select role —" }];
+  const roleSelectOptions = useMemo(
+    () =>
+      roleOptions.length > 0
+        ? roleOptions
+        : [{ value: "", label: rolesLoading ? "Loading…" : "— Select role —" }],
+    [roleOptions, rolesLoading],
+  );
 
   const pocExternalScope = useMemo(() => {
     const scope = resolveExternalAdminScope(

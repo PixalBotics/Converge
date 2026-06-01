@@ -4,7 +4,6 @@ import type { KeyboardEvent } from "react";
 import Check from "@mui/icons-material/Check";
 import Box from "@mui/material/Box";
 import { alpha, useTheme } from "@mui/material/styles";
-import type { SxProps, Theme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import { Typography } from "@/components/common";
 import { mergeSx } from "@/lib/mui/merge-sx";

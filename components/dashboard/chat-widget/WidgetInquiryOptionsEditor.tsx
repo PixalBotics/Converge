@@ -105,7 +105,7 @@ export function WidgetInquiryOptionsEditor({
 
   const saveMutation = useSaveVisitorTopicsMutation(wid);
 
-  const departments = departmentsQuery.data ?? [];
+  const departments = useMemo(() => departmentsQuery.data ?? [], [departmentsQuery.data]);
   const internalDeptOptions = useMemo(
     () => departments.filter((d) => d.departmentType === "Internal"),
     [departments],
