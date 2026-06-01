@@ -3,16 +3,27 @@
 import { Typography } from "@/components/common";
 import type { ChatMessage } from "@/services/chat/chat.types";
 import { ChatMessageAttachmentCard } from "./ChatMessageAttachmentCard";
+import { resolveDashboardHref } from "../utils/resolve-dashboard-href";
 
 function readHref(message: ChatMessage): string | null {
   const meta = message.metadata;
   if (!meta) return null;
-  const href = meta.href;
-  if (typeof href === "string" && href.trim()) return href.trim();
   const attachment = meta.attachmentMetadata;
   if (attachment && typeof attachment === "object") {
+    const path = (attachment as Record<string, unknown>).path;
+    if (typeof path === "string" && path.trim()) {
+      return resolveDashboardHref(path.trim());
+    }
+  }
+  const href = meta.href;
+  if (typeof href === "string" && href.trim()) {
+    return resolveDashboardHref(href.trim());
+  }
+  if (attachment && typeof attachment === "object") {
     const nested = (attachment as Record<string, unknown>).href;
-    if (typeof nested === "string" && nested.trim()) return nested.trim();
+    if (typeof nested === "string" && nested.trim()) {
+      return resolveDashboardHref(nested.trim());
+    }
   }
   return null;
 }

@@ -16,6 +16,10 @@ import {
   unwrapSocketMessagePayload,
 } from "./chat-socket-delivery";
 import { conversationIdFromSocketPayload } from "./agent-chat.utils";
+import {
+  filterVisitorWidgetMessages,
+  isHiddenFromVisitorWidget,
+} from "./visitor-widget-messages";
 import type {
   ChatMessage,
   TypingPayload,
@@ -187,13 +191,14 @@ export function useVisitorChat(
         conversationId: cid,
         content: row.content,
         senderType: row.senderType,
+        messageType: row.messageType,
         createdAt: row.createdAt,
       });
-      if (normalized) {
+      if (normalized && !isHiddenFromVisitorWidget(normalized)) {
         messageMapRef.current.set(stableMessageDedupeKey(normalized), normalized);
       }
     }
-    setMessages(Array.from(messageMapRef.current.values()));
+    setMessages(filterVisitorWidgetMessages(Array.from(messageMapRef.current.values())));
     setAssigned(Boolean(res.data.assignedAgentId) || res.data.status === "assigned");
   }, []);
 
@@ -215,9 +220,10 @@ export function useVisitorChat(
         conversationId: cid,
         content: row.content,
         senderType: row.senderType,
+        messageType: row.messageType,
         createdAt: row.createdAt,
       });
-      if (!normalized) continue;
+      if (!normalized || isHiddenFromVisitorWidget(normalized)) continue;
       const key = stableMessageDedupeKey(normalized);
       if (!messageMapRef.current.has(key)) {
         messageMapRef.current.set(key, normalized);
@@ -225,7 +231,7 @@ export function useVisitorChat(
       }
     }
     if (changed) {
-      setMessages(Array.from(messageMapRef.current.values()));
+      setMessages(filterVisitorWidgetMessages(Array.from(messageMapRef.current.values())));
     }
     if (res.data.assignedAgentId || res.data.status === "assigned") {
       setAssigned(true);
@@ -281,6 +287,9 @@ export function useVisitorChat(
       }
       if (!normalized) {
         scheduleReconnectSync();
+        return;
+      }
+      if (isHiddenFromVisitorWidget(normalized)) {
         return;
       }
       if (options?.forcedRole) {
@@ -565,13 +574,14 @@ export function useVisitorChat(
           conversationId: params.conversationId,
           content: row.content,
           senderType: row.senderType,
+          messageType: row.messageType,
           createdAt: row.createdAt,
         });
-        if (normalized) {
+        if (normalized && !isHiddenFromVisitorWidget(normalized)) {
           messageMapRef.current.set(stableMessageDedupeKey(normalized), normalized);
         }
       }
-      setMessages(Array.from(messageMapRef.current.values()));
+      setMessages(filterVisitorWidgetMessages(Array.from(messageMapRef.current.values())));
       setConversationId(params.conversationId);
       conversationIdRef.current = params.conversationId;
       setVisitorId(params.visitorId ?? null);

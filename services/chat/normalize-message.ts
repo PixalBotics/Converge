@@ -112,6 +112,9 @@ export function normalizeServerMessage(payload: unknown): ChatMessage | null {
     ...(attachmentMetadata ? { attachmentMetadata } : {}),
   };
   if (attachmentMetadata) {
+    if (typeof attachmentMetadata.path === "string") {
+      mergedMetadata.path = attachmentMetadata.path;
+    }
     if (typeof attachmentMetadata.href === "string") {
       mergedMetadata.href = attachmentMetadata.href;
     }
