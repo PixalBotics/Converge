@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   clearGuestSession,
   guestSessionFromExchange,
@@ -9,6 +9,7 @@ import {
   type StoredGuestSession,
 } from "@/lib/chat/guest-session";
 import { exchangeGuestLinkToken, getGuestTranscript } from "@/services/chat/guest.api";
+import { createChatSocketClient } from "@/services/chat/chatSocket";
 import type { ChatMessage } from "@/services/chat/chat.types";
 import type { GuestTranscriptResponse } from "@/services/chat/guest.types";
 
@@ -26,12 +27,25 @@ function errorMessage(err: unknown, fallback: string): string {
 }
 
 export function useGuestChatSession(emailToken: string | null) {
+  const socketClient = useMemo(() => createChatSocketClient(), []);
   const [phase, setPhase] = useState<GuestChatPhase>("loading");
   const [error, setError] = useState<string | null>(null);
   const [session, setSession] = useState<StoredGuestSession | null>(null);
   const [transcript, setTranscript] = useState<GuestTranscriptResponse | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+  const messageMapRef = useRef(new Map<string, ChatMessage>());
+
+  const upsertMessage = useCallback((message: ChatMessage) => {
+    const stableKey =
+      (typeof message.id === "string" && message.id.trim()) ||
+      `${message.conversationId}:${message.role}:${message.createdAt ?? ""}:${message.content}`;
+    messageMapRef.current.set(stableKey, message);
+    const sorted = Array.from(messageMapRef.current.values()).sort((a, b) =>
+      String(a.createdAt ?? "").localeCompare(String(b.createdAt ?? "")),
+    );
+    setMessages(sorted);
+  }, []);
 
   const loadTranscript = useCallback(async (s: StoredGuestSession) => {
     if (!s.permissions.viewTranscript) {
@@ -41,7 +55,14 @@ export function useGuestChatSession(emailToken: string | null) {
     }
     const data = await getGuestTranscript(s.conversationId, s.accessToken);
     setTranscript(data);
-    setMessages(data.messages ?? []);
+    messageMapRef.current.clear();
+    for (const msg of data.messages ?? []) {
+      const stableKey =
+        (typeof msg.id === "string" && msg.id.trim()) ||
+        `${msg.conversationId}:${msg.role}:${msg.createdAt ?? ""}:${msg.content}`;
+      messageMapRef.current.set(stableKey, msg);
+    }
+    setMessages(Array.from(messageMapRef.current.values()));
     setPhase("ready");
   }, []);
 
@@ -92,6 +113,46 @@ export function useGuestChatSession(emailToken: string | null) {
   useEffect(() => {
     void bootstrap();
   }, [bootstrap]);
+
+  useEffect(() => {
+    if (!session || phase !== "ready" || !session.permissions.viewTranscript) {
+      return;
+    }
+
+    socketClient.connect({ authToken: session.accessToken });
+    socketClient.joinRoom({ conversationId: session.conversationId });
+
+    const offVisitorMessage = socketClient.onVisitorMessage((m) => {
+      if (m.conversationId !== session.conversationId) return;
+      upsertMessage(m);
+    });
+    const offAgentMessage = socketClient.onAgentMessage((m) => {
+      if (m.conversationId !== session.conversationId) return;
+      upsertMessage(m);
+    });
+    const offAiMessage = socketClient.onAiMessage((m) => {
+      if (m.conversationId !== session.conversationId) return;
+      upsertMessage(m);
+    });
+    const offChatClosed = socketClient.onChatClosed((payload) => {
+      const sameConversation =
+        typeof payload === "object" &&
+        payload !== null &&
+        (payload as { conversationId?: string }).conversationId === session.conversationId;
+      if (!sameConversation) return;
+      setTranscript((prev) =>
+        prev ? { ...prev, chatCompleted: true, status: "closed" } : prev,
+      );
+    });
+
+    return () => {
+      offVisitorMessage();
+      offAgentMessage();
+      offAiMessage();
+      offChatClosed();
+      socketClient.leaveRoom({ conversationId: session.conversationId });
+    };
+  }, [phase, session, socketClient, upsertMessage]);
 
   const refreshTranscript = useCallback(async () => {
     if (!session) return;
