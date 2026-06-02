@@ -160,8 +160,18 @@ function mapApiUserToUser(user: ApiUser): User | null {
     (typeof user.reseller_id === "string" && user.reseller_id.trim()) ||
     undefined;
   const wr: unknown = user.wideResellerScope ?? user.wide_reseller_scope;
+  const roleName =
+    (typeof user.role === "object" &&
+      user.role &&
+      typeof (user.role as { name?: string }).name === "string" &&
+      (user.role as { name: string }).name.trim()) ||
+    undefined;
   const wideResellerScope =
-    wr === true || wr === "true" || wr === 1 || wr === "1";
+    wr === true ||
+    wr === "true" ||
+    wr === 1 ||
+    wr === "1" ||
+    (parseApiUserType(user) === "External" && roleName === "Reseller Admin");
   const parentCompanyId =
     (typeof user.parentCompanyId === "string" && user.parentCompanyId.trim()) ||
     (typeof user.parent_company_id === "string" && user.parent_company_id.trim()) ||
@@ -215,14 +225,18 @@ function getUserFromAccessToken(): User | null {
     typeof payload.parentCompanyId === "string" && payload.parentCompanyId.trim()
       ? payload.parentCompanyId.trim()
       : undefined;
+  const wideFromJwt = payload.wideResellerScope === true;
+  const wideFromRole =
+    payload.userType === "External" && firstRole?.trim() === "Reseller Admin";
   return {
     id: payload.userId,
     email: payload.email,
     displayName: payload.email,
     role: mapRoleNameToAppRole(firstRole),
     roleLabel: firstRole,
+    userType: payload.userType === "External" ? "External" : payload.userType === "Internal" ? "Internal" : undefined,
     resellerId,
-    wideResellerScope: payload.wideResellerScope === true,
+    wideResellerScope: wideFromJwt || wideFromRole,
     parentCompanyId,
   };
 }
