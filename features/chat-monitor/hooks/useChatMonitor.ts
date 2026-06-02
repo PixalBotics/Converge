@@ -168,6 +168,18 @@ export function useChatMonitor(
     [loadTranscript, socketClient],
   );
 
+  const updateSupervisorControl = useCallback((userId: string | null) => {
+    setSupervisorControlUserId(userId);
+  }, []);
+
+  const refreshSelectedTranscript = useCallback(
+    (opts?: { silent?: boolean }) => {
+      const cid = selectedIdRef.current;
+      if (cid) void loadTranscript(cid, opts);
+    },
+    [loadTranscript],
+  );
+
   const clearSelection = useCallback(() => {
     const prev = selectedIdRef.current;
     if (prev) socketClient.leaveRoom({ conversationId: prev });
@@ -211,7 +223,7 @@ export function useChatMonitor(
             .supervisorControlUserId;
           if (sc !== undefined) setSupervisorControlUserId(sc);
         }
-        scheduleListRefreshRef.current();
+        invalidateLists();
       },
       selectedConversationIdRef: selectedIdRef,
       selectedIsClosedRef,
@@ -295,6 +307,8 @@ export function useChatMonitor(
     isConnected,
     selectConversation,
     clearSelection,
+    updateSupervisorControl,
+    refreshSelectedTranscript,
     refreshLists: invalidateLists,
   };
 }
