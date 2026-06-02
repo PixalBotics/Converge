@@ -1,0 +1,2 @@
+echo "Running pre-push checks (imports, typecheck, lint, tests, build)..."
+npm run validate:push
