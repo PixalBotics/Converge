@@ -149,13 +149,17 @@ export const distributionWizardDraftFieldSx = (theme: AppTheme): SxProps<Theme> 
   "& .MuiOutlinedInput-root": {
     fontSize: 13,
     fontWeight: 500,
-    backgroundColor: alpha(theme.app.dashboard.overlayMedium, 0.95),
+    backgroundColor: theme.app.dashboard.overlayMedium,
     borderRadius: 1.25,
   },
   "& .MuiOutlinedInput-input": {
     py: 1.1,
     px: 1.25,
-    color: theme.app.dashboard.white95,
+    color: theme.app.text.primary,
+    "&::placeholder": {
+      color: theme.app.dashboard.textMuted,
+      opacity: 1,
+    },
   },
   "& .MuiOutlinedInput-notchedOutline": {
     borderColor: alpha(theme.app.border.input, 0.9),
