@@ -114,10 +114,13 @@ export const distributionWizardTablePanelSx: SxProps<Theme> = (theme) => {
 export const distributionWizardTableSx: SxProps<Theme> = {
   tableLayout: "fixed",
   "& th:first-of-type, & td:first-of-type": {
-    width: "22%",
+    width: "28%",
+  },
+  "& th:nth-of-type(2), & td:nth-of-type(2)": {
+    width: "26%",
   },
   "& th:last-of-type, & td:last-of-type": {
-    width: 128,
+    width: 140,
     textAlign: "right",
   },
 };
@@ -141,17 +144,18 @@ export const distributionWizardDraftNoticeSx: SxProps<Theme> = (theme) => {
 };
 
 export const distributionWizardDraftFieldSx = (theme: AppTheme): SxProps<Theme> => ({
-  minWidth: { xs: 72, sm: 120 },
+  width: "100%",
+  minWidth: 0,
   "& .MuiOutlinedInput-root": {
     fontSize: 13,
     fontWeight: 500,
-    backgroundColor: alpha(theme.app.dashboard.overlayLight, 0.85),
+    backgroundColor: alpha(theme.app.dashboard.overlayMedium, 0.95),
     borderRadius: 1.25,
   },
   "& .MuiOutlinedInput-input": {
     py: 1.1,
     px: 1.25,
-    color: theme.app.text.primary,
+    color: theme.app.dashboard.white95,
   },
   "& .MuiOutlinedInput-notchedOutline": {
     borderColor: alpha(theme.app.border.input, 0.9),

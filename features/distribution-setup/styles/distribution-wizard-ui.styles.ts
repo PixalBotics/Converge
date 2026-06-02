@@ -136,11 +136,11 @@ export const distributionStepNumberSx =
   };
 
 export const distributionAgentFormCanvasSx: SxProps<Theme> = {
-  borderRadius: 2.5,
+  borderRadius: 2,
   overflow: "hidden",
   border: "1px solid #e2e8f0",
-  bgcolor: "#f8fafc",
-  boxShadow: "0 24px 48px rgba(0,0,0,0.28)",
+  bgcolor: "#fff",
+  width: "100%",
 };
 
 export const distributionAgentFormHeaderSx: SxProps<Theme> = {
@@ -200,10 +200,10 @@ export const distributionPreviewSelectSx: SxProps<Theme> = {
 };
 
 export const distributionSettingsLayoutSx: SxProps<Theme> = {
-  display: "grid",
-  gridTemplateColumns: { xs: "1fr", lg: "minmax(260px, 320px) 1fr" },
-  gap: { xs: 2.5, lg: 3 },
-  alignItems: "start",
+  display: "flex",
+  flexDirection: "column",
+  gap: 2.5,
+  width: "100%",
 };
 
 export const distributionChannelCardSx: SxProps<Theme> = (theme) => {

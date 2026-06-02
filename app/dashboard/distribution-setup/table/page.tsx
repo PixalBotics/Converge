@@ -69,23 +69,25 @@ function RowTextField({
   updateRowField: (id: string, field: keyof DistributionTableRow, value: string) => void;
 }) {
   return (
-    <TextField
-      size="small"
-      value={row[field]}
-      onChange={(e) => updateRowField(row.id, field, e.target.value)}
-      placeholder={
-        field === "department"
-          ? "Sales"
-          : field === "to"
-            ? "team@company.com"
-            : field === "cc"
-              ? "Optional"
-              : "Optional"
-      }
-      fullWidth
-      variant="outlined"
-      sx={distributionWizardDraftFieldSx(theme)}
-    />
+    <Box sx={{ width: "100%", minWidth: 0 }}>
+      <TextField
+        size="small"
+        value={row[field]}
+        onChange={(e) => updateRowField(row.id, field, e.target.value)}
+        placeholder={
+          field === "department"
+            ? "Sales"
+            : field === "to"
+              ? "team@company.com"
+              : field === "cc"
+                ? "Optional"
+                : "Optional"
+        }
+        fullWidth
+        variant="outlined"
+        sx={distributionWizardDraftFieldSx(theme)}
+      />
+    </Box>
   );
 }
 
@@ -281,11 +283,18 @@ export default function DistributionTablePage() {
 
       if (field === "department") {
         return (
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1, minWidth: 0 }}>
-            <Typography variant="medium" sx={{ color: theme.app.dashboard.white95, fontWeight: 600 }}>
-              {row.department || "—"}
-            </Typography>
-          </Box>
+          <Typography
+            variant="medium"
+            sx={{
+              color: theme.app.dashboard.white95,
+              fontWeight: 600,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {row.department || "—"}
+          </Typography>
         );
       }
 
@@ -299,10 +308,30 @@ export default function DistributionTablePage() {
       {
         id: "department",
         label: "Department",
-        render: (_v, row) => (
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1, minWidth: 0, flexWrap: "wrap" }}>
-            {renderCell(row, "department")}
-            {row.isDraft ? (
+        render: (_v, row) => renderCell(row, "department"),
+      },
+      { id: "to", label: "To", cellVariant: "muted", render: (_v, row) => renderCell(row, "to") },
+      { id: "cc", label: "CC", cellVariant: "muted", render: (_v, row) => renderCell(row, "cc") },
+      { id: "bcc", label: "BCC", cellVariant: "muted", render: (_v, row) => renderCell(row, "bcc") },
+    ],
+    [renderCell],
+  );
+
+  const actionColumn = useMemo(
+    () => ({
+      label: "Actions",
+      align: "right" as const,
+      render: (row: DistributionTableRow) => {
+        if (row.isDraft) {
+          return (
+            <Box
+              sx={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "flex-end",
+                gap: 0.75,
+              }}
+            >
               <Chip
                 label="Draft"
                 size="small"
@@ -314,40 +343,23 @@ export default function DistributionTablePage() {
                   color: theme.palette.warning.light,
                 }}
               />
-            ) : null}
-          </Box>
-        ),
-      },
-      { id: "to", label: "To", cellVariant: "muted", render: (_v, row) => renderCell(row, "to") },
-      { id: "cc", label: "CC", cellVariant: "muted", render: (_v, row) => renderCell(row, "cc") },
-      { id: "bcc", label: "BCC", cellVariant: "muted", render: (_v, row) => renderCell(row, "bcc") },
-    ],
-    [theme, renderCell],
-  );
-
-  const actionColumn = useMemo(
-    () => ({
-      label: "Actions",
-      align: "right" as const,
-      render: (row: DistributionTableRow) => {
-        if (row.isDraft) {
-          return (
-            <Button
-              type="button"
-              variant="primary"
-              disabled={!draftRowHasData(row)}
-              onClick={() => handleCommitRow(row.id)}
-              sx={{
-                ...(resolveSx(gradientPrimaryButtonSx, theme) as object),
-                minWidth: 84,
-                py: 0.75,
-                px: 1.75,
-                fontSize: 13,
-                fontWeight: 600,
-              }}
-            >
-              Add row
-            </Button>
+              <Button
+                type="button"
+                variant="primary"
+                disabled={!draftRowHasData(row)}
+                onClick={() => handleCommitRow(row.id)}
+                sx={{
+                  ...(resolveSx(gradientPrimaryButtonSx, theme) as object),
+                  minWidth: 84,
+                  py: 0.75,
+                  px: 1.75,
+                  fontSize: 13,
+                  fontWeight: 600,
+                }}
+              >
+                Add row
+              </Button>
+            </Box>
           );
         }
         if (editingId === row.id) {
