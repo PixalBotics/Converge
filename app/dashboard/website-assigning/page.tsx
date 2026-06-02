@@ -14,9 +14,9 @@ import type { AppTheme } from "@/theme/theme";
 import { filterChromeButtonSx } from "@/components/common/FilterButton/filter-button.styles";
 import {
   Button,
+  ConfirmActionModal,
   DashboardCard,
   DataTable,
-  FormModal,
   SearchBar,
   TablePagination,
   ToolbarFilterPopover,
@@ -540,21 +540,20 @@ export default function WebsiteAssigningPage() {
         </Box>
       </DashboardCard>
 
-      <FormModal
+      <ConfirmActionModal
         open={Boolean(clearTarget)}
         title="Clear all agent slots?"
         description={
           clearTarget
             ? `Remove every Primary, Secondary, and Backup assignment for ${resolveWebsiteRowUrlLabels(clearTarget.websiteName, clearTarget.websiteUrl).primary}. Service scheduling is kept.`
-            : undefined
+            : ""
         }
-        onClose={() => !clearing && setClearTarget(null)}
-        onSave={() => void handleClearAgents()}
-        primaryButtonLabel={clearing ? "Clearing…" : "Clear all agents"}
-        primaryButtonVariant="danger"
-        primaryButtonDisabled={clearing}
-        cancelButtonLabel="Cancel"
-        maxWidth={480}
+        confirmLabel={clearing ? "Clearing…" : "Clear all agents"}
+        cancelLabel="Cancel"
+        confirmButtonVariant="danger"
+        onDismiss={() => !clearing && setClearTarget(null)}
+        onConfirm={() => void handleClearAgents()}
+        isLoading={clearing}
       />
     </Box>
   );

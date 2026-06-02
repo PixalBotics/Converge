@@ -11,9 +11,9 @@ import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import {
   Button,
+  ConfirmActionModal,
   DashboardCard,
   DataTable,
-  FormModal,
   Typography,
 } from "@/components/common";
 import type { DataTableColumn } from "@/components/common";
@@ -285,21 +285,20 @@ export default function WebsiteSitesByOrgPage() {
         </Box>
       </DashboardCard>
 
-      <FormModal
+      <ConfirmActionModal
         open={Boolean(clearTarget)}
         title="Clear all agent slots?"
         description={
           clearTarget
             ? `Remove all roster assignments for ${clearTarget.websiteName}. Service scheduling stays unchanged.`
-            : undefined
+            : ""
         }
-        onClose={() => !clearing && setClearTarget(null)}
-        onSave={() => void handleClearAgents()}
-        primaryButtonLabel={clearing ? "Clearing…" : "Clear all agents"}
-        primaryButtonVariant="danger"
-        primaryButtonDisabled={clearing}
-        cancelButtonLabel="Cancel"
-        maxWidth={480}
+        confirmLabel={clearing ? "Clearing…" : "Clear all agents"}
+        cancelLabel="Cancel"
+        confirmButtonVariant="danger"
+        onDismiss={() => !clearing && setClearTarget(null)}
+        onConfirm={() => void handleClearAgents()}
+        isLoading={clearing}
       />
     </Box>
   );

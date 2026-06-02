@@ -35,15 +35,26 @@ function fieldMultiline(fieldKey: string, fieldType: string): boolean {
 
 function PreviewSelect({ label, value }: { label: string; value: string }) {
   return (
-    <Box>
+    <Box sx={{ width: "100%", minWidth: 0 }}>
       <Box component="label" sx={distributionPreviewFieldLabelSx}>
         {label}
       </Box>
       <Box sx={distributionPreviewSelectSx}>
-        <Box component="span" sx={{ flex: 1, color: "#0f172a", fontSize: 14, fontWeight: 500 }}>
+        <Box
+          component="span"
+          sx={{
+            flex: 1,
+            minWidth: 0,
+            color: "#0f172a",
+            fontSize: 14,
+            fontWeight: 500,
+            lineHeight: 1.4,
+            wordBreak: "break-word",
+          }}
+        >
           {value}
         </Box>
-        <ExpandMore sx={{ color: "#64748b", fontSize: 20 }} />
+        <ExpandMore sx={{ color: "#64748b", fontSize: 20, flexShrink: 0 }} />
       </Box>
     </Box>
   );
@@ -59,7 +70,7 @@ function PreviewField({
   multiline?: boolean;
 }) {
   return (
-    <Box>
+    <Box sx={{ width: "100%", minWidth: 0 }}>
       <Box component="label" sx={distributionPreviewFieldLabelSx}>
         {label}
       </Box>
@@ -105,28 +116,28 @@ export function AgentDistributionFormPreview({
     (formType === "custom" ? "Custom wrap-up" : "Standard wrap-up");
 
   return (
-    <Box sx={{ minWidth: 0 }}>
+    <Box sx={{ minWidth: 0, width: "100%" }}>
       <Box
         sx={{
           display: "flex",
           alignItems: "flex-start",
           justifyContent: "space-between",
           gap: 1.5,
-          mb: 1.5,
+          mb: 1.75,
           flexWrap: "wrap",
         }}
       >
-        <Box>
+        <Box sx={{ minWidth: 0, flex: 1 }}>
           <Typography variant="medium" fontWeight={700} color="white">
-            Agent form preview
+            Agent wrap-up form
           </Typography>
-          <Typography variant="caption" sx={{ color: (t) => t.app.dashboard.textMuted, display: "block" }}>
-            How agents distribute a chat after it closes — fields are prefilled from the conversation
-            (read-only). Additional notes and visitor rating are added automatically in the email.
+          <Typography variant="caption" sx={{ color: (t) => t.app.dashboard.textMuted, display: "block", mt: 0.35 }}>
+            Preview of the form agents use after a chat closes. Fields are prefilled from the
+            conversation; notes and visitor rating are added automatically in the email.
           </Typography>
         </Box>
         {onConfigure ? (
-          <Button type="button" variant="secondary" size="small" onClick={onConfigure}>
+          <Button type="button" variant="secondary" size="small" onClick={onConfigure} sx={{ flexShrink: 0 }}>
             Edit form
           </Button>
         ) : null}

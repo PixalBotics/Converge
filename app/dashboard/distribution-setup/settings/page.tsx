@@ -111,61 +111,61 @@ export default function DistributionSettingsPage() {
       }
     >
       <Box sx={distributionSettingsLayoutSx}>
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-          <Box sx={distributionChannelCardSx}>
+        <Box sx={distributionChannelCardSx}>
+          <Typography
+            variant="caption"
+            sx={{
+              color: theme.app.dashboard.textMuted,
+              textTransform: "uppercase",
+              letterSpacing: 0.5,
+              fontWeight: 700,
+              fontSize: 10,
+              mb: 1.25,
+              display: "block",
+            }}
+          >
+            Step 2 · Delivery method
+          </Typography>
+          <DistributionMethodPicker value={method} onChange={handleMethodChange} />
+          {!method ? (
             <Typography
               variant="caption"
-              sx={{
-                color: theme.app.dashboard.textMuted,
-                textTransform: "uppercase",
-                letterSpacing: 0.5,
-                fontWeight: 700,
-                fontSize: 10,
-                mb: 1.25,
-                display: "block",
-              }}
+              sx={{ color: theme.palette.warning.light, mt: 1.5, display: "block" }}
             >
-              Step 2 · Delivery method
+              Select Email to configure wrap-up form, subject, and recipients.
             </Typography>
-            <DistributionMethodPicker value={method} onChange={handleMethodChange} />
-            {!method ? (
-              <Typography
-                variant="caption"
-                sx={{ color: theme.palette.warning.light, mt: 1.5, display: "block" }}
-              >
-                Select Email to configure wrap-up form, subject, and recipients.
-              </Typography>
-            ) : null}
-          </Box>
-
-          {method === "email" ? (
-            <Box sx={distributionChannelCardSx}>
-              <Typography variant="small" fontWeight={600} color="white" sx={{ mb: 0.75 }}>
-                What happens next
-              </Typography>
-              <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, lineHeight: 1.5 }}>
-                1. Chat closes → agent opens distribution form
-                <br />
-                2. Fields prefilled from visitor &amp; transcript
-                <br />
-                3. Agent picks department → email sends
-              </Typography>
-            </Box>
           ) : null}
         </Box>
 
         {method === "email" ? (
-          <AgentDistributionFormPreview
-            fields={formQuery.data?.fields ?? []}
-            formType={formQuery.data?.formType}
-            formName={formQuery.data?.formName}
-            loading={formQuery.isLoading}
-            onConfigure={websiteId ? openFormEditor : undefined}
-          />
-        ) : (
+          <Box sx={distributionChannelCardSx}>
+            <Typography variant="small" fontWeight={600} color="white" sx={{ mb: 0.75 }}>
+              What happens next
+            </Typography>
+            <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, lineHeight: 1.6 }}>
+              1. Chat closes → agent opens distribution form
+              <br />
+              2. Fields prefilled from visitor &amp; transcript
+              <br />
+              3. Agent picks department → email sends
+            </Typography>
+          </Box>
+        ) : null}
+
+        {method === "email" ? (
+          <Box sx={distributionChannelCardSx}>
+            <AgentDistributionFormPreview
+              fields={formQuery.data?.fields ?? []}
+              formType={formQuery.data?.formType}
+              formName={formQuery.data?.formName}
+              loading={formQuery.isLoading}
+              onConfigure={websiteId ? openFormEditor : undefined}
+            />
+          </Box>
+        ) : method ? null : (
           <Box sx={distributionChannelCardSx}>
             <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted, lineHeight: 1.5 }}>
-              Choose <strong style={{ color: theme.app.text.primary }}>Email</strong> on the left to preview the
+              Choose <strong style={{ color: theme.app.text.primary }}>Email</strong> above to preview the
               agent wrap-up form and continue setup.
             </Typography>
           </Box>
