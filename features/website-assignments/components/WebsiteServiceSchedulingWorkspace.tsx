@@ -11,8 +11,8 @@ import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import {
   Button,
+  ConfirmActionModal,
   DashboardCard,
-  FormModal,
   PermissionDeniedPanel,
   Typography,
 } from "@/components/common";
@@ -190,12 +190,15 @@ export function WebsiteServiceSchedulingWorkspace({ websiteId }: { websiteId: st
         </DashboardCard>
       )}
 
-      <FormModal
+      <ConfirmActionModal
         open={deleteOpen}
         title="Delete service schedule?"
         description="Remove service hours for this website and clear visitor topics. Agent assignments are kept."
-        onClose={() => !deleteMutation.isPending && setDeleteOpen(false)}
-        onSave={() => {
+        confirmLabel={deleteMutation.isPending ? "Deleting…" : "Delete schedule"}
+        cancelLabel="Cancel"
+        confirmButtonVariant="danger"
+        onDismiss={() => !deleteMutation.isPending && setDeleteOpen(false)}
+        onConfirm={() => {
           deleteMutation.mutate(undefined, {
             onSuccess: () => {
               publishAppToast({ message: "Service schedule removed.", variant: "success" });
@@ -210,11 +213,7 @@ export function WebsiteServiceSchedulingWorkspace({ websiteId }: { websiteId: st
               }),
           });
         }}
-        primaryButtonLabel={deleteMutation.isPending ? "Deleting…" : "Delete schedule"}
-        primaryButtonVariant="danger"
-        primaryButtonDisabled={deleteMutation.isPending}
-        cancelButtonLabel="Cancel"
-        maxWidth={520}
+        isLoading={deleteMutation.isPending}
       />
     </Box>
   );

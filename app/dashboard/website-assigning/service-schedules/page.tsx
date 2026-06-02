@@ -11,9 +11,9 @@ import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import {
   Button,
+  ConfirmActionModal,
   DashboardCard,
   DataTable,
-  FormModal,
   SearchBar,
   TablePagination,
   ToolbarFilterPopover,
@@ -369,21 +369,20 @@ export default function ServiceSchedulesPage() {
         </Box>
       </DashboardCard>
 
-      <FormModal
+      <ConfirmActionModal
         open={Boolean(deleteTarget)}
         title="Delete service schedule?"
         description={
           deleteTarget
             ? `Remove service hours and visitor topics for ${deleteTarget.websiteName} only. Agent assignments are kept.`
-            : undefined
+            : ""
         }
-        onClose={() => !deleting && setDeleteTarget(null)}
-        onSave={() => void handleDeleteSchedule()}
-        primaryButtonLabel={deleting ? "Deleting…" : "Delete schedule"}
-        primaryButtonVariant="danger"
-        primaryButtonDisabled={deleting}
-        cancelButtonLabel="Cancel"
-        maxWidth={520}
+        confirmLabel={deleting ? "Deleting…" : "Delete schedule"}
+        cancelLabel="Cancel"
+        confirmButtonVariant="danger"
+        onDismiss={() => !deleting && setDeleteTarget(null)}
+        onConfirm={() => void handleDeleteSchedule()}
+        isLoading={deleting}
       />
 
     </Box>

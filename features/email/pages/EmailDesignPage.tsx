@@ -17,6 +17,7 @@ import { EmailDesignBuilderShell } from "../components/EmailDesignBuilderShell";
 import { EmailDesignStudio } from "../components/EmailDesignStudio";
 import { EmailFullscreenPreview } from "../components/EmailFullscreenPreview";
 import { EmailTemplateVersionsDrawer } from "../components/EmailTemplateVersionsDrawer";
+import { EmailPublishConfirmModal } from "../components/EmailPublishConfirmModal";
 import { useEmailResellerScope } from "../context/EmailResellerScopeContext";
 import { EmailResellerScopeGate } from "../components/EmailResellerScopeGate";
 import {
@@ -156,6 +157,7 @@ function EmailDesignEditor({ mode = "reseller" }: { mode?: "reseller" | "platfor
   const [dirty, setDirty] = useState(false);
   const [device, setDevice] = useState<"desktop" | "mobile">("desktop");
   const [versionsOpen, setVersionsOpen] = useState(false);
+  const [publishConfirmOpen, setPublishConfirmOpen] = useState(false);
   const [fullscreenPreview, setFullscreenPreview] = useState(false);
   const [toolsOpen, setToolsOpen] = useState(isWide);
 
@@ -223,12 +225,11 @@ function EmailDesignEditor({ mode = "reseller" }: { mode?: "reseller" | "platfor
     }
   };
 
-  const handlePublish = async () => {
+  const handlePublishConfirm = async () => {
     if (!canPublish) return;
     if (!isPlatform && !activeResellerId) return;
-    if (!window.confirm("Publish this template? Live emails will use the published version.")) return;
     try {
-      if (dirty && canUpdate) {
+      if (canUpdate) {
         await updateMutation.mutateAsync({
           name: name.trim(),
           primaryColor: primaryColor.trim() || undefined,
@@ -238,6 +239,7 @@ function EmailDesignEditor({ mode = "reseller" }: { mode?: "reseller" | "platfor
         setDirty(false);
       }
       await publishMutation.mutateAsync();
+      setPublishConfirmOpen(false);
       publishAppToast({ variant: "success", message: "Template published." });
       void versionsQuery.refetch();
     } catch (err) {
@@ -308,8 +310,8 @@ function EmailDesignEditor({ mode = "reseller" }: { mode?: "reseller" | "platfor
       title={isPlatform ? "Platform email builder" : "Reseller email builder"}
       subtitle={
         isPlatform
-          ? "Edit the default transcript email. Save draft, then publish."
-          : "Customize transcript email for this reseller."
+          ? "Edit the default transcript email. Publish saves your changes and goes live."
+          : "Customize transcript email for this reseller. Publish saves and goes live."
       }
       statusChip={statusChip}
       dirty={dirty}
@@ -318,7 +320,7 @@ function EmailDesignEditor({ mode = "reseller" }: { mode?: "reseller" | "platfor
       canSave={canUpdate}
       canPublish={canPublish}
       onSave={() => void handleSave()}
-      onPublish={() => void handlePublish()}
+      onPublish={() => setPublishConfirmOpen(true)}
       onVersions={() => {
         void versionsQuery.refetch();
         setVersionsOpen(true);
@@ -455,6 +457,13 @@ function EmailDesignEditor({ mode = "reseller" }: { mode?: "reseller" | "platfor
         device={device}
         onDeviceChange={setDevice}
         publishedLabel={publishedLabel}
+      />
+
+      <EmailPublishConfirmModal
+        open={publishConfirmOpen}
+        onDismiss={() => setPublishConfirmOpen(false)}
+        onConfirm={() => void handlePublishConfirm()}
+        isLoading={updateMutation.isPending || publishMutation.isPending}
       />
     </>
   );
