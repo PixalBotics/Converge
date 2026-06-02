@@ -1,6 +1,8 @@
 import { alpha } from "@mui/material/styles";
 import type { SxProps, Theme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
+import { safeAlpha } from "@/lib/theme/safe-alpha";
+import { dashboardSolidSurface } from "@/features/chat-operations/styles/chat-semantic";
 import {
   chatOpsPageWrapper,
   chatOpsWorkspaceShell,
@@ -32,7 +34,7 @@ export const chatQaWorkspaceGrid: SxProps<Theme> = (theme) => {
   const divider = alpha(d.cardBorder, 0.18);
   const paneBg = alpha(d.sidebarBg, 0.65);
   const threadBg = alpha(d.headerBg, 0.35);
-  const reviewBg = alpha(d.liveChat.cardBg, 0.92);
+  const reviewBg = safeAlpha(d.liveChat.cardBg, 0.92, alpha(dashboardSolidSurface(theme), 0.92));
   return {
     display: "grid",
     gridTemplateColumns: {
