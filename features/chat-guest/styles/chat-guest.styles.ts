@@ -19,6 +19,9 @@ export const guestPageShellSx: SxProps<Theme> = (theme) => ({
 
 export const guestHeaderCardSx: SxProps<Theme> = (theme) => {
   const d = dash(theme);
+  const cardBg = d.cardBg;
+  const isGradientCardBg =
+    typeof cardBg === "string" && /gradient/i.test(cardBg);
   return {
     width: "100%",
     maxWidth: 960,
@@ -26,7 +29,9 @@ export const guestHeaderCardSx: SxProps<Theme> = (theme) => {
     p: { xs: 1.5, md: 2 },
     borderRadius: "12px",
     border: `1px solid ${alpha(d.cardBorder, 0.45)}`,
-    background: `linear-gradient(145deg, ${alpha(d.cardBg, 0.95)} 0%, ${alpha(d.liveChat.cardBg, 0.88)} 100%)`,
+    background: isGradientCardBg
+      ? cardBg
+      : `linear-gradient(145deg, ${alpha(cardBg, 0.95)} 0%, ${alpha(d.liveChat.cardBg, 0.88)} 100%)`,
     boxShadow: `0 8px 32px ${alpha(d.cardBorder, 0.12)}`,
   };
 };

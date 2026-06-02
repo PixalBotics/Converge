@@ -78,6 +78,11 @@ export function GuestSupervisorActions({
   };
 
   const sessionLabel = `${session.websiteLabel ? `${session.websiteLabel} · ` : ""}${session.departmentName ?? "Department"} guest session`;
+  const cardSurfaceSx =
+    typeof theme.app.dashboard.cardBg === "string" &&
+    /gradient/i.test(theme.app.dashboard.cardBg)
+      ? { background: theme.app.dashboard.cardBg }
+      : { bgcolor: theme.app.dashboard.cardBg };
 
   return (
     <Box
@@ -86,7 +91,7 @@ export function GuestSupervisorActions({
         py: 1.5,
         flexShrink: 0,
         borderTop: `1px solid ${theme.app.dashboard.cardBorder}`,
-        bgcolor: theme.app.dashboard.cardBg,
+        ...cardSurfaceSx,
       }}
     >
       <ChatSideToolCard accent="supervisor" title="Supervisor actions" subtitle={sessionLabel}>

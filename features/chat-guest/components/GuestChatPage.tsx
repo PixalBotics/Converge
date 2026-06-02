@@ -43,6 +43,11 @@ export function GuestChatPage() {
   const subtitle = vp
     ? [vp.originLabel, vp.locationLabel].filter(Boolean).join(" · ")
     : guest.session?.websiteLabel ?? null;
+  const cardSurfaceSx =
+    typeof theme.app.dashboard.cardBg === "string" &&
+    /gradient/i.test(theme.app.dashboard.cardBg)
+      ? { background: theme.app.dashboard.cardBg }
+      : { bgcolor: theme.app.dashboard.cardBg };
 
   return (
     <Box sx={guestPageShellSx}>
@@ -62,7 +67,7 @@ export function GuestChatPage() {
 
       <Paper
         elevation={0}
-        sx={mergeSx(guestCardSx, { bgcolor: theme.app.dashboard.cardBg })}
+        sx={mergeSx(guestCardSx, cardSurfaceSx)}
       >
         {guest.phase === "loading" ? (
           <Box sx={{ p: 4, flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
