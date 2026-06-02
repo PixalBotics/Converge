@@ -21,6 +21,7 @@ interface GuestSupervisorActionsProps {
   supervisorControlUserId?: string | null;
   assignedAgentId?: string | null;
   chatCompleted?: boolean;
+  onOptimisticAgentMessage?: (content: string) => void;
   onActionComplete?: () => void;
 }
 
@@ -39,6 +40,7 @@ export function GuestSupervisorActions({
   supervisorControlUserId,
   assignedAgentId,
   chatCompleted = false,
+  onOptimisticAgentMessage,
   onActionComplete,
 }: GuestSupervisorActionsProps) {
   const theme = useTheme() as AppTheme;
@@ -140,10 +142,12 @@ export function GuestSupervisorActions({
                   disabled={busy || !replyText.trim()}
                   onClick={() =>
                     void run(async () => {
+                      const text = replyText.trim();
+                      onOptimisticAgentMessage?.(text);
                       await sendGuestDirectControlMessage(
                         session.conversationId,
                         session.accessToken,
-                        replyText.trim(),
+                        text,
                       );
                       setReplyText("");
                       setStatus("Message sent to the visitor.");
