@@ -185,8 +185,7 @@ export function createAppMuiTheme(
       : "rgba(226, 232, 240, 0.95)";
   const d = app.dashboard;
   const liveChatFromTheme = {
-    cardBg: d.cardBg,
-    messageBg: d.sidebarBg || d.headerBg || d.cardBg,
+    messageBg: d.liveChat?.messageBg ?? d.sidebarBg ?? d.headerBg ?? "#313338",
     avatarBg: accent,
     messageText: app.text.primary,
     cardGlass: d.overlayLight,

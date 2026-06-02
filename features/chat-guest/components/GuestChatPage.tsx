@@ -16,6 +16,7 @@ import { parseVisitorInfo } from "@/features/chat-operations/utils/visitor-info"
 import { extractVisitorPresentation } from "@/services/chat/visitor-presentation";
 import { useGuestChatSession } from "../hooks/useGuestChatSession";
 import { GuestSupervisorActions } from "./GuestSupervisorActions";
+import { dashboardCardSurfaceProps } from "@/features/chat-operations/styles/chat-semantic";
 import { guestBannerSx, guestCardSx, guestHeaderCardSx, guestPageShellSx } from "../styles/chat-guest.styles";
 
 export function GuestChatPage() {
@@ -62,7 +63,7 @@ export function GuestChatPage() {
 
       <Paper
         elevation={0}
-        sx={mergeSx(guestCardSx, { bgcolor: theme.app.dashboard.cardBg })}
+        sx={mergeSx(guestCardSx, dashboardCardSurfaceProps(theme))}
       >
         {guest.phase === "loading" ? (
           <Box sx={{ p: 4, flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
