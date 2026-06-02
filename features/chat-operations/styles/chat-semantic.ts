@@ -1,12 +1,16 @@
 import { alpha } from "@mui/material/styles";
 import type { Theme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
-import { isSimpleCssColor, safeAlpha } from "@/lib/theme/safe-alpha";
-
-export { isSimpleCssColor, safeAlpha };
 
 function dash(theme: Theme) {
   return (theme as AppTheme).app.dashboard;
+}
+
+/** MUI `alpha()` only accepts simple colors — not `linear-gradient(...)`. */
+export function isSimpleCssColor(value: string): boolean {
+  const v = value.trim();
+  if (!v || /gradient/i.test(v)) return false;
+  return /^(#[\da-f]{3,8}|rgba?\(|hsla?\(|color\()/i.test(v);
 }
 
 /** Solid dashboard fill when `cardBg` is a glass gradient string. */

@@ -8,7 +8,6 @@ import type { AppTheme } from "@/theme/theme";
 import { Button, InputField, Typography } from "@/components/common";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
 import { ChatSideToolCard } from "@/features/chat-shared";
-import { dashboardCardSurfaceProps } from "@/features/chat-operations/styles/chat-semantic";
 import {
   createGuestWhisper,
   releaseGuestDirectControl,
@@ -87,7 +86,7 @@ export function GuestSupervisorActions({
         py: 1.5,
         flexShrink: 0,
         borderTop: `1px solid ${theme.app.dashboard.cardBorder}`,
-        ...dashboardCardSurfaceProps(theme),
+        bgcolor: theme.app.dashboard.cardBg,
       }}
     >
       <ChatSideToolCard accent="supervisor" title="Supervisor actions" subtitle={sessionLabel}>

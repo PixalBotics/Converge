@@ -11,7 +11,6 @@ import DialogTitle from "@mui/material/DialogTitle";
 import { alpha, useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import { Button, Typography } from "@/components/common";
-import { dashboardCardSurfaceProps } from "../styles/chat-semantic";
 import { CloseChatPanel } from "../styles/chat-operations.styled";
 
 interface CloseChatSectionProps {
@@ -103,7 +102,7 @@ export function CloseChatSection({
         PaperProps={{
           sx: {
             borderRadius: 2,
-            ...dashboardCardSurfaceProps(theme),
+            bgcolor: theme.app.dashboard.cardBg,
             border: `1px solid ${theme.app.dashboard.cardBorder}`,
             minWidth: { xs: "92vw", sm: 400 },
           },
