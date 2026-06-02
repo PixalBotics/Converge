@@ -52,7 +52,7 @@ describe("prepareInboxTranscriptMessages", () => {
   it("remaps legacy close_form_link to distribution when opts request it", () => {
     const distributionHref =
       "/dashboard/chat-operations/distribution?conversationId=conv-1";
-    const messages = [
+    const messages: ChatMessage[] = [
       {
         id: "1",
         conversationId: "conv-1",
