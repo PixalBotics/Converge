@@ -25,7 +25,7 @@ import { VisitorLocationMap } from "./VisitorLocationMap";
 import { SupervisorToolsPanel } from "./SupervisorToolsPanel";
 import { GuestLinkPanel } from "./GuestLinkPanel";
 import { useConversationSupervisor } from "../hooks/useConversationSupervisor";
-import { canUseSupervisorTools } from "@/lib/permissions/chat-access";
+import { canSendGuestLink, canUseSupervisorTools } from "@/lib/permissions/chat-access";
 import { fetchWebsiteChatSettings } from "@/services/chat/chat-settings.api";
 import {
   DEFAULT_CHAT_OPERATIONS,
@@ -115,14 +115,27 @@ export function VisitorInfoPanel({
   const originLine = visitorPresentation?.originLabel?.trim() || null;
   const locationLine = visitorPresentation?.locationLabel?.trim() || parsed.location?.label || null;
   const [expanded, setExpanded] = useState<string | false>("contact");
-  const [guestAccessEnabled, setGuestAccessEnabled] = useState(false);
+  const canSendGuestLinkPermission = canSendGuestLink(hasOperational);
+  const defaultGuestAccessEnabled = Boolean(
+    (DEFAULT_CHAT_OPERATIONS.guestAccess as { enabled?: boolean } | undefined)?.enabled,
+  );
+  const [guestAccessEnabled, setGuestAccessEnabled] = useState<boolean | null>(
+    canSendGuestLinkPermission ? defaultGuestAccessEnabled : false,
+  );
   useEffect(() => {
-    const wid = websiteId?.trim();
-    if (!wid) {
+    if (!canSendGuestLinkPermission) {
       setGuestAccessEnabled(false);
       return;
     }
+
+    const wid = websiteId?.trim();
+    if (!wid) {
+      setGuestAccessEnabled(defaultGuestAccessEnabled);
+      return;
+    }
+
     let cancelled = false;
+    setGuestAccessEnabled(null);
     void fetchWebsiteChatSettings(wid)
       .then((bundle) => {
         if (cancelled) return;
@@ -131,17 +144,18 @@ export function VisitorInfoPanel({
           bundle.settings.operationsJson,
         );
         const guest = ops.guestAccess as { enabled?: boolean } | undefined;
-        setGuestAccessEnabled(Boolean(guest?.enabled));
+        setGuestAccessEnabled(guest?.enabled !== false);
       })
       .catch(() => {
         if (!cancelled) {
-          setGuestAccessEnabled(false);
+          // Agents may lack settings read; still show send link — backend enforces policy.
+          setGuestAccessEnabled(defaultGuestAccessEnabled);
         }
       });
     return () => {
       cancelled = true;
     };
-  }, [websiteId]);
+  }, [canSendGuestLinkPermission, defaultGuestAccessEnabled, websiteId]);
 
   const supervisorEnabled =
     canUseSupervisorTools(hasOperational) && Boolean(conversationId) && !supervisorReadOnly;
@@ -224,6 +238,15 @@ export function VisitorInfoPanel({
               </Box>
             ) : null}
           </ProfileHeroCard>
+
+          <Box sx={{ px: 2, pb: 1 }}>
+            <GuestLinkPanel
+              conversationId={conversationId}
+              hasOperational={hasOperational}
+              disabled={supervisorReadOnly || closeDisabled}
+              guestAccessEnabled={guestAccessEnabled}
+            />
+          </Box>
 
           <Accordion
             expanded={expanded === "contact"}
@@ -353,15 +376,6 @@ export function VisitorInfoPanel({
               </AccordionDetails>
             </Accordion>
           ) : null}
-
-          <Box sx={{ px: 2, pb: 1 }}>
-            <GuestLinkPanel
-              conversationId={conversationId}
-              hasOperational={hasOperational}
-              disabled={supervisorReadOnly || closeDisabled}
-              guestAccessEnabled={guestAccessEnabled}
-            />
-          </Box>
 
           {supervisorEnabled && !hideSupervisorTools ? (
             <Box sx={{ px: 2, pb: 1 }}>

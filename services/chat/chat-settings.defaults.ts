@@ -27,7 +27,7 @@ export const DEFAULT_SERVICE_SCHEDULE: ServiceSchedule = {
 /** Mirrors backend `DEFAULT_CHAT_OPERATIONS` — merged on save (unknown keys preserved). */
 export const DEFAULT_CHAT_OPERATIONS: ChatOperationsJson = {
   guestAccess: {
-    enabled: false,
+    enabled: true,
     sendMode: "agent_manual_only",
     linkExpiresHours: 72,
     guestSessionMinutesAfterOpen: 240,
