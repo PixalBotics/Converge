@@ -57,3 +57,46 @@ export async function requestGuestTakeover(
   );
   return unwrapChatHttpData(data);
 }
+
+export async function startGuestDirectControl(
+  conversationId: string,
+  guestAccessToken: string,
+): Promise<{
+  mode: string;
+  supervisorControlUserId: string;
+  agentId: string | null;
+  agentReadOnly: boolean;
+  involvementUserId?: string;
+}> {
+  const { data } = await apiClient.post<unknown>(
+    `/chat/guest/conversations/${encodeURIComponent(conversationId)}/supervisor/control/start`,
+    {},
+    { headers: chatAuthHeaders(guestAccessToken) },
+  );
+  return unwrapChatHttpData(data);
+}
+
+export async function releaseGuestDirectControl(
+  conversationId: string,
+  guestAccessToken: string,
+): Promise<{ released: boolean; agentId: string | null }> {
+  const { data } = await apiClient.post<unknown>(
+    `/chat/guest/conversations/${encodeURIComponent(conversationId)}/supervisor/control/release`,
+    {},
+    { headers: chatAuthHeaders(guestAccessToken) },
+  );
+  return unwrapChatHttpData(data);
+}
+
+export async function sendGuestDirectControlMessage(
+  conversationId: string,
+  guestAccessToken: string,
+  message: string,
+): Promise<unknown> {
+  const { data } = await apiClient.post<unknown>(
+    `/chat/guest/conversations/${encodeURIComponent(conversationId)}/supervisor/messages`,
+    { message },
+    { headers: chatAuthHeaders(guestAccessToken) },
+  );
+  return unwrapChatHttpData(data);
+}

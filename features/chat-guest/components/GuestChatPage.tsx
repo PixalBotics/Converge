@@ -54,7 +54,7 @@ export function GuestChatPage() {
               Secure chat view
             </Typography>
             <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, lineHeight: 1.45 }}>
-              Department guest access — read-only transcript; supervisors may whisper to the assigned agent.
+              Department guest access — view transcript, whisper to the agent, or take over the chat (no login).
             </Typography>
           </Box>
         </Box>
@@ -142,6 +142,17 @@ export function GuestChatPage() {
 
             <GuestSupervisorActions
               session={guest.session}
+              supervisorControlUserId={
+                typeof guest.transcript?.supervisorControlUserId === "string"
+                  ? guest.transcript.supervisorControlUserId
+                  : null
+              }
+              assignedAgentId={
+                typeof guest.transcript?.agentId === "string"
+                  ? guest.transcript.agentId
+                  : null
+              }
+              chatCompleted={Boolean(guest.transcript?.chatCompleted)}
               onActionComplete={() => void guest.refreshTranscript()}
             />
           </>

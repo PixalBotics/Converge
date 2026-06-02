@@ -37,6 +37,7 @@ export const DEFAULT_CHAT_OPERATIONS: ChatOperationsJson = {
       viewTranscript: true,
       viewVisitorPii: true,
       whisper: true,
+      directControl: true,
       takeoverRequest: false,
     },
   },

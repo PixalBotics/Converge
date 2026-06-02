@@ -3,6 +3,7 @@ export type ChatGuestLinkPermissions = {
   viewTranscript: boolean;
   viewVisitorPii: boolean;
   whisper: boolean;
+  directControl: boolean;
   takeoverRequest: boolean;
 };
 
@@ -16,6 +17,7 @@ export type GuestSessionExchangeResponse = {
   websiteLabel?: string;
   permissions: ChatGuestLinkPermissions;
   urlStrictSingleOpen?: boolean;
+  involvementUserId?: string | null;
 };
 
 export type GuestTranscriptResponse = {
