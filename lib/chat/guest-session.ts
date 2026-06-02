@@ -12,6 +12,7 @@ export type StoredGuestSession = {
   websiteLabel?: string;
   permissions: ChatGuestLinkPermissions;
   urlStrictSingleOpen?: boolean;
+  involvementUserId?: string | null;
 };
 
 function isExpired(iso: string): boolean {
@@ -59,5 +60,6 @@ export function guestSessionFromExchange(
     websiteLabel: data.websiteLabel,
     permissions: data.permissions,
     urlStrictSingleOpen: data.urlStrictSingleOpen,
+    involvementUserId: data.involvementUserId ?? null,
   };
 }
