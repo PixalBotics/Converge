@@ -110,15 +110,21 @@ export function GuestChatPage() {
                   </Typography>
                   {!isChatClosed ? (
                     <Chip
-                      label="Live"
+                      label={guest.isConnected ? "Live" : "Syncing…"}
                       size="small"
                       sx={{
                         height: 18,
                         fontSize: 10,
                         fontWeight: 700,
-                        color: theme.app.dashboard.accentGreenLight,
-                        bgcolor: "rgba(34, 197, 94, 0.12)",
-                        border: "1px solid rgba(34, 197, 94, 0.28)",
+                        color: guest.isConnected
+                          ? theme.app.dashboard.accentGreenLight
+                          : theme.app.dashboard.accentCyan,
+                        bgcolor: guest.isConnected
+                          ? "rgba(34, 197, 94, 0.12)"
+                          : "rgba(34, 211, 238, 0.12)",
+                        border: guest.isConnected
+                          ? "1px solid rgba(34, 197, 94, 0.28)"
+                          : `1px solid ${theme.app.dashboard.accentCyan}`,
                       }}
                     />
                   ) : null}
@@ -156,6 +162,7 @@ export function GuestChatPage() {
 
             <PanelColumn sx={{ flex: 1, minHeight: 0, overflow: "hidden" }}>
               <ChatMessageList
+                conversationId={guest.session.conversationId}
                 messages={guest.messages}
                 visitorInitials={visitorInfo.initials}
                 visitorDisplayName={title}
@@ -177,6 +184,7 @@ export function GuestChatPage() {
                   : null
               }
               chatCompleted={isChatClosed}
+              onOptimisticAgentMessage={guest.appendOptimisticMessage}
               onActionComplete={() => void guest.refreshTranscript()}
             />
           </>
