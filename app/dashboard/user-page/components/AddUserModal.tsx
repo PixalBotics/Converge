@@ -28,6 +28,9 @@ import {
   useAuth,
   sessionMayAssignWideResellerScope,
   sessionMayPickInternalUserScope,
+  sessionIsNarrowClientRootScope,
+  resolveSessionParentCompanyId,
+  resolveSessionResellerId,
 } from "@/lib/auth";
 import {
   externalScopeUsesWideReseller,
@@ -82,6 +85,12 @@ export function AddUserModal({
       authUser?.resellerId,
     ],
   );
+  const isNarrowClientScope = useMemo(
+    () => sessionIsNarrowClientRootScope(isPlatformAdmin, authUser),
+    [isPlatformAdmin, authUser],
+  );
+  const sessionResellerId = resolveSessionResellerId(authUser?.resellerId);
+  const sessionParentCompanyId = resolveSessionParentCompanyId(authUser?.parentCompanyId);
 
   const [userType, setUserType] = useState<"Internal" | "External">("Internal");
   const [resellerId, setResellerId] = useState("");
@@ -112,6 +121,24 @@ export function AddUserModal({
     if (showInternalUserTypeCard) return;
     setUserType("External");
   }, [open, mode, showInternalUserTypeCard]);
+
+  /** Pre-fill tenant scope when creating external users from a reseller session. */
+  useEffect(() => {
+    if (!open || mode !== "create" || userType !== "External") return;
+    const rid = sessionResellerId.trim();
+    if (rid) setResellerId((prev) => prev.trim() || rid);
+    if (isNarrowClientScope) {
+      const pid = sessionParentCompanyId.trim();
+      if (pid) setParentCompanyId((prev) => prev.trim() || pid);
+    }
+  }, [
+    open,
+    mode,
+    userType,
+    sessionResellerId,
+    sessionParentCompanyId,
+    isNarrowClientScope,
+  ]);
 
   const userDetailQuery = useUserQuery(trimmedEditId, {
     enabled: open && mode === "edit",
@@ -714,6 +741,7 @@ export function AddUserModal({
               }}
               options={resellerOptions.length ? resellerOptions : emptySelect}
               menuMaxRows={3}
+              disabled={isNarrowClientScope && mode === "create"}
             />
           </Box>
 
@@ -729,6 +757,10 @@ export function AddUserModal({
               }}
               options={parentCompanyOptions.length ? parentCompanyOptions : emptySelect}
               menuMaxRows={3}
+              disabled={
+                (isNarrowClientScope && mode === "create") ||
+                !resellerId.trim()
+              }
             />
           </Box>
 
@@ -799,6 +831,10 @@ export function AddUserModal({
           }}
           options={departmentOptions.length ? departmentOptions : emptySelect}
           menuMaxRows={3}
+          disabled={
+            userType === "External" &&
+            (!resellerId.trim() || !parentCompanyId.trim())
+          }
         />
       </Box>
 
@@ -809,6 +845,7 @@ export function AddUserModal({
           onChange={setDesignationValue}
           options={designationOptions.length ? designationOptions : emptySelect}
           menuMaxRows={3}
+          disabled={!departmentValue.trim()}
         />
       </Box>
     </FormModal>
