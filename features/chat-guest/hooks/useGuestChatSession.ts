@@ -12,6 +12,11 @@ import { exchangeGuestLinkToken, getGuestTranscript } from "@/services/chat/gues
 import { createChatSocketClient } from "@/services/chat/chatSocket";
 import type { ChatMessage } from "@/services/chat/chat.types";
 import type { GuestTranscriptResponse } from "@/services/chat/guest.types";
+import {
+  CHAT_DISCONNECTED_SYNC_MS,
+  normalizeSocketMessage,
+  scheduleJoinRoomRetries,
+} from "@/lib/hooks/chat/chat-socket-delivery";
 
 export type GuestChatPhase = "loading" | "ready" | "error" | "no_access";
 
@@ -34,7 +39,9 @@ export function useGuestChatSession(emailToken: string | null) {
   const [transcript, setTranscript] = useState<GuestTranscriptResponse | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [isConnected, setIsConnected] = useState(false);
   const messageMapRef = useRef(new Map<string, ChatMessage>());
+  const connectedTokenRef = useRef<string | null>(null);
 
   const upsertMessage = useCallback((message: ChatMessage) => {
     const stableKey =
@@ -119,20 +126,76 @@ export function useGuestChatSession(emailToken: string | null) {
       return;
     }
 
-    socketClient.connect({ authToken: session.accessToken });
-    socketClient.joinRoom({ conversationId: session.conversationId });
+    const tokenChanged = connectedTokenRef.current !== session.accessToken;
+    if (tokenChanged) {
+      connectedTokenRef.current = session.accessToken;
+      socketClient.connect({ authToken: session.accessToken, forceNew: true });
+    } else {
+      socketClient.connect({ authToken: session.accessToken });
+    }
 
-    const offVisitorMessage = socketClient.onVisitorMessage((m) => {
-      if (m.conversationId !== session.conversationId) return;
-      upsertMessage(m);
+    let clearJoinRetries: (() => void) | undefined;
+    const joinRoomWithRetries = () => {
+      socketClient.joinRoom({ conversationId: session.conversationId });
+      clearJoinRetries?.();
+      clearJoinRetries = scheduleJoinRoomRetries(
+        (cid) => socketClient.joinRoom({ conversationId: cid }),
+        session.conversationId,
+        () => phase === "ready",
+      );
+    };
+
+    joinRoomWithRetries();
+    setIsConnected(socketClient.isConnected());
+
+    const deliverSocketMessage = (payload: unknown) => {
+      const normalized = normalizeSocketMessage(payload, session.conversationId);
+      if (!normalized) return;
+      if (normalized.conversationId !== session.conversationId) return;
+      upsertMessage(normalized);
+    };
+
+    const offSocketConnect = socketClient.onSocketConnect(() => {
+      setIsConnected(true);
+      joinRoomWithRetries();
     });
-    const offAgentMessage = socketClient.onAgentMessage((m) => {
-      if (m.conversationId !== session.conversationId) return;
-      upsertMessage(m);
+    const offSocketDisconnect = socketClient.onSocketDisconnect(() => {
+      setIsConnected(false);
     });
-    const offAiMessage = socketClient.onAiMessage((m) => {
-      if (m.conversationId !== session.conversationId) return;
-      upsertMessage(m);
+    const offConnected = socketClient.onConnected(() => {
+      setIsConnected(true);
+      joinRoomWithRetries();
+    });
+
+    const offVisitorMessage = socketClient.onVisitorMessageRaw((payload) => {
+      deliverSocketMessage(payload);
+    });
+    const offAgentMessage = socketClient.onAgentMessageRaw((payload) => {
+      deliverSocketMessage(payload);
+    });
+    const offAiMessage = socketClient.onAiMessageRaw((payload) => {
+      deliverSocketMessage(payload);
+    });
+    const offMonitorLive = socketClient.onMonitorLiveUpdate((update) => {
+      const event = String(update.event ?? "").toLowerCase();
+      if (
+        event !== "visitor_message" &&
+        event !== "agent_message" &&
+        event !== "ai_message" &&
+        !event.includes("message")
+      ) {
+        return;
+      }
+      const payload =
+        update.payload && typeof update.payload === "object"
+          ? {
+              ...(update.payload as Record<string, unknown>),
+              conversationId:
+                (update.payload as { conversationId?: string }).conversationId ??
+                update.conversationId,
+            }
+          : update.payload;
+      deliverSocketMessage(payload);
     });
     const offChatClosed = socketClient.onChatClosed((payload) => {
       const sameConversation =
@@ -144,15 +207,39 @@ export function useGuestChatSession(emailToken: string | null) {
         prev ? { ...prev, chatCompleted: true, status: "closed" } : prev,
       );
     });
+    const offChatCompleted = socketClient.onChatCompleted((payload) => {
+      const sameConversation =
+        typeof payload === "object" &&
+        payload !== null &&
+        (payload as { conversationId?: string }).conversationId === session.conversationId;
+      if (!sameConversation) return;
+      setTranscript((prev) =>
+        prev ? { ...prev, chatCompleted: true, status: "closed" } : prev,
+      );
+    });
 
     return () => {
+      clearJoinRetries?.();
+      offSocketConnect();
+      offSocketDisconnect();
+      offConnected();
       offVisitorMessage();
       offAgentMessage();
       offAiMessage();
+      offMonitorLive();
       offChatClosed();
+      offChatCompleted();
       socketClient.leaveRoom({ conversationId: session.conversationId });
     };
   }, [phase, session, socketClient, upsertMessage]);
+
+  useEffect(() => {
+    if (!session || phase !== "ready" || isConnected) return;
+    const poll = window.setInterval(() => {
+      void loadTranscript(session);
+    }, CHAT_DISCONNECTED_SYNC_MS);
+    return () => window.clearInterval(poll);
+  }, [isConnected, loadTranscript, phase, session]);
 
   const refreshTranscript = useCallback(async () => {
     if (!session) return;
