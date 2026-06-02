@@ -133,10 +133,9 @@ export function inboxTranscriptDisplayForClosed(
   messages: ChatMessage[],
 ): InboxTranscriptDisplayOptions | undefined {
   const hasDistribution = transcriptHasDistributionFormLink(messages);
-  const hasClose = transcriptHasCloseFormLink(messages);
-  if (!hasDistribution && !hasClose) return undefined;
+  if (!hasDistribution) return undefined;
   return {
-    requiresDistributionForm: hasDistribution || hasClose,
+    requiresDistributionForm: true,
     distributionFormHref: distributionFormHrefFromMessages(messages),
   };
 }

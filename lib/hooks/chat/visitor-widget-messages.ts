@@ -21,6 +21,16 @@ function isAgentOnlyTranscriptContent(content: string): boolean {
   return false;
 }
 
+/** Auto nudge/fallback/close notices from close policy — visible even after human handoff. */
+export function isVisitorPolicyNoticeMessage(message: ChatMessage): boolean {
+  const messageType = readMessageType(message);
+  return (
+    messageType === "policy_fallback" ||
+    messageType === "policy_nudge" ||
+    messageType === "policy_close"
+  );
+}
+
 /** Messages that must never appear in the public embed widget. */
 export function isHiddenFromVisitorWidget(message: ChatMessage): boolean {
   const messageType = readMessageType(message);

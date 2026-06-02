@@ -435,16 +435,10 @@ export function ChatMonitorWorkspace({
                 supervisorControlUserId={monitor.supervisorControlUserId}
                 visitorTyping={monitor.visitorTyping}
                 onSupervisorAction={() => {
-                  if (monitor.selectedConversationId) {
-                    void monitor.selectConversation(monitor.selectedConversationId);
-                  }
                   void monitor.refreshLists();
+                  monitor.refreshSelectedTranscript({ silent: true });
                 }}
-                onMessageSent={() => {
-                  if (monitor.selectedConversationId) {
-                    void monitor.selectConversation(monitor.selectedConversationId);
-                  }
-                }}
+                onMessageSent={() => {}}
               />
             </Box>
             <Box data-monitor-pane="details">
@@ -470,10 +464,8 @@ export function ChatMonitorWorkspace({
                 supervisorReadOnly={monitorReadOnly || monitor.selectedRow?.status === "closed"}
                 hideSupervisorTools
                 onSupervisorActivity={() => {
-                  if (monitor.selectedConversationId) {
-                    void monitor.selectConversation(monitor.selectedConversationId);
-                  }
                   void monitor.refreshLists();
+                  monitor.refreshSelectedTranscript({ silent: true });
                 }}
               />
               {monitor.selectedRow?.status !== "closed" ? (
@@ -495,11 +487,8 @@ export function ChatMonitorWorkspace({
                       const sc = (payload as { supervisorControlUserId?: string | null })
                         .supervisorControlUserId;
                       if (sc !== undefined) {
-                        /* refreshed via selectConversation */
+                        monitor.updateSupervisorControl(sc ?? null);
                       }
-                    }
-                    if (monitor.selectedConversationId) {
-                      void monitor.selectConversation(monitor.selectedConversationId);
                     }
                     void monitor.refreshLists();
                   }}

@@ -125,6 +125,10 @@ export function MonitorSupervisorSidePanel({
           onClick={() =>
             void run(async () => {
               await releaseDirectSupervisorControl(conversationId);
+              onActionComplete?.({
+                conversationId,
+                supervisorControlUserId: null,
+              });
             }, "Chat returned to the agent.")
           }
         >

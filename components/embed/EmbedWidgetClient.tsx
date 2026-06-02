@@ -44,7 +44,10 @@ import { EmbedChatMediaBubbles } from "@/components/embed/EmbedChatMediaBubble";
 import { EmbedInputField } from "@/components/embed/EmbedInputField";
 import { normalizeChatMessageText } from "@/lib/safe-markdown/text";
 import { useVisitorChat } from "@/lib/hooks/chat/useVisitorChat";
-import { isHiddenFromVisitorWidget } from "@/lib/hooks/chat/visitor-widget-messages";
+import {
+  isHiddenFromVisitorWidget,
+  isVisitorPolicyNoticeMessage,
+} from "@/lib/hooks/chat/visitor-widget-messages";
 import { LauncherPresetIcon } from "@/lib/chat-widget/launcherIcons";
 import {
   resolveInquiryRoutingTargets,
@@ -1241,7 +1244,7 @@ function WidgetChatPanel({
       if (awaitingFirstUserQuestion && m.role === "system") {
         continue;
       }
-      if (escalated && m.role === "system") {
+      if (escalated && m.role === "system" && !isVisitorPolicyNoticeMessage(m)) {
         continue;
       }
       if (

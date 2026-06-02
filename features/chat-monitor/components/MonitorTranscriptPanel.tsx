@@ -3,7 +3,11 @@
 import { useCallback, useMemo, useState } from "react";
 import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
-import { useTheme } from "@mui/material/styles";
+import Dialog from "@mui/material/Dialog";
+import DialogActions from "@mui/material/DialogActions";
+import DialogContent from "@mui/material/DialogContent";
+import DialogTitle from "@mui/material/DialogTitle";
+import { alpha, useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import {
   getAccessToken,
@@ -12,7 +16,7 @@ import {
 } from "@/api";
 import type { AgentAiAction } from "@/api/ai/agent-suggest.api";
 import { buildAgentCopilotInput, agentAiActionNeedsWebsite } from "@/lib/ai/agent-copilot-input";
-import { Button, Typography } from "@/components/common";
+import { Button, InputField, Typography } from "@/components/common";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
 import { ChatComposer } from "@/features/chat-operations/components/ChatComposer";
 import { ChatMessageList } from "@/features/chat-operations/components/ChatMessageList";
@@ -308,72 +312,116 @@ export function MonitorTranscriptPanel({
                   </Typography>
                   <Typography sx={{ fontSize: 12, fontWeight: 600 }}>{agentLabel}</Typography>
                 </ChatHeaderMetaChip>
-                {canClose && !closeDialogOpen ? (
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    size="compact"
-                    onClick={() => setCloseDialogOpen(true)}
-                    sx={{ ml: 0.5, minWidth: 0, px: 1, py: 0.25, fontSize: 11 }}
-                  >
-                    Close
-                  </Button>
-                ) : null}
               </Box>
-              {closeDialogOpen ? (
-                <Box sx={{ mt: 1, maxWidth: 360 }}>
-                  <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, fontSize: 11 }}>
-                    Close reason
-                  </Typography>
-                  <Box
-                    component="textarea"
-                    value={closeReason}
-                    onChange={(e) => setCloseReason(e.target.value)}
-                    disabled={closeBusy}
-                    placeholder="Why is this chat being closed?"
-                    sx={{
-                      width: "100%",
-                      mt: 0.5,
-                      minHeight: 56,
-                      fontSize: 12,
-                      p: 1,
-                      borderRadius: 1,
-                      border: `1px solid ${theme.app.dashboard.cardBorder}`,
-                      bgcolor: "transparent",
-                      color: theme.app.text.primary,
-                      resize: "vertical",
-                    }}
-                  />
-                  <Box sx={{ display: "flex", gap: 0.75, mt: 0.5 }}>
-                    <Button
-                      type="button"
-                      variant="primary"
-                      size="small"
-                      sx={gradientPrimaryButtonSx}
-                      disabled={closeBusy || !closeReason.trim()}
-                      onClick={() => void confirmClose()}
-                    >
-                      Confirm
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      size="small"
-                      disabled={closeBusy}
-                      onClick={() => {
-                        setCloseDialogOpen(false);
-                        setCloseReason("");
-                      }}
-                    >
-                      Cancel
-                    </Button>
-                  </Box>
-                </Box>
-              ) : null}
             </Box>
+          </Box>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexShrink: 0 }}>
+            {!isClosed ? (
+              <Box
+                component="span"
+                sx={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 0.5,
+                  px: 0.85,
+                  py: 0.2,
+                  borderRadius: 999,
+                  fontSize: 11,
+                  fontWeight: 600,
+                  color: visitorTyping
+                    ? theme.app.dashboard.accentCyan
+                    : theme.palette.success.light,
+                  bgcolor: visitorTyping
+                    ? alpha(theme.app.dashboard.accentCyan, 0.14)
+                    : alpha(theme.palette.success.main, 0.14),
+                }}
+              >
+                <Box
+                  component="span"
+                  sx={{
+                    width: 6,
+                    height: 6,
+                    borderRadius: "50%",
+                    bgcolor: visitorTyping
+                      ? theme.app.dashboard.accentCyan
+                      : theme.palette.success.main,
+                  }}
+                />
+                {visitorTyping ? "Typing" : "Online"}
+              </Box>
+            ) : null}
+            {canClose ? (
+              <Button
+                type="button"
+                variant="secondary"
+                size="compact"
+                onClick={() => setCloseDialogOpen(true)}
+                sx={{ minWidth: 0, px: 1.25, py: 0.35, fontSize: 11 }}
+              >
+                Close
+              </Button>
+            ) : null}
           </Box>
         </PanelHeader>
       ) : null}
+
+      <Dialog
+        open={closeDialogOpen}
+        onClose={() => !closeBusy && setCloseDialogOpen(false)}
+        PaperProps={{
+          sx: {
+            borderRadius: 2,
+            bgcolor: theme.app.dashboard.cardBg,
+            border: `1px solid ${theme.app.dashboard.cardBorder}`,
+            minWidth: { xs: "92vw", sm: 400 },
+          },
+        }}
+      >
+        <DialogTitle sx={{ color: theme.app.text.primary, fontWeight: 700, pb: 0.5 }}>
+          Close this chat?
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="small" sx={{ color: theme.app.dashboard.textMuted, lineHeight: 1.5 }}>
+            End the live session with{" "}
+            <Box component="span" sx={{ color: theme.app.text.primary, fontWeight: 600 }}>
+              {title}
+            </Box>
+            . A close reason is required.
+          </Typography>
+          <InputField
+            label="Close reason"
+            value={closeReason}
+            onChange={(e) => setCloseReason(e.target.value)}
+            disabled={closeBusy}
+            multiline
+            minRows={3}
+            placeholder="Why is this chat being closed?"
+            sx={{ mt: 2 }}
+          />
+        </DialogContent>
+        <DialogActions sx={{ px: 2.5, pb: 2 }}>
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={closeBusy}
+            onClick={() => {
+              setCloseDialogOpen(false);
+              setCloseReason("");
+            }}
+          >
+            Cancel
+          </Button>
+          <Button
+            type="button"
+            variant="primary"
+            disabled={closeBusy || !closeReason.trim()}
+            sx={gradientPrimaryButtonSx}
+            onClick={() => void confirmClose()}
+          >
+            {closeBusy ? "Closing…" : "Confirm close"}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {isControlling ? (
         <Typography
