@@ -43,6 +43,18 @@ export function GuestChatPage() {
   const subtitle = vp
     ? [vp.originLabel, vp.locationLabel].filter(Boolean).join(" · ")
     : guest.session?.websiteLabel ?? null;
+  const transcriptStatus = String(
+    guest.transcript?.status ??
+      (guest.transcript?.conversationStatus as string | undefined) ??
+      "",
+  )
+    .trim()
+    .toLowerCase();
+  const isChatClosed =
+    Boolean(guest.transcript?.chatCompleted) ||
+    transcriptStatus === "closed" ||
+    transcriptStatus === "completed" ||
+    transcriptStatus === "resolved";
   const cardSurfaceSx =
     typeof theme.app.dashboard.cardBg === "string" &&
     /gradient/i.test(theme.app.dashboard.cardBg)
@@ -91,20 +103,27 @@ export function GuestChatPage() {
           <>
             <Box sx={guestBannerSx}>
               <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1, width: "100%" }}>
-                <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, fontSize: 11 }}>
-                  Read-only transcript
-                  {guest.transcript?.chatCompleted ? " · chat completed" : ""}
-                </Typography>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+                  <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, fontSize: 11 }}>
+                    Read-only transcript
+                    {isChatClosed ? " · chat completed" : ""}
+                  </Typography>
+                  {!isChatClosed ? (
+                    <Chip
+                      label="Live"
+                      size="small"
+                      sx={{
+                        height: 18,
+                        fontSize: 10,
+                        fontWeight: 700,
+                        color: theme.app.dashboard.accentGreenLight,
+                        bgcolor: "rgba(34, 197, 94, 0.12)",
+                        border: "1px solid rgba(34, 197, 94, 0.28)",
+                      }}
+                    />
+                  ) : null}
+                </Box>
                 <Box sx={{ display: "flex", gap: 0.75 }}>
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    size="small"
-                    disabled={guest.refreshing}
-                    onClick={() => void guest.refreshTranscript()}
-                  >
-                    {guest.refreshing ? "Refreshing…" : "Refresh"}
-                  </Button>
                   <Button type="button" variant="secondary" size="small" onClick={guest.signOutGuest}>
                     End session
                   </Button>
@@ -157,7 +176,7 @@ export function GuestChatPage() {
                   ? guest.transcript.agentId
                   : null
               }
-              chatCompleted={Boolean(guest.transcript?.chatCompleted)}
+              chatCompleted={isChatClosed}
               onActionComplete={() => void guest.refreshTranscript()}
             />
           </>
