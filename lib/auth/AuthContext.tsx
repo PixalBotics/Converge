@@ -67,6 +67,7 @@ type AccessTokenPayload = {
   userId?: string;
   email?: string;
   roles?: string[];
+  userType?: string;
   resellerId?: string;
   parentCompanyId?: string;
   wideResellerScope?: boolean;
@@ -146,7 +147,6 @@ function mapApiUserToUser(user: ApiUser): User | null {
   if (!user.id || !user.email) {
     return null;
   }
-  const roleName = user.role?.name;
   const poolObj = user.pool;
   const poolId =
     (typeof user.poolId === "string" && user.poolId.trim()) ||
