@@ -108,7 +108,7 @@ export function useAgentChat(params: UseAgentChatParams): UseAgentChatReturn {
     if (
       o.conversationId &&
       (o.requiresDistributionForm ||
-        o.requiresAgentWrapUp ||
+        o.requiresDistributionSetup ||
         o.chatCompleted)
     ) {
       return o as AgentWrapUpPayload;
@@ -253,9 +253,7 @@ export function useAgentChat(params: UseAgentChatParams): UseAgentChatReturn {
         selectedIsClosedRef.current = true;
         const needsDistribution =
           wrapUp?.requiresDistributionForm && !wrapUp.distributionSubmitted;
-        const needsLegacyWrapUp =
-          wrapUp?.requiresAgentWrapUp && !wrapUp.wrapUpSubmitted;
-        if (wrapUp && (needsDistribution || needsLegacyWrapUp)) {
+        if (wrapUp && needsDistribution) {
           setPendingWrapUp(wrapUp);
         }
       }
@@ -321,9 +319,7 @@ export function useAgentChat(params: UseAgentChatParams): UseAgentChatReturn {
         extractWrapUp(p) ?? (typeof p === "object" && p ? (p as AgentWrapUpPayload) : null);
       const needsDistribution =
         wrapUp?.requiresDistributionForm && !wrapUp.distributionSubmitted;
-      const needsLegacyWrapUp =
-        wrapUp?.requiresAgentWrapUp && !wrapUp.wrapUpSubmitted;
-      if (needsDistribution || needsLegacyWrapUp) {
+      if (needsDistribution) {
         setPendingWrapUp(wrapUp);
       }
     },
@@ -480,9 +476,7 @@ export function useAgentChat(params: UseAgentChatParams): UseAgentChatReturn {
           const wrapUp = await fetchAgentWrapUp(conversationId);
           const needsDistribution =
             wrapUp.requiresDistributionForm && !wrapUp.distributionSubmitted;
-          const needsLegacy =
-            wrapUp.requiresAgentWrapUp && !wrapUp.wrapUpSubmitted;
-          if (needsDistribution || needsLegacy) {
+          if (needsDistribution) {
             setPendingWrapUp(wrapUp);
           } else if (
             selectedConversationIdRef.current === conversationId
@@ -614,13 +608,11 @@ export function useAgentChat(params: UseAgentChatParams): UseAgentChatReturn {
         const wrapUp = await fetchAgentWrapUp(closingId);
         const needsDistribution =
           wrapUp.requiresDistributionForm && !wrapUp.distributionSubmitted;
-        const needsLegacy =
-          wrapUp.requiresAgentWrapUp && !wrapUp.wrapUpSubmitted;
-        if (needsDistribution || needsLegacy) {
+        if (needsDistribution) {
           setPendingWrapUp(wrapUp);
         }
       } catch {
-        /* distribution not configured */
+        /* wrap-up payload unavailable */
       }
     }
   }, [

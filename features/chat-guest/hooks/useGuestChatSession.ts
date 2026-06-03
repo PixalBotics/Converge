@@ -46,7 +46,10 @@ function sameConversationId(a: string | null | undefined, b: string | null | und
   return a.trim().toLowerCase() === b.trim().toLowerCase();
 }
 
-export function useGuestChatSession(emailToken: string | null) {
+export function useGuestChatSession(
+  emailToken: string | null,
+  supervisorEmail: string | null = null,
+) {
   const socketClient = useMemo(() => createChatSocketClient(), []);
   const [phase, setPhase] = useState<GuestChatPhase>("loading");
   const [error, setError] = useState<string | null>(null);
@@ -188,7 +191,10 @@ export function useGuestChatSession(emailToken: string | null) {
 
     try {
       if (emailToken?.trim()) {
-        const exchanged = await exchangeGuestLinkToken(emailToken.trim());
+        const exchanged = await exchangeGuestLinkToken(
+          emailToken.trim(),
+          supervisorEmail,
+        );
         const stored = guestSessionFromExchange(exchanged);
         saveGuestSession(stored);
         setSession(stored);
@@ -224,7 +230,7 @@ export function useGuestChatSession(emailToken: string | null) {
         ),
       );
     }
-  }, [emailToken, loadTranscript]);
+  }, [emailToken, supervisorEmail, loadTranscript]);
 
   useEffect(() => {
     void bootstrap();

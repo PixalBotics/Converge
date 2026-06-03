@@ -11,12 +11,6 @@ import { alpha, useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import { Typography } from "@/components/common";
 import { chatSemanticSurface } from "../styles/chat-semantic";
-import type { ChatMessage } from "@/services/chat/chat.types";
-import {
-  transcriptHasCloseFormLink,
-  transcriptHasDistributionFormLink,
-} from "../utils/inbox-transcript-messages";
-import { ChatDistributionLinkBanner } from "./ChatDistributionLinkBanner";
 
 type ContextItem = {
   id: string;
@@ -28,24 +22,13 @@ type ContextItem = {
 type Props = {
   readOnly?: boolean;
   availabilityHint?: string | null;
-  distributionFormHref?: string | null;
-  distributionSubmitted?: boolean;
-  closeFormHref?: string | null;
-  wrapUpSubmitted?: boolean;
   hasConversation: boolean;
-  /** Hide duplicate wrap-up banner when the transcript already has the close-form card. */
-  messages?: ChatMessage[];
 };
 
 export function ChatContextRail({
   readOnly = false,
   availabilityHint = null,
-  distributionFormHref = null,
-  distributionSubmitted = false,
-  closeFormHref = null,
-  wrapUpSubmitted = false,
   hasConversation,
-  messages = [],
 }: Props) {
   const theme = useTheme() as AppTheme;
   const [expanded, setExpanded] = useState(true);
@@ -67,40 +50,6 @@ export function ChatContextRail({
       });
     }
 
-    if (readOnly && distributionFormHref) {
-      list.push({
-        id: "distribution",
-        tone: "info",
-        title: "Distribution",
-        content: (
-          <ChatDistributionLinkBanner embedded href={distributionFormHref} submitted={distributionSubmitted} />
-        ),
-      });
-    }
-
-    if (
-      readOnly &&
-      closeFormHref &&
-      !transcriptHasCloseFormLink(messages) &&
-      !transcriptHasDistributionFormLink(messages)
-    ) {
-      list.push({
-        id: "close-form",
-        tone: "info",
-        title: "Wrap-up",
-        content: (
-          <ChatDistributionLinkBanner
-            embedded
-            href={closeFormHref}
-            submitted={wrapUpSubmitted}
-            hint="This chat is closed. Complete the post-close wrap-up form to record disposition and session details."
-            buttonLabel="Open wrap-up form"
-            submittedHint="Wrap-up has been submitted for this conversation."
-          />
-        ),
-      });
-    }
-
     if (availabilityHint && !readOnly) {
       list.push({
         id: "availability",
@@ -115,17 +64,7 @@ export function ChatContextRail({
     }
 
     return list;
-  }, [
-    availabilityHint,
-    distributionFormHref,
-    distributionSubmitted,
-    closeFormHref,
-    wrapUpSubmitted,
-    hasConversation,
-    messages,
-    readOnly,
-    theme.app.dashboard.textMuted,
-  ]);
+  }, [availabilityHint, hasConversation, readOnly, theme.app.dashboard.textMuted]);
 
   if (items.length === 0) return null;
 

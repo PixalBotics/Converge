@@ -16,6 +16,7 @@ import type { AiChatMessage } from "../types/ai-chat";
 import { parseVisitorInfo } from "../utils/visitor-info";
 import type { ChatWhisperSocketPayload } from "@/services/chat/supervisor.types";
 import { ChatContextRail } from "./ChatContextRail";
+import { inboxTranscriptDisplayForClosed } from "../utils/inbox-transcript-messages";
 import { ChatWhisperComposerStrip } from "./ChatWhisperComposerStrip";
 import { ChatComposer } from "./ChatComposer";
 import { ChatMessageList } from "./ChatMessageList";
@@ -56,11 +57,8 @@ interface ChatConversationPanelProps {
   activeWhisper?: ChatWhisperSocketPayload | null;
   onApplyWhisperToComposer?: (text: string) => void;
   onDismissWhisper?: () => void;
-  /** When set, show in-chat link to the website distribution form (after close). */
+  /** Fallback when post-close distribution link is not yet in transcript history. */
   distributionFormHref?: string | null;
-  distributionSubmitted?: boolean;
-  closeFormHref?: string | null;
-  wrapUpSubmitted?: boolean;
   requiresDistributionForm?: boolean;
 }
 
@@ -101,9 +99,6 @@ export function ChatConversationPanel({
   onApplyWhisperToComposer,
   onDismissWhisper,
   distributionFormHref = null,
-  distributionSubmitted = false,
-  closeFormHref = null,
-  wrapUpSubmitted = false,
   requiresDistributionForm = false,
 }: ChatConversationPanelProps) {
   const theme = useTheme() as AppTheme;
@@ -142,13 +137,21 @@ export function ChatConversationPanel({
 
   const hasConversation = Boolean(conversationId);
 
-  const transcriptDisplay = useMemo(
-    () => ({
-      requiresDistributionForm,
-      distributionFormHref,
-    }),
-    [requiresDistributionForm, distributionFormHref],
-  );
+  const transcriptDisplay = useMemo(() => {
+    const fromMessages = inboxTranscriptDisplayForClosed(messages);
+    if (fromMessages) return fromMessages;
+    if (
+      readOnly &&
+      requiresDistributionForm &&
+      distributionFormHref?.trim()
+    ) {
+      return {
+        requiresDistributionForm: true,
+        distributionFormHref: distributionFormHref.trim(),
+      };
+    }
+    return undefined;
+  }, [messages, readOnly, requiresDistributionForm, distributionFormHref]);
 
   return (
     <PanelColumn
@@ -329,13 +332,8 @@ export function ChatConversationPanel({
 
       <ChatContextRail
         hasConversation={hasConversation}
-        messages={messages}
         readOnly={readOnly}
         availabilityHint={availabilityHint}
-        distributionFormHref={distributionFormHref}
-        distributionSubmitted={distributionSubmitted}
-        closeFormHref={closeFormHref}
-        wrapUpSubmitted={wrapUpSubmitted}
       />
 
       {activeWhisper && onApplyWhisperToComposer && onDismissWhisper && !readOnly ? (

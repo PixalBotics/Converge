@@ -33,7 +33,9 @@ export interface AgentWrapUpPayload {
   chatCompleted?: boolean;
   requiresAgentWrapUp?: boolean;
   requiresDistributionForm?: boolean;
+  requiresDistributionSetup?: boolean;
   distributionFormPath?: string | null;
+  distributionSetupPath?: string | null;
   wrapUpFormPath?: string | null;
   closeForm?: {
     fields: AgentWrapUpEmailField[];

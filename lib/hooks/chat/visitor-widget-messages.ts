@@ -3,6 +3,7 @@ import type { ChatMessage } from "@/services/chat/chat.types";
 const AGENT_ONLY_MESSAGE_TYPES = new Set([
   "close_form_link",
   "distribution_link",
+  "distribution_setup_required",
 ]);
 
 const AGENT_DASHBOARD_LINK = /\/dashboard\/chat-operations/i;
@@ -18,6 +19,8 @@ function isAgentOnlyTranscriptContent(content: string): boolean {
   if (LEGACY_WRAP_UP_QUERY.test(content)) return true;
   if (/complete the wrap-up form/i.test(content)) return true;
   if (/open the distribution form/i.test(content)) return true;
+  if (/email distribution is not set up/i.test(content)) return true;
+  if (/please set up.*distribution/i.test(content)) return true;
   return false;
 }
 

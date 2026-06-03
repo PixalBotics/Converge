@@ -8,8 +8,14 @@ import type {
 
 export async function exchangeGuestLinkToken(
   token: string,
+  supervisorEmail?: string | null,
 ): Promise<GuestSessionExchangeResponse> {
-  const { data } = await apiClient.post<unknown>("/chat/guest/session", { token });
+  const { data } = await apiClient.post<unknown>("/chat/guest/session", {
+    token,
+    ...(supervisorEmail?.trim()
+      ? { supervisorEmail: supervisorEmail.trim().toLowerCase() }
+      : {}),
+  });
   return unwrapChatHttpData<GuestSessionExchangeResponse>(data);
 }
 

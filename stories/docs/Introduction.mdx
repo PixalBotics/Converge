@@ -22,6 +22,6 @@ Copy `.env.example` to `.env.local` in the repo root and set `NEXT_PUBLIC_*` val
 
 If stories show **`React is not defined`**, restart Storybook after pulling the latest `.storybook/main.ts` (Vite is set to **automatic JSX** so you do not need `import React` in every story).
 
-## Urdu / Roman Urdu
+## Troubleshooting
 
-Agar Storybook screen par nahi aa rahi: pehle terminal mein `npm run storybook` chalayein, phir browser mein jo port script dikhaye (default **6006**) wahi kholen — agar aapne `-p 6007` likha ho to `localhost:6007` use karein.
+If Storybook does not load in the browser, run `npm run storybook` in the project root first, then open the URL shown in the terminal (default **http://localhost:6006**). If you started Storybook on another port (for example `-p 6007`), use that port instead.

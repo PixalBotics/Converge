@@ -7,10 +7,14 @@ function readMessageType(message: ChatMessage): string | null {
   return typeof mt === "string" ? mt : null;
 }
 
-/** Distribution / wrap-up link cards — pinned to transcript bottom (chat may continue after close). */
+/** Post-close agent-only lines — pinned to transcript bottom. */
 export function isInboxFormLinkMessage(message: ChatMessage): boolean {
   const type = readMessageType(message);
-  return type === "close_form_link" || type === "distribution_link";
+  return (
+    type === "close_form_link" ||
+    type === "distribution_link" ||
+    type === "distribution_setup_required"
+  );
 }
 
 function remapCloseFormToDistribution(
@@ -18,7 +22,7 @@ function remapCloseFormToDistribution(
   distributionFormHref: string,
 ): ChatMessage {
   const href = resolveDashboardHref(distributionFormHref.trim());
-  const intro = "Chat closed — open the distribution form to send the transcript to a department.";
+  const intro = "Chat closed. Open the distribution form to send the transcript to a department.";
   return {
     ...message,
     content: intro,
@@ -80,6 +84,8 @@ export function prepareInboxTranscriptMessages(
       }
       return [message];
     });
+  } else {
+    list = list.filter((message) => readMessageType(message) !== "close_form_link");
   }
 
   return pinFormLinksToEnd(list);

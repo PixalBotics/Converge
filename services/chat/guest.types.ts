@@ -37,6 +37,7 @@ export type GuestLinkRow = {
   recipientEmail: string;
   expiresAt: string;
   firstOpenedAt: string | null;
+  firstOpenedByEmail?: string | null;
   lastOpenedAt: string | null;
   revokedAt: string | null;
   createdAt: string;

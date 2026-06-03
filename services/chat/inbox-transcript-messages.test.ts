@@ -49,6 +49,19 @@ describe("inboxTranscriptDisplayForClosed", () => {
 });
 
 describe("prepareInboxTranscriptMessages", () => {
+  it("drops legacy close_form_link when distribution is not configured", () => {
+    const messages: ChatMessage[] = [
+      formLinkMessage(
+        "close_form_link",
+        "/dashboard/chat-operations/wrap-up?conversationId=conv-1",
+      ),
+    ];
+    const prepared = prepareInboxTranscriptMessages(messages);
+    expect(prepared.some((m) => m.metadata?.messageType === "close_form_link")).toBe(
+      false,
+    );
+  });
+
   it("remaps legacy close_form_link to distribution when opts request it", () => {
     const distributionHref =
       "/dashboard/chat-operations/distribution?conversationId=conv-1";

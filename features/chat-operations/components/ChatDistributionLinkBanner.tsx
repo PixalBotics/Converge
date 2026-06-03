@@ -11,7 +11,7 @@ export function ChatDistributionLinkBanner({
   href,
   submitted,
   embedded = false,
-  hint = "Chat closed — open the distribution form to send the transcript to a department.",
+  hint = "Chat closed. Open the distribution form to send the transcript to a department.",
   buttonLabel = "Open distribution form",
   submittedHint = "Distribution already submitted for this chat.",
 }: {
