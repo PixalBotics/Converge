@@ -8,7 +8,6 @@ import type { AppTheme } from "@/theme/theme";
 import { Button, InputField, Typography } from "@/components/common";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
 import { ChatSideToolCard } from "@/features/chat-shared";
-import { dashboardCardSurfaceProps } from "@/features/chat-operations/styles/chat-semantic";
 import {
   createGuestWhisper,
   releaseGuestDirectControl,
@@ -22,6 +21,7 @@ interface GuestSupervisorActionsProps {
   supervisorControlUserId?: string | null;
   assignedAgentId?: string | null;
   chatCompleted?: boolean;
+  onOptimisticAgentMessage?: (content: string) => void;
   onActionComplete?: () => void;
 }
 
@@ -40,6 +40,7 @@ export function GuestSupervisorActions({
   supervisorControlUserId,
   assignedAgentId,
   chatCompleted = false,
+  onOptimisticAgentMessage,
   onActionComplete,
 }: GuestSupervisorActionsProps) {
   const theme = useTheme() as AppTheme;
@@ -79,6 +80,11 @@ export function GuestSupervisorActions({
   };
 
   const sessionLabel = `${session.websiteLabel ? `${session.websiteLabel} · ` : ""}${session.departmentName ?? "Department"} guest session`;
+  const cardSurfaceSx =
+    typeof theme.app.dashboard.cardBg === "string" &&
+    /gradient/i.test(theme.app.dashboard.cardBg)
+      ? { background: theme.app.dashboard.cardBg }
+      : { bgcolor: theme.app.dashboard.cardBg };
 
   return (
     <Box
@@ -87,7 +93,7 @@ export function GuestSupervisorActions({
         py: 1.5,
         flexShrink: 0,
         borderTop: `1px solid ${theme.app.dashboard.cardBorder}`,
-        ...dashboardCardSurfaceProps(theme),
+        ...cardSurfaceSx,
       }}
     >
       <ChatSideToolCard accent="supervisor" title="Supervisor actions" subtitle={sessionLabel}>
@@ -136,10 +142,12 @@ export function GuestSupervisorActions({
                   disabled={busy || !replyText.trim()}
                   onClick={() =>
                     void run(async () => {
+                      const text = replyText.trim();
+                      onOptimisticAgentMessage?.(text);
                       await sendGuestDirectControlMessage(
                         session.conversationId,
                         session.accessToken,
-                        replyText.trim(),
+                        text,
                       );
                       setReplyText("");
                       setStatus("Message sent to the visitor.");

@@ -16,7 +16,6 @@ import { parseVisitorInfo } from "@/features/chat-operations/utils/visitor-info"
 import { extractVisitorPresentation } from "@/services/chat/visitor-presentation";
 import { useGuestChatSession } from "../hooks/useGuestChatSession";
 import { GuestSupervisorActions } from "./GuestSupervisorActions";
-import { dashboardCardSurfaceProps } from "@/features/chat-operations/styles/chat-semantic";
 import { guestBannerSx, guestCardSx, guestHeaderCardSx, guestPageShellSx } from "../styles/chat-guest.styles";
 
 export function GuestChatPage() {
@@ -44,6 +43,23 @@ export function GuestChatPage() {
   const subtitle = vp
     ? [vp.originLabel, vp.locationLabel].filter(Boolean).join(" · ")
     : guest.session?.websiteLabel ?? null;
+  const transcriptStatus = String(
+    guest.transcript?.status ??
+      (guest.transcript?.conversationStatus as string | undefined) ??
+      "",
+  )
+    .trim()
+    .toLowerCase();
+  const isChatClosed =
+    Boolean(guest.transcript?.chatCompleted) ||
+    transcriptStatus === "closed" ||
+    transcriptStatus === "completed" ||
+    transcriptStatus === "resolved";
+  const cardSurfaceSx =
+    typeof theme.app.dashboard.cardBg === "string" &&
+    /gradient/i.test(theme.app.dashboard.cardBg)
+      ? { background: theme.app.dashboard.cardBg }
+      : { bgcolor: theme.app.dashboard.cardBg };
 
   return (
     <Box sx={guestPageShellSx}>
@@ -63,7 +79,7 @@ export function GuestChatPage() {
 
       <Paper
         elevation={0}
-        sx={mergeSx(guestCardSx, dashboardCardSurfaceProps(theme))}
+        sx={mergeSx(guestCardSx, cardSurfaceSx)}
       >
         {guest.phase === "loading" ? (
           <Box sx={{ p: 4, flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -87,20 +103,33 @@ export function GuestChatPage() {
           <>
             <Box sx={guestBannerSx}>
               <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1, width: "100%" }}>
-                <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, fontSize: 11 }}>
-                  Read-only transcript
-                  {guest.transcript?.chatCompleted ? " · chat completed" : ""}
-                </Typography>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+                  <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, fontSize: 11 }}>
+                    Read-only transcript
+                    {isChatClosed ? " · chat completed" : ""}
+                  </Typography>
+                  {!isChatClosed ? (
+                    <Chip
+                      label={guest.isConnected ? "Live" : "Syncing…"}
+                      size="small"
+                      sx={{
+                        height: 18,
+                        fontSize: 10,
+                        fontWeight: 700,
+                        color: guest.isConnected
+                          ? theme.app.dashboard.accentGreenLight
+                          : theme.app.dashboard.accentCyan,
+                        bgcolor: guest.isConnected
+                          ? "rgba(34, 197, 94, 0.12)"
+                          : "rgba(34, 211, 238, 0.12)",
+                        border: guest.isConnected
+                          ? "1px solid rgba(34, 197, 94, 0.28)"
+                          : `1px solid ${theme.app.dashboard.accentCyan}`,
+                      }}
+                    />
+                  ) : null}
+                </Box>
                 <Box sx={{ display: "flex", gap: 0.75 }}>
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    size="small"
-                    disabled={guest.refreshing}
-                    onClick={() => void guest.refreshTranscript()}
-                  >
-                    {guest.refreshing ? "Refreshing…" : "Refresh"}
-                  </Button>
                   <Button type="button" variant="secondary" size="small" onClick={guest.signOutGuest}>
                     End session
                   </Button>
@@ -133,6 +162,7 @@ export function GuestChatPage() {
 
             <PanelColumn sx={{ flex: 1, minHeight: 0, overflow: "hidden" }}>
               <ChatMessageList
+                conversationId={guest.session.conversationId}
                 messages={guest.messages}
                 visitorInitials={visitorInfo.initials}
                 visitorDisplayName={title}
@@ -153,7 +183,8 @@ export function GuestChatPage() {
                   ? guest.transcript.agentId
                   : null
               }
-              chatCompleted={Boolean(guest.transcript?.chatCompleted)}
+              chatCompleted={isChatClosed}
+              onOptimisticAgentMessage={guest.appendOptimisticMessage}
               onActionComplete={() => void guest.refreshTranscript()}
             />
           </>

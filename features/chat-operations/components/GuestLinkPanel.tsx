@@ -2,10 +2,11 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Box from "@mui/material/Box";
-import { useTheme } from "@mui/material/styles";
+import Chip from "@mui/material/Chip";
+import { alpha, useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
-import { safeAlpha } from "@/lib/theme/safe-alpha";
 import { Button, Typography } from "@/components/common";
+import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
 import { getAccessToken } from "@/api";
 import { canSendGuestLink } from "@/lib/permissions/chat-access";
 import {
@@ -29,32 +30,6 @@ function matchedViaLabel(via: GuestLinkSendTarget["matchedVia"]): string {
   if (via === "inquiry_external_topic") return "Inquire topic → external dept";
   if (via === "conversation_department") return "Chat department";
   return "Manual override";
-}
-
-function statusBadgeSx(
-  theme: AppTheme,
-  tone: "neutral" | "success" | "warning",
-): object {
-  const d = theme.app.dashboard;
-  const accent =
-    tone === "success"
-      ? theme.palette.success.main
-      : tone === "warning"
-        ? theme.palette.warning.main
-        : d.accentBlue;
-  return {
-    display: "inline-flex",
-    alignItems: "center",
-    height: 20,
-    px: 0.75,
-    borderRadius: 999,
-    fontSize: 10,
-    fontWeight: 600,
-    lineHeight: 1,
-    color: tone === "neutral" ? d.textMuted : accent,
-    bgcolor: safeAlpha(accent, tone === "neutral" ? 0.1 : 0.14),
-    border: `1px solid ${safeAlpha(accent, 0.32)}`,
-  };
 }
 
 interface GuestLinkPanelProps {
@@ -160,7 +135,7 @@ export function GuestLinkPanel({
           mb: 1,
           p: 1.25,
           borderRadius: 1.5,
-          bgcolor: safeAlpha(theme.app.dashboard.overlayLight, 0.4),
+          bgcolor: alpha(theme.app.dashboard.overlayLight, 0.4),
           border: `1px solid ${theme.app.dashboard.cardBorder}`,
         }}
       >
@@ -188,17 +163,21 @@ export function GuestLinkPanel({
               </Typography>
             ) : null}
             <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5, mt: 0.75 }}>
-              <Box component="span" sx={statusBadgeSx(theme, "neutral")}>
-                {matchedViaLabel(target.matchedVia)}
-              </Box>
-              <Box
-                component="span"
-                sx={statusBadgeSx(theme, target.canSend ? "success" : "warning")}
-              >
-                {target.canSend
-                  ? `${target.supervisorCount} supervisor${target.supervisorCount === 1 ? "" : "s"}`
-                  : "No supervisors"}
-              </Box>
+              <Chip
+                label={matchedViaLabel(target.matchedVia)}
+                size="small"
+                sx={{ height: 20, fontSize: 10 }}
+              />
+              <Chip
+                label={
+                  target.canSend
+                    ? `${target.supervisorCount} supervisor${target.supervisorCount === 1 ? "" : "s"}`
+                    : "No supervisors"
+                }
+                size="small"
+                color={target.canSend ? "success" : "warning"}
+                sx={{ height: 20, fontSize: 10 }}
+              />
             </Box>
             {target.hint ? (
               <Typography
@@ -221,19 +200,7 @@ export function GuestLinkPanel({
         variant="primary"
         size="small"
         fullWidth
-        sx={{
-          backgroundColor: theme.app.dashboard.accentBlue,
-          color: theme.app.dashboard.gradientButtonText,
-          minWidth: 0,
-          "&:hover": {
-            backgroundColor: theme.app.dashboard.buttonIndigo,
-          },
-          "&.Mui-disabled": {
-            backgroundColor: theme.app.dashboard.accentBlue,
-            color: theme.app.dashboard.gradientButtonText,
-            opacity: 0.45,
-          },
-        }}
+        sx={{ ...gradientPrimaryButtonSx }}
         disabled={sendDisabled}
         onClick={() => void runSend()}
       >
@@ -262,12 +229,10 @@ export function GuestLinkPanel({
                   mb: 0.75,
                   p: 1,
                   borderRadius: 1.5,
-                  bgcolor: safeAlpha(theme.app.dashboard.overlayLight, 0.35),
+                  bgcolor: alpha(theme.app.dashboard.overlayLight, 0.35),
                 }}
               >
-                <Box component="span" sx={{ ...statusBadgeSx(theme, "neutral"), mb: 0.5, display: "inline-flex" }}>
-                  {label}
-                </Box>
+                <Chip label={label} size="small" sx={{ height: 20, fontSize: 10, mb: 0.5 }} />
                 <Typography variant="caption" sx={{ display: "block", fontSize: 11 }}>
                   {link.recipientEmail}
                 </Typography>

@@ -1,8 +1,6 @@
 import { alpha } from "@mui/material/styles";
 import type { SxProps, Theme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
-import { safeAlpha } from "@/lib/theme/safe-alpha";
-import { dashboardSolidSurface } from "@/features/chat-operations/styles/chat-semantic";
 import { chatOpsAlertBannerSx } from "@/features/chat-operations/styles/chat-operations.styles";
 
 function dash(theme: Theme) {
@@ -21,6 +19,9 @@ export const guestPageShellSx: SxProps<Theme> = (theme) => ({
 
 export const guestHeaderCardSx: SxProps<Theme> = (theme) => {
   const d = dash(theme);
+  const cardBg = d.cardBg;
+  const isGradientCardBg =
+    typeof cardBg === "string" && /gradient/i.test(cardBg);
   return {
     width: "100%",
     maxWidth: 960,
@@ -28,7 +29,9 @@ export const guestHeaderCardSx: SxProps<Theme> = (theme) => {
     p: { xs: 1.5, md: 2 },
     borderRadius: "12px",
     border: `1px solid ${alpha(d.cardBorder, 0.45)}`,
-    background: `linear-gradient(145deg, ${safeAlpha(d.cardBg, 0.95, alpha(dashboardSolidSurface(theme), 0.95))} 0%, ${safeAlpha(d.liveChat.cardBg, 0.88, alpha(dashboardSolidSurface(theme), 0.88))} 100%)`,
+    background: isGradientCardBg
+      ? cardBg
+      : `linear-gradient(145deg, ${alpha(cardBg, 0.95)} 0%, ${alpha(d.liveChat.cardBg, 0.88)} 100%)`,
     boxShadow: `0 8px 32px ${alpha(d.cardBorder, 0.12)}`,
   };
 };
