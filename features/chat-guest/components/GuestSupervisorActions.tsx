@@ -85,7 +85,7 @@ export function GuestSupervisorActions({
   const isSidebar = layout === "sidebar";
 
   const whisperBlock = showWhisper ? (
-    <Box sx={guestSupervisorColumnSx} order={{ xs: 1, sm: 1 }}>
+    <Box sx={guestSupervisorColumnSx}>
       <Typography fontWeight={700} sx={{ fontSize: 13, color: theme.app.text.primary }}>
         Whisper
       </Typography>
@@ -125,7 +125,7 @@ export function GuestSupervisorActions({
   ) : null;
 
   const takeoverBlock = showDirectControl ? (
-    <Box sx={guestSupervisorColumnSx} order={{ xs: 2, sm: 2 }}>
+    <Box sx={guestSupervisorColumnSx}>
       <Typography fontWeight={700} sx={{ fontSize: 13, color: theme.app.text.primary }}>
         Take over
       </Typography>
@@ -202,7 +202,7 @@ export function GuestSupervisorActions({
       )}
     </Box>
   ) : directControl && !involvementUserId ? (
-    <Box sx={guestSupervisorColumnSx} order={{ xs: 2, sm: 2 }}>
+    <Box sx={guestSupervisorColumnSx}>
       <Typography fontWeight={700} sx={{ fontSize: 13, color: theme.app.text.primary }}>
         Take over
       </Typography>
@@ -211,11 +211,6 @@ export function GuestSupervisorActions({
       </Typography>
     </Box>
   ) : null;
-
-  const gridColumns =
-    showWhisper && (showDirectControl || (directControl && !involvementUserId))
-      ? { xs: "1fr", sm: "1fr 1fr" }
-      : "1fr";
 
   const content = (
     <>
@@ -234,7 +229,7 @@ export function GuestSupervisorActions({
       >
         Supervisor · {sessionLabel}
       </Typography>
-      <Box sx={{ ...guestSupervisorGridSx, gridTemplateColumns: gridColumns, pt: 0 }}>
+      <Box sx={{ ...guestSupervisorGridSx, pt: 0 }}>
         {whisperBlock}
         {takeoverBlock}
       </Box>

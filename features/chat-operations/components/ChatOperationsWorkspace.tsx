@@ -48,6 +48,7 @@ import {
   patchConversationDraft,
 } from "../utils/conversation-scoped-state";
 import { ChatConversationPanel } from "./ChatConversationPanel";
+import { AgentDistributionPrompt } from "./AgentDistributionPrompt";
 import { ChatQueueSidebar } from "./ChatQueueSidebar";
 import { VisitorInfoPanel } from "./VisitorInfoPanel";
 import {
@@ -558,6 +559,7 @@ export function ChatOperationsWorkspace() {
     agentChat.selectedIsClosed;
 
   return (
+    <>
     <ChatLivePageShell variant="workstation" sx={chatLiveAgentStackSx}>
       {showScopeFilters ? (
         <>
@@ -757,5 +759,13 @@ export function ChatOperationsWorkspace() {
       </Box>
 
     </ChatLivePageShell>
+
+      {wrapUpForSelected?.requiresDistributionForm && !wrapUpForSelected.distributionSubmitted ? (
+        <AgentDistributionPrompt
+          payload={wrapUpForSelected}
+          onDismiss={agentChat.dismissWrapUp}
+        />
+      ) : null}
+    </>
   );
 }

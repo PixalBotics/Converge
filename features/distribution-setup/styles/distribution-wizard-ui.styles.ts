@@ -199,6 +199,66 @@ export const distributionPreviewSelectSx: SxProps<Theme> = {
   boxSizing: "border-box",
 };
 
+export const distributionAgentFormPageHeaderSx: SxProps<Theme> = {
+  mb: 2.5,
+};
+
+export const distributionAgentFormGroupLabelSx: SystemStyleObject<Theme> = {
+  mb: 1.25,
+  color: "#475569",
+  fontWeight: 700,
+  fontSize: 11,
+  letterSpacing: 0.6,
+  textTransform: "uppercase",
+};
+
+export const distributionAgentFormInputSx: SystemStyleObject<Theme> = {
+  display: "block",
+  width: "100%",
+  px: 1.5,
+  py: 1.1,
+  minHeight: 42,
+  borderRadius: 1.5,
+  border: "1px solid #cbd5e1",
+  bgcolor: "#fff",
+  color: "#0f172a",
+  fontSize: 14,
+  fontWeight: 500,
+  lineHeight: 1.4,
+  boxSizing: "border-box",
+  fontFamily: "inherit",
+  transition: "border-color 0.15s ease, box-shadow 0.15s ease",
+  "&:focus": {
+    outline: "none",
+    borderColor: "#1a57a5",
+    boxShadow: "0 0 0 3px rgba(26, 87, 165, 0.12)",
+  },
+  "&:disabled, &[readonly]": {
+    bgcolor: "#f8fafc",
+    color: "#475569",
+    cursor: "not-allowed",
+  },
+};
+
+export const distributionAgentFormTextareaSx: SystemStyleObject<Theme> = {
+  ...distributionAgentFormInputSx,
+  minHeight: 120,
+  resize: "vertical",
+  whiteSpace: "pre-wrap",
+  lineHeight: 1.5,
+};
+
+export const distributionAgentFormFooterSx: SxProps<Theme> = {
+  pt: 2,
+  mt: 0.5,
+  borderTop: "1px solid #e2e8f0",
+  display: "flex",
+  flexWrap: "wrap",
+  alignItems: "center",
+  justifyContent: "flex-end",
+  gap: 1.5,
+};
+
 export const distributionSettingsLayoutSx: SxProps<Theme> = {
   display: "flex",
   flexDirection: "column",

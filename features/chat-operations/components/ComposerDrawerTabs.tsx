@@ -25,7 +25,6 @@ import {
   AGENT_COPILOT_TITLE,
 } from "@/lib/ai/ai-role-copy";
 import { AiAssistantDrawer } from "./AiAssistantDrawer";
-import { chatSemanticSurface } from "../styles/chat-semantic";
 import {
   CannedReplyCard,
   CannedReplyGrid,
@@ -115,9 +114,6 @@ export function ComposerDrawerTabs({
     );
   }, [cannedTab, cannedFilter, cannedQuery.data]);
 
-  const cannedSurface = chatSemanticSurface(theme, "canned");
-  const aiSurface = chatSemanticSurface(theme, "ai");
-
   return (
     <ComposerFooterShell>
       <ComposerFooterInner>
@@ -148,8 +144,8 @@ export function ComposerDrawerTabs({
           <ComposerToolsPanel>
             {openDrawer === "canned" ? (
               <>
-                <ComposerToolsHeader sx={{ borderTop: `3px solid ${cannedSurface.accent}` }}>
-                  <QuickreplyOutlined sx={{ fontSize: 18, color: cannedSurface.accent }} />
+                <ComposerToolsHeader>
+                  <QuickreplyOutlined sx={{ fontSize: 18, color: theme.app.dashboard.textMuted }} />
                   <Typography fontWeight={700} sx={{ fontSize: 14, flex: 1, color: theme.app.text.primary }}>
                     Canned replies
                   </Typography>
@@ -294,8 +290,8 @@ export function ComposerDrawerTabs({
 
             {openDrawer === "ai" ? (
               <>
-                <ComposerToolsHeader sx={{ borderTop: `3px solid ${aiSurface.accent}` }}>
-                  <AutoAwesome sx={{ fontSize: 18, color: aiSurface.accent }} />
+                <ComposerToolsHeader>
+                  <AutoAwesome sx={{ fontSize: 18, color: theme.app.dashboard.textMuted }} />
                   <Box sx={{ flex: 1, minWidth: 0 }}>
                     <Typography fontWeight={700} sx={{ fontSize: 14, color: theme.app.text.primary }}>
                       {AGENT_COPILOT_TITLE}

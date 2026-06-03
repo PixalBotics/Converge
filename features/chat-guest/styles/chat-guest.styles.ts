@@ -75,7 +75,7 @@ export const guestInboxColumnSx: SxProps<Theme> = {
   overflow: "hidden",
 };
 
-/** Right supervisor sidebar (whisper left, takeover right inside). */
+/** Right supervisor sidebar (whisper above, takeover below). */
 export const guestSupervisorSidebarSx: SxProps<Theme> = (theme) => {
   const d = dash(theme);
   return {
@@ -85,7 +85,7 @@ export const guestSupervisorSidebarSx: SxProps<Theme> = (theme) => {
     minHeight: 0,
     width: { xs: "100%", md: 340 },
     maxHeight: { xs: "42vh", md: "none" },
-    overflowY: { xs: "auto", md: "hidden" },
+    overflowY: "auto",
     borderTop: { xs: `1px solid ${alpha(d.cardBorder, 0.5)}`, md: "none" },
     borderLeft: { xs: "none", md: `1px solid ${alpha(d.cardBorder, 0.5)}` },
   };
@@ -93,7 +93,7 @@ export const guestSupervisorSidebarSx: SxProps<Theme> = (theme) => {
 
 export const guestSupervisorGridSx: SxProps<Theme> = {
   display: "grid",
-  gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" },
+  gridTemplateColumns: "1fr",
   gap: 1.5,
   flex: 1,
   minHeight: 0,

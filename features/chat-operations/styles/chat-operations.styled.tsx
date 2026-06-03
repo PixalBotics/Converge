@@ -406,9 +406,9 @@ export const DrawerTabBar = styled(Box)(({ theme }) => ({
 
 export const DrawerTabButton = styled("button", {
   shouldForwardProp: (prop) => prop !== "active" && prop !== "variant",
-})<{ active?: boolean; variant?: "canned" | "ai" }>(({ theme, active, variant }) => {
+})<{ active?: boolean; variant?: "canned" | "ai" }>(({ theme, active }) => {
   const d = dash(theme);
-  const accent = variant === "ai" ? d.accentPurple : d.accentBlue;
+  const accent = d.accentBlue;
   return {
     position: "relative",
     flex: 1,
@@ -450,17 +450,14 @@ export const DrawerTabButton = styled("button", {
   };
 });
 
-export const AiAssistantShell = styled(Box)(({ theme }) => {
-  const d = dash(theme);
-  return {
-    display: "flex",
-    flexDirection: "column",
-    flex: 1,
-    minHeight: 0,
-    height: "100%",
-    overflow: "hidden",
-    background: `linear-gradient(180deg, ${alpha(d.accentPurple, 0.08)} 0%, transparent 52%)`,
-  };
+export const AiAssistantShell = styled(Box)({
+  display: "flex",
+  flexDirection: "column",
+  flex: 1,
+  minHeight: 0,
+  height: "100%",
+  overflow: "hidden",
+  background: "transparent",
 });
 
 export const AiAssistantHeader = styled(Box)(({ theme }) => ({
@@ -472,18 +469,21 @@ export const AiAssistantHeader = styled(Box)(({ theme }) => ({
   flexShrink: 0,
 }));
 
-export const AiAssistantIcon = styled(Box)(({ theme }) => ({
-  width: 32,
-  height: 32,
-  borderRadius: 8,
-  display: "inline-flex",
-  alignItems: "center",
-  justifyContent: "center",
-  flexShrink: 0,
-  background: `linear-gradient(135deg, ${alpha(dash(theme).accentPurple, 0.55)} 0%, ${alpha(dash(theme).accentIndigo, 0.65)} 100%)`,
-  border: `1px solid ${alpha(theme.palette.common.white, 0.12)}`,
-  color: text(theme).primary,
-}));
+export const AiAssistantIcon = styled(Box)(({ theme }) => {
+  const d = dash(theme);
+  return {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+    background: alpha(d.overlayLight, 0.35),
+    border: `1px solid ${alpha(d.cardBorder, 0.35)}`,
+    color: d.textMuted,
+  };
+});
 
 export const AiOnlineDot = styled(Box)(({ theme }) => ({
   width: 7,
@@ -520,8 +520,8 @@ export const AiChatBubble = styled(Box, {
     whiteSpace: "pre-wrap",
     wordBreak: "break-word",
     color: text(theme).primary,
-    background: isUser ? alpha(d.accentBlue, 0.22) : alpha(d.overlayLight, 0.5),
-    border: `1px solid ${alpha(d.cardBorder, isUser ? 0.35 : 0.5)}`,
+    background: isUser ? d.navActiveBg : alpha(d.overlayLight, 0.5),
+    border: `1px solid ${alpha(d.cardBorder, isUser ? 0.4 : 0.5)}`,
   };
 });
 
@@ -544,8 +544,8 @@ export const AiQuickChip = styled("button", {
     transition: "all 0.15s ease",
     "&:hover:not(:disabled)": {
       color: text(theme).primary,
-      borderColor: alpha(d.accentPurple, 0.45),
-      background: alpha(d.accentPurple, 0.14),
+      borderColor: alpha(d.cardBorder, 0.55),
+      background: alpha(d.overlayLight, 0.35),
     },
     "&:disabled": {
       opacity: 0.4,
@@ -567,20 +567,29 @@ export const AiInputRow = styled(Box)(({ theme }) => ({
   gap: theme.spacing(0.75),
 }));
 
-export const AiSendButton = styled(IconButton)(({ theme }) => ({
-  width: 36,
-  height: 36,
-  flexShrink: 0,
-  background: `linear-gradient(135deg, ${dash(theme).accentPurple} 0%, ${dash(theme).accentIndigo} 100%)`,
-  color: text(theme).primary,
-  "&:hover": {
-    background: `linear-gradient(135deg, ${dash(theme).accentIndigo} 0%, ${dash(theme).accentBlue} 100%)`,
-  },
-  "&.Mui-disabled": {
-    opacity: 0.35,
-    background: alpha(dash(theme).overlayLight, 0.4),
-  },
-}));
+export const AiSendButton = styled(IconButton)(({ theme }) => {
+  const d = dash(theme);
+  const app = (theme as AppTheme).app;
+  return {
+    width: 36,
+    height: 36,
+    flexShrink: 0,
+    background: app.dashboard.gradientButton,
+    color: app.dashboard.gradientButtonText,
+    border: `1px solid ${d.overlayBorder}`,
+    boxShadow: "none",
+    "&:hover": {
+      background: app.dashboard.gradientButton,
+      color: app.dashboard.gradientButtonText,
+      boxShadow: "none",
+    },
+    "&.Mui-disabled": {
+      opacity: 0.35,
+      background: alpha(d.overlayLight, 0.4),
+      borderColor: alpha(d.cardBorder, 0.35),
+    },
+  };
+});
 
 export const CannedReplyGrid = styled(Box)(({ theme }) => ({
   display: "flex",
