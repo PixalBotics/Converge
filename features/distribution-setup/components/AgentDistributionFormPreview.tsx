@@ -113,7 +113,7 @@ export function AgentDistributionFormPreview({
 
   const title =
     formName?.trim() ||
-    (formType === "custom" ? "Custom wrap-up" : "Standard wrap-up");
+    (formType === "custom" ? "Custom distribution form" : "Standard distribution form");
 
   return (
     <Box sx={{ minWidth: 0, width: "100%" }}>
@@ -129,7 +129,7 @@ export function AgentDistributionFormPreview({
       >
         <Box sx={{ minWidth: 0, flex: 1 }}>
           <Typography variant="medium" fontWeight={700} color="white">
-            Agent wrap-up form
+            Agent distribution form
           </Typography>
           <Typography variant="caption" sx={{ color: (t) => t.app.dashboard.textMuted, display: "block", mt: 0.35 }}>
             Preview of the form agents use after a chat closes. Fields are prefilled from the
@@ -182,7 +182,7 @@ export function AgentDistributionFormPreview({
                 No form configured yet
               </Typography>
               <Typography variant="caption" sx={{ color: "#94a3b8", display: "block", mb: 2 }}>
-                Set up wrap-up fields so agents can review and send transcripts.
+                Set up distribution form fields so agents can review and send transcripts.
               </Typography>
               {onConfigure ? (
                 <Button type="button" variant="primary" size="small" onClick={onConfigure}>

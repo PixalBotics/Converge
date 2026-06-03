@@ -198,7 +198,14 @@ export function AiTrainingSourceMethodPanel({
         </Alert>
       ) : null}
 
-      {!registeredHost && variant === "chatbot" && category === "website" ? (
+      {variant === "assistant" && category === "website" && registeredHost ? (
+        <Alert severity="info" variant="outlined" sx={{ bgcolor: "transparent" }}>
+          Agent copilot scraping is limited to <strong>{registeredHost}</strong> — same as
+          chatbot, but stored separately for internal use only.
+        </Alert>
+      ) : null}
+
+      {!registeredHost && category === "website" ? (
         <Alert severity="warning" variant="outlined" sx={{ bgcolor: "transparent" }}>
           Select a website above first — we need its registered URL to validate scrape targets.
         </Alert>

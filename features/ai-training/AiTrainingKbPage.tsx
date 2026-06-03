@@ -24,7 +24,8 @@ const VARIANT_COPY: Record<
 > = {
   assistant: {
     title: "AI Assistant training",
-    subtitle: "Websites with knowledge for your agent copilot — not the public chatbot.",
+    subtitle:
+      "Websites with knowledge for your agent copilot — site scrape, docs, and FAQs (not the public chatbot).",
   },
   chatbot: {
     title: "AI Chatbot training",

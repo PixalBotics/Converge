@@ -66,7 +66,7 @@ export function AiTrainingAssistantAddDialog({
       </DialogTitle>
       <DialogContent dividers>
         <Typography variant="body2" sx={{ color: "text.secondary", mb: 2 }}>
-          FAQs, PDF, Word, Excel, or SOP text for agent copilot — separate from visitor chatbot.
+          FAQs, website scrape, PDF, Word, Excel, or SOP text for agent copilot — separate from visitor chatbot.
         </Typography>
 
         <Box sx={aiTrainingFilterGridSx}>

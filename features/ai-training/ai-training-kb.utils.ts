@@ -11,6 +11,9 @@ export const CHATBOT_SOURCE_TYPE_OPTIONS: { label: string; value: ChatbotSourceT
 export const CHATBOT_WEBSITE_URL_HELPER =
   "Paste your homepage or any page on your registered domain. We find sitemap.xml automatically (robots.txt), scrape your site, and index it — no sitemap link needed.";
 
+export const ASSISTANT_WEBSITE_URL_HELPER =
+  "Paste a page on your registered domain. We auto-find the sitemap, scrape the site, and index it for agent copilot — separate from visitor chatbot training.";
+
 export const FAQ_PASTE_EXAMPLE_CHATBOT = `What is your return policy?
 Returns accepted within 14 days with receipt.
 
@@ -30,6 +33,7 @@ export const KB_BACKGROUND_TRAINING_STARTED_MESSAGE =
   "Site training started in the background. This page will update automatically — large sites may take several minutes. When status is Indexed, the AI can answer from that content.";
 
 export const ASSISTANT_SOURCE_TYPE_OPTIONS: { label: string; value: AssistantSourceType }[] = [
+  { label: "Website URL (auto scrape)", value: "URL" },
   { label: "FAQ / policy text", value: "FAQ" },
   { label: "Excel Sheet File", value: "EXCEL" },
   { label: "PDF document", value: "PDF" },
@@ -88,7 +92,7 @@ export function categoryForSourceType(
   if (sourceType === "FAQ") return "faq";
   if (sourceType === "SOP") return "procedures";
   if (isFileUploadSourceType(sourceType)) return "documents";
-  if (variant === "chatbot" && isWebSourceType(sourceType)) return "website";
+  if (isWebSourceType(sourceType)) return "website";
   return "faq";
 }
 
@@ -110,6 +114,12 @@ export function sourceCategoriesForVariant(
     ];
   }
   return [
+    {
+      id: "website",
+      label: "Website scraping",
+      description:
+        "Paste your website URL — we find the sitemap and scrape for agent copilot.",
+    },
     {
       id: "faq",
       label: "FAQs & policies",
@@ -143,19 +153,31 @@ export function sourceMethodCardsForCategory(
 ): SourceMethodCard[] {
   const host = registeredHost ?? "your-registered-domain.com";
 
-  if (category === "website" && variant === "chatbot") {
+  if (category === "website") {
+    const assistantFlow = variant === "assistant";
     return [
       {
         value: "URL",
         title: "Website URL",
-        summary: `Paste any page on ${host} — we auto-find the sitemap and scrape your site.`,
-        bestFor: "You only need your homepage; no sitemap.xml link required.",
-        flowSteps: [
-          "You paste one https URL (usually your homepage).",
-          "We read robots.txt, discover sitemap.xml, and collect page URLs.",
-          `Up to ~${KB_WEB_MAX_PAGES_HINT} pages are scraped, chunked, and embedded in the background.`,
-          "When status is Indexed, the visitor chatbot can answer from that content.",
-        ],
+        summary: assistantFlow
+          ? `Paste any page on ${host} — we auto-find the sitemap and scrape for agents.`
+          : `Paste any page on ${host} — we auto-find the sitemap and scrape your site.`,
+        bestFor: assistantFlow
+          ? "Public site pages agents should know — separate from visitor chatbot training."
+          : "You only need your homepage; no sitemap.xml link required.",
+        flowSteps: assistantFlow
+          ? [
+              "You paste one https URL (usually your homepage).",
+              "We read robots.txt, discover sitemap.xml, and collect page URLs.",
+              `Up to ~${KB_WEB_MAX_PAGES_HINT} pages are scraped, chunked, and embedded in the background.`,
+              "When status is Indexed, agents can answer from that content in the copilot.",
+            ]
+          : [
+              "You paste one https URL (usually your homepage).",
+              "We read robots.txt, discover sitemap.xml, and collect page URLs.",
+              `Up to ~${KB_WEB_MAX_PAGES_HINT} pages are scraped, chunked, and embedded in the background.`,
+              "When status is Indexed, the visitor chatbot can answer from that content.",
+            ],
       },
     ];
   }
@@ -295,7 +317,9 @@ export function sourceRefHelperText(
     case "URL":
     case "WEB_CRAWL":
     case "SITEMAP":
-      return CHATBOT_WEBSITE_URL_HELPER;
+      return variant === "assistant"
+        ? ASSISTANT_WEBSITE_URL_HELPER
+        : CHATBOT_WEBSITE_URL_HELPER;
     case "PDF":
       return variant === "assistant"
         ? "Public PDF URL, or upload a file below (max 100 MB)."

@@ -47,6 +47,7 @@ export function EmailDesignStudio({
   const theme = useTheme() as AppTheme;
   const d = theme.app.dashboard;
   const previewMax = device === "mobile" ? 390 : "min(820px, 100%)";
+  const skeletonBg = alpha(d.cardBg ?? theme.palette.background.paper, 0.35);
 
   return (
     <EmailBuilderStudioRoot sx={{ flex: 1, minHeight: 0 }}>
@@ -70,7 +71,11 @@ export function EmailDesignStudio({
         }}
       >
         {loading ? (
-          <Skeleton variant="rounded" height="100%" sx={{ m: 2, minHeight: 400 }} />
+          <Skeleton
+            variant="rounded"
+            height="100%"
+            sx={{ m: 2, minHeight: 400, bgcolor: skeletonBg }}
+          />
         ) : (
           <Box
             sx={{
@@ -89,7 +94,7 @@ export function EmailDesignStudio({
         )}
       </EmailBuilderStudioTools>
 
-      {toolsOpen ? (
+      {toolsOpen && !loading ? (
         <Box
           role="presentation"
           sx={{
@@ -188,7 +193,7 @@ export function EmailDesignStudio({
               variant="rounded"
               width={previewMax}
               height={480}
-              sx={{ maxWidth: "100%" }}
+              sx={{ maxWidth: "100%", bgcolor: skeletonBg }}
             />
           ) : (
             <Box

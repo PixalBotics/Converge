@@ -60,7 +60,7 @@ export function DistributionTestFormFieldsPreview({
         variant="caption"
         sx={{ color: theme.app.dashboard.textMuted, display: "block", mb: 1.25 }}
       >
-        Edit wrap-up values for this test send (template layout unchanged).
+        Edit distribution form values for this test send (template layout unchanged).
       </Typography>
       {groups.map(({ group, fields: rows }) => (
         <Box key={group.id} sx={{ mb: 1.5, "&:last-of-type": { mb: 0 } }}>
