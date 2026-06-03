@@ -548,12 +548,6 @@ export function ChatOperationsWorkspace() {
         `/dashboard/chat-operations/distribution?conversationId=${encodeURIComponent(agentChat.selectedConversationId!)}`
       : null;
 
-  const closeFormHref =
-    wrapUpForSelected?.requiresAgentWrapUp && !wrapUpForSelected.requiresDistributionForm
-      ? wrapUpForSelected.wrapUpFormPath ??
-        `/dashboard/chat-operations/wrap-up?conversationId=${encodeURIComponent(agentChat.selectedConversationId!)}`
-      : null;
-
   const canSend =
     Boolean(agentChat.selectedConversationId && accessToken) &&
     agentChat.canSendMessage &&
@@ -735,9 +729,6 @@ export function ChatOperationsWorkspace() {
               onApplyWhisperToComposer={pushCannedToComposer}
               onDismissWhisper={agentChat.dismissWhisper}
               distributionFormHref={distributionFormHref}
-              distributionSubmitted={Boolean(wrapUpForSelected?.distributionSubmitted)}
-              closeFormHref={closeFormHref}
-              wrapUpSubmitted={Boolean(wrapUpForSelected?.wrapUpSubmitted)}
               requiresDistributionForm={Boolean(wrapUpForSelected?.requiresDistributionForm)}
             />
           </Box>

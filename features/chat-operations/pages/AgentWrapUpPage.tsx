@@ -110,12 +110,27 @@ export function AgentWrapUpPage() {
     "Visitor";
 
   useEffect(() => {
-    if (!payload?.requiresDistributionForm || !conversationId) return;
-    const href =
-      payload.distributionFormPath ??
-      `/dashboard/chat-operations/distribution?conversationId=${encodeURIComponent(conversationId)}`;
-    router.replace(href);
-  }, [conversationId, payload?.distributionFormPath, payload?.requiresDistributionForm, router]);
+    if (!payload || !conversationId) return;
+    if (payload.requiresDistributionForm) {
+      const href =
+        payload.distributionFormPath ??
+        `/dashboard/chat-operations/distribution?conversationId=${encodeURIComponent(conversationId)}`;
+      router.replace(href);
+      return;
+    }
+    if (payload.requiresDistributionSetup && payload.websiteId) {
+      const href =
+        payload.distributionSetupPath ??
+        `/dashboard/distribution-setup/settings?websiteId=${encodeURIComponent(payload.websiteId)}`;
+      router.replace(href);
+      return;
+    }
+    router.replace("/dashboard/chat-operations");
+  }, [
+    conversationId,
+    payload,
+    router,
+  ]);
 
   useEffect(() => {
     if (!payload?.closeForm?.prefilledValues) return;
@@ -205,11 +220,15 @@ export function AgentWrapUpPage() {
     );
   }
 
-  if (payload?.requiresDistributionForm && formQuery.isSuccess) {
+  if (formQuery.isSuccess && payload) {
     return (
       <Box sx={pageWrapper}>
         <Typography sx={{ color: (t) => t.app.dashboard.textMuted }}>
-          Redirecting to distribution form…
+          {payload.requiresDistributionForm
+            ? "Redirecting to distribution form…"
+            : payload.requiresDistributionSetup
+              ? "Redirecting to distribution setup…"
+              : "Redirecting to chat operations…"}
         </Typography>
       </Box>
     );
@@ -231,7 +250,7 @@ export function AgentWrapUpPage() {
         <Typography sx={{ color: (t) => t.palette.error.main }}>
           {extractApiErrorMessageForToast(
             formQuery.error,
-            "Could not load the wrap-up form for this chat.",
+            "Could not load the post-close form for this chat.",
           )}
         </Typography>
       ) : payload ? (
@@ -328,7 +347,7 @@ export function AgentWrapUpPage() {
                 sx={gradientPrimaryButtonSx}
                 disabled={submitMutation.isPending || !canSubmit}
               >
-                {submitMutation.isPending ? "Submitting…" : "Submit wrap-up"}
+                {submitMutation.isPending ? "Submitting…" : "Submit"}
               </Button>
             ) : (
               <Typography

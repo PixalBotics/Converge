@@ -63,6 +63,7 @@ function attachmentTitle(message: ChatMessage, messageType: string | null): stri
   const label = readLinkLabel(message);
   if (label) return label;
   if (messageType === "distribution_link") return "Open distribution form";
+  if (messageType === "distribution_setup_required") return "Set up distribution";
   if (messageType === "close_form_link") return "Open wrap-up form";
   return "Open form";
 }
@@ -84,6 +85,39 @@ export function ChatMessageContent({ message }: { message: ChatMessage }) {
   const messageType = readMessageType(message);
   const href = readHref(message);
   const linkLabel = readLinkLabel(message);
+
+  if (messageType === "distribution_setup_required") {
+    const intro = introLines(message, href ?? "", linkLabel);
+    return (
+      <>
+        {intro.map((line, i) => (
+          <Typography
+            key={`${line}-${i}`}
+            component="span"
+            sx={{
+              display: "block",
+              color: "inherit",
+              fontSize: "inherit",
+              lineHeight: "inherit",
+              whiteSpace: "pre-wrap",
+              wordBreak: "break-word",
+              mb: line ? 0.5 : 0,
+            }}
+          >
+            {line}
+          </Typography>
+        ))}
+        {href ? (
+          <ChatMessageAttachmentCard
+            href={href}
+            title={linkLabel ?? "Set up distribution"}
+            subtitle="Publish email distribution for this website."
+            formKind="setup"
+          />
+        ) : null}
+      </>
+    );
+  }
 
   const isFormAttachment =
     href &&

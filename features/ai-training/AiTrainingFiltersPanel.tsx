@@ -85,7 +85,7 @@ export function AiTrainingFiltersPanel({
 
       <Collapse in={open}>
         <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, display: "block", mt: 1.5, mb: 1.5 }}>
-          Table pehle saari trained websites dikhata hai. Yahan se reseller / company se narrow karo.
+          The table lists all trained websites in your scope by default. Use the filters below to narrow by reseller or company.
         </Typography>
         <Box sx={aiTrainingFilterGridSx}>
           <SelectField

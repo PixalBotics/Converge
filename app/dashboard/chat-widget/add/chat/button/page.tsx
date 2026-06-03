@@ -682,7 +682,7 @@ export default function ChatWidgetButtonDesignPage() {
         Launcher position (fine tune)
       </Typography>
       <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, mb: 0.75 }}>
-        Bottom inset zyada = corner se aur upar / screen ke niche se door. Side inset = Left/Right se kinare ki spacing; Center choose karne par yeh horizontal shift (left/right slide) hai.
+        A larger bottom inset moves the launcher farther from the corner and higher above the bottom edge of the screen. Side inset controls spacing from the left or right edge. When Center is selected, horizontal shift (left/right slide) applies.
       </Typography>
       <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 1.5 }}>
         <InputField

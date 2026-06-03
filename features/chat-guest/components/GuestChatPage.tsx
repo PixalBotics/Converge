@@ -23,8 +23,9 @@ export function GuestChatPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const emailToken = searchParams.get("token");
+  const supervisorEmail = searchParams.get("e");
 
-  const guest = useGuestChatSession(emailToken);
+  const guest = useGuestChatSession(emailToken, supervisorEmail);
 
   useEffect(() => {
     if (!emailToken?.trim() || guest.phase !== "ready") return;
@@ -71,7 +72,8 @@ export function GuestChatPage() {
               Secure chat view
             </Typography>
             <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, lineHeight: 1.45 }}>
-              Department guest access — view transcript, whisper to the agent, or take over the chat (no login).
+              One supervisor per link — view transcript, whisper, or take over without signing in. Other supervisors
+              use Chat Monitor after login.
             </Typography>
           </Box>
         </Box>
@@ -90,10 +92,23 @@ export function GuestChatPage() {
         {(guest.phase === "error" || guest.phase === "no_access") && guest.error ? (
           <Box sx={{ p: 4, flex: 1 }}>
             <Typography sx={{ color: theme.app.text.primary, mb: 2 }}>{guest.error}</Typography>
+            {/chat monitor/i.test(guest.error) ? (
+              <Button
+                type="button"
+                variant="primary"
+                size="small"
+                href="/auth/login?next=/dashboard/chat-monitor"
+                sx={{ mt: 1 }}
+              >
+                Sign in to Chat Monitor
+              </Button>
+            ) : null}
             {guest.session?.urlStrictSingleOpen ? (
-              <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted }}>
-                This link allows a single browser session. If you already opened it, continue in that browser or
-                request a new link.
+              <Typography
+                variant="caption"
+                sx={{ display: "block", mt: 1.5, color: theme.app.dashboard.textMuted }}
+              >
+                Only one supervisor can use the guest link per send. Others should sign in to Monitor.
               </Typography>
             ) : null}
           </Box>

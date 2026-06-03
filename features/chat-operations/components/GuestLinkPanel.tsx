@@ -101,7 +101,7 @@ export function GuestLinkPanel({
       const topic = res.topicLabel ?? target?.topicLabel;
       setStatus(
         count > 0
-          ? `Sent to ${count} supervisor${count === 1 ? "" : "s"}${dept ? ` (${dept}${topic ? ` · ${topic}` : ""})` : ""}.`
+          ? `Shared link emailed to ${count} supervisor${count === 1 ? "" : "s"} — first to open gets guest access; others use Chat Monitor.${dept ? ` (${dept}${topic ? ` · ${topic}` : ""})` : ""}`
           : "No links sent.",
       );
       await refreshLinks();
@@ -238,6 +238,9 @@ export function GuestLinkPanel({
                 </Typography>
                 <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, fontSize: 10 }}>
                   {link.department?.name ?? "Dept"} · expires {formatWhen(link.expiresAt)}
+                  {link.firstOpenedByEmail
+                    ? ` · opened by ${link.firstOpenedByEmail}`
+                    : ""}
                 </Typography>
               </Box>
             );
