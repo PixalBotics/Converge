@@ -12,7 +12,7 @@ export const DISTRIBUTION_METHOD_OPTIONS: DistributionMethodOption[] = [
   {
     id: "email",
     label: "Email",
-    description: "Agent wrap-up form → transcript emailed to department recipients (To/CC/BCC).",
+    description: "Agent distribution form → transcript emailed to department recipients (To/CC/BCC).",
     available: true,
   },
   {

@@ -34,7 +34,7 @@ import {
 
 const STEPS: { n: DistributionWizardStep; label: string; hint: string }[] = [
   { n: 1, label: "Company", hint: "Website scope" },
-  { n: 2, label: "Method & form", hint: "Agent fields" },
+  { n: 2, label: "Email form", hint: "Fields & method" },
   { n: 3, label: "Subject", hint: "Email line" },
   { n: 4, label: "Recipients", hint: "Departments" },
   { n: 5, label: "Test", hint: "Verify send" },

@@ -42,9 +42,10 @@ export function useDistributionDraftSave(initialSetupId: string | null) {
   const [saving, setSaving] = useState(false);
 
   const invalidate = useCallback(
-    (id: string) => {
-      void qc.invalidateQueries({ queryKey: distributionSetupKeys.all });
-      void qc.invalidateQueries({ queryKey: distributionSetupKeys.detail(id) });
+    async (id: string) => {
+      await qc.invalidateQueries({ queryKey: distributionSetupKeys.all });
+      await qc.invalidateQueries({ queryKey: distributionSetupKeys.detail(id) });
+      await qc.refetchQueries({ queryKey: distributionSetupKeys.all, type: "active" });
     },
     [qc],
   );
@@ -98,7 +99,7 @@ export function useDistributionDraftSave(initialSetupId: string | null) {
           await updateDistributionSetup(id, body);
           writeWizardSetupId(id);
           if (opts.isActive) markWizardPublished(id);
-          invalidate(id);
+          await invalidate(id);
           if (!opts.silent && opts.isActive) {
             publishAppToast({
               variant: "success",
@@ -110,7 +111,7 @@ export function useDistributionDraftSave(initialSetupId: string | null) {
         const created = await createDistributionSetup(body);
         writeWizardSetupId(created.id);
         if (opts.isActive) markWizardPublished(created.id);
-        invalidate(created.id);
+        await invalidate(created.id);
         if (!opts.silent && opts.isActive) {
           publishAppToast({
             variant: "success",

@@ -113,7 +113,7 @@ export function AiTrainingAssistantAddPage() {
   return (
     <AiTrainingPageShell
       title="Add assistant training"
-      subtitle="Upload or paste knowledge for agents — separate from the public chatbot."
+      subtitle="Upload, scrape, or paste knowledge for agents — separate from the public chatbot."
       icon={<AutoStories sx={{ color: "primary.main", fontSize: 28 }} />}
       backHref={listHref}
       backLabel="All trained websites"

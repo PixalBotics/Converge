@@ -19,11 +19,11 @@ const COPY: Record<
   },
   assistant: {
     steps: [
-      "Pick a website and upload FAQs, PDFs, Word, Excel, or SOP text for agents.",
-      "Each upload or paste becomes a content item, split into searchable pieces.",
+      "Pick a website and paste your site URL, FAQs, PDFs, Word, Excel, or SOP text for agents.",
+      "Each add creates a content item, split into searchable pieces.",
       "Agents see answers in the copilot — this does not change the public chatbot.",
     ],
-    note: "Assistant content is not shown to website visitors in the widget.",
+    note: "Website scrape for assistant is separate from chatbot training. Assistant content is not shown to visitors.",
   },
 };
 

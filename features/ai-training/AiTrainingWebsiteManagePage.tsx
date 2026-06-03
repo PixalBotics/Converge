@@ -226,7 +226,7 @@ export function AiTrainingWebsiteManagePage({ variant }: { variant: AiTrainingKb
       subtitle={
         isChatbot
           ? "Training content for the visitor chatbot on this website — each row is one import (sitemap, page, or FAQ set)."
-          : "Training content for the agent copilot on this website — each row is one document or FAQ set."
+          : "Training content for the agent copilot on this website — each row is one scrape, document, or FAQ set."
       }
       icon={<HeaderIcon sx={{ color: theme.app.dashboard.accentBlue, fontSize: 28 }} />}
       backHref={listHref}

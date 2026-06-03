@@ -20,7 +20,7 @@ import {
 } from "@/app/dashboard/distribution-setup/wizard.styles";
 
 const DEFAULT_SUBTITLE =
-  "Configure email distribution: company & website, wrap-up form, subject, and department recipients.";
+  "Configure email distribution: company & website, email form, subject, and department recipients.";
 
 export type { DistributionWizardStep } from "./distribution-wizard.types";
 import type { DistributionWizardStep } from "./distribution-wizard.types";

@@ -2,7 +2,15 @@ export type KnowledgeSourceStatus = "pending" | "processing" | "indexed" | "fail
 
 export type ChatbotSourceType = "URL" | "WEB_CRAWL" | "SITEMAP" | "FAQ";
 
-export type AssistantSourceType = "PDF" | "FAQ" | "DOCX" | "SOP" | "EXCEL";
+export type AssistantSourceType =
+  | "URL"
+  | "WEB_CRAWL"
+  | "SITEMAP"
+  | "PDF"
+  | "FAQ"
+  | "DOCX"
+  | "SOP"
+  | "EXCEL";
 
 export type CreateKnowledgeSourceResult = {
   sourceId: string;

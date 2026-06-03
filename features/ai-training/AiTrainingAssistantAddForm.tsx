@@ -51,8 +51,8 @@ export function AiTrainingAssistantAddForm({
   return (
     <DashboardCard sx={{ p: 2.5 }}>
       <Typography variant="body2" sx={{ color: "text.secondary", mb: 2 }}>
-        Pick the website, then add FAQs, documents, or SOP text. Each add becomes a content item agents can search in the
-        copilot.
+        Pick the website, then scrape your site or add FAQs, documents, or SOP text. Each add becomes a
+        content item agents can search in the copilot.
       </Typography>
 
       <Box sx={aiTrainingFilterGridSx}>

@@ -8,6 +8,8 @@ export { buildWizardSavePayload, canSaveWizardStep } from "./utils/wizard-save-p
 export { DistributionSaveDraftButton } from "./components/DistributionWizardDraftActions";
 export { DistributionWizardStepper } from "./components/DistributionWizardStepper";
 export { AgentDistributionFormPreview } from "./components/AgentDistributionFormPreview";
+export { DistributionEmailFormConfigurator } from "./components/DistributionEmailFormConfigurator";
+export type { DistributionEmailFormConfiguratorProps } from "./components/DistributionEmailFormConfigurator";
 export { useDistributionDraftSave } from "./hooks/useDistributionDraftSave";
 export type { DistributionWizardShellProps } from "./DistributionWizardShell";
 export { VisitorInformationPreviewModal } from "./VisitorInformationPreviewModal";
