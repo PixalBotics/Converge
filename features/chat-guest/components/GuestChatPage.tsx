@@ -16,7 +16,14 @@ import { parseVisitorInfo } from "@/features/chat-operations/utils/visitor-info"
 import { extractVisitorPresentation } from "@/services/chat/visitor-presentation";
 import { useGuestChatSession } from "../hooks/useGuestChatSession";
 import { GuestSupervisorActions } from "./GuestSupervisorActions";
-import { guestBannerSx, guestCardSx, guestHeaderCardSx, guestPageShellSx } from "../styles/chat-guest.styles";
+import {
+  guestBannerSx,
+  guestBodyRowSx,
+  guestCardSx,
+  guestHeaderCardSx,
+  guestInboxColumnSx,
+  guestPageShellSx,
+} from "../styles/chat-guest.styles";
 
 export function GuestChatPage() {
   const theme = useTheme() as AppTheme;
@@ -152,56 +159,59 @@ export function GuestChatPage() {
               </Box>
             </Box>
 
-            <PanelHeader sx={{ py: 1.5, display: "flex", alignItems: "center", gap: 1.5, flexShrink: 0 }}>
-              <QueueAvatar sx={{ width: 44, height: 44 }}>{visitorInfo.initials}</QueueAvatar>
-              <Box sx={{ minWidth: 0, flex: 1 }}>
-                <Typography fontWeight={700} sx={{ fontSize: 15 }}>
-                  {title}
-                </Typography>
-                {subtitle ? (
-                  <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted }}>
-                    {subtitle}
-                  </Typography>
-                ) : null}
-                {guest.session.departmentName ? (
-                  <Box sx={{ mt: 0.75 }}>
-                    <Chip
-                      label={guest.session.departmentName}
-                      size="small"
-                      sx={{ height: 22, fontSize: 11 }}
-                    />
+            <Box sx={guestBodyRowSx}>
+              <Box sx={guestInboxColumnSx}>
+                <PanelHeader sx={{ py: 1.5, display: "flex", alignItems: "center", gap: 1.5, flexShrink: 0 }}>
+                  <QueueAvatar sx={{ width: 44, height: 44 }}>{visitorInfo.initials}</QueueAvatar>
+                  <Box sx={{ minWidth: 0, flex: 1 }}>
+                    <Typography fontWeight={700} sx={{ fontSize: 15 }}>
+                      {title}
+                    </Typography>
+                    {subtitle ? (
+                      <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted }}>
+                        {subtitle}
+                      </Typography>
+                    ) : null}
+                    {guest.session.departmentName ? (
+                      <Box sx={{ mt: 0.75 }}>
+                        <Chip
+                          label={guest.session.departmentName}
+                          size="small"
+                          sx={{ height: 22, fontSize: 11 }}
+                        />
+                      </Box>
+                    ) : null}
                   </Box>
-                ) : null}
+                </PanelHeader>
+
+                <PanelColumn sx={{ flex: 1, minHeight: 0, overflow: "hidden" }}>
+                  <ChatMessageList
+                    conversationId={guest.session.conversationId}
+                    messages={guest.messages}
+                    visitorInitials={visitorInfo.initials}
+                    visitorDisplayName={title}
+                    agentDisplayName="Agent"
+                    showEmptyPlaceholder={guest.messages.length === 0}
+                  />
+                </PanelColumn>
               </Box>
-            </PanelHeader>
 
-            <PanelColumn sx={{ flex: 1, minHeight: 0, overflow: "hidden" }}>
-              <ChatMessageList
-                conversationId={guest.session.conversationId}
-                messages={guest.messages}
-                visitorInitials={visitorInfo.initials}
-                visitorDisplayName={title}
-                agentDisplayName="Agent"
-                showEmptyPlaceholder={guest.messages.length === 0}
+              <GuestSupervisorActions
+                layout="sidebar"
+                session={guest.session}
+                supervisorControlUserId={
+                  typeof guest.transcript?.supervisorControlUserId === "string"
+                    ? guest.transcript.supervisorControlUserId
+                    : null
+                }
+                assignedAgentId={
+                  typeof guest.transcript?.agentId === "string" ? guest.transcript.agentId : null
+                }
+                chatCompleted={isChatClosed}
+                onOptimisticAgentMessage={guest.appendOptimisticMessage}
+                onActionComplete={() => void guest.refreshTranscript()}
               />
-            </PanelColumn>
-
-            <GuestSupervisorActions
-              session={guest.session}
-              supervisorControlUserId={
-                typeof guest.transcript?.supervisorControlUserId === "string"
-                  ? guest.transcript.supervisorControlUserId
-                  : null
-              }
-              assignedAgentId={
-                typeof guest.transcript?.agentId === "string"
-                  ? guest.transcript.agentId
-                  : null
-              }
-              chatCompleted={isChatClosed}
-              onOptimisticAgentMessage={guest.appendOptimisticMessage}
-              onActionComplete={() => void guest.refreshTranscript()}
-            />
+            </Box>
           </>
         ) : null}
       </Paper>
