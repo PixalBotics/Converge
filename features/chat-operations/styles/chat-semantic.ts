@@ -65,7 +65,7 @@ function accentForTone(theme: AppTheme, tone: ChatSemanticTone): string {
     case "info":
       return d.accentBlue;
     case "ai":
-      return d.accentPurple;
+      return d.accentBlue;
     case "whisper":
       return d.accentViolet;
     case "warning":
@@ -80,11 +80,12 @@ function accentForTone(theme: AppTheme, tone: ChatSemanticTone): string {
 export function chatSemanticSurface(theme: AppTheme, tone: ChatSemanticTone) {
   const accent = accentForTone(theme, tone);
   const d = theme.app.dashboard;
+  const subtle = tone === "muted" || tone === "ai";
   return {
     accent,
-    border: `1px solid ${alpha(accent, tone === "muted" ? 0.22 : 0.38)}`,
-    bgcolor: alpha(accent, tone === "muted" ? 0.06 : 0.12),
-    headerBg: alpha(accent, tone === "muted" ? 0.04 : 0.1),
+    border: `1px solid ${alpha(accent, subtle ? 0.22 : 0.38)}`,
+    bgcolor: alpha(accent, subtle ? 0.06 : 0.12),
+    headerBg: alpha(accent, subtle ? 0.04 : 0.1),
     labelColor: tone === "muted" ? d.textMuted : accent,
   };
 }

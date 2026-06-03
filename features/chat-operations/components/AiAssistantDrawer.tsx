@@ -5,7 +5,7 @@ import Link from "@mui/material/Link";
 import NextLink from "next/link";
 import Box from "@mui/material/Box";
 import CircularProgress from "@mui/material/CircularProgress";
-import { alpha, useTheme } from "@mui/material/styles";
+import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import { Button, Typography } from "@/components/common";
 import type { AgentAiAction } from "@/api/ai/agent-suggest.api";
@@ -223,8 +223,6 @@ export function AiAssistantDrawer({
                     py: 0.35,
                     fontSize: 11,
                     fontWeight: 700,
-                    color: theme.app.dashboard.accentViolet,
-                    borderColor: alpha(theme.app.dashboard.accentViolet, 0.45),
                   }}
                 >
                   Insert into reply
@@ -276,14 +274,14 @@ export function AiAssistantDrawer({
         <Link
           component={NextLink}
           href="/dashboard/ai-training/assistant"
-          underline="none"
+          underline="hover"
           sx={{
             display: "block",
             mb: 0.75,
             fontSize: 11,
             fontWeight: 600,
-            color: theme.app.dashboard.accentViolet,
-            "&:hover": { textDecoration: "underline" },
+            color: theme.app.dashboard.textMuted,
+            "&:hover": { color: theme.app.text.primary },
           }}
         >
           Manage AI Assistant training for this website →

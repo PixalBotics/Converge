@@ -14,7 +14,7 @@ import Tab from "@mui/material/Tab";
 import Tabs from "@mui/material/Tabs";
 import TextField from "@mui/material/TextField";
 import Alert from "@mui/material/Alert";
-import { useTheme } from "@mui/material/styles";
+import { alpha, useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import { Button, InputField, Label, Typography } from "@/components/common";
 import { textFieldStyles } from "@/components/common/InputField/InputField.styles";
@@ -239,7 +239,9 @@ export function AiTrainingSourceMethodPanel({
                 border: `1px solid ${
                   selected ? theme.app.dashboard.accentBlue : theme.app.dashboard.cardBorder
                 }`,
-                bgcolor: selected ? "rgba(99, 102, 241, 0.12)" : "rgba(255,255,255,0.03)",
+                bgcolor: selected
+                  ? theme.app.dashboard.navActiveBg
+                  : alpha(theme.app.dashboard.overlayLight, 0.2),
                 transition: "border-color 0.15s, background 0.15s",
                 "&:hover": {
                   borderColor: theme.app.dashboard.accentBlue,

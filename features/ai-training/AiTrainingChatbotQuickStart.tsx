@@ -5,7 +5,7 @@ import LanguageOutlined from "@mui/icons-material/LanguageOutlined";
 import QuizOutlined from "@mui/icons-material/QuizOutlined";
 import Box from "@mui/material/Box";
 import Stack from "@mui/material/Stack";
-import { useTheme } from "@mui/material/styles";
+import { alpha, useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import { Button, Typography } from "@/components/common";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
@@ -39,13 +39,13 @@ export function AiTrainingChatbotQuickStart({
         p: 2,
         mb: 2.5,
         borderRadius: 2.5,
-        border: `1px solid ${theme.app.dashboard.accentBlue}`,
-        background: `linear-gradient(135deg, rgba(99, 102, 241, 0.18) 0%, rgba(15, 23, 42, 0.4) 100%)`,
+        border: `1px solid ${alpha(theme.app.dashboard.cardBorder, 0.45)}`,
+        bgcolor: alpha(theme.app.dashboard.overlayLight, 0.22),
       }}
     >
       <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
-        <AutoAwesome sx={{ color: theme.app.dashboard.accentBlue }} />
-        <Typography variant="body1" fontWeight={700} color="white">
+        <AutoAwesome sx={{ color: theme.app.dashboard.textMuted }} />
+        <Typography variant="body1" fontWeight={700} sx={{ color: theme.app.text.primary }}>
           Quick start for {websiteName}
         </Typography>
       </Stack>

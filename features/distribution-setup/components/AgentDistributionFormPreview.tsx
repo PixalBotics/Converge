@@ -17,6 +17,7 @@ import { mergeSx } from "@/lib/mui/merge-sx";
 import {
   distributionAgentFormBodySx,
   distributionAgentFormCanvasSx,
+  distributionAgentFormGroupLabelSx,
   distributionAgentFormHeaderSx,
   distributionPreviewFieldLabelSx,
   distributionPreviewFieldValueSx,
@@ -196,17 +197,7 @@ export function AgentDistributionFormPreview({
 
               {groups.map(({ group, fields: groupFields }) => (
                 <Box key={group.id}>
-                  <Typography
-                    component="p"
-                    sx={{
-                      mb: 1.25,
-                      color: "#475569",
-                      fontWeight: 700,
-                      fontSize: 11,
-                      letterSpacing: 0.6,
-                      textTransform: "uppercase",
-                    }}
-                  >
+                  <Typography component="p" sx={distributionAgentFormGroupLabelSx}>
                     {group.label}
                   </Typography>
                   <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>

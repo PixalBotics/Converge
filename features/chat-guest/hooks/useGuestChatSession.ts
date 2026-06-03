@@ -46,6 +46,29 @@ function sameConversationId(a: string | null | undefined, b: string | null | und
   return a.trim().toLowerCase() === b.trim().toLowerCase();
 }
 
+function isGuestOptimisticMessageId(id: string | undefined): boolean {
+  if (!id) return false;
+  return id.startsWith("optimistic-") || id.startsWith("guest-local-");
+}
+
+/** Drop temporary supervisor send rows when the real message arrives. */
+function stripMatchingGuestOptimistic(
+  map: Map<string, ChatMessage>,
+  confirmed: ChatMessage,
+): void {
+  if (!confirmed.id || isGuestOptimisticMessageId(confirmed.id)) return;
+  for (const [k, existing] of map) {
+    if (
+      isGuestOptimisticMessageId(existing.id) &&
+      existing.role === confirmed.role &&
+      existing.content === confirmed.content &&
+      sameConversationId(existing.conversationId, confirmed.conversationId)
+    ) {
+      map.delete(k);
+    }
+  }
+}
+
 export function useGuestChatSession(
   emailToken: string | null,
   supervisorEmail: string | null = null,
@@ -70,6 +93,7 @@ export function useGuestChatSession(
 
   const upsertMessage = useCallback(
     (message: ChatMessage) => {
+      stripMatchingGuestOptimistic(messageMapRef.current, message);
       messageMapRef.current.set(stableMessageDedupeKey(message), message);
       syncMessagesFromMap();
     },
@@ -83,6 +107,7 @@ export function useGuestChatSession(
         messageMapRef.current.clear();
       }
       for (const msg of data.messages ?? []) {
+        stripMatchingGuestOptimistic(messageMapRef.current, msg);
         messageMapRef.current.set(stableMessageDedupeKey(msg), msg);
       }
       syncMessagesFromMap();
@@ -440,7 +465,7 @@ export function useGuestChatSession(
       const s = sessionRef.current;
       if (!s || !content.trim()) return;
       upsertMessage({
-        id: `guest-local-${Date.now()}`,
+        id: `optimistic-${Date.now()}`,
         conversationId: s.conversationId,
         content: content.trim(),
         role,
