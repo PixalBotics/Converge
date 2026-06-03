@@ -107,23 +107,6 @@ export function useAgentChat(params: UseAgentChatParams): UseAgentChatReturn {
     }
   }, []);
 
-  const reloadConversationHistory = useCallback(
-    async (conversationId: string) => {
-      if (!apiEnabled || !params.token) return;
-      const history = await getConversationHistory(conversationId, params.token);
-      messageMapRef.current.clear();
-      for (const msg of history.messages) {
-        messageMapRef.current.set(stableMessageDedupeKey(msg), msg);
-      }
-      syncMessagesFromMap();
-      const v = history.visitor;
-      setVisitorFromHistory(
-        typeof v === "object" && v !== null ? (v as Record<string, unknown>) : null,
-      );
-    },
-    [apiEnabled, params.token, syncMessagesFromMap],
-  );
-
   const extractWrapUp = useCallback((payload: unknown): AgentWrapUpPayload | null => {
     if (typeof payload !== "object" || !payload) return null;
     const o = payload as Record<string, unknown>;
@@ -191,6 +174,23 @@ export function useAgentChat(params: UseAgentChatParams): UseAgentChatReturn {
   const syncMessagesFromMap = useCallback(() => {
     setMessages(sortMessagesChronologically(Array.from(messageMapRef.current.values())));
   }, []);
+
+  const reloadConversationHistory = useCallback(
+    async (conversationId: string) => {
+      if (!apiEnabled || !params.token) return;
+      const history = await getConversationHistory(conversationId, params.token);
+      messageMapRef.current.clear();
+      for (const msg of history.messages) {
+        messageMapRef.current.set(stableMessageDedupeKey(msg), msg);
+      }
+      syncMessagesFromMap();
+      const v = history.visitor;
+      setVisitorFromHistory(
+        typeof v === "object" && v !== null ? (v as Record<string, unknown>) : null,
+      );
+    },
+    [apiEnabled, params.token, syncMessagesFromMap],
+  );
 
   const refreshQueuesRef = useRef(queues.refreshQueues);
   refreshQueuesRef.current = queues.refreshQueues;
