@@ -85,7 +85,17 @@ export function prepareInboxTranscriptMessages(
       return [message];
     });
   } else {
-    list = list.filter((message) => readMessageType(message) !== "close_form_link");
+    list = list.flatMap((message) => {
+      const type = readMessageType(message);
+      if (type === "close_form_link") {
+        const href = distributionFormHrefFromMessages(messages);
+        if (href) {
+          return [remapCloseFormToDistribution(message, href)];
+        }
+        return [];
+      }
+      return [message];
+    });
   }
 
   return pinFormLinksToEnd(list);

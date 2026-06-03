@@ -64,7 +64,7 @@ function attachmentTitle(message: ChatMessage, messageType: string | null): stri
   if (label) return label;
   if (messageType === "distribution_link") return "Open distribution form";
   if (messageType === "distribution_setup_required") return "Set up distribution";
-  if (messageType === "close_form_link") return "Open wrap-up form";
+  if (messageType === "close_form_link") return "Open distribution form";
   return "Open form";
 }
 
@@ -119,17 +119,27 @@ export function ChatMessageContent({ message }: { message: ChatMessage }) {
     );
   }
 
+  const legacyCloseHref =
+    messageType === "close_form_link" && message.conversationId
+      ? resolveDashboardHref(
+          `/dashboard/chat-operations/distribution?conversationId=${encodeURIComponent(message.conversationId)}`,
+        )
+      : null;
+  const effectiveHref = href ?? legacyCloseHref;
+
   const isFormAttachment =
-    href &&
+    effectiveHref &&
     (messageType === "distribution_link" ||
       messageType === "close_form_link" ||
-      message.content.includes(href));
+      message.content.includes(effectiveHref));
 
-  if (isFormAttachment && href) {
-    const intro = introLines(message, href, linkLabel);
+  if (isFormAttachment && effectiveHref) {
+    const intro = introLines(message, effectiveHref, linkLabel);
     const formKind =
       readFormKind(message) ??
-      (messageType === "distribution_link" ? "distribution" : messageType === "close_form_link" ? "close" : undefined);
+      (messageType === "distribution_link" || messageType === "close_form_link"
+        ? "distribution"
+        : undefined);
 
     return (
       <>
@@ -151,14 +161,12 @@ export function ChatMessageContent({ message }: { message: ChatMessage }) {
           </Typography>
         ))}
         <ChatMessageAttachmentCard
-          href={href}
+          href={effectiveHref}
           title={attachmentTitle(message, messageType)}
           subtitle={
             formKind === "distribution"
               ? "Send the transcript to the selected department."
-              : formKind === "close"
-                ? "Complete the post-close wrap-up form for this conversation."
-                : undefined
+              : undefined
           }
           formKind={formKind}
         />

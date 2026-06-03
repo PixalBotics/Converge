@@ -24,7 +24,7 @@ export const guestHeaderCardSx: SxProps<Theme> = (theme) => {
     typeof cardBg === "string" && /gradient/i.test(cardBg);
   return {
     width: "100%",
-    maxWidth: 960,
+    maxWidth: 1200,
     mb: 1.5,
     p: { xs: 1.5, md: 2 },
     borderRadius: "12px",
@@ -40,14 +40,14 @@ export const guestCardSx: SxProps<Theme> = (theme) => {
   const d = dash(theme);
   return {
     width: "100%",
-    maxWidth: 960,
+    maxWidth: { xs: "100%", md: 1200 },
     flex: 1,
     display: "flex",
     flexDirection: "column",
     borderRadius: "12px",
     overflow: "hidden",
-    minHeight: { xs: "calc(100vh - 32px)", md: 640 },
-    maxHeight: { xs: "none", md: "calc(100vh - 64px)" },
+    minHeight: { xs: "calc(100dvh - 120px)", md: "calc(100dvh - 140px)" },
+    maxHeight: { xs: "none", md: "calc(100dvh - 80px)" },
     border: `1px solid ${alpha(d.cardBorder, 0.5)}`,
     boxShadow: `0 12px 40px ${alpha(d.cardBorder, 0.14)}`,
     backdropFilter: "blur(8px)",
@@ -55,3 +55,62 @@ export const guestCardSx: SxProps<Theme> = (theme) => {
 };
 
 export const guestBannerSx = chatOpsAlertBannerSx("info");
+
+/** Main row: transcript (left) + supervisor tools (right). */
+export const guestBodyRowSx: SxProps<Theme> = {
+  display: "flex",
+  flex: 1,
+  minHeight: 0,
+  flexDirection: { xs: "column", md: "row" },
+  overflow: "hidden",
+};
+
+/** Transcript column — fills remaining width and scrolls messages. */
+export const guestInboxColumnSx: SxProps<Theme> = {
+  display: "flex",
+  flexDirection: "column",
+  flex: 1,
+  minWidth: 0,
+  minHeight: 0,
+  overflow: "hidden",
+};
+
+/** Right supervisor sidebar (whisper left, takeover right inside). */
+export const guestSupervisorSidebarSx: SxProps<Theme> = (theme) => {
+  const d = dash(theme);
+  return {
+    display: "flex",
+    flexDirection: "column",
+    flexShrink: 0,
+    minHeight: 0,
+    width: { xs: "100%", md: 340 },
+    maxHeight: { xs: "42vh", md: "none" },
+    overflowY: { xs: "auto", md: "hidden" },
+    borderTop: { xs: `1px solid ${alpha(d.cardBorder, 0.5)}`, md: "none" },
+    borderLeft: { xs: "none", md: `1px solid ${alpha(d.cardBorder, 0.5)}` },
+  };
+};
+
+export const guestSupervisorGridSx: SxProps<Theme> = {
+  display: "grid",
+  gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" },
+  gap: 1.5,
+  flex: 1,
+  minHeight: 0,
+  p: { xs: 1.5, md: 2 },
+  alignContent: "start",
+};
+
+export const guestSupervisorColumnSx: SxProps<Theme> = (theme) => {
+  const d = dash(theme);
+  return {
+    display: "flex",
+    flexDirection: "column",
+    gap: 1,
+    minWidth: 0,
+    p: 1.25,
+    borderRadius: "10px",
+    border: `1px solid ${alpha(d.cardBorder, 0.35)}`,
+    background: alpha(d.overlayLight, 0.35),
+  };
+};

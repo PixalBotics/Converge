@@ -101,6 +101,29 @@ export function useAgentChat(params: UseAgentChatParams): UseAgentChatReturn {
     ) => Promise<void>
   >(async () => {});
 
+  const applyDistributionPrompt = useCallback((wrapUp: AgentWrapUpPayload | null) => {
+    if (wrapUp?.requiresDistributionForm && !wrapUp.distributionSubmitted) {
+      setPendingWrapUp(wrapUp);
+    }
+  }, []);
+
+  const reloadConversationHistory = useCallback(
+    async (conversationId: string) => {
+      if (!apiEnabled || !params.token) return;
+      const history = await getConversationHistory(conversationId, params.token);
+      messageMapRef.current.clear();
+      for (const msg of history.messages) {
+        messageMapRef.current.set(stableMessageDedupeKey(msg), msg);
+      }
+      syncMessagesFromMap();
+      const v = history.visitor;
+      setVisitorFromHistory(
+        typeof v === "object" && v !== null ? (v as Record<string, unknown>) : null,
+      );
+    },
+    [apiEnabled, params.token, syncMessagesFromMap],
+  );
+
   const extractWrapUp = useCallback((payload: unknown): AgentWrapUpPayload | null => {
     if (typeof payload !== "object" || !payload) return null;
     const o = payload as Record<string, unknown>;
@@ -251,14 +274,13 @@ export function useAgentChat(params: UseAgentChatParams): UseAgentChatReturn {
       if (endedId && endedId === selectedConversationIdRef.current) {
         setSelectedIsClosed(true);
         selectedIsClosedRef.current = true;
-        const needsDistribution =
-          wrapUp?.requiresDistributionForm && !wrapUp.distributionSubmitted;
-        if (wrapUp && needsDistribution) {
-          setPendingWrapUp(wrapUp);
+        applyDistributionPrompt(wrapUp);
+        if (endedId) {
+          void reloadConversationHistory(endedId);
         }
       }
     },
-    [extractWrapUp, queues],
+    [applyDistributionPrompt, extractWrapUp, queues, reloadConversationHistory],
   );
 
   const handleChatWhisper = useCallback(
@@ -317,13 +339,9 @@ export function useAgentChat(params: UseAgentChatParams): UseAgentChatReturn {
     (p: unknown) => {
       const wrapUp =
         extractWrapUp(p) ?? (typeof p === "object" && p ? (p as AgentWrapUpPayload) : null);
-      const needsDistribution =
-        wrapUp?.requiresDistributionForm && !wrapUp.distributionSubmitted;
-      if (needsDistribution) {
-        setPendingWrapUp(wrapUp);
-      }
+      applyDistributionPrompt(wrapUp);
     },
-    [extractWrapUp],
+    [applyDistributionPrompt, extractWrapUp],
   );
 
   useAgentChatSocket(
@@ -474,11 +492,9 @@ export function useAgentChat(params: UseAgentChatParams): UseAgentChatReturn {
       if (readOnly && apiEnabled && params.token) {
         try {
           const wrapUp = await fetchAgentWrapUp(conversationId);
-          const needsDistribution =
-            wrapUp.requiresDistributionForm && !wrapUp.distributionSubmitted;
-          if (needsDistribution) {
-            setPendingWrapUp(wrapUp);
-          } else if (
+          applyDistributionPrompt(wrapUp);
+          if (
+            (!wrapUp.requiresDistributionForm || wrapUp.distributionSubmitted) &&
             selectedConversationIdRef.current === conversationId
           ) {
             setPendingWrapUp((prev) =>
@@ -486,12 +502,13 @@ export function useAgentChat(params: UseAgentChatParams): UseAgentChatReturn {
             );
           }
         } catch {
-          /* no wrap-up / distribution for this chat */
+          /* distribution payload unavailable */
         }
       }
     },
     [
       apiEnabled,
+      applyDistributionPrompt,
       closedIdSet,
       params.token,
       queues.activeChats,
@@ -603,22 +620,22 @@ export function useAgentChat(params: UseAgentChatParams): UseAgentChatReturn {
       return;
     }
 
+    await reloadConversationHistory(closingId);
+
     if (apiEnabled && params.token) {
       try {
         const wrapUp = await fetchAgentWrapUp(closingId);
-        const needsDistribution =
-          wrapUp.requiresDistributionForm && !wrapUp.distributionSubmitted;
-        if (needsDistribution) {
-          setPendingWrapUp(wrapUp);
-        }
+        applyDistributionPrompt(wrapUp);
       } catch {
-        /* wrap-up payload unavailable */
+        /* distribution payload unavailable */
       }
     }
   }, [
     apiEnabled,
+    applyDistributionPrompt,
     params.token,
     queues,
+    reloadConversationHistory,
     selectConversation,
     selectedConversationId,
     selectedIsClosed,

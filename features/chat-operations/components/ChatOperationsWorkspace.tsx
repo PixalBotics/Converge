@@ -85,7 +85,7 @@ export function ChatOperationsWorkspace() {
   useEffect(() => {
     if (searchParams.get("wrapUp") !== "1" || !conversationIdFromUrl) return;
     router.replace(
-      `/dashboard/chat-operations/wrap-up?conversationId=${encodeURIComponent(conversationIdFromUrl)}`,
+      `/dashboard/chat-operations/distribution?conversationId=${encodeURIComponent(conversationIdFromUrl)}`,
     );
   }, [conversationIdFromUrl, router, searchParams]);
 

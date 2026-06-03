@@ -17,7 +17,7 @@ type ChatMessageAttachmentCardProps = {
 function formKindLabel(kind: string | undefined): string {
   if (kind === "distribution") return "Distribution form";
   if (kind === "setup") return "Distribution setup";
-  if (kind === "close") return "Wrap-up form";
+  if (kind === "close") return "Distribution form";
   return "Form";
 }
 
