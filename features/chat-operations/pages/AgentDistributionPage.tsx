@@ -88,7 +88,7 @@ export function AgentDistributionPage() {
   }
 
   return (
-    <Box sx={{ ...pageWrapper, maxWidth: 720, mx: "auto", py: 3, px: { xs: 1.5, sm: 2 } }}>
+    <Box sx={{ ...pageWrapper, maxWidth: 960, py: 3 }}>
       {formQuery.isError ? (
         <Typography sx={{ color: (t) => t.palette.error.main, mb: 2 }}>
           {extractApiErrorMessageForToast(

@@ -12,6 +12,12 @@ export function agentDistributionFieldMultiline(
   );
 }
 
+export function agentDistributionMultilineRows(fieldKey: string): number {
+  if (fieldKey === "transcript") return 4;
+  if (fieldKey === "journey") return 3;
+  return 3;
+}
+
 export type AgentDistributionFormFieldLike = {
   fieldKey: string;
   label: string;
