@@ -1,89 +1,152 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import Box from "@mui/material/Box";
+import LanguageOutlined from "@mui/icons-material/LanguageOutlined";
 import { Button, Typography } from "@/components/common";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
-import { DISTRIBUTION_ROUTES } from "@/features/distribution-setup/distribution.constants";
 import { DistributionWizardShell } from "@/features/distribution-setup";
-import { PickWebsiteModal } from "@/features/website-assignments/components/PickWebsiteModal";
+import { DistributionWizardFooter } from "@/features/distribution-setup/components/DistributionWizardFooter";
+import { useDistributionWizardNav } from "@/features/distribution-setup/hooks/useDistributionWizardNav";
+import { hydrateWizardFromDetail } from "@/features/distribution-setup/utils/hydrate-wizard-from-detail";
+import { useDistributionSetupDetailQuery } from "@/features/distribution-setup/hooks/useDistributionSetupMutations";
+import { useDistributionAssignedWebsiteIdsQuery } from "@/features/distribution-setup/hooks/useDistributionAssignedWebsiteIds";
 import {
+  readWizardSetupId,
   readWizardWebsite,
+  writeWizardSetupId,
   writeWizardWebsite,
 } from "@/features/distribution-setup/wizard-storage";
+import {
+  isPickWebsiteComplete,
+  PickWebsiteFields,
+} from "@/features/website-assignments/components/PickWebsiteFields";
+import type { PickWebsitePreset } from "@/features/website-assignments/components/PickWebsiteModal";
+import { emailFormWebsiteScopeSx } from "@/features/email/styles/email-form-builder.styles";
+import { mergeSx } from "@/lib/mui/merge-sx";
+
+const EMPTY_PRESET: PickWebsitePreset = {
+  websiteId: "",
+  parentCompanyId: "",
+  childCompanyId: "",
+  resellerId: "",
+};
 
 export default function ConfigureDistributionPage() {
-  const router = useRouter();
-  const [pickOpen, setPickOpen] = useState(false);
-  const [hasWebsite, setHasWebsite] = useState(false);
+  const searchParams = useSearchParams();
+  const setupIdFromUrl = searchParams.get("setupId")?.trim() || null;
+  const setupId = setupIdFromUrl ?? readWizardSetupId();
+  const isNewSetup = !setupId;
+  const detailQuery = useDistributionSetupDetailQuery(setupId);
+  const assignedWebsitesQuery = useDistributionAssignedWebsiteIdsQuery(isNewSetup);
+  const excludeWebsiteIds = isNewSetup
+    ? (assignedWebsitesQuery.data?.websiteIds ?? [])
+    : undefined;
+  const [preset, setPreset] = useState<PickWebsitePreset>(() => readWizardWebsite() ?? EMPTY_PRESET);
+  const [detailHydrated, setDetailHydrated] = useState(false);
+
+  const { goBack, goNext, saving: navSaving } = useDistributionWizardNav({
+    currentStep: 1,
+    setupId,
+    websitePreset: preset,
+  });
 
   useEffect(() => {
-    const saved = readWizardWebsite();
-    if (saved?.websiteId) {
-      setHasWebsite(true);
-    } else {
-      setPickOpen(true);
+    if (setupId) writeWizardSetupId(setupId);
+  }, [setupId]);
+
+  useEffect(() => {
+    if (!detailQuery.data || detailHydrated) return;
+    hydrateWizardFromDetail(detailQuery.data);
+    const d = detailQuery.data;
+    setPreset({
+      websiteId: d.websiteId,
+      resellerId: d.resellerId,
+      parentCompanyId: d.parentCompanyId,
+      childCompanyId: d.childCompanyId,
+    });
+    setDetailHydrated(true);
+  }, [detailQuery.data, detailHydrated]);
+
+  const scopeLabels = useMemo(() => {
+    if (detailQuery.data) {
+      return {
+        clientOf: detailQuery.data.clientOf,
+        parent: detailQuery.data.parentCompany,
+        child: detailQuery.data.childCompany,
+        website: detailQuery.data.website,
+      };
     }
-  }, []);
+    return null;
+  }, [detailQuery.data]);
+
+  const canContinue = isPickWebsiteComplete(preset);
+
+  const handlePresetChange = (next: PickWebsitePreset) => {
+    setPreset(next);
+    if (isPickWebsiteComplete(next)) {
+      writeWizardWebsite(next);
+    }
+  };
 
   return (
-    <>
-      <DistributionWizardShell
-        step={1}
-        cardTitle="Configure distribution"
-        subtitle="Choose the child company and website for this routing setup."
-        footer={
-          <>
-            <Button type="button" variant="secondary" onClick={() => router.push(DISTRIBUTION_ROUTES.home)}>
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => setPickOpen(true)}
-            >
-              {hasWebsite ? "Change website" : "Select website"}
-            </Button>
-            <Button
-              type="button"
-              variant="primary"
-              sx={gradientPrimaryButtonSx}
-              disabled={!hasWebsite}
-              onClick={() => router.push(DISTRIBUTION_ROUTES.settings)}
-            >
-              Next
-            </Button>
-          </>
-        }
-      >
-        <Box sx={{ py: 1 }}>
-          <Typography variant="medium" sx={{ color: "text.secondary" }}>
-            {hasWebsite
-              ? "Website selected — continue to distribution settings."
-              : "Select organization and website to continue."}
-          </Typography>
+    <DistributionWizardShell
+      step={1}
+      cardTitle="Company & website"
+      subtitle="Select the organization and website, then continue to the next step."
+      websitePreset={preset}
+      footer={
+        <DistributionWizardFooter onBack={goBack} backLabel="Back to list">
+          <Button
+            type="button"
+            variant="primary"
+            sx={gradientPrimaryButtonSx}
+            disabled={!canContinue || navSaving}
+            onClick={goNext}
+          >
+            {navSaving ? "Saving…" : "Continue"}
+          </Button>
+        </DistributionWizardFooter>
+      }
+    >
+      {scopeLabels && isPickWebsiteComplete(preset) ? (
+        <Box sx={mergeSx(emailFormWebsiteScopeSx, { mb: 2.5 })}>
+          <Box
+            sx={{
+              width: 40,
+              height: 40,
+              borderRadius: 1.5,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flexShrink: 0,
+              bgcolor: (t) => t.palette.primary.main + "33",
+              color: (t) => t.palette.primary.light,
+            }}
+          >
+            <LanguageOutlined />
+          </Box>
+          <Box sx={{ minWidth: 0 }}>
+            <Typography variant="caption" sx={{ color: (t) => t.app.dashboard.textMuted }}>
+              Selected scope
+            </Typography>
+            <Typography variant="medium" fontWeight={600} color="white">
+              {scopeLabels.website}
+            </Typography>
+            <Typography variant="caption" sx={{ color: (t) => t.app.dashboard.textMuted }}>
+              {scopeLabels.parent} → {scopeLabels.child}
+              {scopeLabels.clientOf ? ` · ${scopeLabels.clientOf}` : ""}
+            </Typography>
+          </Box>
         </Box>
-      </DistributionWizardShell>
+      ) : null}
 
-      <PickWebsiteModal
-        open={pickOpen}
-        title="Configure distribution"
-        description="Step 1 of 3: Pick the website that will receive transcript routing rules."
-        primaryLabel="Continue"
-        onClose={() => {
-          setPickOpen(false);
-          if (!readWizardWebsite()?.websiteId) {
-            router.push(DISTRIBUTION_ROUTES.home);
-          }
-        }}
-        onContinue={(picked) => {
-          writeWizardWebsite(picked);
-          setPickOpen(false);
-          setHasWebsite(true);
-        }}
-        preset={readWizardWebsite()}
+      <PickWebsiteFields
+        value={preset}
+        onChange={handlePresetChange}
+        excludeWebsiteIds={excludeWebsiteIds}
       />
-    </>
+    </DistributionWizardShell>
   );
 }

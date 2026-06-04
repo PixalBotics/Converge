@@ -37,7 +37,7 @@ Legacy `/dashboard/smtp-email-integration` redirects to reseller mail.
 
 1. **Platform mail** — `GET/PUT/DELETE /platform/email-settings`, `POST …/test`
 2. **Reseller own mail** — `GET /email/reseller-mail-settings`, `GET/PUT/DELETE /resellers/:id/email-settings`
-3. **Platform assignment** — `GET /email/platform-mail-assignments`, `GET/PUT/DELETE /resellers/:id/platform-mail-assignment`
+3. **Platform assignment** — `GET /email/platform-mail-assignments`, `GET/PUT/DELETE /resellers/:id/platform-mail-assignment` (reseller uses platform sender only; no per-reseller from override)
 
 Providers: `GET /email/providers`, `GET /email/providers/:id/form-schema` (dynamic fields by `fieldKey`).
 

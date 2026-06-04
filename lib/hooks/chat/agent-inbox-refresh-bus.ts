@@ -16,3 +16,14 @@ export function publishAgentInboxRefresh(): void {
     }
   });
 }
+
+/** Re-fetch inbox shortly after handover — API may lag the alerts socket. */
+export function publishAgentInboxRefreshSoon(followUpDelaysMs: number[] = [800, 2000]): void {
+  publishAgentInboxRefresh();
+  if (typeof window === "undefined") return;
+  for (const delay of followUpDelaysMs) {
+    window.setTimeout(() => {
+      publishAgentInboxRefresh();
+    }, delay);
+  }
+}

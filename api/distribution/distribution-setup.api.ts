@@ -57,16 +57,24 @@ export type UpsertDistributionSetupBody = {
   subject?: string;
   emailConfigurationId?: string;
   isActive?: boolean;
-  departments: DistributionDepartmentInput[];
+  departments?: DistributionDepartmentInput[];
 };
 
 export type SendDistributionTestEmailBody = {
   websiteId: string;
   subject: string;
   departmentName: string;
-  to: string;
   emailConfigurationId?: string;
   formValues?: Record<string, string>;
+};
+
+export type SendDistributionTestEmailResult = {
+  sent: boolean;
+  recipientCount: number;
+  sendId: string;
+  to: string[];
+  cc: string[];
+  bcc: string[];
 };
 
 export type DistributionSetupListResponse = {
@@ -85,6 +93,12 @@ export type ListDistributionSetupsParams = {
   parentCompanyId?: string;
   childCompanyId?: string;
   websiteId?: string;
+  /** true = published/active only; false = draft only */
+  isActive?: boolean;
+};
+
+export type DistributionAssignedWebsiteIdsResponse = {
+  websiteIds: string[];
 };
 
 function unwrap<T>(data: unknown): T {
@@ -98,6 +112,11 @@ export async function listDistributionSetups(
 ): Promise<DistributionSetupListResponse> {
   const { data } = await apiClient.get("/distribution-setups", { params });
   return unwrap<DistributionSetupListResponse>(data);
+}
+
+export async function getDistributionAssignedWebsiteIds(): Promise<DistributionAssignedWebsiteIdsResponse> {
+  const { data } = await apiClient.get("/distribution-setups/assigned-website-ids");
+  return unwrap<DistributionAssignedWebsiteIdsResponse>(data);
 }
 
 export async function getDistributionSetup(id: string): Promise<DistributionSetupDetail> {
@@ -127,7 +146,7 @@ export async function deleteDistributionSetup(id: string): Promise<{ deleted: bo
 
 export async function sendDistributionTestEmail(
   body: SendDistributionTestEmailBody,
-): Promise<{ sent: boolean; to: string }> {
+): Promise<SendDistributionTestEmailResult> {
   const { data } = await apiClient.post("/distribution-setups/test-email", body);
-  return unwrap<{ sent: boolean; to: string }>(data);
+  return unwrap<SendDistributionTestEmailResult>(data);
 }

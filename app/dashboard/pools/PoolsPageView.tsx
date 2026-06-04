@@ -375,6 +375,7 @@ export function PoolsPageView({ mode }: PoolsPageViewProps) {
           all: true,
           userType: "Internal",
           unassignedPoolOnly: true,
+          headRole: "none",
           ...(hubDepartmentId.trim() ? { departmentId: hubDepartmentId.trim() } : {}),
           ...hubExcludePoolHeadParams,
         }
@@ -391,6 +392,7 @@ export function PoolsPageView({ mode }: PoolsPageViewProps) {
           all: true,
           userType: "External",
           unassignedPoolOnly: true,
+          headRole: "none",
           parentCompanyId: hubParentCompanyId.trim(),
           ...(hubDepartmentId.trim() ? { departmentId: hubDepartmentId.trim() } : {}),
           ...hubExcludePoolHeadParams,

@@ -3,6 +3,24 @@ import type { MonitorConversationRow } from "@/services/chat/monitor.types";
 import type { QaQueueRow } from "@/services/chat/qa.types";
 import type { ChatScopeFilterState } from "../types";
 
+export function isUnassignedActiveChat(c: ConversationSummary): boolean {
+  const agentId =
+    c.assignedAgentId ??
+    (typeof c.agentId === "string" ? c.agentId : null);
+  if (agentId) return false;
+  if (c.handoverRequested === true) return false;
+  const status = String(c.status ?? "");
+  /** Queued for human — show in waiting list, not active. */
+  if (status === "waiting") return false;
+  if (c.queuedForAgent === true) return false;
+  const chatMode = String(
+    (c as { chatMode?: string }).chatMode ?? c.chatMode ?? "",
+  ).toUpperCase();
+  if (chatMode === "AGENT_ONLY" && !agentId) return true;
+  if (chatMode === "HYBRID" && status === "active") return true;
+  return status === "active" && !agentId;
+}
+
 export function conversationMatchesScope(
   c: ConversationSummary,
   scope: ChatScopeFilterState,
@@ -11,6 +29,22 @@ export function conversationMatchesScope(
   const wid = typeof c.websiteId === "string" ? c.websiteId : "";
   if (scope.websiteId.trim() && wid !== scope.websiteId.trim()) return false;
   if (websiteIdsInScope && wid && !websiteIdsInScope.has(wid)) return false;
+  const deptNested = (c as { department?: { id?: string } }).department?.id;
+  const deptId =
+    typeof c.departmentId === "string"
+      ? c.departmentId
+      : typeof deptNested === "string"
+        ? deptNested
+        : "";
+  if (scope.departmentId.trim() && deptId !== scope.departmentId.trim()) return false;
+  const poolNested = (c as { pool?: { id?: string } }).pool?.id;
+  const poolId =
+    typeof c.poolId === "string"
+      ? c.poolId
+      : typeof poolNested === "string"
+        ? poolNested
+        : "";
+  if (scope.poolId.trim() && poolId !== scope.poolId.trim()) return false;
   if (scope.status.trim() && String(c.status ?? "") !== scope.status.trim()) return false;
   return true;
 }

@@ -1,90 +1,42 @@
 "use client";
 
 import type { ReactNode } from "react";
-import CheckCircle from "@mui/icons-material/CheckCircle";
+import Link from "next/link";
+import ArrowBack from "@mui/icons-material/ArrowBack";
 import Box from "@mui/material/Box";
 import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
-import { resolveSx } from "@/utils/resolveSx";
-import {
-  stepperDivider,
-  stepperNumberCircleActive,
-  stepperNumberCircleInactive,
-  stepperOuter,
-  stepperSegment,
-  stepperCheckIcon,
-  stepperLabelChildInactive,
-  stepperLabelResellerActive,
-  stepperLabelResellerDone,
-} from "@/app/dashboard/companies/overview.styles";
 import { DashboardCard, Typography } from "@/components/common";
+import { DistributionWizardStepper } from "./components/DistributionWizardStepper";
+import { DISTRIBUTION_ROUTES } from "./distribution.constants";
 import {
-  distributionSetupSectionIconBox,
-} from "@/app/dashboard/distribution-setup/distribution-setup.styles";
-import {
+  distributionWizardBackLinkSx,
   distributionWizardCardFooter,
-  distributionWizardCardSx,
+  distributionWizardMainCardSx,
   distributionWizardPageHeader,
   distributionWizardPageWrapper,
+  distributionWizardSectionBody,
+  distributionWizardSectionHeader,
 } from "@/app/dashboard/distribution-setup/wizard.styles";
 
 const DEFAULT_SUBTITLE =
-  "Connect your workflow with industry-leading CRM platforms in minutes.";
+  "Configure email distribution: company & website, email form, subject, and department recipients.";
+
+export type { DistributionWizardStep } from "./distribution-wizard.types";
+import type { DistributionWizardStep } from "./distribution-wizard.types";
 
 export interface DistributionWizardShellProps {
-  step: 1 | 2 | 3;
+  step: DistributionWizardStep;
   cardTitle: string;
   children: ReactNode;
-  /** Page subtitle under “Distribution Setup” (step 3 uses CRM sync copy in design). */
   subtitle?: string;
-  /** Omit or pass `null` to hide the card footer (e.g. table step). */
   footer?: ReactNode | null;
-  /** Same row as card title, right-aligned (e.g. search + Add Row on Distribution Table). */
   cardHeaderRight?: ReactNode;
+  /** Pass on step 1 so step clicks persist website before leaving. */
+  websitePreset?: import("@/features/website-assignments/components/PickWebsiteModal").PickWebsitePreset | null;
 }
 
-function StepCircle({
-  label,
-  stepNum,
-  active,
-  completed,
-}: {
-  label: string;
-  stepNum: string;
-  active: boolean;
-  completed: boolean;
-}) {
-  const theme = useTheme();
-
-  return (
-    <Box sx={stepperSegment}>
-      {completed ? (
-        <CheckCircle sx={resolveSx(stepperCheckIcon, theme)} aria-hidden />
-      ) : (
-        <Box
-          component="span"
-          sx={resolveSx(active ? stepperNumberCircleActive : stepperNumberCircleInactive, theme)}
-          aria-hidden
-        >
-          {stepNum}
-        </Box>
-      )}
-      <Typography
-        variant="body2"
-        sx={resolveSx(
-          active
-            ? stepperLabelResellerActive
-            : completed
-              ? stepperLabelResellerDone
-              : stepperLabelChildInactive,
-          theme
-        )}
-      >
-        {label}
-      </Typography>
-    </Box>
-  );
-}
+const STEP_COUNT = 5;
 
 export function DistributionWizardShell({
   step,
@@ -93,94 +45,72 @@ export function DistributionWizardShell({
   footer,
   subtitle = DEFAULT_SUBTITLE,
   cardHeaderRight,
+  websitePreset,
 }: DistributionWizardShellProps) {
   const theme = useTheme() as AppTheme;
 
   return (
     <Box sx={distributionWizardPageWrapper}>
+      <Link href={DISTRIBUTION_ROUTES.home} style={{ textDecoration: "none" }}>
+        <Box component="span" sx={distributionWizardBackLinkSx}>
+          <ArrowBack sx={{ fontSize: 18 }} />
+          Back to distribution list
+        </Box>
+      </Link>
+
       <Box sx={distributionWizardPageHeader}>
         <Typography variant="regularLarge" fontWeight={700} color="white" sx={{ mb: 0.5 }}>
-          Distribution Setup
+          Distribution setup
         </Typography>
-        <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted, maxWidth: 640 }}>
+        <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted, maxWidth: 720 }}>
           {subtitle}
         </Typography>
       </Box>
 
-      <Box sx={{ mb: 2.5, width: "100%" }}>
-        <Box sx={stepperOuter}>
-        <StepCircle
-          label="Configure Distribution"
-          stepNum="01"
-          active={step === 1}
-          completed={step > 1}
-        />
-        <Box sx={stepperDivider} />
-        <StepCircle
-          label="Distribution Settings"
-          stepNum="02"
-          active={step === 2}
-          completed={step > 2}
-        />
-        <Box sx={stepperDivider} />
-        <StepCircle
-          label="Distribution Table"
-          stepNum="03"
-          active={step === 3}
-          completed={step >= 3}
-        />
-        </Box>
-      </Box>
+      <DistributionWizardStepper currentStep={step} websitePreset={websitePreset} />
 
-      <DashboardCard sx={distributionWizardCardSx}>
-        <Box
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 2,
-            flexWrap: { xs: "wrap", md: "nowrap" },
-            width: "100%",
-            rowGap: 2,
-          }}
-        >
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, minWidth: 0, flexShrink: 0 }}>
-            <Box sx={distributionSetupSectionIconBox} aria-hidden>
-              <Typography
-                sx={{
-                  color: theme.app.dashboard.white95,
-                  fontWeight: 700,
-                  fontSize: "1.1rem",
-                  lineHeight: 1,
-                }}
-              >
-                $
+      <DashboardCard sx={distributionWizardMainCardSx}>
+        <Box sx={distributionWizardSectionHeader}>
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "flex-start",
+              justifyContent: "space-between",
+              gap: 2,
+              flexWrap: "wrap",
+            }}
+          >
+            <Box sx={{ minWidth: 0 }}>
+              <Typography variant="mediumLarge" color="white" fontWeight={600} sx={{ mb: 0.5 }}>
+                {cardTitle}
+              </Typography>
+              <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted }}>
+                Step {step} of {STEP_COUNT}
               </Typography>
             </Box>
-            <Typography variant="mediumLarge" color="white" fontWeight={600}>
-              {cardTitle}
-            </Typography>
+            {cardHeaderRight ? (
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: { xs: "stretch", md: "flex-end" },
+                  gap: 1.5,
+                  flex: { xs: "1 1 100%", md: "0 1 auto" },
+                  minWidth: 0,
+                  width: { xs: "100%", md: "auto" },
+                }}
+              >
+                {cardHeaderRight}
+              </Box>
+            ) : null}
           </Box>
-          {cardHeaderRight ? (
-            <Box
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: { xs: "stretch", md: "flex-end" },
-                gap: 1.5,
-                flex: { xs: "1 1 100%", md: "0 1 auto" },
-                minWidth: 0,
-                width: { xs: "100%", md: "auto" },
-              }}
-            >
-              {cardHeaderRight}
-            </Box>
-          ) : null}
         </Box>
 
-        {children}
+        <Box sx={distributionWizardSectionBody}>{children}</Box>
 
-        {footer != null && footer !== false ? <Box sx={distributionWizardCardFooter}>{footer}</Box> : null}
+        {footer != null && footer !== false ? (
+          <Box sx={distributionWizardCardFooter}>{footer}</Box>
+        ) : null}
       </DashboardCard>
     </Box>
   );

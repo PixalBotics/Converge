@@ -1,4 +1,10 @@
 import { getResolvedPublicApiBaseUrl } from "@/lib/public-api/resolved-base-url";
+import { WIDGET_FETCH_CREDENTIALS } from "./widget-fetch-credentials";
+import {
+  configRecordFromEnvelope,
+  hydrateExperienceInquiryFromBehavior,
+  parseWidgetExperienceV1,
+} from "./widget-experience";
 import type {
   AiVisitorRespondRequest,
   AiVisitorRespondResponse,
@@ -158,17 +164,49 @@ export function normalizePublicWidgetConfigEnvelope(
 ): WidgetConfigEnvelope {
   const o = isRecord(raw) ? raw : {};
 
-  const configParts: unknown[] = [
+  const experience =
+    parseWidgetExperienceV1(o.experience) ??
+    parseWidgetExperienceV1(isRecord(o.clientSettings) ? o.clientSettings._experience : null);
+
+  const legacyInquiryConfig = mergeWidgetConfigParts(
     o.config,
     o.configSnapshot,
-    isRecord(o.latestVersion) ? o.latestVersion.config : null,
     o.publishedConfig,
-    o.settingsJson,
-  ];
+  );
+  const experienceWithLegacyInquiry =
+    experience && isRecord(legacyInquiryConfig.behavior)
+      ? hydrateExperienceInquiryFromBehavior({
+          ...experience,
+          behavior: {
+            ...(isRecord(experience.behavior) ? experience.behavior : {}),
+            ...legacyInquiryConfig.behavior,
+          },
+        })
+      : experience;
 
-  let mergedConfig = mergeWidgetConfigParts(...configParts);
+  const configParts: unknown[] = experienceWithLegacyInquiry
+    ? []
+    : [o.config, o.configSnapshot, o.publishedConfig, o.settingsJson];
 
-  if (isRecord(mergedConfig.theme)) {
+  const themeDesignJson = isRecord(o.themeDesignJson)
+    ? o.themeDesignJson
+    : isRecord(o.theme_design_json)
+      ? o.theme_design_json
+      : undefined;
+
+  let mergedConfig = experienceWithLegacyInquiry
+    ? configRecordFromEnvelope({
+        experience: experienceWithLegacyInquiry,
+        chatMode:
+          typeof o.chatMode === "string"
+            ? o.chatMode
+            : typeof o.chat_mode === "string"
+              ? o.chat_mode
+              : undefined,
+      })
+    : mergeWidgetConfigParts(...configParts);
+
+  if (!experienceWithLegacyInquiry && isRecord(mergedConfig.theme)) {
     const theme = mergedConfig.theme;
     const dj = isRecord(theme.designJson) ? theme.designJson : null;
     if (dj) {
@@ -198,8 +236,6 @@ export function normalizePublicWidgetConfigEnvelope(
       "featureFlags",
       "feature_flags",
       "status",
-      "versionNo",
-      "version_no",
       "embedAllowAnyOrigin",
       "embed_allow_any_origin",
       "allowedDomains",
@@ -209,8 +245,12 @@ export function normalizePublicWidgetConfigEnvelope(
       "success",
       "data",
       "configSnapshot",
-      "latestVersion",
       "publishedConfig",
+      "themeDesignJson",
+      "theme_design_json",
+      "experience",
+      "embed",
+      "clientSettings",
     ]);
     const rest: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(o)) {
@@ -233,6 +273,8 @@ export function normalizePublicWidgetConfigEnvelope(
       ? (o.feature_flags as WidgetFeatureFlagsDto)
       : {};
 
+  const embedRaw = isRecord(o.embed) ? o.embed : null;
+
   return {
     widgetKey: String(o.widgetKey ?? o.widget_key ?? widgetKeyFallback),
     websiteId: String(o.websiteId ?? o.website_id ?? ""),
@@ -241,12 +283,6 @@ export function normalizePublicWidgetConfigEnvelope(
     featureFlags,
     embedAllowAnyOrigin:
       o.embedAllowAnyOrigin === true || o.embed_allow_any_origin === true,
-    versionNo:
-      typeof o.versionNo === "number"
-        ? o.versionNo
-        : typeof o.version_no === "number"
-          ? o.version_no
-          : undefined,
     status: String(o.status ?? "active"),
     allowedDomains: Array.isArray(o.allowedDomains)
       ? (o.allowedDomains as string[])
@@ -254,7 +290,26 @@ export function normalizePublicWidgetConfigEnvelope(
         ? (o.allowed_domains as string[])
         : undefined,
     chatMode,
-    config: Object.keys(mergedConfig).length > 0 ? mergedConfig : undefined,
+    experience: experienceWithLegacyInquiry ?? undefined,
+    embed: embedRaw
+      ? {
+          appOrigin:
+            typeof embedRaw.appOrigin === "string" ? embedRaw.appOrigin : null,
+          apiOrigin:
+            typeof embedRaw.apiOrigin === "string" ? embedRaw.apiOrigin : null,
+          scriptSrc:
+            typeof embedRaw.scriptSrc === "string" ? embedRaw.scriptSrc : null,
+          cdnOrigin:
+            typeof embedRaw.cdnOrigin === "string" ? embedRaw.cdnOrigin : null,
+        }
+      : undefined,
+    clientSettings: isRecord(o.clientSettings) ? o.clientSettings : undefined,
+    themeDesignJson,
+    /** Legacy fat snapshot; omitted when API returns `experience` only. */
+    config:
+      !experienceWithLegacyInquiry && Object.keys(mergedConfig).length > 0
+        ? mergedConfig
+        : undefined,
   };
 }
 
@@ -265,8 +320,6 @@ function parseWidgetSessionResponse(peeled: unknown): WidgetSessionResponse | nu
   const tokenCandidates = [
     r.sessionToken,
     r.session_token,
-    r.accessToken,
-    r.access_token,
     r.token,
     r.jwt,
     r.bearerToken,
@@ -302,6 +355,7 @@ async function fetchJsonPublic<T>(
   try {
     const res = await fetch(url, {
       ...init,
+      credentials: WIDGET_FETCH_CREDENTIALS,
       headers: {
         Accept: "application/json",
         "Content-Type": "application/json",
@@ -390,6 +444,7 @@ export async function postAiVisitorRespond(
   const base = getResolvedPublicApiBaseUrl();
   const res = await fetch(`${base}/ai/visitor/respond`, {
     method: "POST",
+    credentials: WIDGET_FETCH_CREDENTIALS,
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json",

@@ -234,7 +234,7 @@ export default function ChatWidgetPage() {
   const getButtonRadius = (shape: WidgetDraft["buttonShape"]) => {
     if (shape === "circle") return "50%";
     if (shape === "rounded") return "16px";
-    return "8px";
+    return "10px";
   };
 
   const renderAgentAvatar = (size = 30) =>
@@ -343,12 +343,17 @@ export default function ChatWidgetPage() {
           </Typography>
         ),
       },
-      { id: "publishedVersionNo", label: "Version", cellVariant: "muted" },
       {
         id: "statusLabel",
         label: "Status",
         render: (_v, row) => {
           const isPub = row.statusLabel.toLowerCase().includes("publish");
+          const isDraftPending = row.hasUnpublishedDraft === true;
+          const chipColor = isDraftPending
+            ? theme.palette.warning.main
+            : isPub
+              ? theme.palette.success.main
+              : theme.palette.warning.main;
           return (
             <Box
               component="span"
@@ -359,14 +364,8 @@ export default function ChatWidgetPage() {
                 px: 1.1,
                 py: 0.45,
                 borderRadius: "9999px",
-                bgcolor: alpha(
-                  isPub ? theme.palette.success.main : theme.palette.warning.main,
-                  theme.palette.mode === "light" ? 0.16 : 0.12,
-                ),
-                border: `1px solid ${alpha(
-                  isPub ? theme.palette.success.main : theme.palette.warning.main,
-                  theme.palette.mode === "light" ? 0.3 : 0.28,
-                )}`,
+                bgcolor: alpha(chipColor, theme.palette.mode === "light" ? 0.16 : 0.12),
+                border: `1px solid ${alpha(chipColor, theme.palette.mode === "light" ? 0.3 : 0.28)}`,
                 lineHeight: 1,
               }}
             >
@@ -376,7 +375,11 @@ export default function ChatWidgetPage() {
                 sx={{
                   fontWeight: 600,
                   fontSize: "0.75rem",
-                  color: isPub ? theme.palette.success.light : theme.palette.warning.light,
+                  color: isDraftPending
+                    ? theme.palette.warning.light
+                    : isPub
+                      ? theme.palette.success.light
+                      : theme.palette.warning.light,
                 }}
               >
                 {row.statusLabel}
@@ -458,7 +461,7 @@ export default function ChatWidgetPage() {
           columns={columns}
           rows={rowsForTable}
           getRowId={(row) => row.widgetKey || row.id}
-          minWidth={1380}
+          minWidth={1200}
           size="medium"
           actionColumn={{
             label: "Actions",

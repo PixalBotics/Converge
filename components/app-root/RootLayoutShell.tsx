@@ -1,12 +1,31 @@
 import type { ReactNode } from "react";
 import { mainBackgroundGradient } from "@/theme/theme";
 import { AppRootProviders } from "./AppRootProviders";
-import { rootFontFamilyCss } from "./root-fonts";
+import {
+  GOOGLE_FONTS_STYLESHEET_HREF,
+  rootFontFamilyCss,
+  shouldLoadGoogleFontsStylesheet,
+} from "./root-fonts";
 
 /** Server component: `<html>` / `<body>` + global shell styles; providers live in `AppRootProviders`. */
 export function RootLayoutShell({ children }: { children: ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
+      {/* App Router root layout: font preconnect/stylesheet belong in <head>. */}
+      {/* eslint-disable-next-line @next/next/no-head-element */}
+      <head>
+        {shouldLoadGoogleFontsStylesheet() ? (
+          <>
+            <link rel="preconnect" href="https://fonts.googleapis.com" />
+            <link
+              rel="preconnect"
+              href="https://fonts.gstatic.com"
+              crossOrigin="anonymous"
+            />
+            <link rel="stylesheet" href={GOOGLE_FONTS_STYLESHEET_HREF} />
+          </>
+        ) : null}
+      </head>
       <body
         suppressHydrationWarning
         style={{

@@ -1,10 +1,22 @@
 import type { ApiEnvelope } from "./auth.types";
 
-export interface PlatformThemeMeData {
+/** Matches GET/PATCH `/platform-theme/me` inner `data.theme`. */
+export interface PlatformThemeView {
   backgroundColor: string | null;
 }
 
+export interface PlatformThemeMeData {
+  theme: PlatformThemeView;
+}
+
 export type PlatformThemeMeEnvelope = ApiEnvelope<PlatformThemeMeData>;
+
+export function readPlatformThemeBackgroundColor(
+  envelope: PlatformThemeMeEnvelope | undefined,
+): string | null | undefined {
+  if (!envelope?.success) return undefined;
+  return envelope.data.theme?.backgroundColor ?? null;
+}
 
 /** PATCH body: omit `backgroundColor` to leave unchanged; `null` or `""` clears (per API). */
 export interface PlatformThemePatchBody {

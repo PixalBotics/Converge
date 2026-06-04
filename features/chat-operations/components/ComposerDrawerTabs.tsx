@@ -19,6 +19,11 @@ import type { CannedResponseRow } from "@/services/chat/chat-settings.types";
 import { CANNED_PERSONAL } from "../constants/canned-messages";
 import type { AiChatMessage } from "../types/ai-chat";
 import { useAgentCannedResponses } from "../hooks/useAgentCannedResponses";
+import {
+  AGENT_COPILOT_SUBTITLE,
+  AGENT_COPILOT_TAB_LABEL,
+  AGENT_COPILOT_TITLE,
+} from "@/lib/ai/ai-role-copy";
 import { AiAssistantDrawer } from "./AiAssistantDrawer";
 import {
   CannedReplyCard,
@@ -112,12 +117,35 @@ export function ComposerDrawerTabs({
   return (
     <ComposerFooterShell>
       <ComposerFooterInner>
+        {children}
+
+        <DrawerTabBar>
+          <DrawerTabButton
+            type="button"
+            variant="canned"
+            active={openDrawer === "canned"}
+            onClick={() => toggleDrawer("canned")}
+          >
+            <QuickreplyOutlined sx={{ fontSize: 17 }} />
+            Canned replies
+          </DrawerTabButton>
+          <DrawerTabButton
+            type="button"
+            variant="ai"
+            active={openDrawer === "ai"}
+            onClick={() => toggleDrawer("ai")}
+          >
+            <AutoAwesome sx={{ fontSize: 17 }} />
+            {AGENT_COPILOT_TAB_LABEL}
+          </DrawerTabButton>
+        </DrawerTabBar>
+
         <Collapse in={openDrawer !== null} timeout={200} unmountOnExit>
           <ComposerToolsPanel>
             {openDrawer === "canned" ? (
               <>
                 <ComposerToolsHeader>
-                  <QuickreplyOutlined sx={{ fontSize: 18, color: theme.app.dashboard.accentBlue }} />
+                  <QuickreplyOutlined sx={{ fontSize: 18, color: theme.app.dashboard.textMuted }} />
                   <Typography fontWeight={700} sx={{ fontSize: 14, flex: 1, color: theme.app.text.primary }}>
                     Canned replies
                   </Typography>
@@ -194,7 +222,7 @@ export function ComposerDrawerTabs({
                             variant="outlined"
                             size="small"
                             component={Link}
-                            href="/dashboard/chat-settings"
+                            href="/dashboard/chat-canned"
                           >
                             Manage canned messages
                           </Button>
@@ -263,16 +291,16 @@ export function ComposerDrawerTabs({
             {openDrawer === "ai" ? (
               <>
                 <ComposerToolsHeader>
-                  <AutoAwesome sx={{ fontSize: 18, color: theme.app.dashboard.accentViolet }} />
+                  <AutoAwesome sx={{ fontSize: 18, color: theme.app.dashboard.textMuted }} />
                   <Box sx={{ flex: 1, minWidth: 0 }}>
                     <Typography fontWeight={700} sx={{ fontSize: 14, color: theme.app.text.primary }}>
-                      AI assistant
+                      {AGENT_COPILOT_TITLE}
                     </Typography>
                     <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, fontSize: 11 }}>
-                      {aiBusy ? "Thinking…" : "Powered by conversation context"}
+                      {aiBusy ? "Thinking…" : AGENT_COPILOT_SUBTITLE}
                     </Typography>
                   </Box>
-                  <IconButton size="small" aria-label="Close AI assistant" onClick={closeDrawer}>
+                  <IconButton size="small" aria-label="Close agent copilot" onClick={closeDrawer}>
                     <CloseRounded sx={{ fontSize: 18 }} />
                   </IconButton>
                 </ComposerToolsHeader>
@@ -287,35 +315,13 @@ export function ComposerDrawerTabs({
                     disabled={aiDisabled}
                     websiteRequiredDisabled={websiteRequiredDisabled}
                     hasConversation={hasConversation}
+                    embedded
                   />
                 </ComposerToolsBody>
               </>
             ) : null}
           </ComposerToolsPanel>
         </Collapse>
-
-        {children}
-
-        <DrawerTabBar>
-          <DrawerTabButton
-            type="button"
-            variant="canned"
-            active={openDrawer === "canned"}
-            onClick={() => toggleDrawer("canned")}
-          >
-            <QuickreplyOutlined sx={{ fontSize: 17 }} />
-            Canned
-          </DrawerTabButton>
-          <DrawerTabButton
-            type="button"
-            variant="ai"
-            active={openDrawer === "ai"}
-            onClick={() => toggleDrawer("ai")}
-          >
-            <AutoAwesome sx={{ fontSize: 17 }} />
-            AI assist
-          </DrawerTabButton>
-        </DrawerTabBar>
       </ComposerFooterInner>
     </ComposerFooterShell>
   );

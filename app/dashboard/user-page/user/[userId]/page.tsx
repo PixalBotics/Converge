@@ -49,8 +49,8 @@ export default function UserDetailPage() {
   const params = useParams<{ userId: string }>();
   const userId = typeof params?.userId === "string" ? params.userId : "";
 
-  const { hasOperational } = useAuth();
-  const canUseLoginAs = hasOperational("user:login-as");
+  const { hasOperational, isImpersonating } = useAuth();
+  const canUseLoginAs = hasOperational("user:login-as") && !isImpersonating;
   const canEditUser = hasOperational("user:update") || hasOperational("user:edit");
 
   const [isEditOpen, setIsEditOpen] = useState(false);

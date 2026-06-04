@@ -10,6 +10,20 @@ export const dashboardMainTextSx: SxProps<Theme> = (theme) => ({
   fontSize: 14,
 });
 
+/**
+ * Agent inbox / monitor — start directly under dashboard header; no page scroll (panes scroll inside).
+ */
+export const dashboardChatWorkstationMainSx: SxProps<Theme> = {
+  flex: 1,
+  minHeight: 0,
+  height: "100%",
+  display: "flex",
+  flexDirection: "column",
+  overflow: "hidden",
+  py: 0,
+  px: { xs: 0, sm: 0.5, md: 1 },
+};
+
 /** Frosted main column when `mainBackdropBlur` is set on the theme. */
 export const dashboardMainGlassSx: SxProps<Theme> = (theme) => {
   const app = (theme as AppTheme).app;

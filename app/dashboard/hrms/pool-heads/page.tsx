@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Box from "@mui/material/Box";
-import Chip from "@mui/material/Chip";
 import Checkbox from "@mui/material/Checkbox";
 import IconButton from "@mui/material/IconButton";
 import Table from "@mui/material/Table";
@@ -26,12 +25,14 @@ import {
   DataTable,
   FormModal,
   InputField,
+  SearchBar,
   SegmentedControl,
   SelectField,
   TablePagination,
   ToolbarFilterPopover,
   ToolbarFilterPopoverPanel,
   Typography,
+  UserTypeBadge,
   dataTableActionButton,
 } from "@/components/common";
 import type { DataTableColumn } from "@/components/common";
@@ -52,29 +53,42 @@ import {
   useDepartmentsListQuery,
   usePoolHeadsAttendanceQuery,
   usePoolHeadsListQuery,
+  usePoolMembersListQuery,
   usePoolsListQuery,
   useRemovePoolHeadMutation,
-  useUsersListQuery,
 } from "@/lib/hooks/query";
 import {
   extractParentCompaniesFromByResellerTree,
   pickItemsArray,
   toIdNameOption,
 } from "@/app/dashboard/user-page/components/add-user-modal.utils";
-import { extractUsersRows } from "@/app/dashboard/user-page/utils";
-import type { UserRow } from "@/app/dashboard/user-page/types";
 import { useAuth, sessionMayPickInternalUserScope } from "@/lib/auth";
 import { canManagePoolHeads, canRemovePoolHead } from "@/lib/permissions";
+import { resolveUserKind, type UserKind } from "@/lib/hrms/user-kind";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
 import {
   departmentsCardHeader,
+  departmentsSearchFieldWrapper,
   departmentsSearchRow,
 } from "@/app/dashboard/website-assigning/website-assigning.styles";
 
 const PAGE_LIMIT = 12;
 const ASSIGN_USER_TABLE_MAX_PX = 340;
 
-type UserKind = "Internal" | "External" | "—";
+type AssignPoolMemberRow = {
+  id: string;
+  user: string;
+  email: string;
+  department: string;
+};
+
+function poolMemberDisplayName(r: Record<string, unknown>): string {
+  const first = pickStr(r, ["firstName", "first_name"]) || "";
+  const last = pickStr(r, ["lastName", "last_name"]) || "";
+  const joined = `${first} ${last}`.trim();
+  if (joined) return joined;
+  return pickStr(r, ["name", "fullName", "userName"]) || "—";
+}
 
 type PoolHeadRow = {
   id: string;
@@ -99,6 +113,7 @@ type AttendanceRow = {
   resellerId: string;
   resellerName: string;
   parentCompanyId: string;
+  parentCompanyName: string;
   poolName: string;
   date: string;
   status: string;
@@ -132,12 +147,6 @@ function extractTotalPages(data: unknown): number {
 function formatScopeId(value: string | undefined): string {
   const v = (value ?? "").trim();
   return v || "—";
-}
-
-function parseUserKind(raw: string | undefined): UserKind {
-  const t = (raw ?? "").trim();
-  if (t === "Internal" || t === "External") return t;
-  return "—";
 }
 
 function mapPoolHeadItem(r: Record<string, unknown>, idx: number): PoolHeadRow | null {
@@ -175,7 +184,9 @@ function mapPoolHeadItem(r: Record<string, unknown>, idx: number): PoolHeadRow |
     "—";
   const userEmail = pickStr(user, ["email"]) || pickStr(r, ["userEmail", "email"]) || "—";
   const rawType = pickStr(user, ["userType", "type", "user_type"]) || pickStr(r, ["userType", "user_type"]);
-  const userType = parseUserKind(rawType);
+  const deptType =
+    pickStr(poolDepartment, ["type"]) || pickStr(dept, ["type"]) || pickStr(r, ["departmentType"]);
+  const userType = resolveUserKind(rawType, deptType);
   const resellerId = formatScopeId(
     pickStr(r, ["resellerId"]) ||
       pickStr(user, ["resellerId", "reseller_id"]) ||
@@ -281,6 +292,8 @@ export default function PoolHeadsPage() {
   );
   const [assignExternalResellerId, setAssignExternalResellerId] = useState("");
   const [assignExternalParentCompanyId, setAssignExternalParentCompanyId] = useState("");
+  const [assignMemberSearchInput, setAssignMemberSearchInput] = useState("");
+  const [assignMemberSearchApplied, setAssignMemberSearchApplied] = useState("");
 
   const filterAllDeptsQuery = useDepartmentsListQuery(
     filterDeptKind === "all" ? { all: true } : undefined,
@@ -540,32 +553,42 @@ export default function PoolHeadsPage() {
     assignExternalParentCompanyId,
   ]);
 
-  const assignUsersQuery = useUsersListQuery(
-    assignOpen &&
-      assignDepartmentId.trim() &&
-      (assignUserTypeFilter === "Internal" ||
-        (Boolean(assignExternalResellerId.trim()) && Boolean(assignExternalParentCompanyId.trim())))
-      ? {
-          all: true,
-          userType: assignUserTypeFilter,
-          ...(assignUserTypeFilter === "External"
-            ? { resellerId: assignExternalResellerId.trim(), parentCompanyId: assignExternalParentCompanyId.trim() }
-            : {}),
-          departmentId: assignDepartmentId.trim(),
-        }
-      : undefined,
-    {
-      enabled:
-        assignOpen &&
-        Boolean(assignDepartmentId.trim()) &&
-        (assignUserTypeFilter === "Internal" ||
-          (Boolean(assignExternalResellerId.trim()) && Boolean(assignExternalParentCompanyId.trim()))),
-    },
+  const assignPoolMembersParams = useMemo(
+    () => ({
+      all: true,
+      ...(assignMemberSearchApplied.trim() ? { search: assignMemberSearchApplied.trim() } : {}),
+    }),
+    [assignMemberSearchApplied],
   );
 
-  const filteredAssignUserRows = useMemo((): UserRow[] => extractUsersRows(assignUsersQuery.data), [assignUsersQuery.data]);
+  const assignPoolMembersQuery = usePoolMembersListQuery(assignPoolId.trim() || undefined, assignPoolMembersParams, {
+    enabled: assignOpen && Boolean(assignPoolId.trim()),
+    scope: "pool-heads-assign-members",
+  });
 
-  const assignUsersLoading = assignUsersQuery.isLoading || assignUsersQuery.isFetching;
+  const filteredAssignUserRows = useMemo((): AssignPoolMemberRow[] => {
+    return extractItems(assignPoolMembersQuery.data)
+      .map((r) => {
+        const id = pickStr(r, ["id", "userId"]) || "";
+        if (!id) return null;
+        const poolDept = isRecord(r["pool"]) ? (r["pool"] as Record<string, unknown>) : null;
+        const nestedDept =
+          poolDept && isRecord(poolDept["department"]) ? (poolDept["department"] as Record<string, unknown>) : null;
+        return {
+          id,
+          user: poolMemberDisplayName(r),
+          email: pickStr(r, ["email"]) || "—",
+          department:
+            pickStr(r, ["poolDepartmentName"]) ||
+            pickStr(nestedDept, ["name"]) ||
+            pickStr(r, ["departmentName"]) ||
+            "—",
+        };
+      })
+      .filter((x): x is AssignPoolMemberRow => x !== null);
+  }, [assignPoolMembersQuery.data]);
+
+  const assignUsersLoading = assignPoolMembersQuery.isLoading || assignPoolMembersQuery.isFetching;
 
   /** Department without pool: fetch all in scope then filter/paginate client-side (API has no departmentId on list). */
   const poolHeadsClientPaging = Boolean(departmentId.trim() && !poolId.trim());
@@ -643,25 +666,52 @@ export default function PoolHeadsPage() {
       const employeeName =
         pick(userNested ?? row, ["employeeName", "userName", "name", "firstName"]) || "—";
       const rawType = pickStr(userNested, ["userType", "type"]) || pickStr(row, ["userType", "user_type"]);
-      const userType = parseUserKind(rawType);
-      const resellerId = formatScopeId(pickStr(row, ["resellerId"]) || pickStr(userNested, ["resellerId"]));
       const poolNested = isRecord(row["pool"]) ? (row["pool"] as Record<string, unknown>) : null;
+      const userPoolNested =
+        userNested && isRecord(userNested["pool"]) ? (userNested["pool"] as Record<string, unknown>) : null;
       const poolDepartment =
-        poolNested && isRecord(poolNested["department"]) ? (poolNested["department"] as Record<string, unknown>) : null;
+        (poolNested && isRecord(poolNested["department"]) ? (poolNested["department"] as Record<string, unknown>) : null) ??
+        (userPoolNested && isRecord(userPoolNested["department"])
+          ? (userPoolNested["department"] as Record<string, unknown>)
+          : null);
+      const userType = resolveUserKind(
+        rawType,
+        pickStr(poolDepartment, ["type"]),
+      );
       const poolReseller =
         poolDepartment && isRecord(poolDepartment["reseller"])
           ? (poolDepartment["reseller"] as Record<string, unknown>)
           : null;
+      const poolParentCompany =
+        poolDepartment && isRecord(poolDepartment["parentCompany"])
+          ? (poolDepartment["parentCompany"] as Record<string, unknown>)
+          : null;
+      const userParentCompany =
+        userNested && isRecord(userNested["parentCompany"])
+          ? (userNested["parentCompany"] as Record<string, unknown>)
+          : null;
+      const resellerId = formatScopeId(
+        pickStr(row, ["resellerId"]) ||
+          pickStr(userNested, ["resellerId"]) ||
+          pickStr(poolReseller, ["id"]),
+      );
       const resellerName =
         pickStr(row, ["resellerName"]) ||
         pickStr(poolReseller, ["name"]) ||
         "—";
       const parentCompanyId = formatScopeId(
         pickStr(row, ["parentCompanyId", "parent_company_id"]) ||
-          pickStr(userNested, ["parentCompanyId", "parent_company_id"]),
+          pickStr(userNested, ["parentCompanyId", "parent_company_id"]) ||
+          pickStr(userParentCompany, ["id"]) ||
+          pickStr(poolParentCompany, ["id"]),
       );
+      const parentCompanyName =
+        pickStr(row, ["parentCompanyName"]) ||
+        pickStr(userParentCompany, ["name"]) ||
+        pickStr(poolParentCompany, ["name"]) ||
+        "—";
       const poolName =
-        pick(isRecord(poolNested) ? (poolNested as Record<string, unknown>) : row, ["name", "poolName"]) ||
+        pick(isRecord(poolNested) ? poolNested : userPoolNested ?? row, ["name", "poolName"]) ||
         pick(row, ["poolName"]) ||
         "—";
       return {
@@ -671,6 +721,7 @@ export default function PoolHeadsPage() {
         resellerId,
         resellerName,
         parentCompanyId,
+        parentCompanyName,
         poolName,
         date: pick(row, ["date", "day", "attendanceDate"]) || "—",
         status: pick(row, ["status"]) || "—",
@@ -722,21 +773,31 @@ export default function PoolHeadsPage() {
 
   const columns = useMemo<DataTableColumn<PoolHeadRow>[]>(
     () => [
+      {
+        id: "userType",
+        label: "Type",
+        render: (_v, row) => <UserTypeBadge value={row.userType} />,
+      },
+      { id: "userName", label: "User" },
+      { id: "userEmail", label: "Email" },
       { id: "resellerName", label: "Reseller" },
       { id: "parentCompanyName", label: "Parent company" },
       { id: "departmentName", label: "Department" },
       { id: "designationName", label: "Designation" },
       { id: "poolName", label: "Pool" },
-      { id: "userName", label: "User" },
-      { id: "userEmail", label: "Email" },
     ],
     [],
   );
 
   const attendanceColumns = useMemo<DataTableColumn<AttendanceRow>[]>(
     () => [
+      {
+        id: "userType",
+        label: "Type",
+        render: (_v, row) => <UserTypeBadge value={row.userType} />,
+      },
       { id: "resellerName", label: "Reseller" },
-      { id: "parentCompanyId", label: "Parent company ID" },
+      { id: "parentCompanyName", label: "Parent company" },
       { id: "employeeName", label: "Member" },
       { id: "poolName", label: "Pool" },
       { id: "date", label: "Date (UTC)" },
@@ -768,6 +829,8 @@ export default function PoolHeadsPage() {
     setAssignUserTypeFilter(mayPickInternalScope ? "Internal" : "External");
     setAssignExternalResellerId("");
     setAssignExternalParentCompanyId("");
+    setAssignMemberSearchInput("");
+    setAssignMemberSearchApplied("");
   };
 
   useEffect(() => {
@@ -1055,8 +1118,8 @@ export default function PoolHeadsPage() {
         title="Assign pool head"
         description={
           mayPickInternalScope
-            ? "Choose user type, department, and pool (all required). Users load by department only — assigning a head does not change pool membership. For External, select reseller and parent company first."
-            : "External only: reseller, parent company, department, pool, then one user from the department list."
+            ? "Choose user type, department, and pool (all required). Only members of the selected pool are listed. For External, select reseller and parent company first."
+            : "External only: reseller, parent company, department, pool, then pick one member from that pool."
         }
         onClose={() => {
           if (assignMutation.isPending) return;
@@ -1140,6 +1203,8 @@ export default function PoolHeadsPage() {
               setAssignDepartmentId("");
               setAssignPoolId("");
               setAssignUserId("");
+              setAssignMemberSearchInput("");
+              setAssignMemberSearchApplied("");
               if (next !== "External") {
                 setAssignExternalResellerId("");
                 setAssignExternalParentCompanyId("");
@@ -1159,6 +1224,8 @@ export default function PoolHeadsPage() {
                   setAssignDepartmentId("");
                   setAssignPoolId("");
                   setAssignUserId("");
+                  setAssignMemberSearchInput("");
+                  setAssignMemberSearchApplied("");
                 }}
                 options={assignResellerOptions}
                 menuMaxRows={8}
@@ -1171,6 +1238,8 @@ export default function PoolHeadsPage() {
                   setAssignDepartmentId("");
                   setAssignPoolId("");
                   setAssignUserId("");
+                  setAssignMemberSearchInput("");
+                  setAssignMemberSearchApplied("");
                 }}
                 options={assignParentCompanyOptions}
                 searchable
@@ -1189,6 +1258,8 @@ export default function PoolHeadsPage() {
                 setAssignDepartmentId(v);
                 setAssignPoolId("");
                 setAssignUserId("");
+                setAssignMemberSearchInput("");
+                setAssignMemberSearchApplied("");
               }}
               options={assignDepartmentOptions}
               searchable
@@ -1202,8 +1273,12 @@ export default function PoolHeadsPage() {
               onChange={(v) => {
                 setAssignPoolId(v);
                 setAssignUserId("");
+                setAssignMemberSearchInput("");
+                setAssignMemberSearchApplied("");
               }}
               options={assignPoolOptions}
+              searchable
+              searchPlaceholder="Search pool…"
               menuMaxRows={12}
               disabled={!assignDepartmentId.trim()}
             />
@@ -1214,15 +1289,41 @@ export default function PoolHeadsPage() {
               <Box sx={rolesIconBox}>
                 <PersonIcon sx={{ fontSize: 20, color: theme.app.dashboard.white95 }} />
               </Box>
-              <Box>
+              <Box sx={{ minWidth: 0, flex: 1 }}>
                 <Typography variant="mediumLarge" fontWeight={600} color="white">
-                  User List
+                  Pool members
                 </Typography>
                 <Typography variant="caption" sx={{ display: "block", color: theme.app.dashboard.textMuted }}>
-                  Loads after department is selected. Pick a pool above, then one user (pool head only — not pool membership).
+                  {assignPoolId.trim()
+                    ? "Only members of the selected pool. The chosen user becomes pool head (removed from the member roster)."
+                    : "Select a pool above to load members."}
                 </Typography>
               </Box>
             </Box>
+            {assignPoolId.trim() ? (
+              <Box sx={[departmentsSearchRow, { mb: 1.25, width: "100%" }] as SxProps<Theme>}>
+                <Box sx={[departmentsSearchFieldWrapper, { flex: "1 1 auto", minWidth: 0 }] as SxProps<Theme>}>
+                  <SearchBar
+                    placeholder="Search name or email…"
+                    value={assignMemberSearchInput}
+                    onChange={setAssignMemberSearchInput}
+                    sx={{ width: "100%" }}
+                  />
+                </Box>
+                <Button
+                  type="button"
+                  variant="outlined"
+                  disabled={assignUsersLoading}
+                  onClick={() => {
+                    setAssignMemberSearchApplied(assignMemberSearchInput);
+                    setAssignUserId("");
+                  }}
+                  sx={{ minWidth: 96, whiteSpace: "nowrap", alignSelf: { xs: "stretch", sm: "center" } }}
+                >
+                  Search
+                </Button>
+              </Box>
+            ) : null}
             <TableContainer
               sx={{
                 maxHeight: ASSIGN_USER_TABLE_MAX_PX,
@@ -1231,20 +1332,28 @@ export default function PoolHeadsPage() {
                 bgcolor: theme.app.dashboard.overlayLight,
               }}
             >
-              {assignUsersLoading ? (
+              {!assignPoolId.trim() ? (
                 <Box sx={{ p: 1.5 }}>
                   <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted }}>
-                    Loading users…
+                    Select a pool to see members you can assign as pool head.
+                  </Typography>
+                </Box>
+              ) : assignUsersLoading ? (
+                <Box sx={{ p: 1.5 }}>
+                  <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted }}>
+                    Loading pool members…
                   </Typography>
                 </Box>
               ) : filteredAssignUserRows.length === 0 ? (
                 <Box sx={{ p: 1.5 }}>
                   <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted }}>
-                    No users for this filter. Try another type or department.
+                    {assignMemberSearchApplied.trim()
+                      ? "No members match your search. Try another name or email."
+                      : "This pool has no members yet. Add members on the Pools page, then assign a pool head."}
                   </Typography>
                 </Box>
               ) : (
-                <Table size="small" stickyHeader sx={{ minWidth: 720 }}>
+                <Table size="small" stickyHeader sx={{ minWidth: 480 }}>
                   <TableHead>
                     <TableRow>
                       <TableCell padding="checkbox" sx={{ bgcolor: theme.app.dashboard.overlayLight, width: 48 }} />
@@ -1257,18 +1366,7 @@ export default function PoolHeadsPage() {
                           py: 0.75,
                         }}
                       >
-                        Type
-                      </TableCell>
-                      <TableCell
-                        sx={{
-                          bgcolor: theme.app.dashboard.overlayLight,
-                          color: theme.app.dashboard.textMuted,
-                          fontWeight: 600,
-                          fontSize: 11,
-                          py: 0.75,
-                        }}
-                      >
-                        User
+                        Member
                       </TableCell>
                       <TableCell
                         sx={{
@@ -1280,28 +1378,6 @@ export default function PoolHeadsPage() {
                         }}
                       >
                         Department
-                      </TableCell>
-                      <TableCell
-                        sx={{
-                          bgcolor: theme.app.dashboard.overlayLight,
-                          color: theme.app.dashboard.textMuted,
-                          fontWeight: 600,
-                          fontSize: 11,
-                          py: 0.75,
-                        }}
-                      >
-                        Reseller ID
-                      </TableCell>
-                      <TableCell
-                        sx={{
-                          bgcolor: theme.app.dashboard.overlayLight,
-                          color: theme.app.dashboard.textMuted,
-                          fontWeight: 600,
-                          fontSize: 11,
-                          py: 0.75,
-                        }}
-                      >
-                        Parent co. ID
                       </TableCell>
                     </TableRow>
                   </TableHead>
@@ -1330,15 +1406,6 @@ export default function PoolHeadsPage() {
                               }}
                             />
                           </TableCell>
-                          <TableCell sx={{ verticalAlign: "middle" }}>
-                            <Chip
-                              size="small"
-                              label={row.type}
-                              color={row.type === "Internal" ? "primary" : "secondary"}
-                              variant="outlined"
-                              sx={{ borderColor: "rgba(255,255,255,0.35)" }}
-                            />
-                          </TableCell>
                           <TableCell sx={{ color: "white" }}>
                             <Typography variant="body2" fontWeight={600} color="white" noWrap>
                               {row.user}
@@ -1347,16 +1414,16 @@ export default function PoolHeadsPage() {
                               {row.email}
                             </Typography>
                           </TableCell>
-                          <TableCell sx={{ color: theme.app.dashboard.textMuted, maxWidth: 160 }}>{row.department}</TableCell>
-                          <TableCell sx={{ color: theme.app.dashboard.textMuted, maxWidth: 120, fontSize: 11 }}>
-                            <Typography variant="caption" noWrap component="span" display="block">
-                              {row.resellerId ?? "—"}
-                            </Typography>
-                          </TableCell>
-                          <TableCell sx={{ color: theme.app.dashboard.textMuted, maxWidth: 120, fontSize: 11 }}>
-                            <Typography variant="caption" noWrap component="span" display="block">
-                              {row.parentCompanyId ?? "—"}
-                            </Typography>
+                          <TableCell
+                            sx={{
+                              color: theme.app.dashboard.textMuted,
+                              maxWidth: 200,
+                              whiteSpace: "nowrap",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                            }}
+                          >
+                            {row.department}
                           </TableCell>
                         </TableRow>
                       );

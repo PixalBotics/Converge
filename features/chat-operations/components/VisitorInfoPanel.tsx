@@ -44,18 +44,22 @@ import {
 interface VisitorInfoPanelProps {
   visitor: Record<string, unknown> | null;
   conversationId: string | null;
+  websiteId?: string | null;
   conversationMeta?: Record<string, unknown> | null;
   visitorPresentation?: AgentVisitorPresentation | null;
   assignedAgentId?: string | null;
   currentUserId?: string;
   hasOperational: (p: string) => boolean;
   supervisorRefreshToken?: number;
+  onSupervisorActivity?: (payload?: unknown) => void;
   supervisorReadOnly?: boolean;
   showWebsiteFallback?: boolean;
   fallbackWebsiteId?: string;
   onFallbackWebsiteIdChange?: (value: string) => void;
   onCloseChat?: () => void | Promise<void>;
   closeDisabled?: boolean;
+  /** Monitor workstation renders supervisor tools in a separate column strip. */
+  hideSupervisorTools?: boolean;
 }
 
 function DetailField({ label, value }: { label: string; value: string }) {
@@ -84,18 +88,21 @@ function accordionSx(theme: AppTheme): object {
 export function VisitorInfoPanel({
   visitor,
   conversationId,
+  websiteId = null,
   conversationMeta,
   visitorPresentation = null,
   assignedAgentId = null,
   currentUserId,
   hasOperational,
   supervisorRefreshToken = 0,
+  onSupervisorActivity,
   supervisorReadOnly = false,
   showWebsiteFallback = false,
   fallbackWebsiteId = "",
   onFallbackWebsiteIdChange,
   onCloseChat,
   closeDisabled = false,
+  hideSupervisorTools = false,
 }: VisitorInfoPanelProps) {
   const theme = useTheme() as AppTheme;
   const parsed = parseVisitorInfo(visitor, conversationMeta ?? undefined);
@@ -184,6 +191,14 @@ export function VisitorInfoPanel({
               </Box>
             ) : null}
           </ProfileHeroCard>
+
+          <Box sx={{ px: 2, pb: 1 }}>
+            <GuestLinkPanel
+              conversationId={conversationId}
+              hasOperational={hasOperational}
+              disabled={supervisorReadOnly || closeDisabled}
+            />
+          </Box>
 
           <Accordion
             expanded={expanded === "contact"}
@@ -314,15 +329,7 @@ export function VisitorInfoPanel({
             </Accordion>
           ) : null}
 
-          <Box sx={{ px: 2, pb: 1 }}>
-            <GuestLinkPanel
-              conversationId={conversationId}
-              hasOperational={hasOperational}
-              disabled={supervisorReadOnly || closeDisabled}
-            />
-          </Box>
-
-          {supervisorEnabled ? (
+          {supervisorEnabled && !hideSupervisorTools ? (
             <Box sx={{ px: 2, pb: 1 }}>
               <SupervisorToolsPanel
                 conversationId={conversationId}

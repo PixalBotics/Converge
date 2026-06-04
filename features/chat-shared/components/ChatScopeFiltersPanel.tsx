@@ -3,7 +3,7 @@
 import Box from "@mui/material/Box";
 import { Button, Calendar, SelectField, Typography } from "@/components/common";
 import type { ChatScopeFilterState } from "../types";
-import { chatLiveFilterGridSx, chatLiveFilterHintSx } from "../styles/chat-live.styles";
+import { websiteAssignmentFilterGrid } from "@/app/dashboard/website-assigning/website-assigning.styles";
 
 interface ChatScopeFiltersPanelProps {
   filters: ChatScopeFilterState;
@@ -22,6 +22,8 @@ interface ChatScopeFiltersPanelProps {
   poolOptions?: Array<{ value: string; label: string }>;
   statusOptions?: Array<{ value: string; label: string }>;
   hint?: string;
+  /** Slim toolbar layout for settings pages (no caption hint). */
+  compact?: boolean;
 }
 
 export function ChatScopeFiltersPanel({
@@ -41,15 +43,26 @@ export function ChatScopeFiltersPanel({
   poolOptions = [{ value: "", label: "All pools" }],
   statusOptions = [{ value: "", label: "All statuses" }],
   hint,
+  compact = false,
 }: ChatScopeFiltersPanelProps) {
   return (
     <Box>
-      {hint ? (
-        <Typography component="p" sx={chatLiveFilterHintSx}>
+      {hint && !compact ? (
+        <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, display: "block", mb: 1 }}>
           {hint}
         </Typography>
       ) : null}
-      <Box sx={chatLiveFilterGridSx}>
+      <Box
+        sx={{
+          ...websiteAssignmentFilterGrid,
+          ...(compact
+            ? {
+                gap: 1.25,
+                "& .MuiFormControl-root": { minWidth: 0 },
+              }
+            : {}),
+        }}
+      >
         {canFilterByResellerId ? (
           <SelectField
             label="Reseller"
@@ -124,9 +137,16 @@ export function ChatScopeFiltersPanel({
           </>
         ) : null}
       </Box>
-      <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 1.25, gap: 1 }}>
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "flex-end",
+          mt: compact ? 0.75 : 1.25,
+          gap: 1,
+        }}
+      >
         <Button type="button" variant="secondary" size="small" onClick={onReset}>
-          Reset filters
+          Reset
         </Button>
       </Box>
     </Box>

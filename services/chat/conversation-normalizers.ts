@@ -18,6 +18,13 @@ export function normalizeConversationSummary(raw: unknown): ConversationSummary 
       : typeof o.website_id === "string"
         ? o.website_id
         : undefined;
+  const agentIdRaw =
+    typeof o.assignedAgentId === "string"
+      ? o.assignedAgentId
+      : typeof o.agentId === "string"
+        ? o.agentId
+        : null;
+  const assignedAgentId = agentIdRaw?.trim() || null;
   const visitorPresentation =
     typeof o.visitorPresentation === "object" && o.visitorPresentation !== null
       ? (o.visitorPresentation as AgentVisitorPresentation)
@@ -27,6 +34,9 @@ export function normalizeConversationSummary(raw: unknown): ConversationSummary 
     id,
     conversationId: id || undefined,
     websiteId,
+    ...(assignedAgentId
+      ? { assignedAgentId, agentId: assignedAgentId }
+      : {}),
     ...(visitorPresentation ? { visitorPresentation } : {}),
   };
 }
@@ -58,7 +68,15 @@ export function normalizeConversationHistoryPayload(
     ([] as RawChatMessagePayload[]);
 
   const messages = rawMsgs
-    .map((m) => normalizeServerMessage(m))
+    .map((m) =>
+      normalizeServerMessage({
+        ...m,
+        conversationId:
+          (m as Record<string, unknown>).conversationId ??
+          (m as Record<string, unknown>).conversation_id ??
+          cid,
+      }),
+    )
     .filter((m): m is NonNullable<typeof m> => Boolean(m));
 
   const visitor =

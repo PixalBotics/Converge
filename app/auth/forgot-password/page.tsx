@@ -1,12 +1,19 @@
 "use client";
 
+import { useState } from "react";
 import { useForm, Controller } from "react-hook-form";
+import { useRouter } from "next/navigation";
+import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
 import Stack from "@mui/material/Stack";
 import { useTheme } from "@mui/material/styles";
 import type { SxProps, Theme } from "@mui/material/styles";
+import { requestPasswordReset } from "@/api/auth/auth.api";
 import { Button, InputField } from "@/components/common";
-import { getAuthEmailRules, isForgotPasswordOtpApiEnabled } from "@/lib/auth";
+import {
+  getAuthEmailRules,
+  setPasswordResetEmail,
+} from "@/lib/auth";
 import { AuthNavigationLink } from "../_components/AuthNavigationLink";
 import { AUTH_PATHS } from "../constants";
 import { useAuthPublicOnlyRoute } from "../use-auth-public-only-route";
@@ -27,8 +34,9 @@ const defaultValues: ForgotFormValues = { email: "" };
 
 export default function ForgotPasswordPage() {
   const theme = useTheme();
+  const router = useRouter();
   const block = useAuthPublicOnlyRoute();
-  const apiEnabled = isForgotPasswordOtpApiEnabled();
+  const [infoMessage, setInfoMessage] = useState<string | null>(null);
 
   const {
     control,
@@ -40,17 +48,18 @@ export default function ForgotPasswordPage() {
     reValidateMode: "onChange",
   });
 
-  const onSubmit = async () => {
-    if (!apiEnabled) {
-      return;
-    }
-    // TODO: call forgot-password / send OTP API when backend is ready
+  const onSubmit = async (values: ForgotFormValues) => {
+    const email = values.email.trim().toLowerCase();
+    const message = await requestPasswordReset({ email });
+    setPasswordResetEmail(email);
+    setInfoMessage(message);
+    router.push(
+      `${AUTH_PATHS.verifyCode}?email=${encodeURIComponent(email)}`,
+    );
   };
 
-  /** Valid email shape + OTP API flag (until then button stays disabled). */
-  const canSendOtp = isValid && apiEnabled;
   const disableForm = block;
-  const disableSubmit = disableForm || !canSendOtp || isSubmitting;
+  const disableSubmit = disableForm || !isValid || isSubmitting;
 
   return (
     <Box
@@ -60,6 +69,10 @@ export default function ForgotPasswordPage() {
       sx={authFormColumnSx}
     >
       <Stack spacing={2} sx={formStackStyles}>
+        {infoMessage ? (
+          <Alert severity="info">{infoMessage}</Alert>
+        ) : null}
+
         <Controller
           name="email"
           control={control}

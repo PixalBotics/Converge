@@ -13,7 +13,9 @@ import {
   releaseDirectSupervisorControl,
   sendSupervisorControlMessage,
   startDirectSupervisorControl,
+  supervisorCloseConversation,
 } from "@/services/chat/supervisor.api";
+import { canSupervisorCloseChat } from "@/lib/permissions/chat-access";
 
 interface MonitorActionsPanelProps {
   conversationId: string | null;
@@ -21,7 +23,7 @@ interface MonitorActionsPanelProps {
   currentUserId: string | null | undefined;
   hasOperational: (p: string) => boolean;
   readOnly?: boolean;
-  onActionComplete?: () => void;
+  onActionComplete?: (payload?: unknown) => void;
   onMessageSent?: () => void;
 }
 
@@ -43,6 +45,8 @@ export function MonitorActionsPanel({
 
   const [whisperText, setWhisperText] = useState("");
   const [controlMessage, setControlMessage] = useState("");
+  const [closeReason, setCloseReason] = useState("");
+  const [closeDialogOpen, setCloseDialogOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
 
@@ -52,6 +56,8 @@ export function MonitorActionsPanel({
     Boolean(supervisorControlUserId) &&
     Boolean(currentUserId) &&
     supervisorControlUserId === currentUserId;
+
+  const canClose = canSupervisorCloseChat(hasOperational);
 
   const run = async (fn: () => Promise<void>) => {
     setBusy(true);
@@ -85,7 +91,7 @@ export function MonitorActionsPanel({
       <ChatSideToolCard
         accent="supervisor"
         title="Monitor actions"
-        subtitle="Whisper to the assigned agent, take direct control, or request a transfer while monitoring."
+        subtitle="Whisper to the assigned agent or take direct control while monitoring."
       >
         <InputField
           label="Whisper to agent"
@@ -121,8 +127,12 @@ export function MonitorActionsPanel({
             disabled={busy}
             onClick={() =>
               void run(async () => {
-                await startDirectSupervisorControl(conversationId);
+                const ctrl = await startDirectSupervisorControl(conversationId);
                 setStatus("You are controlling this chat. The assigned agent is read-only.");
+                onActionComplete?.({
+                  conversationId,
+                  supervisorControlUserId: ctrl.supervisorControlUserId,
+                });
               })
             }
           >
@@ -177,23 +187,67 @@ export function MonitorActionsPanel({
           </>
         )}
 
-        {!isControlling ? (
-          <Button
-            type="button"
-            variant="secondary"
-            size="small"
-            fullWidth
-            sx={{ mt: 1, minWidth: 0 }}
-            disabled={busy}
-            onClick={() =>
-              void run(async () => {
-                await supervisor.requestTakeover({});
-                setStatus("Takeover request submitted (if approval is required).");
-              })
-            }
-          >
-            Request transfer takeover
-          </Button>
+        {canClose ? (
+          <>
+            {!closeDialogOpen ? (
+              <Button
+                type="button"
+                variant="outlined"
+                size="small"
+                fullWidth
+                sx={{ mt: 1.5, borderColor: theme.app.dashboard.cardBorder }}
+                disabled={busy}
+                onClick={() => setCloseDialogOpen(true)}
+              >
+                Close chat
+              </Button>
+            ) : (
+              <Box sx={{ mt: 1.5 }}>
+                <InputField
+                  label="Close reason"
+                  value={closeReason}
+                  onChange={(e) => setCloseReason(e.target.value)}
+                  disabled={busy}
+                  multiline
+                  minRows={2}
+                  placeholder="Why is this chat being closed?"
+                />
+                <Box sx={{ display: "flex", gap: 1, mt: 1 }}>
+                  <Button
+                    type="button"
+                    variant="primary"
+                    size="small"
+                    sx={{ ...gradientPrimaryButtonSx, flex: 1 }}
+                    disabled={busy || !closeReason.trim()}
+                    onClick={() =>
+                      void run(async () => {
+                        await supervisorCloseConversation(conversationId, {
+                          reason: closeReason.trim(),
+                        });
+                        setCloseReason("");
+                        setCloseDialogOpen(false);
+                        setStatus("Chat closed.");
+                      })
+                    }
+                  >
+                    Confirm close
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="small"
+                    disabled={busy}
+                    onClick={() => {
+                      setCloseDialogOpen(false);
+                      setCloseReason("");
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                </Box>
+              </Box>
+            )}
+          </>
         ) : null}
 
         {status ? (

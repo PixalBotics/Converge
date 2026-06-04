@@ -11,25 +11,41 @@ export const EMAIL_BLOCK_FIELD_TO_FORM_KEY: Partial<
     phone: "phone",
     company: "company",
     location: "location",
+    timezone: "timezone",
+    sessionId: "session_id",
   },
   chat_info: {
     website: "website",
     time: "chat_time",
     agent: "agent",
     duration: "duration",
+    chatId: "chat_id",
   },
   acquisition: {
     browser: "browser",
     os: "os",
+    device: "device",
+    ip: "ip",
+    visitorId: "visitor_id",
+    leadSource: "lead_source",
+    chatOrigin: "chat_origin",
     referrer: "referrer",
+    landingPage: "landing_page",
+    currentPage: "current_page",
+    sessionStartedAt: "session_started_at",
   },
 };
+
+export const EMAIL_BLOCK_ALWAYS_INCLUDED: ReadonlySet<EmailTemplateBlockKey> = new Set([
+  "additional_notes",
+  "visitor_feedback",
+  "footer",
+]);
 
 /** Whole template blocks gated by a single email form field. */
 export const EMAIL_BLOCK_FORM_GATE_KEY: Partial<Record<EmailTemplateBlockKey, string>> = {
   transcript: "transcript",
-  additional_notes: "notes",
-  visitor_feedback: "rating",
+  visitor_journey: "journey",
 };
 
 export function filterFieldsByEmailForm(
@@ -41,7 +57,7 @@ export function filterFieldsByEmailForm(
   const blockMap = EMAIL_BLOCK_FIELD_TO_FORM_KEY[blockKey];
   return catalog.filter((field) => {
     const formKey = blockMap?.[field.key];
-    if (!formKey) return true;
+    if (!formKey) return false;
     return enabledFormFieldKeys.has(formKey);
   });
 }
@@ -50,6 +66,7 @@ export function isEmailBlockAllowedByForm(
   blockKey: EmailTemplateBlockKey,
   enabledFormFieldKeys?: ReadonlySet<string> | null,
 ): boolean {
+  if (EMAIL_BLOCK_ALWAYS_INCLUDED.has(blockKey)) return true;
   if (!enabledFormFieldKeys) return true;
   const gate = EMAIL_BLOCK_FORM_GATE_KEY[blockKey];
   if (!gate) return true;

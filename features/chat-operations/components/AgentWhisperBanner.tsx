@@ -10,6 +10,8 @@ interface AgentWhisperBannerProps {
   payload: ChatWhisperSocketPayload;
   onApplyToComposer: (text: string) => void;
   onDismiss: () => void;
+  /** Inside ChatContextRail — no outer chrome. */
+  embedded?: boolean;
 }
 
 function supervisorName(payload: ChatWhisperSocketPayload): string {
@@ -23,20 +25,25 @@ export function AgentWhisperBanner({
   payload,
   onApplyToComposer,
   onDismiss,
+  embedded = false,
 }: AgentWhisperBannerProps) {
   const theme = useTheme() as AppTheme;
 
   return (
     <Box
       sx={{
-        mx: 2,
-        mt: 1,
-        mb: 0.5,
-        p: 1.5,
-        borderRadius: 2,
-        flexShrink: 0,
-        border: `1px solid ${alpha(theme.app.dashboard.accentViolet, 0.45)}`,
-        bgcolor: alpha(theme.app.dashboard.accentViolet, 0.12),
+        ...(embedded
+          ? { p: 1.25 }
+          : {
+              mx: 2,
+              mt: 1,
+              mb: 0.5,
+              p: 1.5,
+              borderRadius: 2,
+              flexShrink: 0,
+              border: `1px solid ${alpha(theme.app.dashboard.accentViolet, 0.45)}`,
+              bgcolor: alpha(theme.app.dashboard.accentViolet, 0.12),
+            }),
       }}
     >
       <Typography variant="caption" sx={{ fontWeight: 700, color: theme.app.dashboard.accentViolet }}>

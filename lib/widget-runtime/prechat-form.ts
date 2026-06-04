@@ -229,6 +229,69 @@ export function buildVisitorPayloadParts(
   };
 }
 
+const NAME_PLACEHOLDER_RE = /\{\{\s*(?:name|visitorName)\s*\}\}|\{\s*(?:name|visitorName)\s*\}/gi;
+
+/** First assistant line after pre-chat — not an AI model reply to registration metadata. */
+export function resolvePersonalizedAssistantWelcome(
+  visitorName: string,
+  template?: string | null,
+): string {
+  const name = visitorName.trim() || "there";
+  const tpl = template?.trim();
+  if (tpl) {
+    const withName = tpl.replace(NAME_PLACEHOLDER_RE, name);
+    return withName !== tpl ? withName : tpl;
+  }
+  return `Hi ${name}, how can I help you today? You can ask me anything.`;
+}
+
+/** True when content is the auto first message from pre-chat (name/email for DB), not a real chat turn. */
+export function isPrechatBootstrapVisitorMessage(
+  content: string,
+  apiFirstMessage?: string | null,
+): boolean {
+  const t = content.trim();
+  if (!t) return false;
+  const api = apiFirstMessage?.trim();
+  if (api && t === api) return true;
+  if (/^Visitor:\s*.+/im.test(t) && /^Email:\s*\S+/im.test(t)) return true;
+  if (/^Visitor:\s*.+/im.test(t) && /^Phone:\s*\S+/im.test(t) && !/\?/.test(t)) return true;
+  return false;
+}
+
+/** Visitor bubble text in the transcript (readable; API `firstMessage` stays metadata-rich). */
+export function buildVisitorTranscriptDisplay(
+  values: Record<string, unknown>,
+  fields: PrechatFieldDto[],
+  inquiryLabel?: string,
+): string {
+  const messageField = coerceField(values.message ?? values.Message, "");
+  if (messageField) return messageField;
+
+  const name = coerceField(values.name ?? values.Name, "") || "Guest";
+  const email = coerceField(values.email ?? values.Email, "");
+  const phone = coerceField(values.phone ?? values.Phone, "");
+
+  const extra: string[] = [];
+  const orderedKeys = [...new Set(fields.map((f) => String(f.key)).filter(Boolean))];
+  for (const key of orderedKeys) {
+    if (["name", "email", "phone", "message", "Message"].includes(key)) continue;
+    const v = values[key];
+    const label =
+      fields.find((f) => f.key === key)?.label ?? fields.find((f) => f.key === key)?.key ?? key;
+    const formatted = formatValue(v);
+    if (formatted) extra.push(`${label}: ${formatted}`);
+  }
+
+  const who = email ? `${name} (${email})` : phone ? `${name} (${phone})` : name;
+  if (inquiryLabel) {
+    return extra.length
+      ? `Hi, I'm ${who}. Topic: ${inquiryLabel}\n${extra.join("\n")}`
+      : `Hi, I'm ${who}. Topic: ${inquiryLabel}`;
+  }
+  return extra.length ? `Hi, I'm ${who}.\n${extra.join("\n")}` : `Hi, I'm ${who}.`;
+}
+
 function coerceField(v: unknown, fallback: string): string {
   if (typeof v === "boolean") return v ? "yes" : "";
   if (typeof v === "number") return String(v);

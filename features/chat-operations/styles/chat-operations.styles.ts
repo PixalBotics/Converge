@@ -1,30 +1,30 @@
 import { alpha } from "@mui/material/styles";
 import type { SxProps, Theme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
+import { dashboardCardSurfaceProps } from "./chat-semantic";
 
 function dash(theme: Theme) {
   return (theme as AppTheme).app.dashboard;
 }
 
-/** Inbox workstation — stay inside main column (no negative bleed; avoids page horizontal scroll). */
+/** Full-bleed inbox workstation (Intercom / Front style) — fills main column under dashboard header. */
 export const chatOpsPageWrapper: SxProps<Theme> = {
-  width: "100%",
-  maxWidth: "100%",
-  mx: 0,
-  boxSizing: "border-box",
-  overflowX: "clip",
+  width: { xs: "calc(100% + 8px)", sm: "calc(100% + 12px)", md: "calc(100% + 16px)" },
+  maxWidth: "none",
+  mx: { xs: -0.5, sm: -0.75, md: -1 },
   display: "flex",
   flexDirection: "column",
   flex: 1,
-  minHeight: { xs: 480, lg: "calc(100vh - 10.5rem)" },
+  minHeight: 0,
+  height: "100%",
   minWidth: 0,
+  overflow: "hidden",
 };
 
-/** Single shell — glass workstation matching DashboardCard. */
+/** Single shell — theme card surface (works with dynamic presets). */
 export const chatOpsWorkspaceShell: SxProps<Theme> = (theme) => {
   const d = dash(theme);
-  const isLight = theme.palette.mode === "light";
-  const glassFill = isLight ? "rgba(255, 255, 255, 0.14)" : "rgba(8, 12, 22, 0.22)";
+  const opacity = theme.palette.mode === "light" ? 0.92 : 0.88;
   return {
     flex: 1,
     minHeight: 0,
@@ -32,13 +32,9 @@ export const chatOpsWorkspaceShell: SxProps<Theme> = (theme) => {
     flexDirection: "column",
     overflow: "hidden",
     borderRadius: { xs: 0, md: "9.32px" },
-    border: { xs: "none", md: `1px solid ${alpha(d.cardBorder, 0.32)}` },
-    bgcolor: glassFill,
-    backgroundImage:
-      "linear-gradient(180deg, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.02) 100%)",
-    backdropFilter: d.cardBackdropBlur,
-    WebkitBackdropFilter: d.cardBackdropBlur,
-    boxShadow: isLight ? "0 8px 32px rgba(15, 23, 42, 0.06)" : "0 12px 40px rgba(0, 0, 0, 0.28)",
+    border: { xs: "none", md: `1px solid ${alpha(d.cardBorder, 0.35)}` },
+    ...dashboardCardSurfaceProps(theme, opacity),
+    boxShadow: d.cardGlassShadow ?? "inset 0 1px 0 rgba(255,255,255,0.06)",
   };
 };
 
@@ -115,7 +111,6 @@ export const chatOpsWorkspaceGrid: SxProps<Theme> = (theme) => {
   const d = dash(theme);
   const divider = alpha(d.cardBorder, 0.18);
   const paneBg = alpha(d.sidebarBg, 0.65);
-  const threadBg = alpha(d.headerBg, 0.35);
   return {
     display: "grid",
     gridTemplateColumns: {
@@ -137,7 +132,7 @@ export const chatOpsWorkspaceGrid: SxProps<Theme> = (theme) => {
       background: paneBg,
     },
     "& > [data-chat-pane='thread']": {
-      background: `linear-gradient(180deg, ${threadBg} 0%, ${alpha(d.sidebarBg, 0.4)} 100%)`,
+      background: alpha(d.headerBg, 0.35),
       borderLeft: { lg: `1px solid ${divider}` },
       borderRight: { lg: `1px solid ${divider}` },
     },

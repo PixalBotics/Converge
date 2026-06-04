@@ -13,10 +13,23 @@ export const PAGE = {
   POOLS: "page:pools",
   HRMS: "page:hrms",
   SHIFTS: "page:shifts",
+  /** Legacy umbrella — backend expands to granular chat pages. */
   CHAT: "page:chat",
+  CHAT_INBOX: "page:chat-inbox",
+  CHAT_MONITOR: "page:chat-monitor",
+  CHAT_QA: "page:chat-qa",
+  CHAT_REPORTS: "page:chat-reports",
   CHAT_WIDGET: "page:chat-widget",
+  CHAT_CLOSE_POLICY: "page:chat-close-policy",
+  CHAT_CANNED: "page:chat-canned",
+  CHAT_INVOLVEMENT: "page:chat-involvement",
+  CHAT_QA_ROSTER: "page:chat-qa-roster",
+  AI_ASSISTANT: "page:ai-assistant",
+  AI_CHATBOT: "page:ai-chatbot",
   ROLES: "page:roles",
   WEBSITE_ASSIGNMENTS: "page:website-assignments",
+  SETTINGS: "page:settings",
+  OBSERVABILITY_LOGS: "page:observability:logs",
 } as const;
 
 /** Org / user-management structure (prefer `org:*`; keep `hrms:org:*` for backward compat). */
@@ -45,6 +58,8 @@ export const ORG = {
 export const HRMS = {
   ATTENDANCE_CHECKIN: "hrms:attendance:checkin",
   ATTENDANCE_CHECKOUT: "hrms:attendance:checkout",
+  ATTENDANCE_BREAKIN: "hrms:attendance:breakin",
+  ATTENDANCE_BREAKOUT: "hrms:attendance:breakout",
   ATTENDANCE_SELF: "hrms:attendance:self",
   ATTENDANCE_SELF_VIEW: "hrms:attendance:self:view",
   ATTENDANCE_VIEW: "hrms:attendance:view",

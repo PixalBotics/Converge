@@ -3,87 +3,94 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import PaletteOutlined from "@mui/icons-material/PaletteOutlined";
-import EditOutlined from "@mui/icons-material/EditOutlined";
-import VisibilityOutlined from "@mui/icons-material/VisibilityOutlined";
 import Box from "@mui/material/Box";
-import Chip from "@mui/material/Chip";
 import Skeleton from "@mui/material/Skeleton";
 import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
-import {
-  AppIconButton,
-  Button,
-  DataTable,
-  Typography,
-} from "@/components/common";
+import { Button, DataTable, Typography } from "@/components/common";
 import type { DataTableColumn } from "@/components/common";
+import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
 import { iconGlyphSx } from "@/lib/design-system";
-import { useAuth } from "@/lib/auth";
-import { OP } from "@/lib/permissions/operational-keys";
+import { useEmailTemplateAccess } from "../hooks/useEmailTemplateAccess";
 import { EMAIL_ROUTES } from "../email.constants";
-import { EmailConfigTableCard } from "../styles/email-configuration.styled";
+import { EmailConfigTableCard, EmailHelpAlert } from "../styles/email-configuration.styled";
 import { EmailTableCardHeader } from "../components/EmailTableCardHeader";
-import { EmailPreviewFrame } from "../components/EmailPreviewFrame";
+import { EmailDesignPreviewOverlay } from "../components/EmailDesignPreviewOverlay";
+import { EmailDesignPublishChip } from "../components/EmailDesignSourceChip";
+import { EmailDesignTableActions } from "../components/EmailDesignTableActions";
 import {
   usePlatformEmailTemplateDraftQuery,
   usePlatformEmailTemplatePublishedQuery,
   usePlatformEmailTemplatePublishedPreviewQuery,
 } from "../hooks/useEmailTemplate";
+import { departmentsFooterRow, footerMutedText } from "../styles/email-page.styles";
+import { emailPlatformDesignSummaryTableSx, emailTablePanelSx } from "../styles/email-table.styles";
 
 type PlatformDesignRow = {
   id: string;
   name: string;
-  hasDraft: boolean;
+  status: "published" | "in_progress" | "not_started";
   publishedAt: string | null;
 };
+
+function formatPublishedAt(value: string | null, status: PlatformDesignRow["status"]): string {
+  if (value) {
+    return new Date(value).toLocaleString(undefined, {
+      dateStyle: "medium",
+      timeStyle: "short",
+    });
+  }
+  return status === "not_started" ? "Never published" : "—";
+}
 
 export function EmailPlatformDesignHubPage() {
   const theme = useTheme() as AppTheme;
   const router = useRouter();
-  const { hasOperational } = useAuth();
-  const canView = hasOperational(OP.emailTemplate.view);
-  const canUpdate = hasOperational(OP.emailTemplate.update);
+  const { canView, canUpdate } = useEmailTemplateAccess();
 
   const draftQuery = usePlatformEmailTemplateDraftQuery({ enabled: canView });
   const publishedQuery = usePlatformEmailTemplatePublishedQuery({ enabled: canView });
+
+  const row: PlatformDesignRow = useMemo(() => {
+    const publishedAt = publishedQuery.data?.publishedAt ?? null;
+    const isPublished = Boolean(publishedAt);
+    const status: PlatformDesignRow["status"] = isPublished
+      ? "published"
+      : draftQuery.data
+        ? "in_progress"
+        : "not_started";
+    return {
+      id: "platform-default",
+      name:
+        publishedQuery.data?.name ??
+        draftQuery.data?.name ??
+        "Platform default transcript email",
+      status,
+      publishedAt,
+    };
+  }, [draftQuery.data, publishedQuery.data]);
+
   const previewQuery = usePlatformEmailTemplatePublishedPreviewQuery({
-    enabled: canView && Boolean(publishedQuery.data?.publishedAt),
+    enabled: canView && row.status === "published",
   });
 
   const [previewOpen, setPreviewOpen] = useState(false);
-
-  const row: PlatformDesignRow = useMemo(
-    () => ({
-      id: "platform-default",
-      name: publishedQuery.data?.name ?? draftQuery.data?.name ?? "Platform default transcript email",
-      hasDraft: Boolean(draftQuery.data),
-      publishedAt: publishedQuery.data?.publishedAt ?? null,
-    }),
-    [draftQuery.data, publishedQuery.data],
-  );
 
   const columns = useMemo<DataTableColumn<PlatformDesignRow>[]>(
     () => [
       { id: "name", label: "Design", align: "left" },
       {
-        id: "hasDraft",
-        label: "Draft",
+        id: "status",
+        label: "Status",
         align: "left",
-        render: (_v, r) => (
-          <Chip
-            size="small"
-            label={r.hasDraft ? "In progress" : "Not started"}
-            color={r.hasDraft ? "warning" : "default"}
-            variant="outlined"
-          />
-        ),
+        render: (_v, r) => <EmailDesignPublishChip status={r.status} />,
       },
       {
         id: "publishedAt",
         label: "Last published",
         align: "left",
-        render: (_v, r) =>
-          r.publishedAt ? new Date(r.publishedAt).toLocaleString() : "Never published",
+        cellVariant: "muted",
+        render: (_v, r) => formatPublishedAt(r.publishedAt, r.status),
       },
     ],
     [],
@@ -95,105 +102,105 @@ export function EmailPlatformDesignHubPage() {
 
   const loading = draftQuery.isLoading || publishedQuery.isLoading;
 
+  const editButton = canUpdate ? (
+    <Button
+      type="button"
+      variant="primary"
+      sx={gradientPrimaryButtonSx}
+      onClick={() => router.push(EMAIL_ROUTES.designPlatformEditor)}
+    >
+      {row.status === "not_started" ? "Create design" : "Edit design"}
+    </Button>
+  ) : null;
+
   return (
     <>
-      <EmailConfigTableCard>
+      {row.status !== "published" && !loading ? (
+        <EmailHelpAlert severity="info" variant="outlined" sx={{ mb: 0 }}>
+          New resellers use this platform template by default. Publish when the default transcript
+          email is ready.
+        </EmailHelpAlert>
+      ) : null}
+
+      <EmailConfigTableCard elevation={0}>
         <EmailTableCardHeader
-          icon={<PaletteOutlined sx={iconGlyphSx(22)} />}
+          icon={
+            <PaletteOutlined
+              sx={{
+                ...(iconGlyphSx("sm") as object),
+                color: theme.app.dashboard.white95,
+              }}
+            />
+          }
           title="Platform email design"
-          subtitle="Default transcript email for resellers on platform template mode."
+          subtitle="Default transcript email for all resellers unless they publish a custom design."
+          action={editButton}
         />
 
         {loading ? (
-          <Skeleton variant="rounded" height={120} sx={{ mt: 2 }} />
+          <Skeleton variant="rounded" height={120} />
         ) : (
-          <DataTable<PlatformDesignRow>
-            columns={columns}
-            rows={[row]}
-            getRowId={(r) => r.id}
-            minWidth={640}
-            actionColumn={{
-              label: "Actions",
-              align: "right",
-              render: () => (
-                <Box sx={{ display: "flex", gap: 0.5, justifyContent: "flex-end" }}>
-                  <AppIconButton
-                    type="button"
-                    aria-label="Preview published"
-                    disabled={!row.publishedAt}
-                    onClick={() => setPreviewOpen(true)}
-                  >
-                    <VisibilityOutlined fontSize="small" />
-                  </AppIconButton>
-                  {canUpdate ? (
-                    <AppIconButton
-                      type="button"
-                      aria-label="Set design"
-                      onClick={() => router.push(EMAIL_ROUTES.designPlatformEditor)}
-                    >
-                      <EditOutlined fontSize="small" />
-                    </AppIconButton>
-                  ) : null}
-                </Box>
-              ),
-            }}
-          />
-        )}
+          <>
+            <DataTable<PlatformDesignRow>
+              columns={columns}
+              rows={[row]}
+              getRowId={(r) => r.id}
+              minWidth={640}
+              size="medium"
+              tableSx={emailPlatformDesignSummaryTableSx}
+              containerSx={emailTablePanelSx}
+              actionColumn={{
+                label: "Actions",
+                align: "right",
+                render: () => (
+                  <EmailDesignTableActions
+                    previewLabel="Preview published platform design"
+                    editLabel="Edit platform design"
+                    canPreview
+                    canEdit={canUpdate}
+                    previewDisabled={row.status !== "published"}
+                    onPreview={row.status === "published" ? () => setPreviewOpen(true) : undefined}
+                    onEdit={
+                      canUpdate
+                        ? () => router.push(EMAIL_ROUTES.designPlatformEditor)
+                        : undefined
+                    }
+                  />
+                ),
+              }}
+            />
 
-        {canUpdate ? (
-          <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 2 }}>
+            <Box sx={departmentsFooterRow}>
+              <Typography variant="medium" sx={footerMutedText(theme)}>
+                Platform default · used by resellers without a custom design
+              </Typography>
+            </Box>
+          </>
+        )}
+      </EmailConfigTableCard>
+
+      <EmailDesignPreviewOverlay
+        open={previewOpen}
+        title="Published platform preview"
+        html={previewQuery.data?.html ?? ""}
+        loading={previewQuery.isLoading}
+        onClose={() => setPreviewOpen(false)}
+        footerActions={
+          canUpdate ? (
             <Button
               type="button"
               variant="primary"
-              onClick={() => router.push(EMAIL_ROUTES.designPlatformEditor)}
+              sx={gradientPrimaryButtonSx}
+              onClick={() => {
+                setPreviewOpen(false);
+                router.push(EMAIL_ROUTES.designPlatformEditor);
+              }}
             >
-              Set design
+              Edit design
             </Button>
-          </Box>
-        ) : null}
-      </EmailConfigTableCard>
-
-      {previewOpen ? (
-        <Box
-          sx={{
-            position: "fixed",
-            inset: 0,
-            zIndex: 1300,
-            bgcolor: "rgba(0,0,0,0.55)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            p: 2,
-          }}
-          onClick={() => setPreviewOpen(false)}
-        >
-          <Box
-            sx={{
-              width: "min(720px, 100%)",
-              maxHeight: "90vh",
-              overflow: "auto",
-              bgcolor: theme.app.dashboard.cardBg,
-              borderRadius: 2,
-              p: 2,
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <Typography variant="mediumLarge" fontWeight={700} sx={{ mb: 1 }}>
-              Published platform preview
-            </Typography>
-            {previewQuery.isLoading ? (
-              <Skeleton variant="rounded" height={400} />
-            ) : (
-              <EmailPreviewFrame html={previewQuery.data?.html ?? ""} title="Preview" />
-            )}
-            <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 2 }}>
-              <Button type="button" variant="secondary" onClick={() => setPreviewOpen(false)}>
-                Close
-              </Button>
-            </Box>
-          </Box>
-        </Box>
-      ) : null}
+          ) : null
+        }
+      />
     </>
   );
 }

@@ -8,9 +8,14 @@ import { LoadingScreen, PermissionDeniedPanel } from "@/components/common";
 import { AUTH_PATHS, useAuth } from "@/lib/auth";
 import { PERMISSION_BUCKET_PAGE, toPermissionSet } from "@/lib/auth/permissions-model";
 import { canAccessDashboardPath, getFirstAccessibleDashboardPath } from "@/lib/permissions";
-import { DashboardSidebar, DashboardHeader, OperationalViewGate } from "@/components/layout/dashboard";
+import { DashboardSidebar, DashboardHeader, OperationalViewGate, ImpersonationBanner } from "@/components/layout/dashboard";
 import { AgentDashboardProviders } from "@/components/notifications/AgentDashboardProviders";
-import { dashboardMainGlassSx, dashboardMainTextSx } from "./dashboard.styles";
+import {
+  dashboardChatWorkstationMainSx,
+  dashboardMainGlassSx,
+  dashboardMainTextSx,
+} from "./dashboard.styles";
+import { isDashboardChatWorkstationPath } from "@/features/chat-shared/utils/chat-workstation-path";
 import { mainBackgroundGradient } from "@/theme/theme";
 
 export default function DashboardLayoutClient({
@@ -110,6 +115,8 @@ export default function DashboardLayoutClient({
     return <LoadingScreen message="Redirecting to login..." />;
   }
 
+  const chatWorkstation = isDashboardChatWorkstationPath(pathname);
+
   if (routeAccessBlocked) {
     return (
       <Box
@@ -141,24 +148,29 @@ export default function DashboardLayoutClient({
         bgcolor: "transparent",
         background: (theme) =>
           (theme as { appBackground?: string }).appBackground ?? mainBackgroundGradient,
-        p: { xs: 0, md: 2 },
-        gap: { xs: 0, md: 2 },
+        p: chatWorkstation ? { xs: 0, md: 1 } : { xs: 0, md: 2 },
+        gap: chatWorkstation ? { xs: 0, md: 1 } : { xs: 0, md: 2 },
       }}
     >
       <DashboardSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-      <Box sx={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
-        <DashboardHeader onMenuClick={() => setSidebarOpen(true)} />
+      <Box sx={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, minHeight: 0 }}>
+        <Box sx={{ flexShrink: 0, mb: chatWorkstation ? { xs: 0, md: 0.5 } : undefined }}>
+          <DashboardHeader onMenuClick={() => setSidebarOpen(true)} />
+          <ImpersonationBanner />
+        </Box>
         <Box
           component="main"
           sx={
             [
-              {
-                flex: 1,
-                py: { xs: 2, sm: 3 },
-                px: { xs: 1.5, sm: 2, md: 0 },
-                overflow: "auto",
-                boxSizing: "border-box",
-              },
+              chatWorkstation
+                ? dashboardChatWorkstationMainSx
+                : {
+                    flex: 1,
+                    py: { xs: 2, sm: 3 },
+                    px: { xs: 1.5, sm: 2, md: 2.5 },
+                    overflow: "auto",
+                    boxSizing: "border-box",
+                  },
               dashboardMainTextSx,
               dashboardMainGlassSx,
             ] as SxProps<Theme>

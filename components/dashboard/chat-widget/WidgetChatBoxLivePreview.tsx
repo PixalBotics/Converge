@@ -30,7 +30,7 @@ import type { WidgetInstallChatMode } from "@/lib/chat-widget/widgetDraft";
 
 
 
-export type ChatBoxPreviewTab = "chat" | "prechat" | "handover";
+export type ChatBoxPreviewTab = "greeting" | "chat" | "prechat";
 
 
 
@@ -448,7 +448,7 @@ function PrechatPreview({ model }: { model: ChatBoxLivePreviewModel }) {
 
           <Typography variant="body2" sx={{ color: c.chatMutedText }}>
 
-            Pre-chat form disabled (step 3). Chat opens directly.
+            Pre-chat form disabled — enable it on the Notifications & Advanced step.
 
           </Typography>
 
@@ -578,125 +578,34 @@ function PrechatPreview({ model }: { model: ChatBoxLivePreviewModel }) {
 
 
 
-function HandoverPreview({ model }: { model: ChatBoxLivePreviewModel }) {
-
+function GreetingPreview({ model }: { model: ChatBoxLivePreviewModel }) {
   const c = model.colors;
-
-  const showHandover =
-
-    model.handoverEnabled && model.chatMode === "HYBRID";
-
-
-
+  const headerTextAlign = model.headerAlign === "Left" ? "left" : "center";
   return (
-
     <PreviewShell model={model}>
-
       <Box
-
         sx={{
-
           px: 1.5,
-
           py: 1.1,
-
           bgcolor: model.buttonColor,
-
           color: model.textColor,
-
         }}
-
       >
-
-        <Typography variant="subtitle2" sx={{ color: "inherit", fontWeight: 700, fontSize: 14 }}>
-
+        <Typography variant="subtitle2" sx={{ color: "inherit", fontWeight: 700, textAlign: headerTextAlign }}>
           {model.headerTitle || "Live chat"}
-
         </Typography>
-
       </Box>
-
-      <Stack spacing={1} sx={{ p: 1.25, flex: 1 }}>
-
+      <Stack spacing={1.5} sx={{ p: 1.5, flex: 1 }}>
         <Bubble bg={c.greetingBubbleBg} color={c.greetingBubbleText} alignSelf="flex-start">
-
-          {model.greetingMessage || "Welcome!"}
-
+          {model.greetingMessage.trim() || "Add a panel greeting on this step."}
         </Bubble>
-
-        <Bubble bg={c.outgoingMessageBg} color={c.outgoingMessageText} alignSelf="flex-end" maxWidth="78%">
-
-          Sample visitor message
-
-        </Bubble>
-
-        <Box sx={{ mt: "auto", pt: 1 }}>
-
-          {showHandover ? (
-
-            <Box
-
-              component="button"
-
-              type="button"
-
-              tabIndex={-1}
-
-              sx={{
-
-                width: "100%",
-
-                py: 0.85,
-
-                px: 1.25,
-
-                borderRadius: 2,
-
-                border: `1px solid ${c.handoverButtonBorder}`,
-
-                bgcolor: c.handoverButtonBg,
-
-                color: c.handoverButtonText,
-
-                fontSize: 13,
-
-                fontWeight: 600,
-
-                cursor: "default",
-
-              }}
-
-            >
-
-              {model.handoverTriggerText || "Talk to a human"}
-
-            </Box>
-
-          ) : (
-
-            <Typography variant="caption" sx={{ color: c.chatMutedText, textAlign: "center", display: "block" }}>
-
-              {model.chatMode !== "HYBRID"
-
-                ? `Handover only in Hybrid mode (current: ${model.chatMode}).`
-
-                : "Agent handover disabled in step 3."}
-
-            </Typography>
-
-          )}
-
-        </Box>
-
+        <Button type="button" variant="primary" tabIndex={-1} sx={{ alignSelf: "stretch", bgcolor: model.buttonColor }}>
+          Continue
+        </Button>
       </Stack>
-
     </PreviewShell>
-
   );
-
 }
-
-
 
 function ChatPreview({ model }: { model: ChatBoxLivePreviewModel }) {
 
@@ -866,20 +775,6 @@ function ChatPreview({ model }: { model: ChatBoxLivePreviewModel }) {
 
 
 
-        <Box sx={{ display: "flex", alignItems: "flex-start", gap: 0.75 }}>
-
-          <AgentAvatar />
-
-          <Bubble bg={c.greetingBubbleBg} color={c.greetingBubbleText} alignSelf="flex-start">
-
-            {model.greetingMessage || "Welcome! How can we help?"}
-
-          </Bubble>
-
-        </Box>
-
-
-
         {model.firstMessage.trim() ? (
 
           <Box sx={{ display: "flex", alignItems: "flex-start", gap: 0.75 }}>
@@ -907,87 +802,68 @@ function ChatPreview({ model }: { model: ChatBoxLivePreviewModel }) {
 
 
         <Box sx={{ mt: "auto", pt: 0.5 }}>
-
           <Box
-
             sx={{
-
               display: "flex",
-
               alignItems: "center",
-
               gap: 0.75,
-
               bgcolor: c.inputBackground,
-
               border: `1px solid ${c.inputBorderColor}`,
-
               borderRadius: "22px",
-
               px: 1,
-
               py: 0.5,
-
             }}
-
           >
-
             <ChatRounded sx={{ color: model.buttonColor, fontSize: 18 }} />
-
             <Typography
-
               variant="body2"
-
               sx={{
-
                 color: c.inputPlaceholderColor || c.chatMutedText,
-
                 flex: 1,
-
                 fontSize: 12,
-
                 fontStyle: "italic",
-
               }}
-
             >
-
               {model.sendPlaceholder || model.messagePlaceholder || "Type a message…"}
-
             </Typography>
-
             <IconButton
-
               size="small"
-
               tabIndex={-1}
-
               disableRipple
-
               aria-hidden
-
               sx={{
-
                 bgcolor: model.buttonColor,
-
                 color: c.outgoingMessageText,
-
                 width: 32,
-
                 height: 32,
-
                 "&:hover": { bgcolor: model.buttonColor },
-
               }}
-
             >
-
               <SendRounded sx={{ fontSize: 18 }} />
-
             </IconButton>
-
           </Box>
-
+          {model.handoverEnabled && model.chatMode === "HYBRID" ? (
+            <Box
+              component="button"
+              type="button"
+              tabIndex={-1}
+              sx={{
+                width: "100%",
+                mt: 1,
+                py: 0.85,
+                px: 1.25,
+                borderRadius: 2,
+                border: `1px solid ${c.handoverButtonBorder}`,
+                bgcolor: c.handoverButtonBg,
+                color: c.handoverButtonText,
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: "default",
+              }}
+            >
+              {model.handoverTriggerText || "Talk to agent"}
+            </Box>
+          ) : null}
         </Box>
 
       </Stack>
@@ -1004,7 +880,7 @@ export function WidgetChatBoxLivePreview({ model }: { model: ChatBoxLivePreviewM
 
   const theme = useTheme() as AppTheme;
 
-  const [tab, setTab] = useState<ChatBoxPreviewTab>("chat");
+  const [tab, setTab] = useState<ChatBoxPreviewTab>("greeting");
 
   const width = clampBox(model.boxWidth, 280, 460, 350);
 
@@ -1024,7 +900,7 @@ export function WidgetChatBoxLivePreview({ model }: { model: ChatBoxLivePreviewM
 
       <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, display: "block", mb: 1 }}>
 
-        Chat surface, pre-chat form fields, and handover button styling.
+        Open panel: greeting → chat → visitor form (matches live embed).
 
       </Typography>
 
@@ -1046,24 +922,15 @@ export function WidgetChatBoxLivePreview({ model }: { model: ChatBoxLivePreviewM
 
       >
 
+        <ToggleButton value="greeting" sx={{ textTransform: "none", fontSize: 12 }}>
+          Greeting
+        </ToggleButton>
         <ToggleButton value="chat" sx={{ textTransform: "none", fontSize: 12 }}>
-
           Chat
-
         </ToggleButton>
-
         <ToggleButton value="prechat" sx={{ textTransform: "none", fontSize: 12 }}>
-
-          Form fields
-
+          Visitor form
         </ToggleButton>
-
-        <ToggleButton value="handover" sx={{ textTransform: "none", fontSize: 12 }}>
-
-          Handover
-
-        </ToggleButton>
-
       </ToggleButtonGroup>
 
       <Box
@@ -1084,11 +951,9 @@ export function WidgetChatBoxLivePreview({ model }: { model: ChatBoxLivePreviewM
 
       >
 
+        {tab === "greeting" ? <GreetingPreview model={model} /> : null}
         {tab === "chat" ? <ChatPreview model={model} /> : null}
-
         {tab === "prechat" ? <PrechatPreview model={model} /> : null}
-
-        {tab === "handover" ? <HandoverPreview model={model} /> : null}
 
         <Typography
 

@@ -1,7 +1,12 @@
 "use client";
 
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { generatePlatformLicenseKey, listPlatformLicenseKeys } from "@/api";
+import {
+  generatePlatformLicenseKey,
+  listPlatformLicenseKeys,
+  sendPlatformLicenseKey,
+  type SendPlatformLicenseKeyBody,
+} from "@/api";
 import type { JsonRecord } from "@/api";
 import { platformKeys } from "./keys";
 
@@ -25,6 +30,12 @@ export function useGeneratePlatformLicenseKeyMutation() {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: platformKeys.licenseKeysRoot() });
     },
+  });
+}
+
+export function useSendPlatformLicenseKeyMutation() {
+  return useMutation({
+    mutationFn: (body: SendPlatformLicenseKeyBody) => sendPlatformLicenseKey(body),
   });
 }
 

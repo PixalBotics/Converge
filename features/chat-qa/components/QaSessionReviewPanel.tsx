@@ -1,7 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import AssignmentIndOutlined from "@mui/icons-material/AssignmentIndOutlined";
+import CheckCircleOutline from "@mui/icons-material/CheckCircleOutline";
+import PersonAddOutlined from "@mui/icons-material/PersonAddOutlined";
+import PlayArrowOutlined from "@mui/icons-material/PlayArrowOutlined";
 import Box from "@mui/material/Box";
+import Chip from "@mui/material/Chip";
 import FormControl from "@mui/material/FormControl";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Checkbox from "@mui/material/Checkbox";
@@ -10,9 +15,10 @@ import MenuItem from "@mui/material/MenuItem";
 import Select from "@mui/material/Select";
 import Slider from "@mui/material/Slider";
 import Rating from "@mui/material/Rating";
-import { useTheme } from "@mui/material/styles";
+import { alpha, useTheme } from "@mui/material/styles";
+import Link from "next/link";
 import type { AppTheme } from "@/theme/theme";
-import { Button, InputField, Typography } from "@/components/common";
+import { Button, InputField, SelectField, Typography } from "@/components/common";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
 import {
   QA_REVIEW_STATUSES,
@@ -30,6 +36,12 @@ const CHECKLIST_KEYS = [
   { key: "timelyResponse", label: "Timely responses" },
 ] as const;
 
+const WORKFLOW_STEPS = [
+  "Pick a closed chat from the queue",
+  "Read transcript and annotate messages",
+  "Score the session and submit the QA report",
+] as const;
+
 function readChecklist(json?: Record<string, unknown> | null): Record<string, boolean> {
   const out: Record<string, boolean> = {};
   for (const item of CHECKLIST_KEYS) {
@@ -38,12 +50,39 @@ function readChecklist(json?: Record<string, unknown> | null): Record<string, bo
   return out;
 }
 
+function buildReviewBody(
+  status: QaReviewStatus,
+  fields: {
+    starRating: number | null;
+    failureReason: string;
+    overallScore: number;
+    summary: string;
+    coachingNotes: string;
+    checklist: Record<string, boolean>;
+  },
+): UpsertQaSessionReviewBody {
+  const checklistJson: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(fields.checklist)) {
+    if (v) checklistJson[k] = true;
+  }
+  return {
+    status,
+    starRating: fields.starRating ?? undefined,
+    failureReason: fields.failureReason.trim() || undefined,
+    overallScore: fields.overallScore,
+    summary: fields.summary.trim() || undefined,
+    coachingNotes: fields.coachingNotes.trim() || undefined,
+    checklistJson,
+  };
+}
+
 type AssignOption = { id: string; label: string };
 
 interface QaSessionReviewPanelProps {
   bundle: QaReviewBundle | null;
   canEdit: boolean;
   canAssign: boolean;
+  currentUserId?: string | null;
   rosterAssignOptions?: AssignOption[];
   onSave: (body: UpsertQaSessionReviewBody) => Promise<void>;
   onClaim: () => Promise<void>;
@@ -55,6 +94,7 @@ export function QaSessionReviewPanel({
   bundle,
   canEdit,
   canAssign,
+  currentUserId = null,
   rosterAssignOptions = [],
   onSave,
   onClaim,
@@ -72,6 +112,18 @@ export function QaSessionReviewPanel({
   const [summary, setSummary] = useState("");
   const [coachingNotes, setCoachingNotes] = useState("");
   const [checklist, setChecklist] = useState<Record<string, boolean>>({});
+
+  const formFields = useMemo(
+    () => ({
+      starRating,
+      failureReason,
+      overallScore,
+      summary,
+      coachingNotes,
+      checklist,
+    }),
+    [starRating, failureReason, overallScore, summary, coachingNotes, checklist],
+  );
 
   useEffect(() => {
     if (!review) {
@@ -108,88 +160,196 @@ export function QaSessionReviewPanel({
     (typeof transcriptMeta?.serviceChannel === "string" ? transcriptMeta.serviceChannel : null);
   const agentName =
     typeof transcriptMeta?.agent === "object" && transcriptMeta.agent
-      ? [String((transcriptMeta.agent as Record<string, unknown>).firstName ?? ""), String((transcriptMeta.agent as Record<string, unknown>).lastName ?? "")]
+      ? [
+          String((transcriptMeta.agent as Record<string, unknown>).firstName ?? ""),
+          String((transcriptMeta.agent as Record<string, unknown>).lastName ?? ""),
+        ]
           .filter(Boolean)
           .join(" ")
       : null;
 
+  const meOnRoster = Boolean(
+    currentUserId && rosterAssignOptions.some((o) => o.id === currentUserId),
+  );
+  const isAssignedToMe = Boolean(
+    currentUserId && review?.assignedQa?.id === currentUserId,
+  );
+
   if (!bundle) {
     return (
       <Box sx={{ p: 3 }}>
-        <Typography sx={{ color: theme.app.dashboard.textMuted, fontSize: 13 }}>
-          Session review and timeline appear when you open a chat.
+        <Typography sx={{ color: theme.app.dashboard.textMuted, fontSize: 13, mb: 1.5 }}>
+          Select a chat from the queue to review the transcript and submit a QA report.
         </Typography>
+        <Box component="ol" sx={{ m: 0, pl: 2.25, color: theme.app.dashboard.textMuted, fontSize: 12 }}>
+          {WORKFLOW_STEPS.map((step) => (
+            <Box component="li" key={step} sx={{ mb: 0.5 }}>
+              {step}
+            </Box>
+          ))}
+        </Box>
       </Box>
     );
   }
 
   const slaDue = review?.slaDueAt ? new Date(review.slaDueAt) : null;
   const slaOverdue = slaDue && slaDue.getTime() < Date.now() && review?.status !== "completed";
+  const isCompleted = review?.status === "completed" || status === "completed";
 
-  const handleSave = () => {
-    const checklistJson: Record<string, unknown> = {};
-    for (const [k, v] of Object.entries(checklist)) {
-      if (v) checklistJson[k] = true;
-    }
-    void onSave({
-      status,
-      starRating: starRating ?? undefined,
-      failureReason: failureReason.trim() || undefined,
-      overallScore,
-      summary: summary.trim() || undefined,
-      coachingNotes: coachingNotes.trim() || undefined,
-      checklistJson,
-    });
+  const persist = (nextStatus: QaReviewStatus) => {
+    void onSave(buildReviewBody(nextStatus, formFields));
   };
+
+  const statusChipColor =
+    status === "completed"
+      ? theme.app.dashboard.accentBlue
+      : status === "in_progress"
+        ? theme.app.dashboard.accentViolet
+        : theme.app.dashboard.accentOrange;
 
   return (
     <ScrollRegion sx={{ flex: 1, px: 2, py: 2 }}>
-      <Typography fontWeight={700} sx={{ fontSize: 14, mb: 1 }}>
+      <Typography fontWeight={700} sx={{ fontSize: 14, mb: 0.75 }}>
         Session review
       </Typography>
 
-      {channel || agentName ? (
-        <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, display: "block", mb: 1 }}>
-          {channel ? `Channel: ${channel}` : ""}
-          {agentName ? ` · Agent: ${agentName}` : ""}
+      <Box
+        sx={{
+          mb: 2,
+          p: 1.25,
+          borderRadius: 1.5,
+          bgcolor: alpha(theme.app.dashboard.accentViolet, 0.06),
+          border: `1px solid ${alpha(theme.app.dashboard.accentViolet, 0.2)}`,
+        }}
+      >
+        <Typography variant="caption" sx={{ fontWeight: 600, display: "block", mb: 0.75 }}>
+          QA workflow
         </Typography>
-      ) : null}
+        <Box component="ol" sx={{ m: 0, pl: 2, fontSize: 11, color: theme.app.dashboard.textMuted }}>
+          {WORKFLOW_STEPS.map((step, i) => (
+            <Box
+              component="li"
+              key={step}
+              sx={{
+                mb: 0.35,
+                fontWeight: bundle && i === 2 && isCompleted ? 600 : 400,
+                color: bundle && i === 2 && isCompleted ? theme.app.dashboard.accentBlue : undefined,
+              }}
+            >
+              {step}
+            </Box>
+          ))}
+        </Box>
+      </Box>
+
+      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75, mb: 1.5 }}>
+        {channel ? (
+          <Chip label={channel} size="small" sx={{ height: 22, fontSize: 11 }} />
+        ) : null}
+        <Chip
+          label={status.replace("_", " ")}
+          size="small"
+          sx={{
+            height: 22,
+            fontSize: 11,
+            bgcolor: alpha(statusChipColor, 0.12),
+            color: statusChipColor,
+          }}
+        />
+        {agentName ? (
+          <Chip label={`Agent: ${agentName}`} size="small" variant="outlined" sx={{ height: 22, fontSize: 11 }} />
+        ) : null}
+      </Box>
 
       {review ? (
-        <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, display: "block", mb: 1 }}>
-          Assigned: {qaUserLabel(review.assignedQa)}
-          {review.assignSource ? ` · ${review.assignSource}` : ""}
+        <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, display: "block", mb: 1.5 }}>
+          Assigned to: <strong>{qaUserLabel(review.assignedQa)}</strong>
+          {review.assignSource ? ` · ${review.assignSource.replace(/_/g, " ")}` : ""}
+          {isAssignedToMe ? " · You" : ""}
         </Typography>
-      ) : null}
+      ) : (
+        <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, display: "block", mb: 1.5 }}>
+          No reviewer assigned yet. A supervisor can assign from the roster, or you can take the review if you are
+          on the website QA roster.
+        </Typography>
+      )}
 
-      {canAssign && rosterAssignOptions.length > 0 && onAssignTo ? (
-        <Box sx={{ display: "flex", gap: 1, mb: 2, flexWrap: "wrap" }}>
-          <FormControl size="small" sx={{ flex: 1, minWidth: 160 }}>
-            <InputLabel>Assign to QA</InputLabel>
-            <Select
-              label="Assign to QA"
-              value={assignToId}
-              onChange={(e) => setAssignToId(e.target.value)}
+      {canAssign ? (
+        <Box
+          sx={{
+            mb: 2,
+            p: 1.5,
+            borderRadius: 1.5,
+            border: `1px solid ${theme.app.dashboard.cardBorder}`,
+            bgcolor: alpha(theme.app.dashboard.accentBlue, 0.04),
+          }}
+        >
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1.25 }}>
+            <AssignmentIndOutlined sx={{ fontSize: 20, color: theme.app.dashboard.accentBlue }} />
+            <Typography fontWeight={700} sx={{ fontSize: 13 }}>
+              Assign reviewer
+            </Typography>
+          </Box>
+
+          {!review && canAssign ? (
+            <Button
+              type="button"
+              variant="primary"
+              fullWidth
+              startIcon={<PersonAddOutlined />}
+              sx={{ ...gradientPrimaryButtonSx, mb: 1.25 }}
+              disabled={saving || (!meOnRoster && rosterAssignOptions.length > 0)}
+              onClick={() => void onClaim()}
             >
-              <MenuItem value="">
-                <em>Select reviewer</em>
-              </MenuItem>
-              {rosterAssignOptions.map((o) => (
-                <MenuItem key={o.id} value={o.id}>
-                  {o.label}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-          <Button
-            type="button"
-            variant="outlined"
-            size="small"
-            disabled={saving || !assignToId}
-            onClick={() => void onAssignTo(assignToId)}
-          >
-            Assign
-          </Button>
+              {meOnRoster ? "Take this review" : "Assign to me & start"}
+            </Button>
+          ) : null}
+          {!review && canAssign && !meOnRoster && rosterAssignOptions.length > 0 ? (
+            <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, display: "block", mb: 1 }}>
+              You are not on the QA roster for this channel — pick a reviewer below or add yourself under QA roster
+              settings.
+            </Typography>
+          ) : null}
+
+          {rosterAssignOptions.length > 0 && onAssignTo ? (
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+              <SelectField
+                label="QA reviewer (roster)"
+                value={assignToId}
+                onChange={setAssignToId}
+                options={[
+                  { value: "", label: "Select reviewer…" },
+                  ...rosterAssignOptions.map((o) => ({ value: o.id, label: o.label })),
+                ]}
+                disabled={saving}
+                menuMaxRows={8}
+                searchPlaceholder="Search reviewer…"
+              />
+              <Button
+                type="button"
+                variant="primary"
+                fullWidth
+                startIcon={<PersonAddOutlined />}
+                sx={gradientPrimaryButtonSx}
+                disabled={saving || !assignToId}
+                onClick={() => void onAssignTo(assignToId)}
+              >
+                {review ? "Reassign reviewer" : "Assign reviewer"}
+              </Button>
+            </Box>
+          ) : (
+            <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, lineHeight: 1.5 }}>
+              No QA reviewers on the roster for this website and channel. Add reviewers under{" "}
+              <Link href="/dashboard/chat-involvement" style={{ color: theme.app.dashboard.accentBlue }}>
+                Chat involvement → QA roster
+              </Link>{" "}
+              or{" "}
+              <Link href="/dashboard/qa/roster" style={{ color: theme.app.dashboard.accentBlue }}>
+                Chat settings → QA roster
+              </Link>
+              .
+            </Typography>
+          )}
         </Box>
       ) : null}
 
@@ -198,7 +358,7 @@ export function QaSessionReviewPanel({
           variant="caption"
           sx={{
             display: "block",
-            mb: 1,
+            mb: 1.5,
             color: slaOverdue ? theme.palette.error.main : theme.app.dashboard.textMuted,
           }}
         >
@@ -207,21 +367,24 @@ export function QaSessionReviewPanel({
         </Typography>
       ) : null}
 
-      {!review && canAssign ? (
+      {canEdit && review && review.status === "pending" ? (
         <Button
           type="button"
-          variant="outlined"
-          size="small"
+          variant="primary"
           fullWidth
-          sx={{ mb: 2 }}
+          startIcon={<PlayArrowOutlined />}
+          sx={{ ...gradientPrimaryButtonSx, mb: 2 }}
           disabled={saving}
-          onClick={() => void onClaim()}
+          onClick={() => {
+            setStatus("in_progress");
+            persist("in_progress");
+          }}
         >
-          Claim review
+          Start review
         </Button>
       ) : null}
 
-      <FormControl fullWidth size="small" sx={{ mb: 2 }} disabled={!canEdit || saving}>
+      <FormControl fullWidth size="small" sx={{ mb: 2 }} disabled={!canEdit || saving || isCompleted}>
         <InputLabel>Status</InputLabel>
         <Select label="Status" value={status} onChange={(e) => setStatus(e.target.value as QaReviewStatus)}>
           {QA_REVIEW_STATUSES.map((s) => (
@@ -238,7 +401,7 @@ export function QaSessionReviewPanel({
       <Rating
         value={starRating}
         onChange={(_, v) => setStarRating(v)}
-        disabled={!canEdit || saving}
+        disabled={!canEdit || saving || isCompleted}
         sx={{ mb: 1.5 }}
       />
 
@@ -246,7 +409,7 @@ export function QaSessionReviewPanel({
         label="QA reason / what went wrong"
         value={failureReason}
         onChange={(e) => setFailureReason(e.target.value)}
-        disabled={!canEdit || saving}
+        disabled={!canEdit || saving || isCompleted}
         placeholder="e.g. Wrong policy, rude tone, missed SLA…"
         sx={{ mb: 1.5 }}
       />
@@ -258,7 +421,7 @@ export function QaSessionReviewPanel({
         value={overallScore}
         min={1}
         max={100}
-        disabled={!canEdit || saving}
+        disabled={!canEdit || saving || isCompleted}
         onChange={(_, v) => setOverallScore(v as number)}
         sx={{ mb: 2 }}
       />
@@ -267,14 +430,14 @@ export function QaSessionReviewPanel({
         label="Summary"
         value={summary}
         onChange={(e) => setSummary(e.target.value)}
-        disabled={!canEdit || saving}
+        disabled={!canEdit || saving || isCompleted}
         sx={{ mb: 1.5 }}
       />
       <InputField
         label="Coaching notes"
         value={coachingNotes}
         onChange={(e) => setCoachingNotes(e.target.value)}
-        disabled={!canEdit || saving}
+        disabled={!canEdit || saving || isCompleted}
         sx={{ mb: 1.5 }}
       />
 
@@ -289,7 +452,7 @@ export function QaSessionReviewPanel({
             <Checkbox
               size="small"
               checked={Boolean(checklist[item.key])}
-              disabled={!canEdit || saving}
+              disabled={!canEdit || saving || isCompleted}
               onChange={(_, v) => setChecklist((p) => ({ ...p, [item.key]: v }))}
             />
           }
@@ -297,17 +460,50 @@ export function QaSessionReviewPanel({
         />
       ))}
 
-      {canEdit ? (
-        <Button
-          type="button"
-          variant="primary"
-          fullWidth
-          sx={{ ...gradientPrimaryButtonSx, mt: 2 }}
-          disabled={saving}
-          onClick={handleSave}
+      {canEdit && !isCompleted ? (
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 1, mt: 2 }}>
+          <Button
+            type="button"
+            variant="primary"
+            fullWidth
+            startIcon={<CheckCircleOutline />}
+            sx={gradientPrimaryButtonSx}
+            disabled={saving}
+            onClick={() => {
+              setStatus("completed");
+              void onSave(buildReviewBody("completed", formFields));
+            }}
+          >
+            {saving ? "Submitting…" : "Submit QA report"}
+          </Button>
+          <Button
+            type="button"
+            variant="outlined"
+            fullWidth
+            disabled={saving}
+            onClick={() => persist(status === "pending" ? "in_progress" : status)}
+          >
+            {saving ? "Saving…" : "Save progress"}
+          </Button>
+        </Box>
+      ) : null}
+
+      {isCompleted ? (
+        <Typography
+          variant="caption"
+          sx={{
+            display: "block",
+            mt: 2,
+            p: 1,
+            borderRadius: 1,
+            bgcolor: alpha(theme.app.dashboard.accentBlue, 0.1),
+            color: theme.app.dashboard.accentBlue,
+            textAlign: "center",
+          }}
         >
-          {saving ? "Saving…" : "Save session review"}
-        </Button>
+          QA report submitted
+          {review?.completedAt ? ` · ${new Date(review.completedAt).toLocaleString()}` : ""}
+        </Typography>
       ) : null}
     </ScrollRegion>
   );

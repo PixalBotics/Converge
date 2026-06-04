@@ -4,21 +4,29 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { LoadingScreen } from "@/components/common";
 import { useAuth } from "@/lib/auth";
-import { OP } from "@/lib/permissions/operational-keys";
 import { EMAIL_ROUTES } from "@/features/email/email.constants";
+import { useEmailTemplateAccess } from "@/features/email/hooks/useEmailTemplateAccess";
+import { useSmtpEmailAccess } from "@/features/email/hooks/useSmtpEmailAccess";
 
 /** Email hub landing — first sidebar section the user can access. */
 export default function EmailHubHomePage() {
   const router = useRouter();
-  const { hasOperational, user } = useAuth();
+  const { user } = useAuth();
+  const { canView: canViewSmtp } = useSmtpEmailAccess();
+  const { canView: canViewDesign } = useEmailTemplateAccess();
   const isInternal = user?.userType === "Internal";
+  const scopedResellerId = user?.resellerId?.trim();
 
   useEffect(() => {
-    if (hasOperational(OP.smtpEmail.view)) {
+    if (canViewSmtp) {
       router.replace(EMAIL_ROUTES.setupReseller);
       return;
     }
-    if (hasOperational(OP.emailTemplate.view)) {
+    if (canViewDesign) {
+      if (scopedResellerId && !isInternal) {
+        router.replace(EMAIL_ROUTES.designResellerEdit(scopedResellerId));
+        return;
+      }
       router.replace(EMAIL_ROUTES.design);
       return;
     }
@@ -27,7 +35,7 @@ export default function EmailHubHomePage() {
       return;
     }
     router.replace(EMAIL_ROUTES.setupReseller);
-  }, [router, hasOperational, isInternal]);
+  }, [router, canViewSmtp, canViewDesign, isInternal, scopedResellerId]);
 
   return <LoadingScreen message="Opening email configuration…" />;
 }

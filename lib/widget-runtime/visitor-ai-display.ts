@@ -64,11 +64,18 @@ export function extractKnowledgeSnippetsForFallback(
 
 export function resolveVisitorAiMessageContent(
   response: string,
-  knowledgeMatches: unknown,
+  knowledgeMatches?: unknown,
 ): string {
   const primary = (response ?? "").trim();
   if (!isDegradedVisitorAiReply(primary)) return primary;
   const kb = extractKnowledgeSnippetsForFallback(knowledgeMatches);
   if (kb) return kb;
   return primary;
+}
+
+/** Read `content` from a widget conversation message DTO or loose API object. */
+export function readWidgetMessageContent(msg: unknown): string {
+  if (!msg || typeof msg !== "object") return "";
+  const m = msg as Record<string, unknown>;
+  return typeof m.content === "string" ? m.content.trim() : "";
 }

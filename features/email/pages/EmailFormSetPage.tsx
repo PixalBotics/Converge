@@ -22,9 +22,14 @@ import {
   type EmailFormFieldRow,
 } from "@/api/email/email-forms.api";
 import { EMAIL_ROUTES } from "../email.constants";
+import { isConfigurableEmailFormFieldKey } from "../constants/agent-distribution-form-fields";
 import { EmailFormFieldsPanel } from "../components/EmailFormFieldsPanel";
 import { EmailFormPreviewPanel } from "../components/EmailFormPreviewPanel";
-import { PickWebsiteModal } from "@/features/website-assignments/components/PickWebsiteModal";
+import {
+  isPickWebsiteComplete,
+  PickWebsiteFields,
+} from "@/features/website-assignments/components/PickWebsiteFields";
+import type { PickWebsitePreset } from "@/features/website-assignments/components/PickWebsiteModal";
 import { publishAppToast } from "@/lib/notify";
 import { extractApiErrorMessageForToast } from "@/lib/notify/extract-api-message";
 import { pageWrapper } from "@/app/dashboard/dashboard.styles";
@@ -39,7 +44,6 @@ import {
   emailFormTypeChoiceCardSx,
   emailFormWebsiteScopeSx,
 } from "../styles/email-form-builder.styles";
-import { emptyStatePanelSx } from "@/features/website-assignments/styles/website-assignment-ui.styles";
 
 function FormTypeChoiceCard({
   selected,
@@ -102,9 +106,14 @@ export function EmailFormSetPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const initialWebsiteId = searchParams.get("websiteId")?.trim() ?? "";
+  const returnTo = searchParams.get("returnTo")?.trim() ?? "";
 
-  const [pickOpen, setPickOpen] = useState(!initialWebsiteId);
-  const [websiteId, setWebsiteId] = useState(initialWebsiteId);
+  const [preset, setPreset] = useState<PickWebsitePreset>(() =>
+    initialWebsiteId
+      ? { websiteId: initialWebsiteId, parentCompanyId: "", childCompanyId: "", resellerId: "" }
+      : { websiteId: "", parentCompanyId: "", childCompanyId: "", resellerId: "" },
+  );
+  const websiteId = preset.websiteId;
   const [formType, setFormType] = useState<"standard" | "custom">("standard");
   const [formName, setFormName] = useState("");
   const [fields, setFields] = useState<EmailFormFieldRow[]>([]);
@@ -119,7 +128,9 @@ export function EmailFormSetPage() {
     if (!formQuery.data) return;
     setFormType(formQuery.data.formType);
     setFormName(formQuery.data.formName ?? "");
-    setFields(formQuery.data.fields);
+    setFields(
+      formQuery.data.fields.filter((f) => isConfigurableEmailFormFieldKey(f.fieldKey)),
+    );
   }, [formQuery.data]);
 
   const saveMutation = useMutation({
@@ -129,7 +140,11 @@ export function EmailFormSetPage() {
         formType,
         formName: formName.trim() || undefined,
         fields: fields
-          .filter((f) => formType === "standard" || f.isRequired || f.enabled)
+          .filter(
+            (f) =>
+              isConfigurableEmailFormFieldKey(f.fieldKey) &&
+              (formType === "standard" || f.isRequired || f.enabled),
+          )
           .map((f) => ({
             fieldKey: f.fieldKey,
             label: f.label,
@@ -157,7 +172,7 @@ export function EmailFormSetPage() {
       .mutateAsync()
       .then(() => {
         publishAppToast({ variant: "success", message: "Form saved." });
-        router.push(EMAIL_ROUTES.forms);
+        router.push(returnTo && returnTo.startsWith("/") ? returnTo : EMAIL_ROUTES.forms);
       })
       .catch((err) => {
         publishAppToast({
@@ -180,7 +195,7 @@ export function EmailFormSetPage() {
           Back to email forms
         </Button>
         <Typography variant="regularLarge" fontWeight={700} color="white" sx={{ mb: 0.5 }}>
-          Configure wrap-up form
+          Configure distribution form
         </Typography>
         <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted, maxWidth: 640, lineHeight: 1.55 }}>
           Choose a website, pick standard or custom fields, and preview how they appear in distribution
@@ -188,19 +203,24 @@ export function EmailFormSetPage() {
         </Typography>
       </Box>
 
-      {!websiteId ? (
-        <Box sx={emptyStatePanelSx}>
-          <LanguageOutlined sx={{ fontSize: 48, color: theme.palette.primary.light, mb: 1.5 }} />
-          <Typography variant="mediumLarge" fontWeight={700} color="white" sx={{ mb: 0.75 }}>
-            Select a website to begin
+      {!isPickWebsiteComplete(preset) ? (
+        <EmailBuilderPanel sx={{ mb: 2 }}>
+          <EmailBuilderSectionTitle>
+            <Typography variant="small" fontWeight={700} color="white">
+              Website scope
+            </Typography>
+          </EmailBuilderSectionTitle>
+          <Typography
+            variant="caption"
+            sx={{ color: theme.app.dashboard.textMuted, display: "block", mb: 2, lineHeight: 1.55 }}
+          >
+            Distribution forms are scoped per website. Select organization and site below — no popup.
           </Typography>
-          <Typography variant="small" sx={{ color: theme.app.dashboard.textMuted, maxWidth: 440, mx: "auto", mb: 2.5 }}>
-            Wrap-up forms are scoped per website. Pick reseller, parent, child, and site from your org tree.
-          </Typography>
-          <Button type="button" variant="primary" sx={gradientPrimaryButtonSx} onClick={() => setPickOpen(true)}>
-            Select website
-          </Button>
-        </Box>
+          <PickWebsiteFields
+            value={preset}
+            onChange={setPreset}
+          />
+        </EmailBuilderPanel>
       ) : formQuery.isLoading ? (
         <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", lg: "1fr 1fr" }, gap: 2 }}>
           <Skeleton variant="rounded" height={420} sx={{ borderRadius: 2.5 }} />
@@ -240,7 +260,18 @@ export function EmailFormSetPage() {
                     ID {websiteId}
                   </Typography>
                 </Box>
-                <Button type="button" variant="secondary" onClick={() => setPickOpen(true)}>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() =>
+                    setPreset({
+                      websiteId: "",
+                      parentCompanyId: "",
+                      childCompanyId: "",
+                      resellerId: "",
+                    })
+                  }
+                >
                   Change
                 </Button>
               </Box>
@@ -255,7 +286,7 @@ export function EmailFormSetPage() {
                 <FormTypeChoiceCard
                   selected={formType === "standard"}
                   title="Standard"
-                  description="Full catalog — every field included in wrap-up emails for this site."
+                  description="Full catalog — every field included in distribution emails for this site."
                   icon={<ViewListOutlined />}
                   onSelect={() => setFormType("standard")}
                 />
@@ -273,7 +304,7 @@ export function EmailFormSetPage() {
                 name="formName"
                 value={formName}
                 onChange={(e) => setFormName(e.target.value)}
-                placeholder={formType === "standard" ? "Standard wrap-up" : "Custom wrap-up"}
+                placeholder={formType === "standard" ? "Standard distribution form" : "Custom distribution form"}
               />
             </EmailBuilderPanel>
 
@@ -304,18 +335,6 @@ export function EmailFormSetPage() {
           <EmailFormPreviewPanel formName={formName} formType={formType} fields={fields} />
         </EmailBuilderLayout>
       )}
-
-      <PickWebsiteModal
-        open={pickOpen}
-        title="Select website for form"
-        description="Pick organization scope for this email form."
-        primaryLabel="Continue"
-        onClose={() => setPickOpen(false)}
-        onContinue={(picked) => {
-          setWebsiteId(picked.websiteId);
-          setPickOpen(false);
-        }}
-      />
     </Box>
   );
 }

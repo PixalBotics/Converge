@@ -3,6 +3,7 @@ export type ChatGuestLinkPermissions = {
   viewTranscript: boolean;
   viewVisitorPii: boolean;
   whisper: boolean;
+  directControl: boolean;
   takeoverRequest: boolean;
 };
 
@@ -16,6 +17,7 @@ export type GuestSessionExchangeResponse = {
   websiteLabel?: string;
   permissions: ChatGuestLinkPermissions;
   urlStrictSingleOpen?: boolean;
+  involvementUserId?: string | null;
 };
 
 export type GuestTranscriptResponse = {
@@ -35,6 +37,7 @@ export type GuestLinkRow = {
   recipientEmail: string;
   expiresAt: string;
   firstOpenedAt: string | null;
+  firstOpenedByEmail?: string | null;
   lastOpenedAt: string | null;
   revokedAt: string | null;
   createdAt: string;
@@ -46,11 +49,47 @@ export type SendDepartmentGuestLinkBody = {
   email?: string;
 };
 
+export type GuestLinkMatchedVia =
+  | "explicit_override"
+  | "inquiry_external_topic"
+  | "conversation_department";
+
+export type GuestLinkSendTarget = {
+  departmentId: string;
+  departmentName: string;
+  topicLabel: string | null;
+  routingKey: string | null;
+  conversationDepartmentId: string | null;
+  conversationDepartmentName: string | null;
+  matchedVia: GuestLinkMatchedVia;
+  supervisorCount: number;
+  canSend: boolean;
+  chatRoutedElsewhere?: boolean;
+  hint?: string | null;
+  recipients: {
+    emails: string[];
+    userIds: string[];
+    source: "involvement" | "notify_emails";
+  };
+};
+
 export type SendDepartmentGuestLinkResponse = {
   conversationId: string;
-  sent: Array<{
+  departmentId: string;
+  departmentName?: string;
+  topicLabel?: string | null;
+  matchedVia?: GuestLinkMatchedVia;
+  supervisorCount?: number;
+  sent?: Array<{
     linkId: string;
     recipientEmail: string;
     expiresAt: string;
   }>;
+  recipients?: Array<{
+    linkId: string;
+    recipientEmail: string;
+    expiresAt: string;
+  }>;
+  sharedLink?: boolean;
+  linkExpiresHours?: number;
 };

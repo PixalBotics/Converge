@@ -11,11 +11,29 @@ export function isGuestChatRoute(config: InternalAxiosRequestConfig): boolean {
   return path.startsWith("/chat/guest");
 }
 
+/**
+ * Public visitor widget REST — must never attach dashboard Bearer or run auth refresh / logout.
+ * Widget fetch uses `credentials: "omit"`; `/embed/*` skips AuthProvider (see AppRootProviders).
+ */
+export function isWidgetVisitorRoute(config: InternalAxiosRequestConfig): boolean {
+  const path = pathFromConfig(config);
+  if (path.startsWith("/widget/")) return true;
+  if (path.startsWith("/chat/widget/")) return true;
+  if (path === "/ai/visitor/respond" || path.endsWith("/ai/visitor/respond")) {
+    return true;
+  }
+  return false;
+}
+
 export function isPublicAuthRoute(config: InternalAxiosRequestConfig): boolean {
   const method = (config.method ?? "get").toLowerCase();
   const path = pathFromConfig(config);
 
   if (isGuestChatRoute(config)) {
+    return true;
+  }
+
+  if (isWidgetVisitorRoute(config)) {
     return true;
   }
 

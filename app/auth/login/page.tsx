@@ -49,11 +49,13 @@ export default function LoginPage() {
   const router = useRouter();
   const [safeNextPath, setSafeNextPath] = useState<string | null>(null);
   const [sessionExpiredNotice, setSessionExpiredNotice] = useState(false);
+  const [passwordResetNotice, setPasswordResetNotice] = useState(false);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     setSafeNextPath(parseSafeDashboardNextPath(params.get("next")));
     setSessionExpiredNotice(params.get("session") === "expired");
+    setPasswordResetNotice(params.get("reset") === "success");
   }, []);
 
   const {
@@ -145,6 +147,11 @@ export default function LoginPage() {
         {sessionExpiredNotice ? (
           <Alert severity="warning" variant="outlined" sx={{ mb: 2 }}>
             Your session expired. Sign in again to continue.
+          </Alert>
+        ) : null}
+        {passwordResetNotice ? (
+          <Alert severity="success" variant="outlined" sx={{ mb: 2 }}>
+            Password updated. Sign in with your new password and license key.
           </Alert>
         ) : null}
         <Controller

@@ -19,7 +19,7 @@ import { Button, Typography, SelectField } from "@/components/common";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
 import { WidgetFlowShell } from "@/features/chat-widget";
 import { useResellerListScope } from "@/lib/auth";
-import { formatWebsiteSelectLabel } from "@/lib/websites/format-website-select-label";
+import { websiteAssignmentItemToSelectOption } from "@/lib/websites/format-website-select-label";
 import {
   buildWebsitesInScopeParams,
   useCompaniesSetupResellersQuery,
@@ -27,14 +27,16 @@ import {
   useWebsiteAssignmentsWebsitesQuery,
 } from "@/lib/hooks";
 import {
-  createRemoteWidgetDraft,
+  createRemoteWidgetDraftWithMeta,
   isServerWidgetDraftAlive,
 } from "@/lib/chat-widget/widget-remote-sync";
+import { appendWizardSaveTraceToSession } from "@/lib/chat-widget/widget-wizard-save-trace";
 import {
   readChatWizardDraft,
   resetCreateWizardDraft,
   saveChatWizardDraft,
 } from "@/lib/chat-widget/chat-wizard-edit";
+import { loadInquiryTopicsFromScheduling } from "@/lib/chat-widget/hydrate-widget-inquiry-from-scheduling";
 import type { WidgetDraft } from "@/lib/chat-widget/widgetDraft";
 import { extractApiErrorMessageForToast } from "@/lib/notify/extract-api-message";
 import { publishAppToast } from "@/lib/notify";
@@ -203,14 +205,7 @@ export default function WidgetTypeSelectionPage() {
     }
     return [
       { value: "", label: "Select website" },
-      ...websiteRows.map((w) => {
-        const name = (w.name ?? "").trim() || "Website";
-        const url = (w.url ?? "").trim();
-        return {
-          value: w.websiteId,
-          label: formatWebsiteSelectLabel(name, url, w.websiteId),
-        };
-      }),
+      ...websiteRows.map((w) => websiteAssignmentItemToSelectOption(w)),
     ];
   }, [websiteRows, websitesQuery.isFetching]);
 
@@ -314,23 +309,41 @@ export default function WidgetTypeSelectionPage() {
                 setCreatingDraft(true);
                 try {
                   if (needNewRemote) {
-                    const created = await createRemoteWidgetDraft({
+                    const created = await createRemoteWidgetDraftWithMeta({
                       draft: base,
                       widgetKind: kind,
                     });
+                    appendWizardSaveTraceToSession({
+                      stepKey: "website",
+                      stepLabel: "Step 0 — Website & type",
+                      method: created.meta.method,
+                      path: created.meta.path,
+                      scope: "create",
+                      publishNow: created.meta.publishNow,
+                      requestBody: created.meta.requestBody,
+                      responseBody: created.meta.inner,
+                    });
+                    const fromScheduling = await loadInquiryTopicsFromScheduling(wid);
                     saveChatWizardDraft(null, {
                       ...base,
                       remoteWidgetKey: created.widgetKey,
                       widgetId: created.widgetKey,
                       requiresPublishBeforeEmbed: created.requiresPublishBeforeEmbed,
+                      ...(fromScheduling.length > 0
+                        ? { inquiryOptions: fromScheduling, inquiryOn: true }
+                        : {}),
                     });
                     publishAppToast({
                       variant: "success",
                       message: "Draft saved on server. Continue configuration.",
                     });
                   } else {
+                    const fromScheduling = await loadInquiryTopicsFromScheduling(wid);
                     saveChatWizardDraft(null, {
                       ...base,
+                      ...(fromScheduling.length > 0
+                        ? { inquiryOptions: fromScheduling, inquiryOn: true }
+                        : {}),
                     });
                   }
 

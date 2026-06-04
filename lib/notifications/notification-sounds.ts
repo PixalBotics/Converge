@@ -14,10 +14,16 @@ const HRMS_TYPES = new Set([
   "hrms.leave.decided",
 ]);
 
+const HRMS_ATTENDANCE_TYPES = new Set([
+  "hrms.attendance.member_on_break",
+  "hrms.attendance.over_break",
+]);
+
 const SOUND_SRC: Record<NotificationSoundKey, string> = {
   chat: "/sounds/notifications/chat.wav",
   qa: "/sounds/notifications/qa.wav",
   hrms_leave: "/sounds/notifications/leave.wav",
+  hrms_attendance: "/sounds/notifications/leave.wav",
 };
 
 const audioCache = new Map<NotificationSoundKey, HTMLAudioElement>();
@@ -86,6 +92,7 @@ export function soundKeyForNotificationType(type: string): NotificationSoundKey 
   if (CHAT_TYPES.has(type)) return "chat";
   if (QA_TYPES.has(type)) return "qa";
   if (HRMS_TYPES.has(type)) return "hrms_leave";
+  if (HRMS_ATTENDANCE_TYPES.has(type)) return "hrms_attendance";
   return null;
 }
 

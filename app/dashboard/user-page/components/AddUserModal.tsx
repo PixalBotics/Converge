@@ -28,6 +28,9 @@ import {
   useAuth,
   sessionMayAssignWideResellerScope,
   sessionMayPickInternalUserScope,
+  sessionIsNarrowClientRootScope,
+  resolveSessionParentCompanyId,
+  resolveSessionResellerId,
 } from "@/lib/auth";
 import {
   externalScopeUsesWideReseller,
@@ -82,6 +85,12 @@ export function AddUserModal({
       authUser?.resellerId,
     ],
   );
+  const isNarrowClientScope = useMemo(
+    () => sessionIsNarrowClientRootScope(isPlatformAdmin, authUser),
+    [isPlatformAdmin, authUser],
+  );
+  const sessionResellerId = resolveSessionResellerId(authUser?.resellerId);
+  const sessionParentCompanyId = resolveSessionParentCompanyId(authUser?.parentCompanyId);
 
   const [userType, setUserType] = useState<"Internal" | "External">("Internal");
   const [resellerId, setResellerId] = useState("");
@@ -112,6 +121,24 @@ export function AddUserModal({
     if (showInternalUserTypeCard) return;
     setUserType("External");
   }, [open, mode, showInternalUserTypeCard]);
+
+  /** Pre-fill tenant scope when creating external users from a reseller session. */
+  useEffect(() => {
+    if (!open || mode !== "create" || userType !== "External") return;
+    const rid = sessionResellerId.trim();
+    if (rid) setResellerId((prev) => prev.trim() || rid);
+    if (isNarrowClientScope) {
+      const pid = sessionParentCompanyId.trim();
+      if (pid) setParentCompanyId((prev) => prev.trim() || pid);
+    }
+  }, [
+    open,
+    mode,
+    userType,
+    sessionResellerId,
+    sessionParentCompanyId,
+    isNarrowClientScope,
+  ]);
 
   const userDetailQuery = useUserQuery(trimmedEditId, {
     enabled: open && mode === "edit",
@@ -258,6 +285,7 @@ export function AddUserModal({
     hydratedEditUserIdRef.current = null;
     setRoleLabelHint("");
     setDepartmentLabelHint("");
+    setPhone("");
   }, [trimmedEditId]);
 
   useEffect(() => {
@@ -487,10 +515,11 @@ export function AddUserModal({
     const fn = firstName.trim();
     const ln = lastName.trim();
     const em = email.trim();
-    if (!fn || !ln || !em) {
+    const ph = phone.trim();
+    if (!fn || !em) {
       publishAppToast({
         variant: "error",
-        message: "Please enter first name, last name, and email.",
+        message: "Please enter first name and email.",
       });
       return;
     }
@@ -538,8 +567,13 @@ export function AddUserModal({
 
     const body: JsonRecord = {
       firstName: fn,
-      lastName: ln,
+      ...(mode === "edit"
+        ? { lastName: ln || null }
+        : ln
+          ? { lastName: ln }
+          : {}),
       email: em,
+      ...(mode === "edit" || ph ? { phoneNo: ph || null } : {}),
       userType,
       roleId: roleValue.trim(),
       departmentId: departmentValue.trim(),
@@ -611,7 +645,7 @@ export function AddUserModal({
           disabled={mode === "edit" && isEditLoading}
         />
         <InputField
-          label="Last Name"
+          label="Last Name (optional)"
           placeholder="Last Name"
           value={lastName}
           onChange={(e) => setLastName(e.target.value)}
@@ -707,6 +741,7 @@ export function AddUserModal({
               }}
               options={resellerOptions.length ? resellerOptions : emptySelect}
               menuMaxRows={3}
+              disabled={isNarrowClientScope && mode === "create"}
             />
           </Box>
 
@@ -722,6 +757,10 @@ export function AddUserModal({
               }}
               options={parentCompanyOptions.length ? parentCompanyOptions : emptySelect}
               menuMaxRows={3}
+              disabled={
+                (isNarrowClientScope && mode === "create") ||
+                !resellerId.trim()
+              }
             />
           </Box>
 
@@ -733,7 +772,6 @@ export function AddUserModal({
             onInternalScopeChange={handleInternalAdminScopeChange}
             onExternalScopeChange={handleExternalAdminScopeChange}
             disabled={isSaving || (mode === "edit" && isEditLoading)}
-            selectionLocked={mode === "edit"}
             showInternal={false}
             allowWideResellerScope={mayAssignWideResellerScope}
           />
@@ -749,7 +787,6 @@ export function AddUserModal({
           onInternalScopeChange={handleInternalAdminScopeChange}
           onExternalScopeChange={handleExternalAdminScopeChange}
           disabled={isSaving || (mode === "edit" && isEditLoading)}
-          selectionLocked={mode === "edit"}
           allowWideResellerScope={mayAssignWideResellerScope}
         />
       ) : null}
@@ -794,6 +831,10 @@ export function AddUserModal({
           }}
           options={departmentOptions.length ? departmentOptions : emptySelect}
           menuMaxRows={3}
+          disabled={
+            userType === "External" &&
+            (!resellerId.trim() || !parentCompanyId.trim())
+          }
         />
       </Box>
 
@@ -804,6 +845,7 @@ export function AddUserModal({
           onChange={setDesignationValue}
           options={designationOptions.length ? designationOptions : emptySelect}
           menuMaxRows={3}
+          disabled={!departmentValue.trim()}
         />
       </Box>
     </FormModal>

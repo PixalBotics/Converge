@@ -2,9 +2,21 @@ import { apiClient } from "@/api/http/axios-instance";
 import { chatAuthHeaders, unwrapChatHttpData } from "./http";
 import type {
   GuestLinkRow,
+  GuestLinkSendTarget,
   SendDepartmentGuestLinkBody,
   SendDepartmentGuestLinkResponse,
 } from "./guest.types";
+
+export async function getGuestLinkSendTarget(
+  conversationId: string,
+  token?: string,
+): Promise<GuestLinkSendTarget> {
+  const { data } = await apiClient.get<unknown>(
+    `/chat/conversations/${encodeURIComponent(conversationId)}/guest-link-target`,
+    { headers: chatAuthHeaders(token) },
+  );
+  return unwrapChatHttpData<GuestLinkSendTarget>(data);
+}
 
 export async function sendDepartmentGuestLink(
   conversationId: string,

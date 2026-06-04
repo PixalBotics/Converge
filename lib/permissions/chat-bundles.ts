@@ -7,7 +7,7 @@ export const CHAT_BUNDLE_OPTIONS = [
   {
     code: "chat:bundle:agent",
     label: "Chat Agent",
-    description: "Inbox, reply, queue, guest link",
+    description: "Inbox, reply, guest link, AI Assistant copilot",
   },
   {
     code: "chat:bundle:pool-head",

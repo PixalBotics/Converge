@@ -1,8 +1,16 @@
-export type KnowledgeSourceStatus = "pending" | "indexed" | "failed";
+export type KnowledgeSourceStatus = "pending" | "processing" | "indexed" | "failed";
 
 export type ChatbotSourceType = "URL" | "WEB_CRAWL" | "SITEMAP" | "FAQ";
 
-export type AssistantSourceType = "PDF" | "FAQ" | "DOCX" | "SOP" | "EXCEL";
+export type AssistantSourceType =
+  | "URL"
+  | "WEB_CRAWL"
+  | "SITEMAP"
+  | "PDF"
+  | "FAQ"
+  | "DOCX"
+  | "SOP"
+  | "EXCEL";
 
 export type CreateKnowledgeSourceResult = {
   sourceId: string;
@@ -23,6 +31,63 @@ export type KnowledgeSourceListItem = {
   lastIndexedAt: string | null;
   errorMessage: string | null;
   createdAt: string;
+  chunkCount?: number;
+};
+
+export type KnowledgeChunkPreviewItem = {
+  id: string;
+  chunkIndex: number;
+  chunkType: string | null;
+  contentPreview: string;
+  tokenCount: number | null;
+  pageUrl: string | null;
+  pageTitle: string | null;
+  faqQuestion: string | null;
+  faqAnswer: string | null;
+};
+
+export type ListKnowledgeSourceChunksParams = {
+  limit?: number;
+  offset?: number;
+};
+
+export type ListKnowledgeSourceChunksResult = {
+  source: KnowledgeSourceListItem;
+  items: KnowledgeChunkPreviewItem[];
+  total: number;
+};
+
+export type KbTrainingWebsiteSummary = {
+  websiteId: string;
+  name: string;
+  url: string;
+  childCompanyId: string;
+  childCompanyName: string;
+  parentCompanyId: string;
+  parentCompanyName: string;
+  resellerId: string;
+  sourceCount: number;
+  indexedSourceCount: number;
+  failedSourceCount: number;
+  pendingSourceCount: number;
+  totalChunks: number;
+  lastIndexedAt: string | null;
+  isTrained: boolean;
+  sourceTypes: string[];
+};
+
+export type ListKbTrainingWebsitesParams = {
+  resellerId?: string;
+  parentCompanyId?: string;
+  childCompanyId?: string;
+  trainedOnly?: boolean;
+  limit?: number;
+  offset?: number;
+};
+
+export type ListKbTrainingWebsitesResult = {
+  items: KbTrainingWebsiteSummary[];
+  total: number;
 };
 
 export type ListKnowledgeSourcesResult = {

@@ -31,6 +31,8 @@ interface CannedResponsesTabProps {
   canEdit: boolean;
   onNotifyError: (e: unknown) => void;
   onNotifySuccess: (message: string) => void;
+  /** When true, renders inside a parent card (no extra filter chrome). */
+  embedded?: boolean;
 }
 
 export function CannedResponsesTab({
@@ -39,6 +41,7 @@ export function CannedResponsesTab({
   canEdit,
   onNotifyError,
   onNotifySuccess,
+  embedded = false,
 }: CannedResponsesTabProps) {
   const theme = useTheme() as AppTheme;
   const [modalOpen, setModalOpen] = useState(false);
@@ -128,21 +131,46 @@ export function CannedResponsesTab({
   );
 
   return (
-    <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-      <DashboardCard sx={{ p: { xs: 2, md: 2.5 } }}>
+    <Box sx={{ display: "flex", flexDirection: "column", gap: embedded ? 1.5 : 2, minHeight: 0, flex: 1 }}>
+      {!embedded ? (
+        <DashboardCard sx={{ p: { xs: 2, md: 2.5 } }}>
+          <DashboardFilterSection
+            titleSlot={
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1.25 }}>
+                <QuickreplyOutlined sx={{ color: theme.app.dashboard.accentBlue }} />
+                <Box>
+                  <Typography fontWeight={700} sx={{ fontSize: 16, color: theme.app.text.primary }}>
+                    Canned messages
+                  </Typography>
+                  <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted }}>
+                    Per-website quick replies for agents.
+                  </Typography>
+                </Box>
+              </Box>
+            }
+            actionSlot={
+              canEdit ? (
+                <Button
+                  type="button"
+                  variant="primary"
+                  sx={gradientPrimaryButtonSx}
+                  startIcon={<Add />}
+                  onClick={openAdd}
+                >
+                  Add messages
+                </Button>
+              ) : null
+            }
+          />
+        </DashboardCard>
+      ) : (
         <DashboardFilterSection
           titleSlot={
             <Box sx={{ display: "flex", alignItems: "center", gap: 1.25 }}>
-              <QuickreplyOutlined sx={{ color: theme.app.dashboard.accentBlue }} />
-              <Box>
-                <Typography fontWeight={700} sx={{ fontSize: 16, color: theme.app.text.primary }}>
-                  Canned messages
-                </Typography>
-                <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted }}>
-                  Per-website quick replies for agents. Filter the table with scope filters above;
-                  agents see messages for the open chat&apos;s website.
-                </Typography>
-              </Box>
+              <QuickreplyOutlined sx={{ color: theme.app.dashboard.accentBlue, fontSize: 22 }} />
+              <Typography fontWeight={700} sx={{ fontSize: 15, color: theme.app.text.primary }}>
+                Messages in scope
+              </Typography>
             </Box>
           }
           actionSlot={
@@ -159,9 +187,10 @@ export function CannedResponsesTab({
             ) : null
           }
         />
-      </DashboardCard>
+      )}
 
-      <DataTable<CannedResponseListRow>
+      <Box sx={{ flex: 1, minHeight: 0 }}>
+        <DataTable<CannedResponseListRow>
         columns={columns}
         rows={rows}
         getRowId={(row) => row.id}
@@ -173,7 +202,8 @@ export function CannedResponsesTab({
             : "Use Add messages to create quick replies for a website in this scope.",
         }}
         onRowClick={canEdit ? (row) => openEditForWebsite(row.websiteId) : undefined}
-      />
+        />
+      </Box>
 
       <CannedMessagesModal
         open={modalOpen}

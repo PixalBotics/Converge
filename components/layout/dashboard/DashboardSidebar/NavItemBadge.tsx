@@ -3,10 +3,14 @@
 import Box from "@mui/material/Box";
 import { useNotificationsContext } from "@/lib/notifications/NotificationsContext";
 
-const HREF_BADGE: Record<string, keyof { chat: number; qa: number; hrms_leave: number }> = {
+const HREF_BADGE: Record<string, keyof { chat: number; qa: number; hrms_leave: number; hrms_attendance: number }> = {
   "/dashboard/chat-operations": "chat",
+  "/dashboard/qa/inbox": "qa",
   "/dashboard/chat-qa": "qa",
   "/dashboard/leave/approval-inbox": "hrms_leave",
+  "/dashboard/attendance/team-attendance": "hrms_attendance",
+  "/dashboard/hrms/pool-heads": "hrms_attendance",
+  "/dashboard/hrms/department-heads": "hrms_attendance",
 };
 
 export function NavItemBadge({ href }: { href: string }) {

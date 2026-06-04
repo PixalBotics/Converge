@@ -1,19 +1,21 @@
-import type { ServiceSchedulingBundle } from "@/services/chat/service-scheduling.types";
+import type {
+  ServiceSchedulingBundle,
+  VisitorTopicsBundle,
+} from "@/services/chat/service-scheduling.types";
 import {
   bundleToDraft,
-  canShowExternalSlots,
-  canShowInternalSlots,
-  validateSchedulingDraft,
+  validateScheduleDraft,
 } from "@/features/chat-settings/components/service-scheduling-form.utils";
 
-/** True when hours, timezone, and at least one complete active topic exist. */
+/** True when service hours/timezone are valid and at least one complete inquire topic exists. */
 export function isServiceSchedulingReady(
   bundle: ServiceSchedulingBundle | null | undefined,
+  topicsBundle?: VisitorTopicsBundle | null,
 ): boolean {
   if (!bundle) return false;
   const draft = bundleToDraft(bundle);
-  if (validateSchedulingDraft(draft)) return false;
-  const activeTopics = draft.topics.filter(
+  if (validateScheduleDraft(draft)) return false;
+  const activeTopics = (topicsBundle?.topics ?? []).filter(
     (t) =>
       t.isActive !== false &&
       t.routingKey.trim() &&

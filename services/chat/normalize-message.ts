@@ -23,6 +23,15 @@ function inferRole(payload: Record<string, unknown>): ChatParticipantRole {
   }
   if (userTypeRaw === "visitor") return "visitor";
   if (userTypeRaw === "agent") return "agent";
+  if (
+    userTypeRaw === "staff" ||
+    userTypeRaw === "operator" ||
+    userTypeRaw === "human" ||
+    userTypeRaw === "support" ||
+    userTypeRaw === "advisor"
+  ) {
+    return "agent";
+  }
   if (userTypeRaw === "ai") return "system";
   const senderRaw = coerceString(payload.sender ?? payload.sentBy ?? payload.messageSender).toLowerCase();
   if (senderRaw.includes("visitor")) return "visitor";
@@ -54,11 +63,15 @@ export function normalizeServerMessage(payload: unknown): ChatMessage | null {
     (typeof pl.messageId === "string" && pl.messageId) ||
     undefined;
 
+  const createdAtRaw = pl.createdAt ?? pl.created_at ?? pl.timestamp;
   const createdAt =
-    (typeof pl.createdAt === "string" && pl.createdAt) ||
-    (typeof pl.created_at === "string" && pl.created_at) ||
-    (typeof pl.timestamp === "string" && pl.timestamp) ||
-    undefined;
+    typeof createdAtRaw === "string"
+      ? createdAtRaw
+      : createdAtRaw instanceof Date
+        ? createdAtRaw.toISOString()
+        : typeof createdAtRaw === "number" && Number.isFinite(createdAtRaw)
+          ? new Date(createdAtRaw).toISOString()
+          : undefined;
 
   const senderId =
     (typeof pl.senderId === "string" && pl.senderId) ||
@@ -79,7 +92,39 @@ export function normalizeServerMessage(payload: unknown): ChatMessage | null {
         ? (pl.meta as Record<string, unknown>)
         : undefined;
 
+  const messageType =
+    (typeof pl.messageType === "string" && pl.messageType) ||
+    (typeof pl.message_type === "string" && pl.message_type) ||
+    undefined;
+
+  const attachmentMetadata =
+    typeof pl.attachmentMetadata === "object" && pl.attachmentMetadata !== null
+      ? (pl.attachmentMetadata as Record<string, unknown>)
+      : typeof pl.attachment_metadata === "object" && pl.attachment_metadata !== null
+        ? (pl.attachment_metadata as Record<string, unknown>)
+        : undefined;
+
   const role = inferRole(pl as Record<string, unknown>);
+
+  const mergedMetadata: Record<string, unknown> = {
+    ...(meta ?? {}),
+    ...(messageType ? { messageType } : {}),
+    ...(attachmentMetadata ? { attachmentMetadata } : {}),
+  };
+  if (attachmentMetadata) {
+    if (typeof attachmentMetadata.path === "string") {
+      mergedMetadata.path = attachmentMetadata.path;
+    }
+    if (typeof attachmentMetadata.href === "string") {
+      mergedMetadata.href = attachmentMetadata.href;
+    }
+    if (typeof attachmentMetadata.label === "string") {
+      mergedMetadata.label = attachmentMetadata.label;
+    }
+    if (typeof attachmentMetadata.category === "string") {
+      mergedMetadata.category = attachmentMetadata.category;
+    }
+  }
 
   return {
     id,
@@ -89,6 +134,6 @@ export function normalizeServerMessage(payload: unknown): ChatMessage | null {
     senderId,
     senderName,
     createdAt,
-    ...(meta ? { metadata: meta as Record<string, unknown> } : {}),
+    ...(Object.keys(mergedMetadata).length ? { metadata: mergedMetadata } : {}),
   };
 }

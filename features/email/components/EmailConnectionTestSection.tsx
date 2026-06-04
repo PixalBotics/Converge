@@ -12,6 +12,7 @@ import {
 } from "../styles/email-configuration.styled";
 import {
   extractEmailTestErrorMessage,
+  formatMailTestErrorMessage,
   pickStoredTestMessage,
   validateTestToEmail,
 } from "../utils/email-test.utils";
@@ -58,7 +59,15 @@ export function EmailConnectionTestSection({
         }
       : null;
 
-  const feedback = liveFeedback ?? storedFeedback;
+  const feedbackRaw = liveFeedback ?? storedFeedback;
+  const feedback = feedbackRaw
+    ? {
+        ...feedbackRaw,
+        message: feedbackRaw.success
+          ? feedbackRaw.message
+          : formatMailTestErrorMessage(feedbackRaw.message),
+      }
+    : null;
   const testedLabel =
     lastTestedAt && !liveFeedback
       ? ` (${new Date(lastTestedAt).toLocaleString()})`
@@ -88,7 +97,7 @@ export function EmailConnectionTestSection({
     <>
       {!ready ? (
         <TypographyMuted theme={theme}>
-          Save your connection settings once, then enable sending to run a test email.
+          Save your connection settings first, then you can send a test email.
         </TypographyMuted>
       ) : (
         <EmailTestPanelCard>
@@ -118,6 +127,9 @@ export function EmailConnectionTestSection({
           </Button>
           {feedback ? (
             <Alert severity={feedback.success ? "success" : "error"} variant="outlined" sx={{ py: 0.5 }}>
+              {!feedback.success ? (
+                <strong style={{ display: "block", marginBottom: 4 }}>Could not send test email</strong>
+              ) : null}
               {feedback.message}
               {testedLabel}
             </Alert>

@@ -9,8 +9,10 @@ export type VisitorTopicRosterContext = {
   clientLabel: string;
   internalDepartmentId: string;
   internalDepartmentName: string;
+  internalPoolId: string | null;
   externalDepartmentId: string;
   externalDepartmentName: string;
+  externalPoolId: string | null;
 };
 
 export function deptNameById(
@@ -48,9 +50,11 @@ export function buildVisitorTopicContexts(
         internalDepartmentId: internalId,
         internalDepartmentName:
           names.get(internalId)?.name || "Internal department",
+        internalPoolId: t.internalPoolId?.trim() || null,
         externalDepartmentId: externalId,
         externalDepartmentName:
           names.get(externalId)?.name || "External department",
+        externalPoolId: t.externalPoolId?.trim() || null,
       };
     })
     .sort((a, b) => a.clientLabel.localeCompare(b.clientLabel));
@@ -72,6 +76,13 @@ export function departmentLabelForTopicChannel(
   return channel === "Internal"
     ? topic.internalDepartmentName
     : topic.externalDepartmentName;
+}
+
+export function poolIdForTopicChannel(
+  topic: VisitorTopicRosterContext,
+  channel: ServiceChannel,
+): string | null {
+  return channel === "Internal" ? topic.internalPoolId : topic.externalPoolId;
 }
 
 export function findRosterRow(

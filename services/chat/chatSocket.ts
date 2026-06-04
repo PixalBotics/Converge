@@ -36,12 +36,14 @@ type ChatEventMap = {
   chat_closed: (payload: unknown) => void;
   chat_completed: (payload: unknown) => void;
   chat_transferred: (payload: unknown) => void;
+  chat_supervisor_control: (payload: unknown) => void;
   chat_whisper: (payload: unknown) => void;
   takeover_requested: (payload: unknown) => void;
   takeover_update: (payload: unknown) => void;
   agent_wrap_up_form: (payload: unknown) => void;
   agent_wrap_up_required: (payload: unknown) => void;
   agent_wrap_up_submitted: (payload: unknown) => void;
+  agent_distribution_submitted: (payload: unknown) => void;
   agent_assignment_popup: (payload: unknown) => void;
   agent_queue_popup: (payload: unknown) => void;
   monitor_live_update: (payload: MonitorLiveUpdatePayload) => void;
@@ -92,7 +94,9 @@ export class ChatSocketClient {
 
   joinRoom(payload: JoinLeaveRoomPayload): void {
     this.joinedRooms.add(payload.conversationId);
-    this.connection.emit("join_room", { conversationId: payload.conversationId });
+    if (this.connection.isConnected()) {
+      this.connection.emit("join_room", { conversationId: payload.conversationId });
+    }
   }
 
   leaveRoom(payload: JoinLeaveRoomPayload): void {
@@ -160,6 +164,11 @@ export class ChatSocketClient {
     });
   }
 
+  /** Raw payload — use when conversationId may be omitted (widget embed). */
+  onVisitorMessageRaw(listener: (payload: unknown) => void): () => void {
+    return this.on("visitor_message", listener);
+  }
+
   onAgentMessage(listener: ChatEventMap["agent_message"]): () => void {
     return this.on("agent_message", (payload: unknown) => {
       const m = normalizeServerMessage(payload);
@@ -167,11 +176,19 @@ export class ChatSocketClient {
     });
   }
 
+  onAgentMessageRaw(listener: (payload: unknown) => void): () => void {
+    return this.on("agent_message", listener);
+  }
+
   onAiMessage(listener: ChatEventMap["ai_message"]): () => void {
     return this.on("ai_message", (payload: unknown) => {
       const m = normalizeServerMessage(payload);
       if (m) listener(m);
     });
+  }
+
+  onAiMessageRaw(listener: (payload: unknown) => void): () => void {
+    return this.on("ai_message", listener);
   }
 
   onTyping(listener: ChatEventMap["typing"]): () => void {
@@ -230,6 +247,12 @@ export class ChatSocketClient {
     return this.on("agent_wrap_up_submitted", listener);
   }
 
+  onAgentDistributionSubmitted(
+    listener: ChatEventMap["agent_distribution_submitted"],
+  ): () => void {
+    return this.on("agent_distribution_submitted", listener);
+  }
+
   onAgentAssignmentPopup(
     listener: ChatEventMap["agent_assignment_popup"],
   ): () => void {
@@ -250,6 +273,10 @@ export class ChatSocketClient {
 
   onChatTransferred(listener: ChatEventMap["chat_transferred"]): () => void {
     return this.on("chat_transferred", listener);
+  }
+
+  onSupervisorControl(listener: ChatEventMap["chat_supervisor_control"]): () => void {
+    return this.on("chat_supervisor_control", listener);
   }
 
   onChatHandover(listener: ChatEventMap["chat_handover"]): () => void {

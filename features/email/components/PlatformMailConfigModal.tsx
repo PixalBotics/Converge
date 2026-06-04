@@ -5,10 +5,9 @@ import Box from "@mui/material/Box";
 import Skeleton from "@mui/material/Skeleton";
 import { FormModal } from "@/components/common";
 import { extractApiErrorMessageForToast, publishAppToast } from "@/lib/notify";
-import { useAuth } from "@/lib/auth";
-import { OP } from "@/lib/permissions/operational-keys";
+import { useSmtpEmailAccess } from "../hooks/useSmtpEmailAccess";
 import { MailConnectionForm } from "./MailConnectionForm";
-import { EmailConnectionTestSection } from "./EmailConnectionTestSection";
+import { EmailConnectionTestModal } from "./EmailConnectionTestModal";
 import { useOwnMailProviderForm } from "../hooks/useOwnMailProviderForm";
 import {
   useDeletePlatformEmailSettingsMutation,
@@ -18,7 +17,11 @@ import {
 } from "../hooks/useEmailSettings";
 import { EmailDeleteConfirmModal } from "./EmailDeleteConfirmModal";
 import { EmailModalDangerZone } from "./EmailModalDangerZone";
-import { readTestMessage } from "../utils/email-test.utils";
+import {
+  extractEmailTestErrorMessage,
+  formatMailTestErrorMessage,
+  readTestMessage,
+} from "../utils/email-test.utils";
 
 export function PlatformMailConfigModal({
   open,
@@ -29,15 +32,16 @@ export function PlatformMailConfigModal({
   onClose: () => void;
   onSaved?: () => void;
 }) {
-  const { hasOperational } = useAuth();
-  const canView = hasOperational(OP.smtpEmail.view);
-  const canUpdate = hasOperational(OP.smtpEmail.update);
-  const canTest = hasOperational(OP.smtpEmail.test);
-  const canDelete = hasOperational(OP.smtpEmail.delete);
+  const { canView, canUpdate, canDelete, canTest } = useSmtpEmailAccess();
 
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [testModalOpen, setTestModalOpen] = useState(false);
 
   const settingsQuery = usePlatformEmailSettingsQuery({ enabled: open && canView });
+
+  useEffect(() => {
+    if (open && canView) void settingsQuery.refetch();
+  }, [open, canView]);
   const updateMutation = useUpdatePlatformEmailSettingsMutation();
   const testMutation = useTestPlatformEmailSettingsMutation();
   const deleteMutation = useDeletePlatformEmailSettingsMutation();
@@ -49,15 +53,14 @@ export function PlatformMailConfigModal({
       await updateMutation.mutateAsync(body);
       onSaved?.();
     },
-    onTest: async (body) => {
-      const result = await testMutation.mutateAsync(body);
-      const message =
-        readTestMessage(result.message) ??
-        (result.success ? "Test email sent successfully." : "Test email failed.");
-      onSaved?.();
-      return { success: result.success, message };
-    },
   });
+
+  const handleSave = async () => {
+    const saved = await form.handleSave();
+    if (!saved) return;
+    onClose();
+    setTestModalOpen(true);
+  };
 
   const handleDelete = async () => {
     try {
@@ -76,8 +79,8 @@ export function PlatformMailConfigModal({
 
   const hasConfig = Boolean(settingsQuery.data?.emailProviderId);
   const settings = settingsQuery.data;
-  const testReady = form.savedOnce && form.isEnabled && hasConfig;
-  const testDisabled = !canTest || !testReady || updateMutation.isPending;
+  const formReady = settingsQuery.isSuccess && !settingsQuery.isFetching;
+  const formKey = form.settingsFingerprint || "new";
 
   return (
     <>
@@ -87,7 +90,7 @@ export function PlatformMailConfigModal({
         description="Default outbound mail for the platform and for resellers assigned to platform mail."
         onClose={onClose}
         onSave={() => {
-          if (canUpdate) void form.handleSave();
+          if (canUpdate) void handleSave();
         }}
         primaryButtonLabel={updateMutation.isPending ? "Saving…" : "Save configuration"}
         primaryButtonDisabled={updateMutation.isPending || !canUpdate}
@@ -96,11 +99,12 @@ export function PlatformMailConfigModal({
         showCancelButton
         cancelButtonLabel={hasConfig ? "Close" : "Cancel"}
       >
-        {settingsQuery.isLoading ? (
+        {!formReady ? (
           <Skeleton variant="rounded" height={320} />
         ) : (
           <Box sx={{ display: "flex", flexDirection: "column", gap: 0 }}>
             <MailConnectionForm
+              key={formKey}
               form={form}
               disabled={!canUpdate}
               existingFields={settings?.fields}
@@ -111,26 +115,6 @@ export function PlatformMailConfigModal({
                 lastTestedBy: settings?.lastTestedBy,
               }}
             />
-
-            {hasConfig ? (
-              <EmailConnectionTestSection
-                ready={testReady}
-                disabled={testDisabled}
-                testing={testMutation.isPending}
-                lastTestStatus={settings?.lastTestStatus}
-                lastTestedAt={settings?.lastTestedAt}
-                lastTestMessage={settings?.lastTestMessage}
-                onTest={async (toEmail) => {
-                  const result = await form.handleTest({ toEmail });
-                  return {
-                    success: result.success,
-                    message:
-                      readTestMessage(result.message) ??
-                      (result.success ? "Test email sent." : "Test failed."),
-                  };
-                }}
-              />
-            ) : null}
 
             {canDelete && hasConfig ? (
               <Box sx={{ mt: 2 }}>
@@ -146,6 +130,36 @@ export function PlatformMailConfigModal({
           </Box>
         )}
       </FormModal>
+
+      <EmailConnectionTestModal
+        open={testModalOpen}
+        onClose={() => setTestModalOpen(false)}
+        title="Test platform mail"
+        description="Configuration saved. Send a test email to confirm your platform mail is working."
+        testing={testMutation.isPending}
+        disabled={!canTest}
+        lastTestStatus={settings?.lastTestStatus}
+        lastTestedAt={settings?.lastTestedAt}
+        lastTestMessage={settings?.lastTestMessage}
+        onTest={async (toEmail) => {
+          try {
+            const result = await testMutation.mutateAsync({ toEmail });
+            onSaved?.();
+            const raw = readTestMessage(result.message);
+            return {
+              success: result.success,
+              message: result.success
+                ? raw ?? "Test email sent."
+                : formatMailTestErrorMessage(raw ?? "Test failed."),
+            };
+          } catch (err) {
+            return {
+              success: false,
+              message: formatMailTestErrorMessage(extractEmailTestErrorMessage(err)),
+            };
+          }
+        }}
+      />
 
       <EmailDeleteConfirmModal
         open={deleteConfirmOpen}

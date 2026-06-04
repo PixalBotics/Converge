@@ -184,13 +184,27 @@ export function createAppMuiTheme(
     paletteMode === "light"
       ? "rgba(15, 23, 42, 0.92)"
       : "rgba(226, 232, 240, 0.95)";
+  const d = app.dashboard;
+  const liveChatFromTheme = {
+    cardBg: d.cardBg,
+    messageBg: d.sidebarBg || d.headerBg || d.cardBg,
+    avatarBg: accent,
+    messageText: app.text.primary,
+    cardGlass: d.overlayLight,
+  };
   const appResolved = {
     ...app,
     dashboard: {
-      ...app.dashboard,
+      ...d,
       gradientButton: accentCtaGradient(accent),
       textMuted: normalizedTextMuted,
       textMuted95: normalizedTextMuted95,
+      liveChat: {
+        ...d.liveChat,
+        ...liveChatFromTheme,
+        avatarBg: accent,
+        messageText: app.text.primary,
+      },
     },
   } as unknown as typeof appColors;
 

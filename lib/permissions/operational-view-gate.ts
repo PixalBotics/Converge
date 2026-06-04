@@ -24,6 +24,23 @@ const PREFIX_VIEW_RULES: readonly { prefix: string; anyOf: readonly string[] }[]
     ],
   },
   {
+    prefix: "/dashboard/qa/roster/assign",
+    anyOf: [OP.qa.chatAssign, OP.chatWidget.view, OP.chatWidget.update],
+  },
+  {
+    prefix: "/dashboard/qa/roster",
+    anyOf: [OP.qa.chatAssign, OP.chatWidget.view, OP.chatWidget.update],
+  },
+  {
+    prefix: "/dashboard/qa",
+    anyOf: [
+      OP.qa.chatReview,
+      OP.qa.chatReviewMessage,
+      OP.qa.chatReviewSession,
+      OP.qa.chatAssign,
+    ],
+  },
+  {
     prefix: "/dashboard/chat-qa",
     anyOf: [
       OP.qa.chatReview,
@@ -37,7 +54,41 @@ const PREFIX_VIEW_RULES: readonly { prefix: string; anyOf: readonly string[] }[]
     anyOf: [OP.chat.reportView],
   },
   {
+    prefix: "/dashboard/chat-settings/close-policy",
+    anyOf: [OP.chatWidget.view, OP.chatWidget.update],
+  },
+  {
+    prefix: "/dashboard/chat-settings/qa-roster",
+    anyOf: [OP.qa.chatAssign, OP.chatWidget.view, OP.chatWidget.update],
+  },
+  {
     prefix: "/dashboard/chat-settings",
+    anyOf: [OP.chatWidget.view, OP.chatWidget.update],
+  },
+  {
+    prefix: "/dashboard/chat-involvement",
+    anyOf: [OP.chat.monitorInvolvement, OP.chatWidget.view, OP.chatWidget.update],
+  },
+  {
+    prefix: "/dashboard/ai-training/assistant",
+    anyOf: [
+      OP.aiAssistant.use,
+      OP.aiAssistant.trainingView,
+      OP.aiAssistant.trainingManage,
+      OP.chat.access,
+    ],
+  },
+  {
+    prefix: "/dashboard/ai-training/chatbot",
+    anyOf: [
+      OP.aiChatbot.trainingView,
+      OP.aiChatbot.trainingManage,
+      OP.chatWidget.view,
+      OP.chatWidget.update,
+    ],
+  },
+  {
+    prefix: "/dashboard/chat-canned",
     anyOf: [OP.chatWidget.view, OP.chatWidget.update],
   },
   {
@@ -184,6 +235,10 @@ const PREFIX_VIEW_RULES: readonly { prefix: string; anyOf: readonly string[] }[]
     anyOf: [OP.smtpEmail.view, OP.smtpEmail.update, OP.smtpEmail.test],
   },
   {
+    prefix: "/dashboard/settings/logs",
+    anyOf: [OP.observability.auditRead, OP.observability.analyticsRead],
+  },
+  {
     prefix: "/dashboard/email",
     anyOf: [
       OP.smtpEmail.view,
@@ -199,7 +254,29 @@ const PREFIX_VIEW_RULES: readonly { prefix: string; anyOf: readonly string[] }[]
 
 const PAGE_PERMISSION_TO_VIEW_ANY: Readonly<Record<string, readonly string[]>> = {
   [PAGE.CHAT]: [OP.chat.access],
+  [PAGE.CHAT_INBOX]: [OP.chat.access],
+  [PAGE.CHAT_MONITOR]: [
+    OP.chat.audit,
+    OP.chat.auditPlatform,
+    OP.chat.monitorPool,
+    OP.chat.monitorDepartment,
+    OP.chat.monitorParentCompany,
+    OP.chat.monitorInvolvement,
+  ],
+  [PAGE.CHAT_QA]: [
+    OP.qa.chatReview,
+    OP.qa.chatReviewMessage,
+    OP.qa.chatReviewSession,
+    OP.qa.chatAssign,
+  ],
+  [PAGE.CHAT_REPORTS]: [OP.chat.reportView],
   [PAGE.CHAT_WIDGET]: [OP.chatWidget.view],
+  [PAGE.CHAT_CLOSE_POLICY]: [OP.chatWidget.view, OP.chatWidget.update],
+  [PAGE.CHAT_CANNED]: [OP.chatWidget.view, OP.chatWidget.update],
+  [PAGE.CHAT_INVOLVEMENT]: [OP.chat.monitorInvolvement, OP.chatWidget.view],
+  [PAGE.CHAT_QA_ROSTER]: [OP.qa.chatAssign, OP.chatWidget.view],
+  [PAGE.AI_ASSISTANT]: [OP.aiAssistant.use, OP.aiAssistant.trainingView],
+  [PAGE.AI_CHATBOT]: [OP.aiChatbot.trainingView, OP.chatWidget.view],
   "page:clients": [OP.company.view, OP.company.list, OP.company.detail, OP.accountSetup.view],
   "page:account-setup": [OP.accountSetup.view, OP.company.view, OP.company.list, OP.company.detail],
   "page:resellers": [OP.accountSetup.view, OP.company.view, OP.company.list, OP.company.detail],
@@ -215,13 +292,18 @@ const PAGE_PERMISSION_TO_VIEW_ANY: Readonly<Record<string, readonly string[]>> =
   "page:crm-integration": [OP.crmIntegration.view],
   "page:distribution-setup": [OP.distributionSetup.view],
   "page:ip-blocklist": [OP.ipBlocklist.view],
-  "page:licenses": [OP.license.view, OP.license.generate, OP.license.admin],
+  "page:licenses": [OP.license.view, OP.license.generate, OP.license.admin, OP.license.send],
   "page:reports": [OP.report.view],
   "page:billing": [OP.billing.view],
   "page:smtp-email": [OP.smtpEmail.view],
   "page:email-template": [OP.emailTemplate.view],
   "page:email-agent-feedback": [OP.agentFeedback.view],
   "page:social-media": [OP.socialMedia.view],
+  "page:settings": [],
+  "page:observability:logs": [
+    OP.observability.auditRead,
+    OP.observability.analyticsRead,
+  ],
 };
 
 function normalizePathname(pathname: string): string {

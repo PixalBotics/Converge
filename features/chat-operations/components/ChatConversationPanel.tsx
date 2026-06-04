@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import MoreVert from "@mui/icons-material/MoreVert";
 import Box from "@mui/material/Box";
+import { alpha } from "@mui/material/styles";
 import IconButton from "@mui/material/IconButton";
 import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
@@ -12,10 +13,11 @@ import { Button, Typography } from "@/components/common";
 import type { AgentAiAction } from "@/api/ai/agent-suggest.api";
 import type { AgentVisitorPresentation, ChatMessage } from "@/services/chat/chat.types";
 import type { AiChatMessage } from "../types/ai-chat";
-import { chatOpsAlertBannerSx } from "../styles/chat-operations.styles";
 import { parseVisitorInfo } from "../utils/visitor-info";
 import type { ChatWhisperSocketPayload } from "@/services/chat/supervisor.types";
-import { AgentWhisperBanner } from "./AgentWhisperBanner";
+import { ChatContextRail } from "./ChatContextRail";
+import { inboxTranscriptDisplayForClosed } from "../utils/inbox-transcript-messages";
+import { ChatWhisperComposerStrip } from "./ChatWhisperComposerStrip";
 import { ChatComposer } from "./ChatComposer";
 import { ChatMessageList } from "./ChatMessageList";
 import {
@@ -55,6 +57,9 @@ interface ChatConversationPanelProps {
   activeWhisper?: ChatWhisperSocketPayload | null;
   onApplyWhisperToComposer?: (text: string) => void;
   onDismissWhisper?: () => void;
+  /** Fallback when post-close distribution link is not yet in transcript history. */
+  distributionFormHref?: string | null;
+  requiresDistributionForm?: boolean;
 }
 
 function formatDuration(seconds: number): string {
@@ -93,6 +98,8 @@ export function ChatConversationPanel({
   activeWhisper = null,
   onApplyWhisperToComposer,
   onDismissWhisper,
+  distributionFormHref = null,
+  requiresDistributionForm = false,
 }: ChatConversationPanelProps) {
   const theme = useTheme() as AppTheme;
   const visitorInfo = parseVisitorInfo(visitor, conversationMeta ?? undefined);
@@ -130,8 +137,33 @@ export function ChatConversationPanel({
 
   const hasConversation = Boolean(conversationId);
 
+  const transcriptDisplay = useMemo(() => {
+    const fromMessages = inboxTranscriptDisplayForClosed(messages);
+    if (fromMessages) return fromMessages;
+    if (
+      readOnly &&
+      requiresDistributionForm &&
+      distributionFormHref?.trim()
+    ) {
+      return {
+        requiresDistributionForm: true,
+        distributionFormHref: distributionFormHref.trim(),
+      };
+    }
+    return undefined;
+  }, [messages, readOnly, requiresDistributionForm, distributionFormHref]);
+
   return (
-    <PanelColumn sx={{ height: "100%", overflow: "hidden" }}>
+    <PanelColumn
+      sx={{
+        flex: 1,
+        minHeight: 0,
+        height: "100%",
+        overflow: "hidden",
+        display: "flex",
+        flexDirection: "column",
+      }}
+    >
       {hasConversation ? (
         <PanelHeader
           sx={{
@@ -180,10 +212,10 @@ export function ChatConversationPanel({
                       ? theme.app.dashboard.accentCyan
                       : theme.palette.success.light,
                   bgcolor: readOnly
-                    ? "rgba(148,163,184,0.12)"
+                    ? alpha(theme.app.dashboard.textMuted, 0.12)
                     : visitorTyping
-                      ? "rgba(34,211,238,0.12)"
-                      : "rgba(34,197,94,0.12)",
+                      ? alpha(theme.app.dashboard.accentCyan, 0.14)
+                      : alpha(theme.palette.success.main, 0.14),
                 }}
               >
                 <Box
@@ -277,35 +309,40 @@ export function ChatConversationPanel({
         </PanelHeader>
       ) : null}
 
-      {readOnly && hasConversation ? (
-        <Box sx={chatOpsAlertBannerSx("muted")}>
-          <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, fontSize: 11 }}>
-            Closed conversation — transcript is read-only. New visitor messages may reopen the chat.
-          </Typography>
-        </Box>
-      ) : null}
+      <Box
+        sx={{
+          flex: 1,
+          minHeight: 0,
+          overflow: "hidden",
+          display: "flex",
+          flexDirection: "column",
+        }}
+      >
+        <ChatMessageList
+          conversationId={conversationId}
+          messages={messages}
+          transcriptDisplay={transcriptDisplay}
+          visitorInitials={visitorInfo.initials}
+          visitorTyping={visitorTyping}
+          visitorDisplayName={visitorInfo.displayName}
+          agentDisplayName={assignedAgentLabel}
+          showEmptyPlaceholder={!hasConversation}
+        />
+      </Box>
 
-      {availabilityHint && hasConversation && !readOnly ? (
-        <Box sx={chatOpsAlertBannerSx("info")}>
-          <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, fontSize: 11 }}>
-            Service window · {availabilityHint}
-          </Typography>
-        </Box>
-      ) : null}
-
-      <ChatMessageList
-        messages={messages}
-        visitorInitials={visitorInfo.initials}
-        visitorTyping={visitorTyping}
-        visitorDisplayName={visitorInfo.displayName}
-        agentDisplayName={assignedAgentLabel}
-        showEmptyPlaceholder={!hasConversation}
+      <ChatContextRail
+        hasConversation={hasConversation}
+        readOnly={readOnly}
+        availabilityHint={availabilityHint}
       />
 
-      {activeWhisper && onApplyWhisperToComposer && onDismissWhisper ? (
-        <AgentWhisperBanner
+      {activeWhisper && onApplyWhisperToComposer && onDismissWhisper && !readOnly ? (
+        <ChatWhisperComposerStrip
           payload={activeWhisper}
-          onApplyToComposer={onApplyWhisperToComposer}
+          onInsert={(text) => {
+            onApplyWhisperToComposer(text);
+            onDismissWhisper();
+          }}
           onDismiss={onDismissWhisper}
         />
       ) : null}

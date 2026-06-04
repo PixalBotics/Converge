@@ -7,13 +7,16 @@ import Box from "@mui/material/Box";
 import Switch from "@mui/material/Switch";
 import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
-import { Button, InputField, SelectField, Typography } from "@/components/common";
+import { Button, SelectField, Typography } from "@/components/common";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
 import { WidgetFlowShell } from "@/features/chat-widget";
+import { mergeWizardDraftForPublish } from "@/lib/chat-widget/merge-wizard-draft-for-publish";
 import {
-  patchRemoteWidgetConfiguration,
+  patchRemoteWidgetConfigurationWithMeta,
   summarizePatchResult,
 } from "@/lib/chat-widget/widget-remote-sync";
+import { persistAssetUrlsOnDraft } from "@/lib/chat-widget/resolve-widget-draft-asset-urls";
+import { useWidgetWizardSaveTrace } from "@/features/chat-widget/components/WidgetWizardSaveTraceContext";
 import { extractApiErrorMessageForToast } from "@/lib/notify/extract-api-message";
 import { publishAppToast } from "@/lib/notify";
 import {
@@ -25,6 +28,7 @@ import {
   withChatEditQuery,
 } from "@/lib/chat-widget/chat-wizard-edit";
 import { WidgetChatBoxLivePreview } from "@/components/dashboard/chat-widget/WidgetChatBoxLivePreview";
+import { WidgetColorPickerField } from "@/components/dashboard/chat-widget/WidgetColorPickerField";
 import { WidgetChatColorsSection } from "@/components/dashboard/chat-widget/WidgetChatColorsSection";
 import {
   readWidgetChatColorsFromDraft,
@@ -32,35 +36,42 @@ import {
   type WidgetChatColorsDraft,
 } from "@/lib/chat-widget/widget-colors-draft";
 import { WidgetInquiryOptionsEditor } from "@/components/dashboard/chat-widget/WidgetInquiryOptionsEditor";
+import { SchedulingSectionCard } from "@/features/website-assignments/components/ServiceSchedulingSections";
+import { WidgetWizardPageLayout } from "@/features/chat-widget/components/WidgetWizardPageLayout";
+import { WidgetWizardStepGuide } from "@/features/chat-widget/components/WidgetWizardStepGuide";
 import {
-  chatBoxColorHintSx,
-  chatBoxColorRowSx,
-  chatBoxFieldGroupSx,
-  chatBoxFormStackSx,
-  chatBoxSectionHintSx,
-  chatBoxSectionTitleSx,
-  chatBoxSwitchRowSx,
-} from "./chat-box-design.styles";
+  WidgetNumericField,
+  WidgetTextField,
+} from "@/features/chat-widget/components/WidgetFormFields";
+import { FIELD_MAX } from "@/lib/chat-widget/widget-field-validation";
+import { WidgetWizardToggleRow } from "@/features/chat-widget/components/WidgetWizardToggleRow";
 import { defaultWidgetDraft } from "@/lib/chat-widget/widgetDraft";
+import { useWizardLauncherChrome } from "@/lib/chat-widget/use-wizard-launcher-preview";
+import { resolveWizardLauncherPreview } from "@/lib/chat-widget/widget-wizard-save-trace";
+import { syncResponseCopyFromChatBox } from "@/lib/chat-widget/sync-response-copy-from-chat-box";
+import { WidgetWizardSiteChromePreview } from "@/features/chat-widget/components/WidgetWizardSiteChromePreview";
+import Stack from "@mui/material/Stack";
 import {
   normalizeWidgetInquiryOptions,
   type WidgetInquiryOption,
 } from "@/lib/chat-widget/widget-inquiry.types";
-
-const STEPS = ["Widget Button Design", "Chat Box Design", "Notifications & Advanced"];
+import { useInquiryTopicsForWebsite } from "@/lib/chat-widget/use-inquiry-topics-for-website";
+import {
+  persistVisitorTopicsIfValid,
+  syncInquiryToWidgetJson,
+} from "@/lib/chat-widget/sync-inquiry-topics";
 export default function ChatWidgetBoxDesignPage() {
+  const { recordSave } = useWidgetWizardSaveTrace();
   const router = useRouter();
   const theme = useTheme() as AppTheme;
   const { editWidgetKey, draftReady, hydrateError } = useChatWidgetWizardEdit();
-  const [headerTitle, setHeaderTitle] = useState("Center");
+  const [headerTitleAlign, setHeaderTitleAlign] = useState<"Center" | "Left">("Center");
   const [bannerOn, setBannerOn] = useState(true);
   const [bannerTitle, setBannerTitle] = useState(defaultWidgetDraft.bannerTitle ?? "Special Offer");
   const [bannerDescription, setBannerDescription] = useState(
     defaultWidgetDraft.bannerDescription ?? "",
   );
-  const [buttonColor, setButtonColor] = useState("#1ed760");
-  const [buttonHoverColor, setButtonHoverColor] = useState("#164EB0");
-  const [iconColor, setIconColor] = useState("#FFFFFF");
+  const [headerBrandColor, setHeaderBrandColor] = useState("#1ed760");
   const [themeSecondaryColor, setThemeSecondaryColor] = useState(
     defaultWidgetDraft.themeSecondaryColor ?? "#64748b",
   );
@@ -68,7 +79,15 @@ export default function ChatWidgetBoxDesignPage() {
   const [bannerFileName, setBannerFileName] = useState("");
   const [bannerDataUrl, setBannerDataUrl] = useState("");
   const [bannerMediaType, setBannerMediaType] = useState<"image" | "video">("image");
-  const [companyLogo, setCompanyLogo] = useState("veinso");
+  const [panelHeaderTitle, setPanelHeaderTitle] = useState(
+    defaultWidgetDraft.headerTitle ?? "Live chat",
+  );
+  const [panelGreetingEnabled, setPanelGreetingEnabled] = useState(
+    defaultWidgetDraft.panelGreetingEnabled ?? true,
+  );
+  const [chatWelcomeEnabled, setChatWelcomeEnabled] = useState(
+    defaultWidgetDraft.chatWelcomeEnabled ?? true,
+  );
   const [greetingMessage, setGreetingMessage] = useState("Welcome to Florida Luxurious. Tell me your budget, location, and property type preference.");
   const [sendPlaceholder, setSendPlaceholder] = useState("Ask about location, budget, or options...");
   const [boxWidth, setBoxWidth] = useState("350");
@@ -77,16 +96,15 @@ export default function ChatWidgetBoxDesignPage() {
   const [firstMessage, setFirstMessage] = useState(
     defaultWidgetDraft.firstMessage ?? "Hi! How can we help today?",
   );
-  const [messagePlaceholder, setMessagePlaceholder] = useState(
-    defaultWidgetDraft.messagePlaceholder ?? "Write here…",
-  );
   const [backgroundColor, setBackgroundColor] = useState(
     defaultWidgetDraft.backgroundColor ?? "#f8fafc",
   );
-  const [popupEnabled, setPopupEnabled] = useState(defaultWidgetDraft.popupEnabled ?? false);
   const [inquiryOn, setInquiryOn] = useState(defaultWidgetDraft.inquiryOn ?? false);
   const [inquiryOptions, setInquiryOptions] = useState<WidgetInquiryOption[]>(
     defaultWidgetDraft.inquiryOptions ?? [],
+  );
+  const [inquiryFallbackRoutingKey, setInquiryFallbackRoutingKey] = useState(
+    defaultWidgetDraft.inquiryFallbackRoutingKey ?? "",
   );
   const [wizardWebsiteId, setWizardWebsiteId] = useState<string | undefined>(
     defaultWidgetDraft.websiteId,
@@ -108,38 +126,68 @@ export default function ChatWidgetBoxDesignPage() {
     chatMode: defaultWidgetDraft.chatMode ?? "HYBRID",
   });
   const bannerUploadRef = useRef<HTMLInputElement | null>(null);
+  const inquiryTopicsTouchedRef = useRef(false);
   const [saving, setSaving] = useState(false);
+  const [checklistRefreshKey, setChecklistRefreshKey] = useState(0);
+
+  const { chromeDraft } = useWizardLauncherChrome(
+    editWidgetKey,
+    draftReady,
+    checklistRefreshKey,
+    { buttonLabel, themePrimaryColor: headerBrandColor },
+  );
+
+  useEffect(() => {
+    inquiryTopicsTouchedRef.current = false;
+  }, [editWidgetKey]);
+
+  const {
+    topicsFromScheduling,
+    isLoading: inquiryTopicsLoading,
+    loadedFromScheduling,
+  } = useInquiryTopicsForWebsite(wizardWebsiteId, draftReady);
+
+  const schedulingTopicsFingerprint = useMemo(
+    () =>
+      topicsFromScheduling
+        .map((t) => `${t.routingKey}:${t.label}:${t.internalDepartmentId}:${t.externalDepartmentId}`)
+        .join("|"),
+    [topicsFromScheduling],
+  );
 
   useEffect(() => {
     if (!draftReady) return;
     const d = readChatWizardDraft(resolveEditWidgetKeyForNavigation(editWidgetKey) || undefined);
-    setHeaderTitle(d.headerTitleAlign === "Left" ? "Left" : "Center");
+    const def = defaultWidgetDraft;
+    setHeaderTitleAlign(d.headerTitleAlign === "Left" ? "Left" : "Center");
     setBannerOn(Boolean(d.bannerOn));
     setBannerTitle(d.bannerTitle ?? defaultWidgetDraft.bannerTitle ?? "");
     setBannerDescription(d.bannerDescription ?? defaultWidgetDraft.bannerDescription ?? "");
-    setButtonColor(d.buttonColor || "#1ed760");
-    setButtonHoverColor(d.buttonHoverColor || d.buttonColor || "#164EB0");
-    setIconColor(d.iconColor || "#FFFFFF");
+    setHeaderBrandColor(
+      d.themePrimaryColor?.trim() || d.buttonColor?.trim() || "#1ed760",
+    );
     setThemeSecondaryColor(d.themeSecondaryColor ?? "#64748b");
     setTextColor(d.textColor || "#d62cad");
     setBannerDataUrl(d.bannerDataUrl || "");
     setBannerFileName(d.bannerDataUrl ? "Uploaded banner" : "");
     setBannerMediaType(d.bannerMediaType === "video" ? "video" : "image");
-    setCompanyLogo(d.headerTitle || "veinso");
+    setPanelHeaderTitle(
+      d.headerTitle ?? defaultWidgetDraft.headerTitle ?? "Live chat",
+    );
+    setPanelGreetingEnabled(d.panelGreetingEnabled !== false);
+    setChatWelcomeEnabled(d.chatWelcomeEnabled !== false);
     setGreetingMessage(d.greetingMessage ?? defaultWidgetDraft.greetingMessage);
-    setSendPlaceholder(d.sendPlaceholder ?? defaultWidgetDraft.sendPlaceholder);
+    setSendPlaceholder(
+      d.sendPlaceholder ??
+        d.messagePlaceholder ??
+        defaultWidgetDraft.sendPlaceholder,
+    );
     setBoxWidth(String(d.boxWidth ?? 350));
     setBoxHeight(String(d.boxHeight ?? 430));
     setButtonLabel(d.buttonLabel ?? "Chat with us");
     setFirstMessage(d.firstMessage ?? "Hi! How can we help today?");
-    setMessagePlaceholder(d.messagePlaceholder ?? "Write here…");
     setBackgroundColor(d.backgroundColor ?? "#f8fafc");
-    setPopupEnabled(Boolean(d.popupEnabled));
     setChatColors(readWidgetChatColorsFromDraft(d));
-    const def = defaultWidgetDraft;
-    const inquiryArr = normalizeWidgetInquiryOptions(d.inquiryOptions ?? def.inquiryOptions);
-    setInquiryOn(d.inquiryOn ?? inquiryArr.length > 0);
-    setInquiryOptions(inquiryArr);
     setWizardWebsiteId(d.websiteId);
     setPreviewForm({
       formEnabled: d.formEnabled ?? def.formEnabled ?? true,
@@ -154,19 +202,31 @@ export default function ChatWidgetBoxDesignPage() {
       handoverTriggerText: d.responseHandoverTriggerText ?? def.responseHandoverTriggerText ?? "",
       chatMode: d.chatMode ?? def.chatMode ?? "HYBRID",
     });
-  }, [draftReady, editWidgetKey]);
+  }, [draftReady, editWidgetKey, checklistRefreshKey]);
 
-  const handleButtonColor = (event: ChangeEvent<HTMLInputElement>) => {
-    const color = event.target.value;
-    if (!color) return;
-    setButtonColor(color);
-  };
+  useEffect(() => {
+    if (!draftReady) return;
+    const d = readChatWizardDraft(resolveEditWidgetKeyForNavigation(editWidgetKey) || undefined);
+    const def = defaultWidgetDraft;
+    if (inquiryTopicsLoading) return;
+    if (inquiryTopicsTouchedRef.current) return;
 
-  const handleTextColor = (event: ChangeEvent<HTMLInputElement>) => {
-    const color = event.target.value;
-    if (!color) return;
-    setTextColor(color);
-  };
+    if (topicsFromScheduling.length > 0) {
+      setInquiryOptions(topicsFromScheduling);
+      setInquiryOn(true);
+      return;
+    }
+
+    const inquiryArr = normalizeWidgetInquiryOptions(d.inquiryOptions ?? def.inquiryOptions);
+    setInquiryOn(d.inquiryOn ?? inquiryArr.length > 0);
+    setInquiryOptions(inquiryArr);
+    setInquiryFallbackRoutingKey(
+      d.inquiryFallbackRoutingKey?.trim() ||
+        inquiryArr.find((o) => o.routingKey.trim())?.routingKey ||
+        def.inquiryFallbackRoutingKey ||
+        "",
+    );
+  }, [draftReady, editWidgetKey, inquiryTopicsLoading, schedulingTopicsFingerprint, topicsFromScheduling]);
 
   const handleBannerUpload = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -201,13 +261,56 @@ export default function ChatWidgetBoxDesignPage() {
 
       setSaving(true);
       try {
+        const launcherFromStep1 = resolveWizardLauncherPreview(prev);
         saveChatWizardDraft(editKey || undefined, {
-          headerTitleAlign: headerTitle as "Center" | "Left",
-          headerTitle: companyLogo || "AI Sales Assistant",
-          buttonColor: buttonColor || "#1ed760",
-          textColor: textColor || "#FFFFFF",
+          ...launcherFromStep1,
+          buttonShape: launcherFromStep1.buttonShape,
+          buttonPosition: launcherFromStep1.buttonPosition,
+          launcherInsetBottomPx: prev.launcherInsetBottomPx,
+          launcherInsetSidePx: prev.launcherInsetSidePx,
+          buttonColor: prev.buttonColor,
+          buttonHoverColor: prev.buttonHoverColor,
+          iconColor: prev.iconColor,
+          iconDataUrl: prev.iconDataUrl,
+          launcherIconPreset: prev.launcherIconPreset,
+          proactiveTeaserEnabled: prev.proactiveTeaserEnabled,
+          proactiveTeaser: prev.proactiveTeaser,
+          proactiveTeaserAvatarEnabled: prev.proactiveTeaserAvatarEnabled,
+          proactiveTeaserAvatarDataUrl: prev.proactiveTeaserAvatarDataUrl,
+          proactiveSecondaryCtaEnabled: prev.proactiveSecondaryCtaEnabled,
+          proactiveSecondaryCtaLabel: prev.proactiveSecondaryCtaLabel,
+          proactiveSecondaryCtaHref: prev.proactiveSecondaryCtaHref,
+          proactiveSecondaryCtaKind: prev.proactiveSecondaryCtaKind,
+          themeName: prev.themeName,
+          themeFontFamily: prev.themeFontFamily,
+          themeBubbleStyle: prev.themeBubbleStyle,
+          themeBorderRadiusPx: prev.themeBorderRadiusPx,
+          themeWelcomeFontSizePx: prev.themeWelcomeFontSizePx,
+          themeBodyFontSizePx: prev.themeBodyFontSizePx,
+          themeInputFontSizePx: prev.themeInputFontSizePx,
+          themeCtaFontSizePx: prev.themeCtaFontSizePx,
+          themeConsentFontSizePx: prev.themeConsentFontSizePx,
+          themeLineHeightPx: prev.themeLineHeightPx,
+          themeDesignJsonAccent: prev.themeDesignJsonAccent,
+          themeDesignJsonDensity: prev.themeDesignJsonDensity,
+          themeSecondaryColor: prev.themeSecondaryColor ?? themeSecondaryColor,
+          headerTitleAlign,
+          headerTitle: panelHeaderTitle.trim() || defaultWidgetDraft.headerTitle,
+          ...syncResponseCopyFromChatBox({
+            ...prev,
+            greetingMessage,
+            firstMessage,
+            sendPlaceholder,
+            messagePlaceholder: sendPlaceholder,
+          }),
+          themePrimaryColor:
+            headerBrandColor.trim() || prev.themePrimaryColor || prev.buttonColor,
+          textColor: textColor || prev.textColor || "#FFFFFF",
+          panelGreetingEnabled,
+          chatWelcomeEnabled,
           greetingMessage,
           sendPlaceholder,
+          messagePlaceholder: sendPlaceholder.trim(),
           bannerOn,
           bannerTitle: bannerTitle.trim(),
           bannerDescription: bannerDescription.trim(),
@@ -215,31 +318,76 @@ export default function ChatWidgetBoxDesignPage() {
           bannerMediaType,
           boxWidth: safeWidth,
           boxHeight: safeHeight,
-          buttonLabel: buttonLabel.trim() || "Chat with us",
+          buttonLabel: buttonLabel.trim() || prev.buttonLabel || "Chat with us",
           firstMessage: firstMessage.trim(),
-          messagePlaceholder: messagePlaceholder.trim(),
-          backgroundColor: backgroundColor.trim() || "#f8fafc",
-          popupEnabled,
+          backgroundColor: backgroundColor.trim() || prev.backgroundColor || "#f8fafc",
           inquiryOn,
-          inquiryOptions: inquiryOn ? inquiryOptions : [],
+          inquiryOptions: inquiryOn
+            ? normalizeWidgetInquiryOptions(inquiryOptions)
+            : [],
+          inquiryFallbackRoutingKey: inquiryFallbackRoutingKey.trim() || undefined,
           ...widgetChatColorsDraftToPatch(chatColors),
         });
         const latest = readChatWizardDraft(editKey || undefined);
-        const patchInner = await patchRemoteWidgetConfiguration({
+        if (wizardWebsiteId && inquiryOn && latest.inquiryOptions?.length) {
+          const topicsResult = await persistVisitorTopicsIfValid(
+            wizardWebsiteId,
+            normalizeWidgetInquiryOptions(latest.inquiryOptions),
+          );
+          if (!topicsResult.ok) {
+            publishAppToast({
+              variant: "error",
+              message: topicsResult.error,
+            });
+            setSaving(false);
+            return;
+          }
+          try {
+            await syncInquiryToWidgetJson({ widgetKey: rk, draft: latest });
+          } catch {
+            publishAppToast({
+              variant: "error",
+              message:
+                "Visitor topics saved, but widget JSON sync failed. Try Save inquiry topics or click Next again.",
+            });
+          }
+        }
+        const patchMeta = await patchRemoteWidgetConfigurationWithMeta({
           widgetKey: rk,
           widgetKind: "chat",
           draft: latest,
           publishNow: false,
           chatWizardPatchScope: "chat_surface",
         });
-        const sum = summarizePatchResult(patchInner);
+        recordSave({
+          stepKey: "box",
+          stepLabel: "Step 2 — Chat box",
+          method: patchMeta.method,
+          path: patchMeta.path,
+          scope: patchMeta.scope,
+          publishNow: patchMeta.publishNow,
+          requestBody: patchMeta.requestBody,
+          responseBody: patchMeta.inner,
+        });
+        const sum = summarizePatchResult(patchMeta.inner);
+        if (patchMeta.assetUrls) {
+          saveChatWizardDraft(editKey || undefined, persistAssetUrlsOnDraft(latest, patchMeta.assetUrls));
+        }
+        if (patchMeta.assetErrors?.length) {
+          publishAppToast({
+            variant: "error",
+            message: patchMeta.assetErrors.join(" "),
+          });
+        }
         saveChatWizardDraft(editKey || undefined, {
+          ...mergeWizardDraftForPublish(readChatWizardDraft(editKey || undefined)),
           requiresPublishBeforeEmbed: sum.requiresPublishBeforeEmbed,
         });
+        setChecklistRefreshKey((k) => k + 1);
         router.push(
           withChatEditQuery(
             "/dashboard/chat-widget/add/chat/notifications",
-            resolveEditWidgetKeyForNavigation(editKey),
+            resolveEditWidgetKeyForNavigation(editKey) || rk,
           ),
         );
       } catch (e) {
@@ -265,9 +413,9 @@ export default function ChatWidgetBoxDesignPage() {
 
   const livePreviewModel = useMemo(
     () => ({
-      headerTitle: companyLogo || "AI Sales Assistant",
-      headerAlign: (headerTitle === "Left" ? "Left" : "Center") as "Center" | "Left",
-      buttonColor: buttonColor || "#1ed760",
+      headerTitle: panelHeaderTitle || defaultWidgetDraft.headerTitle,
+      headerAlign: headerTitleAlign,
+      buttonColor: headerBrandColor || "#1ed760",
       textColor: textColor || "#ffffff",
       backgroundColor: backgroundColor.trim() || "#f8fafc",
       bannerOn,
@@ -275,10 +423,10 @@ export default function ChatWidgetBoxDesignPage() {
       bannerDescription,
       bannerDataUrl,
       bannerMediaType,
-      greetingMessage,
-      firstMessage,
+      greetingMessage: panelGreetingEnabled ? greetingMessage : "",
+      firstMessage: chatWelcomeEnabled ? firstMessage : "",
       sendPlaceholder,
-      messagePlaceholder,
+      messagePlaceholder: sendPlaceholder,
       boxWidth: Number.isFinite(parsedPreviewWidth) ? parsedPreviewWidth : 350,
       boxHeight: Number.isFinite(parsedPreviewHeight) ? parsedPreviewHeight : 430,
       colors: {
@@ -301,9 +449,9 @@ export default function ChatWidgetBoxDesignPage() {
       chatMode: previewForm.chatMode,
     }),
     [
-      companyLogo,
-      headerTitle,
-      buttonColor,
+      panelHeaderTitle,
+      headerTitleAlign,
+      headerBrandColor,
       textColor,
       backgroundColor,
       bannerOn,
@@ -311,10 +459,11 @@ export default function ChatWidgetBoxDesignPage() {
       bannerDescription,
       bannerDataUrl,
       bannerMediaType,
+      panelGreetingEnabled,
       greetingMessage,
+      chatWelcomeEnabled,
       firstMessage,
       sendPlaceholder,
-      messagePlaceholder,
       parsedPreviewWidth,
       parsedPreviewHeight,
       chatColors,
@@ -329,7 +478,7 @@ export default function ChatWidgetBoxDesignPage() {
       pageTitle="Widget Customization"
       subtitle="Connect your workflow with industry-leading CRM platform minutes."
       cardTitle="Chat Box Design"
-      stepper={{ labels: STEPS, currentStep: 1 }}
+      currentStep={1}
       footer={
         <>
           <Button type="button" variant="secondary" onClick={() => router.push("/dashboard/chat-widget")}>
@@ -352,72 +501,53 @@ export default function ChatWidgetBoxDesignPage() {
         </Typography>
       ) : null}
 
-      <Box
-        sx={{
-          display: "grid",
-          gridTemplateColumns: { xs: "1fr", xl: "minmax(0, 1fr) minmax(300px, 360px)" },
-          gap: 3,
-          alignItems: "start",
-        }}
+      <WidgetWizardPageLayout
+        checklistRefreshKey={checklistRefreshKey}
+        preview={
+          <Stack spacing={2.5}>
+            <WidgetWizardSiteChromePreview draft={chromeDraft} />
+            <WidgetChatBoxLivePreview model={livePreviewModel} />
+          </Stack>
+        }
       >
-        <Box sx={chatBoxFormStackSx}>
-      <SelectField label="Header Title" value={headerTitle} onChange={setHeaderTitle} options={[{ label: "Center", value: "Center" }, { label: "Left", value: "Left" }]} />
+        <WidgetWizardStepGuide step="box" />
+        <SchedulingSectionCard
+          title="Panel header & colors"
+          subtitle="Header alignment, brand colors, and optional banner."
+        >
+      <SelectField
+        label="Header alignment"
+        value={headerTitleAlign}
+        onChange={(v) => setHeaderTitleAlign(v as "Center" | "Left")}
+        options={[
+          { label: "Center", value: "Center" },
+          { label: "Left", value: "Left" },
+        ]}
+      />
 
-      <Box sx={chatBoxFieldGroupSx}>
-        <Typography variant="medium16" sx={chatBoxSectionTitleSx}>
-          Button Color
-        </Typography>
-        <Box sx={chatBoxColorRowSx}>
-          <Box
-            component="input"
-            type="color"
-            value={buttonColor}
-            onChange={handleButtonColor}
-            sx={{
-              width: 44,
-              height: 44,
-              p: 0,
-              border: `1px solid ${theme.app.dashboard.cardBorder}`,
-              borderRadius: "4px",
-              bgcolor: "transparent",
-              cursor: "pointer",
-            }}
-          />
-          <Typography variant="body2" sx={chatBoxColorHintSx}>
-            Choose color
-          </Typography>
-        </Box>
-        <InputField label="Hex" name="button-color-hex" value={buttonColor} onChange={(e) => setButtonColor(e.target.value)} />
+      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 2, mb: 1 }}>
+        <WidgetColorPickerField
+          label="Header / brand color"
+          value={headerBrandColor}
+          onChange={setHeaderBrandColor}
+          fallback="#2563eb"
+        />
+        <WidgetColorPickerField
+          label="Header text color"
+          value={textColor}
+          onChange={setTextColor}
+          fallback="#ffffff"
+        />
       </Box>
 
-      <Box sx={chatBoxFieldGroupSx}>
-        <Typography variant="medium16" sx={chatBoxSectionTitleSx}>
-          Text Color
-        </Typography>
-        <Box sx={chatBoxColorRowSx}>
-          <Box
-            component="input"
-            type="color"
-            value={textColor}
-            onChange={handleTextColor}
-            sx={{
-              width: 44,
-              height: 44,
-              p: 0,
-              border: `1px solid ${theme.app.dashboard.cardBorder}`,
-              borderRadius: "4px",
-              bgcolor: "transparent",
-              cursor: "pointer",
-            }}
-          />
-          <Typography variant="body2" sx={chatBoxColorHintSx}>
-            Choose color
-          </Typography>
-        </Box>
-        <InputField label="Hex" name="text-color-hex" value={textColor} onChange={(e) => setTextColor(e.target.value)} />
-      </Box>
-
-      <InputField label="Company Logo" name="logo" value={companyLogo} onChange={(event) => setCompanyLogo(event.target.value)} />
+      <WidgetTextField
+        label="Header title"
+        name="header-title"
+        value={panelHeaderTitle}
+        onChange={setPanelHeaderTitle}
+        maxLength={FIELD_MAX.title}
+        helperText="Top bar inside the open chat panel."
+      />
 
       <Box sx={chatBoxSwitchRowSx}>
         <Typography variant="medium16" sx={chatBoxSectionTitleSx}>
@@ -428,17 +558,19 @@ export default function ChatWidgetBoxDesignPage() {
 
       {bannerOn ? (
         <>
-          <InputField
+          <WidgetTextField
             label="Banner title"
             name="banner-title"
             value={bannerTitle}
-            onChange={(e) => setBannerTitle(e.target.value)}
+            onChange={setBannerTitle}
+            maxLength={FIELD_MAX.title}
           />
-          <InputField
+          <WidgetTextField
             label="Banner description"
             name="banner-description"
             value={bannerDescription}
-            onChange={(e) => setBannerDescription(e.target.value)}
+            onChange={setBannerDescription}
+            maxLength={FIELD_MAX.message}
           />
           <Box
             role="button"
@@ -474,126 +606,177 @@ export default function ChatWidgetBoxDesignPage() {
         </>
       ) : null}
       <Box component="input" ref={bannerUploadRef} type="file" accept=".png,.jpg,.jpeg,.webp,.gif,.mp4,.webm,.ogg,.mov" onChange={handleBannerUpload} sx={{ display: "none" }} />
+        </SchedulingSectionCard>
 
-      <Box sx={chatBoxSwitchRowSx}>
-        <Typography variant="medium16" sx={chatBoxSectionTitleSx}>
-          Inquiry topics (optional)
-        </Typography>
-        <Switch checked={inquiryOn} onChange={(_, checked) => setInquiryOn(checked)} color="success" />
-      </Box>
-      {inquiryOn ? (
+      <SchedulingSectionCard
+        title="Inquiry topics"
+        subtitle="Save or Next writes topics to visitor-topics (routing) and widget JSON (embed pills). Publish from Script when done."
+      >
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 1,
+            mb: 1.5,
+          }}
+        >
+          <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted }}>
+            Show topic pills on widget
+          </Typography>
+          <Switch
+            checked={inquiryOn}
+            onChange={(_, checked) => setInquiryOn(checked)}
+            color="success"
+            inputProps={{ "aria-label": "Show inquiry topic pills on widget" }}
+          />
+        </Box>
         <WidgetInquiryOptionsEditor
           websiteId={wizardWebsiteId}
           value={inquiryOptions}
-          onChange={setInquiryOptions}
+          onChange={(rows) => {
+            inquiryTopicsTouchedRef.current = true;
+            setInquiryOptions(rows);
+          }}
+          inquiryFallbackRoutingKey={inquiryFallbackRoutingKey}
+          onFallbackRoutingKeyChange={setInquiryFallbackRoutingKey}
           disabled={saving}
+          topicsLoading={inquiryTopicsLoading}
+          loadedFromScheduling={loadedFromScheduling}
+          onSaved={(rows) => {
+            inquiryTopicsTouchedRef.current = false;
+            setInquiryOptions(rows);
+            if (rows.length > 0) setInquiryOn(true);
+            const editKey = resolveEditWidgetKeyForNavigation(editWidgetKey);
+            const prev = readChatWizardDraft(editKey || undefined);
+            const fallbackKey =
+              inquiryFallbackRoutingKey.trim() ||
+              rows.find((o) => o.routingKey.trim())?.routingKey ||
+              "";
+            const mergedDraft = {
+              ...prev,
+              inquiryOptions: rows,
+              inquiryOn: rows.length > 0,
+              inquiryFallbackRoutingKey: fallbackKey || undefined,
+            };
+            saveChatWizardDraft(editKey || undefined, {
+              inquiryOptions: rows,
+              inquiryOn: rows.length > 0,
+              inquiryFallbackRoutingKey: fallbackKey || undefined,
+            });
+            const rk = resolveRemoteWidgetKeyForChatWizard(editKey || undefined, prev);
+            if (rk) {
+              void syncInquiryToWidgetJson({ widgetKey: rk, draft: mergedDraft }).catch(
+                () => {
+                  publishAppToast({
+                    variant: "error",
+                    message:
+                      "Topics saved for the website, but widget JSON sync failed. Click Next on this step or publish again.",
+                  });
+                },
+              );
+            }
+          }}
+        />
+      </SchedulingSectionCard>
+
+        <SchedulingSectionCard
+          title="Launcher & panel shell"
+          subtitle="Floating button label, intro bubble, composer placeholder, and panel background."
+        >
+      <WidgetTextField
+        label="Floating button label"
+        name="button-label"
+        value={buttonLabel}
+        onChange={setButtonLabel}
+        maxLength={FIELD_MAX.shortLabel}
+        helperText="Short label on the closed chat button (optional)."
+      />
+      <WidgetWizardToggleRow
+        label="Panel greeting (Continue step)"
+        description="Intro screen with Continue before chat or form."
+        checked={panelGreetingEnabled}
+        onChange={setPanelGreetingEnabled}
+      />
+      {panelGreetingEnabled ? (
+        <WidgetTextField
+          label="Panel greeting text"
+          name="greeting-message"
+          value={greetingMessage}
+          onChange={setGreetingMessage}
+          maxLength={FIELD_MAX.message}
+          helperText="Intro screen before Continue."
         />
       ) : null}
-
-      <Box sx={chatBoxFieldGroupSx}>
-        <Typography variant="medium16" sx={chatBoxSectionTitleSx}>
-          Launcher & panel shell (config.ui)
-        </Typography>
-        <Typography variant="body2" sx={chatBoxSectionHintSx}>
-          Shown on step 2 PATCH: floating button label, first bubble line, composer placeholder, panel background.
-        </Typography>
-        <InputField label="Floating button label" name="button-label" value={buttonLabel} onChange={(e) => setButtonLabel(e.target.value)} />
-        <InputField
-          label="First message (intro bubble)"
+      <WidgetWizardToggleRow
+        label="Chat welcome (first bubble)"
+        description="First agent line in the transcript after pre-chat."
+        checked={chatWelcomeEnabled}
+        onChange={setChatWelcomeEnabled}
+      />
+      {chatWelcomeEnabled ? (
+        <WidgetTextField
+          label="First chat message"
           name="first-message"
           value={firstMessage}
-          onChange={(e) => setFirstMessage(e.target.value)}
+          onChange={setFirstMessage}
+          maxLength={FIELD_MAX.message}
+          helperText="First bubble after the visitor starts chatting."
         />
-        <InputField
-          label="Composer placeholder (config.ui)"
-          name="message-placeholder"
-          value={messagePlaceholder}
-          onChange={(e) => setMessagePlaceholder(e.target.value)}
-        />
-      </Box>
+      ) : null}
+      <WidgetTextField
+        label="Message box placeholder"
+        name="send-placeholder"
+        value={sendPlaceholder}
+        onChange={setSendPlaceholder}
+        maxLength={FIELD_MAX.placeholder}
+        helperText="Gray hint text in the message field."
+      />
+      <WidgetColorPickerField
+        label="Panel background"
+        value={backgroundColor}
+        onChange={setBackgroundColor}
+        fallback="#f8fafc"
+      />
+        </SchedulingSectionCard>
 
-      <Box sx={chatBoxFieldGroupSx}>
-        <Typography variant="medium16" sx={chatBoxSectionTitleSx}>
-          Panel background
-        </Typography>
-        <Box sx={chatBoxColorRowSx}>
-          <Box
-            component="input"
-            type="color"
-            value={backgroundColor.startsWith("#") && backgroundColor.length >= 4 ? backgroundColor : "#f8fafc"}
-            onChange={(e: ChangeEvent<HTMLInputElement>) => setBackgroundColor(e.target.value)}
-            sx={{
-              width: 44,
-              height: 44,
-              p: 0,
-              border: `1px solid ${theme.app.dashboard.cardBorder}`,
-              borderRadius: "4px",
-              bgcolor: "transparent",
-              cursor: "pointer",
-            }}
-          />
-          <InputField label="Hex" name="bg-hex" value={backgroundColor} onChange={(e) => setBackgroundColor(e.target.value)} />
-        </Box>
-      </Box>
-
-      <Box sx={chatBoxSwitchRowSx}>
-        <Typography variant="medium16" sx={chatBoxSectionTitleSx}>
-          Popup auto-open (config.ui.popupEnabled)
-        </Typography>
-        <Switch checked={popupEnabled} onChange={(_, c) => setPopupEnabled(c)} color="success" />
-      </Box>
-
+        <SchedulingSectionCard title="Chat colors & typography" subtitle="Panel tokens and greeting copy.">
       <WidgetChatColorsSection
         colors={chatColors}
         onChange={setChatColors}
         brandScalars={{
-          buttonColor,
-          buttonHoverColor,
-          iconColor,
+          buttonColor: chromeDraft.buttonColor || "#1E63D5",
+          buttonHoverColor: chromeDraft.buttonHoverColor || chromeDraft.buttonColor || "#164EB0",
+          iconColor: chromeDraft.iconColor || "#ffffff",
           textColor,
           themeSecondaryColor,
           backgroundColor,
         }}
       />
 
-      <Box sx={chatBoxFieldGroupSx}>
-        <Typography variant="medium16" sx={chatBoxSectionTitleSx}>
-          Text & Labels
-        </Typography>
-        <InputField label="Greeting Message" name="greeting-message" value={greetingMessage} onChange={(event) => setGreetingMessage(event.target.value)} />
-        <InputField label="Send Message Placeholder" name="send-placeholder" value={sendPlaceholder} onChange={(event) => setSendPlaceholder(event.target.value)} />
-      </Box>
+      <Typography variant="mediumLarge" sx={{ color: theme.app.text.primary, mb: -1.25, mt: 1 }}>
+        Panel size
+      </Typography>
       <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 1.5 }}>
-        <InputField
-          label="Chat Box Width (px)"
+        <WidgetNumericField
+          label="Panel width (px)"
           name="box-width"
-          type="text"
           value={boxWidth}
-          onChange={(event) => setBoxWidth(event.target.value)}
-          inputProps={{ inputMode: "numeric", pattern: "[0-9]*", min: 280, max: 520 }}
+          onChange={setBoxWidth}
+          min={280}
+          max={520}
         />
-        <InputField
-          label="Chat Box Height (px)"
+        <WidgetNumericField
+          label="Panel height (px)"
           name="box-height"
-          type="text"
           value={boxHeight}
-          onChange={(event) => setBoxHeight(event.target.value)}
-          inputProps={{ inputMode: "numeric", pattern: "[0-9]*", min: 320, max: 640 }}
+          onChange={setBoxHeight}
+          min={320}
+          max={640}
         />
       </Box>
-        </Box>
-
-        <Box
-          sx={{
-            position: { xl: "sticky" },
-            top: 16,
-            maxHeight: { xl: "calc(100vh - 120px)" },
-            overflowY: { xl: "auto" },
-          }}
-        >
-          <WidgetChatBoxLivePreview model={livePreviewModel} />
-        </Box>
-      </Box>
+        </SchedulingSectionCard>
+      </WidgetWizardPageLayout>
     </WidgetFlowShell>
   );
 }

@@ -8,6 +8,7 @@ import RadioGroup from "@mui/material/RadioGroup";
 import { alpha, useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import { Button, SelectField, Typography } from "@/components/common";
+import { AddCircleIcon } from "@/components/common/icons";
 import type { PocEditRow } from "./ChildCompanyPocPanel";
 import { CompanyPocSummaryBlock } from "./CompanyPocSummaryBlock";
 import { CompanySetupChildPocBlock } from "./CompanySetupChildPocBlock";
@@ -15,12 +16,14 @@ import { normalizePocsFromCarrier } from "@/lib/companies/parent-detail-pocs";
 import { extractUsersRows } from "@/app/dashboard/user-page/utils";
 import { pickItemsArray, toIdNameOption } from "@/app/dashboard/user-page/components/add-user-modal.utils";
 import {
-  buildPocInviteForRow,
-  emptyDraftChildRow,
-  isChildRowPocComplete,
-  type DraftChildPayload,
+  buildPocInviteForSlice,
+  emptyPocSlice,
+  isPocSliceComplete,
+  MAX_POC_PER_CHILD,
+  type PocDraftSlice,
 } from "@/lib/companies/setup-draft.utils";
 import { useDepartmentsListQuery, useRolesListQuery, useUsersListQuery } from "@/lib/hooks/query";
+import { addAnotherButtonRight, addAnotherIcon, addAnotherLabel } from "../overview.styles";
 
 import type { JsonRecord } from "@/api";
 import type { ParentCompanyChildDetail } from "@/api/types/companies.types";
@@ -34,6 +37,15 @@ export type ChildCompanyPocEditorProps = {
   disabled?: boolean;
 };
 
+function savedRowsFromChild(child: ParentCompanyChildDetail): PocEditRow[] {
+  return normalizePocsFromCarrier(child)
+    .map((r) => ({
+      ...(r.companyContactId ? { companyContactId: r.companyContactId } : {}),
+      ...(r.userId ? { userId: r.userId } : {}),
+    }))
+    .filter((r) => r.companyContactId || r.userId);
+}
+
 export function ChildCompanyPocEditor({
   child,
   resellerId,
@@ -44,11 +56,27 @@ export function ChildCompanyPocEditor({
 }: ChildCompanyPocEditorProps) {
   const theme = useTheme() as AppTheme;
 
+  const savedRows = useMemo(() => savedRowsFromChild(child), [child]);
   const displayRows = useMemo(() => normalizePocsFromCarrier(child), [child]);
 
   const [mode, setMode] = useState<"existing" | "invite">("existing");
+  const [showAddForm, setShowAddForm] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState("");
-  const [inviteRow, setInviteRow] = useState<DraftChildPayload>(() => emptyDraftChildRow());
+  const [inviteRow, setInviteRow] = useState<PocDraftSlice>(() => emptyPocSlice());
+
+  const savedCount = savedRows.length;
+  const pendingAdds = useMemo(() => {
+    const savedKeys = new Set(
+      savedRows.map((r) => r.companyContactId ?? r.userId ?? "").filter(Boolean),
+    );
+    return pocs.filter((p) => {
+      const key = p.companyContactId ?? p.userId ?? "";
+      return key ? !savedKeys.has(key) : Boolean(p.pocInvite);
+    });
+  }, [pocs, savedRows]);
+
+  const totalSlots = savedCount + pendingAdds.length;
+  const canAddMore = totalSlots < MAX_POC_PER_CHILD;
 
   const usersQuery = useUsersListQuery(
     { parentCompanyId: parentCompanyId.trim(), all: true },
@@ -80,26 +108,30 @@ export function ChildCompanyPocEditor({
       .filter((o): o is { value: string; label: string } => o !== null);
   }, [departmentsQuery.data]);
 
-  const updateInviteRow = (_: number, patch: Partial<DraftChildPayload>) => {
+  const updateInviteRow = (_: number, patch: Partial<PocDraftSlice>) => {
     setInviteRow((prev) => ({ ...prev, ...patch }));
   };
 
-  const addExistingUserRow = () => {
-    const uid = selectedUserId.trim();
-    if (!uid) return;
-    onPocsChange([...pocs, { userId: uid }]);
+  const queueExistingUser = (userId: string) => {
+    const uid = userId.trim();
+    if (!uid || !canAddMore) return;
+    onPocsChange([...savedRows, ...pendingAdds, { userId: uid }]);
     setSelectedUserId("");
+    setShowAddForm(false);
   };
 
-  const addInviteRow = () => {
-    if (!isChildRowPocComplete(inviteRow)) return;
-    const invite = buildPocInviteForRow(inviteRow);
+  const queueInvitePoc = () => {
+    if (!isPocSliceComplete(inviteRow) || !canAddMore) return;
+    const invite = buildPocInviteForSlice(inviteRow);
     if (!invite) return;
-    onPocsChange([...pocs, { pocInvite: invite as unknown as Record<string, unknown> }]);
-    setInviteRow(emptyDraftChildRow());
+    onPocsChange([
+      ...savedRows,
+      ...pendingAdds,
+      { pocInvite: invite as unknown as Record<string, unknown> },
+    ]);
+    setInviteRow(emptyPocSlice());
+    setShowAddForm(false);
   };
-
-  const clearAll = () => onPocsChange([]);
 
   const sectionLabelSx = {
     fontSize: "0.6875rem",
@@ -112,56 +144,113 @@ export function ChildCompanyPocEditor({
 
   return (
     <Box sx={{ mt: 2, pt: 2.25, borderTop: `1px solid ${alpha(theme.app.dashboard.cardBorder, 0.85)}` }}>
-      <Typography sx={sectionLabelSx}>Point of contact (POC)</Typography>
-      <CompanyPocSummaryBlock title="Current contacts" rows={displayRows} />
+      <Typography sx={sectionLabelSx}>Points of contact (POC)</Typography>
+      <Typography variant="caption" sx={{ display: "block", mb: 1.5, color: theme.app.dashboard.textMuted }}>
+        Up to {MAX_POC_PER_CHILD} important contacts per child. Saved POCs cannot be deleted here; names are fixed after
+        creation. Department is optional; designation is required for new invites.
+      </Typography>
 
-      <Box sx={{ mt: 2, display: "flex", flexWrap: "wrap", gap: 1.5, alignItems: "center", justifyContent: "space-between" }}>
-        <RadioGroup
-          row
-          value={mode}
-          onChange={(_, v) => setMode(v as "existing" | "invite")}
-          sx={{ gap: 2 }}
-        >
-          <FormControlLabel value="existing" control={<Radio size="small" />} label="Existing user" sx={{ color: theme.app.text.primary }} />
-          <FormControlLabel value="invite" control={<Radio size="small" />} label="New invite" sx={{ color: theme.app.text.primary }} />
-        </RadioGroup>
-
-        <Button type="button" variant="outlined" color="error" size="small" disabled={disabled} onClick={clearAll}>
-          Clear POCs
-        </Button>
-      </Box>
-
-      {mode === "existing" ? (
-        <Box sx={{ mt: 2, display: "flex", flexDirection: "column", gap: 1.5, maxWidth: 520 }}>
-          <SelectField label="User under this parent" value={selectedUserId} onChange={setSelectedUserId} options={userOptions} menuMaxRows={8} disabled={disabled} />
-          <Button type="button" variant="primary" size="small" sx={{ alignSelf: "flex-start" }} disabled={disabled} onClick={addExistingUserRow}>
-            Add to save payload
-          </Button>
-        </Box>
+      {displayRows.length > 0 ? (
+        <CompanyPocSummaryBlock title="Saved POCs (read-only)" rows={displayRows} />
       ) : (
-        <Box sx={{ mt: 2, maxWidth: 760 }}>
-          <CompanySetupChildPocBlock
-            row={inviteRow}
-            childIndex={0}
-            updateChildRow={updateInviteRow}
-            roleOptions={roleOptions}
-            departmentOptions={departmentOptions}
-            rolesLoading={rolesQuery.isLoading}
-            departmentsLoading={departmentsQuery.isLoading}
-            controlsDisabled={Boolean(disabled)}
-          />
-          <Button type="button" variant="primary" size="small" sx={{ mt: 2 }} disabled={disabled} onClick={addInviteRow}>
-            Add invite to save payload
-          </Button>
-        </Box>
+        <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, mb: 1 }}>
+          No POC linked yet.
+        </Typography>
       )}
 
-      {pocs.length > 0 ? (
+      {pendingAdds.length > 0 ? (
         <Typography variant="caption" sx={{ display: "block", mt: 2, color: theme.app.dashboard.textMuted }}>
-          {pocs.length} POC row(s) queued — will be saved when you click the single child company Save button.
+          {pendingAdds.length} new POC(s) queued — save company details to apply.
         </Typography>
+      ) : null}
+
+      {canAddMore ? (
+        <Box sx={{ mt: 2, display: "flex", justifyContent: "flex-end" }}>
+          {!showAddForm ? (
+            <Box
+              component="button"
+              type="button"
+              onClick={() => setShowAddForm(true)}
+              disabled={disabled}
+              sx={addAnotherButtonRight}
+            >
+              <AddCircleIcon width={16} height={16} sx={addAnotherIcon} />
+              <Typography variant="body2" sx={addAnotherLabel}>
+                Add POC
+              </Typography>
+            </Box>
+          ) : null}
+        </Box>
+      ) : null}
+
+      {showAddForm && canAddMore ? (
+        <Box sx={{ mt: 2 }}>
+          <RadioGroup
+            row
+            value={mode}
+            onChange={(_, v) => setMode(v as "existing" | "invite")}
+            sx={{ gap: 2, mb: 2 }}
+          >
+            <FormControlLabel
+              value="existing"
+              control={<Radio size="small" disabled={disabled} />}
+              label="Existing user"
+              sx={{ color: theme.app.text.primary }}
+            />
+            <FormControlLabel
+              value="invite"
+              control={<Radio size="small" disabled={disabled} />}
+              label="New invite"
+              sx={{ color: theme.app.text.primary }}
+            />
+          </RadioGroup>
+
+          {mode === "existing" ? (
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5, maxWidth: 520 }}>
+              <SelectField
+                label="User under this parent"
+                value={selectedUserId}
+                onChange={(id) => {
+                  setSelectedUserId(id);
+                  queueExistingUser(id);
+                }}
+                options={userOptions}
+                menuMaxRows={8}
+                disabled={disabled}
+              />
+            </Box>
+          ) : (
+            <Box sx={{ maxWidth: 760 }}>
+              <CompanySetupChildPocBlock
+                row={inviteRow}
+                childIndex={0}
+                pocIndex={pendingAdds.length}
+                multiPocOnChild={totalSlots + 1 > 1}
+                updateChildRow={updateInviteRow}
+                roleOptions={roleOptions}
+                departmentOptions={departmentOptions}
+                rolesLoading={rolesQuery.isLoading}
+                departmentsLoading={departmentsQuery.isLoading}
+                controlsDisabled={Boolean(disabled)}
+              />
+              <Box sx={{ mt: 2, display: "flex", gap: 1 }}>
+                <Button
+                  type="button"
+                  variant="primary"
+                  size="small"
+                  disabled={disabled || !isPocSliceComplete(inviteRow)}
+                  onClick={queueInvitePoc}
+                >
+                  Add to save payload
+                </Button>
+                <Button type="button" variant="outlined" size="small" disabled={disabled} onClick={() => setShowAddForm(false)}>
+                  Cancel
+                </Button>
+              </Box>
+            </Box>
+          )}
+        </Box>
       ) : null}
     </Box>
   );
 }
-

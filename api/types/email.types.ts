@@ -116,8 +116,6 @@ export interface PlatformMailAssignmentListItem extends Record<string, unknown> 
 }
 
 export interface PlatformMailAssignmentBody {
-  fromEmail?: string;
-  fromName?: string;
   isEnabled?: boolean;
 }
 
@@ -227,9 +225,44 @@ export interface PlatformAgentFeedbackSettings {
   notesPlaceholder: string;
   notesSubmitLabel: string;
   notesRequired: boolean;
+  poorFormTitle: string;
+  poorFormPrompt: string;
+  poorReasonOptions: string[];
+  poorSubmitLabel: string;
+  goodThankYouMessage: string;
   updatedAt: string | null;
 }
 
 export type PlatformAgentFeedbackSettingsBody = Partial<
   Omit<PlatformAgentFeedbackSettings, "id" | "updatedAt">
 >;
+
+export type DistributionFeedbackSubmissionRow = {
+  id: string;
+  rating: string;
+  reasonKeys: string[];
+  comment: string | null;
+  submittedAt: string;
+  send: {
+    id: string;
+    conversationId: string | null;
+    subject: string;
+    recipientEmail: string;
+    recipientRole: string;
+    departmentName: string;
+    sentAt: string;
+    websiteId: string;
+    websiteName: string;
+    resellerName: string;
+    childCompanyName: string;
+    parentCompanyName: string;
+  };
+};
+
+export type DistributionFeedbackSubmissionList = {
+  items: DistributionFeedbackSubmissionRow[];
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+};

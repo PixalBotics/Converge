@@ -42,7 +42,9 @@ import { SectionBlockEditor } from "./SectionBlockEditor";
 import { IconStylePicker } from "./IconStylePicker";
 import {
   EmailBuilderColorField,
+  EmailBuilderDualFieldGrid,
   EmailBuilderInputField,
+  EmailBuilderPairGrid,
   EmailBuilderSelectField,
   EmailBuilderFieldStack,
 } from "./EmailBuilderFormField";
@@ -195,7 +197,16 @@ export function EmailVisualBuilder({
   const activeTab = TABS.find((t) => t.id === tab) ?? TABS[0];
 
   return (
-    <EmailBuilderChrome sx={{ flex: 1, minHeight: 0, width: "100%", display: "flex" }}>
+    <EmailBuilderChrome
+      sx={{
+        flex: 1,
+        minHeight: 0,
+        height: "100%",
+        width: "100%",
+        display: "flex",
+        alignSelf: "stretch",
+      }}
+    >
       <EmailBuilderTabRail>
         <EmailBuilderRailHeader>
           <TuneOutlined sx={{ fontSize: 18, color: muiTheme.app.dashboard.textSubtleMuted }} />
@@ -228,7 +239,7 @@ export function EmailVisualBuilder({
         ))}
       </EmailBuilderTabRail>
 
-      <EmailBuilderToolsPanel>
+      <EmailBuilderToolsPanel sx={{ flex: 1, minHeight: 0, minWidth: 0 }}>
         <EmailBuilderCanvasHeader>
           <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1.25 }}>
             <EmailBuilderIconBadge active>
@@ -264,13 +275,7 @@ export function EmailVisualBuilder({
           <EmailBuilderPanelBody>
             <EmailBuilderSettingsGroup>
               <BuilderGroupHeading>Presets</BuilderGroupHeading>
-              <Box
-                sx={{
-                  display: "grid",
-                  gridTemplateColumns: "1fr 1fr",
-                  gap: 0.75,
-                }}
-              >
+              <EmailBuilderPairGrid>
                 {EMAIL_THEME_PRESETS.map((preset) => (
                   <EmailThemePresetCard
                     key={preset.id}
@@ -292,7 +297,7 @@ export function EmailVisualBuilder({
                     </Typography>
                   </EmailThemePresetCard>
                 ))}
-              </Box>
+              </EmailBuilderPairGrid>
             </EmailBuilderSettingsGroup>
 
             <EmailBuilderSettingsGroup>
@@ -315,80 +320,87 @@ export function EmailVisualBuilder({
             <EmailBuilderSettingsGroup>
               <BuilderGroupHeading>Colors</BuilderGroupHeading>
               <EmailBuilderFieldStack>
-              <Box>
-                <Typography variant="caption" sx={{ mb: 0.5, color: muiTheme.app.dashboard.textMuted, fontWeight: 600 }}>
-                  Accent color
-                </Typography>
-              <EmailColorSwatchRow>
-                {EMAIL_THEME_PRESETS.map((p) => (
-                  <EmailColorSwatch
-                    key={p.id}
-                    type="button"
-                    selected={primaryColor.toLowerCase() === p.primaryColor.toLowerCase()}
-                    style={{ background: p.primaryColor }}
+                <Box>
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      mb: 0.5,
+                      color: muiTheme.app.dashboard.textMuted,
+                      fontWeight: 600,
+                      display: "block",
+                    }}
+                  >
+                    Accent presets
+                  </Typography>
+                  <EmailColorSwatchRow>
+                    {EMAIL_THEME_PRESETS.map((p) => (
+                      <EmailColorSwatch
+                        key={p.id}
+                        type="button"
+                        selected={
+                          primaryColor.toLowerCase() === p.primaryColor.toLowerCase()
+                        }
+                        style={{ background: p.primaryColor }}
+                        disabled={disabled}
+                        onClick={() => onPrimaryColorChange(p.primaryColor)}
+                        aria-label={p.label}
+                      />
+                    ))}
+                  </EmailColorSwatchRow>
+                </Box>
+                <EmailBuilderColorField
+                  label="Accent color"
+                  value={primaryColor}
+                  onChange={onPrimaryColorChange}
+                  disabled={disabled}
+                  fallback="#1a57a5"
+                />
+
+                <EmailBuilderDualFieldGrid>
+                  <EmailBuilderColorField
+                    label="Email background"
+                    value={emailTheme.backgroundColor ?? ""}
+                    onChange={(hex) => patchTheme({ backgroundColor: hex })}
                     disabled={disabled}
-                    onClick={() => onPrimaryColorChange(p.primaryColor)}
-                    aria-label={p.label}
+                    fallback="#eef2f7"
                   />
-                ))}
-              </EmailColorSwatchRow>
-              <EmailBuilderColorField
-                label="Accent color"
-                value={primaryColor}
-                onChange={onPrimaryColorChange}
-                disabled={disabled}
-                fallback="#1a57a5"
-              />
-            </Box>
+                  <EmailBuilderColorField
+                    label="Content card"
+                    value={emailTheme.contentBackground ?? ""}
+                    onChange={(hex) => patchTheme({ contentBackground: hex })}
+                    disabled={disabled}
+                    fallback="#ffffff"
+                  />
+                  <EmailBuilderColorField
+                    label="Text color"
+                    value={emailTheme.textColor ?? ""}
+                    onChange={(hex) => patchTheme({ textColor: hex })}
+                    disabled={disabled}
+                    fallback="#1e293b"
+                  />
+                  <EmailBuilderColorField
+                    label="Label text color"
+                    value={emailTheme.mutedTextColor ?? ""}
+                    onChange={(hex) => patchTheme({ mutedTextColor: hex })}
+                    disabled={disabled}
+                    fallback="#475569"
+                  />
+                </EmailBuilderDualFieldGrid>
 
-            <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1.25, alignItems: "start" }}>
-              <EmailBuilderColorField
-                label="Email background"
-                value={emailTheme.backgroundColor ?? ""}
-                onChange={(hex) => patchTheme({ backgroundColor: hex })}
-                disabled={disabled}
-                fallback="#eef2f7"
-              />
-              <EmailBuilderColorField
-                label="Content card"
-                value={emailTheme.contentBackground ?? ""}
-                onChange={(hex) => patchTheme({ contentBackground: hex })}
-                disabled={disabled}
-                fallback="#ffffff"
-              />
-            </Box>
-
-            <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1.25, alignItems: "start" }}>
-              <EmailBuilderColorField
-                label="Text color"
-                value={emailTheme.textColor ?? ""}
-                onChange={(hex) => patchTheme({ textColor: hex })}
-                disabled={disabled}
-                fallback="#1e293b"
-              />
-              <EmailBuilderColorField
-                label="Label text color"
-                value={emailTheme.mutedTextColor ?? ""}
-                onChange={(hex) => patchTheme({ mutedTextColor: hex })}
-                disabled={disabled}
-                fallback="#475569"
-              />
-            </Box>
-
-            <EmailBuilderSelectField
-              label="Section header style"
-              value={emailTheme.sectionHeaderStyle ?? "bar"}
-              onChange={(v) =>
-                patchTheme({
-                  sectionHeaderStyle: v as EmailTemplateTheme["sectionHeaderStyle"],
-                })
-              }
-              options={EMAIL_SECTION_STYLE_OPTIONS.map((o) => ({
-                label: o.label,
-                value: o.value,
-              }))}
-              disabled={disabled}
-            />
+                <EmailBuilderSelectField
+                  label="Section header style"
+                  value={emailTheme.sectionHeaderStyle ?? "bar"}
+                  onChange={(v) =>
+                    patchTheme({
+                      sectionHeaderStyle: v as EmailTemplateTheme["sectionHeaderStyle"],
+                    })
+                  }
+                  options={EMAIL_SECTION_STYLE_OPTIONS.map((o) => ({
+                    label: o.label,
+                    value: o.value,
+                  }))}
+                  disabled={disabled}
+                />
               </EmailBuilderFieldStack>
             </EmailBuilderSettingsGroup>
           </EmailBuilderPanelBody>
@@ -468,7 +480,7 @@ export function EmailVisualBuilder({
                 disabled={disabled}
                 placeholder="Thanks for chatting with us today"
               />
-              <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1 }}>
+              <EmailBuilderDualFieldGrid>
                 <EmailBuilderInputField
                   label="Headline size (px)"
                   name="bannerTitleFontSize"
@@ -498,8 +510,6 @@ export function EmailVisualBuilder({
                   }}
                   disabled={disabled}
                 />
-              </Box>
-              <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1.25, alignItems: "start" }}>
                 <EmailBuilderColorField
                   label="Banner overlay color"
                   value={emailTheme.bannerOverlayColor ?? ""}
@@ -514,7 +524,7 @@ export function EmailVisualBuilder({
                   disabled={disabled}
                   fallback="#ffffff"
                 />
-              </Box>
+              </EmailBuilderDualFieldGrid>
             </EmailBuilderSettingsGroup>
 
             <EmailBuilderSettingsGroup>
@@ -756,7 +766,6 @@ export function EmailVisualBuilder({
                 onChange={(e) => patchTheme({ footerNote: e.target.value })}
                 disabled={disabled}
                 multiline
-                minRows={2}
               />
               <EmailBuilderInputField
                 label="Support email"

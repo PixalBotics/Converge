@@ -93,3 +93,5 @@ export { GlassToastProvider } from "./GlassToast";
 export { MetricCard } from "./MetricCard";
 export type { MetricCardProps } from "./MetricCard";
 export { DataNotFoundPlaceholder } from "./DataNotFoundPlaceholder";
+export { UserTypeBadge } from "./UserTypeBadge/UserTypeBadge";
+export type { UserTypeBadgeValue } from "./UserTypeBadge/UserTypeBadge";

@@ -1,7 +1,5 @@
-"use client";
+import { redirect } from "next/navigation";
 
-import { ChatQaWorkspace } from "@/features/chat-qa";
-
-export default function ChatQaPage() {
-  return <ChatQaWorkspace />;
+export default function LegacyChatQaPage() {
+  redirect("/dashboard/qa/inbox");
 }

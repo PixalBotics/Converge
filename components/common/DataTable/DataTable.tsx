@@ -150,21 +150,7 @@ export function DataTable<T extends Record<string, unknown>>({
                   >
                     <EmptyStateIcon sx={{ fontSize: 26 }} />
                   </Box>
-                  <Typography
-                    variant="caption"
-                    sx={{
-                      color: (theme) => (theme as AppTheme).app.dashboard.textMuted,
-                      letterSpacing: "0.08em",
-                      textTransform: "uppercase",
-                      fontWeight: 700,
-                    }}
-                  >
-                    Empty State
-                  </Typography>
-                  <Typography
-                    variant="subtitle2"
-                    sx={{ color: (theme) => (theme as AppTheme).app.text.primary, fontWeight: 600 }}
-                  >
+                  <Typography variant="subtitle2" sx={{ color: (theme) => (theme as AppTheme).app.dashboard.white95, fontWeight: 600 }}>
                     {emptyState?.title ?? "No records yet"}
                   </Typography>
                   <Typography

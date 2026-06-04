@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import Box from "@mui/material/Box";
 import Alert from "@mui/material/Alert";
 import Chip from "@mui/material/Chip";
@@ -30,6 +31,7 @@ import {
   useShiftsListQuery,
   useUpdateShiftMutation,
 } from "@/lib/hooks/query";
+import { refetchShiftsListQuery } from "@/lib/hooks/query";
 import {
   isRecord,
   pickNum,
@@ -40,6 +42,7 @@ import {
 import {
   HRMS_SHIFTS_LIST_SEARCH_MAX,
   hrmsList403UserMessage,
+  listCatalogFilterAfterShiftCreate,
   resolveShiftDetailObject,
   clampWorkingDaysMask,
   formatWorkingDaysMaskHuman,
@@ -58,6 +61,7 @@ const PAGE_LIMIT = 8;
 
 export default function ShiftsPage() {
   const theme = useTheme() as AppTheme;
+  const queryClient = useQueryClient();
   const { hasOperational, isPlatformAdmin, user: authUser } = useAuth();
   const mayPickInternal = useMemo(
     () => sessionMayPickInternalUserScope(isPlatformAdmin, authUser?.userType),
@@ -206,29 +210,37 @@ export default function ShiftsPage() {
     [timezoneField, editTimezone],
   );
 
-  const shiftsQuery = useShiftsListQuery(
-    {
-      page,
+  const buildListParams = useCallback(
+    (
+      listPage: number,
+      catalogFilter: "all" | "internal" | "external",
+    ): Parameters<typeof useShiftsListQuery>[0] => ({
+      page: listPage,
       limit: PAGE_LIMIT,
       ...(catalogSearch ? { search: catalogSearch } : {}),
       ...(mayPickInternal
         ? {
             shiftScope:
-              listCatalogFilter === "all"
+              catalogFilter === "all"
                 ? ("all" as const)
-                : listCatalogFilter === "internal"
+                : catalogFilter === "internal"
                   ? ("internal" as const)
                   : ("external" as const),
           }
         : {}),
       ...(mayPickInternal &&
-      (listCatalogFilter === "external" || listCatalogFilter === "all") &&
+      (catalogFilter === "external" || catalogFilter === "all") &&
       narrowParentCompanyId.trim()
         ? { parentCompanyId: narrowParentCompanyId.trim() }
         : {}),
-    },
-    { enabled: true, scope: "shifts-page" },
+    }),
+    [catalogSearch, mayPickInternal, narrowParentCompanyId],
   );
+
+  const shiftsQuery = useShiftsListQuery(buildListParams(page, listCatalogFilter), {
+    enabled: true,
+    scope: "shifts-page",
+  });
   const createMutation = useCreateShiftMutation();
   const updateMutation = useUpdateShiftMutation();
   const deleteMutation = useDeleteShiftMutation();
@@ -634,17 +646,30 @@ export default function ShiftsPage() {
       body.ownerParentCompanyId = createOwnerParentCompanyId.trim();
     }
 
-    createMutation.mutate(
-      body,
-      {
-        onSuccess: () => {
-          publishAppToast({ variant: "success", message: `Shift “${name}” saved.` });
-          resetForm();
-          opts?.onSuccess?.();
-        },
-        onError: () => publishAppToast({ variant: "error", message: "Could not create shift." }),
+    const createdScope =
+      mayPickInternal && createCatalogScope === "tenant" ? ("tenant" as const) : ("platform" as const);
+
+    const nextCatalogFilter = mayPickInternal
+      ? listCatalogFilterAfterShiftCreate(createdScope, listCatalogFilter)
+      : listCatalogFilter;
+
+    createMutation.mutate(body, {
+      onSuccess: async () => {
+        if (mayPickInternal && nextCatalogFilter !== listCatalogFilter) {
+          setListCatalogFilter(nextCatalogFilter);
+        }
+        setPage(1);
+        await refetchShiftsListQuery(
+          queryClient,
+          buildListParams(1, nextCatalogFilter),
+          "shifts-page",
+        );
+        publishAppToast({ variant: "success", message: `Shift “${name}” saved.` });
+        resetForm();
+        opts?.onSuccess?.();
       },
-    );
+      onError: () => publishAppToast({ variant: "error", message: "Could not create shift." }),
+    });
   };
 
   const shiftsList403 = useMemo(() => hrmsList403UserMessage(shiftsQuery.error), [shiftsQuery.error]);

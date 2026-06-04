@@ -9,6 +9,7 @@ import LockOutlined from "@mui/icons-material/LockOutlined";
 import type { AppTheme } from "@/theme/theme";
 import { Button, SearchBar, Typography } from "@/components/common";
 import type { EmailFormFieldRow } from "@/api/email/email-forms.api";
+import { isConfigurableEmailFormFieldKey } from "../constants/agent-distribution-form-fields";
 import { groupEmailFormFields } from "../utils/email-form-field-groups";
 import {
   emailFormFieldTableHeadSx,
@@ -36,19 +37,25 @@ export function EmailFormFieldsPanel({
 }) {
   const theme = useTheme() as AppTheme;
   const [search, setSearch] = useState("");
-  const groups = groupEmailFormFields(fields);
-  const enabledCount = fields.filter((f) => formType === "standard" || f.isRequired || f.enabled).length;
+  const catalogFields = useMemo(
+    () => fields.filter((f) => isConfigurableEmailFormFieldKey(f.fieldKey)),
+    [fields],
+  );
+  const groups = groupEmailFormFields(catalogFields);
+  const enabledCount = catalogFields.filter(
+    (f) => formType === "standard" || f.isRequired || f.enabled,
+  ).length;
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return fields;
-    return fields.filter(
+    if (!q) return catalogFields;
+    return catalogFields.filter(
       (f) =>
         f.label.toLowerCase().includes(q) ||
         f.fieldKey.toLowerCase().includes(q) ||
         groupLabelForField(f.fieldKey, groups).toLowerCase().includes(q),
     );
-  }, [fields, search, groups]);
+  }, [catalogFields, search, groups]);
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>

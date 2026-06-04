@@ -21,10 +21,23 @@ import {
   Typography,
 } from "@/components/common";
 import type { DataTableColumn } from "@/components/common";
+import { SendLicenseConfirmModal } from "@/components/common/SendLicenseConfirmModal/SendLicenseConfirmModal";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
 import { GenerateLicenseKeyModal } from "./components/GenerateLicenseKeyModal";
 import { pickItemsArray, toIdNameOption } from "@/app/dashboard/user-page/components/add-user-modal.utils";
-import { useCompaniesSetupResellersQuery, usePlatformLicenseKeysQuery } from "@/lib/hooks";
+import {
+  useCompaniesSetupResellersQuery,
+  usePlatformLicenseKeysQuery,
+  useSendPlatformLicenseKeyMutation,
+} from "@/lib/hooks";
+import { extractApiErrorMessageForToast, publishAppToast } from "@/lib/notify";
+import {
+  resolveSessionParentCompanyId,
+  sessionIsNarrowClientRootScope,
+  useAuth,
+  useResellerListScope,
+} from "@/lib/auth";
+import { OP } from "@/lib/permissions";
 import { extractParentCompaniesFromByResellerTree } from "@/app/dashboard/user-page/components/add-user-modal.utils";
 import { useCompaniesByResellerQuery } from "@/lib/hooks";
 import {
@@ -51,21 +64,44 @@ const DEFAULT_PAGE_LIMIT = 20;
 
 export default function LicenseGeneratePage() {
   const theme = useTheme() as AppTheme;
+  const { hasOperational, isPlatformAdmin, user } = useAuth();
+  const { canFilterByResellerId, sessionResellerId } = useResellerListScope();
+  const isNarrowClientScope = useMemo(
+    () => sessionIsNarrowClientRootScope(isPlatformAdmin, user),
+    [isPlatformAdmin, user],
+  );
+  const sessionParentCompanyId = useMemo(
+    () => resolveSessionParentCompanyId(user?.parentCompanyId),
+    [user?.parentCompanyId],
+  );
+  const canSendLicense =
+    hasOperational(OP.license.send) || hasOperational(OP.license.admin);
+  const canGenerateLicense =
+    hasOperational(OP.license.generate) || hasOperational(OP.license.admin);
+  const showResellerColumn = canFilterByResellerId;
+  const showResellerFilter = canFilterByResellerId;
+  const showParentCompanyFilter = canFilterByResellerId && !isNarrowClientScope;
+  const sendLicenseMutation = useSendPlatformLicenseKeyMutation();
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [generateModalOpen, setGenerateModalOpen] = useState(false);
+  const [sendModalOpen, setSendModalOpen] = useState(false);
+  const [sendTargets, setSendTargets] = useState<PlatformLicenseKeyRow[]>([]);
   const [filterPopoverOpen, setFilterPopoverOpen] = useState(false);
   const [mode, setMode] = useState<"issued" | "missing">("issued");
   const [filterResellerId, setFilterResellerId] = useState("");
   const [filterParentCompanyId, setFilterParentCompanyId] = useState("");
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
 
-  const resellersQuery = useCompaniesSetupResellersQuery({ enabled: true });
+  const resellersQuery = useCompaniesSetupResellersQuery({ enabled: showResellerFilter });
+  const effectiveResellerId = showResellerFilter
+    ? filterResellerId.trim()
+    : sessionResellerId.trim();
   const companiesByResellerQuery = useCompaniesByResellerQuery(
-    filterResellerId,
+    effectiveResellerId,
     { view: "tree", sortBy: "name", sortOrder: "asc", all: true },
-    { enabled: filterResellerId.trim().length > 0 },
+    { enabled: showParentCompanyFilter && effectiveResellerId.length > 0 },
   );
   const resellerOptions = useMemo(() => {
     return pickItemsArray(resellersQuery.data)
@@ -79,7 +115,7 @@ export default function LicenseGeneratePage() {
   }, [resellerOptions, resellersQuery.isLoading]);
 
   const parentCompanyFilterOptions = useMemo(() => {
-    if (!filterResellerId.trim()) return [{ value: "", label: "All parent companies" }];
+    if (!effectiveResellerId) return [{ value: "", label: "All parent companies" }];
     const extracted = extractParentCompaniesFromByResellerTree(companiesByResellerQuery.data).map((o) => ({
       value: o.value,
       label: o.label,
@@ -91,7 +127,11 @@ export default function LicenseGeneratePage() {
         label: companiesByResellerQuery.isLoading ? "Loading parent companies…" : "No parent companies available",
       },
     ];
-  }, [filterResellerId, companiesByResellerQuery.data, companiesByResellerQuery.isLoading]);
+  }, [effectiveResellerId, companiesByResellerQuery.data, companiesByResellerQuery.isLoading]);
+
+  const effectiveParentCompanyId = isNarrowClientScope
+    ? sessionParentCompanyId
+    : filterParentCompanyId.trim();
 
   const listParams = useMemo(() => {
     const params: Record<string, string | number> = {
@@ -101,10 +141,10 @@ export default function LicenseGeneratePage() {
     };
     const q = search.trim();
     if (q) params.search = q;
-    if (filterResellerId.trim()) params.resellerId = filterResellerId.trim();
-    if (filterParentCompanyId.trim()) params.parentCompanyId = filterParentCompanyId.trim();
+    if (effectiveResellerId) params.resellerId = effectiveResellerId;
+    if (effectiveParentCompanyId) params.parentCompanyId = effectiveParentCompanyId;
     return params;
-  }, [mode, page, search, filterResellerId, filterParentCompanyId]);
+  }, [mode, page, search, effectiveResellerId, effectiveParentCompanyId]);
 
   const licenseKeysQuery = usePlatformLicenseKeysQuery(listParams, { scope: "license-generate-page" });
 
@@ -129,13 +169,18 @@ export default function LicenseGeneratePage() {
   }, [searchInput, search]);
 
   useEffect(() => {
-    setPage(1);
-  }, [search, filterResellerId, filterParentCompanyId, mode]);
+    if (showResellerFilter || !sessionResellerId.trim()) return;
+    setFilterResellerId(sessionResellerId);
+  }, [showResellerFilter, sessionResellerId]);
 
   useEffect(() => {
-    // Changing reseller should reset parent company filter.
+    setPage(1);
+  }, [search, effectiveResellerId, effectiveParentCompanyId, mode]);
+
+  useEffect(() => {
+    if (!showParentCompanyFilter) return;
     setFilterParentCompanyId("");
-  }, [filterResellerId]);
+  }, [filterResellerId, showParentCompanyFilter]);
 
   useEffect(() => {
     setPage((p) => (p > pageCount ? pageCount : p));
@@ -163,6 +208,71 @@ export default function LicenseGeneratePage() {
     rows.length > 0 && rows.every((r) => selected.has(r.id));
   const someSelected = selected.size > 0 && !allSelected;
 
+  const openSendModal = useCallback((targets: PlatformLicenseKeyRow[]) => {
+    if (!canSendLicense) {
+      publishAppToast({ variant: "error", message: "You do not have permission to send license emails." });
+      return;
+    }
+    const issued = targets.filter((row) => row.licenseKey && row.licenseKey !== "—");
+    if (!issued.length) {
+      publishAppToast({ variant: "error", message: "Select a company with an issued license key." });
+      return;
+    }
+    setSendTargets(issued);
+    setSendModalOpen(true);
+  }, [canSendLicense]);
+
+  const handleConfirmSend = useCallback(async () => {
+    if (!sendTargets.length || sendLicenseMutation.isPending) return;
+
+    let totalAttempted = 0;
+    let totalSent = 0;
+    const failures: string[] = [];
+
+    for (const row of sendTargets) {
+      try {
+        const result = await sendLicenseMutation.mutateAsync({
+          parentCompanyId: row.parentCompanyId,
+          audience: "poc",
+        });
+        totalAttempted += result.data.attempted;
+        totalSent += result.data.sent;
+        if (result.data.attempted === 0) {
+          failures.push(`${row.parentCompany}: no POC users found`);
+        } else if (result.data.sent === 0) {
+          failures.push(`${row.parentCompany}: mail could not be delivered`);
+        }
+      } catch (err) {
+        const msg = extractApiErrorMessageForToast(err) ?? "Send failed.";
+        failures.push(`${row.parentCompany}: ${msg}`);
+      }
+    }
+
+    setSendModalOpen(false);
+    setSendTargets([]);
+    setSelected(new Set());
+
+    if (totalSent > 0) {
+      publishAppToast({
+        variant: "success",
+        message:
+          sendTargets.length === 1
+            ? `License email sent to ${totalSent} POC user(s).`
+            : `License emails sent (${totalSent} of ${totalAttempted} recipient(s) across ${sendTargets.length} companies).`,
+      });
+    } else {
+      publishAppToast({
+        variant: "error",
+        message: failures[0] ?? "Could not send license email. Check platform/reseller mail settings.",
+      });
+    }
+  }, [sendLicenseMutation, sendTargets]);
+
+  const sendModalDescription =
+    sendTargets.length === 1
+      ? `Send the license key for ${sendTargets[0]?.parentCompany ?? "this client root"} to its POC contact(s)?`
+      : `Send license keys for ${sendTargets.length} selected parent companies to their POC contact(s)?`;
+
   const columns = useMemo<DataTableColumn<PlatformLicenseKeyRow>[]>(
     () => [
       {
@@ -185,11 +295,13 @@ export default function LicenseGeneratePage() {
         ),
       },
       { id: "parentCompany", label: "Parent Company" },
-      { id: "reseller", label: "Reseller", cellVariant: "muted" },
+      ...(showResellerColumn
+        ? [{ id: "reseller", label: "Reseller", cellVariant: "muted" as const }]
+        : []),
       { id: "licenseKey", label: "License Key" },
       { id: "createdAt", label: "Created", cellVariant: "muted" },
     ],
-    [allSelected, someSelected, toggleAll, toggleRow, selected]
+    [allSelected, someSelected, toggleAll, toggleRow, selected, showResellerColumn]
   );
 
   return (
@@ -204,7 +316,16 @@ export default function LicenseGeneratePage() {
           </Typography>
         </Box>
         <Box sx={licenseGenerateHeaderActions}>
-          <Button variant="outlined" type="button" startIcon={<Send sx={{ fontSize: 18 }} />}>
+          <Button
+            variant="outlined"
+            type="button"
+            startIcon={<Send sx={{ fontSize: 18 }} />}
+            disabled={!canSendLicense || selected.size === 0 || mode !== "issued" || sendLicenseMutation.isPending}
+            onClick={() => {
+              const targets = rows.filter((row) => selected.has(row.id));
+              openSendModal(targets);
+            }}
+          >
             Send Selected
           </Button>
           <Button
@@ -212,6 +333,7 @@ export default function LicenseGeneratePage() {
             variant="primary"
             sx={gradientPrimaryButtonSx}
             startIcon={<AutoAwesome sx={{ fontSize: 18 }} />}
+            disabled={!canGenerateLicense}
             onClick={() => setGenerateModalOpen(true)}
           >
             Generate License
@@ -225,6 +347,25 @@ export default function LicenseGeneratePage() {
         onGenerated={() => {
           void licenseKeysQuery.refetch();
         }}
+        lockedResellerId={showResellerFilter ? undefined : sessionResellerId}
+        lockedParentCompanyId={isNarrowClientScope ? sessionParentCompanyId : undefined}
+        hideResellerPicker={!showResellerFilter}
+        hideParentCompanyPicker={isNarrowClientScope}
+      />
+
+      <SendLicenseConfirmModal
+        open={sendModalOpen}
+        onDismiss={() => {
+          if (sendLicenseMutation.isPending) return;
+          setSendModalOpen(false);
+          setSendTargets([]);
+        }}
+        onConfirm={() => {
+          void handleConfirmSend();
+        }}
+        description={sendModalDescription}
+        confirmDisabled={sendLicenseMutation.isPending}
+        confirmLabel={sendLicenseMutation.isPending ? "Sending…" : "Yes – Send License"}
       />
 
       <DashboardCard sx={licenseGenerateTableCard}>
@@ -248,7 +389,11 @@ export default function LicenseGeneratePage() {
             <ToolbarFilterPopover
               open={filterPopoverOpen}
               onOpenChange={setFilterPopoverOpen}
-              active={Boolean(mode !== "issued" || filterResellerId.trim() || filterParentCompanyId.trim())}
+              active={Boolean(
+                mode !== "issued" ||
+                  (showResellerFilter && filterResellerId.trim()) ||
+                  (showParentCompanyFilter && filterParentCompanyId.trim()),
+              )}
             >
               <ToolbarFilterPopoverPanel
                 footer={
@@ -258,7 +403,7 @@ export default function LicenseGeneratePage() {
                       variant="secondary"
                       onClick={() => {
                         setMode("issued");
-                        setFilterResellerId("");
+                        setFilterResellerId(showResellerFilter ? "" : sessionResellerId);
                         setFilterParentCompanyId("");
                         setSearchInput("");
                         setSearch("");
@@ -283,24 +428,28 @@ export default function LicenseGeneratePage() {
                       { value: "missing", label: "Missing" },
                     ]}
                   />
-                  <SelectField
-                    label="Client Of (Reseller)"
-                    value={filterResellerId}
-                    onChange={(v) => {
-                      setFilterResellerId(v);
-                      setFilterParentCompanyId("");
-                    }}
-                    options={resellerFilterOptions}
-                    menuMaxRows={6}
-                  />
-                  <SelectField
-                    label="Parent Company"
-                    value={filterParentCompanyId}
-                    onChange={setFilterParentCompanyId}
-                    options={parentCompanyFilterOptions}
-                    menuMaxRows={7}
-                    disabled={!filterResellerId.trim()}
-                  />
+                  {showResellerFilter ? (
+                    <SelectField
+                      label="Client Of (Reseller)"
+                      value={filterResellerId}
+                      onChange={(v) => {
+                        setFilterResellerId(v);
+                        setFilterParentCompanyId("");
+                      }}
+                      options={resellerFilterOptions}
+                      menuMaxRows={6}
+                    />
+                  ) : null}
+                  {showParentCompanyFilter ? (
+                    <SelectField
+                      label="Parent Company"
+                      value={filterParentCompanyId}
+                      onChange={setFilterParentCompanyId}
+                      options={parentCompanyFilterOptions}
+                      menuMaxRows={7}
+                      disabled={!effectiveResellerId}
+                    />
+                  ) : null}
                 </Box>
               </ToolbarFilterPopoverPanel>
             </ToolbarFilterPopover>
@@ -315,25 +464,31 @@ export default function LicenseGeneratePage() {
           minWidth={980}
           actionColumn={{
             label: "Action",
-            render: () => (
-              <Link
-                component="button"
-                type="button"
-                onClick={() => {}}
-                sx={{
-                  color: theme.app.text.primary,
-                  textDecoration: "underline",
-                  cursor: "pointer",
-                  fontSize: 14,
-                  background: "none",
-                  border: "none",
-                  fontFamily: "inherit",
-                  p: 0,
-                }}
-              >
-                Send Mail
-              </Link>
-            ),
+            render: (row) =>
+              canSendLicense && mode === "issued" && row.licenseKey !== "—" ? (
+                <Link
+                  component="button"
+                  type="button"
+                  onClick={() => openSendModal([row])}
+                  disabled={sendLicenseMutation.isPending}
+                  sx={{
+                    color: theme.app.text.primary,
+                    textDecoration: "underline",
+                    cursor: "pointer",
+                    fontSize: 14,
+                    background: "none",
+                    border: "none",
+                    fontFamily: "inherit",
+                    p: 0,
+                  }}
+                >
+                  Send Mail
+                </Link>
+              ) : (
+                <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted }}>
+                  —
+                </Typography>
+              ),
           }}
         />
 

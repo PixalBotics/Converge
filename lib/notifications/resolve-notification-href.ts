@@ -38,6 +38,19 @@ export function normalizeNotificationHref(href: string | null | undefined): stri
 
   if (path.startsWith("dashboard/")) path = `/${path}`;
   if (!path.startsWith("/")) return null;
+
+  if (
+    path.startsWith("/hrms/scheduling") ||
+    path.startsWith("/dashboard/hrms/scheduling")
+  ) {
+    const url = new URL(path.split("#")[0] || path, "http://local");
+    const userId = url.searchParams.get("userId")?.trim();
+    if (userId) {
+      return `/dashboard/shifts/user-shift?userId=${encodeURIComponent(userId)}`;
+    }
+    return "/dashboard/shifts/user-shift";
+  }
+
   return path;
 }
 
@@ -51,6 +64,7 @@ function readConversationIdFromPath(path: string): string | null {
   if (fromQuery?.trim()) return fromQuery.trim();
 
   const patterns = [
+    /^\/dashboard\/qa\/inbox\/([^/?#]+)/,
     /^\/dashboard\/chat-qa\/([^/?#]+)/,
     /^\/dashboard\/chat-monitor\/([^/?#]+)/,
     /^\/dashboard\/chat-operations\/([^/?#]+)/,
@@ -71,7 +85,7 @@ function withConversationOnChatOps(path: string, conversationId: string): string
 }
 
 function withConversationOnChatQa(conversationId: string): string {
-  return `/dashboard/chat-qa/${encodeURIComponent(conversationId)}`;
+  return `/dashboard/qa/inbox/${encodeURIComponent(conversationId)}`;
 }
 
 function withConversationOnChatMonitor(conversationId: string): string {
@@ -98,10 +112,18 @@ function applyContextToPath(
     ctx.conversationId ?? readConversationIdFromPath(path);
   const { leaveId, badgeGroup } = ctx;
 
-  if (path.startsWith("/dashboard/chat-qa/")) return path;
+  if (path.startsWith("/dashboard/qa/inbox/")) return path;
+  if (path.startsWith("/dashboard/chat-qa/")) {
+    const id = readConversationIdFromPath(path);
+    if (id) return withConversationOnChatQa(id);
+    return path.replace("/dashboard/chat-qa", "/dashboard/qa/inbox");
+  }
   if (path.startsWith("/dashboard/chat-monitor/")) return path;
 
-  if (path.startsWith("/dashboard/chat-qa") && conversationId) {
+  if (
+    (path.startsWith("/dashboard/qa/inbox") || path.startsWith("/dashboard/chat-qa")) &&
+    conversationId
+  ) {
     return withConversationOnChatQa(conversationId);
   }
 
@@ -137,7 +159,10 @@ function defaultPathForNotification(
   }
   if (badgeGroup === "qa") {
     if (conversationId) return withConversationOnChatQa(conversationId);
-    return "/dashboard/chat-qa";
+    return "/dashboard/qa/inbox";
+  }
+  if (badgeGroup === "hrms_attendance") {
+    return "/dashboard/attendance/team-attendance";
   }
   if (leaveId) return withLeaveId("/dashboard/leave/approval-inbox", leaveId);
   return "/dashboard/leave/approval-inbox";

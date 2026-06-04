@@ -11,13 +11,14 @@ import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import {
   Button,
+  ConfirmActionModal,
   DashboardCard,
   DataTable,
-  FormModal,
   Typography,
 } from "@/components/common";
 import type { DataTableColumn } from "@/components/common";
 import type { WebsiteAssignmentScopeItem } from "@/api/types/website-assignments.types";
+import { WebsiteUrlDisplay } from "@/features/website-assignments/components/WebsiteUrlDisplay";
 import { WebsiteAssignmentTableActions } from "@/features/website-assignments/components/WebsiteAssignmentTableActions";
 import { clearAllDepartmentRosters } from "@/features/website-assignments/utils/clear-website-roster";
 import { extractApiErrorMessageForToast, publishAppToast } from "@/lib/notify";
@@ -54,8 +55,8 @@ type SiteRow = {
 function itemToRow(item: WebsiteAssignmentScopeItem): SiteRow {
   return {
     id: item.websiteId,
-    websiteName: item.name || "—",
-    websiteUrl: item.url || "—",
+    websiteName: (item.name ?? "").trim(),
+    websiteUrl: (item.url ?? "").trim() || "—",
     filledSlots: item.filledSlots ?? item.assignedCount ?? 0,
     uniqueMemberCount: item.uniqueMemberCount ?? 0,
     expectedRosterSlots: item.expectedRosterSlots ?? 0,
@@ -146,17 +147,12 @@ export default function WebsiteSitesByOrgPage() {
         id: "websiteName",
         label: "Website",
         render: (_, row) => (
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 0.35, minWidth: 0 }}>
-            <Typography variant="body2" fontWeight={600} sx={{ color: theme.app.text.primary }}>
-              {row.websiteName}
-            </Typography>
-            <Typography
-              variant="caption"
-              sx={{ color: theme.app.dashboard.textMuted, wordBreak: "break-all", lineHeight: 1.45 }}
-            >
-              {row.websiteUrl}
-            </Typography>
-          </Box>
+          <WebsiteUrlDisplay
+            name={row.websiteName || undefined}
+            url={row.websiteUrl}
+            mutedSx={{ color: theme.app.dashboard.textMuted }}
+            sx={{ color: theme.app.text.primary }}
+          />
         ),
       },
       {
@@ -289,21 +285,20 @@ export default function WebsiteSitesByOrgPage() {
         </Box>
       </DashboardCard>
 
-      <FormModal
+      <ConfirmActionModal
         open={Boolean(clearTarget)}
         title="Clear all agent slots?"
         description={
           clearTarget
             ? `Remove all roster assignments for ${clearTarget.websiteName}. Service scheduling stays unchanged.`
-            : undefined
+            : ""
         }
-        onClose={() => !clearing && setClearTarget(null)}
-        onSave={() => void handleClearAgents()}
-        primaryButtonLabel={clearing ? "Clearing…" : "Clear all agents"}
-        primaryButtonVariant="danger"
-        primaryButtonDisabled={clearing}
-        cancelButtonLabel="Cancel"
-        maxWidth={480}
+        confirmLabel={clearing ? "Clearing…" : "Clear all agents"}
+        cancelLabel="Cancel"
+        confirmButtonVariant="danger"
+        onDismiss={() => !clearing && setClearTarget(null)}
+        onConfirm={() => void handleClearAgents()}
+        isLoading={clearing}
       />
     </Box>
   );

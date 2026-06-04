@@ -17,6 +17,7 @@ import type {
   PlatformMailAssignmentListItem,
   PlatformAgentFeedbackSettings,
   PlatformAgentFeedbackSettingsBody,
+  DistributionFeedbackSubmissionList,
   ResellerOwnMailListItem,
   ResellerOwnMailSettings,
   ResellerOwnMailSettingsBody,
@@ -400,4 +401,14 @@ export async function updatePlatformAgentFeedbackSettings(
 ): Promise<PlatformAgentFeedbackSettings> {
   const { data } = await apiClient.put("/platform/agent-feedback", body);
   return unwrapApiData<PlatformAgentFeedbackSettings>(data);
+}
+
+export async function listDistributionFeedbackSubmissions(params?: {
+  page?: number;
+  limit?: number;
+}): Promise<DistributionFeedbackSubmissionList> {
+  const { data } = await apiClient.get("/platform/agent-feedback/submissions", {
+    params,
+  });
+  return unwrapApiData<DistributionFeedbackSubmissionList>(data);
 }

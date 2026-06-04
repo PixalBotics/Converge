@@ -7,6 +7,7 @@ import { alpha, styled } from "@mui/material/styles";
 import type { Theme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import { Typography } from "@/components/common";
+import { dashboardCardFill, dashboardSolidSurface } from "./chat-semantic";
 function dash(theme: Theme) {
   return (theme as AppTheme).app.dashboard;
 }
@@ -121,6 +122,18 @@ export const MessageThread = styled(Box)({
   gap: 0,
   scrollbarWidth: "thin",
   background: "transparent",
+  "&::-webkit-scrollbar": { width: 6 },
+  "&::-webkit-scrollbar-track": { background: "transparent" },
+  "&::-webkit-scrollbar-thumb": {
+    borderRadius: 3,
+    backgroundColor: "rgba(128, 128, 128, 0.28)",
+  },
+  "&::-webkit-scrollbar-button": {
+    display: "none",
+    width: 0,
+    height: 0,
+  },
+  "&::-webkit-scrollbar-corner": { background: "transparent" },
 });
 
 export const DateDivider = styled(Box)(({ theme }) => ({
@@ -286,15 +299,20 @@ export const ComposerFooterInner = styled(Box)(({ theme }) => ({
 /** In-flow tools panel — stays inside the thread column (no floating outside the shell). */
 export const ComposerToolsPanel = styled(Box)(({ theme }) => {
   const d = dash(theme);
+  const panelFill =
+    dashboardCardFill(theme, theme.palette.mode === "light" ? 0.65 : 0.45) ??
+    alpha(dashboardSolidSurface(theme), theme.palette.mode === "light" ? 0.65 : 0.45);
   return {
     display: "flex",
     flexDirection: "column",
     flexShrink: 0,
-    maxHeight: "min(36vh, 280px)",
+    maxHeight: "min(52vh, 420px)",
+    minHeight: 320,
     overflow: "hidden",
     borderRadius: 12,
-    border: `1px solid ${alpha(d.cardBorder, 0.28)}`,
-    background: alpha(d.surfaceDark, 0.5),
+    border: `1px solid ${alpha(d.cardBorder, 0.32)}`,
+    background: panelFill,
+    boxShadow: "inset 0 1px 0 rgba(255,255,255,0.05)",
   };
 });
 
@@ -335,20 +353,23 @@ export const ComposerRow = styled(Box)(({ theme }) => ({
   gap: theme.spacing(1.25),
 }));
 
-export const ComposerInputShell = styled(Box)(({ theme }) => ({
-  flex: 1,
-  display: "flex",
-  alignItems: "flex-end",
-  gap: theme.spacing(0.25),
-  borderRadius: 14,
-  border: `1px solid ${alpha(dash(theme).cardBorder, 0.45)}`,
-  background: alpha(live(theme).messageBg, 0.65),
-  padding: theme.spacing(0.75, 1.25),
-  "&:focus-within": {
-    borderColor: alpha(dash(theme).accentBlue, 0.65),
-    boxShadow: `0 0 0 3px ${alpha(dash(theme).accentBlue, 0.12)}`,
-  },
-}));
+export const ComposerInputShell = styled(Box)(({ theme }) => {
+  const d = dash(theme);
+  return {
+    flex: 1,
+    display: "flex",
+    alignItems: "flex-end",
+    gap: theme.spacing(0.25),
+    borderRadius: 14,
+    border: `1px solid ${alpha(d.cardBorder, 0.45)}`,
+    background: alpha(live(theme).messageBg, theme.palette.mode === "light" ? 0.9 : 0.55),
+    padding: theme.spacing(0.75, 1.25),
+    "&:focus-within": {
+      borderColor: alpha(d.accentBlue, 0.65),
+      boxShadow: `0 0 0 3px ${alpha(d.accentBlue, 0.12)}`,
+    },
+  };
+});
 
 export const ComposerTextField = styled(TextField)(({ theme }) => ({
   flex: 1,
@@ -385,15 +406,16 @@ export const DrawerTabBar = styled(Box)(({ theme }) => ({
 
 export const DrawerTabButton = styled("button", {
   shouldForwardProp: (prop) => prop !== "active" && prop !== "variant",
-})<{ active?: boolean; variant?: "canned" | "ai" }>(({ theme, active, variant }) => {
+})<{ active?: boolean; variant?: "canned" | "ai" }>(({ theme, active }) => {
   const d = dash(theme);
-  const accent = variant === "ai" ? d.accentPurple : d.accentBlue;
+  const accent = d.accentBlue;
   return {
+    position: "relative",
     flex: 1,
     border: `1px solid ${alpha(d.cardBorder, active ? 0.55 : 0.3)}`,
     borderRadius: 10,
     cursor: "pointer",
-    padding: theme.spacing(0.65, 1),
+    padding: theme.spacing(0.75, 1.1),
     fontFamily: "inherit",
     fontSize: 12,
     fontWeight: 600,
@@ -402,32 +424,40 @@ export const DrawerTabButton = styled("button", {
     justifyContent: "center",
     gap: theme.spacing(0.6),
     color: active ? text(theme).primary : d.textMuted,
-    background: active
-      ? `linear-gradient(135deg, ${alpha(accent, 0.28)} 0%, ${alpha(d.overlayLight, 0.4)} 100%)`
-      : alpha(d.overlayLight, 0.2),
-    boxShadow: active ? `inset 0 1px 0 ${alpha(theme.palette.common.white, 0.06)}` : "none",
+    background: active ? alpha(accent, 0.14) : alpha(d.overlayLight, 0.2),
     transition: "all 0.15s ease",
+    "&::before": active
+      ? {
+          content: '""',
+          position: "absolute",
+          left: 0,
+          top: "18%",
+          bottom: "18%",
+          width: 3,
+          borderRadius: "0 3px 3px 0",
+          background: accent,
+        }
+      : { display: "none" },
+    "& svg": {
+      color: active ? accent : d.textMuted,
+    },
     "&:hover": {
       color: text(theme).primary,
       borderColor: alpha(accent, 0.45),
-      background: active
-        ? `linear-gradient(135deg, ${alpha(accent, 0.32)} 0%, ${alpha(d.overlayLight, 0.45)} 100%)`
-        : alpha(d.overlayLight, 0.35),
+      background: active ? alpha(accent, 0.18) : alpha(d.overlayLight, 0.35),
+      "& svg": { color: accent },
     },
   };
 });
 
-export const AiAssistantShell = styled(Box)(({ theme }) => {
-  const d = dash(theme);
-  return {
-    display: "flex",
-    flexDirection: "column",
-    flex: 1,
-    minHeight: 0,
-    height: "100%",
-    overflow: "hidden",
-    background: `linear-gradient(180deg, ${alpha(d.accentIndigo, 0.1)} 0%, transparent 48%)`,
-  };
+export const AiAssistantShell = styled(Box)({
+  display: "flex",
+  flexDirection: "column",
+  flex: 1,
+  minHeight: 0,
+  height: "100%",
+  overflow: "hidden",
+  background: "transparent",
 });
 
 export const AiAssistantHeader = styled(Box)(({ theme }) => ({
@@ -439,18 +469,21 @@ export const AiAssistantHeader = styled(Box)(({ theme }) => ({
   flexShrink: 0,
 }));
 
-export const AiAssistantIcon = styled(Box)(({ theme }) => ({
-  width: 32,
-  height: 32,
-  borderRadius: 8,
-  display: "inline-flex",
-  alignItems: "center",
-  justifyContent: "center",
-  flexShrink: 0,
-  background: `linear-gradient(135deg, ${alpha(dash(theme).accentPurple, 0.55)} 0%, ${alpha(dash(theme).accentIndigo, 0.65)} 100%)`,
-  border: `1px solid ${alpha(theme.palette.common.white, 0.12)}`,
-  color: text(theme).primary,
-}));
+export const AiAssistantIcon = styled(Box)(({ theme }) => {
+  const d = dash(theme);
+  return {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+    background: alpha(d.overlayLight, 0.35),
+    border: `1px solid ${alpha(d.cardBorder, 0.35)}`,
+    color: d.textMuted,
+  };
+});
 
 export const AiOnlineDot = styled(Box)(({ theme }) => ({
   width: 7,
@@ -463,12 +496,12 @@ export const AiOnlineDot = styled(Box)(({ theme }) => ({
 
 export const AiChatThread = styled(Box)(({ theme }) => ({
   flex: 1,
-  minHeight: 0,
+  minHeight: 200,
   overflowY: "auto",
-  padding: theme.spacing(1.25, 1.5),
+  padding: theme.spacing(1.5, 1.75),
   display: "flex",
   flexDirection: "column",
-  gap: theme.spacing(1),
+  gap: theme.spacing(1.25),
   scrollbarWidth: "thin",
 }));
 
@@ -479,16 +512,16 @@ export const AiChatBubble = styled(Box, {
   const isUser = role === "user";
   return {
     alignSelf: isUser ? "flex-end" : "flex-start",
-    maxWidth: "92%",
-    padding: theme.spacing(0.9, 1.15),
+    maxWidth: "88%",
+    padding: theme.spacing(1.1, 1.35),
     borderRadius: isUser ? "12px 12px 4px 12px" : "12px 12px 12px 4px",
     fontSize: 13,
     lineHeight: 1.5,
     whiteSpace: "pre-wrap",
     wordBreak: "break-word",
     color: text(theme).primary,
-    background: isUser ? alpha(d.accentBlue, 0.22) : alpha(d.overlayLight, 0.5),
-    border: `1px solid ${alpha(d.cardBorder, isUser ? 0.35 : 0.5)}`,
+    background: isUser ? d.navActiveBg : alpha(d.overlayLight, 0.5),
+    border: `1px solid ${alpha(d.cardBorder, isUser ? 0.4 : 0.5)}`,
   };
 });
 
@@ -511,8 +544,8 @@ export const AiQuickChip = styled("button", {
     transition: "all 0.15s ease",
     "&:hover:not(:disabled)": {
       color: text(theme).primary,
-      borderColor: alpha(d.accentPurple, 0.45),
-      background: alpha(d.accentPurple, 0.14),
+      borderColor: alpha(d.cardBorder, 0.55),
+      background: alpha(d.overlayLight, 0.35),
     },
     "&:disabled": {
       opacity: 0.4,
@@ -523,7 +556,7 @@ export const AiQuickChip = styled("button", {
 
 export const AiInputFooter = styled(Box)(({ theme }) => ({
   flexShrink: 0,
-  padding: theme.spacing(1.25, 1.5, 1.25),
+  padding: theme.spacing(1.5, 1.75, 1.5),
   borderTop: `1px solid ${alpha(dash(theme).cardBorder, 0.35)}`,
   background: alpha(dash(theme).overlayLight, 0.12),
 }));
@@ -534,20 +567,29 @@ export const AiInputRow = styled(Box)(({ theme }) => ({
   gap: theme.spacing(0.75),
 }));
 
-export const AiSendButton = styled(IconButton)(({ theme }) => ({
-  width: 36,
-  height: 36,
-  flexShrink: 0,
-  background: `linear-gradient(135deg, ${dash(theme).accentPurple} 0%, ${dash(theme).accentIndigo} 100%)`,
-  color: text(theme).primary,
-  "&:hover": {
-    background: `linear-gradient(135deg, ${dash(theme).accentIndigo} 0%, ${dash(theme).accentBlue} 100%)`,
-  },
-  "&.Mui-disabled": {
-    opacity: 0.35,
-    background: alpha(dash(theme).overlayLight, 0.4),
-  },
-}));
+export const AiSendButton = styled(IconButton)(({ theme }) => {
+  const d = dash(theme);
+  const app = (theme as AppTheme).app;
+  return {
+    width: 36,
+    height: 36,
+    flexShrink: 0,
+    background: app.dashboard.gradientButton,
+    color: app.dashboard.gradientButtonText,
+    border: `1px solid ${d.overlayBorder}`,
+    boxShadow: "none",
+    "&:hover": {
+      background: app.dashboard.gradientButton,
+      color: app.dashboard.gradientButtonText,
+      boxShadow: "none",
+    },
+    "&.Mui-disabled": {
+      opacity: 0.35,
+      background: alpha(d.overlayLight, 0.4),
+      borderColor: alpha(d.cardBorder, 0.35),
+    },
+  };
+});
 
 export const CannedReplyGrid = styled(Box)(({ theme }) => ({
   display: "flex",

@@ -1,13 +1,35 @@
 "use client";
 
+import { useCallback, useMemo, useState } from "react";
 import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
-import { useTheme } from "@mui/material/styles";
+import Dialog from "@mui/material/Dialog";
+import DialogActions from "@mui/material/DialogActions";
+import DialogContent from "@mui/material/DialogContent";
+import DialogTitle from "@mui/material/DialogTitle";
+import { alpha, useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
-import { Typography } from "@/components/common";
+import {
+  getAccessToken,
+  postAgentAiSuggestion,
+  parseAgentSuggestResponse,
+} from "@/api";
+import type { AgentAiAction } from "@/api/ai/agent-suggest.api";
+import { buildAgentCopilotInput, agentAiActionNeedsWebsite } from "@/lib/ai/agent-copilot-input";
+import { Button, InputField, Typography } from "@/components/common";
+import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
+import { ChatComposer } from "@/features/chat-operations/components/ChatComposer";
 import { ChatMessageList } from "@/features/chat-operations/components/ChatMessageList";
+import { inboxTranscriptDisplayForClosed } from "@/features/chat-operations/utils/inbox-transcript-messages";
+import {
+  getConversationAiState,
+  getConversationDraft,
+  patchConversationAiState,
+  patchConversationDraft,
+} from "@/features/chat-operations/utils/conversation-scoped-state";
 import { parseVisitorInfo } from "@/features/chat-operations/utils/visitor-info";
 import {
+  ChatHeaderMetaChip,
   PanelColumn,
   PanelHeader,
   QueueAvatar,
@@ -16,18 +38,27 @@ import { extractVisitorPresentation } from "@/services/chat/visitor-presentation
 import { agentDisplayName } from "@/services/chat/monitor-normalizers";
 import type { MonitorConversationRow } from "@/services/chat/monitor.types";
 import type { ChatMessage } from "@/services/chat/chat.types";
-import { chatMonitorReadOnlyBannerSx } from "../styles/chat-monitor.styles";
-import { MonitorActionsPanel } from "./MonitorActionsPanel";
+import {
+  sendSupervisorControlMessage,
+  supervisorCloseConversation,
+} from "@/services/chat/supervisor.api";
+import { canSupervisorCloseChat } from "@/lib/permissions/chat-access";
+import { extractApiErrorMessageForToast, publishAppToast } from "@/lib/notify";
+function needsWebsite(action: AgentAiAction): boolean {
+  return agentAiActionNeedsWebsite(action);
+}
 
 interface MonitorTranscriptPanelProps {
   conversation: MonitorConversationRow | null;
   messages: ChatMessage[];
   visitor: Record<string, unknown> | null;
   loading: boolean;
+  loadError?: string | null;
   currentUserId?: string | null;
   hasOperational?: (p: string) => boolean;
   monitorReadOnly?: boolean;
   supervisorControlUserId?: string | null;
+  visitorTyping?: boolean;
   onSupervisorAction?: () => void;
   onMessageSent?: () => void;
 }
@@ -37,86 +68,433 @@ export function MonitorTranscriptPanel({
   messages,
   visitor,
   loading,
+  loadError = null,
   currentUserId = null,
   hasOperational = () => false,
   monitorReadOnly = false,
   supervisorControlUserId = null,
+  visitorTyping = false,
   onSupervisorAction,
   onMessageSent,
 }: MonitorTranscriptPanelProps) {
+  const theme = useTheme() as AppTheme;
   const activeSupervisorId =
     supervisorControlUserId ?? conversation?.supervisorControlUserId ?? null;
-  const theme = useTheme() as AppTheme;
+  const isControlling =
+    Boolean(activeSupervisorId) &&
+    Boolean(currentUserId) &&
+    activeSupervisorId === currentUserId;
+
   const vp = conversation ? extractVisitorPresentation(conversation) : null;
   const visitorInfo = parseVisitorInfo(visitor);
   const title = vp?.inboxTitle || vp?.displayName || visitorInfo.displayName;
   const subtitle =
-    vp
-      ? [vp.originLabel, vp.locationLabel].filter(Boolean).join(" · ")
-      : null;
-
+    vp ? [vp.originLabel, vp.locationLabel].filter(Boolean).join(" · ") : null;
+  const conversationId = conversation?.id ?? null;
   const hasConversation = Boolean(conversation);
+  const isClosed = conversation?.status === "closed";
+  const agentLabel = agentDisplayName(conversation?.agent ?? null);
+  const websiteId = conversation?.websiteId ?? null;
+  const departmentId = conversation?.departmentId ?? null;
+
+  const [draftsByConversation, setDraftsByConversation] = useState<Record<string, string>>({});
+  const [aiByConversation, setAiByConversation] = useState<
+    Record<string, import("@/features/chat-operations/utils/conversation-scoped-state").ConversationAiState>
+  >({});
+  const [closeDialogOpen, setCloseDialogOpen] = useState(false);
+  const [closeReason, setCloseReason] = useState("");
+  const [closeBusy, setCloseBusy] = useState(false);
+
+  const composer = getConversationDraft(draftsByConversation, conversationId);
+  const aiState = getConversationAiState(aiByConversation, conversationId);
+  const canClose =
+    !monitorReadOnly && canSupervisorCloseChat(hasOperational) && !isClosed;
+
+  const transcriptDisplay = useMemo(
+    () =>
+      isClosed ? inboxTranscriptDisplayForClosed(messages) : undefined,
+    [isClosed, messages],
+  );
+
+  const setComposer = useCallback(
+    (value: string | ((prev: string) => string)) => {
+      if (!conversationId) return;
+      setDraftsByConversation((prev) => patchConversationDraft(prev, conversationId, value));
+    },
+    [conversationId],
+  );
+
+  const setAiPrompt = useCallback(
+    (value: string) => {
+      if (!conversationId) return;
+      setAiByConversation((prev) =>
+        patchConversationAiState(prev, conversationId, { prompt: value }),
+      );
+    },
+    [conversationId],
+  );
+
+  const pushCannedToComposer = useCallback(
+    (line: string) => {
+      if (!conversationId) return;
+      setDraftsByConversation((prev) =>
+        patchConversationDraft(prev, conversationId, (current) =>
+          current ? `${current} ${line}` : line,
+        ),
+      );
+    },
+    [conversationId],
+  );
+
+  const applyAiToComposer = useCallback(
+    (text: string) => {
+      if (!conversationId) return;
+      const trimmed = text.trim();
+      if (!trimmed) return;
+      setDraftsByConversation((prev) =>
+        patchConversationDraft(prev, conversationId, (current) =>
+          current ? `${current}\n\n${trimmed}` : trimmed,
+        ),
+      );
+    },
+    [conversationId],
+  );
+
+  const sendAiPrompt = useCallback(
+    async (prompt: string, action: AgentAiAction = "coach_reply") => {
+      const token = getAccessToken();
+      if (!token || !conversationId) return;
+      if (needsWebsite(action) && !websiteId?.trim()) return;
+
+      const userId = `ai-u-${Date.now()}`;
+      const pendingId = `ai-a-${Date.now()}`;
+      const draftContext = getConversationDraft(draftsByConversation, conversationId).trim();
+
+      setAiByConversation((prev) => {
+        const current = getConversationAiState(prev, conversationId);
+        return patchConversationAiState(prev, conversationId, {
+          prompt: "",
+          busy: true,
+          messages: [
+            ...current.messages,
+            { id: userId, role: "user", content: prompt, action },
+            { id: pendingId, role: "assistant", content: "", pending: true },
+          ],
+        });
+      });
+
+      try {
+        const input = buildAgentCopilotInput({
+          prompt,
+          action,
+          transcript: messages,
+          draftReply: draftContext,
+        });
+        const data = await postAgentAiSuggestion({
+          action,
+          input,
+          conversationId,
+          ...(websiteId?.trim() ? { websiteId: websiteId.trim() } : {}),
+          ...(action === "rewrite_tone" ? { tone: "professional" } : {}),
+        });
+        const parsed = parseAgentSuggestResponse(data);
+        setAiByConversation((prev) => {
+          const current = getConversationAiState(prev, conversationId);
+          return patchConversationAiState(prev, conversationId, {
+            busy: false,
+            messages: current.messages.map((m) =>
+              m.id === pendingId
+                ? {
+                    ...m,
+                    content: parsed.reply,
+                    sources: parsed.sources.length ? parsed.sources : undefined,
+                    pending: false,
+                  }
+                : m,
+            ),
+          });
+        });
+      } catch (err) {
+        const apiMsg = extractApiErrorMessageForToast(err);
+        setAiByConversation((prev) => {
+          const current = getConversationAiState(prev, conversationId);
+          return patchConversationAiState(prev, conversationId, {
+            busy: false,
+            messages: current.messages.map((m) =>
+              m.id === pendingId
+                ? {
+                    ...m,
+                    content: apiMsg ?? "Assistant request failed.",
+                    pending: false,
+                  }
+                : m,
+            ),
+          });
+        });
+      }
+    },
+    [conversationId, draftsByConversation, messages, websiteId],
+  );
+
+  const sendToVisitor = useCallback(async () => {
+    if (!conversationId || !composer.trim() || !isControlling) return;
+    try {
+      await sendSupervisorControlMessage(conversationId, composer.trim());
+      setDraftsByConversation((prev) => patchConversationDraft(prev, conversationId, ""));
+      onMessageSent?.();
+    } catch (err) {
+      publishAppToast({
+        variant: "error",
+        message: extractApiErrorMessageForToast(err) ?? "Could not send message.",
+      });
+    }
+  }, [composer, conversationId, isControlling, onMessageSent]);
+
+  const confirmClose = useCallback(async () => {
+    if (!conversationId || !closeReason.trim()) return;
+    setCloseBusy(true);
+    try {
+      await supervisorCloseConversation(conversationId, { reason: closeReason.trim() });
+      setCloseReason("");
+      setCloseDialogOpen(false);
+      onSupervisorAction?.();
+      publishAppToast({ variant: "success", message: "Chat closed." });
+    } catch (err) {
+      publishAppToast({
+        variant: "error",
+        message: extractApiErrorMessageForToast(err) ?? "Could not close chat.",
+      });
+    } finally {
+      setCloseBusy(false);
+    }
+  }, [closeReason, conversationId, onSupervisorAction]);
 
   return (
-    <PanelColumn sx={{ height: "100%", overflow: "hidden" }}>
-      <Box sx={chatMonitorReadOnlyBannerSx}>
-        <Typography variant="caption" sx={{ fontSize: 11, color: theme.app.dashboard.textMuted }}>
-          {monitorReadOnly
-            ? "Read-only monitor — you can view this chat but cannot whisper or take control."
-            : activeSupervisorId
-              ? "Monitor control active — assigned agent is read-only until control is released."
-              : "Monitor view — use monitor actions below to whisper or take control when allowed."}
-        </Typography>
-      </Box>
-
+    <PanelColumn
+      sx={{
+        height: "100%",
+        minHeight: 0,
+        overflow: "hidden",
+        display: "flex",
+        flexDirection: "column",
+      }}
+    >
       {hasConversation ? (
-        <PanelHeader sx={{ py: 1.5, display: "flex", alignItems: "center", gap: 1.5 }}>
-          <QueueAvatar sx={{ width: 44, height: 44 }}>{visitorInfo.initials}</QueueAvatar>
-          <Box sx={{ minWidth: 0, flex: 1 }}>
-            <Typography fontWeight={700} sx={{ fontSize: 15 }}>
-              {title}
-            </Typography>
-            {subtitle ? (
-              <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted }}>
-                {subtitle}
+        <PanelHeader
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 1.5,
+            py: 1.25,
+            flexShrink: 0,
+          }}
+        >
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.25, minWidth: 0, flex: 1 }}>
+            <QueueAvatar sx={{ width: 40, height: 40, fontSize: 13 }}>{visitorInfo.initials}</QueueAvatar>
+            <Box sx={{ minWidth: 0 }}>
+              <Typography fontWeight={700} sx={{ fontSize: 14, color: theme.app.text.primary }}>
+                {title}
               </Typography>
-            ) : null}
-            <Box sx={{ display: "flex", gap: 0.75, mt: 0.75, flexWrap: "wrap" }}>
-              <Chip label={conversation!.status} size="small" sx={{ height: 22, fontSize: 11 }} />
-              <Chip
-                label={`Agent: ${agentDisplayName(conversation!.agent)}`}
-                size="small"
-                variant="outlined"
-                sx={{ height: 22, fontSize: 11 }}
-              />
+              {subtitle ? (
+                <Typography
+                  variant="caption"
+                  sx={{ color: theme.app.dashboard.textMuted, fontSize: 11 }}
+                >
+                  {subtitle}
+                </Typography>
+              ) : null}
+              <Box sx={{ display: "flex", gap: 0.5, mt: 0.5, flexWrap: "wrap", alignItems: "center" }}>
+                <Chip label={conversation!.status} size="small" sx={{ height: 20, fontSize: 10 }} />
+                <ChatHeaderMetaChip>
+                  <Typography variant="caption" sx={{ fontSize: 10, color: theme.app.dashboard.textMuted }}>
+                    Agent
+                  </Typography>
+                  <Typography sx={{ fontSize: 12, fontWeight: 600 }}>{agentLabel}</Typography>
+                </ChatHeaderMetaChip>
+              </Box>
             </Box>
+          </Box>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexShrink: 0 }}>
+            {!isClosed ? (
+              <Box
+                component="span"
+                sx={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 0.5,
+                  px: 0.85,
+                  py: 0.2,
+                  borderRadius: 999,
+                  fontSize: 11,
+                  fontWeight: 600,
+                  color: visitorTyping
+                    ? theme.app.dashboard.accentCyan
+                    : theme.palette.success.light,
+                  bgcolor: visitorTyping
+                    ? alpha(theme.app.dashboard.accentCyan, 0.14)
+                    : alpha(theme.palette.success.main, 0.14),
+                }}
+              >
+                <Box
+                  component="span"
+                  sx={{
+                    width: 6,
+                    height: 6,
+                    borderRadius: "50%",
+                    bgcolor: visitorTyping
+                      ? theme.app.dashboard.accentCyan
+                      : theme.palette.success.main,
+                  }}
+                />
+                {visitorTyping ? "Typing" : "Online"}
+              </Box>
+            ) : null}
+            {canClose ? (
+              <Button
+                type="button"
+                variant="secondary"
+                size="compact"
+                onClick={() => setCloseDialogOpen(true)}
+                sx={{ minWidth: 0, px: 1.25, py: 0.35, fontSize: 11 }}
+              >
+                Close
+              </Button>
+            ) : null}
           </Box>
         </PanelHeader>
       ) : null}
 
-      {loading ? (
+      <Dialog
+        open={closeDialogOpen}
+        onClose={() => !closeBusy && setCloseDialogOpen(false)}
+        PaperProps={{
+          sx: {
+            borderRadius: 2,
+            bgcolor: theme.app.dashboard.cardBg,
+            border: `1px solid ${theme.app.dashboard.cardBorder}`,
+            minWidth: { xs: "92vw", sm: 400 },
+          },
+        }}
+      >
+        <DialogTitle sx={{ color: theme.app.text.primary, fontWeight: 700, pb: 0.5 }}>
+          Close this chat?
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="small" sx={{ color: theme.app.dashboard.textMuted, lineHeight: 1.5 }}>
+            End the live session with{" "}
+            <Box component="span" sx={{ color: theme.app.text.primary, fontWeight: 600 }}>
+              {title}
+            </Box>
+            . A close reason is required.
+          </Typography>
+          <InputField
+            label="Close reason"
+            value={closeReason}
+            onChange={(e) => setCloseReason(e.target.value)}
+            disabled={closeBusy}
+            multiline
+            minRows={3}
+            placeholder="Why is this chat being closed?"
+            sx={{ mt: 2 }}
+          />
+        </DialogContent>
+        <DialogActions sx={{ px: 2.5, pb: 2 }}>
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={closeBusy}
+            onClick={() => {
+              setCloseDialogOpen(false);
+              setCloseReason("");
+            }}
+          >
+            Cancel
+          </Button>
+          <Button
+            type="button"
+            variant="primary"
+            disabled={closeBusy || !closeReason.trim()}
+            sx={gradientPrimaryButtonSx}
+            onClick={() => void confirmClose()}
+          >
+            {closeBusy ? "Closing…" : "Confirm close"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {isControlling ? (
+        <Typography
+          variant="caption"
+          sx={{
+            px: 2,
+            py: 0.5,
+            flexShrink: 0,
+            fontSize: 11,
+            color: theme.app.dashboard.accentBlue,
+          }}
+        >
+          You are replying as supervisor — use the composer below (canned + AI assistant).
+        </Typography>
+      ) : monitorReadOnly ? (
+        <Typography
+          variant="caption"
+          sx={{ px: 2, py: 0.5, flexShrink: 0, fontSize: 11, color: theme.app.dashboard.textMuted }}
+        >
+          Read-only monitor view.
+        </Typography>
+      ) : null}
+
+      {loadError ? (
+        <Box sx={{ p: 3 }}>
+          <Typography sx={{ color: theme.palette.error.main, fontSize: 14 }}>{loadError}</Typography>
+        </Box>
+      ) : loading ? (
         <Box sx={{ p: 3 }}>
           <Typography sx={{ color: theme.app.dashboard.textMuted }}>Loading transcript…</Typography>
         </Box>
       ) : (
-        <ChatMessageList
-          messages={messages}
-          visitorInitials={visitorInfo.initials}
-          visitorDisplayName={title}
-          agentDisplayName={agentDisplayName(conversation?.agent ?? null)}
-          showEmptyPlaceholder={!hasConversation}
-        />
+        <Box
+          sx={{
+            flex: 1,
+            minHeight: 0,
+            overflow: "hidden",
+            display: "flex",
+            flexDirection: "column",
+          }}
+        >
+          <ChatMessageList
+            conversationId={conversationId}
+            messages={messages}
+            visitorInitials={visitorInfo.initials}
+            visitorTyping={visitorTyping && !isClosed}
+            visitorDisplayName={title}
+            agentDisplayName={agentLabel}
+            showEmptyPlaceholder={!hasConversation}
+            transcriptDisplay={transcriptDisplay}
+          />
+        </Box>
       )}
 
-      {conversation && conversation.status !== "closed" ? (
-        <MonitorActionsPanel
-          conversationId={conversation.id}
-          supervisorControlUserId={activeSupervisorId}
-          currentUserId={currentUserId}
-          hasOperational={hasOperational}
-          readOnly={monitorReadOnly}
-          onActionComplete={onSupervisorAction}
-          onMessageSent={onMessageSent}
+      {isControlling && !isClosed ? (
+        <ChatComposer
+          value={composer}
+          onChange={setComposer}
+          onSend={() => void sendToVisitor()}
+          onTyping={() => {}}
+          onStopTyping={() => {}}
+          disabled={false}
+          onInsertCanned={pushCannedToComposer}
+          websiteId={websiteId}
+          departmentId={departmentId}
+          aiMessages={aiState.messages}
+          aiPrompt={aiState.prompt}
+          onAiPromptChange={setAiPrompt}
+          onSendAiPrompt={(prompt, action) => void sendAiPrompt(prompt, action)}
+          onApplyAiToComposer={applyAiToComposer}
+          aiBusy={aiState.busy}
+          websiteRequiredDisabled={!websiteId?.trim()}
+          hasConversation={hasConversation}
         />
       ) : null}
     </PanelColumn>

@@ -1,16 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Add from "@mui/icons-material/Add";
-import ArrowForward from "@mui/icons-material/ArrowForward";
-import DeleteOutline from "@mui/icons-material/DeleteOutline";
-import Groups from "@mui/icons-material/Groups";
 import Save from "@mui/icons-material/Save";
+import Schedule from "@mui/icons-material/Schedule";
 import Box from "@mui/material/Box";
-import IconButton from "@mui/material/IconButton";
+import Checkbox from "@mui/material/Checkbox";
 import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
-import { Button, Checkbox, InputField, SelectField, Typography } from "@/components/common";
+import { Button, InputField, SelectField, Typography } from "@/components/common";
+import { VisitorTopicsEditor } from "@/features/chat-settings/components/VisitorTopicsEditor";
 import { buildTimezoneSelectOptions } from "@/lib/utils/core/timezone-options";
 import { ServiceWeekdayPicker } from "@/features/website-assignments/components/ServiceWeekdayPicker";
 import {
@@ -24,7 +22,6 @@ import { extractApiErrorMessageForToast } from "@/lib/notify/extract-api-message
 import type { DepartmentCatalogOption } from "../utils/catalog";
 import {
   CrossMidnightToggle,
-  DepartmentCatalogPanel,
   SchedulingSectionCard,
   SchedulingStepBar,
 } from "@/features/website-assignments/components/ServiceSchedulingSections";
@@ -35,7 +32,9 @@ import {
 } from "@/features/website-assignments/styles/website-assignment-ui.styles";
 import {
   useSaveServiceSchedulingMutation,
+  useSaveVisitorTopicsMutation,
   useServiceSchedulingQuery,
+  useVisitorTopicsQuery,
 } from "../hooks/useServiceScheduling";
 import {
   fromTimeInputValue,
@@ -43,19 +42,25 @@ import {
   toTimeInputValue,
 } from "@/features/website-assignments/utils/schedule-time.utils";
 import {
-  buildSaveBody,
+  buildScheduleSaveBody,
+  buildVisitorTopicsSaveBody,
   bundleToDraft,
   canShowExternalSlots,
   canShowInternalSlots,
   defaultSchedulingDraft,
   emptyScheduleWindow,
   emptyTopic,
-  validateSchedulingDraft,
+  isTwentyFourHourWindow,
+  singleServiceWindow,
+  topicsBundleToDraft,
+  twentyFourHourScheduleWindow,
+  validateScheduleDraft,
+  validateVisitorTopicsDraft,
+  type ServiceSchedulingDraft,
 } from "./service-scheduling-form.utils";
 import type {
   OperatingChannels,
   ServiceScheduleWindow,
-  ServiceSchedulingTopic,
 } from "@/services/chat/service-scheduling.types";
 
 const GAP_POLICY_OPTIONS = [
@@ -85,9 +90,6 @@ interface ServiceScheduleTabProps {
   canEdit: boolean;
   /** Called after a successful save (e.g. show success panel). */
   onSaved?: () => void;
-  /** Optional — save then open agent roster. */
-  onSaveAndGoToRoster?: () => void;
-  rosterHref?: string;
 }
 
 function ScheduleWindowsEditor({
@@ -95,35 +97,49 @@ function ScheduleWindowsEditor({
   windows,
   canEdit,
   onChange,
+  allowTwentyFourHours = true,
 }: {
   title: string;
   windows: ServiceScheduleWindow[];
   canEdit: boolean;
   onChange: (windows: ServiceScheduleWindow[]) => void;
+  allowTwentyFourHours?: boolean;
 }) {
   const theme = useTheme() as AppTheme;
+  const win = singleServiceWindow(windows)[0]!;
+  const is24Hours = isTwentyFourHourWindow(win);
 
-  const patchWindow = (index: number, patch: Partial<ServiceScheduleWindow>) => {
-    onChange(windows.map((w, i) => (i === index ? { ...w, ...patch } : w)));
+  const setWindow = (next: ServiceScheduleWindow) => {
+    onChange(singleServiceWindow([next]));
   };
 
-  const setWindowDays = (index: number, days: WeekdayCode[]) => {
-    patchWindow(index, { daysOfWeek: days.length ? days : [...WEEKDAY_CODES] });
+  const patchWindow = (patch: Partial<ServiceScheduleWindow>) => {
+    setWindow({ ...win, ...patch });
+  };
+
+  const setWindowDays = (days: WeekdayCode[]) => {
+    patchWindow({ daysOfWeek: days.length ? days : [...WEEKDAY_CODES] });
   };
 
   const patchWindowTimes = (
-    index: number,
     patch: Partial<Pick<ServiceScheduleWindow, "startTime" | "endTime">>,
   ) => {
-    const current = windows[index];
-    if (!current) return;
-    const startTime = patch.startTime ?? current.startTime;
-    const endTime = patch.endTime ?? current.endTime;
+    const startTime = patch.startTime ?? win.startTime;
+    const endTime = patch.endTime ?? win.endTime;
     const likely = timesLikelyCrossMidnight(startTime, endTime);
-    patchWindow(index, {
+    setWindow({
+      ...win,
       ...patch,
-      ...(likely && !current.crossesMidnight ? { crossesMidnight: true } : {}),
+      ...(likely && !win.crossesMidnight ? { crossesMidnight: true } : {}),
     });
+  };
+
+  const setTwentyFourHours = (enabled: boolean) => {
+    if (enabled) {
+      setWindow(twentyFourHourScheduleWindow());
+      return;
+    }
+    setWindow(emptyScheduleWindow());
   };
 
   return (
@@ -133,96 +149,110 @@ function ScheduleWindowsEditor({
           {title}
         </Typography>
       ) : null}
-      {windows.map((win, index) => (
+      {allowTwentyFourHours ? (
         <Box
-          key={`${title}-window-${index}`}
-          sx={serviceWindowCardSx(Boolean(win.crossesMidnight))}
+          sx={{
+            display: "flex",
+            alignItems: "flex-start",
+            justifyContent: "space-between",
+            gap: 1.5,
+            mb: 1.5,
+            p: 1.25,
+            borderRadius: 1.5,
+            border: `1px solid ${is24Hours ? theme.palette.primary.main + "55" : theme.app.dashboard.cardBorder}`,
+            bgcolor: is24Hours ? `${theme.palette.primary.main}12` : "transparent",
+          }}
         >
-          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1.5 }}>
-            <Typography fontWeight={600} sx={{ fontSize: 14 }}>
-              Window {index + 1}
-            </Typography>
-            {canEdit && windows.length > 1 ? (
-              <IconButton
-                size="small"
-                aria-label="Remove window"
-                onClick={() => onChange(windows.filter((_, i) => i !== index))}
-              >
-                <DeleteOutline fontSize="small" />
-              </IconButton>
-            ) : null}
+          <Box sx={{ display: "flex", gap: 1, minWidth: 0 }}>
+            <Schedule sx={{ fontSize: 20, color: theme.palette.primary.light, mt: 0.15 }} />
+            <Box>
+              <Typography fontWeight={700} sx={{ fontSize: 14, mb: 0.35 }}>
+                24 hours
+              </Typography>
+              <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, lineHeight: 1.45 }}>
+                Site accepts chats all week, around the clock.
+              </Typography>
+            </Box>
           </Box>
-          <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, display: "block", mb: 0.75 }}>
-            Days of week
-          </Typography>
-          <Box sx={{ mb: 1.5 }}>
-            <ServiceWeekdayPicker
-              value={normalizeDaysOfWeek(win.daysOfWeek as Array<string | number>)}
-              disabled={!canEdit}
-              onChange={(days) => setWindowDays(index, days)}
-            />
-          </Box>
-          <Box
-            sx={{
-              display: "grid",
-              gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" },
-              gap: 1.25,
-              mb: 1.5,
-            }}
-          >
-            <InputField
-              label="Start time"
-              type="time"
-              inputProps={{ step: 60 }}
-              value={toTimeInputValue(win.startTime)}
-              disabled={!canEdit}
-              onChange={(e) =>
-                patchWindowTimes(index, {
-                  startTime: fromTimeInputValue((e.target as HTMLInputElement).value),
-                })
-              }
-            />
-            <InputField
-              label="End time"
-              type="time"
-              inputProps={{ step: 60 }}
-              value={toTimeInputValue(win.endTime)}
-              disabled={!canEdit}
-              onChange={(e) =>
-                patchWindowTimes(index, {
-                  endTime: fromTimeInputValue((e.target as HTMLInputElement).value),
-                })
-              }
-            />
-          </Box>
-          <CrossMidnightToggle
-            checked={Boolean(win.crossesMidnight)}
+          <Checkbox
+            checked={is24Hours}
             disabled={!canEdit}
-            onChange={(v) => patchWindow(index, { crossesMidnight: v })}
+            onChange={(_: unknown, checked: boolean) => setTwentyFourHours(checked)}
+            sx={{ flexShrink: 0, mt: -0.5 }}
           />
         </Box>
-      ))}
-      {canEdit ? (
-        <Button
-          type="button"
-          variant="outlined"
-          startIcon={<Add />}
-          onClick={() => onChange([...windows, emptyScheduleWindow()])}
-          sx={{ alignSelf: "flex-start" }}
-        >
-          Add window
-        </Button>
       ) : null}
+
+      <Box sx={serviceWindowCardSx(Boolean(win.crossesMidnight && !is24Hours))}>
+        {allowTwentyFourHours && is24Hours ? (
+          <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, lineHeight: 1.55 }}>
+            Service is open <strong>24/7</strong> (Sun–Sat). Save when you are done.
+          </Typography>
+        ) : (
+          <>
+            <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, display: "block", mb: 0.75 }}>
+              Days of week
+            </Typography>
+            <Box sx={{ mb: 1.5 }}>
+              <ServiceWeekdayPicker
+                value={normalizeDaysOfWeek(win.daysOfWeek as Array<string | number>)}
+                disabled={!canEdit}
+                onChange={(days) => setWindowDays(days)}
+              />
+            </Box>
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" },
+                gap: 1.25,
+                mb: 1.5,
+              }}
+            >
+              <InputField
+                label="Start time"
+                type="time"
+                inputProps={{ step: 60 }}
+                value={toTimeInputValue(win.startTime)}
+                disabled={!canEdit}
+                onChange={(e) =>
+                  patchWindowTimes({
+                    startTime: fromTimeInputValue((e.target as HTMLInputElement).value),
+                  })
+                }
+              />
+              <InputField
+                label="End time"
+                type="time"
+                inputProps={{ step: 60 }}
+                value={toTimeInputValue(win.endTime)}
+                disabled={!canEdit}
+                onChange={(e) =>
+                  patchWindowTimes({
+                    endTime: fromTimeInputValue((e.target as HTMLInputElement).value),
+                  })
+                }
+              />
+            </Box>
+            <CrossMidnightToggle
+              checked={Boolean(win.crossesMidnight)}
+              disabled={!canEdit}
+              onChange={(v) => patchWindow({ crossesMidnight: v })}
+            />
+          </>
+        )}
+      </Box>
     </Box>
   );
 }
 
 function TimezoneSelect({
+  label = "Timezone (IANA)",
   value,
   disabled,
   onChange,
   helperText,
 }: {
+  label?: string;
   value: string;
   disabled?: boolean;
   onChange: (tz: string) => void;
@@ -232,7 +262,7 @@ function TimezoneSelect({
   return (
     <Box>
       <SelectField
-        label="Timezone (IANA)"
+        label={label}
         value={value}
         onChange={onChange}
         options={options}
@@ -256,20 +286,50 @@ export function ServiceScheduleTab({
   canView,
   canEdit,
   onSaved,
-  onSaveAndGoToRoster,
-  rosterHref,
 }: ServiceScheduleTabProps) {
   const theme = useTheme() as AppTheme;
   const schedulingQuery = useServiceSchedulingQuery(websiteId, canView);
-  const saveMutation = useSaveServiceSchedulingMutation(websiteId);
+  const visitorTopicsQuery = useVisitorTopicsQuery(websiteId, canView);
+  const saveScheduleMutation = useSaveServiceSchedulingMutation(websiteId);
+  const saveTopicsMutation = useSaveVisitorTopicsMutation(websiteId);
 
-  const [draft, setDraft] = useState(() => defaultSchedulingDraft());
+  const [draft, setDraft] = useState<ServiceSchedulingDraft>(() => defaultSchedulingDraft());
 
   useEffect(() => {
     if (schedulingQuery.data) {
-      setDraft(bundleToDraft(schedulingQuery.data));
+      setDraft((prev) => ({
+        ...bundleToDraft(schedulingQuery.data),
+        topics: prev.topics,
+      }));
     }
   }, [schedulingQuery.data]);
+
+  useEffect(() => {
+    if (visitorTopicsQuery.data) {
+      setDraft((prev) => ({
+        ...prev,
+        topics: topicsBundleToDraft(visitorTopicsQuery.data),
+      }));
+    }
+  }, [visitorTopicsQuery.data]);
+
+  const allowTwentyFourHours = draft.operatingChannels !== "both";
+
+  useEffect(() => {
+    if (allowTwentyFourHours) return;
+    setDraft((p) => {
+      const internalWin = singleServiceWindow(p.internalWindows)[0]!;
+      const externalWin = singleServiceWindow(p.externalWindows)[0]!;
+      const internal24 = isTwentyFourHourWindow(internalWin);
+      const external24 = isTwentyFourHourWindow(externalWin);
+      if (!internal24 && !external24) return p;
+      return {
+        ...p,
+        ...(internal24 ? { internalWindows: singleServiceWindow([emptyScheduleWindow()]) } : {}),
+        ...(external24 ? { externalWindows: singleServiceWindow([emptyScheduleWindow()]) } : {}),
+      };
+    });
+  }, [allowTwentyFourHours]);
 
   const internalDeptOptions = useMemo(
     () => departments.filter((d) => d.departmentType === "Internal"),
@@ -281,22 +341,15 @@ export function ServiceScheduleTab({
   );
 
 
-  const patchTopic = (index: number, patch: Partial<ServiceSchedulingTopic>) => {
-    setDraft((p) => ({
-      ...p,
-      topics: p.topics.map((t, i) => (i === index ? { ...t, ...patch } : t)),
-    }));
-  };
-
-  const runSave = (afterSuccess?: () => void) => {
-    const err = validateSchedulingDraft(draft);
+  const runSaveSchedule = (afterSuccess?: () => void) => {
+    const err = validateScheduleDraft(draft);
     if (err) {
       publishAppToast({ message: err, variant: "error" });
       return;
     }
-    saveMutation.mutate(buildSaveBody(draft), {
+    saveScheduleMutation.mutate(buildScheduleSaveBody(draft), {
       onSuccess: () => {
-        publishAppToast({ message: "Service scheduling saved", variant: "success" });
+        publishAppToast({ message: "Service schedule saved", variant: "success" });
         afterSuccess?.();
       },
       onError: (e) =>
@@ -307,8 +360,25 @@ export function ServiceScheduleTab({
     });
   };
 
-  const handleSave = () => runSave(onSaved);
-  const handleSaveAndRoster = () => runSave(onSaveAndGoToRoster ?? onSaved);
+  const runSaveTopics = () => {
+    const err = validateVisitorTopicsDraft(draft.topics);
+    if (err) {
+      publishAppToast({ message: err, variant: "error" });
+      return;
+    }
+    saveTopicsMutation.mutate(buildVisitorTopicsSaveBody(draft.topics), {
+      onSuccess: () => {
+        publishAppToast({ message: "Inquire topics saved", variant: "success" });
+      },
+      onError: (e) =>
+        publishAppToast({
+          message: extractApiErrorMessageForToast(e, "Could not save inquire topics"),
+          variant: "error",
+        }),
+    });
+  };
+
+  const handleSave = () => runSaveSchedule(onSaved);
 
   if (!canView) {
     return (
@@ -318,7 +388,7 @@ export function ServiceScheduleTab({
     );
   }
 
-  if (schedulingQuery.isLoading) {
+  if (schedulingQuery.isLoading || visitorTopicsQuery.isLoading) {
     return (
       <Typography sx={{ color: theme.app.dashboard.textMuted, py: 2 }}>
         Loading service scheduling…
@@ -326,7 +396,7 @@ export function ServiceScheduleTab({
     );
   }
 
-  if (schedulingQuery.isError) {
+  if (schedulingQuery.isError || visitorTopicsQuery.isError) {
     return (
       <Typography sx={{ color: theme.palette.error.light }}>
         Could not load service scheduling. Refresh and try again.
@@ -344,8 +414,7 @@ export function ServiceScheduleTab({
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 0, maxWidth: 1040 }}>
       <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, lineHeight: 1.55, mb: 2 }}>
-        Complete all three sections below, then save. Your next step is the <strong>Agent roster</strong>{" "}
-        (Step 2) to assign Primary → Secondary → Backup per visitor topic.
+        Set operating mode and service hours, then save schedule. Inquire topics use a separate API — save them in step 3.
       </Typography>
 
       <SchedulingStepBar activeStep={activeStep} />
@@ -353,7 +422,7 @@ export function ServiceScheduleTab({
       <SchedulingSectionCard
         step={1}
         title="Operating mode"
-        subtitle="Controls which assignment channels appear on the roster (internal only, external only, or both)."
+        subtitle="Controls internal, external, or both channels for this website."
       >
       <SelectField
         label="Operating mode"
@@ -363,6 +432,15 @@ export function ServiceScheduleTab({
         disabled={!canEdit}
         menuMaxRows={6}
       />
+      {!allowTwentyFourHours ? (
+        <Typography
+          variant="caption"
+          sx={{ display: "block", mt: 1.25, color: theme.app.dashboard.textMuted, lineHeight: 1.5 }}
+        >
+          Internal + External mode requires separate internal and external service hours — 24 hours is not
+          available.
+        </Typography>
+      ) : null}
 
       <Typography variant="caption" fontWeight={700} sx={{ display: "block", mt: 2, mb: 1 }}>
         Outside service hours
@@ -408,21 +486,31 @@ export function ServiceScheduleTab({
         <SchedulingSectionCard
           step={2}
           title="Internal service hours"
-          subtitle="Wall-clock hours for internal agents. Times use the timezone below (same for external windows when both channels are enabled)."
+          subtitle="Wall-clock hours for internal agents in this website's internal timezone."
         >
         <Box sx={{ mb: 2.5 }}>
           <TimezoneSelect
-            value={draft.timezone}
+            label="Internal timezone (IANA)"
+            value={draft.internalTimezone}
             disabled={!canEdit}
-            onChange={(tz) => setDraft((p) => ({ ...p, timezone: tz }))}
-            helperText="Example: Asia/Karachi — used to interpret start/end times and overnight (cross-midnight) windows."
+            onChange={(tz) =>
+              setDraft((p) => ({
+                ...p,
+                internalTimezone: tz,
+                timezone: tz,
+              }))
+            }
+            helperText="Example: Asia/Karachi — used for internal service window times."
           />
         </Box>
         <ScheduleWindowsEditor
           title=""
           windows={draft.internalWindows}
           canEdit={canEdit}
-          onChange={(internalWindows) => setDraft((p) => ({ ...p, internalWindows }))}
+          allowTwentyFourHours={allowTwentyFourHours}
+          onChange={(internalWindows) =>
+            setDraft((p) => ({ ...p, internalWindows: singleServiceWindow(internalWindows) }))
+          }
         />
         </SchedulingSectionCard>
       ) : null}
@@ -433,25 +521,27 @@ export function ServiceScheduleTab({
           title="External service hours"
           subtitle={
             canShowInternalSlots(draft.operatingChannels)
-              ? "When external agents are on duty. Uses the same timezone as internal hours above."
+              ? "When external agents are on duty — separate timezone from internal hours."
               : "When external agents are on duty for this website."
           }
         >
-        {!canShowInternalSlots(draft.operatingChannels) ? (
-          <Box sx={{ mb: 2.5 }}>
-            <TimezoneSelect
-              value={draft.timezone}
-              disabled={!canEdit}
-              onChange={(tz) => setDraft((p) => ({ ...p, timezone: tz }))}
-              helperText="IANA timezone for interpreting service window times."
-            />
-          </Box>
-        ) : null}
+        <Box sx={{ mb: 2.5 }}>
+          <TimezoneSelect
+            label="External timezone (IANA)"
+            value={draft.externalTimezone}
+            disabled={!canEdit}
+            onChange={(tz) => setDraft((p) => ({ ...p, externalTimezone: tz }))}
+            helperText="Example: America/New_York — used for external service window times."
+          />
+        </Box>
         <ScheduleWindowsEditor
           title=""
           windows={draft.externalWindows}
           canEdit={canEdit}
-          onChange={(externalWindows) => setDraft((p) => ({ ...p, externalWindows }))}
+          allowTwentyFourHours={allowTwentyFourHours}
+          onChange={(externalWindows) =>
+            setDraft((p) => ({ ...p, externalWindows: singleServiceWindow(externalWindows) }))
+          }
         />
         </SchedulingSectionCard>
       ) : null}
@@ -459,185 +549,89 @@ export function ServiceScheduleTab({
       <SchedulingSectionCard
         step={3}
         title="Visitor topics"
-        subtitle="Each topic needs one internal and one external department (widget routing). Both are saved even when the site is internal-only."
+        subtitle="Saved per website (same rows as Chat Box Design → Inquiry topics). Each topic needs internal and external departments."
       >
-        <DepartmentCatalogPanel departments={departments} isLoading={departmentsLoading} />
-        {internalDeptOptions.length === 0 && !departmentsLoading ? (
-          <Typography
-            variant="body2"
-            sx={{
-              color: theme.palette.warning.light,
-              bgcolor: `${theme.palette.warning.main}14`,
-              border: `1px solid ${theme.palette.warning.main}44`,
-              borderRadius: 1.5,
-              px: 1.5,
-              py: 1,
-              mb: 1.5,
-            }}
-          >
-            No internal departments found. Create an <strong>Internal</strong> department under HRMS →
-            Departments (reseller scope), then refresh this page.
-          </Typography>
-        ) : null}
-        <Box sx={{ mt: 2 }}>
-        {draft.topics.map((topic, index) => (
-          <Box
-            key={`topic-${index}`}
-            sx={{
-              p: 2,
-              mb: 1.5,
-              borderRadius: 2,
-              border: `1px solid ${theme.app.dashboard.cardBorder}`,
-            }}
-          >
-            <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
-              <Typography fontWeight={600} sx={{ fontSize: 14 }}>
-                Topic {index + 1}
-              </Typography>
-              {canEdit && draft.topics.length > 1 ? (
-                <IconButton
-                  size="small"
-                  aria-label="Remove topic"
-                  onClick={() =>
-                    setDraft((p) => ({
-                      ...p,
-                      topics: p.topics.filter((_, i) => i !== index),
-                    }))
-                  }
-                >
-                  <DeleteOutline fontSize="small" />
-                </IconButton>
-              ) : null}
-            </Box>
-            <Box
-              sx={{
-                display: "grid",
-                gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" },
-                gap: 1.25,
-              }}
-            >
-              <InputField
-                label="Routing key"
-                value={topic.routingKey}
-                disabled={!canEdit}
-                onChange={(e) => patchTopic(index, { routingKey: (e.target as HTMLInputElement).value })}
-                placeholder="billing"
-              />
-              <InputField
-                label="Client label (widget)"
-                value={topic.clientLabel}
-                disabled={!canEdit}
-                onChange={(e) => patchTopic(index, { clientLabel: (e.target as HTMLInputElement).value })}
-              />
-            </Box>
-            <Box
-              sx={{
-                display: "grid",
-                gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
-                gap: 1.25,
-                mt: 1.25,
-                p: 1.25,
-                borderRadius: 1.5,
-                border: `1px dashed ${theme.app.dashboard.cardBorder}`,
-              }}
-            >
-              <SelectField
-                label="Internal department"
-                value={topic.internalDepartmentId}
-                onChange={(v) => patchTopic(index, { internalDepartmentId: v })}
-                options={[
-                  { value: "", label: "Select internal department…" },
-                  ...internalDeptOptions.map((d) => ({ value: d.id, label: d.label })),
-                ]}
-                disabled={!canEdit}
-                menuMaxRows={8}
-              />
-              <SelectField
-                label="External department"
-                value={topic.externalDepartmentId}
-                onChange={(v) => patchTopic(index, { externalDepartmentId: v })}
-                options={[
-                  { value: "", label: "Select external department…" },
-                  ...externalDeptOptions.map((d) => ({ value: d.id, label: d.label })),
-                ]}
-                disabled={!canEdit}
-                menuMaxRows={8}
-              />
-            </Box>
-            <Box component="label" sx={{ display: "inline-flex", alignItems: "center", gap: 0.75, mt: 1 }}>
-              <Checkbox
-                checked={topic.isActive}
-                disabled={!canEdit}
-                onChange={(_, v) => patchTopic(index, { isActive: v })}
-              />
-              <Typography variant="caption">Active</Typography>
-            </Box>
-          </Box>
-        ))}
+        <VisitorTopicsEditor
+          topics={draft.topics.map((t) => ({
+            routingKey: t.routingKey,
+            clientLabel: t.clientLabel,
+            internalDepartmentId: t.internalDepartmentId,
+            externalDepartmentId: t.externalDepartmentId,
+            internalPoolId: t.internalPoolId,
+            externalPoolId: t.externalPoolId,
+            isActive: t.isActive,
+          }))}
+          onChange={(rows) =>
+            setDraft((p) => ({
+              ...p,
+              topics: rows.map((row, i) => ({
+                ...emptyTopic(i),
+                ...p.topics[i],
+                routingKey: row.routingKey,
+                clientLabel: row.clientLabel,
+                internalDepartmentId: row.internalDepartmentId,
+                externalDepartmentId: row.externalDepartmentId,
+                internalPoolId: row.internalPoolId ?? null,
+                externalPoolId: row.externalPoolId ?? null,
+                isActive: row.isActive !== false,
+                displayOrder: i,
+              })),
+            }))
+          }
+          canEdit={canEdit}
+          showDepartmentCatalog
+          showActive
+          departments={departments}
+          departmentsLoading={departmentsLoading}
+          internalDeptOptions={internalDeptOptions}
+          externalDeptOptions={externalDeptOptions}
+          internalDeptWarning={
+            internalDeptOptions.length === 0 && !departmentsLoading ? (
+              <>
+                No internal departments found. Create an <strong>Internal</strong> department under
+                HRMS → Departments (reseller scope), then refresh this page.
+              </>
+            ) : null
+          }
+          minRows={1}
+        />
         {canEdit ? (
-          <Button
-            type="button"
-            variant="outlined"
-            startIcon={<Add />}
-            onClick={() =>
-              setDraft((p) => ({
-                ...p,
-                topics: [...p.topics, emptyTopic(p.topics.length)],
-              }))
-            }
-            sx={{ alignSelf: "flex-start" }}
-          >
-            Add topic
-          </Button>
+          <Box sx={{ mt: 2, display: "flex", justifyContent: "flex-end" }}>
+            <Button
+              type="button"
+              variant="primary"
+              sx={gradientPrimaryButtonSx}
+              startIcon={<Save sx={{ fontSize: 18 }} />}
+              disabled={saveTopicsMutation.isPending}
+              onClick={runSaveTopics}
+            >
+              {saveTopicsMutation.isPending ? "Saving…" : "Save inquire topics"}
+            </Button>
+          </Box>
         ) : null}
-        </Box>
       </SchedulingSectionCard>
 
       {canEdit ? (
         <Box sx={scheduleFormActionBarSx}>
           <Box sx={{ minWidth: 0 }}>
             <Typography variant="body2" fontWeight={700} sx={{ color: theme.app.text.primary, mb: 0.35 }}>
-              Next: Agent roster
+              Save schedule
             </Typography>
             <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, lineHeight: 1.5 }}>
-              Save your schedule first, then assign agents by channel and visitor topic.
+              Operating mode and service hours only (not inquire topics).
             </Typography>
           </Box>
-          <Box
-            sx={{
-              display: "flex",
-              flexDirection: { xs: "column", sm: "row" },
-              gap: 1.25,
-              flexShrink: 0,
-            }}
+          <Button
+            type="button"
+            variant="primary"
+            sx={gradientPrimaryButtonSx}
+            startIcon={<Save sx={{ fontSize: 18 }} />}
+            disabled={saveScheduleMutation.isPending}
+            onClick={handleSave}
           >
-            <Button
-              type="button"
-              variant="outlined"
-              startIcon={<Save sx={{ fontSize: 18 }} />}
-              disabled={saveMutation.isPending}
-              onClick={handleSave}
-            >
-              {saveMutation.isPending ? "Saving…" : "Save schedule"}
-            </Button>
-            <Button
-              type="button"
-              variant="primary"
-              sx={{ ...gradientPrimaryButtonSx, minWidth: { sm: 220 } }}
-              startIcon={<Groups sx={{ fontSize: 18 }} />}
-              endIcon={<ArrowForward sx={{ fontSize: 18 }} />}
-              disabled={saveMutation.isPending}
-              onClick={handleSaveAndRoster}
-            >
-              {saveMutation.isPending ? "Saving…" : "Save & assign agents"}
-            </Button>
-          </Box>
+            {saveScheduleMutation.isPending ? "Saving…" : "Save schedule"}
+          </Button>
         </Box>
-      ) : null}
-      {canEdit && rosterHref ? (
-        <Typography variant="caption" sx={{ mt: 1, color: theme.app.dashboard.textMuted }}>
-          Tip: use <strong>Save & assign agents</strong> to jump straight to the roster after saving.
-        </Typography>
       ) : null}
     </Box>
   );

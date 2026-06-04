@@ -6,4 +6,6 @@ export interface AiChatMessage {
   content: string;
   action?: AgentAiAction;
   pending?: boolean;
+  /** KB source labels when the API returns knowledgeMatches. */
+  sources?: string[];
 }

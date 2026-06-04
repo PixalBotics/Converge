@@ -22,7 +22,7 @@ import {
   accountMenuThemeIconWrapSx,
 } from "./AccountMenu.styled";
 
-const defaultProfileHref = "/dashboard/settings?tab=profile";
+const defaultProfileHref = "/dashboard/settings/profile";
 const defaultThemeHref = "/dashboard/theme";
 
 export function AccountMenu({

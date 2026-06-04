@@ -4,8 +4,9 @@ import Box from "@mui/material/Box";
 import { usePathname } from "next/navigation";
 import { Typography } from "@/components/common";
 import { useAuth } from "@/lib/auth";
-import { OP } from "@/lib/permissions/operational-keys";
 import { EMAIL_ROUTES } from "../email.constants";
+import { useEmailTemplateAccess } from "../hooks/useEmailTemplateAccess";
+import { useSmtpEmailAccess } from "../hooks/useSmtpEmailAccess";
 import { buildEmailTabHref } from "../email-reseller-storage";
 import { useEmailResellerScope } from "../context/EmailResellerScopeContext";
 import { EmailRouteSegmented } from "./EmailRouteSegmented";
@@ -27,12 +28,12 @@ function resolvePageTitle(pathname: string): string {
 /** Page title (left) + route tabs (right) for all `/dashboard/email/*` pages. */
 export function EmailPageHeader() {
   const pathname = usePathname();
-  const { hasOperational, user } = useAuth();
+  const { user } = useAuth();
   const { resellerId } = useEmailResellerScope();
   const isInternal = user?.userType === "Internal";
 
-  const canViewMail = hasOperational(OP.smtpEmail.view);
-  const canViewDesign = hasOperational(OP.emailTemplate.view);
+  const { canView: canViewDesign } = useEmailTemplateAccess();
+  const { canView: canViewMail } = useSmtpEmailAccess();
 
   const connectionTabs = CONNECTION_TABS.filter((t) => !t.internalOnly || isInternal).map((t) => ({
     href: t.href,

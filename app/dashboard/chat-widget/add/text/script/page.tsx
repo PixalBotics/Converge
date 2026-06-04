@@ -14,6 +14,7 @@ import { getWidgetEmbedSnippet } from "@/api/widgets/widgets.api";
 import { Button, Typography } from "@/components/common";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
 import { WidgetFlowShell } from "@/features/chat-widget";
+import { WidgetEmbedArchitectureHint } from "@/features/chat-widget/components/WidgetEmbedArchitectureHint";
 import {
   createRemoteWidgetDraft,
   patchRemoteWidgetConfiguration,
@@ -31,6 +32,11 @@ import {
 } from "@/lib/chat-widget/chat-wizard-edit";
 import { buildUnifiedWidgetEmbedScript } from "@/lib/chat-widget/widgetDraft";
 import type { WidgetDraft } from "@/lib/chat-widget/widgetDraft";
+import {
+  buildApiWidgetEmbedScript,
+  normalizeEmbedSnippetForApi,
+  resolveWidgetEmbedAppOrigin,
+} from "@/lib/chat-widget/widget-embed-api-origin";
 
 const TEXT_WIDGET_ENABLED_KEY = "text_widget_enabled_v1";
 
@@ -70,10 +76,13 @@ export default function TextWidgetScriptPage() {
       setInstallUi({ phase: "loading" });
 
       try {
-        const assetUrls = await uploadDraftWidgetAssets({
+        const { urls: assetUrls, errors: assetErrors } = await uploadDraftWidgetAssets({
           websiteId: typed.websiteId,
           draft: typed,
         });
+        if (assetErrors.length > 0) {
+          console.warn("[widget] asset upload:", assetErrors.join("; "));
+        }
 
         let widgetKey = typed.remoteWidgetKey?.trim() || "";
 
@@ -116,10 +125,7 @@ export default function TextWidgetScriptPage() {
           requiresPublishBeforeEmbed: pickRequiresPublishBeforeEmbed(patchInner),
         });
 
-        const appOrigin =
-          (typeof window !== "undefined" ? window.location.origin : "") ||
-          process.env.NEXT_PUBLIC_WIDGET_EMBED_ORIGIN ||
-          "";
+        const appOrigin = resolveWidgetEmbedAppOrigin();
 
         let embedMarkup: string | null = null;
         try {
@@ -129,16 +135,15 @@ export default function TextWidgetScriptPage() {
           /* optional */
         }
 
-        const fallbackScript = buildUnifiedWidgetEmbedScript({
+        const fallbackScript = buildApiWidgetEmbedScript({
           widgetKey: finalKey,
-          appOrigin:
-            typeof appOrigin === "string" && appOrigin.length > 0
-              ? appOrigin
-              : "https://your-app.example",
+          appOrigin,
         });
 
-        const finalMarkup =
-          embedMarkup && embedMarkup.trim().length > 0 ? embedMarkup : fallbackScript;
+        const finalMarkup = normalizeEmbedSnippetForApi(
+          embedMarkup && embedMarkup.trim().length > 0 ? embedMarkup : fallbackScript,
+          appOrigin,
+        );
 
         if (!cancelled) {
           setInstallUi({
@@ -217,6 +222,7 @@ export default function TextWidgetScriptPage() {
       ) : null}
 
       <Typography variant="mediumLarge" sx={{ color: theme.app.text.primary, mb: -1.2 }}>Embed Code</Typography>
+      <WidgetEmbedArchitectureHint />
       <Box sx={{ border: `1px solid ${theme.app.dashboard.cardBorder}`, borderRadius: 1.5, p: 1.5, bgcolor: theme.app.dashboard.overlayLight }}>
         <Typography component="pre" variant="body2" sx={{ color: theme.app.dashboard.textMuted, wordBreak: "break-word", whiteSpace: "pre-wrap", m: 0 }}>
           {chatScript}

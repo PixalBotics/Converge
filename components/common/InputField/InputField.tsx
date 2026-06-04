@@ -79,7 +79,6 @@ export function InputField({
         placeholder={placeholder}
         inputProps={{
           "aria-label": showLabel ? label : name ?? fieldId,
-          maxLength: 40,
           ...inputProps,
         }}
         type={inputType}

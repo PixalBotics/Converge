@@ -229,18 +229,28 @@ export function MonitorDirectoryNavigator({
             flexWrap: "wrap",
           }}
         >
-          <Typography variant="body2">
-            Monitoring: <strong>{selection.agentDisplayName}</strong>
-            {selection.agentEmail ? ` · ${selection.agentEmail}` : null}
+          <Typography
+            variant="body2"
+            component="div"
+            sx={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 0.5 }}
+          >
+            <Box component="span">
+              Monitoring: <strong>{selection.agentDisplayName}</strong>
+              {selection.agentEmail ? ` · ${selection.agentEmail}` : null}
+            </Box>
             {selection.agentUserType ? (
               <Chip
                 label={selection.agentUserType}
                 size="small"
-                sx={{ ml: 0.75, height: 20, fontSize: 10 }}
+                sx={{ height: 20, fontSize: 10 }}
               />
             ) : null}
-            {selection.websiteName ? ` · ${selection.websiteName}` : null}
-            {selection.parentCompanyName ? ` · ${selection.parentCompanyName}` : null}
+            {selection.websiteName || selection.parentCompanyName ? (
+              <Box component="span">
+                {selection.websiteName ? ` · ${selection.websiteName}` : null}
+                {selection.parentCompanyName ? ` · ${selection.parentCompanyName}` : null}
+              </Box>
+            ) : null}
           </Typography>
           <Typography variant="caption" sx={{ color: "text.secondary", width: "100%" }}>
             Click a row to load all live and closed chats assigned to this user in your scope.

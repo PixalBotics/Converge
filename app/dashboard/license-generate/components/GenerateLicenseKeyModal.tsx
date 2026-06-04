@@ -24,15 +24,33 @@ export type GenerateLicenseKeyModalProps = {
   open: boolean;
   onClose: () => void;
   onGenerated?: () => void;
+  lockedResellerId?: string;
+  lockedParentCompanyId?: string;
+  hideResellerPicker?: boolean;
+  hideParentCompanyPicker?: boolean;
 };
 
-export function GenerateLicenseKeyModal({ open, onClose, onGenerated }: GenerateLicenseKeyModalProps) {
+export function GenerateLicenseKeyModal({
+  open,
+  onClose,
+  onGenerated,
+  lockedResellerId = "",
+  lockedParentCompanyId = "",
+  hideResellerPicker = false,
+  hideParentCompanyPicker = false,
+}: GenerateLicenseKeyModalProps) {
   const theme = useTheme() as AppTheme;
   const [resellerId, setResellerId] = useState("");
   const [parentCompanyId, setParentCompanyId] = useState("");
 
-  const resellersQuery = useCompaniesSetupResellersQuery({ enabled: open });
+  const resellersQuery = useCompaniesSetupResellersQuery({
+    enabled: open && !hideResellerPicker,
+  });
   const generateMutation = useGeneratePlatformLicenseKeyMutation();
+
+  const effectiveResellerId = hideResellerPicker
+    ? lockedResellerId.trim()
+    : resellerId.trim();
 
   const resellerOptions = useMemo(() => {
     return pickItemsArray(resellersQuery.data)
@@ -46,17 +64,12 @@ export function GenerateLicenseKeyModal({ open, onClose, onGenerated }: Generate
   }, [resellerOptions, resellersQuery.isLoading]);
 
   const parentCompaniesQuery = useCompaniesByResellerQuery(
-    resellerId,
-    // Match AddUserModal behavior: tree view + stable sorting.
+    effectiveResellerId,
     { view: "tree", sortBy: "name", sortOrder: "asc", all: true },
-    { enabled: open && resellerId.trim().length > 0 },
+    { enabled: open && !hideParentCompanyPicker && effectiveResellerId.length > 0 },
   );
 
   const parentCompanyOptions = useMemo(() => {
-    /**
-     * `GET /companies?resellerId=:id&view=tree` returns parent companies nested under
-     * `data.items[].parentCompanies[]`. This extractor normalizes both `tree` and legacy `flat`.
-     */
     return extractParentCompaniesFromByResellerTree(parentCompaniesQuery.data).map((o) => ({
       value: o.value,
       label: o.label,
@@ -64,24 +77,31 @@ export function GenerateLicenseKeyModal({ open, onClose, onGenerated }: Generate
   }, [parentCompaniesQuery.data]);
 
   const parentCompanySelectOptions = useMemo(() => {
-    if (!resellerId.trim()) return [{ value: "", label: "Select reseller first" }];
+    if (!effectiveResellerId) return [{ value: "", label: "Select reseller first" }];
     if (parentCompanyOptions.length > 0) return parentCompanyOptions;
     return parentCompaniesQuery.isLoading ? [{ value: "", label: "Loading…" }] : [...EMPTY_SELECT];
-  }, [resellerId, parentCompanyOptions, parentCompaniesQuery.isLoading]);
+  }, [effectiveResellerId, parentCompanyOptions, parentCompaniesQuery.isLoading]);
 
   useEffect(() => {
     if (!open) return;
-    setResellerId("");
-    setParentCompanyId("");
-  }, [open]);
+    setResellerId(hideResellerPicker ? lockedResellerId : "");
+    setParentCompanyId(hideParentCompanyPicker ? lockedParentCompanyId : "");
+  }, [open, hideResellerPicker, lockedResellerId, hideParentCompanyPicker, lockedParentCompanyId]);
 
   useEffect(() => {
+    if (hideResellerPicker) return;
     setParentCompanyId("");
-  }, [resellerId]);
+  }, [resellerId, hideResellerPicker]);
 
   const handleGenerate = () => {
-    const parentId = parentCompanyId.trim();
-    if (!resellerId.trim()) {
+    const parentId = hideParentCompanyPicker
+      ? lockedParentCompanyId.trim()
+      : parentCompanyId.trim();
+  const resellerForValidation = hideResellerPicker
+    ? lockedResellerId.trim()
+    : resellerId.trim();
+
+    if (!resellerForValidation) {
       publishAppToast({ variant: "error", message: "Please select a reseller." });
       return;
     }
@@ -108,18 +128,22 @@ export function GenerateLicenseKeyModal({ open, onClose, onGenerated }: Generate
 
   const formBusy =
     generateMutation.isPending ||
-    resellersQuery.isLoading ||
-    parentCompaniesQuery.isLoading;
+    (!hideResellerPicker && resellersQuery.isLoading) ||
+    (!hideParentCompanyPicker && parentCompaniesQuery.isLoading);
 
   const parentsErrorMsg = parentCompaniesQuery.isError
     ? extractApiErrorMessageForToast(parentCompaniesQuery.error) ?? "Could not load parent companies."
     : null;
 
+  const description = hideParentCompanyPicker
+    ? "Generate the workspace license key for your parent company."
+    : "Select a reseller, then choose a client root (parent company) to generate its workspace license key.";
+
   return (
     <FormModal
       open={open}
       title="Generate License Key"
-      description="Select a reseller, then choose a client root (parent company) to generate its workspace license key."
+      description={description}
       onClose={() => {
         if (generateMutation.isPending) return;
         onClose();
@@ -130,40 +154,44 @@ export function GenerateLicenseKeyModal({ open, onClose, onGenerated }: Generate
       maxWidth={560}
       fitContent
     >
-      <SelectField
-        label="Reseller"
-        value={resellerId}
-        onChange={setResellerId}
-        options={resellerSelectOptions}
-        menuMaxRows={6}
-        disabled={generateMutation.isPending || resellersQuery.isLoading}
-      />
-
-      <Box sx={{ position: "relative" }}>
+      {!hideResellerPicker ? (
         <SelectField
-          label="Parent Company (Client Root)"
-          value={parentCompanyId}
-          onChange={setParentCompanyId}
-          options={parentCompanySelectOptions}
-          menuMaxRows={7}
-          disabled={!resellerId.trim() || generateMutation.isPending || parentCompaniesQuery.isLoading}
+          label="Reseller"
+          value={resellerId}
+          onChange={setResellerId}
+          options={resellerSelectOptions}
+          menuMaxRows={6}
+          disabled={generateMutation.isPending || resellersQuery.isLoading}
         />
-        {parentCompaniesQuery.isLoading && (
-          <Box
-            sx={{
-              position: "absolute",
-              right: 14,
-              top: 34,
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 1,
-              color: theme.app.dashboard.textMuted,
-            }}
-          >
-            <CircularProgress size={16} />
-          </Box>
-        )}
-      </Box>
+      ) : null}
+
+      {!hideParentCompanyPicker ? (
+        <Box sx={{ position: "relative" }}>
+          <SelectField
+            label="Parent Company (Client Root)"
+            value={parentCompanyId}
+            onChange={setParentCompanyId}
+            options={parentCompanySelectOptions}
+            menuMaxRows={7}
+            disabled={!effectiveResellerId || generateMutation.isPending || parentCompaniesQuery.isLoading}
+          />
+          {parentCompaniesQuery.isLoading && (
+            <Box
+              sx={{
+                position: "absolute",
+                right: 14,
+                top: 34,
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 1,
+                color: theme.app.dashboard.textMuted,
+              }}
+            >
+              <CircularProgress size={16} />
+            </Box>
+          )}
+        </Box>
+      ) : null}
 
       {parentsErrorMsg && (
         <Typography variant="medium" sx={{ color: theme.palette.error.light, lineHeight: 1.5 }}>
@@ -178,4 +206,3 @@ export function GenerateLicenseKeyModal({ open, onClose, onGenerated }: Generate
     </FormModal>
   );
 }
-

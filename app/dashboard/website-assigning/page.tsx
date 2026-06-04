@@ -13,12 +13,10 @@ import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import { filterChromeButtonSx } from "@/components/common/FilterButton/filter-button.styles";
 import {
-  AssignWebsiteModal,
-  type AssignWebsiteModalPreset,
   Button,
+  ConfirmActionModal,
   DashboardCard,
   DataTable,
-  FormModal,
   SearchBar,
   SearchSubmitButton,
   TablePagination,
@@ -26,7 +24,6 @@ import {
   Typography,
 } from "@/components/common";
 import { WebsiteAssignmentScopeFilterPanel } from "@/features/website-assignments/components/WebsiteAssignmentScopeFilterPanel";
-import { WebsiteAssignmentJourneyStepper } from "@/features/website-assignments/components/WebsiteAssignmentJourneyStepper";
 import { WebsiteAssignmentTableActions } from "@/features/website-assignments/components/WebsiteAssignmentTableActions";
 import { useWebsiteAssignmentScopeFilters } from "@/features/website-assignments/hooks/useWebsiteAssignmentScopeFilters";
 import {
@@ -60,6 +57,8 @@ import {
   websiteAssignmentTableToolbar,
 } from "./website-assigning.styles";
 import type { WebsiteAssignmentScopeItem } from "@/api/types/website-assignments.types";
+import { WebsiteUrlDisplay } from "@/features/website-assignments/components/WebsiteUrlDisplay";
+import { resolveWebsiteRowUrlLabels } from "@/lib/websites/format-website-display-url";
 import { groupWebsitesByParentChild, sitesListHref } from "./group-websites-by-org";
 
 /** One API page size — avoids loading thousands of rows at once. */
@@ -94,8 +93,6 @@ export default function WebsiteAssigningPage() {
   const [filterAssigned, setFilterAssigned] = useState("");
   const [filterRoster, setFilterRoster] = useState("");
   const [filterPopoverOpen, setFilterPopoverOpen] = useState(false);
-  const [isAssignOpen, setIsAssignOpen] = useState(false);
-  const [assignPreset, setAssignPreset] = useState<AssignWebsiteModalPreset | null>(null);
   const [clearTarget, setClearTarget] = useState<WebsiteRow | null>(null);
   const [clearing, setClearing] = useState(false);
   const [page, setPage] = useState(1);
@@ -155,7 +152,7 @@ export default function WebsiteAssigningPage() {
       parentCompanyId: item.parentCompanyId,
       childCompany: item.childCompanyName || "-",
       childCompanyId: item.childCompanyId,
-      websiteName: (item.name ?? "").trim() || (item.url ?? "").trim() || "Website",
+      websiteName: (item.name ?? "").trim(),
       websiteUrl: (item.url ?? "").trim() || "—",
       assignedCount: item.filledSlots ?? item.assignedCount ?? 0,
       filledSlots: item.filledSlots ?? item.assignedCount ?? 0,
@@ -170,8 +167,7 @@ export default function WebsiteAssigningPage() {
     `/dashboard/website-assigning/website/${encodeURIComponent(websiteId)}`;
 
   const openAssign = () => {
-    setAssignPreset(null);
-    setIsAssignOpen(true);
+    router.push("/dashboard/website-assigning/assign");
   };
 
   const openRosterEdit = (row: WebsiteRow) => {
@@ -215,21 +211,12 @@ export default function WebsiteAssigningPage() {
         id: "website",
         label: "Website",
         render: (_, row) => (
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 0.35, minWidth: 0 }}>
-            <Typography variant="body2" fontWeight={600} sx={{ color: theme.app.text.primary }}>
-              {row.websiteName}
-            </Typography>
-            <Typography
-              variant="caption"
-              sx={{
-                color: theme.app.dashboard.textMuted,
-                wordBreak: "break-all",
-                lineHeight: 1.45,
-              }}
-            >
-              {row.websiteUrl}
-            </Typography>
-          </Box>
+          <WebsiteUrlDisplay
+            name={row.websiteName || undefined}
+            url={row.websiteUrl}
+            mutedSx={{ color: theme.app.dashboard.textMuted }}
+            sx={{ color: theme.app.text.primary }}
+          />
         ),
       },
       {
@@ -343,11 +330,11 @@ export default function WebsiteAssigningPage() {
     <Box sx={websiteAssignmentPageWrapper}>
       <Box sx={websiteAssignmentPageHeader}>
         <Box>
-          <Typography variant="regularLarge" fontWeight={700} sx={{ color: theme.app.text.primary, mb: 0.5 }}>
-            Website Assignment
+          <Typography variant="regularLarge" fontWeight={700} sx={{ color: theme.app.text.primary, mb: 0.5, letterSpacing: "-0.02em" }}>
+            Website assignments
           </Typography>
           <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted, maxWidth: 560 }}>
-            Complete service scheduling first, then assign Primary → Secondary → Backup per department.
+            Manage service schedules and agent rosters per website — scoped to your reseller or client.
           </Typography>
         </Box>
         <Box sx={websiteAssignmentHeaderActions}>
@@ -367,8 +354,6 @@ export default function WebsiteAssigningPage() {
           ) : null}
         </Box>
       </Box>
-
-      <WebsiteAssignmentJourneyStepper variant="hub" activeStep={2} schedulingComplete />
 
       <DashboardCard sx={websiteAssignmentFilterCard}>
         <Box sx={websiteAssignmentFilterTitleRow}>
@@ -551,35 +536,20 @@ export default function WebsiteAssigningPage() {
         </Box>
       </DashboardCard>
 
-      <AssignWebsiteModal
-        open={isAssignOpen}
-        preset={assignPreset}
-        onClose={() => {
-          setIsAssignOpen(false);
-          setAssignPreset(null);
-        }}
-        onAssign={() => void queryClient.invalidateQueries({ queryKey: websiteAssignmentsKeys.all })}
-      />
-
-      <FormModal
+      <ConfirmActionModal
         open={Boolean(clearTarget)}
         title="Clear all agent slots?"
         description={
           clearTarget
-            ? `Remove every Primary, Secondary, and Backup assignment for ${
-                clearTarget.websiteName && clearTarget.websiteName !== "—"
-                  ? clearTarget.websiteName
-                  : clearTarget.websiteUrl
-              }. Service scheduling is kept.`
-            : undefined
+            ? `Remove every Primary, Secondary, and Backup assignment for ${resolveWebsiteRowUrlLabels(clearTarget.websiteName, clearTarget.websiteUrl).primary}. Service scheduling is kept.`
+            : ""
         }
-        onClose={() => !clearing && setClearTarget(null)}
-        onSave={() => void handleClearAgents()}
-        primaryButtonLabel={clearing ? "Clearing…" : "Clear all agents"}
-        primaryButtonVariant="danger"
-        primaryButtonDisabled={clearing}
-        cancelButtonLabel="Cancel"
-        maxWidth={480}
+        confirmLabel={clearing ? "Clearing…" : "Clear all agents"}
+        cancelLabel="Cancel"
+        confirmButtonVariant="danger"
+        onDismiss={() => !clearing && setClearTarget(null)}
+        onConfirm={() => void handleClearAgents()}
+        isLoading={clearing}
       />
     </Box>
   );

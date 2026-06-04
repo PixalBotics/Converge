@@ -32,7 +32,7 @@ export function EmailTableActions({
 
   return (
     <Box
-      sx={{ display: "flex", justifyContent: "flex-end", gap: 0.5 }}
+      sx={{ display: "flex", justifyContent: "flex-end", gap: 0.5, flexShrink: 0 }}
       onClick={(e) => e.stopPropagation()}
     >
       {canEdit && onEdit ? (

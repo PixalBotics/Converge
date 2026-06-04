@@ -8,11 +8,12 @@ import type { AppTheme } from "@/theme/theme";
 import type { KnowledgeSourceListItem, KnowledgeSourceStatus } from "@/api/ai-knowledge/types";
 import { Button, DataTable, SelectField, Typography } from "@/components/common";
 import type { DataTableColumn } from "@/components/common";
-import { formatSourceRefForDisplay } from "./ai-training-kb.utils";
+import { formatSourceRefForDisplay, sourceTypeHumanLabel, type AiTrainingKbVariant } from "./ai-training-kb.utils";
 
 const STATUS_FILTER_OPTIONS = [
   { value: "", label: "All statuses" },
   { value: "indexed", label: "Indexed" },
+  { value: "processing", label: "Training…" },
   { value: "pending", label: "Pending" },
   { value: "failed", label: "Failed" },
 ] as const;
@@ -26,6 +27,8 @@ function statusChipColor(
       return { bgcolor: `${theme.palette.success.main}22`, color: theme.palette.success.light };
     case "failed":
       return { bgcolor: `${theme.palette.error.main}22`, color: theme.palette.error.light };
+    case "processing":
+      return { bgcolor: `${theme.palette.info.main}22`, color: theme.palette.info.light };
     default:
       return { bgcolor: `${theme.palette.warning.main}22`, color: theme.palette.warning.light };
   }
@@ -34,6 +37,7 @@ function statusChipColor(
 type SourceRow = KnowledgeSourceListItem & Record<string, unknown>;
 
 export function AiTrainingSourcesTable({
+  variant,
   websiteId,
   items,
   total,
@@ -48,7 +52,10 @@ export function AiTrainingSourcesTable({
   onReindexRow,
   onDeleteRow,
   rowBusyId,
+  previewSourceId,
+  onPreviewSource,
 }: {
+  variant: AiTrainingKbVariant;
   websiteId: string;
   items: KnowledgeSourceListItem[];
   total: number;
@@ -63,6 +70,8 @@ export function AiTrainingSourcesTable({
   onReindexRow: (sourceId: string) => void;
   onDeleteRow: (sourceId: string) => void;
   rowBusyId: string | null;
+  previewSourceId: string | null;
+  onPreviewSource: (sourceId: string | null) => void;
 }) {
   const theme = useTheme() as AppTheme;
 
@@ -79,9 +88,22 @@ export function AiTrainingSourcesTable({
               {formatSourceRefForDisplay(row)}
             </Typography>
             <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted }}>
-              {row.sourceType}
+              {sourceTypeHumanLabel(row.sourceType)}
             </Typography>
           </Box>
+        ),
+      },
+      {
+        id: "chunkCount",
+        label: "Pieces",
+        render: (_, row) => (
+          <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted }}>
+            {row.status === "indexed" && row.chunkCount != null
+              ? row.chunkCount
+              : row.status === "processing"
+                ? "…"
+                : "—"}
+          </Typography>
         ),
       },
       {
@@ -89,9 +111,15 @@ export function AiTrainingSourcesTable({
         label: "Status",
         render: (_, row) => {
           const colors = statusChipColor(row.status, theme);
+          const label =
+            row.status === "processing"
+              ? "Training…"
+              : row.status === "indexed"
+                ? "Indexed"
+                : row.status;
           return (
             <Chip
-              label={row.status}
+              label={label}
               size="small"
               sx={{ ...colors, fontWeight: 600, textTransform: "capitalize" }}
             />
@@ -120,7 +148,7 @@ export function AiTrainingSourcesTable({
           ),
       },
     ],
-    [theme],
+    [theme, previewSourceId],
   );
 
   const actionColumn = useMemo(
@@ -130,6 +158,17 @@ export function AiTrainingSourcesTable({
         const busy = rowBusyId === row.id;
         return (
           <Box sx={{ display: "flex", gap: 0.75, flexWrap: "wrap" }}>
+            <Button
+              type="button"
+              variant="secondary"
+              size="small"
+              disabled={busy || row.status !== "indexed"}
+              onClick={() =>
+                onPreviewSource(previewSourceId === row.id ? null : row.id)
+              }
+            >
+              {previewSourceId === row.id ? "Hide" : "Preview"}
+            </Button>
             <Button
               type="button"
               variant="secondary"
@@ -152,7 +191,7 @@ export function AiTrainingSourcesTable({
         );
       },
     }),
-    [rowBusyId, onReindexRow, onDeleteRow],
+    [rowBusyId, previewSourceId, onReindexRow, onDeleteRow, onPreviewSource],
   );
 
   const rangeStart = total === 0 ? 0 : offset + 1;
@@ -189,7 +228,7 @@ export function AiTrainingSourcesTable({
 
       {!websiteId.trim() ? (
         <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, py: 2 }}>
-          Select a website above to list knowledge sources for that site.
+          No website selected.
         </Typography>
       ) : (
         <>
@@ -201,8 +240,11 @@ export function AiTrainingSourcesTable({
             isLoading={isLoading}
             minWidth={720}
             emptyState={{
-              title: "No sources yet",
-              description: "Create a source above to ingest content for this website.",
+              title: "No training content yet",
+              description:
+                variant === "chatbot"
+                  ? "Use + Add more training to import a sitemap, page, or FAQs for this website."
+                  : "Use + Add more training to upload documents or FAQs for this website.",
             }}
           />
           {total > 0 ? (

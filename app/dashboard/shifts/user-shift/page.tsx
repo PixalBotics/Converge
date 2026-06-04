@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import Box from "@mui/material/Box";
 import type { SxProps, Theme } from "@mui/material/styles";
 import {
@@ -70,12 +71,18 @@ function mapApiRecordToUserType(obj: Record<string, unknown> | null): UserType {
 }
 
 export default function UserShiftPage() {
+  const searchParams = useSearchParams();
   const { isPlatformAdmin, user: authUser } = useAuth();
   const mayPickInternalUserTypeFilter = useMemo(
     () => sessionMayPickInternalUserScope(isPlatformAdmin, authUser?.userType),
     [isPlatformAdmin, authUser?.userType],
   );
   const [userId, setUserId] = useState("");
+
+  useEffect(() => {
+    const fromUrl = searchParams.get("userId")?.trim() ?? "";
+    if (fromUrl) setUserId(fromUrl);
+  }, [searchParams]);
   const [monthCursor, setMonthCursor] = useState(() => startOfMonth(new Date()));
   const [assignOpen, setAssignOpen] = useState(false);
   const [removeTarget, setRemoveTarget] = useState<UserShiftAssignmentRow | null>(null);

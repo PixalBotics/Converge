@@ -145,7 +145,7 @@ function BoxCopy({
       <Typography variant="small" sx={{ color: theme.app.dashboard.textMuted, display: "block", mt: 0.25 }}>
         {enabled
           ? "Outgoing email is active for this configuration."
-          : "Turn on when credentials are saved and tested."}
+          : "Turn on after credentials are saved and you have confirmed delivery with a test email."}
       </Typography>
       {savedOnce ? (
         <Chip

@@ -162,10 +162,11 @@ export function InvolvementUsersTab({
         icon={<GroupsOutlined />}
         iconColor={theme.app.dashboard.accentBlue}
         title="Involvement users"
-        description="Filter the table above. Add opens one modal (reseller → website → external department → users)."
+        description="Rows respect scope filters above. Add opens one modal (reseller → website → external department → users)."
         searchValue={tableSearch}
         onSearchChange={setTableSearch}
-        searchPlaceholder="Search website, department, user, email…"
+        searchLabel="Search this table"
+        searchPlaceholder="Website, department, user, or email…"
         addLabel="Add involvement users"
         onAdd={() => setAddOpen(true)}
         canAdd={canEdit}

@@ -156,7 +156,15 @@ export function SectionBlockEditor({
             <Typography variant="small" fontWeight={600} sx={{ mb: 0.75 }}>
               Section layout
             </Typography>
-            <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1 }}>
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)",
+                gap: 1,
+                minWidth: 0,
+                "& > *": { minWidth: 0 },
+              }}
+            >
               {(
                 [
                   { value: "list" as const, label: "List", hint: "Stacked rows", Icon: ViewAgendaOutlined },

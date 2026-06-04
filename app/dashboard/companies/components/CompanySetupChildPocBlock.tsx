@@ -11,8 +11,11 @@ import type { AppTheme } from "@/theme/theme";
 import { InputField, SelectField, Typography } from "@/components/common";
 import { useDesignationsListQuery } from "@/lib/hooks/query";
 import { pickItemsArray, toIdNameOption } from "@/app/dashboard/user-page/components/add-user-modal.utils";
-import { childrenDraftFieldPath, getCompanySetupFieldError } from "@/lib/companies/company-setup-draft-field-paths";
-import type { DraftChildPayload } from "@/lib/companies/setup-draft.utils";
+import {
+  childrenDraftPocFieldPath,
+  getCompanySetupFieldError,
+} from "@/lib/companies/company-setup-draft-field-paths";
+import type { PocDraftSlice } from "@/lib/companies/setup-draft.utils";
 import {
   sessionMayAssignWideResellerScope,
   sessionShowPocDeptDesignationPickFromList,
@@ -31,9 +34,11 @@ import { UserAdminScopeFields } from "@/app/dashboard/user-page/components/UserA
 export type CompanySetupFieldErrorScope = "wizardChild" | "parentPocInvite";
 
 export type CompanySetupChildPocBlockProps = {
-  row: DraftChildPayload;
+  row: PocDraftSlice;
   childIndex: number;
-  updateChildRow: (index: number, patch: Partial<DraftChildPayload>) => void;
+  pocIndex: number;
+  multiPocOnChild: boolean;
+  updateChildRow: (index: number, patch: Partial<PocDraftSlice>) => void;
   roleOptions: { value: string; label: string }[];
   departmentOptions: { value: string; label: string }[];
   rolesLoading: boolean;
@@ -51,6 +56,8 @@ export type CompanySetupChildPocBlockProps = {
 export function CompanySetupChildPocBlock({
   row,
   childIndex,
+  pocIndex,
+  multiPocOnChild,
   updateChildRow,
   roleOptions,
   departmentOptions,
@@ -82,7 +89,7 @@ export function CompanySetupChildPocBlock({
   const resolvePath = (relativePath: string) =>
     fieldErrorScope === "parentPocInvite"
       ? relativePath
-      : childrenDraftFieldPath(childIndex, relativePath);
+      : childrenDraftPocFieldPath(childIndex, pocIndex, relativePath, multiPocOnChild);
 
   const apiMsg = (relativePath: string) =>
     getCompanySetupFieldError(fieldErrors ?? {}, resolvePath(relativePath));
@@ -131,10 +138,13 @@ export function CompanySetupChildPocBlock({
     designationsQuery.isLoading,
   ]);
 
-  const roleSelectOptions =
-    roleOptions.length > 0
-      ? roleOptions
-      : [{ value: "", label: rolesLoading ? "Loading…" : "— Select role —" }];
+  const roleSelectOptions = useMemo(
+    () =>
+      roleOptions.length > 0
+        ? roleOptions
+        : [{ value: "", label: rolesLoading ? "Loading…" : "— Select role —" }],
+    [roleOptions, rolesLoading],
+  );
 
   const pocExternalScope = useMemo(() => {
     const scope = resolveExternalAdminScope(
@@ -229,6 +239,11 @@ export function CompanySetupChildPocBlock({
       <Typography variant="medium" color="white" fontWeight={600}>
         Point of contact (POC)
       </Typography>
+      {pocIndex === 0 && !multiPocOnChild ? (
+        <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, mt: -1 }}>
+          Important contacts for this child company (up to 5). Department is optional; designation is required.
+        </Typography>
+      ) : null}
       <Box
         sx={{
           display: "grid",
@@ -442,19 +457,6 @@ export function CompanySetupChildPocBlock({
             helperText={apiMsg("pocInvite.departmentName") || undefined}
             onChange={(e) => updateChildRow(childIndex, { pocDepartmentName: e.target.value })}
           />
-          <InputField
-            label="Department details (optional)"
-            placeholder="Brief description, location, or notes for this department"
-            value={row.pocDepartmentNewDescription}
-            disabled={controlsDisabled}
-            inputProps={{ maxLength: 500 }}
-            scrollAnchorPath={resolvePath("pocInvite.departmentDetails")}
-            error={!!apiMsg("pocInvite.departmentDetails")}
-            helperText={apiMsg("pocInvite.departmentDetails") || undefined}
-            onChange={(e) =>
-              updateChildRow(childIndex, { pocDepartmentNewDescription: e.target.value })
-            }
-          />
         </>
       )}
 
@@ -548,19 +550,6 @@ export function CompanySetupChildPocBlock({
             error={!!apiMsg("pocInvite.designationTitle")}
             helperText={apiMsg("pocInvite.designationTitle") || undefined}
             onChange={(e) => updateChildRow(childIndex, { pocDesignationTitle: e.target.value })}
-          />
-          <InputField
-            label="Designation details (optional)"
-            placeholder="Scope, grade, or other context for this designation"
-            value={row.pocDesignationNewDetails}
-            disabled={controlsDisabled}
-            inputProps={{ maxLength: 500 }}
-            scrollAnchorPath={resolvePath("pocInvite.designationDetails")}
-            error={!!apiMsg("pocInvite.designationDetails")}
-            helperText={apiMsg("pocInvite.designationDetails") || undefined}
-            onChange={(e) =>
-              updateChildRow(childIndex, { pocDesignationNewDetails: e.target.value })
-            }
           />
         </>
       )}

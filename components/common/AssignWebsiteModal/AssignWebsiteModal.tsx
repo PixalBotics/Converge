@@ -24,7 +24,10 @@ import {
   useWebsiteAssignmentDetailQuery,
   useWebsiteAssignmentsWebsitesQuery,
 } from "@/lib/hooks";
-import { useServiceSchedulingQuery } from "@/features/chat-settings/hooks/useServiceScheduling";
+import {
+  useServiceSchedulingQuery,
+  useVisitorTopicsQuery,
+} from "@/features/chat-settings/hooks/useServiceScheduling";
 import { isServiceSchedulingReady } from "@/features/website-assignments/utils/scheduling-ready.utils";
 import { useWebsiteAssignmentGates } from "@/lib/permissions/use-website-assignment-gates";
 import { parseWebsiteAssignmentDetail } from "@/lib/website-assignments/roster-payload";
@@ -36,7 +39,7 @@ import {
 } from "@/features/website-assignments/styles/website-assignment-ui.styles";
 import { SchedulingSectionCard } from "@/features/website-assignments/components/ServiceSchedulingSections";
 import { assignWebsiteFormGridSx } from "./assign-website-modal.styles";
-import { formatWebsiteSelectLabel } from "@/lib/websites/format-website-select-label";
+import { websiteAssignmentItemToSelectOption } from "@/lib/websites/format-website-select-label";
 
 export type AssignWebsiteModalPreset = {
   websiteId: string;
@@ -209,14 +212,7 @@ export function AssignWebsiteModal({ open, onClose, onAssign, preset }: AssignWe
     }
     return [
       { value: "", label: "Select website" },
-      ...items.map((w) => {
-        const name = (w.name ?? "").trim() || "Website";
-        const url = (w.url ?? "").trim();
-        return {
-          value: w.websiteId,
-          label: formatWebsiteSelectLabel(name, url, w.websiteId),
-        };
-      }),
+      ...items.map((w) => websiteAssignmentItemToSelectOption(w)),
     ];
   }, [websitesQuery.data?.data?.items, websitesQuery.isFetching]);
 
@@ -230,16 +226,19 @@ export function AssignWebsiteModal({ open, onClose, onAssign, preset }: AssignWe
   );
 
   const schedulingQuery = useServiceSchedulingQuery(wid, open && wid.length > 0);
+  const visitorTopicsQuery = useVisitorTopicsQuery(wid, open && wid.length > 0);
   const schedulingReady =
     detail?.serviceSchedulingConfigured === true ||
-    isServiceSchedulingReady(schedulingQuery.data);
-  const schedulingLoading = Boolean(wid) && (schedulingQuery.isLoading || detailQuery.isLoading);
+    isServiceSchedulingReady(schedulingQuery.data, visitorTopicsQuery.data);
+  const schedulingLoading =
+    Boolean(wid) &&
+    (schedulingQuery.isLoading || visitorTopicsQuery.isLoading || detailQuery.isLoading);
 
   const operatingChannels = detail?.operatingChannels ?? "internal_only";
   const allowedChannels = detail?.allowedAssignmentChannels ?? [];
   const schedulingTopics = useMemo(
-    () => schedulingQuery.data?.topics ?? [],
-    [schedulingQuery.data?.topics],
+    () => visitorTopicsQuery.data?.topics ?? [],
+    [visitorTopicsQuery.data?.topics],
   );
 
   const defaultTopicKey = useMemo(() => {

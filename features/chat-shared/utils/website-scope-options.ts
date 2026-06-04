@@ -11,7 +11,9 @@ export function parseWebsitesFromAssignmentsPayload(data: unknown): Array<{
       const websiteId = String(rec.websiteId ?? rec.id ?? "").trim();
       if (!websiteId) return null;
       const name = String(rec.websiteName ?? rec.name ?? "").trim();
-      const url = String(rec.websiteUrl ?? rec.url ?? rec.hostname ?? "").trim();
+      const url = String(
+        rec.websiteUrl ?? rec.url ?? rec.hostname ?? rec.websiteHostname ?? "",
+      ).trim();
       return {
         websiteId,
         label: formatWebsiteSelectLabel(name, url, websiteId),

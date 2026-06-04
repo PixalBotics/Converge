@@ -28,6 +28,11 @@ import {
   useUsersListQuery,
 } from "@/lib/hooks/query";
 import { isRecord, pickStr, unwrapApiData } from "@/lib/utils/core";
+import {
+  formatAttendanceStatus,
+  formatBreakSummary,
+  formatTimeOnly,
+} from "@/lib/utils/hrms/attendance-display";
 import { extractUsersRows } from "@/app/dashboard/user-page/utils";
 import { pickItemsArray, toIdNameOption } from "@/app/dashboard/user-page/components/add-user-modal.utils";
 import { EmptyAttendanceState } from "../components/EmptyAttendanceState";
@@ -51,6 +56,8 @@ type TeamAttendanceRow = {
   status: string;
   checkIn: string;
   checkOut: string;
+  breakSummary: string;
+  workedMinutes: string;
 };
 
 type PoolTeamRow = {
@@ -61,7 +68,40 @@ type PoolTeamRow = {
   status: string;
   checkIn: string;
   checkOut: string;
+  breakSummary: string;
+  workedMinutes: string;
 };
+
+function mapAttendanceListRow(
+  row: Record<string, unknown>,
+  idx: number,
+  idPrefix: string,
+  employeeName: string,
+): Omit<TeamAttendanceRow, "employeeName"> & { employeeName: string } {
+  const pick = (keys: string[]) => pickStr(row, keys) || "";
+  const pickNum = (keys: string[]) => {
+    for (const k of keys) {
+      const v = row[k];
+      if (typeof v === "number" && Number.isFinite(v)) return v;
+    }
+    return null;
+  };
+  const rawStatus = pick(["status"]);
+  const taken = pickNum(["breakMinutesTaken"]);
+  const allowed = pickNum(["breakMinutesAllowed"]);
+  const over = pickNum(["overBreakMinutes"]);
+  const worked = pickNum(["workedMinutes"]);
+  return {
+    id: pick(["id", "attendanceId"]) || `${idPrefix}-${idx}`,
+    employeeName,
+    date: pick(["date", "day", "attendanceDate"]) || "—",
+    status: rawStatus ? formatAttendanceStatus(rawStatus) : "—",
+    checkIn: formatTimeOnly(pick(["checkInAt", "checkIn", "checkInTime", "inTime"])),
+    checkOut: formatTimeOnly(pick(["checkOutAt", "checkOut", "checkOutTime", "outTime"])),
+    breakSummary: formatBreakSummary(taken, allowed, over),
+    workedMinutes: worked != null ? `${worked} min` : "—",
+  };
+}
 
 function extractItems(data: unknown): Record<string, unknown>[] {
   const payload = unwrapApiData(data);
@@ -203,41 +243,33 @@ export default function TeamAttendancePage() {
   }, [poolTotalPages]);
 
   const tableRows = useMemo<TeamAttendanceRow[]>(() => {
-    const pick = (row: Record<string, unknown>, keys: string[]) => {
-      for (const k of keys) {
-        const v = row[k];
-        if (typeof v === "string" && v.trim()) return v.trim();
-      }
-      return "";
-    };
     const userLabel = userOptions.find((o) => o.value === selectedUserId)?.label ?? "—";
-    return apiItems.map((row, idx) => ({
-      id: pick(row, ["id", "attendanceId"]) || `team-${idx}`,
-      employeeName: pick(row, ["employeeName", "userName", "name"]) || userLabel,
-      date: pick(row, ["date", "day", "attendanceDate"]) || "—",
-      status: pick(row, ["status"]) || "—",
-      checkIn: pick(row, ["checkIn", "checkInTime", "inTime"]) || "—",
-      checkOut: pick(row, ["checkOut", "checkOutTime", "outTime"]) || "—",
-    }));
+    return apiItems.map((row, idx) => {
+      const name =
+        pickStr(row, ["employeeName", "userName", "name"]) ||
+        userLabel;
+      return mapAttendanceListRow(row, idx, "team", name);
+    });
   }, [apiItems, selectedUserId, userOptions]);
 
   const poolTableRows = useMemo<PoolTeamRow[]>(() => {
-    const pick = (row: Record<string, unknown>, keys: string[]) => pickStr(row, keys) || "";
     return poolApiItems.map((row, idx) => {
       const poolNested = row["pool"];
       const poolName =
-        pick(isRecord(poolNested) ? (poolNested as Record<string, unknown>) : row, ["name", "poolName"]) ||
-        pick(row, ["poolName"]) ||
+        pickStr(isRecord(poolNested) ? (poolNested as Record<string, unknown>) : row, [
+          "name",
+          "poolName",
+        ]) ||
+        pickStr(row, ["poolName"]) ||
         "—";
-      return {
-        id: pick(row, ["id", "attendanceId"]) || `pool-team-${idx}`,
-        employeeName: pick(row, ["employeeName", "userName", "name"]) || "—",
-        poolName,
-        date: pick(row, ["date", "day", "attendanceDate"]) || "—",
-        status: pick(row, ["status"]) || "—",
-        checkIn: pick(row, ["checkIn", "checkInTime", "inTime"]) || "—",
-        checkOut: pick(row, ["checkOut", "checkOutTime", "outTime"]) || "—",
-      };
+      const userNested = row["user"];
+      const fromUser = isRecord(userNested)
+        ? `${pickStr(userNested, ["firstName"])} ${pickStr(userNested, ["lastName"])}`.trim()
+        : "";
+      const employeeName =
+        pickStr(row, ["employeeName", "userName", "name"]) || fromUser || "—";
+      const mapped = mapAttendanceListRow(row, idx, "pool-team", employeeName);
+      return { ...mapped, poolName };
     });
   }, [poolApiItems]);
 
@@ -261,6 +293,8 @@ export default function TeamAttendancePage() {
       },
       { id: "checkIn", label: "Check-in" },
       { id: "checkOut", label: "Check-out" },
+      { id: "breakSummary", label: "Break" },
+      { id: "workedMinutes", label: "Worked" },
     ],
     [],
   );
@@ -281,6 +315,8 @@ export default function TeamAttendancePage() {
       },
       { id: "checkIn", label: "Check-in" },
       { id: "checkOut", label: "Check-out" },
+      { id: "breakSummary", label: "Break" },
+      { id: "workedMinutes", label: "Worked" },
     ],
     [],
   );

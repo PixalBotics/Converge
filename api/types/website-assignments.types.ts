@@ -66,6 +66,9 @@ export interface WebsiteAssignmentDetail {
   operatingChannels: OperatingChannels;
   allowedAssignmentChannels: ServiceChannel[];
   serviceSchedulingConfigured?: boolean;
+  isFullyAssigned?: boolean;
+  expectedRosterSlots?: number;
+  filledSlots?: number;
   departmentRoster: WebsiteDepartmentRosterRow[];
   assignments?: unknown[];
   parentCompanyId?: string;

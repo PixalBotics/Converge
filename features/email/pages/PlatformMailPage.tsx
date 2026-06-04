@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Box from "@mui/material/Box";
 import { useAuth } from "@/lib/auth";
-import { OP } from "@/lib/permissions/operational-keys";
+import { useSmtpEmailAccess } from "../hooks/useSmtpEmailAccess";
 import { PlatformMailConfigSummaryTable } from "../components/PlatformMailConfigSummaryTable";
 import { PlatformMailAssignmentsTable } from "../components/PlatformMailAssignmentsTable";
 import { PlatformMailConfigModal } from "../components/PlatformMailConfigModal";
@@ -12,9 +12,8 @@ import { usePlatformEmailSettingsQuery } from "../hooks/useEmailSettings";
 
 export function PlatformMailPage() {
   const router = useRouter();
-  const { hasOperational, user } = useAuth();
-  const canView = hasOperational(OP.smtpEmail.view);
-  const canUpdate = hasOperational(OP.smtpEmail.update);
+  const { user } = useAuth();
+  const { canView, canUpdate } = useSmtpEmailAccess();
 
   const [modalOpen, setModalOpen] = useState(false);
   const settingsQuery = usePlatformEmailSettingsQuery({ enabled: canView });

@@ -11,9 +11,9 @@ import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import {
   Button,
+  ConfirmActionModal,
   DashboardCard,
   DataTable,
-  FormModal,
   SearchBar,
   SearchSubmitButton,
   TablePagination,
@@ -26,10 +26,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import { websiteAssignmentsKeys } from "@/lib/hooks/query/website-assignments/keys";
 import type { DataTableColumn } from "@/components/common";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
-import { PickWebsiteModal } from "@/features/website-assignments/components/PickWebsiteModal";
 import { ServiceScheduleTableActions } from "@/features/website-assignments/components/ServiceScheduleTableActions";
 import { WebsiteAssignmentScopeFilterPanel } from "@/features/website-assignments/components/WebsiteAssignmentScopeFilterPanel";
-import { WebsiteAssignmentJourneyStepper } from "@/features/website-assignments/components/WebsiteAssignmentJourneyStepper";
 import { useWebsiteAssignmentScopeFilters } from "@/features/website-assignments/hooks/useWebsiteAssignmentScopeFilters";
 import {
   SCHEDULING_FILTER_OPTIONS,
@@ -38,6 +36,7 @@ import {
 import { useWebsiteAssignmentGates } from "@/lib/permissions/use-website-assignment-gates";
 import { buildWebsitesInScopeParams, useWebsiteAssignmentsWebsitesQuery } from "@/lib/hooks";
 import type { WebsiteAssignmentScopeItem } from "@/api/types/website-assignments.types";
+import { WebsiteUrlDisplay } from "@/features/website-assignments/components/WebsiteUrlDisplay";
 import {
   websiteAssignmentFilterCard,
   websiteAssignmentFilterIconBox,
@@ -70,7 +69,7 @@ function itemToRow(item: WebsiteAssignmentScopeItem): ScheduleRow {
   const url = (item.url ?? "").trim();
   return {
     id: item.websiteId,
-    websiteName: name || url || "Website",
+    websiteName: name,
     websiteUrl: url || "—",
     parentCompany: item.parentCompanyName || "—",
     childCompany: item.childCompanyName || "—",
@@ -90,7 +89,6 @@ export default function ServiceSchedulesPage() {
   const [filterScheduling, setFilterScheduling] = useState("");
   const [filterPopoverOpen, setFilterPopoverOpen] = useState(false);
   const [page, setPage] = useState(1);
-  const [pickOpen, setPickOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<ScheduleRow | null>(null);
   const [deleting, setDeleting] = useState(false);
 
@@ -163,17 +161,11 @@ export default function ServiceSchedulesPage() {
         id: "website",
         label: "Website",
         render: (_, row) => (
-          <Box>
-            <Typography variant="body2" fontWeight={600}>
-              {row.websiteName}
-            </Typography>
-            <Typography
-              variant="caption"
-              sx={{ color: theme.app.dashboard.textMuted, wordBreak: "break-all" }}
-            >
-              {row.websiteUrl}
-            </Typography>
-          </Box>
+          <WebsiteUrlDisplay
+            name={row.websiteName || undefined}
+            url={row.websiteUrl}
+            mutedSx={{ color: theme.app.dashboard.textMuted }}
+          />
         ),
       },
       {
@@ -270,15 +262,13 @@ export default function ServiceSchedulesPage() {
               variant="primary"
               sx={gradientPrimaryButtonSx}
               startIcon={<Add sx={{ fontSize: 18 }} />}
-              onClick={() => setPickOpen(true)}
+              onClick={() => router.push("/dashboard/website-assigning/service-schedules/add")}
             >
               Add schedule
             </Button>
           ) : null}
         </Box>
       </Box>
-
-      <WebsiteAssignmentJourneyStepper variant="hub" activeStep={1} schedulingComplete={false} />
 
       <DashboardCard sx={websiteAssignmentFilterCard}>
         <Box sx={websiteAssignmentFilterTitleRow}>
@@ -376,34 +366,22 @@ export default function ServiceSchedulesPage() {
         </Box>
       </DashboardCard>
 
-      <FormModal
+      <ConfirmActionModal
         open={Boolean(deleteTarget)}
         title="Delete service schedule?"
         description={
           deleteTarget
             ? `Remove service hours and visitor topics for ${deleteTarget.websiteName} only. Agent assignments are kept.`
-            : undefined
+            : ""
         }
-        onClose={() => !deleting && setDeleteTarget(null)}
-        onSave={() => void handleDeleteSchedule()}
-        primaryButtonLabel={deleting ? "Deleting…" : "Delete schedule"}
-        primaryButtonVariant="danger"
-        primaryButtonDisabled={deleting}
-        cancelButtonLabel="Cancel"
-        maxWidth={520}
+        confirmLabel={deleting ? "Deleting…" : "Delete schedule"}
+        cancelLabel="Cancel"
+        confirmButtonVariant="danger"
+        onDismiss={() => !deleting && setDeleteTarget(null)}
+        onConfirm={() => void handleDeleteSchedule()}
+        isLoading={deleting}
       />
 
-      <PickWebsiteModal
-        open={pickOpen}
-        title="Add service schedule"
-        description="Step 1 of 3: Choose organization and website. Next you will set mode, hours, and topics."
-        primaryLabel="Continue to scheduling"
-        onClose={() => setPickOpen(false)}
-        onContinue={(picked) => {
-          setPickOpen(false);
-          router.push(schedulingPath(picked.websiteId));
-        }}
-      />
     </Box>
   );
 }

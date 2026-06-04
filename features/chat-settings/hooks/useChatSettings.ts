@@ -3,6 +3,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { listDepartments } from "@/api/hrms/departments.api";
 import { listPools } from "@/api/hrms/pools.api";
+import { listClosePolicies } from "@/services/chat/close-policy-list.api";
+import type { ListClosePoliciesQuery } from "@/services/chat/close-policy-list.types";
 import {
   createChatRoute,
   deleteChatRoute,
@@ -19,7 +21,11 @@ import type {
   UpsertChatRouteBody,
   UpsertWebsiteChatSettingsBody,
 } from "@/services/chat/chat-settings.types";
-import { fetchQaWebsiteRoster, saveQaWebsiteRoster } from "@/services/chat/qa-roster.api";
+import {
+  fetchQaWebsiteRoster,
+  fetchQaWebsiteRosterExclusions,
+  saveQaWebsiteRoster,
+} from "@/services/chat/qa-roster.api";
 import { LIST_ALL_QUERY } from "@/lib/constants/pagination";
 import {
   parseDepartmentCatalog,
@@ -37,9 +43,18 @@ export function useWebsiteChatSettingsQuery(websiteId: string, apiEnabled = true
   });
 }
 
+export function useClosePolicyListQuery(query: ListClosePoliciesQuery, enabled = true) {
+  return useQuery({
+    queryKey: chatSettingsKeys.closePolicyList(query),
+    queryFn: () => listClosePolicies({ ...query, all: true }),
+    enabled,
+    staleTime: 30_000,
+  });
+}
+
 export type DepartmentCatalogQueryParams = {
   parentCompanyId: string;
-  /** Scopes external departments to this client; internal departments are reseller-wide (not parent-scoped). */
+  /** Scopes external departments to this client. Internal list uses actor/reseller scope from the API — do not pass resellerId. */
   resellerId?: string;
 };
 
@@ -59,7 +74,6 @@ export function useDepartmentCatalogQuery(
         type: "Internal",
         ...LIST_ALL_QUERY,
       };
-      if (resellerId) internalParams.resellerId = resellerId;
 
       const externalParams: Record<string, unknown> = {
         type: "External",
@@ -126,6 +140,7 @@ export function useSaveWebsiteChatSettingsMutation(websiteId: string) {
       saveWebsiteChatSettings(websiteId, body),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: chatSettingsKeys.website(websiteId) });
+      void qc.invalidateQueries({ queryKey: [...chatSettingsKeys.all, "close-policy"] });
     },
   });
 }
@@ -191,6 +206,15 @@ export function useQaRosterQuery(websiteId: string, enabled = true) {
   });
 }
 
+export function useQaRosterExclusionsQuery(websiteId: string, enabled = true) {
+  return useQuery({
+    queryKey: chatSettingsKeys.qaRosterExclusions(websiteId),
+    queryFn: () => fetchQaWebsiteRosterExclusions(websiteId),
+    enabled: Boolean(websiteId.trim()) && enabled,
+    staleTime: 30_000,
+  });
+}
+
 export function useSaveQaRosterMutation(websiteId: string) {
   const qc = useQueryClient();
   return useMutation({
@@ -198,6 +222,8 @@ export function useSaveQaRosterMutation(websiteId: string) {
       saveQaWebsiteRoster(websiteId, body),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: chatSettingsKeys.qaRoster(websiteId) });
+      void qc.invalidateQueries({ queryKey: chatSettingsKeys.qaRosterExclusions(websiteId) });
+      void qc.invalidateQueries({ queryKey: ["qa-roster-list"] });
     },
   });
 }

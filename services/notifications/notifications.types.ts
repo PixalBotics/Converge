@@ -1,6 +1,6 @@
-export type NotificationBadgeGroup = "chat" | "qa" | "hrms_leave";
+export type NotificationBadgeGroup = "chat" | "qa" | "hrms_leave" | "hrms_attendance";
 
-export type NotificationSoundKey = "chat" | "qa" | "hrms_leave";
+export type NotificationSoundKey = "chat" | "qa" | "hrms_leave" | "hrms_attendance";
 
 export type NotificationDto = {
   id: string;
@@ -19,12 +19,15 @@ export type BadgeCounts = {
   chat: number;
   qa: number;
   hrms_leave: number;
+  hrms_attendance: number;
 };
 
 export type NotificationSocketEvent = {
   event: "new" | "read" | "read_all";
   notification?: NotificationDto;
   badgeCounts: BadgeCounts;
+  /** Present on `read_all` when only one badge group was cleared. */
+  badgeGroup?: NotificationBadgeGroup;
 };
 
 export type NotificationsListResponse = {

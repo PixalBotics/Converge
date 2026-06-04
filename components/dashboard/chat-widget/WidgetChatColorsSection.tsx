@@ -1,24 +1,18 @@
 "use client";
 
-import { useCallback, useState, type ChangeEvent } from "react";
+import { useCallback, useState } from "react";
 import Box from "@mui/material/Box";
 import Collapse from "@mui/material/Collapse";
 import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
-import { Button, InputField, Typography } from "@/components/common";
+import { Button, Typography } from "@/components/common";
+import { WidgetColorPickerField } from "@/components/dashboard/chat-widget/WidgetColorPickerField";
 import {
   deriveWidgetChatColorsDraft,
   WIDGET_CHAT_COLOR_FIELD_GROUPS,
   type WidgetChatColorsDraft,
   type WidgetChatColorsDraftKey,
 } from "@/lib/chat-widget/widget-colors-draft";
-
-function normalizeHexInput(raw: string, fallback: string): string {
-  const t = raw.trim();
-  if (/^#[0-9A-Fa-f]{3,8}$/.test(t)) return t;
-  if (/^[0-9A-Fa-f]{6}$/.test(t)) return `#${t}`;
-  return fallback;
-}
 
 function ColorFieldRow({
   label,
@@ -29,41 +23,13 @@ function ColorFieldRow({
   value: string;
   onChange: (hex: string) => void;
 }) {
-  const theme = useTheme() as AppTheme;
-  const isHex = /^#[0-9A-Fa-f]{3,8}$/.test(value.trim());
-  const pickerValue = isHex ? value.trim().slice(0, 7) : "#64748b";
-
   return (
-    <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "140px 1fr" }, gap: 1, alignItems: "center" }}>
-      <Typography variant="body2" sx={{ color: theme.app.text.primary }}>
-        {label}
-      </Typography>
-      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-        <Box
-          component="input"
-          type="color"
-          value={pickerValue}
-          onChange={(e: ChangeEvent<HTMLInputElement>) => onChange(e.target.value)}
-          sx={{
-            width: 40,
-            height: 40,
-            p: 0,
-            border: `1px solid ${theme.app.dashboard.cardBorder}`,
-            borderRadius: "4px",
-            bgcolor: "transparent",
-            cursor: "pointer",
-            flexShrink: 0,
-          }}
-        />
-        <InputField
-          label=""
-          name={`color-${label.replace(/\s+/g, "-").toLowerCase()}`}
-          value={value}
-          onChange={(e) => onChange(normalizeHexInput(e.target.value, value))}
-          sx={{ "& .MuiFormLabel-root": { display: "none" } }}
-        />
-      </Box>
-    </Box>
+    <WidgetColorPickerField
+      label={label}
+      value={value}
+      onChange={onChange}
+      fallback="#64748b"
+    />
   );
 }
 

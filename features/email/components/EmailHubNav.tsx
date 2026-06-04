@@ -2,8 +2,8 @@
 
 import Box from "@mui/material/Box";
 import { Typography } from "@/components/common";
-import { useAuth } from "@/lib/auth";
-import { OP } from "@/lib/permissions/operational-keys";
+import { useEmailTemplateAccess } from "../hooks/useEmailTemplateAccess";
+import { useSmtpEmailAccess } from "../hooks/useSmtpEmailAccess";
 import { EMAIL_BASE_PATH, EMAIL_HUB_LABEL, EMAIL_ROUTES } from "../email.constants";
 import { EmailRouteSegmented } from "./EmailRouteSegmented";
 import { pageHeaderRow } from "../styles/email-page.styles";
@@ -20,13 +20,14 @@ type HubTab = {
  * Distribution lives under `/dashboard/distribution-setup` (separate sidebar).
  */
 export function EmailHubNav() {
-  const { hasOperational } = useAuth();
+  const { canView: canViewSmtp } = useSmtpEmailAccess();
+  const { canView: canViewEmailDesign } = useEmailTemplateAccess();
 
   const tabs: HubTab[] = [
     {
       href: EMAIL_ROUTES.setupReseller,
       label: "SMTP & mail",
-      show: hasOperational(OP.smtpEmail.view),
+      show: canViewSmtp,
       isActive: (p: string) =>
         p.startsWith(`${EMAIL_ROUTES.setup}/`) ||
         p.startsWith(`${EMAIL_BASE_PATH}/connection/`),
@@ -34,14 +35,14 @@ export function EmailHubNav() {
     {
       href: EMAIL_ROUTES.design,
       label: "Email design",
-      show: hasOperational(OP.emailTemplate.view),
+      show: canViewEmailDesign,
       isActive: (p: string) =>
         p.startsWith(`${EMAIL_ROUTES.design}/`) || p === EMAIL_ROUTES.design,
     },
     {
       href: EMAIL_ROUTES.forms,
       label: "Email forms",
-      show: hasOperational(OP.emailTemplate.view),
+      show: canViewEmailDesign,
       isActive: (p: string) =>
         p.startsWith(`${EMAIL_ROUTES.forms}/`) || p === EMAIL_ROUTES.forms,
     },

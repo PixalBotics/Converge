@@ -5,6 +5,9 @@ export {
   useCompaniesSetupResellersQuery,
   useCompanySetupDraftByIdQuery,
   useCompanySetupDraftLatestQuery,
+  useAbandonAllCompanySetupDraftsMutation,
+  useCompanySetupDraftsListQuery,
+  useCompanyPocDirectoryQuery,
   useCreateCompanySetupDraftMutation,
   useParentCompanyQuery,
   useSubmitCompanySetupDraftMutation,
@@ -13,4 +16,8 @@ export {
   useUpdateParentCompanyMutation,
 } from "./hooks";
 export type { CompaniesListParams } from "./hooks";
+export {
+  useClientPermissionsQuery,
+  useReplaceClientPermissionsMutation,
+} from "./client-permissions";
 export { useScopedCompanyTreeQuery } from "./use-scoped-company-tree-query";

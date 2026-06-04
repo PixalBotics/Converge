@@ -88,7 +88,7 @@ export function MonitorQueueSidebar({
   }, [conversations, searchQuery]);
 
   return (
-    <PanelColumn sx={{ height: "100%" }}>
+    <PanelColumn sx={{ height: "100%", minHeight: 0, overflow: "hidden" }}>
       <Box sx={chatMonitorInboxToolbarSx}>
         <Box>
           <Typography sx={chatOpsPaneTitleSx}>

@@ -25,12 +25,17 @@ import type { DataTableColumn } from "@/components/common";
 import { AddCircleIcon } from "@/components/common/icons";
 import {
   hrmsDesignationsKeys,
+  useCompaniesByResellerQuery,
   useCompaniesSetupResellersQuery,
   useDepartmentsListQuery,
   useDesignationsListQuery,
   useSoftDeleteDesignationMutation,
 } from "@/lib/hooks";
-import { pickItemsArray, toIdNameOption } from "@/app/dashboard/user-page/components/add-user-modal.utils";
+import {
+  extractParentCompaniesFromByResellerTree,
+  pickItemsArray,
+  toIdNameOption,
+} from "@/app/dashboard/user-page/components/add-user-modal.utils";
 import {
   departmentsCardHeader,
   departmentsSearchFieldWrapper,
@@ -56,10 +61,16 @@ import {
 } from "./utils";
 import { AddDesignationModal } from "./components/AddDesignationModal";
 import { DeleteDesignationConfirmModal } from "./components/DeleteDesignationConfirmModal";
-import { useAuth } from "@/lib/auth";
+import { useAuth, sessionMayPickInternalUserScope } from "@/lib/auth";
 import { canDesignationAction } from "@/lib/permissions";
 
 const DEFAULT_PAGE_LIMIT = 20;
+
+const TYPE_FILTER_OPTIONS = [
+  { label: "All types", value: "" },
+  { label: "Internal", value: "Internal" },
+  { label: "External", value: "External" },
+] as const;
 
 function formatCompactEntryTotal(n: number): string {
   if (n >= 1_000_000) {
@@ -75,7 +86,11 @@ function formatCompactEntryTotal(n: number): string {
 
 export default function DesignationsPage() {
   const theme = useTheme() as AppTheme;
-  const { hasOperational } = useAuth();
+  const { hasOperational, isPlatformAdmin, user } = useAuth();
+  const mayPickInternalTypeFilter = useMemo(
+    () => sessionMayPickInternalUserScope(isPlatformAdmin, user?.userType),
+    [isPlatformAdmin, user?.userType],
+  );
   const canCreateDes = canDesignationAction(hasOperational, "create");
   const canUpdateDes = canDesignationAction(hasOperational, "update");
   const canDeleteDes = canDesignationAction(hasOperational, "delete");
@@ -86,18 +101,43 @@ export default function DesignationsPage() {
 
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
+  const [filterType, setFilterType] = useState<"" | "Internal" | "External">("");
   const [filterResellerId, setFilterResellerId] = useState("");
+  const [filterParentCompanyId, setFilterParentCompanyId] = useState("");
   const [filterDepartmentId, setFilterDepartmentId] = useState("");
   const [page, setPage] = useState(1);
   const [filterPanelOpen, setFilterPanelOpen] = useState(false);
 
   const softDeleteDesignationMutation = useSoftDeleteDesignationMutation();
 
-  const resellersQuery = useCompaniesSetupResellersQuery({ enabled: true });
-  const departmentsQuery = useDepartmentsListQuery(
-    filterResellerId.trim() ? { resellerId: filterResellerId.trim() } : undefined,
-    { enabled: true, scope: "designations-page-filters" },
+  const typeForDeptQuery = mayPickInternalTypeFilter ? filterType : "External";
+  const showExternalScopeFilters = typeForDeptQuery !== "Internal";
+
+  const resellersQuery = useCompaniesSetupResellersQuery({
+    enabled: showExternalScopeFilters,
+  });
+  const companiesByResellerQuery = useCompaniesByResellerQuery(
+    filterResellerId,
+    { view: "tree", sortBy: "name", sortOrder: "asc", all: true },
+    { enabled: showExternalScopeFilters && filterResellerId.trim().length > 0 },
   );
+
+  const filterDepartmentListParams = useMemo(() => {
+    const params: Record<string, string | boolean> = { all: true };
+    if (typeForDeptQuery) params.type = typeForDeptQuery;
+    const rid = filterResellerId.trim();
+    if (rid) {
+      params.resellerId = rid;
+      const pid = filterParentCompanyId.trim();
+      if (pid) params.parentCompanyId = pid;
+    }
+    return params;
+  }, [typeForDeptQuery, filterResellerId, filterParentCompanyId]);
+
+  const departmentsQuery = useDepartmentsListQuery(filterDepartmentListParams, {
+    enabled: true,
+    scope: "designations-page-filters",
+  });
 
   const resellerOptions = useMemo(() => {
     return pickItemsArray(resellersQuery.data)
@@ -117,11 +157,29 @@ export default function DesignationsPage() {
       .filter((o): o is { value: string; label: string } => o !== null);
   }, [departmentsQuery.data]);
 
+  const parentCompanyFilterOptions = useMemo(() => {
+    if (!filterResellerId.trim()) {
+      return [{ value: "", label: "All parent companies" }];
+    }
+    if (companiesByResellerQuery.isLoading) {
+      return [{ value: "", label: "Loading companies…" }];
+    }
+    const extracted = extractParentCompaniesFromByResellerTree(companiesByResellerQuery.data);
+    const all = { value: "", label: "All parent companies" };
+    if (extracted.length > 0) return [all, ...extracted];
+    return [{ value: "", label: "No companies for this reseller" }];
+  }, [filterResellerId, companiesByResellerQuery.isLoading, companiesByResellerQuery.data]);
+
   const departmentFilterOptions = useMemo(() => {
     const all = { value: "", label: "All departments" };
     if (departmentOptions.length > 0) return [all, ...departmentOptions];
     return [{ value: "", label: departmentsQuery.isLoading ? "Loading departments…" : "No departments available" }];
   }, [departmentOptions, departmentsQuery.isLoading]);
+
+  const typeFilterSelectOptions = useMemo(() => {
+    if (mayPickInternalTypeFilter) return [...TYPE_FILTER_OPTIONS];
+    return [{ label: "External", value: "External" }];
+  }, [mayPickInternalTypeFilter]);
 
   const listParams = useMemo(() => {
     const params: Record<string, string | number> = {
@@ -154,7 +212,9 @@ export default function DesignationsPage() {
   const hasActiveFilters =
     Boolean(search.trim()) ||
     Boolean(filterResellerId.trim()) ||
-    Boolean(filterDepartmentId.trim());
+    Boolean(filterParentCompanyId.trim()) ||
+    Boolean(filterDepartmentId.trim()) ||
+    (mayPickInternalTypeFilter && Boolean(filterType));
 
   useEffect(() => {
     // When the SearchBar cross button clears the input, reset applied search to show full data.
@@ -166,7 +226,12 @@ export default function DesignationsPage() {
 
   useEffect(() => {
     setPage(1);
-  }, [search, filterResellerId, filterDepartmentId]);
+  }, [search, typeForDeptQuery, filterResellerId, filterParentCompanyId, filterDepartmentId]);
+
+  useEffect(() => {
+    if (mayPickInternalTypeFilter) return;
+    setFilterType((prev) => (prev === "Internal" || prev === "" ? "External" : prev));
+  }, [mayPickInternalTypeFilter]);
 
   useEffect(() => {
     setPage((p) => (p > pageCount ? pageCount : p));
@@ -202,14 +267,27 @@ export default function DesignationsPage() {
   const clearFilters = useCallback(() => {
     setSearchInput("");
     setSearch("");
+    setFilterType(mayPickInternalTypeFilter ? "" : "External");
     setFilterResellerId("");
+    setFilterParentCompanyId("");
     setFilterDepartmentId("");
     setPage(1);
     setFilterPanelOpen(false);
+  }, [mayPickInternalTypeFilter]);
+
+  const handleTypeFilterChange = useCallback((v: string) => {
+    const next = v === "Internal" ? "Internal" : v === "External" ? "External" : "";
+    setFilterType(next);
+    if (next === "Internal") {
+      setFilterResellerId("");
+      setFilterParentCompanyId("");
+    }
+    setFilterDepartmentId("");
   }, []);
 
   const handleResellerFilterChange = useCallback((v: string) => {
     setFilterResellerId(v);
+    setFilterParentCompanyId("");
     setFilterDepartmentId("");
   }, []);
 
@@ -231,13 +309,41 @@ export default function DesignationsPage() {
           Filters
         </Typography>
         <Box sx={{ display: "grid", gap: 1.75 }}>
-          <SelectField
-            label="Reseller"
-            value={filterResellerId}
-            onChange={handleResellerFilterChange}
-            options={resellerFilterOptions}
-            menuMaxRows={6}
-          />
+          {mayPickInternalTypeFilter ? (
+            <SelectField
+              label="Department type"
+              value={typeForDeptQuery}
+              onChange={handleTypeFilterChange}
+              options={typeFilterSelectOptions}
+              menuMaxRows={6}
+            />
+          ) : null}
+          {showExternalScopeFilters ? (
+            <>
+              <SelectField
+                label="Reseller"
+                value={filterResellerId}
+                onChange={handleResellerFilterChange}
+                options={resellerFilterOptions}
+                menuMaxRows={6}
+              />
+              <SelectField
+                label="Parent company"
+                value={filterParentCompanyId}
+                onChange={(v) => {
+                  setFilterParentCompanyId(v);
+                  setFilterDepartmentId("");
+                }}
+                options={
+                  filterResellerId.trim()
+                    ? parentCompanyFilterOptions
+                    : [{ value: "", label: "Choose a reseller first" }]
+                }
+                disabled={!filterResellerId.trim()}
+                menuMaxRows={6}
+              />
+            </>
+          ) : null}
           <SelectField
             label="Department"
             value={filterDepartmentId}
@@ -249,11 +355,18 @@ export default function DesignationsPage() {
       </ToolbarFilterPopoverPanel>
     );
   }, [
+    mayPickInternalTypeFilter,
+    typeForDeptQuery,
+    typeFilterSelectOptions,
+    showExternalScopeFilters,
     filterResellerId,
+    filterParentCompanyId,
     filterDepartmentId,
     resellerFilterOptions,
+    parentCompanyFilterOptions,
     departmentFilterOptions,
     hasActiveFilters,
+    handleTypeFilterChange,
     handleResellerFilterChange,
     clearFilters,
   ]);

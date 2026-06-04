@@ -1,5 +1,6 @@
 import { alpha } from "@mui/material/styles";
 import type { SxProps, Theme } from "@mui/material/styles";
+import { dashboardCardSurfaceProps } from "@/features/chat-operations/styles/chat-semantic";
 import type { AppTheme } from "@/theme/theme";
 import { cardPadding, pageWrapper } from "../dashboard.styles";
 
@@ -14,7 +15,33 @@ export const websiteAssignmentPageHeader: SxProps<Theme> = {
   alignItems: { xs: "stretch", lg: "flex-start" },
   justifyContent: "space-between",
   gap: 2,
-  mb: 2.5,
+  mb: 3,
+};
+
+export const websiteAssignmentHeroSx: SxProps<Theme> = (theme) => {
+  const t = theme as AppTheme;
+  return {
+    p: { xs: 2.5, sm: 3 },
+    mb: 3,
+    borderRadius: 3,
+    border: `1px solid ${alpha(t.palette.primary.main, 0.22)}`,
+    background: `linear-gradient(135deg, ${alpha(t.palette.primary.main, 0.16)} 0%, ${alpha(t.app.dashboard.pillBg, 0.55)} 52%, ${alpha(t.palette.primary.dark, 0.08)} 100%)`,
+    boxShadow: `0 20px 50px ${alpha(t.palette.common.black, 0.18)}`,
+  };
+};
+
+export const websiteAssignmentModernCardSx: SxProps<Theme> = (theme) => {
+  const t = theme as AppTheme;
+  const blur = t.app.dashboard.cardBackdropBlur ?? "blur(12px)";
+  return {
+    p: { xs: 1.5, sm: 2, md: 2.5 },
+    borderRadius: 3,
+    border: `1px solid ${alpha(t.app.dashboard.cardBorder, 0.9)}`,
+    ...dashboardCardSurfaceProps(theme, 0.55),
+    backdropFilter: blur,
+    WebkitBackdropFilter: blur,
+    boxShadow: `0 12px 40px ${alpha(t.palette.common.black, 0.14)}`,
+  };
 };
 
 export const websiteAssignmentHeaderActions: SxProps<Theme> = {
@@ -138,12 +165,22 @@ export const websiteAssignmentSectionIconSx: SxProps<Theme> = (theme) => {
   };
 };
 
-export const websiteAssignmentUserDetailCard: SxProps<Theme> = {
-  ...cardPadding,
-  display: "flex",
-  flexDirection: "column",
-  gap: 2,
-  mb: 2.5,
+export const websiteAssignmentUserDetailCard: SxProps<Theme> = (theme) => {
+  const t = theme as AppTheme;
+  const blur = t.app.dashboard.cardBackdropBlur ?? "blur(10px)";
+  return {
+    p: { xs: 1.5, sm: 2, md: 2.5 },
+    display: "flex",
+    flexDirection: "column",
+    gap: 2,
+    mb: 2.5,
+    borderRadius: 3,
+    border: `1px solid ${alpha(t.app.dashboard.cardBorder, 0.85)}`,
+    ...dashboardCardSurfaceProps(theme, 0.5),
+    backdropFilter: blur,
+    WebkitBackdropFilter: blur,
+    boxShadow: `0 10px 36px ${alpha(t.palette.common.black, 0.12)}`,
+  };
 };
 
 /** Username / Email / Department — one row on large screens. */

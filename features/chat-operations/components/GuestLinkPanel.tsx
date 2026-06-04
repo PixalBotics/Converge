@@ -5,15 +5,16 @@ import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
 import { alpha, useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
-import { Button, InputField, Typography } from "@/components/common";
+import { Button, Typography } from "@/components/common";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
 import { getAccessToken } from "@/api";
 import { canSendGuestLink } from "@/lib/permissions/chat-access";
 import {
+  getGuestLinkSendTarget,
   listConversationGuestLinks,
   sendDepartmentGuestLink,
 } from "@/services/chat/guest-link.api";
-import type { GuestLinkRow } from "@/services/chat/guest.types";
+import type { GuestLinkRow, GuestLinkSendTarget } from "@/services/chat/guest.types";
 import { ChatSideToolCard } from "@/features/chat-shared";
 
 function formatWhen(iso: string | null): string {
@@ -23,6 +24,12 @@ function formatWhen(iso: string | null): string {
   } catch {
     return iso;
   }
+}
+
+function matchedViaLabel(via: GuestLinkSendTarget["matchedVia"]): string {
+  if (via === "inquiry_external_topic") return "Inquire topic → external dept";
+  if (via === "conversation_department") return "Chat department";
+  return "Manual override";
 }
 
 interface GuestLinkPanelProps {
@@ -40,12 +47,13 @@ export function GuestLinkPanel({
   const token = getAccessToken() ?? "";
   const canSend = canSendGuestLink(hasOperational);
 
-  const [extraEmail, setExtraEmail] = useState("");
   const [links, setLinks] = useState<GuestLinkRow[]>([]);
+  const [target, setTarget] = useState<GuestLinkSendTarget | null>(null);
+  const [targetLoading, setTargetLoading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
 
-  const refresh = useCallback(async () => {
+  const refreshLinks = useCallback(async () => {
     if (!conversationId || !token || !canSend) {
       setLinks([]);
       return;
@@ -58,9 +66,26 @@ export function GuestLinkPanel({
     }
   }, [canSend, conversationId, token]);
 
+  const refreshTarget = useCallback(async () => {
+    if (!conversationId || !token || !canSend) {
+      setTarget(null);
+      return;
+    }
+    setTargetLoading(true);
+    try {
+      const t = await getGuestLinkSendTarget(conversationId, token);
+      setTarget(t);
+    } catch {
+      setTarget(null);
+    } finally {
+      setTargetLoading(false);
+    }
+  }, [canSend, conversationId, token]);
+
   useEffect(() => {
-    void refresh();
-  }, [refresh]);
+    void refreshLinks();
+    void refreshTarget();
+  }, [refreshLinks, refreshTarget]);
 
   if (!conversationId || !canSend) return null;
 
@@ -69,19 +94,18 @@ export function GuestLinkPanel({
     setBusy(true);
     setStatus(null);
     try {
-      const res = await sendDepartmentGuestLink(
-        conversationId,
-        extraEmail.trim() ? { email: extraEmail.trim() } : undefined,
-        token,
-      );
-      const count = res.sent?.length ?? 0;
+      const res = await sendDepartmentGuestLink(conversationId, undefined, token);
+      const sentList = res.sent ?? res.recipients ?? [];
+      const count = sentList.length;
+      const dept = res.departmentName ?? target?.departmentName;
+      const topic = res.topicLabel ?? target?.topicLabel;
       setStatus(
         count > 0
-          ? `Sent ${count} guest link${count === 1 ? "" : "s"} to department notify addresses.`
+          ? `Shared link emailed to ${count} supervisor${count === 1 ? "" : "s"} — first to open gets guest access; others use Chat Monitor.${dept ? ` (${dept}${topic ? ` · ${topic}` : ""})` : ""}`
           : "No links sent.",
       );
-      setExtraEmail("");
-      await refresh();
+      await refreshLinks();
+      await refreshTarget();
     } catch (err) {
       const msg =
         err && typeof err === "object" && "response" in err
@@ -96,27 +120,88 @@ export function GuestLinkPanel({
     }
   };
 
+  const sendDisabled =
+    busy || disabled || targetLoading || (target != null && !target.canSend);
+
   return (
     <ChatSideToolCard
       accent="guest"
       title="Send involvement link"
-      subtitle="Emails all involvement supervisors for this chat's department (same one-time URL). First opener gets the session; whisper and takeover available without login."
+      subtitle="Emails involvement supervisors for this chat's inquire topic (external department)."
     >
-      <InputField
-        label="Extra recipient email (optional)"
-        value={extraEmail}
-        onChange={(e) => setExtraEmail(e.target.value)}
-        disabled={busy || disabled}
-        placeholder="Leave blank to use involvement roster emails"
-      />
+      <Box
+        sx={{
+          mt: 0.5,
+          mb: 1,
+          p: 1.25,
+          borderRadius: 1.5,
+          bgcolor: alpha(theme.app.dashboard.overlayLight, 0.4),
+          border: `1px solid ${theme.app.dashboard.cardBorder}`,
+        }}
+      >
+        {targetLoading ? (
+          <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted }}>
+            Checking target department…
+          </Typography>
+        ) : target ? (
+          <>
+            {target.topicLabel ? (
+              <Typography variant="caption" sx={{ display: "block", fontSize: 11, mb: 0.5 }}>
+                <strong>Inquire topic:</strong> {target.topicLabel}
+              </Typography>
+            ) : null}
+            <Typography variant="caption" sx={{ display: "block", fontSize: 11, mb: 0.5 }}>
+              <strong>Involvement department:</strong> {target.departmentName}
+            </Typography>
+            {target.conversationDepartmentName &&
+            target.chatRoutedElsewhere ? (
+              <Typography
+                variant="caption"
+                sx={{ display: "block", fontSize: 10, color: theme.app.dashboard.textMuted, mb: 0.5 }}
+              >
+                Chat routed to: {target.conversationDepartmentName} (agents)
+              </Typography>
+            ) : null}
+            <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5, mt: 0.75 }}>
+              <Chip
+                label={matchedViaLabel(target.matchedVia)}
+                size="small"
+                sx={{ height: 20, fontSize: 10 }}
+              />
+              <Chip
+                label={
+                  target.canSend
+                    ? `${target.supervisorCount} supervisor${target.supervisorCount === 1 ? "" : "s"}`
+                    : "No supervisors"
+                }
+                size="small"
+                color={target.canSend ? "success" : "warning"}
+                sx={{ height: 20, fontSize: 10 }}
+              />
+            </Box>
+            {target.hint ? (
+              <Typography
+                variant="caption"
+                sx={{ display: "block", mt: 0.75, color: theme.palette.warning.light, fontSize: 10 }}
+              >
+                {target.hint}
+              </Typography>
+            ) : null}
+          </>
+        ) : (
+          <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, fontSize: 11 }}>
+            Could not load send target. Refresh or check chat routing.
+          </Typography>
+        )}
+      </Box>
 
       <Button
         type="button"
         variant="primary"
         size="small"
         fullWidth
-        sx={{ ...gradientPrimaryButtonSx, mt: 1 }}
-        disabled={busy || disabled}
+        sx={{ ...gradientPrimaryButtonSx }}
+        disabled={sendDisabled}
         onClick={() => void runSend()}
       >
         {busy ? "Sending…" : "Send involvement link"}
@@ -153,6 +238,9 @@ export function GuestLinkPanel({
                 </Typography>
                 <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, fontSize: 10 }}>
                   {link.department?.name ?? "Dept"} · expires {formatWhen(link.expiresAt)}
+                  {link.firstOpenedByEmail
+                    ? ` · opened by ${link.firstOpenedByEmail}`
+                    : ""}
                 </Typography>
               </Box>
             );

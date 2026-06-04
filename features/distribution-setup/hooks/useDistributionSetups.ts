@@ -15,6 +15,7 @@ export function useDistributionSetupsQuery(
     queryKey: distributionSetupKeys.list(params),
     queryFn: () => listDistributionSetups(params),
     enabled,
-    staleTime: 30_000,
+    staleTime: 0,
+    refetchOnMount: "always",
   });
 }

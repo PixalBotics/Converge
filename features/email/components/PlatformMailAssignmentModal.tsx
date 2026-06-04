@@ -4,17 +4,17 @@ import { useEffect, useState } from "react";
 import Box from "@mui/material/Box";
 import Skeleton from "@mui/material/Skeleton";
 import Switch from "@mui/material/Switch";
-import { FormModal, InputField } from "@/components/common";
+import { FormModal } from "@/components/common";
 import { extractApiErrorMessageForToast, publishAppToast } from "@/lib/notify";
-import { useAuth } from "@/lib/auth";
-import { OP } from "@/lib/permissions/operational-keys";
+import { useSmtpEmailAccess } from "../hooks/useSmtpEmailAccess";
 import { ConfigurationResellerSelect } from "./configuration/ConfigurationResellerSelect";
 import {
   useDeletePlatformMailAssignmentMutation,
+  usePlatformEmailSettingsQuery,
   usePlatformMailAssignmentQuery,
   useUpdatePlatformMailAssignmentMutation,
 } from "../hooks/useEmailSettings";
-import { EmailConfigFormGrid2, EmailEnableRow } from "../styles/email-configuration.styled";
+import { EmailEnableRow } from "../styles/email-configuration.styled";
 import { EmailDeleteConfirmModal } from "./EmailDeleteConfirmModal";
 import { EmailLockedResellerBanner } from "./EmailLockedResellerBanner";
 import { EmailModalDangerZone } from "./EmailModalDangerZone";
@@ -34,9 +34,7 @@ export function PlatformMailAssignmentModal({
   onClose: () => void;
   onSaved?: () => void;
 }) {
-  const { hasOperational } = useAuth();
-  const canUpdate = hasOperational(OP.smtpEmail.update);
-  const canDelete = hasOperational(OP.smtpEmail.delete);
+  const { canUpdate, canDelete } = useSmtpEmailAccess();
 
   const [resellerId, setResellerId] = useState(initialResellerId);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
@@ -46,23 +44,23 @@ export function PlatformMailAssignmentModal({
     if (open) setResellerId(initialResellerId);
   }, [open, initialResellerId]);
 
+  const platformQuery = usePlatformEmailSettingsQuery({ enabled: open });
   const assignmentQuery = usePlatformMailAssignmentQuery(activeId, {
     enabled: open && Boolean(activeId),
   });
   const updateMutation = useUpdatePlatformMailAssignmentMutation(activeId);
   const deleteMutation = useDeletePlatformMailAssignmentMutation();
 
-  const [fromEmail, setFromEmail] = useState("");
-  const [fromName, setFromName] = useState("");
   const [isEnabled, setIsEnabled] = useState(true);
 
   useEffect(() => {
     const a = assignmentQuery.data;
     if (!a) return;
-    setFromEmail(a.fromEmail ?? "");
-    setFromName(a.fromName ?? "");
     setIsEnabled(Boolean(a.isEnabled));
   }, [assignmentQuery.data]);
+
+  const platformFrom = platformQuery.data?.fromEmail?.trim() || "—";
+  const platformFromName = platformQuery.data?.fromName?.trim() || "—";
 
   const handleSave = async () => {
     if (!activeId) {
@@ -70,11 +68,7 @@ export function PlatformMailAssignmentModal({
       return;
     }
     try {
-      await updateMutation.mutateAsync({
-        fromEmail: fromEmail.trim() || undefined,
-        fromName: fromName.trim() || undefined,
-        isEnabled,
-      });
+      await updateMutation.mutateAsync({ isEnabled });
       publishAppToast({ variant: "success", message: "Platform mail assignment saved." });
       onSaved?.();
       onClose();
@@ -110,7 +104,7 @@ export function PlatformMailAssignmentModal({
       <FormModal
         open={open}
         title={isEdit ? "Edit platform mail assignment" : "Assign platform mail"}
-        description="Reseller sends using global platform mail. Optional from-address overrides apply on top of the platform default."
+        description="This reseller sends all mail using your platform connection. No separate SMTP or from-address is required for them."
         onClose={onClose}
         onSave={() => {
           if (canUpdate) void handleSave();
@@ -140,24 +134,22 @@ export function PlatformMailAssignmentModal({
           <Skeleton variant="rounded" height={120} sx={{ mt: 1 }} />
         ) : (
           <Box sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 1 }}>
-            <EmailConfigFormGrid2>
-              <InputField
-                label="From email (override)"
-                name="fromEmail"
-                type="email"
-                value={fromEmail}
-                onChange={(e) => setFromEmail(e.target.value)}
-                placeholder="Leave empty to use platform default"
-                disabled={!canUpdate}
-              />
-              <InputField
-                label="From name (override)"
-                name="fromName"
-                value={fromName}
-                onChange={(e) => setFromName(e.target.value)}
-                disabled={!canUpdate}
-              />
-            </EmailConfigFormGrid2>
+            <Box
+              sx={{
+                p: 1.5,
+                borderRadius: 1.5,
+                bgcolor: "rgba(255,255,255,0.06)",
+                border: "1px solid rgba(255,255,255,0.1)",
+              }}
+            >
+              <Box sx={{ fontSize: 12, opacity: 0.72, mb: 0.5 }}>Platform sender (used for this reseller)</Box>
+              <Box sx={{ fontSize: 14, fontWeight: 600 }}>
+                {platformFromName} &lt;{platformFrom}&gt;
+              </Box>
+              <Box sx={{ fontSize: 12, opacity: 0.65, mt: 0.75 }}>
+                Change under Email → Platform mail. Resellers on platform mail cannot use a different from address.
+              </Box>
+            </Box>
 
             <EmailEnableRow>
               <Box>

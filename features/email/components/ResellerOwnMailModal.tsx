@@ -6,11 +6,10 @@ import Alert from "@mui/material/Alert";
 import Skeleton from "@mui/material/Skeleton";
 import { FormModal } from "@/components/common";
 import { extractApiErrorMessageForToast, publishAppToast } from "@/lib/notify";
-import { useAuth } from "@/lib/auth";
-import { OP } from "@/lib/permissions/operational-keys";
+import { useSmtpEmailAccess } from "../hooks/useSmtpEmailAccess";
 import { ConfigurationResellerSelect } from "./configuration/ConfigurationResellerSelect";
 import { MailConnectionForm } from "./MailConnectionForm";
-import { EmailConnectionTestSection } from "./EmailConnectionTestSection";
+import { EmailConnectionTestModal } from "./EmailConnectionTestModal";
 import { useOwnMailProviderForm } from "../hooks/useOwnMailProviderForm";
 import {
   useDeleteResellerOwnMailMutation,
@@ -22,7 +21,11 @@ import { resellerOwnMailErrorMessage } from "../utils/reseller-mail-errors";
 import { EmailDeleteConfirmModal } from "./EmailDeleteConfirmModal";
 import { EmailLockedResellerBanner } from "./EmailLockedResellerBanner";
 import { EmailModalDangerZone } from "./EmailModalDangerZone";
-import { readTestMessage } from "../utils/email-test.utils";
+import {
+  extractEmailTestErrorMessage,
+  formatMailTestErrorMessage,
+  readTestMessage,
+} from "../utils/email-test.utils";
 
 export function ResellerOwnMailModal({
   open,
@@ -39,13 +42,11 @@ export function ResellerOwnMailModal({
   onClose: () => void;
   onSaved?: () => void;
 }) {
-  const { hasOperational } = useAuth();
-  const canUpdate = hasOperational(OP.smtpEmail.update);
-  const canTest = hasOperational(OP.smtpEmail.test);
-  const canDelete = hasOperational(OP.smtpEmail.delete);
+  const { canUpdate, canDelete, canTest } = useSmtpEmailAccess();
 
   const [resellerId, setResellerId] = useState(initialResellerId);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [testModalOpen, setTestModalOpen] = useState(false);
   const activeId = (lockedResellerId ?? resellerId).trim();
 
   useEffect(() => {
@@ -53,7 +54,15 @@ export function ResellerOwnMailModal({
     setResellerId(initialResellerId || lockedResellerId || "");
   }, [open, initialResellerId, lockedResellerId]);
 
+  useEffect(() => {
+    if (!open) setTestModalOpen(false);
+  }, [open]);
+
   const settingsQuery = useResellerOwnMailSettingsQuery(activeId, { enabled: open && Boolean(activeId) });
+
+  useEffect(() => {
+    if (open && activeId) void settingsQuery.refetch();
+  }, [open, activeId]);
   const updateMutation = useUpdateResellerOwnMailMutation(activeId);
   const testMutation = useTestResellerOwnMailMutation(activeId);
   const deleteMutation = useDeleteResellerOwnMailMutation();
@@ -65,8 +74,14 @@ export function ResellerOwnMailModal({
       await updateMutation.mutateAsync(body);
       onSaved?.();
     },
-    onTest: (body) => testMutation.mutateAsync(body),
   });
+
+  const handleSave = async () => {
+    const saved = await form.handleSave();
+    if (!saved) return;
+    onClose();
+    setTestModalOpen(true);
+  };
 
   const title = useMemo(
     () =>
@@ -100,8 +115,9 @@ export function ResellerOwnMailModal({
 
   const hasConfig = Boolean(settingsQuery.data?.emailProviderId);
   const settings = settingsQuery.data;
-  const testReady = form.savedOnce && form.isEnabled && hasConfig;
-  const testDisabled = !canTest || !testReady || updateMutation.isPending;
+  const formReady =
+    Boolean(activeId) && settingsQuery.isSuccess && !settingsQuery.isFetching;
+  const formKey = `${activeId}-${form.settingsFingerprint || "new"}`;
 
   return (
     <>
@@ -111,7 +127,7 @@ export function ResellerOwnMailModal({
         description="This reseller’s own SMTP or API credentials. Parent-company mail uses this when not on platform mail."
         onClose={onClose}
         onSave={() => {
-          if (canUpdate) void form.handleSave();
+          if (canUpdate) void handleSave();
         }}
         primaryButtonLabel={updateMutation.isPending ? "Saving…" : "Save configuration"}
         primaryButtonDisabled={updateMutation.isPending || !activeId || !canUpdate}
@@ -134,38 +150,20 @@ export function ResellerOwnMailModal({
           <Box sx={{ color: "rgba(255,255,255,0.65)", fontSize: 14, mt: 1 }}>
             Select a reseller to continue.
           </Box>
-        ) : settingsQuery.isLoading ? (
-          <Skeleton variant="rounded" height={200} sx={{ mt: 1 }} />
         ) : loadErrorMessage ? (
           <Alert severity="warning" sx={{ mt: 1 }}>
             {loadErrorMessage}
           </Alert>
+        ) : !formReady ? (
+          <Skeleton variant="rounded" height={200} sx={{ mt: 1 }} />
         ) : (
           <Box sx={{ display: "flex", flexDirection: "column", gap: 0, mt: 0.5 }}>
             <MailConnectionForm
+              key={formKey}
               form={form}
               disabled={!canUpdate}
               existingFields={settings?.fields}
             />
-
-            {hasConfig ? (
-              <EmailConnectionTestSection
-                ready={testReady}
-                disabled={testDisabled}
-                testing={testMutation.isPending}
-                lastTestStatus={settings?.lastTestStatus}
-                lastTestedAt={settings?.lastTestedAt}
-                lastTestMessage={settings?.lastTestMessage}
-                onTest={async (toEmail) => {
-                  const result = await form.handleTest({ toEmail });
-                  const message =
-                    readTestMessage(result.message) ??
-                    (result.success ? "Test email sent successfully." : "Test email failed.");
-                  if (result.success) onSaved?.();
-                  return { success: result.success, message };
-                }}
-              />
-            ) : null}
 
             {canDelete && hasConfig ? (
               <Box sx={{ mt: 2 }}>
@@ -181,6 +179,36 @@ export function ResellerOwnMailModal({
           </Box>
         )}
       </FormModal>
+
+      <EmailConnectionTestModal
+        open={testModalOpen}
+        onClose={() => setTestModalOpen(false)}
+        title="Test reseller mail"
+        description="Configuration saved. Send a test email to confirm this reseller’s mail is working."
+        testing={testMutation.isPending}
+        disabled={!canTest || !activeId}
+        lastTestStatus={settings?.lastTestStatus}
+        lastTestedAt={settings?.lastTestedAt}
+        lastTestMessage={settings?.lastTestMessage}
+        onTest={async (toEmail) => {
+          try {
+            const result = await testMutation.mutateAsync({ toEmail });
+            onSaved?.();
+            const raw = readTestMessage(result.message);
+            return {
+              success: result.success,
+              message: result.success
+                ? raw ?? "Test email sent."
+                : formatMailTestErrorMessage(raw ?? "Test failed."),
+            };
+          } catch (err) {
+            return {
+              success: false,
+              message: formatMailTestErrorMessage(extractEmailTestErrorMessage(err)),
+            };
+          }
+        }}
+      />
 
       <EmailDeleteConfirmModal
         open={deleteConfirmOpen}

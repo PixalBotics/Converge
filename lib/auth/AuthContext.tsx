@@ -17,14 +17,20 @@ import type { AuthUserType, User, LoginCredentials } from "./types";
 import {
   getAccessToken,
   getMe,
+  getRefreshToken,
   registerAuthSessionTeardown,
+  refreshSessionWithStoredRefresh,
   resetAuthSessionTerminatedFlag,
   setTokenPair,
   synchronizeAuthSession,
 } from "@/api";
+import type { LoginSuccessData } from "@/api";
+import { isAuthSessionTerminated } from "@/api/session/terminate-auth-session";
 import { useLoginMutation, useLogoutMutation } from "@/lib/hooks";
+import { clearAppQueryCache } from "@/lib/hooks/query/core/app-query-cache";
 import { extractApiErrorMessageForToast } from "@/lib/notify";
 import { AUTH_PATHS, shouldSkipRemoteAuthHydration } from "./auth-paths";
+import { registerApplyLoginAsSession } from "./apply-login-as-session";
 import {
   clearImpersonationSession,
   getImpersonationSession,
@@ -44,6 +50,11 @@ import {
   type PermissionsByType,
 } from "./permissions-model";
 import { dismissAppBoundary, publishAuthErrorBoundary } from "@/lib/app-boundaries";
+import { isAccessTokenExpiringSoon } from "./access-token";
+import {
+  initTokenCrossTabSync,
+  registerCrossTabTokenListener,
+} from "./token-cross-tab-sync";
 import { extractResellerIdFromMePayload } from "./extract-reseller-id";
 import { resolveDashboardLandingHref } from "@/lib/permissions";
 import { useAppearance } from "@/lib/theme/appearance-context";
@@ -56,7 +67,9 @@ type AccessTokenPayload = {
   userId?: string;
   email?: string;
   roles?: string[];
+  userType?: string;
   resellerId?: string;
+  parentCompanyId?: string;
   wideResellerScope?: boolean;
 };
 
@@ -79,6 +92,8 @@ type ApiUser = {
   reseller_id?: string;
   wideResellerScope?: boolean;
   wide_reseller_scope?: boolean;
+  parentCompanyId?: string;
+  parent_company_id?: string;
 };
 
 function parseApiUserType(user: ApiUser): AuthUserType | undefined {
@@ -132,7 +147,6 @@ function mapApiUserToUser(user: ApiUser): User | null {
   if (!user.id || !user.email) {
     return null;
   }
-  const roleName = user.role?.name;
   const poolObj = user.pool;
   const poolId =
     (typeof user.poolId === "string" && user.poolId.trim()) ||
@@ -146,8 +160,22 @@ function mapApiUserToUser(user: ApiUser): User | null {
     (typeof user.reseller_id === "string" && user.reseller_id.trim()) ||
     undefined;
   const wr: unknown = user.wideResellerScope ?? user.wide_reseller_scope;
+  const roleName =
+    (typeof user.role === "object" &&
+      user.role &&
+      typeof (user.role as { name?: string }).name === "string" &&
+      (user.role as { name: string }).name.trim()) ||
+    undefined;
   const wideResellerScope =
-    wr === true || wr === "true" || wr === 1 || wr === "1";
+    wr === true ||
+    wr === "true" ||
+    wr === 1 ||
+    wr === "1" ||
+    (parseApiUserType(user) === "External" && roleName === "Reseller Admin");
+  const parentCompanyId =
+    (typeof user.parentCompanyId === "string" && user.parentCompanyId.trim()) ||
+    (typeof user.parent_company_id === "string" && user.parent_company_id.trim()) ||
+    undefined;
   return {
     id: user.id,
     email: user.email,
@@ -159,6 +187,7 @@ function mapApiUserToUser(user: ApiUser): User | null {
     poolName,
     resellerId,
     wideResellerScope,
+    parentCompanyId,
   };
 }
 
@@ -192,14 +221,23 @@ function getUserFromAccessToken(): User | null {
     typeof payload.resellerId === "string" && payload.resellerId.trim()
       ? payload.resellerId.trim()
       : undefined;
+  const parentCompanyId =
+    typeof payload.parentCompanyId === "string" && payload.parentCompanyId.trim()
+      ? payload.parentCompanyId.trim()
+      : undefined;
+  const wideFromJwt = payload.wideResellerScope === true;
+  const wideFromRole =
+    payload.userType === "External" && firstRole?.trim() === "Reseller Admin";
   return {
     id: payload.userId,
     email: payload.email,
     displayName: payload.email,
     role: mapRoleNameToAppRole(firstRole),
     roleLabel: firstRole,
+    userType: payload.userType === "External" ? "External" : payload.userType === "Internal" ? "Internal" : undefined,
     resellerId,
-    wideResellerScope: payload.wideResellerScope === true,
+    wideResellerScope: wideFromJwt || wideFromRole,
+    parentCompanyId,
   };
 }
 
@@ -321,19 +359,51 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsLoading(false);
   }, []);
 
-  const blockAuthSession = useCallback((error?: unknown) => {
-    setUser(null);
-    setPermissionsByType(undefined);
-    setIsPlatformAdmin(false);
-    setIsImpersonating(false);
-    setAuthGate("blocked");
-    publishAuthErrorBoundary(error);
-  }, []);
-
   const allowAuthSession = useCallback(() => {
     dismissAppBoundary();
     setAuthGate("ready");
   }, []);
+
+  /** Public auth pages: no `/auth/me`, verify, or refresh on load/focus. */
+  const isSkipHydrationPath = useCallback(() => {
+    if (typeof window === "undefined") return false;
+    return shouldSkipRemoteAuthHydration(window.location.pathname);
+  }, []);
+
+  const blockAuthSession = useCallback(
+    (error?: unknown) => {
+      if (isAuthSessionTerminated()) return;
+      if (isSkipHydrationPath()) return;
+
+      void (async () => {
+        if (
+          isAxiosError(error) &&
+          error.response?.status === 401 &&
+          getRefreshToken()
+        ) {
+          try {
+            await refreshSessionWithStoredRefresh();
+            if (isAuthSessionTerminated()) return;
+            allowAuthSession();
+            dismissAppBoundary("session_expired");
+            return;
+          } catch {
+            /* refresh exhausted */
+          }
+        }
+
+        if (isAuthSessionTerminated()) return;
+
+        setUser(null);
+        setPermissionsByType(undefined);
+        setIsPlatformAdmin(false);
+        setIsImpersonating(false);
+        setAuthGate("blocked");
+        publishAuthErrorBoundary(error);
+      })();
+    },
+    [allowAuthSession, isSkipHydrationPath],
+  );
 
   const rbacEnabled = useMemo(() => isRbacActive(permissionsByType), [permissionsByType]);
 
@@ -449,11 +519,57 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [allowAuthSession, blockAuthSession, syncAccountThemeFromMePayload],
   );
 
+  /** Apply impersonated user + permissions from login-as response (replace, never merge). */
+  const applyLoginAsSessionFromResponse = useCallback(
+    (response: LoginSuccessData) => {
+      const loginPerms = extractPermissionsByType(response);
+      const mappedUser = mapApiUserToUser(response.user as ApiUser);
+      const platformAdmin =
+        extractIsPlatformAdmin(response) ||
+        isJwtPlatformAdmin(decodeJwtPayload(getAccessToken() ?? ""));
+
+      flushSync(() => {
+        setPermissionsByType(loginPerms ?? undefined);
+        setUser(mappedUser ?? getUserFromAccessToken());
+        setIsImpersonating(isImpersonatingSessionActive());
+        setIsPlatformAdmin(platformAdmin);
+        setAuthGate("ready");
+        setIsLoading(false);
+      });
+      applyAccountTheme(response.user?.theme?.backgroundColor ?? null);
+      accountThemeFromMeAppliedRef.current = true;
+      allowAuthSession();
+    },
+    [allowAuthSession, applyAccountTheme],
+  );
+
+  useEffect(() => {
+    registerApplyLoginAsSession(applyLoginAsSessionFromResponse);
+    return () => registerApplyLoginAsSession(null);
+  }, [applyLoginAsSessionFromResponse]);
+
   useEffect(() => {
     registerAfterTokenSessionSync(async () => {
       await pullRemoteAuthSession({ type: "replace" });
     });
     return () => registerAfterTokenSessionSync(null);
+  }, [pullRemoteAuthSession]);
+
+  useEffect(() => {
+    registerCrossTabTokenListener((payload) => {
+      setTokenPair(
+        {
+          accessToken: payload.accessToken,
+          refreshToken: payload.refreshToken,
+        },
+        {
+          accessExpiresIn: payload.accessExpiresIn,
+          refreshExpiresIn: payload.refreshExpiresIn,
+        },
+      );
+      void pullRemoteAuthSession({ type: "merge", login: undefined });
+    });
+    return initTokenCrossTabSync();
   }, [pullRemoteAuthSession]);
 
   useEffect(() => {
@@ -492,12 +608,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     prevPathnameRef.current = current;
   }, [pathname, pullRemoteAuthSession]);
-
-  /** Public auth pages: no `/auth/me`, verify, or refresh on load/focus. */
-  const isSkipHydrationPath = useCallback(() => {
-    if (typeof window === "undefined") return false;
-    return shouldSkipRemoteAuthHydration(window.location.pathname);
-  }, []);
 
   const runSessionHydration = useCallback(async () => {
     if (isSkipHydrationPath()) {
@@ -593,6 +703,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (isSkipHydrationPath()) {
         return;
       }
+      const access = getAccessToken();
+      const refresh = getRefreshToken();
+      if (!access && !refresh) {
+        return;
+      }
+      if (access && !isAccessTokenExpiringSoon(access)) {
+        return;
+      }
       try {
         const session = await synchronizeAuthSession();
         if (!active) return;
@@ -635,18 +753,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     };
 
+    let focusDebounce: ReturnType<typeof setTimeout> | null = null;
+
     // Handles browser back/forward restores (bfcache) and tab focus resumes.
     const handleLifecycleSync = () => {
       if (isSkipHydrationPath()) {
         return;
       }
-      void syncFromServer();
+      const access = getAccessToken();
+      const refresh = getRefreshToken();
+      if (!access && !refresh) {
+        return;
+      }
+      if (access && !isAccessTokenExpiringSoon(access)) {
+        return;
+      }
+      if (focusDebounce) clearTimeout(focusDebounce);
+      focusDebounce = setTimeout(() => {
+        focusDebounce = null;
+        void syncFromServer();
+      }, 1500);
     };
     window.addEventListener("pageshow", handleLifecycleSync);
     window.addEventListener("focus", handleLifecycleSync);
 
     return () => {
       active = false;
+      if (focusDebounce) clearTimeout(focusDebounce);
       window.removeEventListener("pageshow", handleLifecycleSync);
       window.removeEventListener("focus", handleLifecycleSync);
     };
@@ -784,6 +917,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return false;
     }
     try {
+      clearAppQueryCache();
       setTokenPair(session.originalTokenPair);
       const mePayload = await getMe({ permissionsBreakdown: true });
       const meUser = extractUserFromMePayload(mePayload);
@@ -791,13 +925,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const incoming = extractPermissionsByType(mePayload);
       const platformAdmin =
         extractIsPlatformAdmin(mePayload) || isJwtPlatformAdmin(decodeJwtPayload(getAccessToken() ?? ""));
-      let mergedPermissions: PermissionsByType | undefined;
+      let restoredPermissions: PermissionsByType | undefined;
       flushSync(() => {
-        setPermissionsByType((prev) => {
-          const merged = mergePermissionsByType(prev, incoming) ?? incoming ?? prev;
-          mergedPermissions = merged ?? undefined;
-          return merged ?? undefined;
-        });
+        restoredPermissions = incoming ?? undefined;
+        setPermissionsByType(restoredPermissions);
         setUser(mappedMeUser ?? getUserFromAccessToken());
         setIsPlatformAdmin(platformAdmin);
       });
@@ -809,7 +940,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const isDemoUser = actor?.email?.trim().toLowerCase() === "demo@gmail.com";
       router.replace(
         resolveDashboardLandingHref({
-          permissionsByType: mergedPermissions,
+          permissionsByType: restoredPermissions,
           isPlatformAdmin: platformAdmin,
           isDemoUser: Boolean(isDemoUser),
         }),

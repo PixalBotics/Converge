@@ -48,13 +48,11 @@ export function mapAdminWidgetToTableRow(item: JsonRecord): AdminWidgetTableRow 
       ? websiteObj.hostname
       : typeof websiteObj?.url === "string"
         ? websiteObj.url
-        : typeof item.websiteHostname === "string"
-          ? item.websiteHostname
-          : typeof item.websiteUrl === "string"
-            ? item.websiteUrl
-            : typeof item.websiteName === "string"
-              ? item.websiteName
-              : websiteId || "—";
+        : typeof item.websiteUrl === "string"
+          ? item.websiteUrl
+          : typeof item.websiteName === "string"
+            ? item.websiteName
+            : websiteId || "—";
 
   const wt = String(item.widgetType ?? "CHAT").toUpperCase();
   let widgetTypeLabel = "Chat";
@@ -65,17 +63,19 @@ export function mapAdminWidgetToTableRow(item: JsonRecord): AdminWidgetTableRow 
   const chatEnabled = surfaces?.chatEnabled !== false;
   const textUsEnabled = surfaces?.textUsEnabled !== false;
 
-  const published =
-    item.publishedVersionNo ?? item.activeVersionNo ?? item.versionNo ?? null;
-  const statusRaw = String(item.status ?? item.widgetStatus ?? "").toLowerCase();
-  const statusLabel =
-    published != null && published !== ""
-      ? "Published"
-      : statusRaw.includes("draft")
-        ? "Draft"
-        : statusRaw
-          ? statusRaw
-          : "—";
+  const isPublished =
+    item.isPublished === true ||
+    item.publishedAt != null ||
+    item.published_at != null;
+  const hasUnpublishedDraft =
+    item.hasPendingDraft === true || item.hasUnpublishedDraft === true;
+
+  let statusLabel = "Draft";
+  if (isPublished && hasUnpublishedDraft) {
+    statusLabel = "Live · unpublished changes";
+  } else if (isPublished) {
+    statusLabel = "Live";
+  }
 
   return {
     id,
@@ -92,10 +92,9 @@ export function mapAdminWidgetToTableRow(item: JsonRecord): AdminWidgetTableRow 
       item.resellerName ?? item.clientName ?? item.resellerTitle ?? "—",
     ),
     widgetTypeLabel,
-    publishedVersionNo:
-      published !== undefined && published !== null && published !== ""
-        ? String(published)
-        : "—",
+    publishedLabel: isPublished ? "Yes" : "—",
+    draftPendingLabel: hasUnpublishedDraft ? "Pending" : "—",
+    hasUnpublishedDraft,
     chatEnabled,
     textUsEnabled,
     statusLabel,

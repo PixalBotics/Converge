@@ -3,6 +3,19 @@ export function childrenDraftFieldPath(childIndex: number, relativePath: string)
   return `childrenDraft.children.${childIndex}.${relativePath}`;
 }
 
+/** API path for a POC field on a child draft row (`pocInvite` or `pocInvites[n]`). */
+export function childrenDraftPocFieldPath(
+  childIndex: number,
+  pocIndex: number,
+  relativePath: string,
+  multiPoc: boolean,
+): string {
+  if (!multiPoc && pocIndex === 0) {
+    return childrenDraftFieldPath(childIndex, `pocInvite.${relativePath}`);
+  }
+  return childrenDraftFieldPath(childIndex, `pocInvites.${pocIndex}.${relativePath}`);
+}
+
 /** Normalize `form.` prefix and `children[0]` → `children.0` for comparisons. */
 export function normalizeApiFieldPath(path: string): string {
   return path.replace(/\[(\d+)\]/g, ".$1").replace(/^form\./, "");

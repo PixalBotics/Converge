@@ -79,7 +79,6 @@ export function GeneralOperationsTab({
   const csat = (ops.csat ?? {}) as Record<string, unknown>;
   const canned = (ops.cannedResponses ?? {}) as Record<string, unknown>;
   const guest = (ops.guestAccess ?? {}) as Record<string, unknown>;
-  const takeover = (ops.takeover ?? {}) as Record<string, unknown>;
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 3, maxWidth: 720 }}>
@@ -195,19 +194,6 @@ export function GeneralOperationsTab({
             />
           }
           label="Department guest links"
-        />
-      </Section>
-
-      <Section title="Supervisor takeover">
-        <FormControlLabel
-          disabled={!canEdit}
-          control={
-            <Switch
-              checked={readBool(takeover, "enabled")}
-              onChange={(_, v) => patchSection("takeover", { enabled: v })}
-            />
-          }
-          label="Allow takeover requests"
         />
       </Section>
 

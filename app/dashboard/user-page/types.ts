@@ -13,6 +13,8 @@ export interface UserRow extends Record<string, unknown> {
   resellerId?: string;
   /** UUID when API exposes it. */
   parentCompanyId?: string;
+  /** Active `company_contacts` link — POC users cannot be deleted from the users list. */
+  isPoc?: boolean;
 }
 
 export type UnknownRecord = Record<string, unknown>;

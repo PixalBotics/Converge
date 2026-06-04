@@ -18,7 +18,32 @@ export function resolveSocketEndpoint(params: {
   envNamespace?: string;
   defaultNamespace: string;
 }): SocketEndpoint {
-  const rawBase = params.envBaseUrl || params.envFallbackBaseUrl || "";
+  let rawBase = params.envBaseUrl || params.envFallbackBaseUrl || "";
+
+  // Local dev: REST and Socket.IO must share the same API host or room events never arrive.
+  if (
+    process.env.NODE_ENV === "development" &&
+    params.envBaseUrl?.trim() &&
+    params.envFallbackBaseUrl?.trim()
+  ) {
+    try {
+      const socketHost = new URL(params.envBaseUrl.trim()).hostname;
+      const apiHost = new URL(params.envFallbackBaseUrl.trim()).hostname;
+      if (socketHost !== apiHost) {
+        rawBase = params.envFallbackBaseUrl;
+        if (typeof console !== "undefined") {
+          console.warn(
+            `[socket] Ignoring NEXT_PUBLIC_*_SOCKET_BASE_URL (${params.envBaseUrl.trim()}) ` +
+              `because it does not match NEXT_PUBLIC_API_BASE_URL (${params.envFallbackBaseUrl.trim()}). ` +
+              "Using the API origin for Socket.IO so chat realtime matches REST.",
+          );
+        }
+      }
+    } catch {
+      /* keep configured socket base */
+    }
+  }
+
   const baseUrl = rawBase.replace(/\/+$/, "");
   const namespace = normalizeSocketNamespace(
     params.envNamespace || params.defaultNamespace,

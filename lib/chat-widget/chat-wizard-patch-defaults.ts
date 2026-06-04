@@ -17,6 +17,9 @@ export const CHAT_WIZARD_PATCH_DEFAULTS = {
   designJsonAccent: "blue",
   designJsonDensity: "comfortable",
   buttonLabel: "Chat with us",
+  proactiveTeaser: "Any questions? Let us know!",
+  proactiveSecondaryCtaLabel: "Contact us on WhatsApp",
+  proactiveSecondaryCtaHref: "https://wa.me/",
   firstMessage: "Hi! How can we help today?",
   messagePlaceholder: "Write here…",
   backgroundColor: "#f8fafc",
@@ -24,9 +27,14 @@ export const CHAT_WIZARD_PATCH_DEFAULTS = {
   botEnabled: true,
   notificationEnabled: true,
   inquiryOptions: normalizeWidgetInquiryOptions(["Billing", "Technical", "Sales"]),
+  inquiryRequired: false,
+  inquirySkipLabel: "General question",
   welcomeMessage: "Thanks for reaching out.",
   autoOpenEnabled: false,
   autoOpenDelaySeconds: 10,
+  autoOpenOnReturnVisit: false,
+  notificationSoundId: "chime" as const,
+  launcherBadgeMode: "count" as const,
   fileUploadEnabled: true,
   emojiEnabled: true,
   consentRequired: true,
@@ -51,7 +59,7 @@ export const CHAT_WIZARD_PATCH_DEFAULTS = {
   responseSendPlaceholder: "Ask us anything…",
   responseAiPromptHint: "Be concise and helpful.",
   responseAgentHandoverEnabled: true,
-  responseHandoverTriggerText: "talk to human",
+  responseHandoverTriggerText: "Talk to agent",
 };
 
 export function defaultWizardFormFields(): JsonRecord[] {

@@ -116,6 +116,32 @@ function mapRoster(raw: unknown, websiteId: string): QaRosterResponse {
   return { websiteId, userIds, internal, external };
 }
 
+export type QaWebsiteRosterExclusions = {
+  websiteId: string;
+  chatAgentUserIds: string[];
+  qaReviewerUserIds: string[];
+};
+
+export async function fetchQaWebsiteRosterExclusions(
+  websiteId: string,
+): Promise<QaWebsiteRosterExclusions> {
+  const { data } = await apiClient.get<unknown>(
+    `/chat/qa/websites/${encodeURIComponent(websiteId)}/roster-exclusions`,
+  );
+  const raw = unwrapChatHttpData<Record<string, unknown>>(data);
+  const chatAgentUserIds = Array.isArray(raw.chatAgentUserIds)
+    ? (raw.chatAgentUserIds as unknown[]).map((id) => String(id).trim()).filter(Boolean)
+    : [];
+  const qaReviewerUserIds = Array.isArray(raw.qaReviewerUserIds)
+    ? (raw.qaReviewerUserIds as unknown[]).map((id) => String(id).trim()).filter(Boolean)
+    : [];
+  return {
+    websiteId: String(raw.websiteId ?? websiteId),
+    chatAgentUserIds,
+    qaReviewerUserIds,
+  };
+}
+
 export async function fetchQaWebsiteRoster(websiteId: string): Promise<QaRosterResponse> {
   const { data } = await apiClient.get<unknown>(
     `/chat/qa/websites/${encodeURIComponent(websiteId)}/roster`,

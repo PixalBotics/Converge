@@ -154,17 +154,21 @@ export function mapApiChatColorsToDraft(
 }
 
 export function readWidgetChatColorsFromDraft(draft: Partial<WidgetDraft>): WidgetChatColorsDraft {
+  const panel = draft.backgroundColor?.trim() || "#f8fafc";
   const derived = deriveWidgetChatColorsDraft({
     buttonColor: draft.buttonColor ?? "#1E63D5",
     buttonHoverColor: draft.buttonHoverColor ?? "#164EB0",
     iconColor: draft.iconColor ?? "#ffffff",
     textColor: draft.textColor ?? "#0f172a",
     themeSecondaryColor: draft.themeSecondaryColor ?? "#64748b",
-    backgroundColor: draft.backgroundColor ?? "#f8fafc",
+    backgroundColor: panel,
   });
 
+  const panelSafe = (explicit: string | undefined, fallback: string) =>
+    pickReadableText(panel, explicit?.trim() || fallback);
+
   return {
-    chatBodyText: draft.chatBodyText?.trim() || derived.chatBodyText,
+    chatBodyText: panelSafe(draft.chatBodyText, derived.chatBodyText),
     chatMutedText: draft.chatMutedText?.trim() || derived.chatMutedText,
     incomingMessageBg: draft.incomingMessageBg?.trim() || derived.incomingMessageBg,
     incomingMessageText: draft.incomingMessageText?.trim() || derived.incomingMessageText,
@@ -177,7 +181,7 @@ export function readWidgetChatColorsFromDraft(draft: Partial<WidgetDraft>): Widg
     inputBorderColor: draft.inputBorderColor?.trim() || derived.inputBorderColor,
     inputPlaceholderColor:
       draft.inputPlaceholderColor?.trim() || derived.inputPlaceholderColor,
-    labelColor: draft.labelColor?.trim() || derived.labelColor,
+    labelColor: panelSafe(draft.labelColor, derived.labelColor),
     inquiryPillBg: draft.inquiryPillBg?.trim() || derived.inquiryPillBg,
     inquiryPillText: draft.inquiryPillText?.trim() || derived.inquiryPillText,
     inquiryPillBorder: draft.inquiryPillBorder?.trim() || derived.inquiryPillBorder,
@@ -219,8 +223,8 @@ export function buildChatColorsFromWidgetDraft(draft: WidgetDraft): Record<strin
     headerText,
     secondary,
     panelBackground: panel,
-    bodyText: c.chatBodyText || headerText,
-    mutedText: c.chatMutedText || mixHex(headerText, panel, 62),
+    bodyText: c.chatBodyText || pickReadableText(panel, headerText),
+    mutedText: c.chatMutedText || mixHex(c.chatBodyText || pickReadableText(panel, headerText), panel, 62),
     incomingMessageBg: incomingBg,
     incomingMessageText: incomingText,
     outgoingMessageBg: c.outgoingMessageBg || button,
@@ -231,7 +235,7 @@ export function buildChatColorsFromWidgetDraft(draft: WidgetDraft): Record<strin
     inputText: c.inputText || pickReadableText(c.inputBackground || "#ffffff", headerText),
     inputBorderColor: c.inputBorderColor || mixHex(secondary, panel, 55),
     inputPlaceholderColor: c.inputPlaceholderColor || c.chatMutedText,
-    labelColor: c.labelColor || headerText,
+    labelColor: c.labelColor || pickReadableText(panel, headerText),
     inquiryPillBg: c.inquiryPillBg || panel,
     inquiryPillText: c.inquiryPillText || pickReadableText(panel, headerText),
     inquiryPillBorder: c.inquiryPillBorder || mixHex(secondary, panel, 70),

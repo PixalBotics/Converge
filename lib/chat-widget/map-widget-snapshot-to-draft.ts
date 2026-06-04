@@ -14,7 +14,7 @@ function pickRecord(...items: unknown[]): JsonRecord | null {
 
 /**
  * Maps `GET /widgets/:widgetKey/snapshot` into wizard `WidgetDraft` fields.
- * Edit hydration prefers `latestVersion` (draft/config) and does not fall back to published version data.
+ * Uses current draft config; overlays published only for missing keys.
  */
 export function mapWidgetSnapshotToWidgetDraft(
   snapshotPayload: unknown,
@@ -25,10 +25,15 @@ export function mapWidgetSnapshotToWidgetDraft(
     return { remoteWidgetKey: widgetKey, widgetId: widgetKey };
   }
 
-  const latestVersion = pickRecord(snapshot.latestVersion);
-  const latestVersionConfig = pickRecord(latestVersion?.config);
-  const draftOverlay = pickRecord(latestVersion?.draftConfig, snapshot.draftConfig);
-  const mergedConfig = mergeWidgetConfigForEdit(latestVersionConfig, draftOverlay);
+  const draftBlock = pickRecord(snapshot.draft);
+  const publishedBlock = pickRecord(snapshot.published);
+  const draftConfig = pickRecord(draftBlock?.config, snapshot.configSnapshot);
+  const publishedConfig = pickRecord(publishedBlock?.config);
+  const draftOverlay = pickRecord(draftBlock?.config, snapshot.draftConfig);
+  const mergedConfig = mergeWidgetConfigForEdit(
+    draftConfig ?? draftOverlay ?? {},
+    publishedConfig,
+  );
 
   const syntheticAdminShape: JsonRecord = {
     widgetKey: snapshot.widgetKey ?? widgetKey,

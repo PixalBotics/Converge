@@ -5,18 +5,29 @@ import path from "path";
 // Locally we use custom dirs so dev (`.next-dev`) and prod (`.next-release`) do not fight on Windows.
 const isVercel = process.env.VERCEL === "1";
 const isNetlify = process.env.NETLIFY === "true";
+const isEmbedDev = process.env.WIDGET_EMBED_DEV === "1";
 const distDir =
   isVercel || isNetlify
     ? ".next"
-    : process.env.NODE_ENV === "production"
-      ? ".next-release"
-      : ".next-dev";
+    : isEmbedDev
+      ? ".next-embed-dev"
+      : process.env.NODE_ENV === "production"
+        ? ".next-release"
+        : ".next-dev";
+
+const isProduction = process.env.NODE_ENV === "production";
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
   compress: true,
+  productionBrowserSourceMaps: false,
   distDir,
+  compiler: isProduction
+    ? {
+        removeConsole: { exclude: ["error", "warn"] },
+      }
+    : undefined,
   /** Broken nested ESLint deps on some Windows installs; run `npm run lint` separately. */
   eslint: { ignoreDuringBuilds: true },
   typescript: { ignoreBuildErrors: false },
@@ -24,6 +35,49 @@ const nextConfig: NextConfig = {
   experimental: {
     /** Lowers webpack peak memory (Next.js 15+); slight compile-time tradeoff. */
     webpackMemoryOptimizations: true,
+  },
+  async headers() {
+    if (!isProduction) return [];
+
+    const sharedSecurityHeaders = [
+      { key: "X-DNS-Prefetch-Control", value: "on" },
+      { key: "X-Content-Type-Options", value: "nosniff" },
+      { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+      {
+        key: "Permissions-Policy",
+        value: "camera=(), microphone=(), geolocation=()",
+      },
+    ] as const;
+
+    return [
+      /**
+       * Visitor widget iframe — must be embeddable on customer sites (cross-origin).
+       * No X-Frame-Options; CSP frame-ancestors allows any parent.
+       */
+      {
+        source: "/embed/:path*",
+        headers: [
+          ...sharedSecurityHeaders,
+          { key: "Content-Security-Policy", value: "frame-ancestors *" },
+        ],
+      },
+      /** Dashboard + auth — keep clickjacking protection. Excludes /embed/* via lookahead. */
+      {
+        source: "/((?!embed/).*)",
+        headers: [
+          ...sharedSecurityHeaders,
+          { key: "X-Frame-Options", value: "SAMEORIGIN" },
+        ],
+      },
+    ];
+  },
+  async rewrites() {
+    return [
+      {
+        source: "/widget-static/:path*",
+        destination: `${process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001"}/widget-static/:path*`,
+      },
+    ];
   },
   async redirects() {
     return [

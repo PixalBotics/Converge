@@ -1,13 +1,10 @@
-"use client";
+import { redirect } from "next/navigation";
 
-import { use } from "react";
-import { ChatQaWorkspace } from "@/features/chat-qa";
-
-export default function ChatQaConversationPage({
+export default async function LegacyChatQaConversationPage({
   params,
 }: {
   params: Promise<{ conversationId: string }>;
 }) {
-  const { conversationId } = use(params);
-  return <ChatQaWorkspace initialConversationId={conversationId} />;
+  const { conversationId } = await params;
+  redirect(`/dashboard/qa/inbox/${encodeURIComponent(conversationId)}`);
 }

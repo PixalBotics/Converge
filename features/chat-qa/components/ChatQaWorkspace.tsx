@@ -4,10 +4,8 @@ import { useEffect, useMemo } from "react";
 import Box from "@mui/material/Box";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
-import { mergeSx } from "@/lib/mui/merge-sx";
 import { PermissionDeniedPanel } from "@/components/common";
 import {
-  buildChatLiveNavItems,
   canAnnotateQaMessage,
   canAssignQaReview,
   canReviewQaSession,
@@ -16,25 +14,20 @@ import {
 import { Button, DashboardCard, Typography } from "@/components/common";
 import {
   ChatLivePageHeader,
+  ChatLivePageShell,
   ChatScopeFiltersPanel,
   qaRowMatchesScope,
   useChatScopeFilters,
 } from "@/features/chat-shared";
-import {
-  chatLivePageStackSx,
-  chatLiveQueueStatPillSx,
-} from "@/features/chat-shared/styles/chat-live.styles";
+import { chatLiveQueueStatPillSx } from "@/features/chat-shared/styles/chat-live.styles";
 import { useChatQa } from "../hooks/useChatQa";
 import { QaQueueSidebar } from "./QaQueueSidebar";
 import { QaAnnotatedTranscript } from "./QaAnnotatedTranscript";
 import { QaSessionReviewPanel } from "./QaSessionReviewPanel";
 import { QaTimelinePanel } from "./QaTimelinePanel";
 import { useQaRosterQuery } from "@/features/chat-settings/hooks/useChatSettings";
-import {
-  chatQaPageWrapper,
-  chatQaWorkspaceGrid,
-  chatQaWorkspaceShell,
-} from "../styles/chat-qa.styles";
+import { chatQaWorkspaceGrid, chatQaWorkspaceShell } from "../styles/chat-qa.styles";
+import { QA_HUB_BASE } from "@/features/chat-qa/constants/qa-nav";
 
 export function ChatQaWorkspace({
   initialConversationId = null,
@@ -42,13 +35,9 @@ export function ChatQaWorkspace({
   initialConversationId?: string | null;
 }) {
   const router = useRouter();
-  const { hasOperational, hasPage, permissionsSyncing } = useAuth();
+  const { hasOperational, permissionsSyncing, user } = useAuth();
   const gates = useChatApiGates();
   const allowed = gates.qa;
-  const chatNavItems = useMemo(
-    () => buildChatLiveNavItems(hasPage, hasOperational),
-    [hasPage, hasOperational],
-  );
   const scopeFilters = useChatScopeFilters(undefined, { apiEnabled: allowed });
 
   const qa = useChatQa(initialConversationId, { apiEnabled: allowed });
@@ -91,8 +80,19 @@ export function ChatQaWorkspace({
     return <Typography sx={{ py: 4 }}>Sign in to open the QA inbox.</Typography>;
   }
 
-  const rosterWebsiteId = qa.bundle?.review?.websiteId?.trim() ?? "";
-  const rosterQuery = useQaRosterQuery(rosterWebsiteId, Boolean(rosterWebsiteId) && canAssignQaReview(hasOperational));
+  const rosterWebsiteId = useMemo(() => {
+    const fromReview = qa.bundle?.review?.websiteId?.trim();
+    if (fromReview) return fromReview;
+    const row = qa.queue.find((r) => r.conversationId === qa.selectedConversationId);
+    if (row?.websiteId?.trim()) return row.websiteId.trim();
+    const transcript = qa.bundle?.transcript as { websiteId?: string } | undefined;
+    return transcript?.websiteId?.trim() ?? "";
+  }, [qa.bundle?.review?.websiteId, qa.bundle?.transcript, qa.queue, qa.selectedConversationId]);
+
+  const rosterQuery = useQaRosterQuery(
+    rosterWebsiteId,
+    Boolean(rosterWebsiteId) && canAssignQaReview(hasOperational),
+  );
 
   const rosterAssignOptions = useMemo(() => {
     const channel = String(qa.bundle?.review?.serviceChannel ?? qa.bundle?.transcript?.serviceChannel ?? "internal")
@@ -106,15 +106,15 @@ export function ChatQaWorkspace({
 
   const handleSelect = (id: string) => {
     qa.selectConversation(id);
-    router.replace(`/dashboard/chat-qa/${encodeURIComponent(id)}`, { scroll: false });
+    router.replace(`${QA_HUB_BASE}/inbox/${encodeURIComponent(id)}`, { scroll: false });
   };
 
   return (
-    <Box sx={mergeSx(chatQaPageWrapper, chatLivePageStackSx)}>
+    <ChatLivePageShell variant="workstation">
       <ChatLivePageHeader
         title="QA inbox"
-        subtitle="Review closed conversations, annotate messages, and score sessions."
-        navItems={chatNavItems}
+        subtitle="Closed chats land in your queue. Read the transcript, score the session, then submit the QA report."
+        navPreset="triage"
         trailing={
           <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75, justifyContent: "flex-end" }}>
             <Box sx={chatLiveQueueStatPillSx("waiting")}>
@@ -184,6 +184,7 @@ export function ChatQaWorkspace({
               bundle={qa.bundle}
               canEdit={canReviewQaSession(hasOperational)}
               canAssign={canAssignQaReview(hasOperational)}
+              currentUserId={user?.id ?? null}
               rosterAssignOptions={rosterAssignOptions}
               onSave={qa.saveSessionReview}
               onClaim={qa.claimReview}
@@ -194,6 +195,6 @@ export function ChatQaWorkspace({
           </Box>
         </Box>
       </Box>
-    </Box>
+    </ChatLivePageShell>
   );
 }

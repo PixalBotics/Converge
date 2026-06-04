@@ -163,7 +163,7 @@ export function WorkingWeekDayToggles({
         </Typography>
         <Button
           type="button"
-          variant="text"
+          variant="outlined"
           size="small"
           disabled={disabled}
           onClick={() => onChange(HRMS_DEFAULT_WORKING_DAYS_MASK)}

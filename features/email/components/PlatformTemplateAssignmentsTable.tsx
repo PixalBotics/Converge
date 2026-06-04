@@ -9,9 +9,8 @@ import type { DataTableColumn } from "@/components/common";
 import type { PlatformTemplateAssignmentListItem } from "@/api/email/email.api";
 import { AddCircleIcon } from "@/components/common/icons";
 import { iconGlyphSx } from "@/lib/design-system";
-import { useAuth } from "@/lib/auth";
-import { OP } from "@/lib/permissions/operational-keys";
 import { extractApiErrorMessageForToast, publishAppToast } from "@/lib/notify";
+import { useEmailTemplateAccess } from "../hooks/useEmailTemplateAccess";
 import { gradientPrimaryButtonSx } from "../styles/email-page.styles";
 import { EmailConfigTableCard } from "../styles/email-configuration.styled";
 import { EmailTableCardHeader } from "./EmailTableCardHeader";
@@ -27,9 +26,7 @@ import { usePlatformEmailTemplatePublishedQuery } from "../hooks/useEmailTemplat
 type DeleteTarget = { resellerId: string; resellerName: string };
 
 export function PlatformTemplateAssignmentsTable() {
-  const { hasOperational } = useAuth();
-  const canView = hasOperational(OP.emailTemplate.view);
-  const canUpdate = hasOperational(OP.emailTemplate.update);
+  const { canView, canUpdate } = useEmailTemplateAccess();
 
   const publishedQuery = usePlatformEmailTemplatePublishedQuery({ enabled: canView });
   const listQuery = usePlatformTemplateAssignmentListQuery({ enabled: canView });

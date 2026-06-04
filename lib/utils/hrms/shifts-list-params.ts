@@ -39,3 +39,14 @@ export function buildHrmsShiftsListQueryRecord(
   }
   return Object.keys(out).length > 0 ? out : undefined;
 }
+
+/** After create, align list filter so the new row is visible without a manual refresh. */
+export function listCatalogFilterAfterShiftCreate(
+  createdScope: "platform" | "tenant",
+  current: "all" | "internal" | "external",
+): "all" | "internal" | "external" {
+  if (current === "all") return current;
+  if (createdScope === "platform" && current === "external") return "internal";
+  if (createdScope === "tenant" && current === "internal") return "external";
+  return current;
+}

@@ -31,6 +31,7 @@ export function usePlatformEmailSettingsQuery(options?: { enabled?: boolean }) {
     queryKey: emailKeys.platformSettings(),
     queryFn: () => getPlatformEmailSettings(),
     enabled: options?.enabled ?? true,
+    staleTime: 0,
   });
 }
 
@@ -89,6 +90,7 @@ export function useResellerOwnMailSettingsQuery(
     queryFn: () => getResellerOwnMailSettings(rid),
     enabled: Boolean(rid) && (options?.enabled ?? true),
     retry: false,
+    staleTime: 0,
   });
 }
 

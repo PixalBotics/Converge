@@ -3,6 +3,9 @@
 import DoneAll from "@mui/icons-material/DoneAll";
 import type { ChatMessage } from "@/services/chat/chat.types";
 import { Typography } from "@/components/common";
+import { ChatMessageContent } from "./ChatMessageContent";
+import { isInboxFormLinkMessage } from "../utils/inbox-transcript-messages";
+import Box from "@mui/material/Box";
 import { formatMessageTime } from "../utils/format-message-time";
 import type { MessageGroupPosition } from "../utils/message-grouping";
 import {
@@ -41,23 +44,28 @@ export function ChatMessageBubble({
   const showMeta = shouldShowMessageMeta(groupPosition);
   const senderLabel = isOutgoing ? agentDisplayName : visitorDisplayName;
 
+  if (isSystem && isInboxFormLinkMessage(message)) {
+    return (
+      <Box
+        sx={{
+          width: "100%",
+          maxWidth: 560,
+          alignSelf: "center",
+          my: 0.75,
+          px: { xs: 0.5, md: 0 },
+        }}
+      >
+        <ChatMessageContent message={message} />
+      </Box>
+    );
+  }
+
   if (isSystem) {
     return (
       <MessageRowOuter system>
         <MessageRow system>
           <MessageBubble outgoing={false} system groupPosition="single">
-            <Typography
-              component="span"
-              sx={{
-                color: "inherit",
-                fontSize: "inherit",
-                lineHeight: "inherit",
-                whiteSpace: "pre-wrap",
-                wordBreak: "break-word",
-              }}
-            >
-              {message.content}
-            </Typography>
+            <ChatMessageContent message={message} />
           </MessageBubble>
         </MessageRow>
       </MessageRowOuter>
@@ -74,18 +82,7 @@ export function ChatMessageBubble({
 
       <MessageRow outgoing={isOutgoing}>
         <MessageBubble outgoing={isOutgoing} groupPosition={groupPosition}>
-          <Typography
-            component="span"
-            sx={{
-              color: "inherit",
-              fontSize: "inherit",
-              lineHeight: "inherit",
-              whiteSpace: "pre-wrap",
-              wordBreak: "break-word",
-            }}
-          >
-            {message.content}
-          </Typography>
+          <ChatMessageContent message={message} />
         </MessageBubble>
         {showMeta ? (
           <MessageMeta

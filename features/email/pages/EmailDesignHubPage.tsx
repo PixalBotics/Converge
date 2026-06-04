@@ -1,19 +1,14 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import VisibilityOutlined from "@mui/icons-material/VisibilityOutlined";
-import EditOutlined from "@mui/icons-material/EditOutlined";
 import PaletteOutlined from "@mui/icons-material/PaletteOutlined";
 import Box from "@mui/material/Box";
-import Chip from "@mui/material/Chip";
 import Skeleton from "@mui/material/Skeleton";
 import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import {
-  AppIconButton,
   Button,
-  DashboardCard,
   DataTable,
   SearchBar,
   TablePagination,
@@ -24,16 +19,20 @@ import { AddCircleIcon } from "@/components/common/icons";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
 import { iconGlyphSx } from "@/lib/design-system";
 import { useAuth } from "@/lib/auth";
-import { OP } from "@/lib/permissions/operational-keys";
+import { useEmailTemplateAccess } from "../hooks/useEmailTemplateAccess";
 import { EMAIL_ROUTES } from "../email.constants";
-import { EmailPreviewFrame } from "../components/EmailPreviewFrame";
 import { EmailAddResellerDesignModal } from "../components/EmailAddResellerDesignModal";
 import { EmailConfigTableCard } from "../styles/email-configuration.styled";
 import { EmailTableCardHeader } from "../components/EmailTableCardHeader";
+import { EmailDesignPreviewOverlay } from "../components/EmailDesignPreviewOverlay";
+import { EmailDesignSourceChip } from "../components/EmailDesignSourceChip";
+import { EmailDesignTableActions } from "../components/EmailDesignTableActions";
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/api/http/axios-instance";
 import { unwrapApiData } from "@/api/email/unwrap-api-data";
 import { useEmailTemplatePreviewByIdQuery } from "../hooks/useEmailTemplate";
+import { departmentsFooterRow, emailToolbarRow, footerMutedText } from "../styles/email-page.styles";
+import { emailDesignCatalogTableSx } from "../styles/email-table.styles";
 
 type CatalogRow = {
   resellerId: string;
@@ -56,12 +55,28 @@ async function fetchDesignCatalog(search: string, page: number) {
   }>(data);
 }
 
+function formatPublishedAt(value: string | null): string {
+  if (!value) return "—";
+  return new Date(value).toLocaleString(undefined, {
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
+}
+
 export function EmailDesignHubPage() {
   const theme = useTheme() as AppTheme;
   const router = useRouter();
-  const { hasOperational } = useAuth();
-  const canView = hasOperational(OP.emailTemplate.view);
-  const canUpdate = hasOperational(OP.emailTemplate.update);
+  const { user } = useAuth();
+  const { canView, canUpdate } = useEmailTemplateAccess();
+
+  const scopedResellerId = user?.resellerId?.trim();
+  const isExternalReseller =
+    user?.userType === "External" && Boolean(scopedResellerId);
+
+  useEffect(() => {
+    if (!canView || !isExternalReseller || !scopedResellerId) return;
+    router.replace(EMAIL_ROUTES.designResellerEdit(scopedResellerId));
+  }, [canView, isExternalReseller, scopedResellerId, router]);
 
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
@@ -80,6 +95,10 @@ export function EmailDesignHubPage() {
   });
 
   const rows = catalogQuery.data?.items ?? [];
+  const total = catalogQuery.data?.total ?? 0;
+  const totalPages = Math.max(1, catalogQuery.data?.totalPages ?? 1);
+  const isLoading = catalogQuery.isLoading || catalogQuery.isFetching;
+
   const columns = useMemo<DataTableColumn<CatalogRow>[]>(
     () => [
       { id: "resellerName", label: "Reseller", align: "left" },
@@ -87,21 +106,14 @@ export function EmailDesignHubPage() {
         id: "templateMode",
         label: "Design source",
         align: "left",
-        render: (_v, row) => (
-          <Chip
-            size="small"
-            label={row.usesPlatformDefault ? "Platform default" : "Custom published"}
-            color={row.usesPlatformDefault ? "info" : "success"}
-            variant="outlined"
-          />
-        ),
+        render: (_v, row) => <EmailDesignSourceChip usesPlatformDefault={row.usesPlatformDefault} />,
       },
       {
         id: "publishedAt",
         label: "Last published",
         align: "left",
-        render: (_v, row) =>
-          row.publishedAt ? new Date(row.publishedAt).toLocaleString() : "—",
+        cellVariant: "muted",
+        render: (_v, row) => formatPublishedAt(row.publishedAt),
       },
     ],
     [],
@@ -109,6 +121,10 @@ export function EmailDesignHubPage() {
 
   if (!canView) {
     return <Typography variant="medium">Access denied.</Typography>;
+  }
+
+  if (isExternalReseller) {
+    return null;
   }
 
   const addButton = canUpdate ? (
@@ -119,21 +135,31 @@ export function EmailDesignHubPage() {
       sx={gradientPrimaryButtonSx}
       onClick={() => setAddOpen(true)}
     >
-      Add reseller email design
+      Add reseller design
     </Button>
   ) : null;
 
+  const rangeStart = total === 0 ? 0 : (page - 1) * 10 + 1;
+  const rangeEnd = Math.min(page * 10, total);
+
   return (
     <>
-      <EmailConfigTableCard>
+      <EmailConfigTableCard elevation={0}>
         <EmailTableCardHeader
-          icon={<PaletteOutlined sx={iconGlyphSx(22)} />}
+          icon={
+            <PaletteOutlined
+              sx={{
+                ...(iconGlyphSx("sm") as object),
+                color: theme.app.dashboard.white95,
+              }}
+            />
+          }
           title="Reseller email designs"
-          subtitle="Custom transcript email per reseller. Resellers on platform default appear under Use platform design."
+          subtitle="Resellers use the platform template by default. Add or edit a custom design when a reseller needs their own branding."
           action={addButton}
         />
 
-        <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 2 }}>
+        <Box sx={emailToolbarRow}>
           <SearchBar
             value={search}
             onChange={(v) => {
@@ -141,126 +167,97 @@ export function EmailDesignHubPage() {
               setPage(1);
             }}
             placeholder="Search reseller…"
-            sx={{ minWidth: 220, maxWidth: 360 }}
+            sx={{ minWidth: 0, width: "100%", maxWidth: 360, ml: "auto" }}
           />
         </Box>
 
-        {catalogQuery.isLoading ? (
-          <Skeleton variant="rounded" height={320} />
-        ) : (
-          <>
-            <DataTable<CatalogRow>
-              columns={columns}
-              rows={rows}
-              getRowId={(r) => r.resellerId}
-              minWidth={720}
-              actionColumn={{
-                label: "Actions",
-                align: "right",
-                render: (row) => (
-                  <Box sx={{ display: "flex", gap: 0.5, justifyContent: "flex-end" }}>
-                    <AppIconButton
-                      type="button"
-                      aria-label="Preview"
-                      disabled={!row.previewTemplateId}
-                      onClick={() => {
+        <DataTable<CatalogRow>
+          columns={columns}
+          rows={rows}
+          getRowId={(r) => r.resellerId}
+          isLoading={isLoading}
+          minWidth={760}
+          size="medium"
+          tableSx={emailDesignCatalogTableSx}
+          emptyState={{
+            title: catalogQuery.isError ? "Could not load designs" : "No reseller designs yet",
+            description: catalogQuery.isError
+              ? "Check your connection and try again."
+              : canUpdate
+                ? "Resellers on the platform default are not listed here until you add a custom design."
+                : "No custom reseller designs are configured yet.",
+          }}
+          actionColumn={{
+            label: "Actions",
+            align: "right",
+            render: (row) => (
+              <EmailDesignTableActions
+                previewLabel={`Preview design for ${row.resellerName}`}
+                editLabel={`Edit design for ${row.resellerName}`}
+                canPreview
+                canEdit={canUpdate}
+                previewDisabled={!row.previewTemplateId}
+                onPreview={
+                  row.previewTemplateId
+                    ? () => {
                         setPreviewResellerId(row.resellerId);
                         setPreviewTemplateId(row.previewTemplateId);
-                      }}
-                    >
-                      <VisibilityOutlined fontSize="small" />
-                    </AppIconButton>
-                    {canUpdate ? (
-                      <AppIconButton
-                        type="button"
-                        aria-label="Set design"
-                        onClick={() =>
-                          router.push(EMAIL_ROUTES.designResellerEdit(row.resellerId))
-                        }
-                      >
-                        <EditOutlined fontSize="small" />
-                      </AppIconButton>
-                    ) : null}
-                  </Box>
-                ),
-              }}
-            />
-            <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 2 }}>
-              <TablePagination
-                page={page}
-                pageCount={Math.max(1, catalogQuery.data?.totalPages ?? 1)}
-                onPageChange={catalogQuery.isLoading ? undefined : setPage}
+                      }
+                    : undefined
+                }
+                onEdit={
+                  canUpdate
+                    ? () => router.push(EMAIL_ROUTES.designResellerEdit(row.resellerId))
+                    : undefined
+                }
               />
-            </Box>
-          </>
-        )}
+            ),
+          }}
+        />
+
+        <Box sx={departmentsFooterRow}>
+          <Typography variant="medium" sx={footerMutedText(theme)}>
+            {isLoading
+              ? "Loading…"
+              : total === 0
+                ? "0 resellers"
+                : `Showing ${rangeStart}–${rangeEnd} of ${total} reseller${total === 1 ? "" : "s"}`}
+          </Typography>
+          <TablePagination
+            page={page}
+            pageCount={totalPages}
+            onPageChange={isLoading ? undefined : setPage}
+          />
+        </Box>
       </EmailConfigTableCard>
 
       <EmailAddResellerDesignModal open={addOpen} onClose={() => setAddOpen(false)} />
 
-      {previewTemplateId ? (
-        <Box
-          sx={{
-            position: "fixed",
-            inset: 0,
-            zIndex: 1300,
-            bgcolor: "rgba(0,0,0,0.55)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            p: 2,
-          }}
-          onClick={() => {
-            setPreviewTemplateId(null);
-            setPreviewResellerId(null);
-          }}
-        >
-          <Box
-            sx={{
-              width: "min(720px, 100%)",
-              maxHeight: "90vh",
-              overflow: "auto",
-              bgcolor: theme.app.dashboard.cardBg,
-              borderRadius: 2,
-              p: 2,
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <Typography variant="mediumLarge" fontWeight={700} sx={{ mb: 1 }}>
-              Email preview
-            </Typography>
-            {previewQuery.isLoading ? (
-              <Skeleton variant="rounded" height={400} />
-            ) : (
-              <EmailPreviewFrame html={previewQuery.data?.html ?? ""} title="Preview" />
-            )}
-            <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 2, gap: 1 }}>
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={() => {
-                  setPreviewTemplateId(null);
-                  setPreviewResellerId(null);
-                }}
-              >
-                Close
-              </Button>
-              {previewResellerId && canUpdate ? (
-                <Button
-                  type="button"
-                  variant="primary"
-                  onClick={() => {
-                    setPreviewTemplateId(null);
-                    router.push(EMAIL_ROUTES.designResellerEdit(previewResellerId));
-                  }}
-                >
-                  Set design
-                </Button>
-              ) : null}
-            </Box>
-          </Box>
-        </Box>
-      ) : null}
+      <EmailDesignPreviewOverlay
+        open={Boolean(previewTemplateId)}
+        title="Email preview"
+        html={previewQuery.data?.html ?? ""}
+        loading={previewQuery.isLoading}
+        onClose={() => {
+          setPreviewTemplateId(null);
+          setPreviewResellerId(null);
+        }}
+        footerActions={
+          previewResellerId && canUpdate ? (
+            <Button
+              type="button"
+              variant="primary"
+              sx={gradientPrimaryButtonSx}
+              onClick={() => {
+                setPreviewTemplateId(null);
+                router.push(EMAIL_ROUTES.designResellerEdit(previewResellerId));
+              }}
+            >
+              Edit design
+            </Button>
+          ) : null
+        }
+      />
     </>
   );
 }

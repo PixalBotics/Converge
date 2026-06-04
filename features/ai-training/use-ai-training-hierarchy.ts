@@ -18,6 +18,7 @@ import {
   useWebsiteAssignmentsWebsitesQuery,
 } from "@/lib/hooks";
 import { extractApiErrorMessageForToast } from "@/lib/notify/extract-api-message";
+import { websiteAssignmentItemToSelectOption } from "@/lib/websites/format-website-select-label";
 
 export function useAiTrainingHierarchy() {
   const { user } = useAuth();
@@ -145,12 +146,7 @@ export function useAiTrainingHierarchy() {
     }
     return [
       { value: "", label: "Select website" },
-      ...websiteRows.map((w) => {
-        const name = (w.name ?? "").trim() || "Website";
-        const url = (w.url ?? "").trim();
-        const label = url ? `${name} — ${url}`.slice(0, 120) : name;
-        return { value: w.websiteId, label };
-      }),
+      ...websiteRows.map((w) => websiteAssignmentItemToSelectOption(w)),
     ];
   }, [websiteRows, websitesQuery.isFetching]);
 
@@ -178,6 +174,17 @@ export function useAiTrainingHierarchy() {
   const websitesLoading = hierarchyReady && websitesQuery.isFetching && !websitesQuery.data;
   const hasWebsiteChoices = websiteRows.length > 0;
 
+  const selectedWebsite = useMemo(() => {
+    if (!websiteId.trim()) return null;
+    const row = websiteRows.find((w) => w.websiteId === websiteId.trim());
+    if (!row) return null;
+    return {
+      websiteId: row.websiteId,
+      name: (row.name ?? "").trim() || "Website",
+      url: (row.url ?? "").trim(),
+    };
+  }, [websiteId, websiteRows]);
+
   const onResellerChange = (v: string) => {
     setResellerId(v);
     setParentCompanyId("");
@@ -194,6 +201,18 @@ export function useAiTrainingHierarchy() {
   const onChildChange = (v: string) => {
     setChildCompanyId(v);
     setWebsiteId("");
+  };
+
+  const selectWebsiteFromTrainingRow = (row: {
+    websiteId: string;
+    childCompanyId: string;
+    parentCompanyId: string;
+    resellerId: string;
+  }) => {
+    if (row.resellerId) setResellerId(row.resellerId);
+    if (row.parentCompanyId) setParentCompanyId(row.parentCompanyId);
+    if (row.childCompanyId) setChildCompanyId(row.childCompanyId);
+    setWebsiteId(row.websiteId);
   };
 
   return {
@@ -219,5 +238,8 @@ export function useAiTrainingHierarchy() {
     sitesError,
     websitesLoading,
     hasWebsiteChoices,
+    selectedWebsite,
+    websiteRows,
+    selectWebsiteFromTrainingRow,
   };
 }

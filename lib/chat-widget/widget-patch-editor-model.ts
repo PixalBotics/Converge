@@ -47,28 +47,26 @@ function parseChatMode(raw: unknown): WidgetChatModeApi {
     : "HYBRID";
 }
 
-/** Resolve snapshot payload for edit: `latestVersion.config` + deep overlay of `draftConfig` (never published). */
+/** Resolve snapshot payload for edit: draft config with published fill-in for missing keys. */
 export function resolveSnapshotConfigRoot(snapshot: JsonRecord | null): JsonRecord {
   if (!snapshot || typeof snapshot !== "object") return {};
-  const latest = snapshot.latestVersion;
-  if (latest && typeof latest === "object" && !Array.isArray(latest)) {
-    const lv = latest as JsonRecord;
-    const versionConfig = isRecord(lv.config) ? lv.config : null;
-    const draftConfig = isRecord(lv.draftConfig) ? lv.draftConfig : null;
-    if (versionConfig) {
-      return mergeWidgetConfigForEdit(versionConfig, draftConfig);
-    }
-    if (draftConfig) return draftConfig;
+
+  const draftBlock = snapshot.draft;
+  if (draftBlock && typeof draftBlock === "object" && !Array.isArray(draftBlock)) {
+    const draftCfg = isRecord((draftBlock as JsonRecord).config)
+      ? ((draftBlock as JsonRecord).config as JsonRecord)
+      : null;
+    const pubBlock = snapshot.published;
+    const pubCfg =
+      pubBlock &&
+      typeof pubBlock === "object" &&
+      !Array.isArray(pubBlock) &&
+      isRecord((pubBlock as JsonRecord).config)
+        ? ((pubBlock as JsonRecord).config as JsonRecord)
+        : null;
+    if (draftCfg) return mergeWidgetConfigForEdit(draftCfg, pubCfg);
   }
-  const topDraft = snapshot.draftConfig;
-  if (
-    topDraft !== undefined &&
-    topDraft !== null &&
-    typeof topDraft === "object" &&
-    !Array.isArray(topDraft)
-  ) {
-    return topDraft as JsonRecord;
-  }
+
   const cs = snapshot.configSnapshot;
   if (cs !== undefined && cs !== null && typeof cs === "object" && !Array.isArray(cs)) {
     return cs as JsonRecord;

@@ -1,6 +1,12 @@
 "use client";
 
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+  type QueryClient,
+} from "@tanstack/react-query";
 import { createShiftTemplate, deleteShiftTemplate, getShiftTemplate, listShiftTemplates, updateShiftTemplate } from "@/api";
 import type { JsonRecord } from "@/api";
 import { buildHrmsShiftsListQueryRecord, type HrmsShiftsListQueryInput } from "@/lib/utils/hrms";
@@ -12,6 +18,24 @@ import { hrmsShiftsKeys } from "./keys";
  */
 export type HrmsShiftsListParams = HrmsShiftsListQueryInput;
 
+async function refetchShiftLists(qc: QueryClient) {
+  await qc.refetchQueries({ queryKey: hrmsShiftsKeys.all, type: "active" });
+}
+
+/** Refetch one list query (exact key) — use after create when filters/page change synchronously. */
+export async function refetchShiftsListQuery(
+  qc: QueryClient,
+  params: HrmsShiftsListParams | undefined,
+  scope = "default",
+) {
+  const req = buildHrmsShiftsListQueryRecord(params) as JsonRecord | undefined;
+  await qc.refetchQueries({
+    queryKey: [...hrmsShiftsKeys.list(req), scope] as const,
+    exact: true,
+    type: "active",
+  });
+}
+
 export function useShiftsListQuery(params: HrmsShiftsListParams | undefined, options?: { enabled?: boolean; scope?: string }) {
   const scope = options?.scope ?? "default";
   const enabled = options?.enabled ?? true;
@@ -20,6 +44,7 @@ export function useShiftsListQuery(params: HrmsShiftsListParams | undefined, opt
     queryKey: [...hrmsShiftsKeys.list(req), scope] as const,
     queryFn: () => listShiftTemplates(req),
     enabled,
+    staleTime: 0,
     placeholderData: keepPreviousData,
   });
 }
@@ -38,8 +63,8 @@ export function useCreateShiftMutation() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (body: JsonRecord) => createShiftTemplate(body),
-    onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: hrmsShiftsKeys.all });
+    onSuccess: async () => {
+      await refetchShiftLists(qc);
     },
   });
 }
@@ -48,8 +73,9 @@ export function useUpdateShiftMutation() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (vars: { id: string; body: JsonRecord }) => updateShiftTemplate(vars.id, vars.body),
-    onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: hrmsShiftsKeys.all });
+    onSuccess: async (_data, vars) => {
+      await refetchShiftLists(qc);
+      void qc.invalidateQueries({ queryKey: hrmsShiftsKeys.detail(vars.id) });
     },
   });
 }
@@ -58,8 +84,8 @@ export function useDeleteShiftMutation() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => deleteShiftTemplate(id),
-    onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: hrmsShiftsKeys.all });
+    onSuccess: async () => {
+      await refetchShiftLists(qc);
     },
   });
 }

@@ -19,9 +19,23 @@ import {
 } from "../utils/email-fields-payload";
 import {
   extractEmailTestErrorMessage,
+  formatMailTestErrorMessage,
+  readTestMessage,
   validateTestToEmail,
 } from "../utils/email-test.utils";
 import { useEmailProvidersQuery, useEmailProviderSchemaQuery } from "./useEmailProviders";
+
+function settingsFingerprint(settings: MailProviderSettings | undefined): string {
+  if (!settings) return "";
+  const fieldKeys = Object.keys(settings.fields ?? {}).sort().join(",");
+  return [
+    settings.emailProviderId ?? "",
+    settings.updatedAt ?? "",
+    settings.fromEmail ?? "",
+    fieldKeys,
+  ].join("|");
+}
+
 export function useOwnMailProviderForm({
   enabled,
   settings,
@@ -31,7 +45,7 @@ export function useOwnMailProviderForm({
   enabled: boolean;
   settings: MailProviderSettings | undefined;
   onSave: (body: MailProviderSettingsBody) => Promise<unknown>;
-  onTest: (body: { toEmail?: string }) => Promise<EmailTestResult>;
+  onTest?: (body: { toEmail?: string }) => Promise<EmailTestResult>;
 }) {
   const [providerKind, setProviderKind] = useState<EmailProviderKind | null>(null);
   const [providerId, setProviderId] = useState<string | null>(null);
@@ -42,8 +56,12 @@ export function useOwnMailProviderForm({
   const [testToEmail, setTestToEmail] = useState("");
   const [savedOnce, setSavedOnce] = useState(false);
 
+  const fingerprint = useMemo(() => settingsFingerprint(settings), [settings]);
+
   const providersQuery = useEmailProvidersQuery({ enabled });
-  const schemaQuery = useEmailProviderSchemaQuery(providerId, { enabled: enabled && Boolean(providerId) });
+  const schemaQuery = useEmailProviderSchemaQuery(providerId, {
+    enabled: enabled && Boolean(providerId),
+  });
 
   const providerGroups = useMemo(
     () => groupProvidersByKind(providersQuery.data ?? []),
@@ -61,15 +79,17 @@ export function useOwnMailProviderForm({
   );
 
   useEffect(() => {
-    if (!settings) return;
-    setProviderId(settings.emailProviderId);
+    if (!enabled || !settings) return;
+
+    const pid = settings.emailProviderId ?? null;
+    setProviderId(pid);
     setFromEmail(settings.fromEmail ?? "");
     setFromName(settings.fromName ?? "");
     setIsEnabled(Boolean(settings.isEnabled));
-    setFieldValues(normalizeFieldValuesForDisplay(settings.fields ?? {}));
-    setSavedOnce(Boolean(settings.emailProviderId));
-    if (settings.emailProviderId) {
-      const fromList = (providersQuery.data ?? []).find((x) => x.id === settings.emailProviderId);
+    setSavedOnce(Boolean(pid));
+
+    if (pid) {
+      const fromList = (providersQuery.data ?? []).find((x) => x.id === pid);
       if (fromList) {
         setProviderKind(resolveProviderKind(fromList) ?? "api");
       } else if (settings.providerKind) {
@@ -77,21 +97,26 @@ export function useOwnMailProviderForm({
       } else if (settings.providerCode) {
         setProviderKind(resolveProviderKind({ code: settings.providerCode }) ?? "api");
       }
+    } else {
+      setProviderKind(null);
     }
-  }, [settings, providersQuery.data]);
+  }, [enabled, fingerprint, providersQuery.data, settings]);
 
   useEffect(() => {
-    const fields = schemaQuery.data?.fields;
-    if (!fields?.length || !providerId) return;
+    const schemaFields = schemaQuery.data?.fields;
+    if (!enabled || !providerId || !schemaFields?.length) return;
+
+    const saved = settings?.fields ?? {};
     setFieldValues((prev) => {
-      const next = { ...normalizeFieldValuesForDisplay(prev, fields) };
-      for (const f of fields) {
+      const fromSaved = normalizeFieldValuesForDisplay(saved, schemaFields);
+      const next = { ...normalizeFieldValuesForDisplay(prev, schemaFields), ...fromSaved };
+      for (const f of schemaFields) {
         const fk = schemaFieldKey(f);
         if (!next[fk]?.trim()) next[fk] = f.defaultValue ?? "";
       }
       return next;
     });
-  }, [schemaQuery.data?.fields, providerId]);
+  }, [enabled, fingerprint, providerId, schemaQuery.data?.fields, settings?.fields]);
 
   const handleKindSelect = (kind: EmailProviderKind) => {
     setProviderKind(kind);
@@ -105,16 +130,16 @@ export function useOwnMailProviderForm({
     setProviderKind(resolveProviderKind(provider) ?? providerKind);
   };
 
-  const handleSave = useCallback(async () => {
+  const handleSave = useCallback(async (): Promise<boolean> => {
     if (!providerId) {
       publishAppToast({ variant: "error", message: "Select a provider." });
-      return;
+      return false;
     }
     const schemaFields = schemaQuery.data?.fields ?? [];
     const validationError = validateRequiredMailFields(schemaFields, fieldValues, settings?.fields);
     if (validationError) {
       publishAppToast({ variant: "error", message: validationError });
-      return;
+      return false;
     }
     try {
       await onSave({
@@ -126,11 +151,13 @@ export function useOwnMailProviderForm({
       });
       setSavedOnce(true);
       publishAppToast({ variant: "success", message: "Mail settings saved." });
+      return true;
     } catch (err) {
       publishAppToast({
         variant: "error",
         message: extractApiErrorMessageForToast(err) ?? "Could not save mail settings.",
       });
+      return false;
     }
   }, [
     providerId,
@@ -143,20 +170,32 @@ export function useOwnMailProviderForm({
     onSave,
   ]);
 
-  const handleTest = useCallback(async (opts?: { toEmail?: string }) => {
-    const recipient = opts?.toEmail ?? testToEmail;
-    const validationError = validateTestToEmail(recipient);
-    if (validationError) {
-      publishAppToast({ variant: "error", message: validationError });
-      throw new Error(validationError);
-    }
-    try {
-      return await onTest({ toEmail: recipient.trim() || undefined });
-    } catch (err) {
-      const message = extractEmailTestErrorMessage(err);
-      return { success: false, message };
-    }
-  }, [onTest, testToEmail]);
+  const handleTest = useCallback(
+    async (opts?: { toEmail?: string }) => {
+      if (!onTest) {
+        return { success: false, message: "Test is not available." };
+      }
+      const recipient = opts?.toEmail ?? testToEmail;
+      const validationError = validateTestToEmail(recipient);
+      if (validationError) {
+        publishAppToast({ variant: "error", message: validationError });
+        throw new Error(validationError);
+      }
+      try {
+        const result = await onTest({ toEmail: recipient.trim() || undefined });
+        const raw = readTestMessage(result.message);
+        return {
+          ...result,
+          message: result.success
+            ? raw ?? "Test email sent."
+            : formatMailTestErrorMessage(raw ?? "Test failed."),
+        };
+      } catch (err) {
+        return { success: false, message: extractEmailTestErrorMessage(err) };
+      }
+    },
+    [onTest, testToEmail],
+  );
 
   return {
     providerKind,
@@ -182,5 +221,6 @@ export function useOwnMailProviderForm({
     handleTest,
     savedOnce,
     showGmailTip: selectedProvider?.code === "custom_smtp",
+    settingsFingerprint: fingerprint,
   };
 }

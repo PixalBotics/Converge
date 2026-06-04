@@ -73,6 +73,25 @@ export interface VerifyAccessBodyRequest {
   accessToken: string;
 }
 
+export interface PasswordResetRequestBody {
+  email: string;
+}
+
+export interface PasswordResetVerifyBody {
+  email: string;
+  code: string;
+}
+
+export interface PasswordResetConfirmBody {
+  email: string;
+  code: string;
+  password: string;
+}
+
+export type PasswordResetMessageResponse = ApiEnvelope<{ message: string }>;
+
+export type PasswordResetVerifyResponse = ApiEnvelope<{ valid: true }>;
+
 /** Extend when your OpenAPI schema is wired in. */
 export type AuthMeResponse = Record<string, unknown>;
 

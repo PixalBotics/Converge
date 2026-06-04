@@ -8,15 +8,28 @@ export interface SocketConnectionConfig {
   options?: StableSocketOptions;
 }
 
+type SocketListener = (...args: unknown[]) => void;
+
 export class SocketConnection {
   private socket: Socket | null = null;
   private readonly url: string;
   private readonly options?: StableSocketOptions;
   private authToken?: string;
+  /** Survives socket recreation (`forceNew`) so chat hooks keep receiving events. */
+  private readonly listeners = new Map<string, Set<SocketListener>>();
 
   constructor(url: string, options?: StableSocketOptions) {
     this.url = url;
     this.options = options;
+  }
+
+  private attachStoredListeners(target: Socket): void {
+    for (const [event, set] of this.listeners) {
+      for (const listener of set) {
+        target.off(event, listener);
+        target.on(event, listener);
+      }
+    }
   }
 
   connect(config?: Omit<SocketConnectionConfig, "url">): Socket {
@@ -39,10 +52,13 @@ export class SocketConnection {
         ...getStableSocketDefaults(),
         ...(this.options || {}),
         ...(config?.options || {}),
-        auth: this.authToken ? { token: this.authToken } : undefined,
+        auth: this.authToken ? { token: this.authToken } : {},
       });
+      this.attachStoredListeners(this.socket);
     } else if (!this.socket.connected) {
-      this.socket.auth = this.authToken ? { token: this.authToken } : {};
+      if (this.authToken) {
+        this.socket.auth = { token: this.authToken };
+      }
       this.socket.connect();
     }
 
@@ -51,11 +67,12 @@ export class SocketConnection {
 
   disconnect(clearListeners = true): void {
     if (!this.socket) return;
-    if (clearListeners) {
-      this.socket.removeAllListeners();
-    }
+    this.socket.removeAllListeners();
     this.socket.disconnect();
     this.socket = null;
+    if (clearListeners) {
+      this.listeners.clear();
+    }
   }
 
   getSocket(): Socket | null {
@@ -71,7 +88,17 @@ export class SocketConnection {
   }
 
   on<TPayload>(event: string, listener: (payload: TPayload) => void): () => void {
-    this.socket?.on(event, listener);
-    return () => this.socket?.off(event, listener);
+    const wrapped = listener as SocketListener;
+    let set = this.listeners.get(event);
+    if (!set) {
+      set = new Set();
+      this.listeners.set(event, set);
+    }
+    set.add(wrapped);
+    this.socket?.on(event, wrapped);
+    return () => {
+      this.listeners.get(event)?.delete(wrapped);
+      this.socket?.off(event, wrapped);
+    };
   }
 }

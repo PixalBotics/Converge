@@ -1,4 +1,7 @@
-/** Minimal chrome for third-party iframe embed (chat widget runtime). Uses root ThemeRegistry/MUI via parent layout. */
+/**
+ * Visitor embed shell — no dashboard AuthProvider (see AppRootProviders).
+ * Widget auth = POST /widget/session JWT only; HTTP uses credentials: omit.
+ */
 
 import { EmbedBodyReset } from "@/components/embed/EmbedBodyReset";
 
