@@ -5,7 +5,7 @@ import type { RuntimeChatAppearance } from "./widget-runtime-appearance";
 
 /**
  * Published `chat.colors` only defines incoming/outgoing bubbles.
- * Agent + legacy `system` AI lines both use incoming tokens.
+ * Visitor = incoming; agent, AI, and legacy system assistant lines = outgoing tokens.
  */
 export function resolveEmbedMessageBubbleRole(
   role: ChatParticipantRole,

@@ -65,6 +65,15 @@ const LIVE_CHAT_GROUP: DashboardNavItem = {
   children: [
     chatNavItem(PAGE.CHAT_INBOX, "/dashboard/chat-operations", "Agent inbox", "chat", [OP.chat.access]),
     chatNavItem(PAGE.CHAT_MONITOR, "/dashboard/chat-monitor", "Monitor", "chat", CHAT_MONITOR_OPERATIONAL_ANY),
+    {
+      href: "/dashboard/chat-transcripts",
+      label: "Chat transcripts",
+      section: "activity",
+      iconKey: "chat",
+      permission: null,
+      permissionsAny: [PAGE.CHAT_MONITOR, PAGE.CHAT_QA],
+      prefixMatch: true,
+    },
     chatNavItem(PAGE.CHAT_QA, "/dashboard/qa/inbox", "QA inbox", "chat", CHAT_QA_OPERATIONAL_ANY),
     chatNavItem(PAGE.CHAT_QA_ROSTER, "/dashboard/qa/roster", "QA roster", "chat", [OP.qa.chatAssign]),
     chatNavItem(PAGE.CHAT_REPORTS, "/dashboard/chat-reports", "Reports", "reports", [OP.chat.reportView]),

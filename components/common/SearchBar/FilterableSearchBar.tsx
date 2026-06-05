@@ -288,6 +288,14 @@ export function FilterableSearchBar({
                     }}
                   >
                     <Typography variant="medium">{suggestion.label}</Typography>
+                    {suggestion.subtitle ? (
+                      <Typography
+                        variant="caption"
+                        sx={{ display: "block", color: theme.app.dashboard.textMuted, mt: 0.25 }}
+                      >
+                        {suggestion.subtitle}
+                      </Typography>
+                    ) : null}
                   </Box>
                 );
               })

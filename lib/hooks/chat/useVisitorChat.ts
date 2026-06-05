@@ -336,7 +336,7 @@ export function useVisitorChat(
       if (normalized.role === "agent") {
         setAssigned(true);
         optionsRef.current?.onIncomingReply?.(normalized);
-      } else if (normalized.role === "system") {
+      } else if (normalized.role === "ai" || normalized.role === "system") {
         if (optionsRef.current?.getSkipServerAiReply?.() !== true) {
           optionsRef.current?.onIncomingReply?.(normalized);
         }

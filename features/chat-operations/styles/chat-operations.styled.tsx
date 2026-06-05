@@ -175,8 +175,11 @@ export const MessageRow = styled(Box, {
   alignItems: outgoing ? "flex-end" : "flex-start",
 }));
 
-export const MessageAvatar = styled(Box)(({ theme }) => {
+export const MessageAvatar = styled(Box, {
+  shouldForwardProp: (prop) => prop !== "ai",
+})<{ ai?: boolean }>(({ theme, ai }) => {
   const lc = live(theme);
+  const d = dash(theme);
   return {
     width: 32,
     height: 32,
@@ -185,11 +188,12 @@ export const MessageAvatar = styled(Box)(({ theme }) => {
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
-    fontSize: 12,
-    fontWeight: 600,
+    fontSize: ai ? 10 : 12,
+    fontWeight: 700,
+    letterSpacing: ai ? "0.02em" : undefined,
     color: text(theme).primary,
-    backgroundColor: lc.avatarBg,
-    border: `1px solid ${alpha(theme.palette.common.white, 0.1)}`,
+    backgroundColor: ai ? alpha(d.accentIndigo, 0.55) : lc.avatarBg,
+    border: `1px solid ${alpha(ai ? d.accentCyan : theme.palette.common.white, ai ? 0.35 : 0.1)}`,
     visibility: "visible",
   };
 });
@@ -234,12 +238,13 @@ function bubbleRadius(
 
 export const MessageBubble = styled(Box, {
   shouldForwardProp: (prop) =>
-    prop !== "outgoing" && prop !== "system" && prop !== "groupPosition",
+    prop !== "outgoing" && prop !== "system" && prop !== "ai" && prop !== "groupPosition",
 })<{
   outgoing?: boolean;
   system?: boolean;
+  ai?: boolean;
   groupPosition?: "single" | "first" | "middle" | "last";
-}>(({ theme, outgoing, system, groupPosition = "single" }) => {
+}>(({ theme, outgoing, system, ai, groupPosition = "single" }) => {
   const d = dash(theme);
   const lc = live(theme);
   if (system) {
@@ -257,6 +262,9 @@ export const MessageBubble = styled(Box, {
   const tightTop =
     groupPosition === "middle" || groupPosition === "last" ? theme.spacing(0.25) : 0;
 
+  const aiGradient = `linear-gradient(135deg, ${d.accentIndigo} 0%, ${alpha(d.accentCyan, 0.85)} 100%)`;
+  const agentGradient = `linear-gradient(135deg, ${d.accentBlue} 0%, ${d.accentIndigo} 100%)`;
+
   return {
     marginTop: tightTop,
     padding: theme.spacing(1.35, 1.5),
@@ -264,11 +272,15 @@ export const MessageBubble = styled(Box, {
     fontSize: 15,
     lineHeight: 1.55,
     background: outgoing
-      ? `linear-gradient(135deg, ${d.accentBlue} 0%, ${d.accentIndigo} 100%)`
+      ? ai
+        ? aiGradient
+        : agentGradient
       : lc.messageBg,
     border: outgoing ? "none" : `1px solid ${alpha(d.cardBorder, 0.28)}`,
     color: outgoing ? text(theme).primary : lc.messageText,
-    boxShadow: outgoing ? `0 4px 16px ${alpha(d.accentBlue, 0.35)}` : "none",
+    boxShadow: outgoing
+      ? `0 4px 16px ${alpha(ai ? d.accentIndigo : d.accentBlue, 0.35)}`
+      : "none",
   };
 });
 
