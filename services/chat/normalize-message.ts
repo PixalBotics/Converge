@@ -9,16 +9,23 @@ function coerceString(value: unknown): string {
 
 function inferRole(payload: Record<string, unknown>): ChatParticipantRole {
   const roleRaw = coerceString(payload.role).toLowerCase();
-  const userTypeRaw = coerceString((payload.userType ?? payload.senderType ?? payload.authorType) as unknown).toLowerCase();
+  const senderTypeRaw = coerceString(payload.senderType ?? payload.sender_type).toLowerCase();
+  const userTypeRaw = coerceString(
+    (payload.userType ?? payload.authorType) as unknown,
+  ).toLowerCase();
 
-  if (roleRaw === "ai") return "system";
+  if (senderTypeRaw === "visitor") return "visitor";
+  if (senderTypeRaw === "agent") return "agent";
+  if (senderTypeRaw === "ai") return "ai";
+
+  if (roleRaw === "ai") return "ai";
   if (
     roleRaw === "visitor" ||
     roleRaw === "agent" ||
     roleRaw === "system" ||
     roleRaw === "assistant"
   ) {
-    if (roleRaw === "assistant") return "system";
+    if (roleRaw === "assistant") return "ai";
     return roleRaw as ChatParticipantRole;
   }
   if (userTypeRaw === "visitor") return "visitor";
@@ -32,11 +39,12 @@ function inferRole(payload: Record<string, unknown>): ChatParticipantRole {
   ) {
     return "agent";
   }
-  if (userTypeRaw === "ai") return "system";
+  if (userTypeRaw === "ai") return "ai";
   const senderRaw = coerceString(payload.sender ?? payload.sentBy ?? payload.messageSender).toLowerCase();
   if (senderRaw.includes("visitor")) return "visitor";
-  if (senderRaw.includes("agent")) return "agent";
-  if (senderRaw.includes("system") || senderRaw.includes("ai")) return "system";
+  if (senderRaw.includes("agent") && !senderRaw.includes("ai")) return "agent";
+  if (senderRaw.includes("ai") || senderRaw.includes("assistant")) return "ai";
+  if (senderRaw.includes("system")) return "system";
   return "visitor";
 }
 

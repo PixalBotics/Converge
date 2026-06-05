@@ -1,4 +1,4 @@
-export type ChatParticipantRole = "visitor" | "agent" | "system";
+export type ChatParticipantRole = "visitor" | "agent" | "ai" | "system";
 
 /** Backend `AgentVisitorPresentation` — lists, popups, monitor rows. */
 export interface AgentVisitorPresentation {

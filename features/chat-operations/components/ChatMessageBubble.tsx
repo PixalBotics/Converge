@@ -39,10 +39,16 @@ export function ChatMessageBubble({
   groupPosition = "single",
 }: ChatMessageBubbleProps) {
   const isSystem = message.role === "system";
-  const isOutgoing = message.role === "agent";
+  const isAi = message.role === "ai";
+  const isAgent = message.role === "agent";
+  const isOutgoing = isAgent || isAi;
   const showAvatar = shouldShowMessageAvatar(message, groupPosition);
   const showMeta = shouldShowMessageMeta(groupPosition);
-  const senderLabel = isOutgoing ? agentDisplayName : visitorDisplayName;
+  const senderLabel = isAi
+    ? "AI"
+    : isOutgoing
+      ? agentDisplayName
+      : visitorDisplayName;
 
   if (isSystem && isInboxFormLinkMessage(message)) {
     return (
@@ -81,7 +87,11 @@ export function ChatMessageBubble({
       ) : null}
 
       <MessageRow outgoing={isOutgoing}>
-        <MessageBubble outgoing={isOutgoing} groupPosition={groupPosition}>
+        <MessageBubble
+          outgoing={isOutgoing}
+          ai={isAi}
+          groupPosition={groupPosition}
+        >
           <ChatMessageContent message={message} />
         </MessageBubble>
         {showMeta ? (
@@ -96,10 +106,18 @@ export function ChatMessageBubble({
           >
             {senderLabel}
             {message.createdAt ? ` · ${formatMessageTime(message.createdAt)}` : ""}
-            {isOutgoing ? <DoneAll sx={{ fontSize: 14, opacity: 0.85 }} /> : null}
+            {isAgent ? <DoneAll sx={{ fontSize: 14, opacity: 0.85 }} /> : null}
           </MessageMeta>
         ) : null}
       </MessageRow>
+
+      {isOutgoing && showAvatar ? (
+        <MessageAvatar ai={isAi} aria-hidden>
+          {isAi ? "AI" : agentDisplayName.charAt(0).toUpperCase() || "A"}
+        </MessageAvatar>
+      ) : isOutgoing ? (
+        <MessageAvatarSpacer aria-hidden />
+      ) : null}
     </MessageRowOuter>
   );
 }
@@ -122,45 +140,29 @@ function formatDateLabel(iso: string): string {
     date.getMonth() === now.getMonth() &&
     date.getFullYear() === now.getFullYear();
 
-  if (isToday) return "Today";
-
-  const yesterday = new Date(now);
-  yesterday.setDate(yesterday.getDate() - 1);
-  if (
-    date.getDate() === yesterday.getDate() &&
-    date.getMonth() === yesterday.getMonth() &&
-    date.getFullYear() === yesterday.getFullYear()
-  ) {
-    return "Yesterday";
+  if (isToday) {
+    return date.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
   }
 
-  return date.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+  return date.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
 }
 
-export function groupMessagesByDate(messages: ChatMessage[]): Array<{
-  dateKey: string;
-  label: string;
-  messages: ChatMessage[];
-}> {
-  const sorted = [...messages].sort((a, b) =>
-    String(a.createdAt ?? "").localeCompare(String(b.createdAt ?? "")),
-  );
-
-  const groups: Array<{ dateKey: string; label: string; messages: ChatMessage[] }> = [];
-
-  for (const message of sorted) {
-    const dateKey = message.createdAt ? new Date(message.createdAt).toDateString() : "unknown";
-    const existing = groups.find((g) => g.dateKey === dateKey);
-    if (existing) {
-      existing.messages.push(message);
+export function groupMessagesByDate(messages: import("@/services/chat/chat.types").ChatMessage[]) {
+  const groups: Array<{ dateKey: string; label: string; messages: typeof messages }> = [];
+  for (const message of messages) {
+    const key = message.createdAt?.slice(0, 10) ?? "unknown";
+    const label = message.createdAt ? formatDateLabel(message.createdAt) : "Earlier";
+    const last = groups[groups.length - 1];
+    if (last?.dateKey === key) {
+      last.messages.push(message);
     } else {
-      groups.push({
-        dateKey,
-        label: message.createdAt ? formatDateLabel(message.createdAt) : "Earlier",
-        messages: [message],
-      });
+      groups.push({ dateKey: key, label, messages: [message] });
     }
   }
-
   return groups;
 }

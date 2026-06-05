@@ -84,6 +84,20 @@ export const ROUTE_RULES: readonly RouteRule[] = [
   { permission: "page:shifts", href: "/dashboard/shifts", iconKey: "shifts", label: "Shifts", prefixMatch: true },
   { permission: "page:chat-inbox", href: "/dashboard/chat-operations", iconKey: "chat", label: "Agent inbox", prefixMatch: true },
   { permission: "page:chat-monitor", href: "/dashboard/chat-monitor", iconKey: "chat", label: "Monitor", prefixMatch: true },
+  {
+    permission: "page:chat-monitor",
+    href: "/dashboard/chat-transcripts",
+    iconKey: "chat",
+    label: "Chat transcripts",
+    prefixMatch: true,
+  },
+  {
+    permission: "page:chat-qa",
+    href: "/dashboard/chat-transcripts",
+    iconKey: "chat",
+    label: "Chat transcripts",
+    prefixMatch: true,
+  },
   { permission: "page:chat-qa", href: "/dashboard/qa/inbox", iconKey: "chat", label: "QA inbox", prefixMatch: true },
   {
     permission: "page:chat-reports",
@@ -300,6 +314,7 @@ const DASHBOARD_URL_SEGMENT_TO_PAGE: Readonly<Record<string, PagePermission>> = 
   shifts: "page:shifts",
   "chat-operations": "page:chat-inbox",
   "chat-monitor": "page:chat-monitor",
+  "chat-transcripts": "page:chat-monitor",
   qa: "page:chat-qa",
   "chat-qa": "page:chat-qa",
   "chat-reports": "page:chat-reports",

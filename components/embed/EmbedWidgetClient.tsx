@@ -1241,14 +1241,14 @@ function WidgetChatPanel({
         continue;
       }
       /** Hide AI lines until the visitor sends a composer message; never hide human agents. */
-      if (awaitingFirstUserQuestion && m.role === "system") {
+      if (awaitingFirstUserQuestion && (m.role === "system" || m.role === "ai")) {
         continue;
       }
-      if (escalated && m.role === "system" && !isVisitorPolicyNoticeMessage(m)) {
+      if (escalated && (m.role === "system" || m.role === "ai") && !isVisitorPolicyNoticeMessage(m)) {
         continue;
       }
       if (
-        (m.role === "system" || m.role === "agent") &&
+        (m.role === "system" || m.role === "ai" || m.role === "agent") &&
         m.content &&
         localAiContents.has(m.content.trim())
       ) {

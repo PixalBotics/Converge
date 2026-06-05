@@ -27,4 +27,14 @@ describe("normalizeServerMessage", () => {
     });
     expect(m).toMatchObject({ content: "Hi", role: "agent" });
   });
+
+  it("maps senderType AI to ai role (not system)", () => {
+    const m = normalizeServerMessage({
+      id: "m3",
+      conversationId: "c1",
+      content: "Hello from assistant",
+      senderType: "AI",
+    });
+    expect(m).toMatchObject({ content: "Hello from assistant", role: "ai" });
+  });
 });
