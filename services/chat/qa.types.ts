@@ -115,6 +115,8 @@ export type UpsertQaSessionReviewBody = {
   summary?: string;
   coachingNotes?: string;
   checklistJson?: Record<string, unknown>;
+  /** QA-only: counts toward website meaningfulChats when review is completed. */
+  meaningfulChat?: boolean;
 };
 
 export type UpsertQaMessageAnnotationBody = {

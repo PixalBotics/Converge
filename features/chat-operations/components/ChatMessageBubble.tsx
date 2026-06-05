@@ -5,6 +5,10 @@ import type { ChatMessage } from "@/services/chat/chat.types";
 import { Typography } from "@/components/common";
 import { ChatMessageContent } from "./ChatMessageContent";
 import { isInboxFormLinkMessage } from "../utils/inbox-transcript-messages";
+import {
+  isSupervisorSentMessage,
+  resolveMessageSenderLabel,
+} from "../utils/message-sender-label";
 import Box from "@mui/material/Box";
 import { formatMessageTime } from "../utils/format-message-time";
 import type { MessageGroupPosition } from "../utils/message-grouping";
@@ -41,20 +45,21 @@ export function ChatMessageBubble({
   const isSystem = message.role === "system";
   const isAi = message.role === "ai";
   const isAgent = message.role === "agent";
-  const isOutgoing = isAgent || isAi;
+  const isFormLink = isInboxFormLinkMessage(message);
+  const isSupervisor = isSupervisorSentMessage(message);
+  const isOutgoing = (isAgent || isAi) && !isFormLink;
   const showAvatar = shouldShowMessageAvatar(message, groupPosition);
   const showMeta = shouldShowMessageMeta(groupPosition);
-  const senderLabel = isAi
-    ? "AI"
-    : isOutgoing
-      ? agentDisplayName
-      : visitorDisplayName;
+  const senderLabel = resolveMessageSenderLabel(message, {
+    visitorDisplayName,
+    agentDisplayName,
+  });
   const rowSpacingSx =
     groupPosition === "middle" || groupPosition === "first"
       ? { mb: 0.25 }
       : { mb: 1.25 };
 
-  if (isSystem && isInboxFormLinkMessage(message)) {
+  if (isFormLink || (isSystem && isInboxFormLinkMessage(message))) {
     return (
       <Box
         sx={{
@@ -118,7 +123,7 @@ export function ChatMessageBubble({
 
       {isOutgoing && showAvatar ? (
         <MessageAvatar ai={isAi} aria-hidden>
-          {isAi ? "AI" : agentDisplayName.charAt(0).toUpperCase() || "A"}
+          {isAi ? "AI" : isSupervisor ? "S" : agentDisplayName.charAt(0).toUpperCase() || "A"}
         </MessageAvatar>
       ) : isOutgoing ? (
         <MessageAvatarSpacer aria-hidden />

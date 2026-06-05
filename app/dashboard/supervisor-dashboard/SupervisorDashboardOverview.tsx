@@ -77,6 +77,7 @@ import {
   activeChatBarsLabel,
   statusCell,
 } from "./SupervisorDashboardOverview.styles";
+import { WebsiteTrafficSummarySection } from "@/features/chat-shared/components/WebsiteTrafficSummarySection";
 
 const DATE_RANGE_OPTIONS = ["Last 7 Days", "Last 30 Days", "Last 90 Days"];
 
@@ -192,6 +193,8 @@ export default function SupervisorDashboardOverview() {
           />
         </Box>
       </Box>
+
+      <WebsiteTrafficSummarySection dateRangeLabel={dateRangeValue} />
 
       <Box sx={grid4}>
         <MetricCard

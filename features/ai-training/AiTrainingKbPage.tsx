@@ -15,6 +15,8 @@ import { AiTrainingWebsitesOverview } from "./AiTrainingWebsitesOverview";
 import { aiTrainingAddHref, aiTrainingManageHref } from "./ai-training-routes";
 import type { AiTrainingKbVariant } from "./ai-training-kb.utils";
 import { useAiTrainingHierarchy } from "./use-ai-training-hierarchy";
+import { buildAiTrainingSessionScope } from "./ai-training-scope.util";
+import { useAuth } from "@/lib/auth";
 
 const VARIANT_COPY: Record<
   AiTrainingKbVariant,
@@ -38,21 +40,25 @@ export function AiTrainingKbPage({ variant }: { variant: AiTrainingKbVariant }) 
   const isChatbot = variant === "chatbot";
 
   const hierarchy = useAiTrainingHierarchy();
+  const { user } = useAuth();
+  const sessionScope = useMemo(() => buildAiTrainingSessionScope(user), [user]);
   const [showAllWebsites, setShowAllWebsites] = useState(false);
   const [filtersActive, setFiltersActive] = useState(false);
   const [filterPopoverOpen, setFilterPopoverOpen] = useState(false);
 
   const trainingWebsitesParams = useMemo(() => {
-    const base = { limit: 200, trainedOnly: true as boolean };
+    const base = { limit: 200, trainedOnly: true as boolean, ...sessionScope };
     if (!filtersActive) return base;
     return {
       ...base,
-      resellerId: hierarchy.resellerId.trim() || undefined,
-      parentCompanyId: hierarchy.parentCompanyId.trim() || undefined,
+      resellerId: hierarchy.resellerId.trim() || sessionScope.resellerId,
+      parentCompanyId:
+        hierarchy.parentCompanyId.trim() || sessionScope.parentCompanyId,
       childCompanyId: hierarchy.childCompanyId.trim() || undefined,
       trainedOnly: hierarchy.childCompanyId.trim() ? !showAllWebsites : true,
     };
   }, [
+    sessionScope,
     filtersActive,
     hierarchy.resellerId,
     hierarchy.parentCompanyId,
@@ -102,7 +108,11 @@ export function AiTrainingKbPage({ variant }: { variant: AiTrainingKbVariant }) 
         isFetching={trainingWebsitesQuery.isFetching}
         isError={trainingWebsitesQuery.isError}
         errorMessage={trainingWebsitesError}
-        showCompanyColumns={filtersActive || !hierarchy.childCompanyId.trim()}
+        showCompanyColumns={
+          filtersActive ||
+          !sessionScope.parentCompanyId ||
+          !hierarchy.childCompanyId.trim()
+        }
         filtersActive={filtersActive}
         hasActiveTableFilters={hasActiveTableFilters}
         filterPopoverOpen={filterPopoverOpen}
@@ -114,6 +124,9 @@ export function AiTrainingKbPage({ variant }: { variant: AiTrainingKbVariant }) 
         onClearFilters={clearFilters}
         onRefresh={() => void trainingWebsitesQuery.refetch()}
         onSelectWebsite={(row) => router.push(aiTrainingManageHref(variant, row.websiteId))}
+        onTestWebsite={(row) =>
+          router.push(aiTrainingManageHref(variant, row.websiteId, { panel: "test" }))
+        }
         onAddTraining={() => router.push(aiTrainingAddHref(variant))}
       />
     </AiTrainingPageShell>

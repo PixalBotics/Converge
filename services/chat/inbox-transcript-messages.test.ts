@@ -87,4 +87,20 @@ describe("prepareInboxTranscriptMessages", () => {
     expect(link?.metadata?.href).toBe(distributionHref);
     expect(prepared.some((m) => m.metadata?.messageType === "close_form_link")).toBe(false);
   });
+
+  it("hides post-close form cards when hidePostCloseForms is set", () => {
+    const messages: ChatMessage[] = [
+      {
+        id: "1",
+        conversationId: "conv-1",
+        content: "Hi",
+        role: "visitor",
+        createdAt: "2026-06-02T11:00:00.000Z",
+      },
+      formLinkMessage("distribution_link", "/dashboard/chat-operations/distribution?conversationId=conv-1"),
+    ];
+    const prepared = prepareInboxTranscriptMessages(messages, { hidePostCloseForms: true });
+    expect(prepared).toHaveLength(1);
+    expect(prepared[0]?.content).toBe("Hi");
+  });
 });

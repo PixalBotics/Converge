@@ -7,13 +7,39 @@ function coerceString(value: unknown): string {
   return typeof value === "string" ? value : "";
 }
 
+const POLICY_SYSTEM_MESSAGE_TYPES = new Set([
+  "policy_nudge",
+  "policy_fallback",
+  "policy_close",
+  "distribution_link",
+  "close_form_link",
+  "distribution_setup_required",
+]);
+
+function readMessageType(payload: Record<string, unknown>): string {
+  const direct =
+    coerceString(payload.messageType) || coerceString(payload.message_type);
+  if (direct) return direct;
+  const meta = payload.metadata;
+  if (meta && typeof meta === "object" && !Array.isArray(meta)) {
+    return coerceString((meta as Record<string, unknown>).messageType);
+  }
+  return "";
+}
+
 function inferRole(payload: Record<string, unknown>): ChatParticipantRole {
+  const messageType = readMessageType(payload);
+  if (POLICY_SYSTEM_MESSAGE_TYPES.has(messageType)) {
+    return "system";
+  }
+
   const roleRaw = coerceString(payload.role).toLowerCase();
   const senderTypeRaw = coerceString(payload.senderType ?? payload.sender_type).toLowerCase();
   const userTypeRaw = coerceString(
     (payload.userType ?? payload.authorType) as unknown,
   ).toLowerCase();
 
+  if (senderTypeRaw === "system") return "system";
   if (senderTypeRaw === "visitor") return "visitor";
   if (senderTypeRaw === "agent") return "agent";
   if (senderTypeRaw === "ai") return "ai";
@@ -120,6 +146,9 @@ export function normalizeServerMessage(payload: unknown): ChatMessage | null {
     ...(attachmentMetadata ? { attachmentMetadata } : {}),
   };
   if (attachmentMetadata) {
+    if (attachmentMetadata.sentBySupervisor === true) {
+      mergedMetadata.sentBySupervisor = true;
+    }
     if (typeof attachmentMetadata.path === "string") {
       mergedMetadata.path = attachmentMetadata.path;
     }

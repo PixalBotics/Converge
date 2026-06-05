@@ -1,5 +1,6 @@
 import { getResolvedPublicApiBaseUrl } from "@/lib/public-api/resolved-base-url";
 import { WIDGET_FETCH_CREDENTIALS } from "@/lib/widget-runtime/widget-fetch-credentials";
+import { ensureWidgetTrackSocket } from "./sharedWidgetTrackSocket";
 import type {
   VisitorCreateConversationPayload,
   VisitorCreateConversationResponse,
@@ -111,6 +112,19 @@ export async function trackWidgetAnalytics(
   payload: TrackWidgetAnalyticsPayload,
   widgetBearerToken?: string,
 ): Promise<void> {
+  const token = widgetBearerToken?.trim();
+  if (token) {
+    const socket = await ensureWidgetTrackSocket(token);
+    if (socket) {
+      try {
+        await socket.trackEventWithAck(payload as Record<string, unknown>, 12_000);
+        return;
+      } catch {
+        /* REST fallback below */
+      }
+    }
+  }
+
   await widgetVisitorFetchJson<unknown>(
     "/widget/analytics/track",
     { method: "POST", body: JSON.stringify(payload) },

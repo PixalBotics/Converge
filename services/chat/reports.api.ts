@@ -1,4 +1,5 @@
 import { apiClient } from "@/api/http/axios-instance";
+import { agentChatSocketAckOrRest } from "./agent-socket-api.util";
 import { chatAuthHeaders, unwrapChatHttpData } from "./http";
 import type { ChatReportOverview, ChatReportQuery } from "./reports.types";
 
@@ -15,9 +16,23 @@ export async function fetchChatReportOverview(
   query: ChatReportQuery = {},
   token?: string,
 ): Promise<ChatReportOverview> {
-  const { data } = await apiClient.get<unknown>("/chat/reports/overview", {
-    params: reportParams(query),
-    headers: chatAuthHeaders(token),
-  });
-  return unwrapChatHttpData<ChatReportOverview>(data);
+  return agentChatSocketAckOrRest(
+    (socket) =>
+      socket.fetchChatReportOverviewWithAck(
+        {
+          from: query.from,
+          to: query.to,
+          websiteId: query.websiteId,
+          departmentId: query.departmentId,
+        },
+        20_000,
+      ),
+    async () => {
+      const { data } = await apiClient.get<unknown>("/chat/reports/overview", {
+        params: reportParams(query),
+        headers: chatAuthHeaders(token),
+      });
+      return unwrapChatHttpData<ChatReportOverview>(data);
+    },
+  );
 }

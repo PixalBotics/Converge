@@ -35,6 +35,19 @@ export function useAiTrainingHierarchy() {
     setResellerId(sessionResellerId);
   }, [sessionResellerId, resellerId]);
 
+  useEffect(() => {
+    const parentFromSession = user?.parentCompanyId?.trim();
+    if (!parentFromSession || parentCompanyId.trim()) return;
+    if (user?.wideResellerScope) return;
+    if (mayPickResellerFilter) return;
+    setParentCompanyId(parentFromSession);
+  }, [
+    user?.parentCompanyId,
+    user?.wideResellerScope,
+    parentCompanyId,
+    mayPickResellerFilter,
+  ]);
+
   const hierarchyResellerKey = resellerId.trim() || sessionResellerId || "";
 
   const resellersQuery = useCompaniesSetupResellersQuery({ enabled: true });

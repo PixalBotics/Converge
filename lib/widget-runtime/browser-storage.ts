@@ -64,6 +64,26 @@ export function clearHybridEscalated(siteKey: string) {
   localStorage.removeItem(`${HYBRID_ESCALATED_PREFIX}${siteKey}`);
 }
 
+export function ensureVisitorSessionId(storageKey: string): string {
+  const widgetKey = storageKey.includes(":") ? storageKey.split(":")[0]! : storageKey;
+  for (const key of widgetKey === storageKey ? [storageKey] : [widgetKey, storageKey]) {
+    const existing = readVisitorSessionId(key);
+    if (existing) {
+      persistVisitorSessionId(widgetKey, existing);
+      if (storageKey !== widgetKey) {
+        persistVisitorSessionId(storageKey, existing);
+      }
+      return existing;
+    }
+  }
+  const created = generateClientSessionId();
+  persistVisitorSessionId(widgetKey, created);
+  if (storageKey !== widgetKey) {
+    persistVisitorSessionId(storageKey, created);
+  }
+  return created;
+}
+
 export function generateClientSessionId() {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto)
     return crypto.randomUUID();

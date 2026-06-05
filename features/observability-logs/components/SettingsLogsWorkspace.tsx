@@ -20,6 +20,7 @@ import {
 } from "@/components/common";
 import type { DataTableColumn } from "@/components/common";
 import { useAuth } from "@/lib/auth";
+import { mergeSx } from "@/lib/mui/merge-sx";
 import { PAGE } from "@/lib/permissions/permission-constants";
 import {
   ChatScopeFiltersPanel,
@@ -161,7 +162,7 @@ export function SettingsLogsWorkspace() {
         <Tabs
           value={logs.tab}
           onChange={(_, v) => logs.setTab(v)}
-          sx={[chatConfigurePageTabsSx, { mb: 2, flexShrink: 0 }]}
+          sx={mergeSx(chatConfigurePageTabsSx, { mb: 2, flexShrink: 0 })}
         >
           <Tab value="audit" label="Audit" />
           <Tab value="analytics" label="Analytics" />
