@@ -49,6 +49,10 @@ export function ChatMessageBubble({
     : isOutgoing
       ? agentDisplayName
       : visitorDisplayName;
+  const rowSpacingSx =
+    groupPosition === "middle" || groupPosition === "first"
+      ? { mb: 0.25 }
+      : { mb: 1.25 };
 
   if (isSystem && isInboxFormLinkMessage(message)) {
     return (
