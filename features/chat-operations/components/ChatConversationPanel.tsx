@@ -10,6 +10,8 @@ import MenuItem from "@mui/material/MenuItem";
 import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import { Button, Typography } from "@/components/common";
+import type { ConversationTypingEntry } from "@/lib/hooks/chat/conversation-typing-bus";
+import { typingEntriesToPreviews } from "@/lib/hooks/chat/typing-preview-display";
 import type { AgentAiAction } from "@/api/ai/agent-suggest.api";
 import type { AgentVisitorPresentation, ChatMessage } from "@/services/chat/chat.types";
 import type { AiChatMessage } from "../types/ai-chat";
@@ -37,10 +39,12 @@ interface ChatConversationPanelProps {
   readOnly?: boolean;
   assignedAgentLabel?: string;
   visitorTyping: boolean;
+  visitorTypingDraft?: string;
+  remoteTypingEntries?: ConversationTypingEntry[];
   composer: string;
   onComposerChange: (value: string) => void;
   onSend: () => void;
-  onTyping: () => void;
+  onTyping: (draft?: string) => void;
   onStopTyping: () => void;
   onInsertCanned: (text: string) => void;
   onCloseChat?: () => void;
@@ -78,6 +82,8 @@ export function ChatConversationPanel({
   readOnly = false,
   assignedAgentLabel = "You",
   visitorTyping,
+  visitorTypingDraft = "",
+  remoteTypingEntries = [],
   composer,
   onComposerChange,
   onSend,
@@ -153,6 +159,15 @@ export function ChatConversationPanel({
     }
     return undefined;
   }, [messages, readOnly, requiresDistributionForm, distributionFormHref]);
+
+  const typingPreviews = useMemo(
+    () =>
+      typingEntriesToPreviews(remoteTypingEntries, {
+        visitorDisplayName: visitorInfo.displayName,
+        agentDisplayName: assignedAgentLabel,
+      }),
+    [assignedAgentLabel, remoteTypingEntries, visitorInfo.displayName],
+  );
 
   return (
     <PanelColumn
@@ -365,6 +380,8 @@ export function ChatConversationPanel({
           transcriptDisplay={transcriptDisplay}
           visitorInitials={visitorInfo.initials}
           visitorTyping={visitorTyping}
+          visitorTypingDraft={visitorTypingDraft}
+          typingPreviews={typingPreviews}
           visitorDisplayName={visitorInfo.displayName}
           agentDisplayName={assignedAgentLabel}
           showEmptyPlaceholder={!hasConversation}

@@ -8,6 +8,7 @@ import type { AppTheme } from "@/theme/theme";
 import type { KbTrainingWebsiteSummary } from "@/api/ai-knowledge/types";
 import { Button, DataTable, ToolbarFilterPopover, Typography } from "@/components/common";
 import { filterChromeButtonSx } from "@/components/common/FilterButton/filter-button.styles";
+import { mergeSx } from "@/lib/mui/merge-sx";
 import type { DataTableColumn } from "@/components/common";
 import { AiTrainingScopeFilterPanel } from "./AiTrainingScopeFilterPanel";
 import { sourceTypeHumanLabel, type AiTrainingKbVariant } from "./ai-training-kb.utils";
@@ -249,7 +250,7 @@ export function AiTrainingWebsitesTable({
             variant="secondary"
             onClick={onRefresh}
             disabled={isFetching}
-            sx={[filterChromeButtonSx, { minWidth: 0 }]}
+            sx={mergeSx(filterChromeButtonSx, { minWidth: 0 })}
           >
             {isFetching ? "Refreshing…" : "Refresh"}
           </Button>

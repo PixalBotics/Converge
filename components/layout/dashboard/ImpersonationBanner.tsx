@@ -5,6 +5,7 @@ import Button from "@mui/material/Button";
 import WarningAmberRounded from "@mui/icons-material/WarningAmberRounded";
 import { Typography } from "@/components/common";
 import { useAuth } from "@/lib/auth";
+import { getImpersonationSession } from "@/lib/auth/impersonation-session";
 
 export function ImpersonationBanner() {
   const { isImpersonating, user, revertImpersonation } = useAuth();
@@ -13,7 +14,17 @@ export function ImpersonationBanner() {
     return null;
   }
 
-  const displayName = user?.displayName?.trim() || user?.email?.trim() || "this user";
+  const session = getImpersonationSession();
+  const displayName =
+    user?.displayName?.trim() ||
+    session?.impersonatedUser?.displayName?.trim() ||
+    user?.email?.trim() ||
+    session?.impersonatedUser?.email?.trim() ||
+    "this user";
+  const actorLabel =
+    session?.actorUser?.displayName?.trim() ||
+    session?.actorUser?.email?.trim() ||
+    null;
 
   return (
     <Box
@@ -36,7 +47,14 @@ export function ImpersonationBanner() {
       <Box sx={{ display: "flex", alignItems: "center", gap: 1, minWidth: 0 }}>
         <WarningAmberRounded sx={{ fontSize: 20, color: "#ffc107", flexShrink: 0 }} />
         <Typography variant="body2" color="white" sx={{ minWidth: 0 }}>
-          Viewing as <strong>{displayName}</strong>. Actions apply to this account.
+          Login as <strong>{displayName}</strong>
+          {actorLabel ? (
+            <>
+              {" "}
+              (your admin: {actorLabel})
+            </>
+          ) : null}
+          . Actions apply to this account.
         </Typography>
       </Box>
       <Button

@@ -32,6 +32,7 @@ import {
   billingSendButtonSx,
   billingSubtextSx,
 } from "../billing.styles";
+import { mergeSx } from "@/lib/mui/merge-sx";
 import { createInvoicePageWrapperSx } from "./create-invoice.styles";
 
 const RESELLER_OPTIONS = [{ label: "Jeera", value: "jeera" }];
@@ -195,7 +196,7 @@ export default function CreateInvoicePage() {
   );
 
   return (
-    <Box sx={[billingPageWrapper, createInvoicePageWrapperSx] as const}>
+    <Box sx={mergeSx(billingPageWrapper, createInvoicePageWrapperSx)}>
       <Box sx={billingPageHeader}>
         <Box>
           <Typography variant="regularLarge" fontWeight={700} color="white" sx={{ mb: 0.5 }}>

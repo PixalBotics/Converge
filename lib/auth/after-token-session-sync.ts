@@ -8,6 +8,6 @@ export function registerAfterTokenSessionSync(handler: (() => Promise<void>) | n
   syncHandler = handler;
 }
 
-export function requestAfterTokenSessionSync(): void {
-  void syncHandler?.();
+export function requestAfterTokenSessionSync(): Promise<void> {
+  return syncHandler?.() ?? Promise.resolve();
 }

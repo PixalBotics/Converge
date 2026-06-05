@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import axios from "axios";
+import { subscribeAgentInboxDelta } from "./agent-inbox-delta-bus";
+import { applyInboxQueuePatch } from "./agent-inbox-queue-patch";
 import { subscribeAgentInboxRefresh } from "./agent-inbox-refresh-bus";
 import { MAX_ACTIVE_CHATS_PER_AGENT } from "@/services/chat/chat.constants";
 import {
@@ -31,11 +33,30 @@ export interface AgentInboxQueuesState {
   refreshQueues: () => Promise<void>;
 }
 
-export function useAgentInboxQueues(token: string, apiEnabled = true): AgentInboxQueuesState {
+export function useAgentInboxQueues(
+  token: string,
+  permissionEnabled = true,
+  currentAgentId?: string | null,
+): AgentInboxQueuesState {
+  const tokenReady = Boolean(token.trim());
+  const apiEnabled = permissionEnabled && tokenReady;
   const [activeChats, setActiveChats] = useState<ConversationSummary[]>([]);
   const [waitingChats, setWaitingChats] = useState<ConversationSummary[]>([]);
   const [closedChats, setClosedChats] = useState<ConversationSummary[]>([]);
   const lastToastAtRef = useRef(0);
+  const closedRefreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const agentIdRef = useRef(currentAgentId);
+  agentIdRef.current = currentAgentId;
+
+  const refreshClosedOnly = useCallback(async () => {
+    if (!apiEnabled || !token) return;
+    try {
+      const closed = await getMyClosedChats(token);
+      setClosedChats(closed);
+    } catch {
+      /* non-fatal */
+    }
+  }, [apiEnabled, token]);
 
   const refreshQueues = useCallback(async () => {
     if (!apiEnabled || !token) {
@@ -83,30 +104,81 @@ export function useAgentInboxQueues(token: string, apiEnabled = true): AgentInbo
     }
   }, [apiEnabled, token]);
 
+  const queuesRef = useRef({
+    activeChats: [] as ConversationSummary[],
+    waitingChats: [] as ConversationSummary[],
+    closedChats: [] as ConversationSummary[],
+  });
+  queuesRef.current = { activeChats, waitingChats, closedChats };
+
+  const applyPatch = useCallback(
+    (patch: Parameters<typeof applyInboxQueuePatch>[1]) => {
+      const result = applyInboxQueuePatch(
+        queuesRef.current,
+        patch,
+        agentIdRef.current,
+      );
+      setActiveChats(result.activeChats);
+      setWaitingChats(result.waitingChats);
+      setClosedChats(result.closedChats);
+      if (result.needsClosedRefresh) {
+        if (closedRefreshTimerRef.current) {
+          clearTimeout(closedRefreshTimerRef.current);
+        }
+        closedRefreshTimerRef.current = setTimeout(() => {
+          closedRefreshTimerRef.current = null;
+          void refreshClosedOnly();
+        }, 800);
+      }
+    },
+    [refreshClosedOnly],
+  );
+
   const atActiveCap = activeChats.length >= MAX_ACTIVE_CHATS_PER_AGENT;
 
   useEffect(() => {
-    if (!apiEnabled) {
+    if (!permissionEnabled) {
       setActiveChats([]);
       setWaitingChats([]);
       setClosedChats([]);
       return;
     }
+    if (!tokenReady) return;
     void refreshQueues();
-  }, [apiEnabled, refreshQueues]);
+  }, [permissionEnabled, refreshQueues, tokenReady]);
 
   useEffect(() => {
-    if (!apiEnabled || !token) return undefined;
+    if (!permissionEnabled || !tokenReady) return undefined;
     return subscribeAgentInboxRefresh(() => {
       void refreshQueues();
     });
-  }, [apiEnabled, refreshQueues, token]);
+  }, [permissionEnabled, refreshQueues, tokenReady]);
+
+  useEffect(() => {
+    if (!permissionEnabled) return undefined;
+    return subscribeAgentInboxDelta((patch) => {
+      applyPatch(patch);
+    });
+  }, [permissionEnabled, applyPatch]);
+
+  useEffect(
+    () => () => {
+      if (closedRefreshTimerRef.current) {
+        clearTimeout(closedRefreshTimerRef.current);
+      }
+    },
+    [],
+  );
+
+  const refreshQueuesPublic = useCallback(async () => {
+    await refreshQueues();
+  }, [refreshQueues]);
 
   return {
     activeChats,
     waitingChats,
     closedChats,
     atActiveCap,
-    refreshQueues,
+    refreshQueues: refreshQueuesPublic,
   };
 }

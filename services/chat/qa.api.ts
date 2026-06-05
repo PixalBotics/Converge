@@ -1,4 +1,5 @@
 import { apiClient } from "@/api/http/axios-instance";
+import { getSharedAgentChatSocket } from "./sharedAgentChatSocket";
 import { chatAuthHeaders, unwrapChatHttpData } from "./http";
 import type {
   QaQueueFilters,
@@ -46,6 +47,18 @@ export async function upsertQaSessionReview(
   body: UpsertQaSessionReviewBody,
   token?: string,
 ): Promise<unknown> {
+  const socket = getSharedAgentChatSocket();
+  if (socket.isConnected()) {
+    try {
+      const ack = await socket.sendQaUpsertSessionReviewWithAck({
+        conversationId,
+        body: body as Record<string, unknown>,
+      });
+      if (ack !== undefined) return ack;
+    } catch {
+      /* REST fallback */
+    }
+  }
   const { data } = await apiClient.put<unknown>(
     `/chat/qa/conversations/${encodeURIComponent(conversationId)}/review`,
     body,
@@ -72,6 +85,18 @@ export async function assignQaReview(
   body?: { qaUserId?: string },
   token?: string,
 ): Promise<unknown> {
+  const socket = getSharedAgentChatSocket();
+  if (socket.isConnected()) {
+    try {
+      const ack = await socket.sendQaAssignReviewWithAck({
+        conversationId,
+        qaUserId: body?.qaUserId,
+      });
+      if (ack !== undefined) return ack;
+    } catch {
+      /* REST fallback */
+    }
+  }
   const { data } = await apiClient.post<unknown>(
     `/chat/qa/conversations/${encodeURIComponent(conversationId)}/assign`,
     body ?? {},

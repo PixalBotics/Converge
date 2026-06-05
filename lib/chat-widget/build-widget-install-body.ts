@@ -475,8 +475,14 @@ export function buildChatWizardStep3Config(draft: WidgetDraft): JsonRecord {
       greetingMessage: draft.responseGreetingMessage ?? def.responseGreetingMessage,
       sendPlaceholder: draft.responseSendPlaceholder ?? def.responseSendPlaceholder,
       aiPromptHint: draft.responseAiPromptHint ?? def.responseAiPromptHint,
-      agentHandoverEnabled: draft.responseAgentHandoverEnabled ?? def.responseAgentHandoverEnabled,
-      handoverTriggerText: draft.responseHandoverTriggerText ?? def.responseHandoverTriggerText,
+      agentTalkToAgentEnabled:
+        draft.responseTalkToAgentEnabled ?? def.responseTalkToAgentEnabled,
+      agentHandoverEnabled:
+        draft.responseTalkToAgentEnabled ?? def.responseTalkToAgentEnabled,
+      talkToAgentTriggerText:
+        draft.responseTalkToAgentTriggerText ?? def.responseTalkToAgentTriggerText,
+      handoverTriggerText:
+        draft.responseTalkToAgentTriggerText ?? def.responseTalkToAgentTriggerText,
     },
   };
   if (draft.allowedDomains?.length) config.allowedDomains = draft.allowedDomains;

@@ -6,6 +6,16 @@ import type {
   VisitorSendMessagePayload,
 } from "./chat.types";
 
+export type WidgetTranscriptSocketClient = {
+  isConnected(): boolean;
+  waitUntilSocketReady(timeoutMs?: number): Promise<boolean>;
+  fetchTranscriptWithAck(
+    payload: { conversationId: string; websiteId: string },
+    timeoutMs?: number,
+  ): Promise<unknown>;
+  connect(options?: { authToken?: string; forceNew?: boolean }): unknown;
+};
+
 function peelSuccessEnvelope(raw: unknown, maxDepth = 4): unknown {
   let cur: unknown = raw;
   for (let d = 0; d < maxDepth; d++) {
@@ -72,6 +82,42 @@ async function widgetVisitorFetchJson<T>(
 /**
  * Public widget chat REST — never uses dashboard `apiClient` (same-origin iframe shares cookies).
  */
+export type WidgetAnalyticsEventType =
+  | "page_view"
+  | "widget_open"
+  | "chat_started"
+  | "lead_captured";
+
+export type TrackWidgetAnalyticsPayload = {
+  websiteId: string;
+  eventType: WidgetAnalyticsEventType;
+  sessionId?: string;
+  pageUrl?: string;
+  referrerUrl?: string;
+  timezone?: string;
+  locale?: string;
+  screenResolution?: string;
+  locationCity?: string;
+  locationCountry?: string;
+  locationRegion?: string;
+  locationZipcode?: string;
+  consentGiven?: boolean;
+  name?: string;
+  email?: string;
+  phone?: string;
+};
+
+export async function trackWidgetAnalytics(
+  payload: TrackWidgetAnalyticsPayload,
+  widgetBearerToken?: string,
+): Promise<void> {
+  await widgetVisitorFetchJson<unknown>(
+    "/widget/analytics/track",
+    { method: "POST", body: JSON.stringify(payload) },
+    widgetBearerToken,
+  );
+}
+
 export async function createWidgetConversation(
   payload: VisitorCreateConversationPayload,
   widgetBearerToken?: string,
@@ -91,9 +137,14 @@ export async function sendWidgetVisitorMessage(
   conversationId: string,
   payload: VisitorSendMessagePayload,
   widgetBearerToken?: string,
+  websiteId?: string,
 ): Promise<unknown> {
+  const websiteQuery =
+    websiteId?.trim() ?
+      `?websiteId=${encodeURIComponent(websiteId.trim())}`
+    : "";
   const result = await widgetVisitorFetchJson<unknown>(
-    `/chat/widget/conversations/${encodeURIComponent(conversationId)}/messages`,
+    `/chat/widget/conversations/${encodeURIComponent(conversationId)}/messages${websiteQuery}`,
     { method: "POST", body: JSON.stringify(payload) },
     widgetBearerToken,
   );
@@ -116,6 +167,8 @@ export type WidgetTranscriptResult = {
   status: string;
   chatCompleted: boolean;
   canSendMessages: boolean;
+  talkToAgentRequested?: boolean;
+  /** @deprecated Use {@link talkToAgentRequested}. */
   handoverRequested?: boolean;
   queuedForAgent?: boolean;
   assignedAgentId?: string | null;
@@ -128,7 +181,69 @@ export type WidgetTranscriptResult = {
   messages: WidgetTranscriptMessage[];
 };
 
-export async function fetchWidgetTranscript(
+function parseWidgetTranscriptPayload(
+  raw: unknown,
+  conversationId: string,
+): WidgetTranscriptResult | null {
+  const peeled = peelSuccessEnvelope(raw);
+  const o =
+    peeled !== null && typeof peeled === "object" && !Array.isArray(peeled)
+      ? (peeled as Record<string, unknown>)
+      : null;
+  if (!o) return null;
+
+  const messagesRaw = Array.isArray(o.messages) ? o.messages : [];
+  const messages: WidgetTranscriptMessage[] = [];
+  for (const row of messagesRaw) {
+    if (!row || typeof row !== "object") continue;
+    const m = row as Record<string, unknown>;
+    const id = typeof m.id === "string" ? m.id : "";
+    const content =
+      typeof m.content === "string"
+        ? m.content
+        : typeof m.message === "string"
+          ? m.message
+          : "";
+    const senderType = typeof m.senderType === "string" ? m.senderType : "visitor";
+    const createdAt =
+      typeof m.createdAt === "string" ? m.createdAt : new Date().toISOString();
+    if (!id || !content.trim()) continue;
+    messages.push({
+      id,
+      content,
+      senderType,
+      messageType: typeof m.messageType === "string" ? m.messageType : undefined,
+      createdAt,
+    });
+  }
+
+  const visitor =
+    o.visitor !== null && typeof o.visitor === "object" && !Array.isArray(o.visitor)
+      ? (o.visitor as WidgetTranscriptResult["visitor"])
+      : null;
+
+  return {
+    id: typeof o.id === "string" ? o.id : conversationId,
+    status: typeof o.status === "string" ? o.status : "active",
+    chatCompleted: o.chatCompleted === true,
+    canSendMessages: o.canSendMessages !== false,
+    talkToAgentRequested:
+      o.talkToAgentRequested === true || o.handoverRequested === true,
+    handoverRequested:
+      o.talkToAgentRequested === true || o.handoverRequested === true,
+    queuedForAgent: o.queuedForAgent === true,
+    assignedAgentId:
+      typeof o.assignedAgentId === "string"
+        ? o.assignedAgentId
+        : typeof o.agentId === "string"
+          ? o.agentId
+          : null,
+    visitor,
+    messages,
+  };
+}
+
+async function fetchWidgetTranscriptRest(
   conversationId: string,
   websiteId: string,
   widgetBearerToken?: string,
@@ -165,61 +280,11 @@ export async function fetchWidgetTranscript(
       return { ok: false, message };
     }
 
-    const raw = peelSuccessEnvelope(await res.json());
-    const o =
-      raw !== null && typeof raw === "object" && !Array.isArray(raw)
-        ? (raw as Record<string, unknown>)
-        : {};
-
-    const messagesRaw = Array.isArray(o.messages) ? o.messages : [];
-    const messages: WidgetTranscriptMessage[] = [];
-    for (const row of messagesRaw) {
-      if (!row || typeof row !== "object") continue;
-      const m = row as Record<string, unknown>;
-      const id = typeof m.id === "string" ? m.id : "";
-      const content =
-        typeof m.content === "string"
-          ? m.content
-          : typeof m.message === "string"
-            ? m.message
-            : "";
-      const senderType = typeof m.senderType === "string" ? m.senderType : "visitor";
-      const createdAt =
-        typeof m.createdAt === "string" ? m.createdAt : new Date().toISOString();
-      if (!id || !content.trim()) continue;
-      messages.push({
-        id,
-        content,
-        senderType,
-        messageType: typeof m.messageType === "string" ? m.messageType : undefined,
-        createdAt,
-      });
+    const parsed = parseWidgetTranscriptPayload(await res.json(), conversationId);
+    if (!parsed) {
+      return { ok: false, message: "Invalid transcript response" };
     }
-
-    const visitor =
-      o.visitor !== null && typeof o.visitor === "object" && !Array.isArray(o.visitor)
-        ? (o.visitor as WidgetTranscriptResult["visitor"])
-        : null;
-
-    return {
-      ok: true,
-      data: {
-        id: typeof o.id === "string" ? o.id : conversationId,
-        status: typeof o.status === "string" ? o.status : "active",
-        chatCompleted: o.chatCompleted === true,
-        canSendMessages: o.canSendMessages !== false,
-        handoverRequested: o.handoverRequested === true,
-        queuedForAgent: o.queuedForAgent === true,
-        assignedAgentId:
-          typeof o.assignedAgentId === "string"
-            ? o.assignedAgentId
-            : typeof o.agentId === "string"
-              ? o.agentId
-              : null,
-        visitor,
-        messages,
-      },
-    };
+    return { ok: true, data: parsed };
   } catch (e) {
     return {
       ok: false,
@@ -228,25 +293,61 @@ export async function fetchWidgetTranscript(
   }
 }
 
-export type WidgetRequestHumanResult = {
+export async function fetchWidgetTranscript(
+  conversationId: string,
+  websiteId: string,
+  widgetBearerToken?: string,
+  socketClient?: WidgetTranscriptSocketClient,
+): Promise<
+  { ok: true; data: WidgetTranscriptResult } | { ok: false; message: string }
+> {
+  if (socketClient && widgetBearerToken) {
+    socketClient.connect({ authToken: widgetBearerToken });
+    const ready = await socketClient.waitUntilSocketReady(12_000);
+    if (ready && socketClient.isConnected()) {
+      try {
+        const ack = await socketClient.fetchTranscriptWithAck(
+          { conversationId, websiteId },
+          15_000,
+        );
+        const parsed = parseWidgetTranscriptPayload(ack, conversationId);
+        if (parsed) {
+          return { ok: true, data: parsed };
+        }
+      } catch {
+        /* REST fallback below */
+      }
+    }
+  }
+
+  return fetchWidgetTranscriptRest(conversationId, websiteId, widgetBearerToken);
+}
+
+export type WidgetTalkToAgentResult = {
   message: string;
   assignedAgentId: string | null;
   queuedForAgent: boolean;
+  talkToAgentRequested?: boolean;
+  talkToAgentPending?: boolean;
+  /** @deprecated Legacy keys — mirrored from Talk to agent fields. */
   handoverRequested?: boolean;
   handoverPending?: boolean;
 };
 
-export async function postWidgetRequestHuman(
+/** @deprecated Use {@link WidgetTalkToAgentResult}. */
+export type WidgetRequestHumanResult = WidgetTalkToAgentResult;
+
+export async function postWidgetTalkToAgent(
   conversationId: string,
   websiteId: string,
   widgetBearerToken?: string,
 ): Promise<
-  { ok: true; data: WidgetRequestHumanResult } | { ok: false; message: string }
+  { ok: true; data: WidgetTalkToAgentResult } | { ok: false; message: string }
 > {
   const base = getResolvedPublicApiBaseUrl();
   const url =
     `${base}/chat/widget/conversations/${encodeURIComponent(conversationId)}` +
-    `/request-human?websiteId=${encodeURIComponent(websiteId)}`;
+    `/request-talk-to-agent?websiteId=${encodeURIComponent(websiteId)}`;
 
   try {
     const res = await fetch(url, {
@@ -291,8 +392,16 @@ export async function postWidgetRequestHuman(
         assignedAgentId:
           typeof o.assignedAgentId === "string" ? o.assignedAgentId : null,
         queuedForAgent: o.queuedForAgent === true,
-        handoverRequested: o.handoverRequested === true,
+        talkToAgentRequested:
+          o.talkToAgentRequested === true || o.handoverRequested === true,
+        talkToAgentPending:
+          o.talkToAgentPending === true ||
+          o.handoverPending === true ||
+          ("handoverPending" in o && o.handoverPending === true),
+        handoverRequested:
+          o.talkToAgentRequested === true || o.handoverRequested === true,
         handoverPending:
+          o.talkToAgentPending === true ||
           o.handoverPending === true ||
           ("handoverPending" in o && o.handoverPending === true),
       },
@@ -304,3 +413,6 @@ export async function postWidgetRequestHuman(
     };
   }
 }
+
+/** @deprecated Use {@link postWidgetTalkToAgent}. */
+export const postWidgetRequestHuman = postWidgetTalkToAgent;

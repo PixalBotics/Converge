@@ -15,7 +15,7 @@ export type EmbedPanelHeaderStatus = {
 export function resolveEmbedPanelHeaderStatus(params: {
   showOfflineBanner: boolean;
   offlineMessage?: string;
-  handoverStatus: string | null;
+  talkToAgentStatus: string | null;
   agentTypingSeen: boolean;
   aiPending: boolean;
   hybridEscalatedWaiting: boolean;
@@ -31,7 +31,7 @@ export function resolveEmbedPanelHeaderStatus(params: {
   if (params.aiPending) {
     return { tone: "thinking", label: "Thinking…" };
   }
-  const ho = params.handoverStatus?.trim() ?? "";
+  const ho = params.talkToAgentStatus?.trim() ?? "";
   if (ho) {
     const lower = ho.toLowerCase();
     if (lower.includes("queue") || lower.includes("waiting")) {

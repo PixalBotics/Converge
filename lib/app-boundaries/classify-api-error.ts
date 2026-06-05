@@ -14,6 +14,35 @@ function isBrowserOffline(): boolean {
   return typeof navigator !== "undefined" && navigator.onLine === false;
 }
 
+/** True for offline, timeouts, and other non-auth transport failures. */
+export function isTransientNetworkError(error: unknown): boolean {
+  if (isBrowserOffline()) return true;
+
+  if (isAxiosError(error)) {
+    if (!error.response) {
+      const code = error.code?.toUpperCase() ?? "";
+      return code !== "ERR_CANCELED";
+    }
+    const status = error.response.status;
+    if (status === 408 || status === 429 || (status >= 502 && status <= 504)) {
+      return true;
+    }
+  }
+
+  if (error instanceof Error) {
+    const msg = error.message.toLowerCase();
+    if (
+      msg.includes("network error") ||
+      msg.includes("timeout") ||
+      msg.includes("failed to fetch")
+    ) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 export function classifyApiError(error: unknown): ClassifiedApiError {
   if (isBrowserOffline()) {
     return {

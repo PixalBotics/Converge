@@ -6,6 +6,7 @@ const GROUP_GAP_MS = 2 * 60 * 1000;
 
 function sameSender(a: ChatMessage, b: ChatMessage): boolean {
   if (a.role === "system" || b.role === "system") return false;
+  if (a.role === "ai" || b.role === "ai") return a.role === "ai" && b.role === "ai";
   return a.role === b.role;
 }
 
@@ -28,9 +29,15 @@ export function getMessageGroupPosition(
   const next = messages[index + 1];
 
   const groupedWithPrev =
-    prev && prev.role !== "system" && sameSender(msg, prev) && withinGroupGap(msg, prev);
+    prev &&
+    prev.role !== "system" &&
+    sameSender(msg, prev) &&
+    withinGroupGap(msg, prev);
   const groupedWithNext =
-    next && next.role !== "system" && sameSender(msg, next) && withinGroupGap(msg, next);
+    next &&
+    next.role !== "system" &&
+    sameSender(msg, next) &&
+    withinGroupGap(msg, next);
 
   if (!groupedWithPrev && !groupedWithNext) return "single";
   if (!groupedWithPrev && groupedWithNext) return "first";
@@ -44,6 +51,9 @@ export function shouldShowMessageAvatar(
 ): boolean {
   if (message.role === "system") return false;
   if (message.role === "agent") return false;
+  if (message.role === "ai") {
+    return groupPosition === "single" || groupPosition === "first";
+  }
   return groupPosition === "single" || groupPosition === "first";
 }
 

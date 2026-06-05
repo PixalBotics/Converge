@@ -4,6 +4,7 @@ import Box from "@mui/material/Box";
 import {
   Button,
   FilterPanelHeader,
+  Calendar,
   SelectField,
   ToolbarFilterPopoverPanel,
 } from "@/components/common";
@@ -129,6 +130,20 @@ export function ChatScopeFilterPopoverPanel({
             options={statusOptions}
             menuMaxRows={6}
           />
+        ) : null}
+        {showDateRange ? (
+          <>
+            <Calendar
+              label="From"
+              value={filters.dateFrom}
+              onChange={(v) => onPatch({ dateFrom: v })}
+            />
+            <Calendar
+              label="To"
+              value={filters.dateTo}
+              onChange={(v) => onPatch({ dateTo: v })}
+            />
+          </>
         ) : null}
       </Box>
     </ToolbarFilterPopoverPanel>

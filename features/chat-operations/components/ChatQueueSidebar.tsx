@@ -20,6 +20,7 @@ import { ConnectionStatusBar } from "./ConnectionStatusBar";
 import { getConversationPreview } from "../utils/conversation-preview";
 import { formatRelativeQueueTime } from "../utils/format-message-time";
 import { getInboxRowLabels } from "@/services/chat/visitor-presentation";
+import { useSidebarTypingPreviews } from "@/lib/hooks/chat/useConversationTyping";
 import { parseVisitorInfo } from "../utils/visitor-info";
 import {
   EmptyState,
@@ -62,6 +63,7 @@ export function ChatQueueSidebar({
 }: ChatQueueSidebarProps) {
   const theme = useTheme() as AppTheme;
   const [searchQuery, setSearchQuery] = useState("");
+  const sidebarTypingMap = useSidebarTypingPreviews();
 
   const filteredConversations = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -169,6 +171,17 @@ export function ChatQueueSidebar({
                 : undefined,
             );
             const preview = getConversationPreview(conversation, previewFallback);
+            const liveTyping = queueTab !== "closed"
+              ? sidebarTypingMap.get(conversation.id.toLowerCase())
+              : undefined;
+            const liveDraft = liveTyping?.draft?.trim() ?? "";
+            const liveLabel = liveTyping?.label?.trim() ?? "";
+            const rowPreview = liveDraft
+              ? liveLabel
+                ? `${liveLabel}: ${liveDraft}`
+                : liveDraft
+              : preview;
+            const isLiveTyping = Boolean(liveDraft);
 
             return (
               <QueueItemRow
@@ -250,14 +263,20 @@ export function ChatQueueSidebar({
                     variant="small"
                     sx={{
                       fontSize: 12,
-                      color: unread > 0 && !isClosed ? theme.app.text.primary : theme.app.dashboard.textMuted,
-                      fontWeight: unread > 0 && !isClosed ? 500 : 400,
+                      color:
+                        isLiveTyping
+                          ? theme.app.dashboard.accentCyan
+                          : unread > 0 && !isClosed
+                            ? theme.app.text.primary
+                            : theme.app.dashboard.textMuted,
+                      fontWeight: isLiveTyping || (unread > 0 && !isClosed) ? 500 : 400,
+                      fontStyle: isLiveTyping ? "italic" : "normal",
                       overflow: "hidden",
                       textOverflow: "ellipsis",
                       whiteSpace: "nowrap",
                     }}
                   >
-                    {preview}
+                    {isLiveTyping ? liveDraft : rowPreview}
                   </Typography>
                 </Box>
               </QueueItemRow>

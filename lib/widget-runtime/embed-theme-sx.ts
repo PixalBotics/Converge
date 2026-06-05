@@ -5,7 +5,7 @@ import type { RuntimeChatAppearance } from "./widget-runtime-appearance";
 
 /**
  * Published `chat.colors` only defines incoming/outgoing bubbles.
- * Agent + legacy `system` AI lines both use incoming tokens.
+ * Visitor = incoming; agent, AI, and legacy system assistant lines = outgoing tokens.
  */
 export function resolveEmbedMessageBubbleRole(
   role: ChatParticipantRole,
@@ -157,7 +157,7 @@ export function embedPrimaryButtonSx(appearance: RuntimeChatAppearance): SxProps
       boxShadow: "none",
     },
     "&.Mui-disabled": {
-      bgcolor: `${c.handoverBackground} !important`,
+      bgcolor: `${c.talkToAgentBackground} !important`,
       color: `${c.mutedText} !important`,
       opacity: 0.85,
     },
@@ -298,21 +298,21 @@ export function embedInquiryPillSx(
   };
 }
 
-export function embedHandoverButtonSx(appearance: RuntimeChatAppearance): SxProps<Theme> {
+export function embedTalkToAgentButtonSx(appearance: RuntimeChatAppearance): SxProps<Theme> {
   const c = appearance.colors;
   return {
-    bgcolor: `${c.handoverBackground} !important`,
-    color: `${c.handoverText} !important`,
-    border: `1px solid ${c.handoverBorder} !important`,
+    bgcolor: `${c.talkToAgentBackground} !important`,
+    color: `${c.talkToAgentText} !important`,
+    border: `1px solid ${c.talkToAgentBorder} !important`,
     borderRadius: `${appearance.borderRadiusPx}px`,
     fontFamily: c.fontFamily,
     fontSize: c.bodyFontSizePx,
     textTransform: "none",
     boxShadow: "none",
     "&:hover": {
-      bgcolor: c.handoverBackground,
+      bgcolor: c.talkToAgentBackground,
       borderColor: c.primary,
-      color: `${c.handoverText} !important`,
+      color: `${c.talkToAgentText} !important`,
     },
   };
 }

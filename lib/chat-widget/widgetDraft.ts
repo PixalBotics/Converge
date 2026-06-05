@@ -11,6 +11,7 @@ import {
   resolveWidgetApiOrigin,
   resolveWidgetEmbedAppOrigin,
 } from "./widget-embed-api-origin";
+import { DEFAULT_TALK_TO_AGENT_BUTTON_LABEL } from "./talk-to-agent.constants";
 
 export type WidgetKind = "chat" | "text";
 
@@ -138,9 +139,9 @@ export interface WidgetDraft {
   inquiryPillBorder?: string;
   inquiryPillSelectedBg?: string;
   inquiryPillSelectedText?: string;
-  handoverButtonBg?: string;
-  handoverButtonText?: string;
-  handoverButtonBorder?: string;
+  talkToAgentButtonBg?: string;
+  talkToAgentButtonText?: string;
+  talkToAgentButtonBorder?: string;
   /** Step 3 PATCH `config.behavior` */
   botEnabled?: boolean;
   notificationEnabled?: boolean;
@@ -191,8 +192,8 @@ export interface WidgetDraft {
   responseGreetingMessage?: string;
   responseSendPlaceholder?: string;
   responseAiPromptHint?: string;
-  responseAgentHandoverEnabled?: boolean;
-  responseHandoverTriggerText?: string;
+  responseTalkToAgentEnabled?: boolean;
+  responseTalkToAgentTriggerText?: string;
 }
 
 const STORAGE_KEY = "chat_widget_draft_v1";
@@ -295,8 +296,8 @@ export const defaultWidgetDraft: WidgetDraft = {
   responseGreetingMessage: "Good day!",
   responseSendPlaceholder: "Ask us anything…",
   responseAiPromptHint: "Be concise and helpful.",
-  responseAgentHandoverEnabled: true,
-  responseHandoverTriggerText: "Talk to agent",
+  responseTalkToAgentEnabled: true,
+  responseTalkToAgentTriggerText: DEFAULT_TALK_TO_AGENT_BUTTON_LABEL,
   inquiryOn: false,
   inquiryRequired: false,
   inquirySkipLabel: "General question",

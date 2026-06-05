@@ -3,13 +3,14 @@ import type { SxProps, Theme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import { pageWrapper } from "@/app/dashboard/companies/overview.styles";
 import { rolesPageWrapper } from "@/app/dashboard/roles/roles.styles";
+import { mergeSx } from "@/lib/mui/merge-sx";
 
 function dash(theme: Theme) {
   return (theme as AppTheme).app.dashboard;
 }
 
 /** Same inset as billing / my-attendance — centered column inside `<main>`. */
-export const chatLiveAdminPageInsetSx: SxProps<Theme> = [pageWrapper, rolesPageWrapper];
+export const chatLiveAdminPageInsetSx = mergeSx(pageWrapper, rolesPageWrapper);
 
 export const chatLivePageStackSx: SxProps<Theme> = {
   display: "flex",

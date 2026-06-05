@@ -121,8 +121,9 @@ export default function ChatWidgetBoxDesignPage() {
     prechatEmailEnabled: defaultWidgetDraft.prechatEmailEnabled ?? true,
     prechatPhoneEnabled: defaultWidgetDraft.prechatPhoneEnabled ?? false,
     prechatMessageEnabled: defaultWidgetDraft.prechatMessageEnabled ?? true,
-    handoverEnabled: defaultWidgetDraft.responseAgentHandoverEnabled ?? true,
-    handoverTriggerText: defaultWidgetDraft.responseHandoverTriggerText ?? "",
+    talkToAgentEnabled: defaultWidgetDraft.responseTalkToAgentEnabled ?? true,
+    talkToAgentTriggerText:
+      defaultWidgetDraft.responseTalkToAgentTriggerText ?? "Talk to agent",
     chatMode: defaultWidgetDraft.chatMode ?? "HYBRID",
   });
   const bannerUploadRef = useRef<HTMLInputElement | null>(null);
@@ -184,8 +185,8 @@ export default function ChatWidgetBoxDesignPage() {
       prechatEmailEnabled: d.prechatEmailEnabled ?? def.prechatEmailEnabled ?? true,
       prechatPhoneEnabled: d.prechatPhoneEnabled ?? def.prechatPhoneEnabled ?? false,
       prechatMessageEnabled: d.prechatMessageEnabled ?? def.prechatMessageEnabled ?? true,
-      handoverEnabled: d.responseAgentHandoverEnabled ?? def.responseAgentHandoverEnabled ?? true,
-      handoverTriggerText: d.responseHandoverTriggerText ?? def.responseHandoverTriggerText ?? "",
+      talkToAgentEnabled: d.responseTalkToAgentEnabled ?? def.responseTalkToAgentEnabled ?? true,
+      talkToAgentTriggerText: d.responseTalkToAgentTriggerText ?? def.responseTalkToAgentTriggerText ?? "",
       chatMode: d.chatMode ?? def.chatMode ?? "HYBRID",
     });
   }, [draftReady, editWidgetKey, checklistRefreshKey]);
@@ -389,7 +390,7 @@ export default function ChatWidgetBoxDesignPage() {
       colors: {
         ...chatColors,
         inquiryPillBg: backgroundColor.trim() || chatColors.inquiryPillBg,
-        handoverButtonBg: backgroundColor.trim() || chatColors.handoverButtonBg,
+        talkToAgentButtonBg: backgroundColor.trim() || chatColors.talkToAgentButtonBg,
       },
       inquiryOn,
       inquiryOptions: inquiryOptionsList,
@@ -401,8 +402,8 @@ export default function ChatWidgetBoxDesignPage() {
       prechatEmailEnabled: previewForm.prechatEmailEnabled,
       prechatPhoneEnabled: previewForm.prechatPhoneEnabled,
       prechatMessageEnabled: previewForm.prechatMessageEnabled,
-      handoverEnabled: previewForm.handoverEnabled,
-      handoverTriggerText: previewForm.handoverTriggerText,
+      talkToAgentEnabled: previewForm.talkToAgentEnabled,
+      talkToAgentTriggerText: previewForm.talkToAgentTriggerText,
       chatMode: previewForm.chatMode,
     }),
     [

@@ -1,4 +1,4 @@
-export type ChatParticipantRole = "visitor" | "agent" | "system";
+export type ChatParticipantRole = "visitor" | "agent" | "ai" | "system";
 
 /** Backend `AgentVisitorPresentation` — lists, popups, monitor rows. */
 export interface AgentVisitorPresentation {
@@ -40,6 +40,13 @@ export interface VisitorCreateConversationPayload {
   firstMessage: string;
   currentPageUrl: string;
   referrerUrl?: string;
+  clientLocationCity?: string;
+  clientLocationCountry?: string;
+  clientLocationRegion?: string;
+  clientLocationZipcode?: string;
+  clientTimezone?: string;
+  clientLocale?: string;
+  clientScreenResolution?: string;
   routingKey?: string;
   serviceChannel?: "Internal" | "External";
   inquiryDepartmentId?: string;
@@ -72,7 +79,9 @@ export interface VisitorCreateConversationResponse {
   aiMessage?: WidgetConversationMessageDto | null;
   firstVisitorMessage?: WidgetConversationMessageDto | null;
   chatMode?: string;
+  /** @deprecated Legacy key — prefer {@link talkToAgentRequested}. */
   handoverRequested?: boolean;
+  talkToAgentRequested?: boolean;
   queuedForAgent?: boolean;
   /** True when an open chat for this visitor session was reused instead of creating a new row. */
   resumed?: boolean;
@@ -133,7 +142,11 @@ export interface ChatCloseResponse {
 export interface TypingPayload {
   conversationId: string;
   userType?: "agent" | "visitor" | string;
+  /** Resolved role for live preview (supervisor takeover vs assigned agent). */
+  typingRole?: "visitor" | "agent" | "supervisor" | string;
   userId?: string;
+  /** Ephemeral live draft preview. Not persisted. */
+  draft?: string;
 }
 
 /** Socket: client → server join/leave (backend contract: conversationId only). */
@@ -145,7 +158,11 @@ export interface JoinLeaveRoomPayload {
 export interface SocketVisitorMessagePayload {
   conversationId: string;
   message: string;
-  currentPageUrl: string;
+  currentPageUrl?: string;
+  clientLocationCity?: string;
+  clientLocationCountry?: string;
+  clientLocationRegion?: string;
+  clientLocationZipcode?: string;
 }
 
 /** Socket: client → server agent_message (server persists auth userId; agentId matches gateway convention). */
@@ -160,4 +177,5 @@ export interface SocketTypingEmitPayload {
   conversationId: string;
   userType?: "agent" | "visitor" | string;
   userId?: string;
+  draft?: string;
 }

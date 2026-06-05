@@ -1,4 +1,5 @@
 import { apiClient } from "@/api/http/axios-instance";
+import { agentChatSocketAckOrRest } from "./agent-socket-api.util";
 import { chatAuthHeaders, unwrapChatHttpData } from "./http";
 import type {
   GuestLinkRow,
@@ -9,36 +10,56 @@ import type {
 
 export async function getGuestLinkSendTarget(
   conversationId: string,
-  token?: string,
+  _token?: string,
 ): Promise<GuestLinkSendTarget> {
-  const { data } = await apiClient.get<unknown>(
-    `/chat/conversations/${encodeURIComponent(conversationId)}/guest-link-target`,
-    { headers: chatAuthHeaders(token) },
+  return agentChatSocketAckOrRest(
+    (socket) => socket.fetchGuestLinkTargetWithAck({ conversationId }, 15_000),
+    async () => {
+      const { data } = await apiClient.get<unknown>(
+        `/chat/conversations/${encodeURIComponent(conversationId)}/guest-link-target`,
+      );
+      return unwrapChatHttpData<GuestLinkSendTarget>(data);
+    },
   );
-  return unwrapChatHttpData<GuestLinkSendTarget>(data);
 }
 
 export async function sendDepartmentGuestLink(
   conversationId: string,
   body: SendDepartmentGuestLinkBody | undefined,
-  token?: string,
+  _token?: string,
 ): Promise<SendDepartmentGuestLinkResponse> {
-  const { data } = await apiClient.post<unknown>(
-    `/chat/conversations/${encodeURIComponent(conversationId)}/send-department-link`,
-    body ?? {},
-    { headers: chatAuthHeaders(token) },
+  return agentChatSocketAckOrRest(
+    (socket) =>
+      socket.sendDepartmentGuestLinkWithAck(
+        {
+          conversationId,
+          departmentId: body?.departmentId,
+          email: body?.email,
+        },
+        20_000,
+      ),
+    async () => {
+      const { data } = await apiClient.post<unknown>(
+        `/chat/conversations/${encodeURIComponent(conversationId)}/send-department-link`,
+        body ?? {},
+      );
+      return unwrapChatHttpData<SendDepartmentGuestLinkResponse>(data);
+    },
   );
-  return unwrapChatHttpData<SendDepartmentGuestLinkResponse>(data);
 }
 
 export async function listConversationGuestLinks(
   conversationId: string,
-  token?: string,
+  _token?: string,
 ): Promise<GuestLinkRow[]> {
-  const { data } = await apiClient.get<unknown>(
-    `/chat/conversations/${encodeURIComponent(conversationId)}/guest-links`,
-    { headers: chatAuthHeaders(token) },
+  return agentChatSocketAckOrRest(
+    (socket) => socket.listConversationGuestLinksWithAck({ conversationId }, 15_000),
+    async () => {
+      const { data } = await apiClient.get<unknown>(
+        `/chat/conversations/${encodeURIComponent(conversationId)}/guest-links`,
+      );
+      const unwrapped = unwrapChatHttpData<unknown>(data);
+      return Array.isArray(unwrapped) ? (unwrapped as GuestLinkRow[]) : [];
+    },
   );
-  const unwrapped = unwrapChatHttpData<unknown>(data);
-  return Array.isArray(unwrapped) ? (unwrapped as GuestLinkRow[]) : [];
 }

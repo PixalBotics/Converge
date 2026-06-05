@@ -8,6 +8,7 @@ import {
   AUTH_COOKIE_REFRESH,
 } from "@/lib/auth/auth-cookie-names";
 import { resolveTokenCookieMaxAgeSec } from "@/lib/auth/token-cookie-max-age";
+import { notifyAccessTokenChanged } from "@/lib/auth/access-token-events";
 import { broadcastTokenPairUpdate } from "@/lib/auth/token-cross-tab-sync";
 
 export type TokenCookieHints = {
@@ -90,6 +91,7 @@ export function setTokenPair(tokens: AuthTokenPair, hints?: TokenCookieHints): v
     refreshExpiresIn: hints?.refreshExpiresIn,
     at: Date.now(),
   });
+  notifyAccessTokenChanged();
 }
 
 export function setAccessToken(accessToken: string, accessExpiresIn?: string | null): void {
@@ -102,9 +104,11 @@ export function setAccessToken(accessToken: string, accessExpiresIn?: string | n
       ACCESS_TOKEN_COOKIE_MAX_AGE_SEC,
     ),
   );
+  notifyAccessTokenChanged();
 }
 
 export function clearTokens(): void {
   eraseCookieRaw(AUTH_COOKIE_ACCESS);
   eraseCookieRaw(AUTH_COOKIE_REFRESH);
+  notifyAccessTokenChanged();
 }

@@ -25,9 +25,9 @@ export interface WidgetChatColorsDraft {
   inquiryPillBorder: string;
   inquiryPillSelectedBg: string;
   inquiryPillSelectedText: string;
-  handoverButtonBg: string;
-  handoverButtonText: string;
-  handoverButtonBorder: string;
+  talkToAgentButtonBg: string;
+  talkToAgentButtonText: string;
+  talkToAgentButtonBorder: string;
 }
 
 export type WidgetChatColorsDraftKey = keyof WidgetChatColorsDraft;
@@ -80,12 +80,12 @@ export const WIDGET_CHAT_COLOR_FIELD_GROUPS: Array<{
     ],
   },
   {
-    title: "Handover button",
+    title: "Talk to agent button",
     description: "“Talk to agent” control in hybrid chat mode.",
     fields: [
-      { key: "handoverButtonBg", label: "Background" },
-      { key: "handoverButtonText", label: "Text" },
-      { key: "handoverButtonBorder", label: "Border" },
+      { key: "talkToAgentButtonBg", label: "Background" },
+      { key: "talkToAgentButtonText", label: "Text" },
+      { key: "talkToAgentButtonBorder", label: "Border" },
     ],
   },
 ];
@@ -146,10 +146,18 @@ export function mapApiChatColorsToDraft(
       str(colors.inquiryPillSelectedBg) || str(colors.inquiry_pill_selected_bg),
     inquiryPillSelectedText:
       str(colors.inquiryPillSelectedText) || str(colors.inquiry_pill_selected_text),
-    handoverButtonBg: str(colors.handoverButtonBg) || str(colors.handover_button_bg),
-    handoverButtonText: str(colors.handoverButtonText) || str(colors.handover_button_text),
-    handoverButtonBorder:
-      str(colors.handoverButtonBorder) || str(colors.handover_button_border),
+    talkToAgentButtonBg:
+      str(colors.talkToAgentButtonBg) ||
+      str(colors.handoverButtonBg) ||
+      str(colors.handover_button_bg),
+    talkToAgentButtonText:
+      str(colors.talkToAgentButtonText) ||
+      str(colors.handoverButtonText) ||
+      str(colors.handover_button_text),
+    talkToAgentButtonBorder:
+      str(colors.talkToAgentButtonBorder) ||
+      str(colors.handoverButtonBorder) ||
+      str(colors.handover_button_border),
   };
 }
 
@@ -189,10 +197,10 @@ export function readWidgetChatColorsFromDraft(draft: Partial<WidgetDraft>): Widg
       draft.inquiryPillSelectedBg?.trim() || derived.inquiryPillSelectedBg,
     inquiryPillSelectedText:
       draft.inquiryPillSelectedText?.trim() || derived.inquiryPillSelectedText,
-    handoverButtonBg: draft.handoverButtonBg?.trim() || derived.handoverButtonBg,
-    handoverButtonText: draft.handoverButtonText?.trim() || derived.handoverButtonText,
-    handoverButtonBorder:
-      draft.handoverButtonBorder?.trim() || derived.handoverButtonBorder,
+    talkToAgentButtonBg: draft.talkToAgentButtonBg?.trim() || derived.talkToAgentButtonBg,
+    talkToAgentButtonText: draft.talkToAgentButtonText?.trim() || derived.talkToAgentButtonText,
+    talkToAgentButtonBorder:
+      draft.talkToAgentButtonBorder?.trim() || derived.talkToAgentButtonBorder,
   };
 }
 
@@ -242,8 +250,8 @@ export function buildChatColorsFromWidgetDraft(draft: WidgetDraft): Record<strin
     inquiryPillSelectedBg: c.inquiryPillSelectedBg || button,
     inquiryPillSelectedText:
       c.inquiryPillSelectedText || pickReadableText(button, icon),
-    handoverButtonBg: c.handoverButtonBg || panel,
-    handoverButtonText: c.handoverButtonText || pickReadableText(panel, headerText),
-    handoverButtonBorder: c.handoverButtonBorder || button,
+    talkToAgentButtonBg: c.talkToAgentButtonBg || panel,
+    talkToAgentButtonText: c.talkToAgentButtonText || pickReadableText(panel, headerText),
+    talkToAgentButtonBorder: c.talkToAgentButtonBorder || button,
   };
 }

@@ -21,6 +21,7 @@ import type {
 import type { ChatMessage } from "@/services/chat/chat.types";
 import { publishAppToast } from "@/lib/notify";
 import { extractApiErrorMessageForToast } from "@/lib/notify/extract-api-message";
+import { useChatQaSocket } from "@/lib/hooks/chat/useChatQaSocket";
 import { chatQaKeys } from "./keys";
 
 export type QaStatusTab = QaReviewStatus | "all";
@@ -101,6 +102,17 @@ export function useChatQa(
       queryKey: chatQaKeys.bundle(selectedConversationId),
     });
   }, [queryClient, selectedConversationId]);
+
+  const refreshBundleForId = useCallback(
+    (conversationId: string) => {
+      void queryClient.invalidateQueries({
+        queryKey: chatQaKeys.bundle(conversationId),
+      });
+    },
+    [queryClient],
+  );
+
+  useChatQaSocket(token, apiEnabled && Boolean(token), refreshQueue, refreshBundleForId);
 
   const selectConversation = useCallback((conversationId: string) => {
     setSelectedConversationId(conversationId);
