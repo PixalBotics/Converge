@@ -72,7 +72,7 @@ export const ThemeCustomizeDefaultRow = styled(Box)(({ theme }) => ({
 export const ThemeCustomizeSwatchesRow = styled(Box)(({ theme }) => ({
   display: "flex",
   flexWrap: "wrap",
-  gap: theme.spacing(2),
+  gap: theme.spacing(1.25),
   alignItems: "flex-start",
   padding: selectionHaloSafePaddingPx,
   overflowX: "clip",
@@ -83,11 +83,12 @@ export const ThemeCustomizeColorGrid = styled(Box)(({ theme }) => ({
   width: "100%",
   minWidth: 0,
   boxSizing: "border-box",
-  gridTemplateColumns: `repeat(auto-fill, minmax(min(100%, ${THEME_SWATCH.circlePx}px), 1fr))`,
-  gap: theme.spacing(2),
-  marginBottom: theme.spacing(4),
+  gridTemplateColumns: `repeat(auto-fill, ${THEME_SWATCH.circlePx}px)`,
+  gap: theme.spacing(1.25),
+  marginBottom: theme.spacing(3),
   padding: selectionHaloSafePaddingPx,
   overflowX: "clip",
+  justifyContent: "flex-start",
   justifyItems: "center",
   alignItems: "start",
 }));
@@ -133,16 +134,33 @@ export const ThemeUnsavedAlert = styled(Alert)(({ theme }) => {
   return {
     marginBottom: theme.spacing(2.5),
     alignItems: "center",
+    flexWrap: "nowrap",
     borderColor: alpha(app.dashboard.accentOrange, 0.55),
     backgroundColor: alpha(app.dashboard.accentOrange, 0.08),
     color: app.text.primary,
-    "& .MuiAlert-message": { width: "100%" },
+    "& .MuiAlert-icon": { flexShrink: 0 },
+    "& .MuiAlert-message": {
+      flex: "1 1 auto",
+      minWidth: 0,
+      padding: 0,
+    },
+    "& .MuiAlert-action": {
+      flex: "0 0 auto",
+      alignItems: "center",
+      alignSelf: "center",
+      paddingTop: 0,
+      paddingLeft: theme.spacing(2),
+      marginRight: 0,
+    },
   };
 });
 
 export const ThemeSaveAccountButton = styled(Button)(({ theme }) => ({
   ...gradientPrimaryButtonCss(theme),
   fontWeight: 700,
+  whiteSpace: "nowrap",
+  flexShrink: 0,
+  minWidth: "max-content",
   boxShadow: `0 2px 12px ${alpha(theme.palette.common.black, theme.palette.mode === "dark" ? 0.35 : 0.12)}`,
 }));
 

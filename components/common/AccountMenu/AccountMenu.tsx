@@ -1,7 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
-import Link from "next/link";
+import { useCallback, useMemo } from "react";
 import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
 import Divider from "@mui/material/Divider";
@@ -9,21 +8,43 @@ import { alpha, useTheme } from "@mui/material/styles";
 import {
   Logout as LogoutIcon,
   Login as LoginIcon,
-  PersonOutline as PersonOutlineIcon,
-  PaletteOutlined as PaletteOutlinedIcon,
+  LoginOutlined as LoginOutlinedIcon,
+  LogoutOutlined as LogoutOutlinedIcon,
+  FreeBreakfastOutlined as FreeBreakfastOutlinedIcon,
+  PlayCircleOutline as PlayCircleOutlineIcon,
 } from "@mui/icons-material";
 import type { AppTheme } from "@/theme/theme";
 import { Typography } from "@/components/common";
 import type { AccountMenuProps } from "./AccountMenu.types";
 import {
   AccountMenuIconWrap,
-  accountMenuProfileIconWrapSx,
+  accountMenuBreakIconWrapSx,
+  accountMenuCheckIconWrapSx,
   accountMenuRowSx,
-  accountMenuThemeIconWrapSx,
 } from "./AccountMenu.styled";
+import { useAuth } from "@/lib/auth";
+import { OP } from "@/lib/permissions";
+import {
+  useAttendanceBreakInMutation,
+  useAttendanceBreakOutMutation,
+  useAttendanceCheckInMutation,
+  useAttendanceCheckOutMutation,
+  useAttendanceMeQuery,
+} from "@/lib/hooks/query";
+import { isRecord, unwrapApiData } from "@/lib/utils/core";
+import { parseAttendanceDayState } from "@/lib/utils/hrms/attendance-display";
+import { extractApiErrorMessageForToast, publishAppToast } from "@/lib/notify";
 
-const defaultProfileHref = "/dashboard/settings/profile";
-const defaultThemeHref = "/dashboard/theme";
+function firstTodayRow(data: unknown): Record<string, unknown> | null {
+  const payload = unwrapApiData(data);
+  const source = Array.isArray(payload)
+    ? payload
+    : isRecord(payload) && Array.isArray(payload["items"])
+      ? payload["items"]
+      : [];
+  const row = source.find((item) => isRecord(item));
+  return row && isRecord(row) ? row : null;
+}
 
 export function AccountMenu({
   anchorEl,
@@ -32,13 +53,117 @@ export function AccountMenu({
   isImpersonating,
   onLogout,
   onLoginAsAdmin,
-  profileHref = defaultProfileHref,
-  themeHref = defaultThemeHref,
 }: AccountMenuProps) {
   const theme = useTheme() as AppTheme;
   const app = theme.app;
   const blur = String(app.dashboard.cardBackdropBlur ?? "").trim();
   const rowSx = accountMenuRowSx(theme);
+  const { hasOperational } = useAuth();
+
+  const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
+  const canCheckIn =
+    hasOperational(OP.hrms.attendance.checkIn) || hasOperational(OP.hrms.attendance.self);
+  const canCheckOut =
+    hasOperational(OP.hrms.attendance.checkOut) || hasOperational(OP.hrms.attendance.self);
+  const canBreakIn =
+    hasOperational(OP.hrms.attendance.breakIn) || hasOperational(OP.hrms.attendance.self);
+  const canBreakOut =
+    hasOperational(OP.hrms.attendance.breakOut) || hasOperational(OP.hrms.attendance.self);
+
+  const todayAttendanceQuery = useAttendanceMeQuery(
+    { from: today, to: today, page: 1, limit: 1 },
+    { enabled: open },
+  );
+  const checkInMutation = useAttendanceCheckInMutation();
+  const checkOutMutation = useAttendanceCheckOutMutation();
+  const breakInMutation = useAttendanceBreakInMutation();
+  const breakOutMutation = useAttendanceBreakOutMutation();
+
+  const dayState = useMemo(
+    () => parseAttendanceDayState(firstTodayRow(todayAttendanceQuery.data) ?? {}),
+    [todayAttendanceQuery.data],
+  );
+
+  const isAttendanceBusy =
+    checkInMutation.isPending ||
+    checkOutMutation.isPending ||
+    breakInMutation.isPending ||
+    breakOutMutation.isPending ||
+    todayAttendanceQuery.isFetching;
+
+  const mutateWithToast = useCallback(
+    (
+      mutate: (body: { date: string }, opts: { onSuccess: () => void; onError: (e: unknown) => void }) => void,
+      successMessage: string,
+      errorFallback: string,
+    ) => {
+      mutate(
+        { date: today },
+        {
+          onSuccess: () => publishAppToast({ variant: "success", message: successMessage }),
+          onError: (error) =>
+            publishAppToast({
+              variant: "error",
+              message: extractApiErrorMessageForToast(error) ?? errorFallback,
+            }),
+        },
+      );
+    },
+    [today],
+  );
+
+  const handleCheckToggle = useCallback(() => {
+    if (dayState.hasOpenSession) {
+      if (!canCheckOut || isAttendanceBusy) return;
+      mutateWithToast(checkOutMutation.mutate, "Checked out.", "Could not check out.");
+      return;
+    }
+    if (!canCheckIn || isAttendanceBusy) return;
+    mutateWithToast(checkInMutation.mutate, "Checked in.", "Could not check in.");
+  }, [
+    canCheckIn,
+    canCheckOut,
+    checkInMutation.mutate,
+    checkOutMutation.mutate,
+    dayState.hasOpenSession,
+    isAttendanceBusy,
+    mutateWithToast,
+  ]);
+
+  const handleBreakToggle = useCallback(() => {
+    if (!dayState.hasOpenSession || isAttendanceBusy) return;
+    if (dayState.isOnBreak) {
+      if (!canBreakOut) return;
+      mutateWithToast(breakOutMutation.mutate, "Break ended.", "Could not end break.");
+      return;
+    }
+    if (!canBreakIn) return;
+    mutateWithToast(breakInMutation.mutate, "Break started.", "Could not start break.");
+  }, [
+    breakInMutation.mutate,
+    breakOutMutation.mutate,
+    canBreakIn,
+    canBreakOut,
+    dayState.hasOpenSession,
+    dayState.isOnBreak,
+    isAttendanceBusy,
+    mutateWithToast,
+  ]);
+
+  const checkLabel = useMemo(() => {
+    if (checkInMutation.isPending) return "Checking in…";
+    if (checkOutMutation.isPending) return "Checking out…";
+    return dayState.hasOpenSession ? "Check-out" : "Check-in";
+  }, [checkInMutation.isPending, checkOutMutation.isPending, dayState.hasOpenSession]);
+
+  const breakLabel = useMemo(() => {
+    if (breakInMutation.isPending) return "Starting break…";
+    if (breakOutMutation.isPending) return "Ending break…";
+    return dayState.isOnBreak ? "Break-out" : "Break-in";
+  }, [breakInMutation.isPending, breakOutMutation.isPending, dayState.isOnBreak]);
+
+  const showCheckRow = canCheckIn || canCheckOut;
+  const showBreakRow = canBreakIn || canBreakOut;
 
   const paperSx = useMemo(
     () => ({
@@ -69,6 +194,15 @@ export function AccountMenu({
     },
   };
 
+  const checkDisabled =
+    isAttendanceBusy ||
+    (dayState.hasOpenSession ? !canCheckOut : !canCheckIn);
+
+  const breakDisabled =
+    isAttendanceBusy ||
+    !dayState.hasOpenSession ||
+    (dayState.isOnBreak ? !canBreakOut : !canBreakIn);
+
   return (
     <Menu
       anchorEl={anchorEl}
@@ -82,23 +216,37 @@ export function AccountMenu({
       }}
       disableScrollLock
     >
-      <MenuItem component={Link} href={profileHref} onClick={onClose} disableRipple sx={rowSx}>
-        <AccountMenuIconWrap sx={accountMenuProfileIconWrapSx(theme)}>
-          <PersonOutlineIcon sx={{ fontSize: 20, color: "inherit", display: "block", lineHeight: 0 }} />
-        </AccountMenuIconWrap>
-        <Typography variant="body2" fontWeight={600} sx={{ color: app.text.primary }}>
-          Profile
-        </Typography>
-      </MenuItem>
-      <MenuItem component={Link} href={themeHref} onClick={onClose} disableRipple sx={rowSx}>
-        <AccountMenuIconWrap sx={accountMenuThemeIconWrapSx(theme)}>
-          <PaletteOutlinedIcon sx={{ fontSize: 20, color: "inherit", display: "block", lineHeight: 0 }} />
-        </AccountMenuIconWrap>
-        <Typography variant="body2" fontWeight={600} sx={{ color: app.text.primary }}>
-          Theme
-        </Typography>
-      </MenuItem>
-      <Divider sx={{ my: 0.75, borderColor: app.dashboard.shellBorder, opacity: 0.85 }} />
+      {showCheckRow ? (
+        <MenuItem onClick={handleCheckToggle} disabled={checkDisabled} disableRipple sx={rowSx}>
+          <AccountMenuIconWrap sx={accountMenuCheckIconWrapSx(theme)}>
+            {dayState.hasOpenSession ? (
+              <LogoutOutlinedIcon sx={{ fontSize: 20, display: "block", lineHeight: 0 }} />
+            ) : (
+              <LoginOutlinedIcon sx={{ fontSize: 20, display: "block", lineHeight: 0 }} />
+            )}
+          </AccountMenuIconWrap>
+          <Typography variant="body2" fontWeight={600} sx={{ color: app.text.primary }}>
+            {checkLabel}
+          </Typography>
+        </MenuItem>
+      ) : null}
+      {showBreakRow ? (
+        <MenuItem onClick={handleBreakToggle} disabled={breakDisabled} disableRipple sx={rowSx}>
+          <AccountMenuIconWrap sx={accountMenuBreakIconWrapSx(theme)}>
+            {dayState.isOnBreak ? (
+              <PlayCircleOutlineIcon sx={{ fontSize: 20, display: "block", lineHeight: 0 }} />
+            ) : (
+              <FreeBreakfastOutlinedIcon sx={{ fontSize: 20, display: "block", lineHeight: 0 }} />
+            )}
+          </AccountMenuIconWrap>
+          <Typography variant="body2" fontWeight={600} sx={{ color: app.text.primary }}>
+            {breakLabel}
+          </Typography>
+        </MenuItem>
+      ) : null}
+      {(showCheckRow || showBreakRow) && !isImpersonating ? (
+        <Divider sx={{ my: 0.75, borderColor: app.dashboard.shellBorder, opacity: 0.85 }} />
+      ) : null}
       <MenuItem onClick={isImpersonating ? onLoginAsAdmin : onLogout} disableRipple sx={signOutRowSx}>
         <AccountMenuIconWrap
           sx={{

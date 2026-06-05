@@ -45,7 +45,9 @@ export const ScrollRegion = styled(Box)({
   minHeight: 0,
   overflowY: "auto",
   overflowX: "hidden",
-  scrollbarWidth: "thin",
+  scrollbarWidth: "none",
+  msOverflowStyle: "none",
+  "&::-webkit-scrollbar": { display: "none" },
 });
 
 export const ProfileHeroCard = styled(Box)(({ theme }) => {
@@ -120,27 +122,17 @@ export const MessageThread = styled(Box)({
   display: "flex",
   flexDirection: "column",
   gap: 0,
-  scrollbarWidth: "thin",
+  scrollbarWidth: "none",
+  msOverflowStyle: "none",
   background: "transparent",
-  "&::-webkit-scrollbar": { width: 6 },
-  "&::-webkit-scrollbar-track": { background: "transparent" },
-  "&::-webkit-scrollbar-thumb": {
-    borderRadius: 3,
-    backgroundColor: "rgba(128, 128, 128, 0.28)",
-  },
-  "&::-webkit-scrollbar-button": {
-    display: "none",
-    width: 0,
-    height: 0,
-  },
-  "&::-webkit-scrollbar-corner": { background: "transparent" },
+  "&::-webkit-scrollbar": { display: "none" },
 });
 
 export const DateDivider = styled(Box)(({ theme }) => ({
   display: "flex",
   alignItems: "center",
   gap: theme.spacing(1.25),
-  margin: theme.spacing(0.25, 0, 0.75),
+  margin: theme.spacing(0.5, 0, 1.25),
   "&::before, &::after": {
     content: '""',
     flex: 1,
@@ -159,23 +151,27 @@ export const DateDividerLabel = styled(Typography)(({ theme }) => ({
 
 export const MessageRowOuter = styled(Box, {
   shouldForwardProp: (prop) => prop !== "outgoing" && prop !== "system",
-})<{ outgoing?: boolean; system?: boolean }>(({ outgoing, system }) => ({
+})<{ outgoing?: boolean; system?: boolean }>(({ theme, outgoing, system }) => ({
   display: "flex",
   flexDirection: "row",
-  alignItems: "flex-end",
-  gap: 10,
-  alignSelf: system ? "center" : outgoing ? "flex-end" : "flex-start",
-  maxWidth: system ? "90%" : "min(560px, 88%)",
-  width: outgoing || system ? "auto" : "100%",
+  alignItems: "flex-start",
+  gap: 8,
+  alignSelf: system ? "stretch" : outgoing ? "flex-end" : "flex-start",
+  maxWidth: system ? "100%" : "min(560px, 88%)",
+  width: outgoing ? "fit-content" : "100%",
+  marginLeft: outgoing ? "auto" : 0,
 }));
 
 export const MessageRow = styled(Box, {
   shouldForwardProp: (prop) => prop !== "outgoing" && prop !== "system",
-})<{ outgoing?: boolean; system?: boolean }>(({ outgoing, system }) => ({
+})<{ outgoing?: boolean; system?: boolean }>(({ theme, outgoing, system }) => ({
   display: "flex",
   flexDirection: "column",
-  flex: system ? undefined : 1,
+  flex: outgoing ? "0 0 auto" : system ? undefined : 1,
+  width: outgoing ? "max-content" : undefined,
+  maxWidth: outgoing ? "100%" : undefined,
   minWidth: 0,
+  gap: theme.spacing(0.65),
   alignItems: outgoing ? "flex-end" : "flex-start",
 }));
 
@@ -203,31 +199,36 @@ export const MessageAvatarSpacer = styled(Box)({
   flexShrink: 0,
 });
 
+const CHAT_BUBBLE_RADIUS = 12;
+const CHAT_BUBBLE_RADIUS_TIGHT = 4;
+
 function bubbleRadius(
   outgoing: boolean,
   position: "single" | "first" | "middle" | "last",
 ): string {
+  const r = CHAT_BUBBLE_RADIUS;
+  const t = CHAT_BUBBLE_RADIUS_TIGHT;
   if (outgoing) {
     switch (position) {
       case "first":
-        return "16px 16px 6px 16px";
+        return `${r}px ${r}px ${t}px ${r}px`;
       case "middle":
-        return "16px 6px 6px 16px";
+        return `${r}px ${t}px ${t}px ${r}px`;
       case "last":
-        return "6px 16px 6px 16px";
+        return `${t}px ${r}px ${t}px ${r}px`;
       default:
-        return "16px 16px 6px 16px";
+        return `${r}px ${r}px ${t}px ${r}px`;
     }
   }
   switch (position) {
     case "first":
-      return "16px 16px 16px 6px";
+      return `${r}px ${r}px ${r}px ${t}px`;
     case "middle":
-      return "6px 16px 16px 6px";
+      return `${t}px ${r}px ${r}px ${t}px`;
     case "last":
-      return "6px 16px 16px 16px";
+      return `${t}px ${r}px ${r}px ${r}px`;
     default:
-      return "16px 16px 16px 6px";
+      return `${r}px ${r}px ${r}px ${t}px`;
   }
 }
 
@@ -243,21 +244,22 @@ export const MessageBubble = styled(Box, {
   const lc = live(theme);
   if (system) {
     return {
-      padding: theme.spacing(0.5, 1.25),
-      borderRadius: 999,
-      fontSize: 12,
+      padding: theme.spacing(1.35, 1.5),
+      borderRadius: CHAT_BUBBLE_RADIUS,
+      fontSize: 14,
+      lineHeight: 1.5,
       background: alpha(d.overlayLight, 0.35),
       border: `1px solid ${alpha(d.cardBorder, 0.45)}`,
-      color: d.textMuted,
+      color: lc.messageText,
     };
   }
   const radius = bubbleRadius(Boolean(outgoing), groupPosition);
   const tightTop =
-    groupPosition === "middle" || groupPosition === "last" ? theme.spacing(0.35) : 0;
+    groupPosition === "middle" || groupPosition === "last" ? theme.spacing(0.25) : 0;
 
   return {
     marginTop: tightTop,
-    padding: theme.spacing(1.15, 1.45),
+    padding: theme.spacing(1.35, 1.5),
     borderRadius: radius,
     fontSize: 15,
     lineHeight: 1.55,
@@ -272,8 +274,9 @@ export const MessageBubble = styled(Box, {
 
 export const MessageMeta = styled(Typography)(({ theme }) => ({
   display: "block",
-  marginTop: theme.spacing(0.35),
+  marginTop: 0,
   fontSize: 11,
+  lineHeight: 1.35,
   color: dash(theme).textMuted,
 }));
 
@@ -757,7 +760,7 @@ export const TypingIndicator = styled(Box)(({ theme }) => ({
   gap: theme.spacing(0.75),
   marginLeft: 42,
   padding: theme.spacing(0.75, 1.25),
-  borderRadius: "16px 16px 16px 6px",
+  borderRadius: `${CHAT_BUBBLE_RADIUS}px ${CHAT_BUBBLE_RADIUS}px ${CHAT_BUBBLE_RADIUS}px ${CHAT_BUBBLE_RADIUS_TIGHT}px`,
   fontSize: 12,
   color: live(theme).messageText,
   background: live(theme).messageBg,
@@ -877,10 +880,13 @@ export const CloseChatPanel = styled(Box)(({ theme }) => ({
 export const ChatHeaderMetaChip = styled(Box)(({ theme }) => ({
   display: "inline-flex",
   flexDirection: "column",
+  justifyContent: "center",
   gap: 2,
-  padding: theme.spacing(0.65, 1.15),
-  borderRadius: "10px",
-  minWidth: 84,
+  padding: theme.spacing(0.75, 1.15),
+  borderRadius: 8,
+  minWidth: 76,
+  minHeight: 40,
+  boxSizing: "border-box",
   border: `1px solid ${alpha(dash(theme).cardBorder, 0.45)}`,
   background: alpha(dash(theme).overlayLight, 0.35),
 }));

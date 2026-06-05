@@ -23,13 +23,20 @@ export const accountMenuRowSx = (theme: Theme): SxProps<Theme> => {
     color: app.text.primary,
     transition: "background-color 0.15s ease, color 0.15s ease",
     "&:hover, &.Mui-focusVisible": {
-      backgroundColor: alpha(app.dashboard.overlayMedium, mode === "dark" ? 0.9 : 0.65),
+      backgroundColor: alpha(
+        theme.palette.common.white,
+        mode === "dark" ? 0.1 : 0.08,
+      ),
+      color: app.text.primary,
+    },
+    "&.Mui-disabled": {
+      opacity: 0.45,
     },
   };
 };
 
-/** Profile row — tinted chip so the person icon stays visible on light/custom menu surfaces. */
-export const accountMenuProfileIconWrapSx = (theme: Theme): SxProps<Theme> => {
+/** Check-in / check-out row. */
+export const accountMenuCheckIconWrapSx = (theme: Theme): SxProps<Theme> => {
   const app = (theme as AppTheme).app;
   const mode = theme.palette.mode;
   return {
@@ -39,16 +46,14 @@ export const accountMenuProfileIconWrapSx = (theme: Theme): SxProps<Theme> => {
   };
 };
 
-/** “Theme / appearance” row — matches dashboard section gradient tiles (not the neutral profile chip). */
-export const accountMenuThemeIconWrapSx = (theme: Theme): SxProps<Theme> => {
+/** Break-in / break-out row. */
+export const accountMenuBreakIconWrapSx = (theme: Theme): SxProps<Theme> => {
   const app = (theme as AppTheme).app;
   const mode = theme.palette.mode;
   return {
-    backgroundColor: "transparent",
-    background: app.dashboard.gradientIcon,
-    border: `1px solid ${alpha(app.dashboard.accentPurple, mode === "dark" ? 0.55 : 0.42)}`,
-    color: app.dashboard.gradientButtonText,
-    boxShadow: mode === "dark" ? "inset 0 1px 0 rgba(255,255,255,0.1)" : "inset 0 1px 0 rgba(255,255,255,0.35)",
+    backgroundColor: alpha(app.dashboard.accentOrange, mode === "dark" ? 0.2 : 0.12),
+    border: `1px solid ${alpha(app.dashboard.accentOrange, mode === "dark" ? 0.5 : 0.38)}`,
+    color: app.dashboard.accentOrange,
   };
 };
 

@@ -43,16 +43,18 @@ export function ChatMessageBubble({
   const showAvatar = shouldShowMessageAvatar(message, groupPosition);
   const showMeta = shouldShowMessageMeta(groupPosition);
   const senderLabel = isOutgoing ? agentDisplayName : visitorDisplayName;
-
+  const rowSpacingSx =
+    groupPosition === "middle" || groupPosition === "first"
+      ? { mb: 0.25 }
+      : { mb: 1.25 };
   if (isSystem && isInboxFormLinkMessage(message)) {
     return (
       <Box
         sx={{
           width: "100%",
-          maxWidth: 560,
-          alignSelf: "center",
+          maxWidth: "100%",
+          alignSelf: "stretch",
           my: 0.75,
-          px: { xs: 0.5, md: 0 },
         }}
       >
         <ChatMessageContent message={message} />
@@ -62,7 +64,7 @@ export function ChatMessageBubble({
 
   if (isSystem) {
     return (
-      <MessageRowOuter system>
+      <MessageRowOuter system sx={rowSpacingSx}>
         <MessageRow system>
           <MessageBubble outgoing={false} system groupPosition="single">
             <ChatMessageContent message={message} />
@@ -73,7 +75,7 @@ export function ChatMessageBubble({
   }
 
   return (
-    <MessageRowOuter outgoing={isOutgoing}>
+    <MessageRowOuter outgoing={isOutgoing} sx={rowSpacingSx}>
       {!isOutgoing && showAvatar ? (
         <MessageAvatar aria-hidden>{visitorInitials}</MessageAvatar>
       ) : !isOutgoing ? (
@@ -91,7 +93,9 @@ export function ChatMessageBubble({
               alignItems: "center",
               gap: 0.5,
               justifyContent: isOutgoing ? "flex-end" : "flex-start",
-              px: 0.5,
+              alignSelf: isOutgoing ? "stretch" : undefined,
+              width: isOutgoing ? "100%" : undefined,
+              px: isOutgoing ? 0 : 0.5,
             }}
           >
             {senderLabel}

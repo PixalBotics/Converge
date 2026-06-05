@@ -29,7 +29,11 @@ import {
 } from "@/features/chat-operations/utils/conversation-scoped-state";
 import { parseVisitorInfo } from "@/features/chat-operations/utils/visitor-info";
 import {
-  ChatHeaderMetaChip,
+  chatOpsAgentAssignPillSx,
+  chatOpsConversationMetaChipHeight,
+  chatOpsStatusChipSx,
+} from "@/features/chat-operations/styles/chat-operations.styles";
+import {
   PanelColumn,
   PanelHeader,
   QueueAvatar,
@@ -283,48 +287,89 @@ export function MonitorTranscriptPanel({
         <PanelHeader
           sx={{
             display: "flex",
-            alignItems: "center",
+            alignItems: "flex-start",
             justifyContent: "space-between",
-            gap: 1.5,
-            py: 1.25,
+            gap: 2,
+            py: 1.5,
+            px: 2,
             flexShrink: 0,
           }}
         >
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1.25, minWidth: 0, flex: 1 }}>
-            <QueueAvatar sx={{ width: 40, height: 40, fontSize: 13 }}>{visitorInfo.initials}</QueueAvatar>
-            <Box sx={{ minWidth: 0 }}>
-              <Typography fontWeight={700} sx={{ fontSize: 14, color: theme.app.text.primary }}>
+          <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1.5, minWidth: 0, flex: 1 }}>
+            <QueueAvatar sx={{ width: 44, height: 44, fontSize: 14, flexShrink: 0 }}>
+              {visitorInfo.initials}
+            </QueueAvatar>
+            <Box sx={{ minWidth: 0, pt: 0.15 }}>
+              <Typography
+                fontWeight={700}
+                sx={{ fontSize: 15, lineHeight: 1.3, color: theme.app.text.primary }}
+              >
                 {title}
               </Typography>
               {subtitle ? (
                 <Typography
                   variant="caption"
-                  sx={{ color: theme.app.dashboard.textMuted, fontSize: 11 }}
+                  sx={{
+                    display: "block",
+                    mt: 0.35,
+                    color: theme.app.dashboard.textMuted,
+                    fontSize: 11,
+                    lineHeight: 1.45,
+                  }}
                 >
                   {subtitle}
                 </Typography>
               ) : null}
-              <Box sx={{ display: "flex", gap: 0.5, mt: 0.5, flexWrap: "wrap", alignItems: "center" }}>
-                <Chip label={conversation!.status} size="small" sx={{ height: 20, fontSize: 10 }} />
-                <ChatHeaderMetaChip>
-                  <Typography variant="caption" sx={{ fontSize: 10, color: theme.app.dashboard.textMuted }}>
-                    Agent
-                  </Typography>
-                  <Typography sx={{ fontSize: 12, fontWeight: 600 }}>{agentLabel}</Typography>
-                </ChatHeaderMetaChip>
+              <Box
+                sx={{
+                  display: "flex",
+                  gap: 0.75,
+                  mt: 0.85,
+                  flexWrap: "wrap",
+                  alignItems: "center",
+                }}
+              >
+                <Chip
+                  label={conversation!.status}
+                  size="small"
+                  sx={{
+                    ...chatOpsStatusChipSx,
+                    textTransform: "capitalize",
+                  }}
+                />
+                <Box
+                  component="span"
+                  sx={[
+                    chatOpsAgentAssignPillSx,
+                    { color: theme.app.text.primary, fontWeight: 600 },
+                  ]}
+                >
+                  {agentLabel}
+                </Box>
               </Box>
             </Box>
           </Box>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexShrink: 0 }}>
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 0.75,
+              flexShrink: 0,
+              alignSelf: "center",
+            }}
+          >
             {!isClosed ? (
               <Box
                 component="span"
                 sx={{
                   display: "inline-flex",
                   alignItems: "center",
+                  justifyContent: "center",
                   gap: 0.5,
-                  px: 0.85,
-                  py: 0.2,
+                  height: chatOpsConversationMetaChipHeight,
+                  boxSizing: "border-box",
+                  px: 1,
+                  py: 0,
                   borderRadius: 999,
                   fontSize: 11,
                   fontWeight: 600,
@@ -334,6 +379,10 @@ export function MonitorTranscriptPanel({
                   bgcolor: visitorTyping
                     ? alpha(theme.app.dashboard.accentCyan, 0.14)
                     : alpha(theme.palette.success.main, 0.14),
+                  border: `1px solid ${alpha(
+                    visitorTyping ? theme.app.dashboard.accentCyan : theme.palette.success.main,
+                    0.28,
+                  )}`,
                 }}
               >
                 <Box
@@ -356,7 +405,13 @@ export function MonitorTranscriptPanel({
                 variant="secondary"
                 size="compact"
                 onClick={() => setCloseDialogOpen(true)}
-                sx={{ minWidth: 0, px: 1.25, py: 0.35, fontSize: 11 }}
+                sx={{
+                  minWidth: 0,
+                  height: chatOpsConversationMetaChipHeight,
+                  px: 1.25,
+                  py: 0,
+                  fontSize: 11,
+                }}
               >
                 Close
               </Button>

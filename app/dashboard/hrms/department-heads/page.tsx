@@ -63,7 +63,6 @@ import { useAuth, sessionMayPickInternalUserScope } from "@/lib/auth";
 import { canManageDepartmentHeads, canRemoveDepartmentHead } from "@/lib/permissions";
 import { resolveUserKind, type UserKind } from "@/lib/hrms/user-kind";
 import { SearchIcon } from "@/components/common/icons";
-import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
 import {
   departmentsCardHeader,
   departmentsSearchFieldWrapper,
@@ -948,18 +947,12 @@ export default function DepartmentHeadsPage() {
                   <Button type="button" variant="secondary" onClick={applyHeadsFilters}>
                     Apply
                   </Button>
-                  <Button type="button" variant="primary" sx={gradientPrimaryButtonSx} onClick={() => setFilterPanelOpen(false)}>
-                    Done
-                  </Button>
                 </Box>
               </>
             ) : (
               <>
                 <Button type="button" variant="secondary" disabled={!canClearAttendanceDraft} onClick={clearAttendanceListFilters}>
                   Clear filters
-                </Button>
-                <Button type="button" variant="primary" sx={gradientPrimaryButtonSx} onClick={() => setFilterPanelOpen(false)}>
-                  Done
                 </Button>
               </>
             )}

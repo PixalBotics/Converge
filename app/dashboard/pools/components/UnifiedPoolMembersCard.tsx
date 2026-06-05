@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import Box from "@mui/material/Box";
+import IconButton from "@mui/material/IconButton";
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
 import { Groups as GroupsIcon } from "@mui/icons-material";
@@ -18,7 +19,6 @@ import {
   SelectField,
   TablePagination,
   Typography,
-  AppIconButton,
   dataTableActionButton,
 } from "@/components/common";
 import type { DataTableColumn } from "@/components/common";
@@ -258,22 +258,24 @@ export function UnifiedPoolMembersCard({
             label: "Action",
             render: (row) => (
               <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 0.5 }} onClick={(e) => e.stopPropagation()}>
-                <AppIconButton
+                <IconButton
+                  size="small"
                   aria-label="Edit (move to another pool)"
                   disabled={busy || !canMove}
                   onClick={() => openMove(row)}
-                  sx={dataTableActionButton}
+                  sx={{ ...dataTableActionButton, color: theme.app.dashboard.white80 }}
                 >
                   <EditIcon fontSize="small" />
-                </AppIconButton>
-                <AppIconButton
+                </IconButton>
+                <IconButton
+                  size="small"
                   aria-label="Delete (remove from pool)"
                   disabled={busy || !canRemove}
                   onClick={() => setRemoveRow(row)}
                   sx={{ ...dataTableActionButton, color: theme.app.dashboard.accentRedLight }}
                 >
                   <DeleteIcon fontSize="small" />
-                </AppIconButton>
+                </IconButton>
               </Box>
             ),
           }}

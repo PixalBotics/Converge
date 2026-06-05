@@ -12,13 +12,12 @@ import { useTheme } from "@mui/material/styles";
 import type { SxProps, Theme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import { hideScrollbarsSx } from "@/lib/ui/hideScrollbars";
-import { FORM_MODAL_MUI_OVERLAY_Z_INDEX } from "@/lib/ui/dialogStacking";
 import { Typography } from "@/components/common/Typography";
 import { SearchIcon } from "@/components/common/icons";
 import { resolveSx } from "@/utils/resolveSx";
 import {
   selectMenuItemSx,
-  selectMenuPaperSx,
+  selectMenuProps,
 } from "@/components/common/SelectField/SelectField.styles";
 import type { FilterableSearchBarProps } from "./FilterableSearchBar.types";
 
@@ -206,10 +205,7 @@ export function FilterableSearchBar({
               },
             }}
             SelectProps={{
-              MenuProps: {
-                sx: { zIndex: FORM_MODAL_MUI_OVERLAY_Z_INDEX },
-                PaperProps: { sx: selectMenuPaperSx(theme) },
-              },
+              MenuProps: selectMenuProps(theme),
             }}
           >
             {selectOptions.map((opt) => (

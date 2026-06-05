@@ -28,11 +28,17 @@ import {
   ToolbarFilterPopoverPanel,
 } from "@/components/common";
 import type { DataTableColumn } from "@/components/common";
-import { gradientPrimaryButtonSx, pillCompanionChipSx } from "@/components/common/Button/Button.styles";
-import { rolesCard, rolesIconBox, rolesPageWrapper } from "../../roles/roles.styles";
+import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
+import {
+  rolesCard,
+  rolesFooterRow,
+  rolesIconBox,
+  rolesPageWrapper,
+  rolesPaginationWrapper,
+} from "../../roles/roles.styles";
 import { footerMutedText, pageWrapper } from "../../companies/overview.styles";
 import { publishAppToast } from "@/lib/notify";
-import { isRecord, pickNum, pickStr, unwrapApiData } from "@/lib/utils/core";
+import { formatIsoDate, isRecord, pickNum, pickStr, unwrapApiData } from "@/lib/utils/core";
 import {
   HRMS_SHIFTS_LIST_SEARCH_MAX,
   clampWorkingDaysMask,
@@ -60,6 +66,7 @@ import {
 } from "@/app/dashboard/website-assigning/website-assigning.styles";
 import {
   poolShiftActionsSx,
+  poolShiftHeaderChipSx,
   poolShiftFilterHintSx,
   poolShiftFilterPopoverPairRowSx,
   poolShiftFilterPopoverStackSx,
@@ -494,8 +501,8 @@ export default function PoolShiftPage() {
           pickStr(shiftObj, ["name"]) ||
           pickStr(r, ["shiftName"]) ||
           "—";
-        const from = pickStr(r, ["effectiveFrom", "from", "startDate"]) || "—";
-        const to = pickStr(r, ["effectiveTo", "to", "endDate"]) || "—";
+        const fromRaw = pickStr(r, ["effectiveFrom", "from", "startDate"]);
+        const toRaw = pickStr(r, ["effectiveTo", "to", "endDate"]);
         const rawAssign = r["workingDaysMask"] ?? r["working_days_mask"];
         let assignMask: number | null = null;
         if (rawAssign !== null && rawAssign !== undefined && rawAssign !== "") {
@@ -508,7 +515,14 @@ export default function PoolShiftPage() {
           assignMask != null
             ? formatWorkingDaysMaskHuman(clampWorkingDaysMask(assignMask))
             : `Inherited (${formatWorkingDaysMaskHuman(eff)})`;
-        return { id, poolName, shiftName, effectiveFrom: from, effectiveTo: to, weekSummary };
+        return {
+          id,
+          poolName,
+          shiftName,
+          effectiveFrom: formatIsoDate(fromRaw),
+          effectiveTo: formatIsoDate(toRaw),
+          weekSummary,
+        };
       })
       .filter((x): x is AssignmentRow => x !== null);
   }, [items, selectedPoolLabel]);
@@ -762,7 +776,7 @@ export default function PoolShiftPage() {
           <Chip
             label={`${totalEntries} assignment${totalEntries === 1 ? "" : "s"}`}
             variant="outlined"
-            sx={pillCompanionChipSx}
+            sx={poolShiftHeaderChipSx}
           />
           <Button variant="primary" sx={gradientPrimaryButtonSx} onClick={() => setAssignOpen(true)}>
             Add pool shift
@@ -808,52 +822,43 @@ export default function PoolShiftPage() {
           </Box>
         </Box>
 
-        <Box sx={{ px: { xs: 1.5, sm: 2 }, pb: 0 }}>
-          <DataTable<AssignmentRow>
-            columns={columns}
-            rows={listDisplayRows}
-            isLoading={listQuery.isLoading || listQuery.isFetching}
-            getRowId={(row) => row.id}
-            minWidth={720}
-            actionColumn={{
-              label: "Action",
-              render: (row) => (
-                <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
-                  <IconButton
-                    size="small"
-                    sx={{
-                      ...dataTableActionButton,
-                      color: theme.app.dashboard.accentRedLight,
-                      opacity: removeMutation.isPending ? 0.7 : 1,
-                    }}
-                    aria-label="Remove assignment"
-                    disabled={removeMutation.isPending}
-                    onClick={() => {
-                      setRemoveTarget(row);
-                    }}
-                  >
-                    <DeleteIcon fontSize="small" />
-                  </IconButton>
-                </Box>
-              ),
-            }}
-          />
-        </Box>
-
-        <Box
-          sx={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            mt: 2,
-            px: { xs: 1.5, sm: 2 },
-            pb: { xs: 1.5, sm: 2 },
+        <DataTable<AssignmentRow>
+          columns={columns}
+          rows={listDisplayRows}
+          isLoading={listQuery.isLoading || listQuery.isFetching}
+          getRowId={(row) => row.id}
+          minWidth={720}
+          actionColumn={{
+            label: "Action",
+            render: (row) => (
+              <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+                <IconButton
+                  size="small"
+                  sx={{
+                    ...dataTableActionButton,
+                    color: theme.app.dashboard.accentRedLight,
+                    opacity: removeMutation.isPending ? 0.7 : 1,
+                  }}
+                  aria-label="Remove assignment"
+                  disabled={removeMutation.isPending}
+                  onClick={() => {
+                    setRemoveTarget(row);
+                  }}
+                >
+                  <DeleteIcon fontSize="small" />
+                </IconButton>
+              </Box>
+            ),
           }}
-        >
+        />
+
+        <Box sx={rolesFooterRow}>
           <Typography variant="medium" sx={footerMutedText(theme)}>
             {listAssignmentsFooterText}
           </Typography>
-          <TablePagination page={page} pageCount={pageCount} onPageChange={setPage} />
+          <Box sx={rolesPaginationWrapper}>
+            <TablePagination page={page} pageCount={pageCount} onPageChange={setPage} />
+          </Box>
         </Box>
       </DashboardCard>
 

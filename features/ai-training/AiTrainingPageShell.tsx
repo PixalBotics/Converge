@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import ArrowBack from "@mui/icons-material/ArrowBack";
 import Box from "@mui/material/Box";
 import Stack from "@mui/material/Stack";
+import type { SxProps, Theme } from "@mui/material/styles";
 import { useRouter } from "next/navigation";
 import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
@@ -12,6 +13,8 @@ import {
   integrationsPageHeader,
   integrationsPageWrapper,
 } from "@/app/dashboard/integrations/integrations.styles";
+import { pageWrapper } from "@/app/dashboard/companies/overview.styles";
+import { rolesPageWrapper } from "@/app/dashboard/roles/roles.styles";
 import { Button, Typography } from "@/components/common";
 
 export function AiTrainingPageShell({
@@ -35,7 +38,7 @@ export function AiTrainingPageShell({
   const router = useRouter();
 
   return (
-    <Box sx={integrationsPageWrapper}>
+    <Box sx={[pageWrapper, rolesPageWrapper, integrationsPageWrapper] as SxProps<Theme>}>
       <Box sx={integrationsPageHeader}>
         <Box sx={{ minWidth: 0 }}>
           {backHref ? (

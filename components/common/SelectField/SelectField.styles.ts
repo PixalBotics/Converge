@@ -1,16 +1,28 @@
 import { alpha } from "@mui/material/styles";
 import type { Theme } from "@mui/material/styles";
+import type { MenuProps } from "@mui/material/Menu";
 import type { AppTheme } from "@/theme/theme";
 import { FORM_MODAL_MUI_OVERLAY_Z_INDEX } from "@/lib/ui/dialogStacking";
 import { hideScrollbarsSx } from "@/lib/ui/hideScrollbars";
 
 export { hideScrollbarsSx };
 
+/** Shared `MenuProps` for MUI `TextField select` / toolbar filter dropdowns. */
+export function selectMenuProps(theme: Theme, extra?: Partial<MenuProps>): Partial<MenuProps> {
+  return {
+    sx: { zIndex: FORM_MODAL_MUI_OVERLAY_Z_INDEX },
+    MenuListProps: { sx: hideScrollbarsSx },
+    PaperProps: { sx: selectMenuPaperSx(theme) },
+    ...extra,
+  };
+}
+
 /** MUI Select menu panel — matches header/surface theme (not fixed navy). */
 export function selectMenuPaperSx(theme: Theme) {
   const app = (theme as AppTheme).app;
   return {
     ...hideScrollbarsSx,
+    "& .MuiMenu-list": hideScrollbarsSx,
     zIndex: FORM_MODAL_MUI_OVERLAY_Z_INDEX,
     // Higher opacity so the table behind doesn't "bleed" through.
     bgcolor: app.dashboard.menuSurfaceBg,

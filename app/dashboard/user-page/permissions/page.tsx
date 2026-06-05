@@ -5,7 +5,15 @@ import Box from "@mui/material/Box";
 import { useTheme } from "@mui/material/styles";
 import type { SxProps, Theme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
-import { Typography, Button, DashboardCard, DataTable, SearchBar, TablePagination } from "@/components/common";
+import {
+  Typography,
+  Button,
+  DashboardCard,
+  DataTable,
+  SearchBar,
+  SearchSubmitButton,
+  TablePagination,
+} from "@/components/common";
 import type { DataTableColumn } from "@/components/common";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
 import { rolesCard, rolesFooterRow, rolesIconBox, rolesPageWrapper, rolesPaginationWrapper } from "@/app/dashboard/roles/roles.styles";
@@ -117,16 +125,14 @@ export default function UserPermissionsPage() {
             </Box>
             <Box sx={{ display: "flex", alignItems: "center", gap: 1, width: { xs: "100%", md: 420 } }}>
               <SearchBar value={searchInput} onChange={setSearchInput} placeholder="Search by name or email…" />
-              <Button
-                variant="outlined"
+              <SearchSubmitButton
                 disabled={usersQuery.isFetching}
                 onClick={() => {
                   setAppliedSearch(searchInput);
                   setPage(1);
                 }}
-              >
-                Search
-              </Button>
+                sx={{ minWidth: 120 }}
+              />
             </Box>
           </Box>
 

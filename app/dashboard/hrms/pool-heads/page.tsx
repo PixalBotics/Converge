@@ -859,14 +859,23 @@ export default function PoolHeadsPage() {
     return (
       <ToolbarFilterPopoverPanel
         footer={
-          <>
+          <Box
+            sx={{
+              display: "flex",
+              width: "100%",
+              flexWrap: "wrap",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 1.5,
+            }}
+          >
             <Button type="button" variant="secondary" disabled={!filterToolbarActive} onClick={clearPageFilters}>
               Clear filters
             </Button>
             <Button type="button" variant="primary" sx={gradientPrimaryButtonSx} onClick={() => setFilterPanelOpen(false)}>
               Done
             </Button>
-          </>
+          </Box>
         }
       >
         <Typography variant="medium" fontWeight={700} sx={{ color: theme.app.text.primary, mb: 1.5 }}>

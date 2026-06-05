@@ -12,10 +12,10 @@ import {
   KeyboardArrowDown as KeyboardArrowDownIcon,
 } from "@mui/icons-material";
 import { useAuth } from "@/lib/auth";
-import { HeaderSettingsIcon, SearchIcon } from "@/components/common/icons";
+import { SearchIcon } from "@/components/common/icons";
 import type { SxProps, Theme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
-import { createDashboardHeaderShellSx, dashboardHeaderCircleIconButtonSx } from "./styles/shell.styles";
+import { createDashboardHeaderShellSx } from "./styles/shell.styles";
 import { dashboardFirstWord, dashboardRoleLabel, dashboardUserInitials } from "./dashboard-header.labels";
 import { DashboardHeaderSearchBar } from "./DashboardHeaderSearchBar";
 import { DashboardHeaderMobileSearchTray } from "./DashboardHeaderMobileSearchTray";
@@ -105,17 +105,6 @@ export default function DashboardHeader({ onMenuClick }: { onMenuClick?: () => v
               <SearchIcon sx={{ fontSize: 22 }} />
             </IconButton>
           )}
-          <IconButton
-            sx={
-              [
-                dashboardHeaderCircleIconButtonSx(app),
-                { display: { xs: "none", md: "inline-flex" } },
-              ] as SxProps<Theme>
-            }
-            aria-label="Settings"
-          >
-            <HeaderSettingsIcon width={22} height={22} />
-          </IconButton>
           <NotificationsBellDrawer />
           <Box sx={{ display: "flex", alignItems: "center", gap: { xs: 0.5, sm: 1.5 }, ml: { xs: 0, sm: 1 } }}>
             <Avatar

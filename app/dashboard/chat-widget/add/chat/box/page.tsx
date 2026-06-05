@@ -35,7 +35,6 @@ import {
   widgetChatColorsDraftToPatch,
   type WidgetChatColorsDraft,
 } from "@/lib/chat-widget/widget-colors-draft";
-import { WidgetInquiryOptionsEditor } from "@/components/dashboard/chat-widget/WidgetInquiryOptionsEditor";
 import { SchedulingSectionCard } from "@/features/website-assignments/components/ServiceSchedulingSections";
 import { WidgetWizardPageLayout } from "@/features/chat-widget/components/WidgetWizardPageLayout";
 import { WidgetWizardStepGuide } from "@/features/chat-widget/components/WidgetWizardStepGuide";
@@ -48,6 +47,12 @@ import { WidgetWizardToggleRow } from "@/features/chat-widget/components/WidgetW
 import { defaultWidgetDraft } from "@/lib/chat-widget/widgetDraft";
 import { useWizardLauncherChrome } from "@/lib/chat-widget/use-wizard-launcher-preview";
 import { resolveWizardLauncherPreview } from "@/lib/chat-widget/widget-wizard-save-trace";
+import {
+  chatBoxFieldGroupSx,
+  chatBoxFormStackSx,
+  chatBoxSectionTitleSx,
+  chatBoxSwitchRowSx,
+} from "./chat-box-design.styles";
 import { syncResponseCopyFromChatBox } from "@/lib/chat-widget/sync-response-copy-from-chat-box";
 import { WidgetWizardSiteChromePreview } from "@/features/chat-widget/components/WidgetWizardSiteChromePreview";
 import Stack from "@mui/material/Stack";
@@ -55,11 +60,6 @@ import {
   normalizeWidgetInquiryOptions,
   type WidgetInquiryOption,
 } from "@/lib/chat-widget/widget-inquiry.types";
-import { useInquiryTopicsForWebsite } from "@/lib/chat-widget/use-inquiry-topics-for-website";
-import {
-  persistVisitorTopicsIfValid,
-  syncInquiryToWidgetJson,
-} from "@/lib/chat-widget/sync-inquiry-topics";
 export default function ChatWidgetBoxDesignPage() {
   const { recordSave } = useWidgetWizardSaveTrace();
   const router = useRouter();
@@ -141,20 +141,6 @@ export default function ChatWidgetBoxDesignPage() {
     inquiryTopicsTouchedRef.current = false;
   }, [editWidgetKey]);
 
-  const {
-    topicsFromScheduling,
-    isLoading: inquiryTopicsLoading,
-    loadedFromScheduling,
-  } = useInquiryTopicsForWebsite(wizardWebsiteId, draftReady);
-
-  const schedulingTopicsFingerprint = useMemo(
-    () =>
-      topicsFromScheduling
-        .map((t) => `${t.routingKey}:${t.label}:${t.internalDepartmentId}:${t.externalDepartmentId}`)
-        .join("|"),
-    [topicsFromScheduling],
-  );
-
   useEffect(() => {
     if (!draftReady) return;
     const d = readChatWizardDraft(resolveEditWidgetKeyForNavigation(editWidgetKey) || undefined);
@@ -208,14 +194,7 @@ export default function ChatWidgetBoxDesignPage() {
     if (!draftReady) return;
     const d = readChatWizardDraft(resolveEditWidgetKeyForNavigation(editWidgetKey) || undefined);
     const def = defaultWidgetDraft;
-    if (inquiryTopicsLoading) return;
     if (inquiryTopicsTouchedRef.current) return;
-
-    if (topicsFromScheduling.length > 0) {
-      setInquiryOptions(topicsFromScheduling);
-      setInquiryOn(true);
-      return;
-    }
 
     const inquiryArr = normalizeWidgetInquiryOptions(d.inquiryOptions ?? def.inquiryOptions);
     setInquiryOn(d.inquiryOn ?? inquiryArr.length > 0);
@@ -226,7 +205,7 @@ export default function ChatWidgetBoxDesignPage() {
         def.inquiryFallbackRoutingKey ||
         "",
     );
-  }, [draftReady, editWidgetKey, inquiryTopicsLoading, schedulingTopicsFingerprint, topicsFromScheduling]);
+  }, [draftReady, editWidgetKey]);
 
   const handleBannerUpload = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -321,37 +300,15 @@ export default function ChatWidgetBoxDesignPage() {
           buttonLabel: buttonLabel.trim() || prev.buttonLabel || "Chat with us",
           firstMessage: firstMessage.trim(),
           backgroundColor: backgroundColor.trim() || prev.backgroundColor || "#f8fafc",
-          inquiryOn,
-          inquiryOptions: inquiryOn
-            ? normalizeWidgetInquiryOptions(inquiryOptions)
-            : [],
-          inquiryFallbackRoutingKey: inquiryFallbackRoutingKey.trim() || undefined,
+          inquiryOn: prev.inquiryOn ?? false,
+          inquiryOptions:
+            prev.inquiryOn && prev.inquiryOptions?.length
+              ? normalizeWidgetInquiryOptions(prev.inquiryOptions)
+              : [],
+          inquiryFallbackRoutingKey: prev.inquiryFallbackRoutingKey?.trim() || undefined,
           ...widgetChatColorsDraftToPatch(chatColors),
         });
         const latest = readChatWizardDraft(editKey || undefined);
-        if (wizardWebsiteId && inquiryOn && latest.inquiryOptions?.length) {
-          const topicsResult = await persistVisitorTopicsIfValid(
-            wizardWebsiteId,
-            normalizeWidgetInquiryOptions(latest.inquiryOptions),
-          );
-          if (!topicsResult.ok) {
-            publishAppToast({
-              variant: "error",
-              message: topicsResult.error,
-            });
-            setSaving(false);
-            return;
-          }
-          try {
-            await syncInquiryToWidgetJson({ widgetKey: rk, draft: latest });
-          } catch {
-            publishAppToast({
-              variant: "error",
-              message:
-                "Visitor topics saved, but widget JSON sync failed. Try Save inquiry topics or click Next again.",
-            });
-          }
-        }
         const patchMeta = await patchRemoteWidgetConfigurationWithMeta({
           widgetKey: rk,
           widgetKind: "chat",
@@ -502,6 +459,7 @@ export default function ChatWidgetBoxDesignPage() {
       ) : null}
 
       <WidgetWizardPageLayout
+        showChecklist={false}
         checklistRefreshKey={checklistRefreshKey}
         preview={
           <Stack spacing={2.5}>
@@ -515,6 +473,7 @@ export default function ChatWidgetBoxDesignPage() {
           title="Panel header & colors"
           subtitle="Header alignment, brand colors, and optional banner."
         >
+      <Box sx={chatBoxFormStackSx}>
       <SelectField
         label="Header alignment"
         value={headerTitleAlign}
@@ -525,7 +484,7 @@ export default function ChatWidgetBoxDesignPage() {
         ]}
       />
 
-      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 2, mb: 1 }}>
+      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 2 }}>
         <WidgetColorPickerField
           label="Header / brand color"
           value={headerBrandColor}
@@ -557,7 +516,7 @@ export default function ChatWidgetBoxDesignPage() {
       </Box>
 
       {bannerOn ? (
-        <>
+        <Box sx={chatBoxFieldGroupSx}>
           <WidgetTextField
             label="Banner title"
             name="banner-title"
@@ -603,87 +562,17 @@ export default function ChatWidgetBoxDesignPage() {
               {bannerFileName || "Max 10 MB files are allowed"}
             </Typography>
           </Box>
-        </>
+        </Box>
       ) : null}
       <Box component="input" ref={bannerUploadRef} type="file" accept=".png,.jpg,.jpeg,.webp,.gif,.mp4,.webm,.ogg,.mov" onChange={handleBannerUpload} sx={{ display: "none" }} />
+      </Box>
         </SchedulingSectionCard>
-
-      <SchedulingSectionCard
-        title="Inquiry topics"
-        subtitle="Save or Next writes topics to visitor-topics (routing) and widget JSON (embed pills). Publish from Script when done."
-      >
-        <Box
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 1,
-            mb: 1.5,
-          }}
-        >
-          <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted }}>
-            Show topic pills on widget
-          </Typography>
-          <Switch
-            checked={inquiryOn}
-            onChange={(_, checked) => setInquiryOn(checked)}
-            color="success"
-            inputProps={{ "aria-label": "Show inquiry topic pills on widget" }}
-          />
-        </Box>
-        <WidgetInquiryOptionsEditor
-          websiteId={wizardWebsiteId}
-          value={inquiryOptions}
-          onChange={(rows) => {
-            inquiryTopicsTouchedRef.current = true;
-            setInquiryOptions(rows);
-          }}
-          inquiryFallbackRoutingKey={inquiryFallbackRoutingKey}
-          onFallbackRoutingKeyChange={setInquiryFallbackRoutingKey}
-          disabled={saving}
-          topicsLoading={inquiryTopicsLoading}
-          loadedFromScheduling={loadedFromScheduling}
-          onSaved={(rows) => {
-            inquiryTopicsTouchedRef.current = false;
-            setInquiryOptions(rows);
-            if (rows.length > 0) setInquiryOn(true);
-            const editKey = resolveEditWidgetKeyForNavigation(editWidgetKey);
-            const prev = readChatWizardDraft(editKey || undefined);
-            const fallbackKey =
-              inquiryFallbackRoutingKey.trim() ||
-              rows.find((o) => o.routingKey.trim())?.routingKey ||
-              "";
-            const mergedDraft = {
-              ...prev,
-              inquiryOptions: rows,
-              inquiryOn: rows.length > 0,
-              inquiryFallbackRoutingKey: fallbackKey || undefined,
-            };
-            saveChatWizardDraft(editKey || undefined, {
-              inquiryOptions: rows,
-              inquiryOn: rows.length > 0,
-              inquiryFallbackRoutingKey: fallbackKey || undefined,
-            });
-            const rk = resolveRemoteWidgetKeyForChatWizard(editKey || undefined, prev);
-            if (rk) {
-              void syncInquiryToWidgetJson({ widgetKey: rk, draft: mergedDraft }).catch(
-                () => {
-                  publishAppToast({
-                    variant: "error",
-                    message:
-                      "Topics saved for the website, but widget JSON sync failed. Click Next on this step or publish again.",
-                  });
-                },
-              );
-            }
-          }}
-        />
-      </SchedulingSectionCard>
 
         <SchedulingSectionCard
           title="Launcher & panel shell"
           subtitle="Floating button label, intro bubble, composer placeholder, and panel background."
         >
+      <Box sx={chatBoxFormStackSx}>
       <WidgetTextField
         label="Floating button label"
         name="button-label"
@@ -738,9 +627,11 @@ export default function ChatWidgetBoxDesignPage() {
         onChange={setBackgroundColor}
         fallback="#f8fafc"
       />
+      </Box>
         </SchedulingSectionCard>
 
         <SchedulingSectionCard title="Chat colors & typography" subtitle="Panel tokens and greeting copy.">
+      <Box sx={chatBoxFormStackSx}>
       <WidgetChatColorsSection
         colors={chatColors}
         onChange={setChatColors}
@@ -754,7 +645,7 @@ export default function ChatWidgetBoxDesignPage() {
         }}
       />
 
-      <Typography variant="mediumLarge" sx={{ color: theme.app.text.primary, mb: -1.25, mt: 1 }}>
+      <Typography variant="mediumLarge" sx={{ color: theme.app.text.primary, mb: 0.5 }}>
         Panel size
       </Typography>
       <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 1.5 }}>
@@ -774,6 +665,7 @@ export default function ChatWidgetBoxDesignPage() {
           min={320}
           max={640}
         />
+      </Box>
       </Box>
         </SchedulingSectionCard>
       </WidgetWizardPageLayout>
