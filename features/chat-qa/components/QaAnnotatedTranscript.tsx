@@ -112,7 +112,8 @@ export function QaAnnotatedTranscript({
               {group.messages.map((message, idx) => {
                 const msgId = message.id;
                 const ann = msgId ? annotationsByMessageId.get(msgId) : undefined;
-                const clickable = canAnnotate && msgId && message.role !== "system";
+                const clickable =
+                  canAnnotate && msgId && message.role !== "system" && message.role !== "ai";
                 const inner = (
                   <ChatMessageBubble
                     message={message}

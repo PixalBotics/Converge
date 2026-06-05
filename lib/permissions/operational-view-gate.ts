@@ -24,6 +24,17 @@ const PREFIX_VIEW_RULES: readonly { prefix: string; anyOf: readonly string[] }[]
     ],
   },
   {
+    prefix: "/dashboard/chat-transcripts",
+    anyOf: [
+      OP.chat.audit,
+      OP.chat.auditPlatform,
+      OP.chat.monitorPool,
+      OP.chat.monitorDepartment,
+      OP.chat.monitorParentCompany,
+      OP.qa.chatReview,
+    ],
+  },
+  {
     prefix: "/dashboard/qa/roster/assign",
     anyOf: [OP.qa.chatAssign, OP.chatWidget.view, OP.chatWidget.update],
   },

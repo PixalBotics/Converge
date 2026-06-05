@@ -8,6 +8,7 @@ export interface FilterableSearchOption {
 export interface FilterableSearchSuggestion {
   id: string;
   label: string;
+  subtitle?: string;
 }
 
 export interface FilterableSearchBarProps {
