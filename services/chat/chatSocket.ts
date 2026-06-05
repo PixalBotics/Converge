@@ -10,6 +10,7 @@ import type {
   SocketTypingEmitPayload,
   SocketVisitorMessagePayload,
   TypingPayload,
+  VisitorCreateConversationPayload,
 } from "./chat.types";
 import { normalizeServerMessage } from "./normalize-message";
 
@@ -189,6 +190,74 @@ export class ChatSocketClient {
     return this.connection.emitWithAck("visitor_message", payload, timeoutMs);
   }
 
+  startConversationWithAck(
+    payload: VisitorCreateConversationPayload,
+    timeoutMs?: number,
+  ): Promise<unknown> {
+    return this.connection.emitWithAck("start_conversation", payload, timeoutMs);
+  }
+
+  fetchTranscriptWithAck(
+    payload: { conversationId: string; websiteId: string },
+    timeoutMs?: number,
+  ): Promise<unknown> {
+    return this.connection.emitWithAck("fetch_transcript", payload, timeoutMs);
+  }
+
+  fetchMonitorLiveWithAck(
+    payload: {
+      websiteId?: string;
+      departmentId?: string;
+      poolId?: string;
+      status?: string;
+      agentId?: string;
+    },
+    timeoutMs?: number,
+  ): Promise<unknown> {
+    return this.connection.emitWithAck("fetch_monitor_live", payload, timeoutMs);
+  }
+
+  fetchMonitorClosedWithAck(
+    payload: {
+      websiteId?: string;
+      departmentId?: string;
+      poolId?: string;
+      status?: string;
+      agentId?: string;
+    },
+    timeoutMs?: number,
+  ): Promise<unknown> {
+    return this.connection.emitWithAck("fetch_monitor_closed", payload, timeoutMs);
+  }
+
+  fetchMonitorTranscriptWithAck(
+    payload: { conversationId: string },
+    timeoutMs?: number,
+  ): Promise<unknown> {
+    return this.connection.emitWithAck("fetch_monitor_transcript", payload, timeoutMs);
+  }
+
+  fetchGuestLinkTargetWithAck(
+    payload: { conversationId: string },
+    timeoutMs?: number,
+  ): Promise<unknown> {
+    return this.connection.emitWithAck("fetch_guest_link_target", payload, timeoutMs);
+  }
+
+  listConversationGuestLinksWithAck(
+    payload: { conversationId: string },
+    timeoutMs?: number,
+  ): Promise<unknown> {
+    return this.connection.emitWithAck("list_conversation_guest_links", payload, timeoutMs);
+  }
+
+  sendDepartmentGuestLinkWithAck(
+    payload: { conversationId: string; departmentId?: string; email?: string },
+    timeoutMs?: number,
+  ): Promise<unknown> {
+    return this.connection.emitWithAck("send_department_guest_link", payload, timeoutMs);
+  }
+
   sendAgentMessage(payload: SocketAgentMessagePayload): void {
     this.connection.emit("agent_message", bodyFromAgentPayload(payload));
   }
@@ -222,7 +291,7 @@ export class ChatSocketClient {
   }
 
   sendSupervisorTakeoverRequestWithAck(
-    payload: { conversationId: string; reason?: string },
+    payload: { conversationId: string; targetAgentId?: string; note?: string },
     timeoutMs?: number,
   ): Promise<unknown> {
     return this.connection.emitWithAck("supervisor_takeover_request", payload, timeoutMs);

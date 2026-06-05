@@ -11,6 +11,7 @@ import {
   releaseGuestDirectControl,
   sendGuestDirectControlMessage,
   startGuestDirectControl,
+  type GuestSocketClient,
 } from "@/services/chat/guest.api";
 import type { StoredGuestSession } from "@/lib/chat/guest-session";
 import {
@@ -28,6 +29,7 @@ interface GuestSupervisorActionsProps {
   onOptimisticAgentMessage?: (content: string) => void;
   onLiveTyping?: (draft?: string) => void;
   onActionComplete?: () => void;
+  guestSocket?: GuestSocketClient;
 }
 
 function errorMessage(err: unknown): string {
@@ -49,6 +51,7 @@ export function GuestSupervisorActions({
   onOptimisticAgentMessage,
   onLiveTyping,
   onActionComplete,
+  guestSocket,
 }: GuestSupervisorActionsProps) {
   const theme = useTheme() as AppTheme;
   const [whisperText, setWhisperText] = useState("");
@@ -115,6 +118,7 @@ export function GuestSupervisorActions({
               session.conversationId,
               session.accessToken,
               whisperText.trim(),
+              guestSocket,
             );
             setWhisperText("");
             setStatus("Whisper sent to the agent.");
@@ -144,7 +148,11 @@ export function GuestSupervisorActions({
           disabled={busy}
           onClick={() =>
             void run(async () => {
-              await startGuestDirectControl(session.conversationId, session.accessToken);
+              await startGuestDirectControl(
+                session.conversationId,
+                session.accessToken,
+                guestSocket,
+              );
               setStatus("You are controlling this chat.");
             })
           }
@@ -181,6 +189,7 @@ export function GuestSupervisorActions({
                   session.conversationId,
                   session.accessToken,
                   text,
+                  guestSocket,
                 );
                 setReplyText("");
                 onLiveTyping?.("");
@@ -198,7 +207,11 @@ export function GuestSupervisorActions({
             disabled={busy}
             onClick={() =>
               void run(async () => {
-                await releaseGuestDirectControl(session.conversationId, session.accessToken);
+                await releaseGuestDirectControl(
+                  session.conversationId,
+                  session.accessToken,
+                  guestSocket,
+                );
                 setStatus("Chat returned to the assigned agent.");
               })
             }

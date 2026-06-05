@@ -289,16 +289,19 @@ export function resolveWidgetColorTokens(input: ResolveWidgetColorTokensInput): 
 
   const talkToAgentBackground = strFirst(
     colors?.talkToAgentButtonBg,
+    colors?.handoverButtonBg,
     colors?.handover_button_bg,
     panelBackground,
   );
   const talkToAgentBorder = strFirst(
     colors?.talkToAgentButtonBorder,
+    colors?.handoverButtonBorder,
     colors?.handover_button_border,
     primary,
   );
   const talkToAgentText = strFirst(
     colors?.talkToAgentButtonText,
+    colors?.handoverButtonText,
     colors?.handover_button_text,
     pickReadableText(talkToAgentBackground, bodyText),
   );

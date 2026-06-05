@@ -146,10 +146,18 @@ export function mapApiChatColorsToDraft(
       str(colors.inquiryPillSelectedBg) || str(colors.inquiry_pill_selected_bg),
     inquiryPillSelectedText:
       str(colors.inquiryPillSelectedText) || str(colors.inquiry_pill_selected_text),
-    talkToAgentButtonBg: str(colors.talkToAgentButtonBg) || str(colors.handover_button_bg),
-    talkToAgentButtonText: str(colors.talkToAgentButtonText) || str(colors.handover_button_text),
+    talkToAgentButtonBg:
+      str(colors.talkToAgentButtonBg) ||
+      str(colors.handoverButtonBg) ||
+      str(colors.handover_button_bg),
+    talkToAgentButtonText:
+      str(colors.talkToAgentButtonText) ||
+      str(colors.handoverButtonText) ||
+      str(colors.handover_button_text),
     talkToAgentButtonBorder:
-      str(colors.talkToAgentButtonBorder) || str(colors.handover_button_border),
+      str(colors.talkToAgentButtonBorder) ||
+      str(colors.handoverButtonBorder) ||
+      str(colors.handover_button_border),
   };
 }
 

@@ -57,6 +57,13 @@ export class NotificationsSocketClient {
   onSocketDisconnect(listener: () => void): () => void {
     return this.connection.on("disconnect", listener);
   }
+
+  fetchSnapshotWithAck(
+    payload: { unreadOnly?: boolean },
+    timeoutMs?: number,
+  ): Promise<unknown> {
+    return this.connection.emitWithAck("fetch_snapshot", payload, timeoutMs);
+  }
 }
 
 let sharedNotificationsSocket: NotificationsSocketClient | null = null;

@@ -1,6 +1,8 @@
 "use client";
 
 import { useAuth } from "@/lib/auth";
+import { isDashboardAccessToken } from "@/lib/auth/access-token";
+import { isAuthSessionTerminated } from "@/api";
 import { useAccessToken } from "@/lib/auth/use-access-token";
 import { useAuthRealtimeBridge } from "@/lib/auth/useAuthRealtimeBridge";
 import { useAgentSessionSockets } from "@/lib/hooks/chat/useAgentSessionSockets";
@@ -11,7 +13,11 @@ export function AgentDashboardProviders({ children }: { children: React.ReactNod
   const { isAuthenticated } = useAuth();
   const gates = useChatApiGates();
   const token = useAccessToken()?.trim() ?? "";
-  const realtimeEnabled = isAuthenticated && Boolean(token);
+  const realtimeEnabled =
+    isAuthenticated &&
+    Boolean(token) &&
+    isDashboardAccessToken(token) &&
+    !isAuthSessionTerminated();
   const chatSocketEnabled =
     realtimeEnabled && (gates.agentInbox || gates.monitor);
 

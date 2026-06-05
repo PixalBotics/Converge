@@ -20,7 +20,11 @@ import {
   scheduleJoinRoomRetries,
   unwrapSocketMessagePayload,
 } from "@/lib/hooks/chat/chat-socket-delivery";
-import { exchangeGuestLinkToken, getGuestTranscript } from "@/services/chat/guest.api";
+import {
+  exchangeGuestLinkToken,
+  getGuestTranscript,
+  type GuestSocketClient,
+} from "@/services/chat/guest.api";
 import {
   applyStopTypingSocketPayload,
   applyTypingSocketPayload,
@@ -118,9 +122,14 @@ export function useGuestChatSession(
 
   const mergeTranscriptGapFill = useCallback(async (s: StoredGuestSession) => {
     if (!s.permissions.viewTranscript) return;
-    const data = await getGuestTranscript(s.conversationId, s.accessToken);
+    const data = await getGuestTranscript(
+      s.conversationId,
+      s.accessToken,
+      s.websiteId,
+      socketClient,
+    );
     applyTranscriptEnvelope(data);
-  }, [applyTranscriptEnvelope]);
+  }, [applyTranscriptEnvelope, socketClient]);
 
   const loadTranscript = useCallback(
     async (s: StoredGuestSession) => {
@@ -129,11 +138,18 @@ export function useGuestChatSession(
         setError("This guest link does not include transcript access.");
         return;
       }
-      const data = await getGuestTranscript(s.conversationId, s.accessToken);
+      socketClient.connect({ authToken: s.accessToken, forceNew: true });
+      await socketClient.waitUntilSocketReady(12_000);
+      const data = await getGuestTranscript(
+        s.conversationId,
+        s.accessToken,
+        s.websiteId,
+        socketClient,
+      );
       applyTranscriptEnvelope(data, { replaceAll: true });
       setPhase("ready");
     },
-    [applyTranscriptEnvelope],
+    [applyTranscriptEnvelope, socketClient],
   );
 
   useEffect(() => {
@@ -553,5 +569,6 @@ export function useGuestChatSession(
     appendOptimisticMessage,
     emitLiveTyping,
     signOutGuest,
+    guestSocket: socketClient as GuestSocketClient,
   };
 }

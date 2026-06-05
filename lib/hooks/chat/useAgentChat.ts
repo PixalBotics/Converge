@@ -18,6 +18,7 @@ import type {
   ChatMessage,
   ConversationSummary,
 } from "@/services/chat/chat.types";
+import { mergeVisitorPanelContext } from "@/features/chat-operations/utils/visitor-info";
 import {
   conversationIdFromSocketPayload,
   sortMessagesChronologically,
@@ -208,7 +209,10 @@ export function useAgentChat(params: UseAgentChatParams): UseAgentChatReturn {
       syncMessagesFromMap();
       const v = history.visitor;
       setVisitorFromHistory(
-        typeof v === "object" && v !== null ? (v as Record<string, unknown>) : null,
+        mergeVisitorPanelContext(
+          typeof v === "object" && v !== null ? (v as Record<string, unknown>) : null,
+          history as Record<string, unknown>,
+        ),
       );
     },
     [apiEnabled, params.token, syncMessagesFromMap],
@@ -579,7 +583,10 @@ export function useAgentChat(params: UseAgentChatParams): UseAgentChatReturn {
 
       const v = history.visitor;
       setVisitorFromHistory(
-        typeof v === "object" && v !== null ? (v as Record<string, unknown>) : null,
+        mergeVisitorPanelContext(
+          typeof v === "object" && v !== null ? (v as Record<string, unknown>) : null,
+          history as Record<string, unknown>,
+        ),
       );
 
       const historyRecord = history as Record<string, unknown>;

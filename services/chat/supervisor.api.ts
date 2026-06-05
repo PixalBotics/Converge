@@ -1,5 +1,7 @@
 import { apiClient } from "@/api";
+import { unwrapSocketAckPayload } from "@/lib/hooks/chat/chat-socket-delivery";
 import { getSharedAgentChatSocket } from "./sharedAgentChatSocket";
+import type { ChatSocketClient } from "./chatSocket";
 import { unwrapChatHttpData } from "./http";
 import type {
   ChatTakeoverRequest,
@@ -11,6 +13,35 @@ import type {
 
 function conversationPath(conversationId: string): string {
   return `/chat/conversations/${encodeURIComponent(conversationId)}`;
+}
+
+async function ensureAgentSocketReady(): Promise<ChatSocketClient | null> {
+  const socket = getSharedAgentChatSocket();
+  try {
+    const ready = await socket.waitUntilSocketReady(12_000);
+    return ready && socket.isConnected() ? socket : null;
+  } catch {
+    return null;
+  }
+}
+
+async function agentSocketAckOrRest<T>(
+  socketCall: (socket: ChatSocketClient) => Promise<unknown>,
+  restCall: () => Promise<T>,
+): Promise<T> {
+  const socket = await ensureAgentSocketReady();
+  if (socket) {
+    try {
+      const ack = await socketCall(socket);
+      const body = unwrapSocketAckPayload(ack);
+      if (body && typeof body === "object") {
+        return unwrapChatHttpData<T>(body);
+      }
+    } catch {
+      /* REST fallback below */
+    }
+  }
+  return restCall();
 }
 
 export async function fetchConversationWhispers(
@@ -27,25 +58,20 @@ export async function createConversationWhisper(
   conversationId: string,
   body: CreateWhisperBody,
 ): Promise<{ whisper: ChatWhisper; agentMustClickSend: boolean }> {
-  const socket = getSharedAgentChatSocket();
-  if (socket.isConnected()) {
-    try {
-      const ack = await socket.sendSupervisorWhisperWithAck({
-        conversationId,
-        message: body.message,
-      });
-      if (ack && typeof ack === "object") {
-        return unwrapChatHttpData(ack);
-      }
-    } catch {
-      /* REST fallback */
-    }
-  }
-  const { data } = await apiClient.post<unknown>(
-    `${conversationPath(conversationId)}/whispers`,
-    body,
+  return agentSocketAckOrRest(
+    (socket) =>
+      socket.sendSupervisorWhisperWithAck(
+        { conversationId, message: body.message },
+        15_000,
+      ),
+    async () => {
+      const { data } = await apiClient.post<unknown>(
+        `${conversationPath(conversationId)}/whispers`,
+        body,
+      );
+      return unwrapChatHttpData(data);
+    },
   );
-  return unwrapChatHttpData(data);
 }
 
 export async function fetchTakeoverRequests(
@@ -62,11 +88,24 @@ export async function requestConversationTakeover(
   conversationId: string,
   body: RequestTakeoverBody,
 ): Promise<RequestTakeoverResult> {
-  const { data } = await apiClient.post<unknown>(
-    `${conversationPath(conversationId)}/takeover/request`,
-    body,
+  return agentSocketAckOrRest(
+    (socket) =>
+      socket.sendSupervisorTakeoverRequestWithAck(
+        {
+          conversationId,
+          targetAgentId: body.targetAgentId,
+          note: body.note,
+        },
+        15_000,
+      ),
+    async () => {
+      const { data } = await apiClient.post<unknown>(
+        `${conversationPath(conversationId)}/takeover/request`,
+        body,
+      );
+      return unwrapChatHttpData<RequestTakeoverResult>(data);
+    },
   );
-  return unwrapChatHttpData<RequestTakeoverResult>(data);
 }
 
 export async function approveTakeoverRequest(
@@ -92,61 +131,48 @@ export async function rejectTakeoverRequest(
 export async function startDirectSupervisorControl(
   conversationId: string,
 ): Promise<{ mode: string; supervisorControlUserId: string; agentReadOnly: boolean }> {
-  const socket = getSharedAgentChatSocket();
-  if (socket.isConnected()) {
-    try {
-      const ack = await socket.sendSupervisorControlStartWithAck({ conversationId });
-      if (ack && typeof ack === "object") {
-        return unwrapChatHttpData(ack);
-      }
-    } catch {
-      /* REST fallback */
-    }
-  }
-  const { data } = await apiClient.post<unknown>(
-    `${conversationPath(conversationId)}/supervisor/control/start`,
+  return agentSocketAckOrRest(
+    (socket) =>
+      socket.sendSupervisorControlStartWithAck({ conversationId }, 15_000),
+    async () => {
+      const { data } = await apiClient.post<unknown>(
+        `${conversationPath(conversationId)}/supervisor/control/start`,
+      );
+      return unwrapChatHttpData(data);
+    },
   );
-  return unwrapChatHttpData(data);
 }
 
 export async function releaseDirectSupervisorControl(
   conversationId: string,
 ): Promise<{ released: boolean }> {
-  const socket = getSharedAgentChatSocket();
-  if (socket.isConnected()) {
-    try {
-      const ack = await socket.sendSupervisorControlReleaseWithAck({ conversationId });
-      if (ack && typeof ack === "object") {
-        return unwrapChatHttpData(ack);
-      }
-    } catch {
-      /* REST fallback */
-    }
-  }
-  const { data } = await apiClient.post<unknown>(
-    `${conversationPath(conversationId)}/supervisor/control/release`,
+  return agentSocketAckOrRest(
+    (socket) =>
+      socket.sendSupervisorControlReleaseWithAck({ conversationId }, 15_000),
+    async () => {
+      const { data } = await apiClient.post<unknown>(
+        `${conversationPath(conversationId)}/supervisor/control/release`,
+      );
+      return unwrapChatHttpData(data);
+    },
   );
-  return unwrapChatHttpData(data);
 }
 
 export async function sendSupervisorControlMessage(
   conversationId: string,
   message: string,
 ): Promise<unknown> {
-  const socket = getSharedAgentChatSocket();
-  if (socket.isConnected()) {
-    try {
-      const ack = await socket.sendSupervisorMessageWithAck({ conversationId, message });
-      if (ack !== undefined) return ack;
-    } catch {
-      /* REST fallback */
-    }
-  }
-  const { data } = await apiClient.post<unknown>(
-    `${conversationPath(conversationId)}/supervisor/messages`,
-    { message },
+  return agentSocketAckOrRest(
+    (socket) =>
+      socket.sendSupervisorMessageWithAck({ conversationId, message }, 15_000),
+    async () => {
+      const { data } = await apiClient.post<unknown>(
+        `${conversationPath(conversationId)}/supervisor/messages`,
+        { message },
+      );
+      return unwrapChatHttpData(data);
+    },
   );
-  return unwrapChatHttpData(data);
 }
 
 export async function supervisorCloseConversation(

@@ -226,6 +226,7 @@ export function GuestChatPage() {
                 onOptimisticAgentMessage={guest.appendOptimisticMessage}
                 onLiveTyping={guest.emitLiveTyping}
                 onActionComplete={() => void guest.refreshTranscript()}
+                guestSocket={guest.guestSocket}
               />
             </Box>
           </>

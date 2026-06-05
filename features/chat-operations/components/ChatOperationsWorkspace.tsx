@@ -283,10 +283,6 @@ export function ChatOperationsWorkspace() {
   const visitorPresentation: AgentVisitorPresentation | null = selectedSummary
     ? extractVisitorPresentation(selectedSummary)
     : null;
-  const conversationMeta =
-    selectedSummary && typeof selectedSummary === "object"
-      ? (selectedSummary as Record<string, unknown>)
-      : null;
   const viewingOtherAgent = Boolean(
     superviseAgent && teamAgent?.userId && teamAgent.userId !== user?.id,
   );
@@ -295,6 +291,15 @@ export function ChatOperationsWorkspace() {
     user?.displayName?.trim() ||
     user?.email?.trim() ||
     "You";
+  const conversationMeta =
+    selectedSummary && typeof selectedSummary === "object"
+      ? ({
+          ...(selectedSummary as Record<string, unknown>),
+          ...(assignedAgentLabel
+            ? { agentNameSnapshot: assignedAgentLabel, agentName: assignedAgentLabel }
+            : {}),
+        } as Record<string, unknown>)
+      : null;
   const assignedAgentId =
     typeof selectedSummary?.assignedAgentId === "string"
       ? selectedSummary.assignedAgentId

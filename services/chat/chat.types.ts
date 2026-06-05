@@ -40,6 +40,13 @@ export interface VisitorCreateConversationPayload {
   firstMessage: string;
   currentPageUrl: string;
   referrerUrl?: string;
+  clientLocationCity?: string;
+  clientLocationCountry?: string;
+  clientLocationRegion?: string;
+  clientLocationZipcode?: string;
+  clientTimezone?: string;
+  clientLocale?: string;
+  clientScreenResolution?: string;
   routingKey?: string;
   serviceChannel?: "Internal" | "External";
   inquiryDepartmentId?: string;
@@ -154,6 +161,8 @@ export interface SocketVisitorMessagePayload {
   currentPageUrl?: string;
   clientLocationCity?: string;
   clientLocationCountry?: string;
+  clientLocationRegion?: string;
+  clientLocationZipcode?: string;
 }
 
 /** Socket: client → server agent_message (server persists auth userId; agentId matches gateway convention). */

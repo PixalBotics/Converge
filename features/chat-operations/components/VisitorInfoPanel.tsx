@@ -231,11 +231,6 @@ export function VisitorInfoPanel({
     canUseSupervisorTools(hasOperational) && Boolean(conversationId) && !supervisorReadOnly;
   const supervisor = useConversationSupervisor(conversationId, supervisorEnabled);
 
-  useEffect(() => {
-    if (!supervisorEnabled || supervisorRefreshToken === 0) return;
-    void supervisor.refresh();
-  }, [supervisorRefreshToken, supervisorEnabled, supervisor.refresh]);
-
   const journey =
     parsed.journey.length > 0
       ? parsed.journey
@@ -372,7 +367,7 @@ export function VisitorInfoPanel({
             </AccordionSummary>
             <AccordionDetails sx={{ pt: 0, pb: 2 }}>
               <ProfileDetailRow>
-                {parsed.sessionFields.slice(0, 3).map((f) => (
+                {parsed.sessionFields.map((f) => (
                   <DetailField key={f.label} label={f.label} value={f.value} />
                 ))}
               </ProfileDetailRow>

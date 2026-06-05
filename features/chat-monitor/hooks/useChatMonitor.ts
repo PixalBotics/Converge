@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { mergeVisitorPanelContext } from "@/features/chat-operations/utils/visitor-info";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getAccessToken } from "@/api";
 import {
@@ -148,7 +149,10 @@ export function useChatMonitor(
         syncMessagesFromMap();
         const v = history.visitor;
         setVisitorFromHistory(
-          typeof v === "object" && v !== null ? (v as Record<string, unknown>) : null,
+          mergeVisitorPanelContext(
+            typeof v === "object" && v !== null ? (v as Record<string, unknown>) : null,
+            history as Record<string, unknown>,
+          ),
         );
         const sc = (history as { supervisorControlUserId?: string | null })
           .supervisorControlUserId;

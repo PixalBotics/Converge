@@ -1,152 +1,161 @@
 /**
- * Unified widget loader — CHAT / TEXT_US / BOTH.
- * Iframe is transparent and sized via postMessage from /embed/widget (no outer chrome).
+ * Converge embed loader — mounts `/embed/widget` in a fixed iframe on the host page.
+ * Config, session, and chat run inside the iframe (React) against NEXT_PUBLIC_API_BASE_URL.
+ *
+ * <script src="{APP}/widget.js" data-widget-key="wgt_..." data-app-origin="{APP}" defer></script>
  */
-(function widgetBootstrap() {
-  var script =
-    document.currentScript ||
-    (function () {
-      var scripts = document.getElementsByTagName("script");
-      return scripts[scripts.length - 1];
-    })();
+(function () {
+  "use strict";
 
-  var widgetKey = script && script.getAttribute("data-widget-key");
-  var appOriginAttr = script && script.getAttribute("data-app-origin");
   var RESIZE_MSG = "converge-widget-embed-resize";
+  var LAUNCHER_SIZE_PX = 58;
+  var DEFAULT_INSET_BOTTOM_PX = 16;
+  var DEFAULT_INSET_SIDE_PX = 16;
 
-  function resolveAppOrigin() {
-    if (appOriginAttr && appOriginAttr.indexOf("//") !== -1) {
-      try {
-        return new URL(appOriginAttr).origin;
-      } catch (e) {
-        return "";
-      }
-    }
-    if (typeof location !== "undefined") return location.origin;
-    return "";
+  function currentScript() {
+    return document.currentScript;
   }
 
-  if (!widgetKey) {
-    if (typeof console !== "undefined" && console.warn) {
-      console.warn("[Interchanges widget] Missing data-widget-key.");
-    }
-    return;
-  }
-
-  var APP_ORIGIN = resolveAppOrigin();
-  if (!APP_ORIGIN && typeof console !== "undefined" && console.error) {
-    console.error("[Interchanges widget] Could not resolve app origin. Set data-app-origin.");
-    return;
-  }
-
-  var parentHost =
-    typeof location !== "undefined" && location.hostname
-      ? location.hostname
-      : "";
-  var parentPage =
-    typeof location !== "undefined" ? location.href.split("#")[0] : "";
-
-  var iframe = document.createElement("iframe");
-  iframe.title = "Messaging widget";
-  iframe.setAttribute("allow", "clipboard-write");
-  iframe.setAttribute(
-    "sandbox",
-    "allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox",
-  );
-  iframe.style.position = "fixed";
-  iframe.style.border = "0";
-  iframe.style.background = "transparent";
-  iframe.style.colorScheme = "normal";
-  iframe.style.overflow = "hidden";
-  iframe.style.width = "58px";
-  iframe.style.height = "58px";
-  iframe.style.bottom = "16px";
-  iframe.style.right = "16px";
-  iframe.style.zIndex = "2147483645";
-  iframe.style.boxShadow = "none";
-  iframe.style.borderRadius = "0";
-
-  var params = new URLSearchParams({
-    widgetKey: widgetKey,
-    parentHost: parentHost,
-    parentPage: parentPage || "",
-  });
-  iframe.src = APP_ORIGIN + "/embed/widget?" + params.toString();
-
-  function applyFramePosition(d) {
-    var bottom = typeof d.insetBottomPx === "number" ? d.insetBottomPx : 16;
-    var side = typeof d.insetSidePx === "number" ? d.insetSidePx : 16;
-    var pos = d.position || "right";
-
-    iframe.style.bottom = bottom + "px";
-    iframe.style.left = "auto";
-    iframe.style.right = "auto";
-    iframe.style.transform = "none";
-
-    if (pos === "left") {
-      iframe.style.left = side + "px";
-    } else if (pos === "center") {
-      iframe.style.left = "50%";
-      iframe.style.transform = "translateX(-50%)";
-    } else {
-      iframe.style.right = side + "px";
-    }
-  }
-
-  function iframeContentOrigin() {
+  function pageHost() {
     try {
-      return new URL(iframe.src).origin;
-    } catch (e) {
+      return window.location.hostname || "localhost";
+    } catch (_e) {
+      return "localhost";
+    }
+  }
+
+  function pageUrl() {
+    try {
+      return window.location.href;
+    } catch (_e) {
       return "";
     }
   }
 
-  function isTrustedMessageOrigin(origin) {
-    if (!origin) return false;
-    if (APP_ORIGIN && origin === APP_ORIGIN) return true;
-    var fromIframe = iframeContentOrigin();
-    return fromIframe && origin === fromIframe;
+  function normalizeOrigin(origin) {
+    return String(origin || "").replace(/\/+$/, "");
   }
 
-  function applyFrameSize(d) {
-    var launcherMin = 58;
-    var w =
-      typeof d.width === "number" && d.width > 0 ? Math.ceil(d.width) : launcherMin;
-    var h =
-      typeof d.height === "number" && d.height > 0 ? Math.ceil(d.height) : launcherMin;
+  function applyFrameLayout(frame, payload) {
+    var pos = payload.position === "left" || payload.position === "center"
+      ? payload.position
+      : "right";
+    var bottom = typeof payload.insetBottomPx === "number"
+      ? payload.insetBottomPx
+      : DEFAULT_INSET_BOTTOM_PX;
+    var side = typeof payload.insetSidePx === "number"
+      ? payload.insetSidePx
+      : DEFAULT_INSET_SIDE_PX;
+    var width = typeof payload.width === "number" && payload.width > 0
+      ? payload.width
+      : LAUNCHER_SIZE_PX;
+    var height = typeof payload.height === "number" && payload.height > 0
+      ? payload.height
+      : LAUNCHER_SIZE_PX;
 
-    if (d.open) {
-      var hostMaxW =
-        typeof window !== "undefined" ? window.innerWidth - 32 : w;
-      var hostMaxH =
-        typeof window !== "undefined" ? window.innerHeight - 32 : h;
-      w = Math.min(w, hostMaxW);
-      h = Math.min(h, hostMaxH);
+    var vw = window.innerWidth || width;
+    var vh = window.innerHeight || height;
+    width = Math.min(Math.ceil(width), vw);
+    height = Math.min(Math.ceil(height), vh);
+
+    var style = frame.style;
+    style.position = "fixed";
+    style.border = "none";
+    style.margin = "0";
+    style.padding = "0";
+    style.background = "transparent";
+    style.colorScheme = "normal";
+    style.zIndex = "2147483000";
+    style.width = width + "px";
+    style.height = height + "px";
+    style.bottom = bottom + "px";
+    style.maxWidth = "100vw";
+    style.maxHeight = "100vh";
+    style.overflow = "hidden";
+
+    if (pos === "left") {
+      style.left = side + "px";
+      style.right = "auto";
+      style.transform = "";
+    } else if (pos === "center") {
+      style.left = "50%";
+      style.right = "auto";
+      style.transform = "translateX(-50%)";
     } else {
-      w = Math.max(launcherMin, w);
-      h = Math.max(launcherMin, h);
+      style.right = side + "px";
+      style.left = "auto";
+      style.transform = "";
+    }
+  }
+
+  function bootstrap() {
+    var script = currentScript();
+    if (!script) {
+      console.error("[widget] Could not find embed script tag.");
+      return;
     }
 
-    iframe.style.width = w + "px";
-    iframe.style.height = h + "px";
-    iframe.style.overflow = d.open ? "hidden" : "hidden";
-    applyFramePosition(d);
-  }
+    var widgetKey = (script.getAttribute("data-widget-key") || "").trim();
+    var appOrigin = normalizeOrigin(
+      script.getAttribute("data-app-origin") ||
+        script.getAttribute("data-api-origin"),
+    );
 
-  window.addEventListener("message", function (ev) {
-    if (!ev.data || ev.data.type !== RESIZE_MSG) return;
-    if (!isTrustedMessageOrigin(ev.origin)) return;
-    applyFrameSize(ev.data);
-  });
+    if (!appOrigin && script.src) {
+      try {
+        appOrigin = normalizeOrigin(
+          new URL(script.src, window.location.href).origin,
+        );
+      } catch (_e) {
+        /* ignore */
+      }
+    }
 
-  function mount() {
-    if (iframe.parentNode) return;
-    document.body.appendChild(iframe);
+    if (!widgetKey || !appOrigin) {
+      console.error(
+        "[widget] Missing data-widget-key or data-app-origin on the script tag.",
+      );
+      return;
+    }
+
+    var params = new URLSearchParams();
+    params.set("widgetKey", widgetKey);
+    params.set("parentHost", pageHost());
+    params.set("parentPage", pageUrl());
+
+    var iframe = document.createElement("iframe");
+    iframe.setAttribute("title", "Chat widget");
+    iframe.setAttribute("allow", "clipboard-write");
+    iframe.setAttribute("aria-label", "Chat widget");
+    iframe.src = appOrigin + "/embed/widget?" + params.toString();
+
+    applyFrameLayout(iframe, {
+      width: LAUNCHER_SIZE_PX,
+      height: LAUNCHER_SIZE_PX,
+      position: "right",
+      insetBottomPx: DEFAULT_INSET_BOTTOM_PX,
+      insetSidePx: DEFAULT_INSET_SIDE_PX,
+      open: false,
+    });
+
+    window.addEventListener("message", function (event) {
+      if (!event || !event.data || event.data.type !== RESIZE_MSG) return;
+      if (event.origin !== appOrigin) return;
+      applyFrameLayout(iframe, event.data);
+    });
+
+    if (document.body) {
+      document.body.appendChild(iframe);
+    } else {
+      document.addEventListener("DOMContentLoaded", function () {
+        document.body.appendChild(iframe);
+      });
+    }
   }
 
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", mount);
+    document.addEventListener("DOMContentLoaded", bootstrap);
   } else {
-    mount();
+    bootstrap();
   }
 })();

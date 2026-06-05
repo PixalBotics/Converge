@@ -27,7 +27,7 @@ import type {
   VisitorCreateConversationPayload,
   VisitorCreateConversationResponse,
 } from "@/services/chat/chat.types";
-import type { WidgetTranscriptMessage } from "@/services/chat/widget-visitor.api";
+import type { WidgetTranscriptMessage, WidgetTranscriptResult } from "@/services/chat/widget-visitor.api";
 
 export interface UseVisitorChatOptions {
   autoConnect?: boolean;
@@ -73,8 +73,14 @@ export interface UseVisitorChatReturn {
   emitStopTyping: () => void;
   joinRoom: (conversationId: string) => void;
   leaveRoom: (conversationId: string) => void;
-  /** Reload messages from REST (initial load or reconnect gap-fill only). */
+  /** Reload messages (socket-first; REST only when socket unavailable). */
   refreshTranscript: () => Promise<void>;
+  /** Load transcript for any conversation id (resume on reload, etc.). */
+  loadTranscript: (
+    targetConversationId: string,
+  ) => Promise<
+    { ok: true; data: WidgetTranscriptResult } | { ok: false; message: string }
+  >;
 }
 
 function stableMessageDedupeKey(message: ChatMessage): string {
@@ -183,15 +189,34 @@ export function useVisitorChat(
     setMessages(Array.from(messageMapRef.current.values()));
   }, []);
 
+  const loadTranscript = useCallback(
+    async (
+      targetConversationId: string,
+    ): Promise<
+      { ok: true; data: WidgetTranscriptResult } | { ok: false; message: string }
+    > => {
+      const wid = optionsRef.current?.websiteId?.trim();
+      if (!wid) return { ok: false, message: "Missing websiteId" };
+      const token = widgetTokenRef.current;
+      if (token) {
+        socketClient.connect({ authToken: token });
+        await socketClient.waitUntilSocketReady(12_000);
+      }
+      return fetchWidgetTranscript(
+        targetConversationId,
+        wid,
+        token ?? undefined,
+        socketClient,
+      );
+    },
+    [socketClient],
+  );
+
   const refreshTranscript = useCallback(async () => {
     const cid = conversationIdRef.current;
     const wid = optionsRef.current?.websiteId?.trim();
     if (!cid || !wid) return;
-    const res = await fetchWidgetTranscript(
-      cid,
-      wid,
-      widgetTokenRef.current ?? undefined,
-    );
+    const res = await loadTranscript(cid);
     if (!res.ok) return;
     messageMapRef.current.clear();
     for (const row of res.data.messages) {
@@ -209,18 +234,14 @@ export function useVisitorChat(
     }
     setMessages(filterVisitorWidgetMessages(Array.from(messageMapRef.current.values())));
     setAssigned(Boolean(res.data.assignedAgentId) || res.data.status === "assigned");
-  }, []);
+  }, [loadTranscript]);
 
-  /** Merge new rows from REST without clearing optimistic / socket state. */
+  /** Merge new rows without clearing optimistic / socket state. */
   const mergeTranscriptGapFill = useCallback(async () => {
     const cid = conversationIdRef.current;
     const wid = optionsRef.current?.websiteId?.trim();
     if (!cid || !wid) return;
-    const res = await fetchWidgetTranscript(
-      cid,
-      wid,
-      widgetTokenRef.current ?? undefined,
-    );
+    const res = await loadTranscript(cid);
     if (!res.ok) return;
     let changed = false;
     for (const row of res.data.messages) {
@@ -245,7 +266,7 @@ export function useVisitorChat(
     if (res.data.assignedAgentId || res.data.status === "assigned") {
       setAssigned(true);
     }
-  }, []);
+  }, [loadTranscript]);
 
   useEffect(() => {
     refreshTranscriptRef.current = mergeTranscriptGapFill;
@@ -326,7 +347,10 @@ export function useVisitorChat(
 
   useEffect(() => {
     if (!conversationId) return undefined;
-    void refreshTranscript();
+    const hasLocalMessages = messageMapRef.current.size > 0;
+    if (!socketClient.isConnected() || !hasLocalMessages) {
+      void refreshTranscript();
+    }
     const clearJoinRetries = ensureConversationRoomJoin(
       socketClient,
       conversationId,
@@ -570,10 +594,31 @@ export function useVisitorChat(
         await socketClient.waitUntilSocketReady(12_000);
       }
 
-      const created = await createWidgetConversation(
-        payload,
-        widgetTokenRef.current ?? undefined,
-      );
+      let created: VisitorCreateConversationResponse | null = null;
+
+      if (socketClient.isConnected()) {
+        try {
+          const ack = await socketClient.startConversationWithAck(payload, 20_000);
+          const body = unwrapSocketAckPayload(ack);
+          if (
+            body &&
+            typeof body === "object" &&
+            "conversationId" in body &&
+            typeof (body as { conversationId?: unknown }).conversationId === "string"
+          ) {
+            created = body as VisitorCreateConversationResponse;
+          }
+        } catch {
+          /* REST fallback below */
+        }
+      }
+
+      if (!created) {
+        created = await createWidgetConversation(
+          payload,
+          widgetTokenRef.current ?? undefined,
+        );
+      }
       setConversationId(created.conversationId);
       conversationIdRef.current = created.conversationId;
       setVisitorId(created.visitorId ?? null);
@@ -787,5 +832,6 @@ export function useVisitorChat(
     joinRoom,
     leaveRoom,
     refreshTranscript,
+    loadTranscript,
   };
 }

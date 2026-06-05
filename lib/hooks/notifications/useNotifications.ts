@@ -3,11 +3,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { isAxiosError } from "axios";
 import { isAuthSessionTerminated } from "@/api";
+import { isDashboardAccessToken } from "@/lib/auth/access-token";
 import { useAccessToken } from "@/lib/auth/use-access-token";
 import {
   fetchNotificationsSnapshot,
   markAllNotificationsRead,
   markNotificationRead,
+  type NotificationsSnapshot,
 } from "@/services/notifications/notifications.api";
 import type {
   BadgeCounts,
@@ -41,22 +43,40 @@ import {
 import {
   normalizeNotificationDto,
   upsertConversationNotification,
-} from "@/lib/hooks/notifications/notification-normalize";
+} from "@/lib/notifications/notification-normalize";
 
-const CHAT_SYNC_RETRY_MS = [0, 400, 900, 1800] as const;
+const CHAT_SYNC_RETRY_DELAYS_MS = [400, 900, 1800] as const;
 const RECONCILE_INTERVAL_MS = 45_000;
+const CHAT_ALERT_DEDUPE_MS = 3_000;
+
+type FetchSnapshotResult = {
+  seq: number;
+  snapshot: NotificationsSnapshot | null;
+};
 
 function isUnauthorizedError(err: unknown): boolean {
   return isAxiosError(err) && err.response?.status === 401;
 }
 
 function canFetchNotifications(token: string): boolean {
-  return Boolean(token.trim()) && !isAuthSessionTerminated();
+  return isDashboardAccessToken(token) && !isAuthSessionTerminated();
+}
+
+function clearNotificationsState(
+  setItems: (value: NotificationDto[]) => void,
+  setBadgeCounts: (value: BadgeCounts) => void,
+): void {
+  setItems([]);
+  setBadgeCounts(EMPTY_BADGES);
 }
 
 function publishNotificationToast(n: NotificationDto): void {
   const message = n.body?.trim() || n.title?.trim() || "New notification";
   publishAppToast({ variant: "success", message });
+}
+
+function countVisibleUnread(items: NotificationDto[]): number {
+  return items.filter((n) => !n.readAt).length;
 }
 
 export function useNotifications(enabled: boolean) {
@@ -73,7 +93,7 @@ export function useNotifications(enabled: boolean) {
   const itemsRef = useRef(items);
   itemsRef.current = items;
   const fetchSeqRef = useRef(0);
-  const chatToastDedupeRef = useRef<{ at: number; conversationId: string | null }>({
+  const chatAlertDedupeRef = useRef<{ at: number; conversationId: string | null }>({
     at: 0,
     conversationId: null,
   });
@@ -83,6 +103,37 @@ export function useNotifications(enabled: boolean) {
     reason: AgentChatNotificationSyncReason;
     conversationId?: string;
   } | null>(null);
+
+  const shouldSkipChatAlert = useCallback((conversationId: string | null): boolean => {
+    if (!conversationId) return false;
+    const prev = chatAlertDedupeRef.current;
+    return prev.conversationId === conversationId && Date.now() - prev.at < CHAT_ALERT_DEDUPE_MS;
+  }, []);
+
+  const recordChatAlert = useCallback((conversationId: string | null): void => {
+    chatAlertDedupeRef.current = { at: Date.now(), conversationId };
+  }, []);
+
+  const alertChatNotification = useCallback(
+    (notification: NotificationDto, conversationId?: string | null): void => {
+      const cid =
+        conversationId?.trim() ||
+        conversationIdFromNotificationPayload(notification) ||
+        null;
+      if (shouldSkipChatAlert(cid)) return;
+
+      publishNotificationToast(notification);
+      recordChatAlert(cid);
+
+      const soundKey =
+        notification.soundKey ??
+        soundKeyForNotificationType(notification.type) ??
+        "chat";
+      if (soundKey) playNotificationSound(soundKey);
+      else playSoundForNotificationType(notification.type);
+    },
+    [recordChatAlert, shouldSkipChatAlert],
+  );
 
   const applySnapshot = useCallback(
     (
@@ -99,50 +150,60 @@ export function useNotifications(enabled: boolean) {
   );
 
   const fetchSnapshot = useCallback(
-    async (unreadOnly = true): Promise<number> => {
+    async (unreadOnly = true): Promise<FetchSnapshotResult> => {
       const seq = ++fetchSeqRef.current;
-      const snapshot = await fetchNotificationsSnapshot({ unreadOnly });
-      if (seq !== fetchSeqRef.current) return seq;
-      applySnapshot(snapshot.badgeCounts, snapshot.items, unreadOnly, seq);
-      return seq;
+      try {
+        const snapshot = await fetchNotificationsSnapshot({ unreadOnly });
+        if (seq !== fetchSeqRef.current) return { seq, snapshot: null };
+        applySnapshot(snapshot.badgeCounts, snapshot.items, unreadOnly, seq);
+        return { seq, snapshot };
+      } catch (err) {
+        if (seq !== fetchSeqRef.current) return { seq, snapshot: null };
+        if (isUnauthorizedError(err)) {
+          clearNotificationsState(setItems, setBadgeCounts);
+        }
+        return { seq, snapshot: null };
+      }
     },
     [applySnapshot],
   );
 
-  const maybeToastForChatBadgeIncrease = useCallback(
+  const maybeAlertForChatBadgeIncrease = useCallback(
     (
       prevChat: number,
       nextChat: number,
+      items: NotificationDto[],
       conversationId?: string,
-      notification?: NotificationDto,
     ) => {
       if (nextChat <= prevChat) return;
-      const cid = conversationId?.trim() || null;
-      const now = Date.now();
-      const prev = chatToastDedupeRef.current;
-      const duplicateToast =
-        Boolean(cid) && prev.conversationId === cid && now - prev.at < 3000;
-      if (duplicateToast) return;
-      if (notification) {
-        publishNotificationToast(notification);
-      } else {
-        publishNotificationToast({
+      const latestChat = items.find(
+        (n) =>
+          !n.readAt &&
+          n.badgeGroup === "chat" &&
+          (!conversationId ||
+            conversationIdFromNotificationPayload(n) === conversationId),
+      );
+      if (latestChat) {
+        alertChatNotification(latestChat, conversationId);
+        return;
+      }
+      alertChatNotification(
+        {
           id: "chat-sync",
           type: "chat.new_message",
           badgeGroup: "chat",
           title: "New message",
           body: nextChat === 1 ? "1 new message" : `${nextChat} new messages`,
           href: null,
-          payload: cid ? { conversationId: cid } : null,
+          payload: conversationId ? { conversationId } : null,
           readAt: null,
           createdAt: new Date().toISOString(),
           soundKey: "chat",
-        });
-      }
-      chatToastDedupeRef.current = { at: now, conversationId: cid };
-      playNotificationSound("chat");
+        },
+        conversationId,
+      );
     },
-    [],
+    [alertChatNotification],
   );
 
   const clearChatSyncRetries = useCallback(() => {
@@ -161,34 +222,29 @@ export function useNotifications(enabled: boolean) {
       const prevChat = badgeCountsRef.current.chat;
 
       try {
-        await fetchSnapshot(true);
-        const nextChat = badgeCountsRef.current.chat;
-        const nextVisible = itemsRef.current.filter((n) => !n.readAt).length;
+        const { snapshot } = await fetchSnapshot(true);
+        if (!snapshot) return;
+
+        const nextChat = snapshot.badgeCounts.chat;
+        const nextVisible = countVisibleUnread(snapshot.items);
 
         if (nextChat > prevChat) {
-          const latestChat = itemsRef.current.find(
-            (n) =>
-              !n.readAt &&
-              n.badgeGroup === "chat" &&
-              (!conversationId ||
-                conversationIdFromNotificationPayload(n) === conversationId),
-          );
-          maybeToastForChatBadgeIncrease(
+          maybeAlertForChatBadgeIncrease(
             prevChat,
             nextChat,
+            snapshot.items,
             conversationId,
-            latestChat,
           );
         }
 
-        const badgeAhead = totalUnread(badgeCountsRef.current) > nextVisible;
+        const badgeAhead = totalUnread(snapshot.badgeCounts) > nextVisible;
         const chatAhead = nextChat > prevChat;
         const needsRetry =
-          attempt < CHAT_SYNC_RETRY_MS.length - 1 &&
+          attempt < CHAT_SYNC_RETRY_DELAYS_MS.length &&
           (chatAhead || badgeAhead || (nextChat > 0 && nextVisible === 0));
 
         if (needsRetry) {
-          const delay = CHAT_SYNC_RETRY_MS[attempt + 1] ?? 1800;
+          const delay = CHAT_SYNC_RETRY_DELAYS_MS[attempt] ?? 1800;
           const timer = setTimeout(() => {
             void syncNotificationsFromChatSocket(reason, conversationId, attempt + 1);
           }, delay);
@@ -200,12 +256,11 @@ export function useNotifications(enabled: boolean) {
         }
       } catch (err) {
         if (isUnauthorizedError(err)) {
-          setItems([]);
-          setBadgeCounts(EMPTY_BADGES);
+          clearNotificationsState(setItems, setBadgeCounts);
           return;
         }
-        if (attempt < CHAT_SYNC_RETRY_MS.length - 1) {
-          const delay = CHAT_SYNC_RETRY_MS[attempt + 1] ?? 1800;
+        if (attempt < CHAT_SYNC_RETRY_DELAYS_MS.length) {
+          const delay = CHAT_SYNC_RETRY_DELAYS_MS[attempt] ?? 1800;
           const timer = setTimeout(() => {
             void syncNotificationsFromChatSocket(reason, conversationId, attempt + 1);
           }, delay);
@@ -213,7 +268,7 @@ export function useNotifications(enabled: boolean) {
         }
       }
     },
-    [fetchSnapshot, maybeToastForChatBadgeIncrease],
+    [fetchSnapshot, maybeAlertForChatBadgeIncrease],
   );
 
   const scheduleChatNotificationSync = useCallback(
@@ -225,7 +280,11 @@ export function useNotifications(enabled: boolean) {
         const pending = chatSyncPendingRef.current;
         chatSyncPendingRef.current = null;
         clearChatSyncRetries();
-        void syncNotificationsFromChatSocket(pending?.reason ?? "visitor_message", pending?.conversationId, 0);
+        void syncNotificationsFromChatSocket(
+          pending?.reason ?? "visitor_message",
+          pending?.conversationId,
+          0,
+        );
       }, 280);
     },
     [clearChatSyncRetries, syncNotificationsFromChatSocket],
@@ -236,15 +295,8 @@ export function useNotifications(enabled: boolean) {
       setBadgeCounts(EMPTY_BADGES);
       return;
     }
-    try {
-      const snapshot = await fetchNotificationsSnapshot({ unreadOnly: true });
-      setBadgeCounts(snapshot.badgeCounts);
-    } catch (err) {
-      if (isUnauthorizedError(err)) {
-        setBadgeCounts(EMPTY_BADGES);
-      }
-    }
-  }, []);
+    await fetchSnapshot(true);
+  }, [fetchSnapshot]);
 
   const refreshList = useCallback(
     async (unreadOnly = true) => {
@@ -255,11 +307,8 @@ export function useNotifications(enabled: boolean) {
       setLoading(true);
       try {
         await fetchSnapshot(unreadOnly);
-      } catch (err) {
-        if (isUnauthorizedError(err)) {
-          setItems([]);
-          setBadgeCounts(EMPTY_BADGES);
-        }
+      } catch {
+        /* fetchSnapshot handles 401; other errors leave prior state intact */
       } finally {
         setLoading(false);
       }
@@ -269,12 +318,14 @@ export function useNotifications(enabled: boolean) {
 
   const ensureListMatchesBadge = useCallback(async () => {
     if (!canFetchNotifications(tokenRef.current)) return;
-    const unread = totalUnread(badgeCountsRef.current);
-    const visibleUnread = itemsRef.current.filter((n) => !n.readAt).length;
+    const { snapshot } = await fetchSnapshot(true);
+    if (!snapshot) return;
+    const unread = totalUnread(snapshot.badgeCounts);
+    const visibleUnread = countVisibleUnread(snapshot.items);
     if (unread > 0 && visibleUnread === 0) {
-      await refreshList(true);
+      await fetchSnapshot(true);
     }
-  }, [refreshList]);
+  }, [fetchSnapshot]);
 
   const applySocketEvent = useCallback(
     (payload: NotificationSocketEvent) => {
@@ -289,34 +340,26 @@ export function useNotifications(enabled: boolean) {
           upsertConversationNotification(prev, normalized, cid),
         );
 
-        const soundKey =
-          normalized.soundKey ??
-          soundKeyForNotificationType(normalized.type) ??
-          null;
-        if (soundKey) playNotificationSound(soundKey);
-        else playSoundForNotificationType(normalized.type);
-
         if (
           normalized.badgeGroup === "chat" ||
           String(normalized.type).toLowerCase().includes("chat")
         ) {
-          const now = Date.now();
-          const prev = chatToastDedupeRef.current;
-          const duplicateToast =
-            Boolean(cid) &&
-            prev.conversationId === cid &&
-            now - prev.at < 3000;
-          if (!duplicateToast) {
-            publishNotificationToast(normalized);
-            chatToastDedupeRef.current = { at: now, conversationId: cid ?? null };
-          }
+          alertChatNotification(normalized, cid);
           if (cid) publishAgentChatMessageSync(cid);
+        } else {
+          const soundKey =
+            normalized.soundKey ??
+            soundKeyForNotificationType(normalized.type) ??
+            null;
+          if (soundKey) playNotificationSound(soundKey);
+          else playSoundForNotificationType(normalized.type);
+          publishNotificationToast(normalized);
         }
         return;
       }
 
       const unread = totalUnread(counts);
-      const visibleUnread = itemsRef.current.filter((n) => !n.readAt).length;
+      const visibleUnread = countVisibleUnread(itemsRef.current);
       if (unread > visibleUnread) {
         void refreshList(true);
       }
@@ -342,7 +385,7 @@ export function useNotifications(enabled: boolean) {
         }
       }
     },
-    [refreshList],
+    [alertChatNotification, refreshList],
   );
 
   useEffect(() => {
@@ -363,11 +406,8 @@ export function useNotifications(enabled: boolean) {
       setLoading(true);
       try {
         await fetchSnapshot(true);
-      } catch (err) {
-        if (isUnauthorizedError(err)) {
-          setItems([]);
-          setBadgeCounts(EMPTY_BADGES);
-        }
+      } catch {
+        /* transient bootstrap failure — socket + reconcile will retry */
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -381,7 +421,9 @@ export function useNotifications(enabled: boolean) {
         if (!canFetchNotifications(tokenRef.current)) return;
         setConnected(true);
         await refreshList(true);
-      })();
+      })().catch(() => {
+        /* Socket reconnect refresh must not surface as a runtime error. */
+      });
     });
     const offDisconnect = socket.onSocketDisconnect(() => setConnected(false));
 
@@ -392,7 +434,9 @@ export function useNotifications(enabled: boolean) {
     const reconcile = () => {
       if (document.visibilityState !== "visible") return;
       if (!canFetchNotifications(tokenRef.current)) return;
-      void fetchSnapshot(true);
+      void fetchSnapshot(true).catch(() => {
+        /* Background poll — transient failures must not surface as runtime errors. */
+      });
     };
     const reconcileTimer = setInterval(reconcile, RECONCILE_INTERVAL_MS);
     document.addEventListener("visibilitychange", reconcile);
@@ -428,17 +472,31 @@ export function useNotifications(enabled: boolean) {
     async (notificationId: string) => {
       if (!canFetchNotifications(tokenRef.current)) return;
       try {
+        const target = itemsRef.current.find((n) => n.id === notificationId);
+        const conversationId = target
+          ? conversationIdFromNotificationPayload(target)
+          : null;
+
         await markNotificationRead(notificationId);
-        setItems((prev) => prev.filter((n) => n.id !== notificationId));
-        await refreshBadges();
+
+        setItems((prev) => {
+          if (conversationId && target?.badgeGroup === "chat") {
+            return prev.filter(
+              (n) =>
+                n.badgeGroup !== "chat" ||
+                conversationIdFromNotificationPayload(n) !== conversationId,
+            );
+          }
+          return prev.filter((n) => n.id !== notificationId);
+        });
+        await fetchSnapshot(true);
       } catch (err) {
         if (isUnauthorizedError(err)) {
-          setItems([]);
-          setBadgeCounts(EMPTY_BADGES);
+          clearNotificationsState(setItems, setBadgeCounts);
         }
       }
     },
-    [refreshBadges],
+    [fetchSnapshot],
   );
 
   const markAllRead = useCallback(
@@ -460,11 +518,10 @@ export function useNotifications(enabled: boolean) {
             extractApiErrorMessageForToast(err) ??
             "Could not mark notifications as read.",
         });
-        await refreshBadges();
-        await refreshList(true);
+        await fetchSnapshot(true);
       }
     },
-    [refreshBadges, refreshList],
+    [fetchSnapshot, refreshList],
   );
 
   const openDrawer = useCallback(() => {
@@ -472,7 +529,9 @@ export function useNotifications(enabled: boolean) {
     void (async () => {
       await refreshList(true);
       await ensureListMatchesBadge();
-    })();
+    })().catch(() => {
+      /* Drawer refresh failures are non-fatal for the UI shell. */
+    });
   }, [ensureListMatchesBadge, refreshList]);
 
   const closeDrawer = useCallback(() => setDrawerOpen(false), []);
