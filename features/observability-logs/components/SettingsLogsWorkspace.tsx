@@ -23,6 +23,7 @@ import { useAuth } from "@/lib/auth";
 import { PAGE } from "@/lib/permissions/permission-constants";
 import {
   ChatScopeFiltersPanel,
+  chatConfigurePageTabsSx,
   useChatScopeFilters,
 } from "@/features/chat-shared";
 import type { AuditLogListItem, AnalyticsLogListItem } from "@/api/observability/observability-logs.types";
@@ -129,12 +130,12 @@ export function SettingsLogsWorkspace() {
   }
 
   return (
-    <Box sx={{ display: "flex", flexDirection: "column", gap: 2, p: { xs: 1.5, md: 2.5 }, minHeight: 0 }}>
+    <Box sx={{ display: "flex", flexDirection: "column", gap: 2, minHeight: 0 }}>
       <Box>
         <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted }}>
           Settings › System logs
         </Typography>
-        <Typography variant="h6" fontWeight={600} color="white" sx={{ mt: 0.5 }}>
+        <Typography fontWeight={700} color="white" sx={{ mt: 0.5, fontSize: 22, lineHeight: "22px" }}>
           System logs
         </Typography>
         <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, mt: 0.5 }}>
@@ -160,7 +161,7 @@ export function SettingsLogsWorkspace() {
         <Tabs
           value={logs.tab}
           onChange={(_, v) => logs.setTab(v)}
-          sx={{ borderBottom: 1, borderColor: "divider", mb: 2, flexShrink: 0 }}
+          sx={[chatConfigurePageTabsSx, { mb: 2, flexShrink: 0 }]}
         >
           <Tab value="audit" label="Audit" />
           <Tab value="analytics" label="Analytics" />
@@ -172,21 +173,11 @@ export function SettingsLogsWorkspace() {
             flexWrap: "wrap",
             gap: 1.5,
             mb: 2,
-            alignItems: "flex-end",
+            alignItems: "center",
           }}
         >
-          <Box sx={{ minWidth: 200, flex: "1 1 200px" }}>
-            <SearchBar
-              placeholder="Event type"
-              value={logs.eventType}
-              onChange={(v) => {
-                logs.setEventType(v);
-                logs.setPage(1);
-              }}
-            />
-          </Box>
           {logs.tab === "audit" ? (
-            <Box sx={{ minWidth: 140 }}>
+            <Box sx={{ width: { xs: "100%", sm: 160 }, flexShrink: 0 }}>
               <SelectField
                 label="Severity"
                 value={logs.severity}
@@ -203,9 +194,32 @@ export function SettingsLogsWorkspace() {
               />
             </Box>
           ) : null}
-          <Button type="button" variant="secondary" onClick={() => logs.refresh()}>
-            Refresh
-          </Button>
+          <Box
+            sx={{
+              display: "flex",
+              flexWrap: "wrap",
+              gap: 1.5,
+              alignItems: "center",
+              justifyContent: "flex-end",
+              flex: 1,
+              minWidth: 0,
+            }}
+          >
+            <Box sx={{ flex: "0 1 280px", minWidth: { xs: "100%", sm: 200 }, maxWidth: 320 }}>
+              <SearchBar
+                placeholder="Event type"
+                value={logs.eventType}
+                onChange={(v) => {
+                  logs.setEventType(v);
+                  logs.setPage(1);
+                }}
+                sx={{ minWidth: "100%" }}
+              />
+            </Box>
+            <Button type="button" variant="secondary" sx={{ flexShrink: 0 }} onClick={() => logs.refresh()}>
+              Refresh
+            </Button>
+          </Box>
         </Box>
 
         {logs.loading ? (

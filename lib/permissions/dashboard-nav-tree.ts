@@ -72,24 +72,28 @@ const LIVE_CHAT_GROUP: DashboardNavItem = {
     chatNavItem(PAGE.CHAT_CLOSE_POLICY, "/dashboard/chat-settings", "Settings", "chatWidget"),
     chatNavItem(PAGE.CHAT_CANNED, "/dashboard/chat-canned", "Canned messages", "chatWidget"),
     chatNavItem(PAGE.CHAT_INVOLVEMENT, "/dashboard/chat-involvement", "Involvement", "chatWidget"),
+  ],
+};
+
+const AI_MANAGEMENT_GROUP: DashboardNavItem = {
+  href: "/dashboard/ai-training/assistant",
+  label: "AI Management",
+  section: "activity",
+  iconKey: "aiTraining",
+  permission: null,
+  permissionsAny: [PAGE.AI_ASSISTANT, PAGE.AI_CHATBOT],
+  prefixMatch: true,
+  children: [
     chatNavItem(PAGE.AI_ASSISTANT, "/dashboard/ai-training/assistant", "AI Assistant", "aiTraining", [
       OP.aiAssistant.use,
       OP.aiAssistant.trainingView,
       OP.chat.access,
     ]),
+    chatNavItem(PAGE.AI_CHATBOT, "/dashboard/ai-training/chatbot", "AI Chatbot", "aiTraining", [
+      OP.aiChatbot.trainingView,
+    ]),
   ],
 };
-
-const CHAT_AI_NAV: readonly DashboardNavItem[] = [
-  chatNavItem(PAGE.AI_ASSISTANT, "/dashboard/ai-training/assistant", "AI Assistant", "aiTraining", [
-    OP.aiAssistant.use,
-    OP.aiAssistant.trainingView,
-    OP.chat.access,
-  ]),
-  chatNavItem(PAGE.AI_CHATBOT, "/dashboard/ai-training/chatbot", "AI Chatbot", "aiTraining", [
-    OP.aiChatbot.trainingView,
-  ]),
-];
 
 export const ALWAYS_VISIBLE_NAV_ITEMS: readonly DashboardNavItem[] = [
   {
@@ -480,11 +484,8 @@ export const DASHBOARD_NAV_ITEMS: readonly DashboardNavItem[] = PAGE_PERMISSION_
   ) {
     return permission === "page:chat-inbox" ? [LIVE_CHAT_GROUP] : [];
   }
-  if (permission === "page:ai-assistant") {
-    return [CHAT_AI_NAV.find((i) => i.permission === PAGE.AI_ASSISTANT)!];
-  }
-  if (permission === "page:ai-chatbot") {
-    return [CHAT_AI_NAV.find((i) => i.permission === PAGE.AI_CHATBOT)!];
+  if (permission === "page:ai-assistant" || permission === "page:ai-chatbot") {
+    return permission === "page:ai-assistant" ? [AI_MANAGEMENT_GROUP] : [];
   }
   if (COMMERCIAL_PAGE_PERMISSIONS.includes(permission)) {
     const first = firstCommercialPageInNavOrder();

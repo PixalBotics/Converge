@@ -5,18 +5,15 @@ import Box from "@mui/material/Box";
 import SettingsOutlined from "@mui/icons-material/SettingsOutlined";
 import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
-import { iconGlyphSx } from "@/lib/design-system";
-import { Button, DataTable, Typography } from "@/components/common";
+import { integrationsMainCardSx } from "@/app/dashboard/integrations/integrations.styles";
+import { Button, DashboardCard, DataTable, Typography } from "@/components/common";
 import type { DataTableColumn } from "@/components/common";
 import { usePlatformEmailSettingsQuery } from "../hooks/useEmailSettings";
 import { EmailTestStatusCell } from "./EmailTestStatusCell";
 import { PROVIDER_CODE_LABELS } from "../email.constants";
-import { EmailConfigTableCard } from "../styles/email-configuration.styled";
 import { departmentsFooterRow, footerMutedText, gradientPrimaryButtonSx } from "../styles/email-page.styles";
-import { emailPlatformMailSummaryTableSx, emailTablePanelSx } from "../styles/email-table.styles";
 import { EmailStatusChip } from "./EmailStatusChip";
 import { EmailTableActions } from "./EmailTableActions";
-import { EmailTableCardHeader } from "./EmailTableCardHeader";
 import { EmailTableTextCell } from "./EmailTableTextCell";
 
 type PlatformSummaryRow = {
@@ -119,20 +116,29 @@ export function PlatformMailConfigSummaryTable({
     ) : null;
 
   return (
-    <EmailConfigTableCard elevation={0} sx={{ mb: 0 }}>
-      <EmailTableCardHeader
-        icon={
-          <SettingsOutlined
-            sx={{
-              ...(iconGlyphSx("sm") as object),
-              color: theme.app.dashboard.white95,
-            }}
-          />
-        }
-        title="Platform configuration"
-        subtitle="One global SMTP or API sender for the platform. Resellers on platform mail inherit this configuration."
-        action={configureButton}
-      />
+    <DashboardCard sx={{ ...integrationsMainCardSx, mb: 0 }}>
+      <Box
+        sx={{
+          display: "flex",
+          flexWrap: "wrap",
+          alignItems: "flex-start",
+          justifyContent: "space-between",
+          gap: 1.5,
+        }}
+      >
+        <Box sx={{ minWidth: 0 }}>
+          <Typography variant="mediumLarge" color="white" fontWeight={600}>
+            Platform configuration
+          </Typography>
+          <Typography
+            variant="small"
+            sx={{ color: theme.app.dashboard.textMuted, mt: 0.25, display: "block", maxWidth: 640 }}
+          >
+            One global SMTP or API sender for the platform. Resellers on platform mail inherit this configuration.
+          </Typography>
+        </Box>
+        {configureButton ? <Box sx={{ flexShrink: 0 }}>{configureButton}</Box> : null}
+      </Box>
 
       <DataTable<PlatformSummaryRow>
         columns={columns}
@@ -140,9 +146,6 @@ export function PlatformMailConfigSummaryTable({
         getRowId={(r) => r.id}
         isLoading={isLoading}
         minWidth={980}
-        size="medium"
-        tableSx={emailPlatformMailSummaryTableSx}
-        containerSx={emailTablePanelSx}
         emptyState={{
           title: "Not configured yet",
           description: "Set up one platform SMTP or API provider before assigning resellers to platform mail.",
@@ -175,6 +178,6 @@ export function PlatformMailConfigSummaryTable({
               : "No platform sender saved yet"}
         </Typography>
       </Box>
-    </EmailConfigTableCard>
+    </DashboardCard>
   );
 }

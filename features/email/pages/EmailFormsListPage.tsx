@@ -8,14 +8,19 @@ import Skeleton from "@mui/material/Skeleton";
 import { useTheme, type SxProps, type Theme } from "@mui/material/styles";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { AppTheme } from "@/theme/theme";
-import { Button, SearchBar, TablePagination, Typography } from "@/components/common";
+import {
+  integrationsFooterRow,
+  integrationsMainCardSx,
+} from "@/app/dashboard/integrations/integrations.styles";
+import { Button, DashboardCard, SearchBar, TablePagination, Typography } from "@/components/common";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
 import { deleteEmailForm, listEmailForms, type EmailFormListItem } from "@/api/email/email-forms.api";
 import { EMAIL_ROUTES } from "../email.constants";
+import { EmailDeleteConfirmModal } from "../components/EmailDeleteConfirmModal";
 import { EmailFormsGroupedList } from "../components/EmailFormsGroupedList";
-import { EmailBuilderPanel } from "../styles/email-design.styled";
 import { pageWrapper } from "@/app/dashboard/dashboard.styles";
 import { emailFormBuilderPageSx } from "../styles/email-form-builder.styles";
+import { departmentsFooterRow, emailToolbarRow, footerMutedText } from "../styles/email-page.styles";
 import { emptyStatePanelSx } from "@/features/website-assignments/styles/website-assignment-ui.styles";
 import { publishAppToast } from "@/lib/notify";
 import { extractApiErrorMessageForToast } from "@/lib/notify/extract-api-message";
@@ -28,6 +33,7 @@ export function EmailFormsListPage() {
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
+  const [deleteTarget, setDeleteTarget] = useState<EmailFormListItem | null>(null);
 
   const listQuery = useQuery({
     queryKey: ["email-forms", page, search],
@@ -45,60 +51,65 @@ export function EmailFormsListPage() {
   };
 
   const handleDelete = (row: EmailFormListItem) => {
-    if (!window.confirm(`Remove the wrap-up form for "${row.website}"?`)) return;
-    void deleteMutation
-      .mutateAsync(row.id)
-      .then(() => {
-        publishAppToast({ variant: "success", message: "Form removed." });
-      })
-      .catch((err) => {
-        publishAppToast({
-          variant: "error",
-          message: extractApiErrorMessageForToast(err, "Delete failed."),
-        });
+    setDeleteTarget(row);
+  };
+
+  const handleConfirmDelete = async () => {
+    const id = deleteTarget?.id.trim();
+    if (!id) return;
+    try {
+      await deleteMutation.mutateAsync(id);
+      publishAppToast({ variant: "success", message: "Form removed." });
+      setDeleteTarget(null);
+    } catch (err) {
+      publishAppToast({
+        variant: "error",
+        message: extractApiErrorMessageForToast(err, "Delete failed."),
       });
+    }
   };
 
   const items = listQuery.data?.items ?? [];
   const isEmpty = items.length === 0 && !listQuery.isLoading;
 
+  const total = listQuery.data?.total ?? items.length;
+
   return (
     <Box sx={[pageWrapper, emailFormBuilderPageSx] as SxProps<Theme>}>
-      <Box
-        sx={{
-          mb: 2.5,
-          display: "flex",
-          flexWrap: "wrap",
-          alignItems: "flex-start",
-          justifyContent: "space-between",
-          gap: 2,
-        }}
-      >
-        <Box>
-          <Typography variant="regularLarge" fontWeight={700} color="white" sx={{ mb: 0.5 }}>
-            Email forms
-          </Typography>
-          <Typography
-            variant="medium"
-            sx={{ color: theme.app.dashboard.textMuted, maxWidth: 560, lineHeight: 1.55 }}
-          >
-            Wrap-up forms grouped by reseller and child company — each website shows its form type and
-            field count without repeating org columns.
-          </Typography>
-        </Box>
-        <Button
-          type="button"
-          variant="primary"
-          startIcon={<Add />}
-          sx={gradientPrimaryButtonSx}
-          onClick={() => router.push(EMAIL_ROUTES.formsSet)}
+      <DashboardCard sx={integrationsMainCardSx}>
+        <Box
+          sx={{
+            display: "flex",
+            flexWrap: "wrap",
+            alignItems: "flex-start",
+            justifyContent: "space-between",
+            gap: 1.5,
+          }}
         >
-          Configure form
-        </Button>
-      </Box>
+          <Box sx={{ minWidth: 0 }}>
+            <Typography variant="mediumLarge" color="white" fontWeight={600}>
+              Email forms
+            </Typography>
+            <Typography
+              variant="small"
+              sx={{ color: theme.app.dashboard.textMuted, mt: 0.25, display: "block", maxWidth: 640 }}
+            >
+              Wrap-up forms grouped by reseller and child company — each website shows its form type and
+              field count without repeating org columns.
+            </Typography>
+          </Box>
+          <Button
+            type="button"
+            variant="primary"
+            startIcon={<Add />}
+            sx={gradientPrimaryButtonSx}
+            onClick={() => router.push(EMAIL_ROUTES.formsSet)}
+          >
+            Configure form
+          </Button>
+        </Box>
 
-      <EmailBuilderPanel>
-        <Box sx={{ mb: 2.5 }}>
+        <Box sx={emailToolbarRow}>
           <SearchBar
             value={search}
             onChange={(v) => {
@@ -106,7 +117,7 @@ export function EmailFormsListPage() {
               setPage(1);
             }}
             placeholder="Search reseller, child company, website…"
-            sx={{ maxWidth: 400 }}
+            sx={{ minWidth: 0, width: "100%", maxWidth: 360, ml: "auto" }}
           />
         </Box>
 
@@ -141,24 +152,36 @@ export function EmailFormsListPage() {
           />
         )}
 
-        {!isEmpty && (listQuery.data?.totalPages ?? 1) > 1 ? (
-          <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 2.5 }}>
-            <TablePagination
-              page={page}
-              pageCount={Math.max(1, listQuery.data?.totalPages ?? 1)}
-              onPageChange={listQuery.isLoading ? undefined : setPage}
-            />
+        {!isEmpty ? (
+          <Box sx={[departmentsFooterRow, integrationsFooterRow] as SxProps<Theme>}>
+            <Typography variant="medium" sx={footerMutedText(theme)}>
+              Showing {items.length} of {total} form{total === 1 ? "" : "s"}
+              {search.trim() ? ` matching “${search.trim()}”` : ""}.
+            </Typography>
+            {(listQuery.data?.totalPages ?? 1) > 1 ? (
+              <TablePagination
+                page={page}
+                pageCount={Math.max(1, listQuery.data?.totalPages ?? 1)}
+                onPageChange={listQuery.isLoading ? undefined : setPage}
+              />
+            ) : null}
           </Box>
         ) : null}
+      </DashboardCard>
 
-        {!isEmpty ? (
-          <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, mt: 1.5, display: "block" }}>
-            Showing {items.length} of {listQuery.data?.total ?? items.length} form
-            {(listQuery.data?.total ?? items.length) === 1 ? "" : "s"}
-            {search.trim() ? ` matching “${search.trim()}”` : ""}.
-          </Typography>
-        ) : null}
-      </EmailBuilderPanel>
+      <EmailDeleteConfirmModal
+        open={Boolean(deleteTarget)}
+        title="Remove wrap-up form?"
+        description={
+          deleteTarget
+            ? `The wrap-up form for "${deleteTarget.website}" will be removed. You can configure it again later.`
+            : ""
+        }
+        confirmLabel="Remove form"
+        onDismiss={() => setDeleteTarget(null)}
+        onConfirm={() => void handleConfirmDelete()}
+        isLoading={deleteMutation.isPending}
+      />
     </Box>
   );
 }

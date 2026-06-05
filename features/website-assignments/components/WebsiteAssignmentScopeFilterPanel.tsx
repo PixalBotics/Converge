@@ -1,13 +1,11 @@
 "use client";
 
 import Box from "@mui/material/Box";
-import { useTheme } from "@mui/material/styles";
-import type { AppTheme } from "@/theme/theme";
 import {
   Button,
   SelectField,
+  FilterPanelHeader,
   ToolbarFilterPopoverPanel,
-  Typography,
 } from "@/components/common";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
 import { websiteAssignmentFilterGrid } from "@/app/dashboard/website-assigning/website-assigning.styles";
@@ -58,8 +56,6 @@ export function WebsiteAssignmentScopeFilterPanel({
   onClearAll,
   onClose,
 }: WebsiteAssignmentScopeFilterPanelProps) {
-  const theme = useTheme() as AppTheme;
-
   return (
     <ToolbarFilterPopoverPanel
       footer={
@@ -73,16 +69,10 @@ export function WebsiteAssignmentScopeFilterPanel({
         </>
       }
     >
-      <Typography variant="medium" fontWeight={700} sx={{ mb: 0.5 }}>
-        Organization & status
-      </Typography>
-      <Typography
-        variant="caption"
-        sx={{ display: "block", mb: 1.5, lineHeight: 1.5, color: theme.app.dashboard.textMuted }}
-      >
-        Filters apply to the website list from the server. Use Search for names, URLs, companies, or
-        assigned users.
-      </Typography>
+      <FilterPanelHeader
+        title="Organization & status"
+        description="Filters apply to the website list from the server. Use Search for names, URLs, companies, or assigned users."
+      />
       <Box sx={websiteAssignmentFilterGrid}>
         {showSchedulingFilter && onFilterSchedulingChange ? (
           <SelectField

@@ -3,11 +3,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Box from "@mui/material/Box";
-import MailOutline from "@mui/icons-material/MailOutline";
 import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
-import { iconGlyphSx } from "@/lib/design-system";
-import { Button, DataTable, PermissionDeniedPanel, Typography } from "@/components/common";
+import { integrationsMainCardSx } from "@/app/dashboard/integrations/integrations.styles";
+import { Button, DashboardCard, DataTable, PermissionDeniedPanel, Typography } from "@/components/common";
 import type { DataTableColumn } from "@/components/common";
 import type { ResellerOwnMailListItem } from "@/api/types/email.types";
 import { AddCircleIcon } from "@/components/common/icons";
@@ -21,12 +20,9 @@ import {
   useResellerOwnMailListQuery,
 } from "../hooks/useEmailSettings";
 import { EMAIL_ROUTES, PROVIDER_CODE_LABELS } from "../email.constants";
-import { EmailConfigTableCard } from "../styles/email-configuration.styled";
 import { departmentsFooterRow, footerMutedText, gradientPrimaryButtonSx } from "../styles/email-page.styles";
-import { emailResellerMailTableSx, emailTablePanelSx } from "../styles/email-table.styles";
 import { EmailStatusChip } from "../components/EmailStatusChip";
 import { EmailTableActions } from "../components/EmailTableActions";
-import { EmailTableCardHeader } from "../components/EmailTableCardHeader";
 import { EmailTableTextCell } from "../components/EmailTableTextCell";
 
 type DeleteTarget = { resellerId: string; resellerName: string };
@@ -172,20 +168,29 @@ export function ResellerOwnMailPage() {
   return (
     <>
       {showTable ? (
-        <EmailConfigTableCard elevation={0}>
-          <EmailTableCardHeader
-            icon={
-              <MailOutline
-                sx={{
-                  ...(iconGlyphSx("sm") as object),
-                  color: theme.app.dashboard.white95,
-                }}
-              />
-            }
-            title="Own mail (SMTP / API)"
-            subtitle="Per-reseller SMTP or API credentials, separate from platform mail."
-            action={addButton}
-          />
+        <DashboardCard sx={integrationsMainCardSx}>
+          <Box
+            sx={{
+              display: "flex",
+              flexWrap: "wrap",
+              alignItems: "flex-start",
+              justifyContent: "space-between",
+              gap: 1.5,
+            }}
+          >
+            <Box sx={{ minWidth: 0 }}>
+              <Typography variant="mediumLarge" color="white" fontWeight={600}>
+                Own mail (SMTP / API)
+              </Typography>
+              <Typography
+                variant="small"
+                sx={{ color: theme.app.dashboard.textMuted, mt: 0.25, display: "block", maxWidth: 640 }}
+              >
+                Per-reseller SMTP or API credentials, separate from platform mail.
+              </Typography>
+            </Box>
+            {addButton ? <Box sx={{ flexShrink: 0 }}>{addButton}</Box> : null}
+          </Box>
 
           <DataTable<ResellerOwnMailListItem>
             columns={columns}
@@ -193,9 +198,6 @@ export function ResellerOwnMailPage() {
             getRowId={(row) => row.resellerId}
             isLoading={isLoading}
             minWidth={880}
-            size="medium"
-            tableSx={emailResellerMailTableSx}
-            containerSx={emailTablePanelSx}
             emptyState={{
               title: listQuery.isError ? "Could not load list" : "No reseller mail configured yet",
               description: "Click Add reseller mail to configure SMTP or API for a reseller.",
@@ -241,7 +243,7 @@ export function ResellerOwnMailPage() {
                 : `${rows.length} configured reseller${rows.length === 1 ? "" : "s"}`}
             </Typography>
           </Box>
-        </EmailConfigTableCard>
+        </DashboardCard>
       ) : null}
 
       <ResellerOwnMailModal

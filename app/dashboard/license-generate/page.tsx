@@ -410,7 +410,7 @@ export default function LicenseGeneratePage() {
                         setPage(1);
                       }}
                     >
-                      Reset
+                      Clear filters
                     </Button>
                     <Button type="button" variant="primary" sx={gradientPrimaryButtonSx} onClick={() => setFilterPopoverOpen(false)}>
                       Done

@@ -195,8 +195,13 @@ export function DataTable<T extends Record<string, unknown>>({
                         boxShadow: (t: Theme) => `inset 0 0 0 1px ${alpha((t as AppTheme).palette.primary.main, 0.35)}`,
                       }
                     : null,
-                  onRowClick && !isLoading
-                    ? { cursor: "pointer", "&:hover": { bgcolor: (t: Theme) => alpha((t as AppTheme).app.text.primary, 0.06) } }
+                  !isLoading
+                    ? {
+                        "&:hover": {
+                          bgcolor: (t: Theme) => alpha((t as AppTheme).app.text.primary, 0.06),
+                        },
+                        ...(onRowClick ? { cursor: "pointer" } : {}),
+                      }
                     : null,
                 ] as SxProps<Theme>
               }

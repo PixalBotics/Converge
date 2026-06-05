@@ -8,6 +8,7 @@ import {
   Divider,
   SegmentedControl,
   SelectField,
+  FilterPanelHeader,
   ToolbarFilterPopoverPanel,
   Typography,
 } from "@/components/common";
@@ -71,17 +72,14 @@ export function PoolMembersScopeFilterPanel({
         </>
       }
     >
-      <Typography variant="medium" fontWeight={700} sx={{ mb: 0.5 }}>
-        Department scope
-      </Typography>
-      <Typography
-        variant="caption"
-        sx={{ display: "block", mb: 1.5, lineHeight: 1.5, color: theme.app.dashboard.textMuted }}
-      >
-        {mayPickInternalDeptType
-          ? "Choose Internal or External. For External, pick reseller and parent company, then department."
-          : "Pick reseller, then parent company, then department."}
-      </Typography>
+      <FilterPanelHeader
+        title="Department scope"
+        description={
+          mayPickInternalDeptType
+            ? "Choose Internal or External. For External, pick reseller and parent company, then department."
+            : "Pick reseller, then parent company, then department."
+        }
+      />
 
       {mayPickInternalDeptType ? (
         <>

@@ -25,6 +25,7 @@ import {
   SearchBar,
   SearchSubmitButton,
   ToolbarFilterPopover,
+  FilterPanelHeader,
   ToolbarFilterPopoverPanel,
 } from "@/components/common";
 import type { DataTableColumn } from "@/components/common";
@@ -612,9 +613,7 @@ export default function PoolShiftPage() {
           </>
         }
       >
-        <Typography variant="medium" fontWeight={700} sx={{ color: theme.app.text.primary, mb: 1.5 }}>
-          Filters
-        </Typography>
+        <FilterPanelHeader title="Filters" />
         <Box sx={poolShiftFilterPopoverStackSx}>
             {mayPickInternal ? (
               <SelectField

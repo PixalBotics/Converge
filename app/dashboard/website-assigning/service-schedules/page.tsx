@@ -19,6 +19,7 @@ import {
   TablePagination,
   ToolbarFilterPopover,
   Typography,
+  filterPanelDescriptionSx,
 } from "@/components/common";
 import { deleteServiceScheduling } from "@/services/chat/service-scheduling.api";
 import { extractApiErrorMessageForToast, publishAppToast } from "@/lib/notify";
@@ -250,7 +251,7 @@ export default function ServiceSchedulesPage() {
           <Typography variant="regularLarge" fontWeight={700} sx={{ mb: 0.5 }}>
             Service scheduling
           </Typography>
-          <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted, maxWidth: 640 }}>
+          <Typography variant="medium" sx={[{ maxWidth: 640 }, filterPanelDescriptionSx]}>
             Step 1: set operating mode, service hours, and visitor topics per website. Step 2: assign
             agents when status is ready.
           </Typography>

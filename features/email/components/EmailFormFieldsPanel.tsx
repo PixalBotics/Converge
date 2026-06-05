@@ -60,11 +60,11 @@ export function EmailFormFieldsPanel({
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
       <Box sx={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 1.5 }}>
-        <Box>
-          <Typography variant="medium" fontWeight={700} color="white">
+        <Box sx={{ minWidth: 0 }}>
+          <Typography variant="mediumLarge" color="white" fontWeight={600}>
             Field catalog
           </Typography>
-          <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted }}>
+          <Typography variant="small" sx={{ color: theme.app.dashboard.textMuted, mt: 0.25, display: "block" }}>
             {formType === "custom"
               ? "Toggle optional fields for this website."
               : "Standard mode ships every catalog field."}
@@ -74,9 +74,10 @@ export function EmailFormFieldsPanel({
           size="small"
           label={`${enabledCount} / ${fields.length} active`}
           sx={{
-            fontWeight: 700,
-            bgcolor: alpha(theme.palette.success.main, 0.14),
-            color: theme.palette.success.light,
+            fontWeight: 600,
+            bgcolor: alpha(theme.palette.common.white, 0.06),
+            color: theme.app.dashboard.textMuted,
+            flexShrink: 0,
           }}
         />
       </Box>
@@ -102,16 +103,16 @@ export function EmailFormFieldsPanel({
 
       <Box sx={emailFormFieldTableSx}>
         <Box sx={emailFormFieldTableHeadSx}>
-          <Typography variant="caption" fontWeight={700} sx={{ color: theme.app.dashboard.textMuted }}>
+          <Typography variant="caption" fontWeight={600} sx={{ color: theme.app.dashboard.white80 }}>
             Field
           </Typography>
-          <Typography variant="caption" fontWeight={700} sx={{ color: theme.app.dashboard.textMuted }}>
+          <Typography variant="caption" fontWeight={600} sx={{ color: theme.app.dashboard.white80 }}>
             Section
           </Typography>
           <Typography
             variant="caption"
-            fontWeight={700}
-            sx={{ color: theme.app.dashboard.textMuted, textAlign: "right" }}
+            fontWeight={600}
+            sx={{ color: theme.app.dashboard.white80, textAlign: "right" }}
           >
             Include
           </Typography>

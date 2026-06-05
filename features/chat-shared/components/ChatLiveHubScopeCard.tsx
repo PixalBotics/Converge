@@ -8,6 +8,7 @@ import {
   SearchBar,
   ToolbarFilterPopover,
   Typography,
+  filterPanelDescriptionSx,
 } from "@/components/common";
 import {
   websiteAssignmentFilterCard,
@@ -75,7 +76,7 @@ export function ChatLiveHubScopeCard({
           <Typography variant="mediumLarge" fontWeight={600}>
             Scope
           </Typography>
-          <Typography variant="caption" sx={{ color: "text.secondary" }}>
+          <Typography variant="medium" sx={filterPanelDescriptionSx}>
             Select a website to list assigned agents, then open their chats.
           </Typography>
         </Box>

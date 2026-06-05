@@ -107,7 +107,7 @@ export const chatLiveNavLinkSx =
   (theme) => {
     const d = dash(theme);
     return {
-      fontSize: 13,
+      fontSize: 16,
       fontWeight: active ? 600 : 500,
       color: active ? (theme as AppTheme).app.text.primary : d.textMuted,
       textDecoration: "none",
@@ -164,7 +164,7 @@ export const chatLiveViewSwitchBtnSx =
       background: "transparent",
       cursor: "pointer",
       fontFamily: "inherit",
-      fontSize: 13,
+      fontSize: 16,
       fontWeight: active ? 600 : 500,
       color: active ? (theme as AppTheme).app.text.primary : d.textMuted,
       pb: 0.75,
@@ -237,7 +237,7 @@ export const chatConfigurePageTabsSx: SxProps<Theme> = (theme) => {
     },
     "& .MuiTab-root": {
       textTransform: "none",
-      fontSize: 14,
+      fontSize: 16,
       fontWeight: 500,
       letterSpacing: 0,
       minHeight: 40,

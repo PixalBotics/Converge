@@ -11,7 +11,6 @@ import type { AppTheme } from "@/theme/theme";
 import {
   Button,
   DashboardCard,
-  DashboardFilterSection,
   DataTable,
   Typography,
 } from "@/components/common";
@@ -134,59 +133,67 @@ export function CannedResponsesTab({
     <Box sx={{ display: "flex", flexDirection: "column", gap: embedded ? 1.5 : 2, minHeight: 0, flex: 1 }}>
       {!embedded ? (
         <DashboardCard sx={{ p: { xs: 2, md: 2.5 } }}>
-          <DashboardFilterSection
-            titleSlot={
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1.25 }}>
-                <QuickreplyOutlined sx={{ color: theme.app.dashboard.accentBlue }} />
-                <Box>
-                  <Typography fontWeight={700} sx={{ fontSize: 16, color: theme.app.text.primary }}>
-                    Canned messages
-                  </Typography>
-                  <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted }}>
-                    Per-website quick replies for agents.
-                  </Typography>
-                </Box>
-              </Box>
-            }
-            actionSlot={
-              canEdit ? (
-                <Button
-                  type="button"
-                  variant="primary"
-                  sx={gradientPrimaryButtonSx}
-                  startIcon={<Add />}
-                  onClick={openAdd}
-                >
-                  Add messages
-                </Button>
-              ) : null
-            }
-          />
-        </DashboardCard>
-      ) : (
-        <DashboardFilterSection
-          titleSlot={
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1.25 }}>
+          <Box
+            sx={{
+              display: "flex",
+              flexWrap: "wrap",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 1.5,
+            }}
+          >
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1.25, minWidth: 0 }}>
               <QuickreplyOutlined sx={{ color: theme.app.dashboard.accentBlue, fontSize: 22 }} />
-              <Typography fontWeight={700} sx={{ fontSize: 15, color: theme.app.text.primary }}>
-                Messages in scope
-              </Typography>
+              <Box>
+                <Typography variant="mediumLarge" color="white" fontWeight={600}>
+                  Canned messages
+                </Typography>
+                <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted }}>
+                  Per-website quick replies for agents.
+                </Typography>
+              </Box>
             </Box>
-          }
-          actionSlot={
-            canEdit ? (
+            {canEdit ? (
               <Button
                 type="button"
                 variant="primary"
-                sx={gradientPrimaryButtonSx}
+                sx={[gradientPrimaryButtonSx, { flexShrink: 0 }]}
                 startIcon={<Add />}
                 onClick={openAdd}
               >
                 Add messages
               </Button>
-            ) : null
-          }
-        />
+            ) : null}
+          </Box>
+        </DashboardCard>
+      ) : (
+        <Box
+          sx={{
+            display: "flex",
+            flexWrap: "wrap",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 1.5,
+          }}
+        >
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.25, minWidth: 0 }}>
+            <QuickreplyOutlined sx={{ color: theme.app.dashboard.accentBlue, fontSize: 22 }} />
+            <Typography variant="mediumLarge" color="white" fontWeight={600}>
+              Messages in scope
+            </Typography>
+          </Box>
+          {canEdit ? (
+            <Button
+              type="button"
+              variant="primary"
+              sx={[gradientPrimaryButtonSx, { flexShrink: 0 }]}
+              startIcon={<Add />}
+              onClick={openAdd}
+            >
+              Add messages
+            </Button>
+          ) : null}
+        </Box>
       )}
 
       <Box sx={{ flex: 1, minHeight: 0 }}>

@@ -2,19 +2,17 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import PaletteOutlined from "@mui/icons-material/PaletteOutlined";
 import Box from "@mui/material/Box";
 import Skeleton from "@mui/material/Skeleton";
 import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
-import { Button, DataTable, Typography } from "@/components/common";
+import { integrationsMainCardSx } from "@/app/dashboard/integrations/integrations.styles";
+import { Button, DashboardCard, DataTable, Typography } from "@/components/common";
 import type { DataTableColumn } from "@/components/common";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
-import { iconGlyphSx } from "@/lib/design-system";
 import { useEmailTemplateAccess } from "../hooks/useEmailTemplateAccess";
 import { EMAIL_ROUTES } from "../email.constants";
-import { EmailConfigTableCard, EmailHelpAlert } from "../styles/email-configuration.styled";
-import { EmailTableCardHeader } from "../components/EmailTableCardHeader";
+import { EmailHelpAlert } from "../styles/email-configuration.styled";
 import { EmailDesignPreviewOverlay } from "../components/EmailDesignPreviewOverlay";
 import { EmailDesignPublishChip } from "../components/EmailDesignSourceChip";
 import { EmailDesignTableActions } from "../components/EmailDesignTableActions";
@@ -24,7 +22,6 @@ import {
   usePlatformEmailTemplatePublishedPreviewQuery,
 } from "../hooks/useEmailTemplate";
 import { departmentsFooterRow, footerMutedText } from "../styles/email-page.styles";
-import { emailPlatformDesignSummaryTableSx, emailTablePanelSx } from "../styles/email-table.styles";
 
 type PlatformDesignRow = {
   id: string;
@@ -122,20 +119,29 @@ export function EmailPlatformDesignHubPage() {
         </EmailHelpAlert>
       ) : null}
 
-      <EmailConfigTableCard elevation={0}>
-        <EmailTableCardHeader
-          icon={
-            <PaletteOutlined
-              sx={{
-                ...(iconGlyphSx("sm") as object),
-                color: theme.app.dashboard.white95,
-              }}
-            />
-          }
-          title="Platform email design"
-          subtitle="Default transcript email for all resellers unless they publish a custom design."
-          action={editButton}
-        />
+      <DashboardCard sx={integrationsMainCardSx}>
+        <Box
+          sx={{
+            display: "flex",
+            flexWrap: "wrap",
+            alignItems: "flex-start",
+            justifyContent: "space-between",
+            gap: 1.5,
+          }}
+        >
+          <Box sx={{ minWidth: 0 }}>
+            <Typography variant="mediumLarge" color="white" fontWeight={600}>
+              Platform email design
+            </Typography>
+            <Typography
+              variant="small"
+              sx={{ color: theme.app.dashboard.textMuted, mt: 0.25, display: "block", maxWidth: 640 }}
+            >
+              Default transcript email for all resellers unless they publish a custom design.
+            </Typography>
+          </Box>
+          {editButton ? <Box sx={{ flexShrink: 0 }}>{editButton}</Box> : null}
+        </Box>
 
         {loading ? (
           <Skeleton variant="rounded" height={120} />
@@ -146,9 +152,6 @@ export function EmailPlatformDesignHubPage() {
               rows={[row]}
               getRowId={(r) => r.id}
               minWidth={640}
-              size="medium"
-              tableSx={emailPlatformDesignSummaryTableSx}
-              containerSx={emailTablePanelSx}
               actionColumn={{
                 label: "Actions",
                 align: "right",
@@ -177,7 +180,7 @@ export function EmailPlatformDesignHubPage() {
             </Box>
           </>
         )}
-      </EmailConfigTableCard>
+      </DashboardCard>
 
       <EmailDesignPreviewOverlay
         open={previewOpen}
