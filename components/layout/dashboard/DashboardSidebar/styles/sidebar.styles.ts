@@ -336,9 +336,22 @@ export const desktopWrapperSx = (collapsed = false): SxProps<Theme> => (theme) =
   };
 };
 
-export const sidebarCollapseToggleSx: SxProps<Theme> = (theme) => ({
+export const sidebarCollapseToggleSx = (collapsed = false): SxProps<Theme> => (theme) => ({
   color: (theme as AppTheme).app.dashboard.white80,
   flexShrink: 0,
+  "@keyframes sidebarCollapseNudge": {
+    "0%, 100%": { transform: "translateX(0)", opacity: 0.72 },
+    "50%": {
+      transform: `translateX(${collapsed ? 3 : -3}px)`,
+      opacity: 1,
+    },
+  },
+  "& .MuiSvgIcon-root": {
+    animation: "sidebarCollapseNudge 2.2s ease-in-out infinite",
+  },
+  "&:hover .MuiSvgIcon-root": {
+    animationPlayState: "paused",
+  },
 });
 
 /** Backdrop tint when the mobile nav uses MUI `Drawer` (Modal portal — not `position: fixed` in layout tree). */

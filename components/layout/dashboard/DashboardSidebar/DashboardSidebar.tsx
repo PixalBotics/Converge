@@ -147,7 +147,7 @@ export default function DashboardSidebar({ open = false, onClose }: { open?: boo
         {isDesktop ? (
           <IconButton
             onClick={toggleCollapsed}
-            sx={sidebarCollapseToggleSx}
+            sx={sidebarCollapseToggleSx(railCollapsed)}
             aria-label={railCollapsed ? "Expand sidebar" : "Collapse sidebar"}
             size="small"
           >
