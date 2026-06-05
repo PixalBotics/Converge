@@ -435,8 +435,9 @@ export function ChatMonitorWorkspace({
                 supervisorControlUserId={monitor.supervisorControlUserId}
                 visitorTyping={monitor.visitorTyping}
                 onSupervisorAction={() => {
-                  void monitor.refreshLists();
-                  monitor.refreshSelectedTranscript({ silent: true });
+                  monitor.updateSupervisorControl(
+                    monitor.supervisorControlUserId ?? null,
+                  );
                 }}
                 onMessageSent={() => {}}
               />
@@ -464,8 +465,7 @@ export function ChatMonitorWorkspace({
                 supervisorReadOnly={monitorReadOnly || monitor.selectedRow?.status === "closed"}
                 hideSupervisorTools
                 onSupervisorActivity={() => {
-                  void monitor.refreshLists();
-                  monitor.refreshSelectedTranscript({ silent: true });
+                  /* socket updates lists + transcript */
                 }}
               />
               {monitor.selectedRow?.status !== "closed" ? (
@@ -490,7 +490,6 @@ export function ChatMonitorWorkspace({
                         monitor.updateSupervisorControl(sc ?? null);
                       }
                     }
-                    void monitor.refreshLists();
                   }}
                 />
               ) : null}

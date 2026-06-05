@@ -24,5 +24,15 @@ export function getConversationPreview(
     const text = extractTextFromMessageLike(o[key]);
     if (text) return text.length > 72 ? `${text.slice(0, 72)}…` : text;
   }
+  const messages = o.messages;
+  if (Array.isArray(messages) && messages.length > 0) {
+    const last = messages[messages.length - 1] ?? messages[0];
+    const text = extractTextFromMessageLike(last);
+    if (text) return text.length > 72 ? `${text.slice(0, 72)}…` : text;
+  }
+  const firstMessage = extractTextFromMessageLike(o.firstMessage);
+  if (firstMessage) {
+    return firstMessage.length > 72 ? `${firstMessage.slice(0, 72)}…` : firstMessage;
+  }
   return fallback;
 }

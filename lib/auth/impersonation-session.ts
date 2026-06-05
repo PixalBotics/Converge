@@ -1,6 +1,7 @@
 "use client";
 
 import type { AuthTokenPair } from "@/api";
+import type { ImpersonationUserSnapshot } from "./impersonation-user";
 
 const IMPERSONATION_STORAGE_KEY = "converge_impersonation_session";
 
@@ -9,6 +10,10 @@ export type ImpersonationSession = {
   impersonatedUserId: string;
   impersonatedLicenseKey: string;
   startedAt: string;
+  /** Target account (shown in header/banner while impersonating). */
+  impersonatedUser?: ImpersonationUserSnapshot;
+  /** Admin who started login-as (for banner context). */
+  actorUser?: ImpersonationUserSnapshot;
 };
 
 function isBrowser(): boolean {

@@ -8,7 +8,7 @@ export function isUnassignedActiveChat(c: ConversationSummary): boolean {
     c.assignedAgentId ??
     (typeof c.agentId === "string" ? c.agentId : null);
   if (agentId) return false;
-  if (c.handoverRequested === true) return false;
+  if (c.talkToAgentRequested === true || c.handoverRequested === true) return false;
   const status = String(c.status ?? "");
   /** Queued for human — show in waiting list, not active. */
   if (status === "waiting") return false;

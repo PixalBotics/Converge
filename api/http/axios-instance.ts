@@ -15,6 +15,9 @@ import {
   isDashboardAccessToken,
 } from "@/lib/auth/access-token";
 import { applyRotatedAuthHeaders } from "@/lib/auth/apply-rotated-auth-headers";
+import { isAuthTransitionActive } from "@/lib/auth/auth-transition";
+import { isImpersonatingSessionActive } from "@/lib/auth/impersonation-session";
+import { isTransientNetworkError } from "@/lib/app-boundaries/classify-api-error";
 import { pathFromConfig } from "./http-path";
 import { isPublicAuthRoute, isWidgetVisitorRoute } from "./public-routes";
 
@@ -63,17 +66,26 @@ apiClient.interceptors.request.use(async (config) => {
   return config;
 });
 
+function isAuthTokenSwapResponse(config: InternalAxiosRequestConfig | undefined): boolean {
+  if (!config) return false;
+  const path = pathFromConfig(config);
+  return path.endsWith("/auth/login") || path.endsWith("/auth/login-as");
+}
+
 apiClient.interceptors.response.use(
   (response) => {
-    applyRotatedAuthHeaders(response.headers as Record<string, unknown>);
+    if (!isAuthTokenSwapResponse(response.config as InternalAxiosRequestConfig)) {
+      applyRotatedAuthHeaders(response.headers as Record<string, unknown>);
+    }
     return response;
   },
   async (error: AxiosError) => {
     const originalRequest = error.config as RetryableRequest | undefined;
     const status = error.response?.status;
-    const headersRotated = applyRotatedAuthHeaders(
-      error.response?.headers as Record<string, unknown>,
-    );
+    const headersRotated =
+      originalRequest && isAuthTokenSwapResponse(originalRequest)
+        ? false
+        : applyRotatedAuthHeaders(error.response?.headers as Record<string, unknown>);
 
     if (
       status === 401 &&
@@ -104,7 +116,9 @@ apiClient.interceptors.response.use(
 
     const path = pathFromConfig(originalRequest);
     if (path.endsWith("/auth/refresh")) {
-      await terminateAuthSession("refresh_failed");
+      if (!isAuthTransitionActive() && !isImpersonatingSessionActive()) {
+        await terminateAuthSession("refresh_failed");
+      }
       return Promise.reject(error);
     }
 
@@ -130,8 +144,13 @@ apiClient.interceptors.response.use(
       const accessToken = await queueRequestUntilRefreshed();
       originalRequest.headers.Authorization = `Bearer ${accessToken}`;
       return apiClient(originalRequest);
-    } catch {
-      await terminateAuthSession("refresh_failed");
+    } catch (refreshErr) {
+      if (isTransientNetworkError(refreshErr) || isTransientNetworkError(error)) {
+        return Promise.reject(error);
+      }
+      if (!isAuthTransitionActive() && !isImpersonatingSessionActive()) {
+        await terminateAuthSession("refresh_failed");
+      }
       return Promise.reject(error);
     }
   },

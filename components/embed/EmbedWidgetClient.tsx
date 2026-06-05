@@ -89,7 +89,7 @@ import {
   embedComposerInputSx,
   embedComposerRowSx,
   embedChatBubbleShellSx,
-  embedHandoverButtonSx,
+  embedTalkToAgentButtonSx,
   embedPrechatFormBubbleInnerSx,
   embedPrechatFormBubbleShellSx,
   embedInquiryPillSx,
@@ -114,7 +114,7 @@ import {
 import type { WidgetConfigEnvelope } from "@/lib/widget-runtime/widget-types";
 import {
   fetchWidgetTranscript,
-  postWidgetRequestHuman,
+  postWidgetTalkToAgent,
 } from "@/services/chat/widget-visitor.api";
 import { decodeJwtExpMs } from "@/lib/widget-runtime/jwt-expiry";
 import {
@@ -1041,17 +1041,18 @@ function WidgetChatPanel({
   }, [needsPrechatGate, hasInquiryStep, appearance?.consentRequired]);
   const [aiPending, setAiPending] = useState(false);
   const aiPendingSinceRef = useRef<number | null>(null);
-  /** HYBRID only: set true when visitor taps "Talk to a human" — never from API shouldEscalate (that was forcing queue UI + repeated handoff replies). */
+  /** HYBRID only: set true when visitor taps Talk to agent — never from API shouldEscalate (that was forcing queue UI + repeated handoff replies). */
   const [escalated, setEscalated] = useState(false);
   const escalatedRef = useRef(false);
-  const [handoverStatus, setHandoverStatus] = useState<string | null>(null);
-  const [handoverBusy, setHandoverBusy] = useState(false);
+  const [talkToAgentStatus, setTalkToAgentStatus] = useState<string | null>(null);
+  const [talkToAgentBusy, setTalkToAgentBusy] = useState(false);
   const [localAiMessages, setLocalAiMessages] = useState<ChatMessage[]>([]);
   const [prechatTranscriptBubble, setPrechatTranscriptBubble] = useState<string | null>(null);
   /** API `firstMessage` on create — hidden from transcript; not sent to AI as a user question. */
   const prechatApiFirstMessageRef = useRef<string | null>(null);
   /** AI/HYBRID: hide socket AI replies until the visitor sends a composer message. */
   const [awaitingFirstUserQuestion, setAwaitingFirstUserQuestion] = useState(false);
+  const awaitingFirstUserQuestionRef = useRef(false);
   const startConversationRef = useRef<(() => Promise<void>) | null>(null);
   const [resumeChecked, setResumeChecked] = useState(false);
 
@@ -1101,10 +1102,10 @@ function WidgetChatPanel({
         escalatedRef.current = true;
         setLocalAiMessages([]);
       }
-      setHandoverStatus("An agent has joined your chat.");
+      setTalkToAgentStatus("An agent has joined your chat.");
     },
     onChatQueued: () => {
-      setHandoverStatus(
+      setTalkToAgentStatus(
         "You are in the queue. The next available teammate will join shortly.",
       );
     },
@@ -1161,7 +1162,7 @@ function WidgetChatPanel({
         messages: data.messages,
       });
       persistConversationId(siteKey, storedConvId);
-      if (data.handoverRequested) {
+      if (data.talkToAgentRequested || data.handoverRequested) {
         setEscalated(true);
         escalatedRef.current = true;
         setLocalAiMessages([]);
@@ -1179,16 +1180,16 @@ function WidgetChatPanel({
         setPrechatDone(true);
       }
       if (data.queuedForAgent) {
-        setHandoverStatus(
+        setTalkToAgentStatus(
           "You are in the queue. The next available teammate will join shortly.",
         );
       } else if (data.assignedAgentId) {
         setAwaitingFirstUserQuestion(false);
-        if (data.handoverRequested || mode === "HYBRID") {
+        if (data.talkToAgentRequested || data.handoverRequested || mode === "HYBRID") {
           setEscalated(true);
           escalatedRef.current = true;
         }
-        setHandoverStatus("An agent has joined your chat.");
+        setTalkToAgentStatus("An agent has joined your chat.");
       }
       setResumeChecked(true);
     })();
@@ -1241,7 +1242,7 @@ function WidgetChatPanel({
         continue;
       }
       /** Hide AI lines until the visitor sends a composer message; never hide human agents. */
-      if (awaitingFirstUserQuestion && m.role === "system") {
+      if (awaitingFirstUserQuestionRef.current && m.role === "system") {
         continue;
       }
       if (escalated && m.role === "system" && !isVisitorPolicyNoticeMessage(m)) {
@@ -1298,10 +1299,10 @@ function WidgetChatPanel({
     return resolveEmbedPanelHeaderStatus({
       showOfflineBanner,
       offlineMessage: appearance.offlineMessage,
-      handoverStatus,
+      talkToAgentStatus,
       agentTypingSeen: chat.agentTypingSeen,
       aiPending,
-      hybridEscalatedWaiting: mode === "HYBRID" && escalated && !handoverStatus,
+      hybridEscalatedWaiting: mode === "HYBRID" && escalated && !talkToAgentStatus,
       statusLabel,
     });
   }, [
@@ -1309,7 +1310,7 @@ function WidgetChatPanel({
     appearance,
     chat.agentTypingSeen,
     escalated,
-    handoverStatus,
+    talkToAgentStatus,
     mode,
     showOfflineBanner,
     statusLabel,
@@ -1375,7 +1376,7 @@ function WidgetChatPanel({
       });
       persistConversationId(siteKey, created.conversationId);
       if (created.resumed) {
-        if (created.handoverRequested) {
+        if (created.talkToAgentRequested || created.handoverRequested) {
           setEscalated(true);
           escalatedRef.current = true;
           setLocalAiMessages([]);
@@ -1476,6 +1477,7 @@ function WidgetChatPanel({
 
   const [draft, setDraft] = useState("");
   const messageListRef = useRef<HTMLDivElement | null>(null);
+  const visitorTypingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const scrollTranscriptToBottom = useCallback((instant = true) => {
     const el = messageListRef.current;
@@ -1495,7 +1497,7 @@ function WidgetChatPanel({
     prechatDone,
     aiPending,
     chat.agentTypingSeen,
-    handoverStatus,
+    talkToAgentStatus,
     scrollTranscriptToBottom,
   ]);
 
@@ -1505,18 +1507,43 @@ function WidgetChatPanel({
     scrollTranscriptToBottom(true);
   }, [draft, prechatDone, scrollTranscriptToBottom]);
 
+  useEffect(() => {
+    awaitingFirstUserQuestionRef.current = awaitingFirstUserQuestion;
+  }, [awaitingFirstUserQuestion]);
+
+  const onDraftChange = useCallback(
+    (value: string) => {
+      setDraft(value);
+      if (!chat.conversationId) return;
+      if (visitorTypingTimerRef.current) {
+        clearTimeout(visitorTypingTimerRef.current);
+      }
+      visitorTypingTimerRef.current = setTimeout(() => {
+        visitorTypingTimerRef.current = null;
+        if (value.trim()) {
+          chat.emitTyping(value);
+        } else {
+          chat.emitStopTyping();
+        }
+      }, 300);
+    },
+    [chat],
+  );
+
   const sendDraft = async () => {
     const text = normalizeChatMessageText(draft);
     if (!text || !chat.conversationId) return;
 
     if (awaitingFirstUserQuestion) {
+      awaitingFirstUserQuestionRef.current = false;
       setAwaitingFirstUserQuestion(false);
     }
 
-    /** HYBRID: AI replies until the visitor taps "Talk to a human"; then only visitor→agent messages run until an agent joins. */
+    /** HYBRID: AI replies until the visitor taps Talk to agent; then only visitor→agent messages run until an agent joins. */
     const shouldUseAiBridge =
       mode === "AI_ONLY" || (mode === "HYBRID" && !escalated);
 
+    chat.emitStopTyping();
     setDraft("");
     if (shouldUseAiBridge) {
       setAiPending(true);
@@ -1530,25 +1557,25 @@ function WidgetChatPanel({
     }
   };
 
-  const runHumanHandover = async () => {
-    if (!chat.conversationId || handoverBusy) return;
-    setHandoverBusy(true);
+  const runTalkToAgent = async () => {
+    if (!chat.conversationId || talkToAgentBusy) return;
+    setTalkToAgentBusy(true);
     setEscalated(true);
     escalatedRef.current = true;
     setLocalAiMessages([]);
     if (chat.conversationId) {
       persistHybridEscalated(siteKey, chat.conversationId);
     }
-    setHandoverStatus(null);
-    const res = await postWidgetRequestHuman(
+    setTalkToAgentStatus(null);
+    const res = await postWidgetTalkToAgent(
       chat.conversationId,
       websiteId,
       sessionToken,
     );
-    setHandoverBusy(false);
+    setTalkToAgentBusy(false);
     if (res.ok) {
-      setHandoverStatus(res.data.message);
-      if (res.data.handoverRequested) {
+      setTalkToAgentStatus(res.data.message);
+      if (res.data.talkToAgentRequested || res.data.handoverRequested) {
         setEscalated(true);
         escalatedRef.current = true;
         if (chat.conversationId) {
@@ -1558,7 +1585,7 @@ function WidgetChatPanel({
     } else {
       setEscalated(false);
       escalatedRef.current = false;
-      setHandoverStatus(res.message || "Could not reach a teammate right now.");
+      setTalkToAgentStatus(res.message || "Could not reach a teammate right now.");
     }
   };
 
@@ -1846,6 +1873,11 @@ function WidgetChatPanel({
             appearance={appearance}
           />
         ))}
+        {chat.agentTypingSeen && chat.agentTypingDraft && appearance ? (
+          <EmbedChatBubble appearance={appearance} role="assistant">
+            {chat.agentTypingDraft}
+          </EmbedChatBubble>
+        ) : null}
       </Stack>
 
       <Stack
@@ -1871,7 +1903,7 @@ function WidgetChatPanel({
           <TextField
             name="composer"
             value={draft}
-            onChange={(e) => setDraft(e.target.value)}
+            onChange={(e) => onDraftChange(e.target.value)}
             placeholder={sendPlaceholder}
             fullWidth
             variant="outlined"
@@ -1899,17 +1931,17 @@ function WidgetChatPanel({
       {mode === "HYBRID" &&
       !escalated &&
       hasActiveConversation &&
-      (appearance?.agentHandoverEnabled ?? true) ? (
+      (appearance?.agentTalkToAgentEnabled ?? true) ? (
         <MuiButton
           type="button"
           variant="outlined"
-          disabled={handoverBusy}
-          onClick={() => void runHumanHandover()}
-          sx={appearance ? embedHandoverButtonSx(appearance) : undefined}
+          disabled={talkToAgentBusy}
+          onClick={() => void runTalkToAgent()}
+          sx={appearance ? embedTalkToAgentButtonSx(appearance) : undefined}
         >
-          {handoverBusy
+          {talkToAgentBusy
             ? "Connecting…"
-            : appearance?.handoverTriggerText ?? "Talk to agent"}
+            : appearance?.talkToAgentTriggerText ?? "Talk to agent"}
         </MuiButton>
       ) : null}
     </Box>

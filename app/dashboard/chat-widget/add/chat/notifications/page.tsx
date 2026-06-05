@@ -121,11 +121,11 @@ export default function ChatWidgetNotificationsPage() {
   const [prechatMessageEnabled, setPrechatMessageEnabled] = useState(d0.prechatMessageEnabled ?? true);
   const [prechatMessageRequired, setPrechatMessageRequired] = useState(d0.prechatMessageRequired ?? false);
   const [responseOfflineMessage, setResponseOfflineMessage] = useState(d0.responseOfflineMessage ?? "");
-  const [responseAgentHandoverEnabled, setResponseAgentHandoverEnabled] = useState(
-    d0.responseAgentHandoverEnabled ?? true,
+  const [responseTalkToAgentEnabled, setresponseTalkToAgentEnabled] = useState(
+    d0.responseTalkToAgentEnabled ?? true,
   );
-  const [responseHandoverTriggerText, setResponseHandoverTriggerText] = useState(
-    d0.responseHandoverTriggerText ?? "Talk to agent",
+  const [responseTalkToAgentTriggerText, setresponseTalkToAgentTriggerText] = useState(
+    d0.responseTalkToAgentTriggerText ?? "Talk to agent",
   );
   const [wizardWebsiteId, setWizardWebsiteId] = useState<string | undefined>(
     defaultWidgetDraft.websiteId,
@@ -181,10 +181,10 @@ export default function ChatWidgetNotificationsPage() {
     setPrechatMessageEnabled(d.prechatMessageEnabled ?? def.prechatMessageEnabled ?? true);
     setPrechatMessageRequired(d.prechatMessageRequired ?? def.prechatMessageRequired ?? false);
     setResponseOfflineMessage(d.responseOfflineMessage ?? def.responseOfflineMessage ?? "");
-    setResponseAgentHandoverEnabled(d.responseAgentHandoverEnabled ?? def.responseAgentHandoverEnabled ?? true);
+    setresponseTalkToAgentEnabled(d.responseTalkToAgentEnabled ?? def.responseTalkToAgentEnabled ?? true);
     setMotionEnabled(d.motionEnabled !== false);
-    setResponseHandoverTriggerText(
-      d.responseHandoverTriggerText ?? def.responseHandoverTriggerText ?? "Talk to agent",
+    setresponseTalkToAgentTriggerText(
+      d.responseTalkToAgentTriggerText ?? def.responseTalkToAgentTriggerText ?? "Talk to agent",
     );
     setInquiryRequired(d.inquiryRequired ?? def.inquiryRequired ?? false);
     setInquirySkipLabel(d.inquirySkipLabel ?? def.inquirySkipLabel ?? "General question");
@@ -244,8 +244,8 @@ export default function ChatWidgetNotificationsPage() {
       consentText: consentText.trim(),
       inquiryOn: inquiryOnFromDraft,
       inquiryOptions: inquiryOptionsList,
-      handoverEnabled: responseAgentHandoverEnabled,
-      handoverTriggerText: responseHandoverTriggerText.trim(),
+      talkToAgentEnabled: responseTalkToAgentEnabled,
+      talkToAgentTriggerText: responseTalkToAgentTriggerText.trim(),
       greetingMessage: (draft.greetingMessage ?? defaultWidgetDraft.greetingMessage) || "",
       firstMessage: (draft.firstMessage ?? defaultWidgetDraft.firstMessage) || "",
       sendPlaceholder:
@@ -272,8 +272,8 @@ export default function ChatWidgetNotificationsPage() {
     consentText,
     inquiryOnFromDraft,
     inquiryOptionsList,
-    responseAgentHandoverEnabled,
-    responseHandoverTriggerText,
+    responseTalkToAgentEnabled,
+    responseTalkToAgentTriggerText,
     responseOfflineMessage,
   ]);
 
@@ -381,8 +381,8 @@ export default function ChatWidgetNotificationsPage() {
           prechatMessageEnabled,
           prechatMessageRequired,
           responseOfflineMessage: responseOfflineMessage.trim(),
-          responseAgentHandoverEnabled,
-          responseHandoverTriggerText: responseHandoverTriggerText.trim() || "Talk to agent",
+          responseTalkToAgentEnabled,
+          responseTalkToAgentTriggerText: responseTalkToAgentTriggerText.trim() || "Talk to agent",
           motionEnabled,
           ...syncResponseCopyFromChatBox(prev),
         });
@@ -531,7 +531,7 @@ export default function ChatWidgetNotificationsPage() {
         </SchedulingSectionCard>
 
         <SchedulingSectionCard
-          title="Chat routing & agent handoff"
+          title="Chat routing & Talk to agent"
           subtitle="Who replies first, embed domains, offline copy, and the Talk to agent button (Hybrid only)."
         >
           <SelectField
@@ -539,7 +539,7 @@ export default function ChatWidgetNotificationsPage() {
             value={chatMode}
             onChange={(v) => setChatMode(v as WidgetInstallChatMode)}
             options={[
-              { label: "Hybrid — AI first, then human handoff", value: "HYBRID" },
+              { label: "Hybrid — AI first, then Talk to agent", value: "HYBRID" },
               { label: "AI only — no live agent button", value: "AI_ONLY" },
               { label: "Agent only — no AI replies", value: "AGENT_ONLY" },
             ]}
@@ -557,16 +557,16 @@ export default function ChatWidgetNotificationsPage() {
                 <WidgetWizardToggleRow
                   label="Show Talk to agent button"
                   description="Single handoff control in the chat composer area."
-                  checked={responseAgentHandoverEnabled}
-                  onChange={setResponseAgentHandoverEnabled}
+                  checked={responseTalkToAgentEnabled}
+                  onChange={setresponseTalkToAgentEnabled}
                 />
               </Box>
-              {responseAgentHandoverEnabled ? (
+              {responseTalkToAgentEnabled ? (
                 <WidgetTextField
                   label="Talk to agent button label"
-                  name="handover-label"
-                  value={responseHandoverTriggerText}
-                  onChange={setResponseHandoverTriggerText}
+                  name="talk-to-agent-label"
+                  value={responseTalkToAgentTriggerText}
+                  onChange={setresponseTalkToAgentTriggerText}
                   maxLength={FIELD_MAX.shortLabel}
                   placeholder="Talk to agent"
                 />

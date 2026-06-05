@@ -40,6 +40,7 @@ export function ChatMessageBubble({
 }: ChatMessageBubbleProps) {
   const isSystem = message.role === "system";
   const isOutgoing = message.role === "agent";
+  const isTypingPreview = message.metadata?.typingPreview === true;
   const showAvatar = shouldShowMessageAvatar(message, groupPosition);
   const showMeta = shouldShowMessageMeta(groupPosition);
   const senderLabel = isOutgoing ? agentDisplayName : visitorDisplayName;
@@ -81,7 +82,11 @@ export function ChatMessageBubble({
       ) : null}
 
       <MessageRow outgoing={isOutgoing}>
-        <MessageBubble outgoing={isOutgoing} groupPosition={groupPosition}>
+        <MessageBubble
+          outgoing={isOutgoing}
+          groupPosition={groupPosition}
+          sx={isTypingPreview ? { opacity: 0.72, fontStyle: "italic" } : undefined}
+        >
           <ChatMessageContent message={message} />
         </MessageBubble>
         {showMeta ? (

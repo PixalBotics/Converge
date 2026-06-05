@@ -32,4 +32,5 @@ export type NotificationSocketEvent = {
 
 export type NotificationsListResponse = {
   items: NotificationDto[];
+  badgeCounts?: BadgeCounts;
 };

@@ -15,6 +15,7 @@ import { isAxiosError } from "axios";
 import { usePathname, useRouter } from "next/navigation";
 import type { AuthUserType, User, LoginCredentials } from "./types";
 import {
+  applyLoginAsTokenPair,
   getAccessToken,
   getMe,
   getRefreshToken,
@@ -32,10 +33,23 @@ import { extractApiErrorMessageForToast } from "@/lib/notify";
 import { AUTH_PATHS, shouldSkipRemoteAuthHydration } from "./auth-paths";
 import { registerApplyLoginAsSession } from "./apply-login-as-session";
 import {
+  beginAuthTransition,
+  endAuthTransition,
+} from "./auth-transition";
+import {
+  disconnectSharedAgentChat,
+} from "@/services/chat/sharedAgentChatSocket";
+import { disconnectSharedNotifications } from "@/services/notifications/notificationsSocket";
+import {
   clearImpersonationSession,
   getImpersonationSession,
   isImpersonatingSessionActive,
+  setImpersonationSession,
 } from "./impersonation-session";
+import {
+  snapshotFromAuthApiUser,
+  userFromImpersonationSnapshot,
+} from "./impersonation-user";
 import { createPermissionCan } from "@/lib/permissions/access-helpers";
 import {
   extractIsPlatformAdmin,
@@ -50,6 +64,7 @@ import {
   type PermissionsByType,
 } from "./permissions-model";
 import { dismissAppBoundary, publishAuthErrorBoundary } from "@/lib/app-boundaries";
+import { classifyApiError, isTransientNetworkError } from "@/lib/app-boundaries/classify-api-error";
 import { isAccessTokenExpiringSoon } from "./access-token";
 import {
   initTokenCrossTabSync,
@@ -351,13 +366,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [applyAccountTheme],
   );
 
+  const resolveUserForImpersonation = useCallback((): User | null => {
+    const session = getImpersonationSession();
+    const fromSnapshot = userFromImpersonationSnapshot(session?.impersonatedUser);
+    if (fromSnapshot) return fromSnapshot;
+
+    const jwtUser = getUserFromAccessToken();
+    if (jwtUser && session?.impersonatedUserId) {
+      if (jwtUser.id === session.impersonatedUserId) return jwtUser;
+      return null;
+    }
+    return jwtUser;
+  }, []);
+
   const applyLocalAuthFromCookies = useCallback(() => {
-    setUser(getUserFromAccessToken());
-    setIsImpersonating(isImpersonatingSessionActive());
-    setIsPlatformAdmin(isJwtPlatformAdmin(decodeJwtPayload(getAccessToken() ?? "")));
+    if (isAuthSessionTerminated()) {
+      setUser(null);
+      setPermissionsByType(undefined);
+      setIsPlatformAdmin(false);
+      setIsImpersonating(false);
+      setAuthGate("ready");
+      setIsLoading(false);
+      return;
+    }
+    const impersonating = isImpersonatingSessionActive();
+    setUser(impersonating ? resolveUserForImpersonation() : getUserFromAccessToken());
+    setIsImpersonating(impersonating);
+    setIsPlatformAdmin(
+      impersonating
+        ? false
+        : isJwtPlatformAdmin(decodeJwtPayload(getAccessToken() ?? "")),
+    );
     setAuthGate("ready");
     setIsLoading(false);
-  }, []);
+  }, [resolveUserForImpersonation]);
 
   const allowAuthSession = useCallback(() => {
     dismissAppBoundary();
@@ -387,12 +429,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             allowAuthSession();
             dismissAppBoundary("session_expired");
             return;
-          } catch {
-            /* refresh exhausted */
+          } catch (refreshErr) {
+            if (isTransientNetworkError(refreshErr)) {
+              applyLocalAuthFromCookies();
+              publishAuthErrorBoundary(refreshErr);
+              return;
+            }
+            /* refresh exhausted — real session expiry */
           }
         }
 
         if (isAuthSessionTerminated()) return;
+
+        if (error != null) {
+          const classified = classifyApiError(error);
+          if (classified.kind === "network") {
+            publishAuthErrorBoundary(error);
+            return;
+          }
+        }
 
         setUser(null);
         setPermissionsByType(undefined);
@@ -402,7 +457,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         publishAuthErrorBoundary(error);
       })();
     },
-    [allowAuthSession, isSkipHydrationPath],
+    [allowAuthSession, applyLocalAuthFromCookies, isSkipHydrationPath],
+  );
+
+  const handleTransientSessionSyncFailure = useCallback(
+    (error?: unknown) => {
+      if (isSkipHydrationPath()) return;
+      applyLocalAuthFromCookies();
+      allowAuthSession();
+      publishAuthErrorBoundary(error);
+    },
+    [allowAuthSession, applyLocalAuthFromCookies, isSkipHydrationPath],
   );
 
   const rbacEnabled = useMemo(() => isRbacActive(permissionsByType), [permissionsByType]);
@@ -477,7 +542,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           };
         }
         if (session.status === "unreachable" || session.status === "error") {
-          blockAuthSession(session.error);
+          handleTransientSessionSyncFailure(session.error);
           return {
             permissionsByType: undefined,
             isPlatformAdmin: jwtAdminFallback,
@@ -495,12 +560,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           permissionMode.type === "merge"
             ? (mergePermissionsByType(permissionMode.login, fromMe) ?? fromMe ?? permissionMode.login)
             : fromMe;
-        const platformAdmin =
-          extractIsPlatformAdmin(mePayload) || isJwtPlatformAdmin(decodeJwtPayload(getAccessToken() ?? ""));
+        const impersonating = isImpersonatingSessionActive();
+        const platformAdmin = impersonating
+          ? extractIsPlatformAdmin(mePayload)
+          : extractIsPlatformAdmin(mePayload) ||
+            isJwtPlatformAdmin(decodeJwtPayload(getAccessToken() ?? ""));
         flushSync(() => {
           setPermissionsByType(mergedPermissions ?? undefined);
-          setUser(mappedMeUser ?? getUserFromAccessToken());
-          setIsImpersonating(isImpersonatingSessionActive());
+          setUser(
+            mappedMeUser ??
+              (impersonating ? resolveUserForImpersonation() : getUserFromAccessToken()),
+          );
+          setIsImpersonating(impersonating);
           setIsPlatformAdmin(platformAdmin);
         });
         syncAccountThemeFromMePayload(mePayload, true);
@@ -516,21 +587,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setPermissionsSyncing(false);
       }
     },
-    [allowAuthSession, blockAuthSession, syncAccountThemeFromMePayload],
+    [
+      allowAuthSession,
+      blockAuthSession,
+      handleTransientSessionSyncFailure,
+      resolveUserForImpersonation,
+      syncAccountThemeFromMePayload,
+    ],
   );
 
   /** Apply impersonated user + permissions from login-as response (replace, never merge). */
   const applyLoginAsSessionFromResponse = useCallback(
     (response: LoginSuccessData) => {
+      applyLoginAsTokenPair(response);
       const loginPerms = extractPermissionsByType(response);
       const mappedUser = mapApiUserToUser(response.user as ApiUser);
-      const platformAdmin =
-        extractIsPlatformAdmin(response) ||
-        isJwtPlatformAdmin(decodeJwtPayload(getAccessToken() ?? ""));
+      const impersonatedSnapshot = snapshotFromAuthApiUser(response.user);
+      const existing = getImpersonationSession();
+      if (existing && impersonatedSnapshot) {
+        setImpersonationSession({
+          ...existing,
+          impersonatedUser: impersonatedSnapshot,
+        });
+      }
+      const platformAdmin = extractIsPlatformAdmin(response);
 
       flushSync(() => {
         setPermissionsByType(loginPerms ?? undefined);
-        setUser(mappedUser ?? getUserFromAccessToken());
+        setUser(mappedUser ?? userFromImpersonationSnapshot(impersonatedSnapshot));
         setIsImpersonating(isImpersonatingSessionActive());
         setIsPlatformAdmin(platformAdmin);
         setAuthGate("ready");
@@ -557,6 +641,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     registerCrossTabTokenListener((payload) => {
+      if (isImpersonatingSessionActive()) return;
       setTokenPair(
         {
           accessToken: payload.accessToken,
@@ -579,7 +664,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setPermissionsSyncing(false);
       setIsPlatformAdmin(false);
       setIsImpersonating(false);
-      setAuthGate("blocked");
+      setIsLoading(false);
+      setAuthGate("ready");
       accountThemeFromMeAppliedRef.current = false;
       const query =
         reason === "refresh_failed" || reason === "verify_failed"
@@ -626,6 +712,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       if (session.status === "invalid") {
+        if (isImpersonatingSessionActive() && (getAccessToken() || getRefreshToken())) {
+          applyLocalAuthFromCookies();
+          try {
+            const mePayload = await getMe({ permissionsBreakdown: true });
+            const meUser = extractUserFromMePayload(mePayload);
+            const mappedMeUser = meUser ? mapApiUserToUser(meUser) : null;
+            const fromMe = extractPermissionsByType(mePayload);
+            flushSync(() => {
+              setPermissionsByType(fromMe ?? undefined);
+              setUser(mappedMeUser ?? resolveUserForImpersonation());
+              setIsImpersonating(true);
+              setIsPlatformAdmin(extractIsPlatformAdmin(mePayload));
+            });
+            syncAccountThemeFromMePayload(mePayload);
+            allowAuthSession();
+            return;
+          } catch {
+            applyLocalAuthFromCookies();
+            allowAuthSession();
+            return;
+          }
+        }
         setAuthGate("blocked");
         return;
       }
@@ -640,28 +748,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       if (session.status === "unreachable" || session.status === "error") {
-        blockAuthSession(session.error);
+        handleTransientSessionSyncFailure(session.error);
         return;
       }
 
       const mePayload = await getMe({ permissionsBreakdown: true });
       const meUser = extractUserFromMePayload(mePayload);
       const mappedMeUser = meUser ? mapApiUserToUser(meUser) : null;
+      const impersonating = isImpersonatingSessionActive();
+      const incoming = extractPermissionsByType(mePayload);
       setPermissionsByType((prev) => {
-        const incoming = extractPermissionsByType(mePayload);
         if (!incoming) return prev;
-        return mergePermissionsByType(prev, incoming);
+        return impersonating ? incoming : mergePermissionsByType(prev, incoming);
       });
-      setUser(mappedMeUser ?? getUserFromAccessToken());
-      setIsImpersonating(isImpersonatingSessionActive());
+      setUser(
+        mappedMeUser ?? (impersonating ? resolveUserForImpersonation() : getUserFromAccessToken()),
+      );
+      setIsImpersonating(impersonating);
       setIsPlatformAdmin(
-        extractIsPlatformAdmin(mePayload) || isJwtPlatformAdmin(decodeJwtPayload(getAccessToken() ?? "")),
+        impersonating
+          ? extractIsPlatformAdmin(mePayload)
+          : extractIsPlatformAdmin(mePayload) ||
+              isJwtPlatformAdmin(decodeJwtPayload(getAccessToken() ?? "")),
       );
       syncAccountThemeFromMePayload(mePayload);
       allowAuthSession();
     } catch (err: unknown) {
       if (isSkipHydrationPath()) {
         applyLocalAuthFromCookies();
+        return;
+      }
+      if (isImpersonatingSessionActive() && (getAccessToken() || getRefreshToken())) {
+        applyLocalAuthFromCookies();
+        allowAuthSession();
         return;
       }
       blockAuthSession(err);
@@ -674,7 +793,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     allowAuthSession,
     applyLocalAuthFromCookies,
     blockAuthSession,
+    handleTransientSessionSyncFailure,
     isSkipHydrationPath,
+    resolveUserForImpersonation,
     syncAccountThemeFromMePayload,
   ]);
 
@@ -721,7 +842,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return;
         }
         if (session.status === "unreachable" || session.status === "error") {
-          blockAuthSession(session.error);
+          handleTransientSessionSyncFailure(session.error);
           return;
         }
         const mePayload = await getMe({ permissionsBreakdown: true });
@@ -749,6 +870,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (isSkipHydrationPath()) {
           return;
         }
+        const classified = classifyApiError(err);
+        if (classified.kind === "network") {
+          handleTransientSessionSyncFailure(err);
+          return;
+        }
         blockAuthSession(err);
       }
     };
@@ -772,18 +898,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       focusDebounce = setTimeout(() => {
         focusDebounce = null;
         void syncFromServer();
-      }, 1500);
+      }, 400);
     };
+
+    const handleOnline = () => {
+      if (isSkipHydrationPath()) return;
+      if (focusDebounce) clearTimeout(focusDebounce);
+      focusDebounce = null;
+      void syncFromServer();
+    };
+
     window.addEventListener("pageshow", handleLifecycleSync);
     window.addEventListener("focus", handleLifecycleSync);
+    window.addEventListener("online", handleOnline);
 
     return () => {
       active = false;
       if (focusDebounce) clearTimeout(focusDebounce);
       window.removeEventListener("pageshow", handleLifecycleSync);
       window.removeEventListener("focus", handleLifecycleSync);
+      window.removeEventListener("online", handleOnline);
     };
-  }, [allowAuthSession, blockAuthSession, isSkipHydrationPath, syncAccountThemeFromMePayload]);
+  }, [
+    allowAuthSession,
+    blockAuthSession,
+    handleTransientSessionSyncFailure,
+    isSkipHydrationPath,
+    syncAccountThemeFromMePayload,
+  ]);
 
   const login = useCallback(
     async (credentials: LoginCredentials): Promise<LoginResult> => {
@@ -895,6 +1037,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const logout = useCallback(async () => {
+    disconnectSharedAgentChat(true);
+    disconnectSharedNotifications(true);
     try {
       await logoutMutation.mutateAsync();
     } catch {
@@ -916,6 +1060,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsImpersonating(false);
       return false;
     }
+    beginAuthTransition("revert-impersonation");
     try {
       clearAppQueryCache();
       setTokenPair(session.originalTokenPair);
@@ -948,6 +1093,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return true;
     } catch {
       return false;
+    } finally {
+      endAuthTransition();
     }
   }, [router, syncAccountThemeFromMePayload]);
 

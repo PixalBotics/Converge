@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import Box from "@mui/material/Box";
 import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
@@ -16,6 +16,7 @@ import {
   supervisorCloseConversation,
 } from "@/services/chat/supervisor.api";
 import { canSupervisorCloseChat } from "@/lib/permissions/chat-access";
+import { getSharedAgentChatSocket } from "@/services/chat/sharedAgentChatSocket";
 
 interface MonitorActionsPanelProps {
   conversationId: string | null;
@@ -37,6 +38,7 @@ export function MonitorActionsPanel({
   onMessageSent,
 }: MonitorActionsPanelProps) {
   const theme = useTheme() as AppTheme;
+  const socketClient = useMemo(() => getSharedAgentChatSocket(), []);
   const enabled =
     !readOnly &&
     canUseSupervisorTools(hasOperational) &&
@@ -58,6 +60,27 @@ export function MonitorActionsPanel({
     supervisorControlUserId === currentUserId;
 
   const canClose = canSupervisorCloseChat(hasOperational);
+
+  const emitLiveTyping = useCallback(
+    (draft: string) => {
+      if (!conversationId || !isControlling) return;
+      if (!draft.trim()) {
+        socketClient.emitStopTyping({
+          conversationId,
+          userType: "agent",
+          ...(currentUserId ? { userId: currentUserId } : {}),
+        });
+        return;
+      }
+      socketClient.emitTyping({
+        conversationId,
+        userType: "agent",
+        ...(currentUserId ? { userId: currentUserId } : {}),
+        draft,
+      });
+    },
+    [conversationId, currentUserId, isControlling, socketClient],
+  );
 
   const run = async (fn: () => Promise<void>) => {
     setBusy(true);
@@ -143,7 +166,11 @@ export function MonitorActionsPanel({
             <InputField
               label="Message to visitor"
               value={controlMessage}
-              onChange={(e) => setControlMessage(e.target.value)}
+              onChange={(e) => {
+                const next = e.target.value;
+                setControlMessage(next);
+                emitLiveTyping(next);
+              }}
               disabled={busy}
               sx={{ mt: 1.5 }}
             />
@@ -161,6 +188,7 @@ export function MonitorActionsPanel({
                     controlMessage.trim(),
                   );
                   setControlMessage("");
+                  emitLiveTyping("");
                   setStatus("Message sent to visitor.");
                   onMessageSent?.();
                 })

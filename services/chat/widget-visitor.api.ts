@@ -91,9 +91,14 @@ export async function sendWidgetVisitorMessage(
   conversationId: string,
   payload: VisitorSendMessagePayload,
   widgetBearerToken?: string,
+  websiteId?: string,
 ): Promise<unknown> {
+  const websiteQuery =
+    websiteId?.trim() ?
+      `?websiteId=${encodeURIComponent(websiteId.trim())}`
+    : "";
   const result = await widgetVisitorFetchJson<unknown>(
-    `/chat/widget/conversations/${encodeURIComponent(conversationId)}/messages`,
+    `/chat/widget/conversations/${encodeURIComponent(conversationId)}/messages${websiteQuery}`,
     { method: "POST", body: JSON.stringify(payload) },
     widgetBearerToken,
   );
@@ -116,6 +121,8 @@ export type WidgetTranscriptResult = {
   status: string;
   chatCompleted: boolean;
   canSendMessages: boolean;
+  talkToAgentRequested?: boolean;
+  /** @deprecated Use {@link talkToAgentRequested}. */
   handoverRequested?: boolean;
   queuedForAgent?: boolean;
   assignedAgentId?: string | null;
@@ -208,7 +215,10 @@ export async function fetchWidgetTranscript(
         status: typeof o.status === "string" ? o.status : "active",
         chatCompleted: o.chatCompleted === true,
         canSendMessages: o.canSendMessages !== false,
-        handoverRequested: o.handoverRequested === true,
+        talkToAgentRequested:
+          o.talkToAgentRequested === true || o.handoverRequested === true,
+        handoverRequested:
+          o.talkToAgentRequested === true || o.handoverRequested === true,
         queuedForAgent: o.queuedForAgent === true,
         assignedAgentId:
           typeof o.assignedAgentId === "string"
@@ -228,25 +238,31 @@ export async function fetchWidgetTranscript(
   }
 }
 
-export type WidgetRequestHumanResult = {
+export type WidgetTalkToAgentResult = {
   message: string;
   assignedAgentId: string | null;
   queuedForAgent: boolean;
+  talkToAgentRequested?: boolean;
+  talkToAgentPending?: boolean;
+  /** @deprecated Legacy keys — mirrored from Talk to agent fields. */
   handoverRequested?: boolean;
   handoverPending?: boolean;
 };
 
-export async function postWidgetRequestHuman(
+/** @deprecated Use {@link WidgetTalkToAgentResult}. */
+export type WidgetRequestHumanResult = WidgetTalkToAgentResult;
+
+export async function postWidgetTalkToAgent(
   conversationId: string,
   websiteId: string,
   widgetBearerToken?: string,
 ): Promise<
-  { ok: true; data: WidgetRequestHumanResult } | { ok: false; message: string }
+  { ok: true; data: WidgetTalkToAgentResult } | { ok: false; message: string }
 > {
   const base = getResolvedPublicApiBaseUrl();
   const url =
     `${base}/chat/widget/conversations/${encodeURIComponent(conversationId)}` +
-    `/request-human?websiteId=${encodeURIComponent(websiteId)}`;
+    `/request-talk-to-agent?websiteId=${encodeURIComponent(websiteId)}`;
 
   try {
     const res = await fetch(url, {
@@ -291,8 +307,16 @@ export async function postWidgetRequestHuman(
         assignedAgentId:
           typeof o.assignedAgentId === "string" ? o.assignedAgentId : null,
         queuedForAgent: o.queuedForAgent === true,
-        handoverRequested: o.handoverRequested === true,
+        talkToAgentRequested:
+          o.talkToAgentRequested === true || o.handoverRequested === true,
+        talkToAgentPending:
+          o.talkToAgentPending === true ||
+          o.handoverPending === true ||
+          ("handoverPending" in o && o.handoverPending === true),
+        handoverRequested:
+          o.talkToAgentRequested === true || o.handoverRequested === true,
         handoverPending:
+          o.talkToAgentPending === true ||
           o.handoverPending === true ||
           ("handoverPending" in o && o.handoverPending === true),
       },
@@ -304,3 +328,6 @@ export async function postWidgetRequestHuman(
     };
   }
 }
+
+/** @deprecated Use {@link postWidgetTalkToAgent}. */
+export const postWidgetRequestHuman = postWidgetTalkToAgent;

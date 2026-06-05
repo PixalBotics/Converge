@@ -26,6 +26,7 @@ interface GuestSupervisorActionsProps {
   chatCompleted?: boolean;
   layout?: "sidebar" | "stacked";
   onOptimisticAgentMessage?: (content: string) => void;
+  onLiveTyping?: (draft?: string) => void;
   onActionComplete?: () => void;
 }
 
@@ -46,6 +47,7 @@ export function GuestSupervisorActions({
   chatCompleted = false,
   layout = "stacked",
   onOptimisticAgentMessage,
+  onLiveTyping,
   onActionComplete,
 }: GuestSupervisorActionsProps) {
   const theme = useTheme() as AppTheme;
@@ -155,7 +157,11 @@ export function GuestSupervisorActions({
             label="Message to visitor"
             placeholder="Type your reply…"
             value={replyText}
-            onChange={(e) => setReplyText(e.target.value)}
+            onChange={(e) => {
+              const next = e.target.value;
+              setReplyText(next);
+              onLiveTyping?.(next);
+            }}
             disabled={busy}
             multiline
             minRows={2}
@@ -177,6 +183,7 @@ export function GuestSupervisorActions({
                   text,
                 );
                 setReplyText("");
+                onLiveTyping?.("");
                 setStatus("Message sent to the visitor.");
               })
             }

@@ -16,7 +16,9 @@ import {
   InputField,
   Label,
 } from "@/components/common";
+import { resetAuthSessionTerminatedFlag, synchronizeAuthSession, getAccessToken, getRefreshToken } from "@/api";
 import { getAuthEmailRules, useAuth } from "@/lib/auth";
+import { retrySessionHydration } from "@/lib/auth/session-hydration-retry";
 import { parseSafeDashboardNextPath } from "@/lib/auth/safe-next-path";
 import { resolveDashboardLandingHref } from "@/lib/permissions";
 import { AuthNavigationLink } from "../_components/AuthNavigationLink";
@@ -54,9 +56,36 @@ export default function LoginPage() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     setSafeNextPath(parseSafeDashboardNextPath(params.get("next")));
-    setSessionExpiredNotice(params.get("session") === "expired");
+    const expired = params.get("session") === "expired";
+    setSessionExpiredNotice(expired);
     setPasswordResetNotice(params.get("reset") === "success");
+    if (expired) {
+      resetAuthSessionTerminatedFlag();
+    }
   }, []);
+
+  /** Recover dashboard session when cookies survived a transient network logout. */
+  useEffect(() => {
+    if (!sessionExpiredNotice) return;
+    const access = getAccessToken();
+    const refresh = getRefreshToken();
+    if (!access && !refresh) return;
+
+    let cancelled = false;
+    void (async () => {
+      const session = await synchronizeAuthSession();
+      if (cancelled) return;
+      if (session.status === "valid" || session.status === "refreshed") {
+        resetAuthSessionTerminatedFlag();
+        setSessionExpiredNotice(false);
+        await retrySessionHydration();
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [sessionExpiredNotice]);
 
   const {
     login,
@@ -67,7 +96,6 @@ export default function LoginPage() {
     permissionsSyncing,
     isPlatformAdmin,
   } = useAuth();
-  const disableForm = isLoading || isAuthenticated;
   const {
     control,
     handleSubmit,
@@ -78,6 +106,11 @@ export default function LoginPage() {
     defaultValues,
     mode: "onBlur",
   });
+  /** Editable after logout/expiry; lock only during submit or live session redirect. */
+  const disableForm =
+    isSubmitting ||
+    permissionsSyncing ||
+    (isAuthenticated && !sessionExpiredNotice);
 
   useEffect(() => {
     if (isLoading) return;

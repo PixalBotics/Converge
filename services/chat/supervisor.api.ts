@@ -1,4 +1,5 @@
 import { apiClient } from "@/api";
+import { getSharedAgentChatSocket } from "./sharedAgentChatSocket";
 import { unwrapChatHttpData } from "./http";
 import type {
   ChatTakeoverRequest,
@@ -26,6 +27,20 @@ export async function createConversationWhisper(
   conversationId: string,
   body: CreateWhisperBody,
 ): Promise<{ whisper: ChatWhisper; agentMustClickSend: boolean }> {
+  const socket = getSharedAgentChatSocket();
+  if (socket.isConnected()) {
+    try {
+      const ack = await socket.sendSupervisorWhisperWithAck({
+        conversationId,
+        message: body.message,
+      });
+      if (ack && typeof ack === "object") {
+        return unwrapChatHttpData(ack);
+      }
+    } catch {
+      /* REST fallback */
+    }
+  }
   const { data } = await apiClient.post<unknown>(
     `${conversationPath(conversationId)}/whispers`,
     body,
@@ -77,6 +92,17 @@ export async function rejectTakeoverRequest(
 export async function startDirectSupervisorControl(
   conversationId: string,
 ): Promise<{ mode: string; supervisorControlUserId: string; agentReadOnly: boolean }> {
+  const socket = getSharedAgentChatSocket();
+  if (socket.isConnected()) {
+    try {
+      const ack = await socket.sendSupervisorControlStartWithAck({ conversationId });
+      if (ack && typeof ack === "object") {
+        return unwrapChatHttpData(ack);
+      }
+    } catch {
+      /* REST fallback */
+    }
+  }
   const { data } = await apiClient.post<unknown>(
     `${conversationPath(conversationId)}/supervisor/control/start`,
   );
@@ -86,6 +112,17 @@ export async function startDirectSupervisorControl(
 export async function releaseDirectSupervisorControl(
   conversationId: string,
 ): Promise<{ released: boolean }> {
+  const socket = getSharedAgentChatSocket();
+  if (socket.isConnected()) {
+    try {
+      const ack = await socket.sendSupervisorControlReleaseWithAck({ conversationId });
+      if (ack && typeof ack === "object") {
+        return unwrapChatHttpData(ack);
+      }
+    } catch {
+      /* REST fallback */
+    }
+  }
   const { data } = await apiClient.post<unknown>(
     `${conversationPath(conversationId)}/supervisor/control/release`,
   );
@@ -96,6 +133,15 @@ export async function sendSupervisorControlMessage(
   conversationId: string,
   message: string,
 ): Promise<unknown> {
+  const socket = getSharedAgentChatSocket();
+  if (socket.isConnected()) {
+    try {
+      const ack = await socket.sendSupervisorMessageWithAck({ conversationId, message });
+      if (ack !== undefined) return ack;
+    } catch {
+      /* REST fallback */
+    }
+  }
   const { data } = await apiClient.post<unknown>(
     `${conversationPath(conversationId)}/supervisor/messages`,
     { message },

@@ -30,6 +30,7 @@ import {
   inquiryOptionsFromExperience,
   parseWidgetExperienceV1,
 } from "./widget-experience";
+import { DEFAULT_TALK_TO_AGENT_BUTTON_LABEL } from "@/lib/chat-widget/talk-to-agent.constants";
 import type { WidgetConfigEnvelope } from "./widget-types";
 import {
   normalizeLauncherBadgeMode,
@@ -132,8 +133,8 @@ export interface RuntimeChatAppearance {
   inquiryRequired: boolean;
   inquirySkipLabel: string;
   inquiryFallback: RuntimeInquiryOption | null;
-  handoverTriggerText: string;
-  agentHandoverEnabled: boolean;
+  talkToAgentTriggerText: string;
+  agentTalkToAgentEnabled: boolean;
   botEnabled: boolean;
   consentRequired: boolean;
   consentText: string;
@@ -351,10 +352,11 @@ export function extractRuntimeChatAppearance(
 
   const borderRadiusPx = resolvedColors.borderRadiusPx;
 
-  const agentHandoverEnabled = runtimeBoolFirst(
+  const agentTalkToAgentEnabled = runtimeBoolFirst(
     true,
+    response?.agentTalkToAgentEnabled,
     response?.agentHandoverEnabled,
-    response?.responseAgentHandoverEnabled,
+    response?.responseTalkToAgentEnabled,
     configRecord.callHandoverEnabled,
     configRecord.agentHandoverEnabled,
   );
@@ -416,13 +418,15 @@ export function extractRuntimeChatAppearance(
     mutedTextColor,
     borderRadiusPx,
     formEnabled: isPrechatFormEnabled(configRecord),
-    handoverTriggerText: strFirst(
+    talkToAgentTriggerText: strFirst(
+      response?.talkToAgentTriggerText,
       response?.handoverTriggerText,
       response?.handover_trigger_text,
+      behavior?.talkToAgentTriggerText,
       behavior?.handoverTriggerText,
-      "Talk to agent",
+      DEFAULT_TALK_TO_AGENT_BUTTON_LABEL,
     ),
-    agentHandoverEnabled,
+    agentTalkToAgentEnabled,
     botEnabled: runtimeBoolFlag(behavior?.botEnabled, true),
     consentRequired: runtimeBoolFirst(
       Boolean(strFirst(configRecord.consentText, behavior?.consentText, formCfg?.consentText)),

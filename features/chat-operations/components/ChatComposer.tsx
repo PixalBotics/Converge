@@ -22,7 +22,7 @@ interface ChatComposerProps {
   value: string;
   onChange: (value: string) => void;
   onSend: () => void;
-  onTyping: () => void;
+  onTyping: (draft?: string) => void;
   onStopTyping: () => void;
   disabled?: boolean;
   onInsertCanned: (text: string) => void;
@@ -105,8 +105,9 @@ export function ChatComposer({
               value={value}
               disabled={disabled}
               onChange={(e) => {
-                onChange(e.target.value);
-                onTyping();
+                const next = e.target.value;
+                onChange(next);
+                onTyping(next);
               }}
               onKeyDown={(ev) => {
                 if (ev.key === "Enter" && !ev.shiftKey) {

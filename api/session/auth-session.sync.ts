@@ -2,27 +2,18 @@ import { isAxiosError } from "axios";
 import { getAccessToken, getRefreshToken } from "../storage/auth-cookies";
 import type { AuthSessionSyncResult } from "../types/auth.types";
 import { verifyBearer } from "../auth/auth.api";
-import { refreshSessionWithStoredRefresh } from "./refresh-access-token";
+import { isTransientNetworkError } from "@/lib/app-boundaries/classify-api-error";
+import { isAuthTransitionActive } from "@/lib/auth/auth-transition";
+import { isImpersonatingSessionActive } from "@/lib/auth/impersonation-session";
 import { terminateAuthSession } from "./terminate-auth-session";
+import { refreshSessionOrClassifyFailure } from "./refresh-session-guard";
 
 function isUnauthorized(err: unknown): boolean {
   return isAxiosError(err) && err.response?.status === 401;
 }
 
-function isNetworkFailure(err: unknown): boolean {
-  if (isAxiosError(err)) {
-    if (!err.response) {
-      const code = err.code?.toUpperCase() ?? "";
-      return code !== "ERR_CANCELED";
-    }
-  }
-  return false;
-}
-
 /**
  * Validates the current session with the server and refreshes tokens when needed.
- * Intended for: full page reload, bfcache restore, tab focus — call from your root
- * client shell when you wire auth (not invoked by the app yet).
  */
 export async function synchronizeAuthSession(): Promise<AuthSessionSyncResult> {
   const access = getAccessToken();
@@ -34,18 +25,14 @@ export async function synchronizeAuthSession(): Promise<AuthSessionSyncResult> {
 
   let rotated = false;
   if (!access && refresh) {
-    try {
-      await refreshSessionWithStoredRefresh();
-      rotated = true;
-    } catch {
-      try {
-        await refreshSessionWithStoredRefresh();
-        rotated = true;
-      } catch {
-        await terminateAuthSession("refresh_failed");
-        return { status: "invalid" };
-      }
+    const outcome = await refreshSessionOrClassifyFailure();
+    if (outcome === "unreachable") {
+      return { status: "unreachable" };
     }
+    if (outcome === "invalid") {
+      return { status: "invalid" };
+    }
+    rotated = true;
   }
 
   try {
@@ -53,33 +40,41 @@ export async function synchronizeAuthSession(): Promise<AuthSessionSyncResult> {
     return { status: rotated ? "refreshed" : "valid" };
   } catch (err: unknown) {
     if (!isUnauthorized(err)) {
-      if (isNetworkFailure(err)) {
+      if (isTransientNetworkError(err)) {
         return { status: "unreachable", error: err };
       }
       return { status: "error", error: err };
     }
+
+    const outcome = await refreshSessionOrClassifyFailure();
+    if (outcome === "unreachable") {
+      return { status: "unreachable" };
+    }
+    if (outcome === "invalid") {
+      return { status: "invalid" };
+    }
+
     try {
-      await refreshSessionWithStoredRefresh();
       await verifyBearer();
       return { status: "refreshed" };
-    } catch {
-      try {
-        await new Promise((r) => setTimeout(r, 200));
-        await refreshSessionWithStoredRefresh();
-        await verifyBearer();
-        return { status: "refreshed" };
-      } catch {
-        await terminateAuthSession("verify_failed");
-        return { status: "invalid" };
+    } catch (verifyErr: unknown) {
+      if (isTransientNetworkError(verifyErr)) {
+        return { status: "unreachable", error: verifyErr };
       }
+      if (!isUnauthorized(verifyErr)) {
+        return { status: "error", error: verifyErr };
+      }
+      if (!isAuthTransitionActive() && !isImpersonatingSessionActive()) {
+        await terminateAuthSession("verify_failed");
+      }
+      return { status: "invalid" };
     }
   }
 }
 
 /**
  * Registers lightweight listeners so verify (+ refresh if needed) runs after
- * navigation restore and when the tab gains focus. Returns an unsubscribe
- * function. Safe to call once from a client `AuthProvider` later.
+ * navigation restore and when the tab gains focus.
  */
 export function attachAuthSessionLifecycleListeners(): () => void {
   if (typeof window === "undefined") {

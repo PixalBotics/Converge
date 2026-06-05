@@ -1,6 +1,44 @@
 import { apiClient } from "@/api";
 import { unwrapChatHttpData } from "@/services/chat/http";
 import type { BadgeCounts, NotificationDto, NotificationsListResponse } from "./notifications.types";
+import {
+  normalizeBadgeCounts as normalizeBadgeCountsInner,
+} from "@/lib/hooks/notifications/notification-state.utils";
+import {
+  normalizeNotificationItems,
+  reconcileBadgeCounts,
+} from "@/lib/hooks/notifications/notification-normalize";
+
+export type NotificationsSnapshot = {
+  items: NotificationDto[];
+  badgeCounts: BadgeCounts;
+};
+
+export async function fetchNotificationsSnapshot(params?: {
+  unreadOnly?: boolean;
+}): Promise<NotificationsSnapshot> {
+  const { data } = await apiClient.get<unknown>("/notifications/me", {
+    params: params?.unreadOnly ? { unreadOnly: "true" } : undefined,
+  });
+  const raw = unwrapChatHttpData<NotificationsListResponse | NotificationDto[]>(data);
+  if (Array.isArray(raw)) {
+    const items = normalizeNotificationItems(raw);
+    return { items, badgeCounts: reconcileBadgeCounts(EMPTY_BADGES, items) };
+  }
+  const items = normalizeNotificationItems(raw?.items ?? []);
+  const badgeCounts = reconcileBadgeCounts(
+    normalizeBadgeCountsInner(raw?.badgeCounts),
+    items,
+  );
+  return { items, badgeCounts };
+}
+
+const EMPTY_BADGES: BadgeCounts = {
+  chat: 0,
+  qa: 0,
+  hrms_leave: 0,
+  hrms_attendance: 0,
+};
 
 export async function fetchNotificationBadgeCounts(): Promise<BadgeCounts> {
   const { data } = await apiClient.get<unknown>("/notifications/me/badge-counts");
@@ -10,12 +48,8 @@ export async function fetchNotificationBadgeCounts(): Promise<BadgeCounts> {
 export async function fetchMyNotifications(params?: {
   unreadOnly?: boolean;
 }): Promise<NotificationDto[]> {
-  const { data } = await apiClient.get<unknown>("/notifications/me", {
-    params: params?.unreadOnly ? { unreadOnly: "true" } : undefined,
-  });
-  const raw = unwrapChatHttpData<NotificationsListResponse | NotificationDto[]>(data);
-  if (Array.isArray(raw)) return raw;
-  return raw?.items ?? [];
+  const snapshot = await fetchNotificationsSnapshot(params);
+  return snapshot.items;
 }
 
 export async function markNotificationRead(notificationId: string): Promise<void> {
@@ -53,11 +87,5 @@ function parseBadgeCountsResponse(payload: unknown): BadgeCounts {
 }
 
 function normalizeBadgeCounts(raw: unknown): BadgeCounts {
-  const o = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
-  return {
-    chat: Number(o.chat ?? 0) || 0,
-    qa: Number(o.qa ?? 0) || 0,
-    hrms_leave: Number(o.hrms_leave ?? o.hrmsLeave ?? 0) || 0,
-    hrms_attendance: Number(o.hrms_attendance ?? o.hrmsAttendance ?? 0) || 0,
-  };
+  return normalizeBadgeCountsInner(raw);
 }

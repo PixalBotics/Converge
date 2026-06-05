@@ -4,22 +4,35 @@ import { useEffect, useRef, type MutableRefObject } from "react";
 import type { ChatSocketClient } from "@/services/chat/chatSocket";
 import type { TypingPayload } from "@/services/chat/chat.types";
 import { conversationIdFromSocketPayload } from "./agent-chat.utils";
-import { publishAgentInboxRefreshSoon } from "@/lib/hooks/chat/agent-inbox-refresh-bus";
+import { publishAgentInboxDelta } from "@/lib/hooks/chat/agent-inbox-delta-bus";
+import { buildInboxPatchFromSocket } from "@/lib/hooks/chat/agent-inbox-queue-patch";
+import { publishAgentInboxRefreshAfterTalkToAgent } from "@/lib/hooks/chat/agent-inbox-refresh-bus";
+import {
+  applyStopTypingSocketPayload,
+  applyTypingSocketPayload,
+} from "@/lib/hooks/chat/apply-typing-socket-payload";
+import { getVisitorTypingDraft } from "@/lib/hooks/chat/conversation-typing-bus";
 import {
   CHAT_RECONNECT_SYNC_DEBOUNCE_MS,
   normalizeSocketMessage,
-  scheduleJoinRoomRetries,
+  ensureConversationRoomJoin,
   unwrapSocketMessagePayload,
 } from "./chat-socket-delivery";
+import { connectSharedAgentChat } from "@/services/chat/sharedAgentChatSocket";
 
 export interface AgentChatSocketHandlers {
   onVisitorMessage: (message: import("@/services/chat/chat.types").ChatMessage) => void;
   onRefreshQueues: () => void;
+  /** Monitor / non-inbox UIs: patch list from socket queue events. */
+  onInboxSocketEvent?: (event: string, payload: unknown) => void;
+  /** Monitor: all monitor_live_update events (list + transcript hints). */
+  onMonitorLiveUpdate?: (update: import("@/services/chat/chatSocket").MonitorLiveUpdatePayload) => void;
   /** One-shot REST gap-fill after reconnect (not on every message). */
   onReconnectHistorySync?: () => void;
   onSessionEnded: (payload: unknown) => void;
   onChatResumed: (payload: unknown) => void;
-  onVisitorTyping: (typing: boolean) => void;
+  onVisitorTyping: (typing: boolean, draft?: string) => void;
+  onVisitorProfileUpdated?: (payload: unknown) => void;
   onChatCompleted?: (payload: unknown) => void;
   onChatWhisper?: (payload: unknown) => void;
   onTakeoverRequested?: (payload: unknown) => void;
@@ -33,14 +46,15 @@ export interface AgentChatSocketHandlers {
   selectedIsClosedRef: MutableRefObject<boolean>;
 }
 
-const REFRESH_DEBOUNCE_MS = 500;
 const SESSION_ENDED_DEDUPE_MS = 2500;
 
 export function useAgentChatSocket(
   token: string,
   socketClient: ChatSocketClient,
+  currentAgentId: string | undefined,
   handlers: AgentChatSocketHandlers,
   onConnectedChange: (connected: boolean) => void,
+  options?: { publishInboxDeltas?: boolean },
 ): void {
   const handlersRef = useRef(handlers);
   handlersRef.current = handlers;
@@ -48,25 +62,33 @@ export function useAgentChatSocket(
   const onConnectedChangeRef = useRef(onConnectedChange);
   onConnectedChangeRef.current = onConnectedChange;
 
-  const connectedTokenRef = useRef<string | null>(null);
-  const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reconnectSyncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const sessionEndedDedupeRef = useRef<{ key: string; at: number } | null>(null);
+  const agentIdRef = useRef(currentAgentId);
+  agentIdRef.current = currentAgentId;
+  const publishInboxDeltas = options?.publishInboxDeltas ?? false;
 
   useEffect(() => {
     if (!token) {
-      connectedTokenRef.current = null;
       return undefined;
     }
 
+    connectSharedAgentChat(token);
+
     const getHandlers = () => handlersRef.current;
 
-    const scheduleRefresh = () => {
-      if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
-      refreshTimerRef.current = setTimeout(() => {
-        refreshTimerRef.current = null;
-        getHandlers().onRefreshQueues();
-      }, REFRESH_DEBOUNCE_MS);
+    const applyInboxDelta = (event: string, payload: unknown) => {
+      if (publishInboxDeltas) {
+        const patch = buildInboxPatchFromSocket(
+          event,
+          payload,
+          agentIdRef.current,
+        );
+        if (patch) {
+          publishAgentInboxDelta(patch);
+        }
+      }
+      getHandlers().onInboxSocketEvent?.(event, payload);
     };
 
     const scheduleReconnectHistorySync = () => {
@@ -115,14 +137,6 @@ export function useAgentChatSocket(
       getHandlers().onVisitorMessage(normalized);
     };
 
-    const tokenChanged = connectedTokenRef.current !== token;
-    if (tokenChanged) {
-      connectedTokenRef.current = token;
-      socketClient.connect({ authToken: token, forceNew: true });
-    } else {
-      socketClient.connect({ authToken: token });
-    }
-
     onConnectedChangeRef.current(socketClient.isConnected());
 
     let clearJoinRetries: (() => void) | undefined;
@@ -133,16 +147,14 @@ export function useAgentChatSocket(
       clearJoinRetries = undefined;
       const cid = getHandlers().selectedConversationIdRef.current;
       if (cid && !getHandlers().selectedIsClosedRef.current) {
-        socketClient.joinRoom({ conversationId: cid });
-        clearJoinRetries = scheduleJoinRoomRetries(
-          (roomId) => socketClient.joinRoom({ conversationId: roomId }),
+        clearJoinRetries = ensureConversationRoomJoin(
+          socketClient,
           cid,
           () =>
             getHandlers().selectedConversationIdRef.current?.toLowerCase() ===
             cid.toLowerCase(),
         );
       }
-      scheduleRefresh();
       scheduleReconnectHistorySync();
     };
 
@@ -163,7 +175,19 @@ export function useAgentChatSocket(
     });
 
     const offMonitorLive = socketClient.onMonitorLiveUpdate((update) => {
+      getHandlers().onMonitorLiveUpdate?.(update);
+
+      const cid = getHandlers().selectedConversationIdRef.current;
       const event = String(update.event ?? "").toLowerCase();
+      if (
+        cid &&
+        update.conversationId?.toLowerCase() === cid.toLowerCase() &&
+        (event === "visitor_message" ||
+          event === "agent_message" ||
+          event === "ai_message")
+      ) {
+        return;
+      }
       if (
         event !== "visitor_message" &&
         event !== "agent_message" &&
@@ -185,33 +209,81 @@ export function useAgentChatSocket(
     });
 
     const offTyping = socketClient.onTyping((payload: TypingPayload) => {
-      const cid = getHandlers().selectedConversationIdRef.current;
-      if (!cid || payload.conversationId !== cid || getHandlers().selectedIsClosedRef.current) {
+      if (
+        payload.userId &&
+        agentIdRef.current &&
+        payload.userId === agentIdRef.current &&
+        payload.userType !== "visitor"
+      ) {
         return;
       }
-      if (payload.userType === "visitor" || payload.userType == null) {
-        getHandlers().onVisitorTyping(true);
+      applyTypingSocketPayload(payload);
+      const cid = payload.conversationId?.trim();
+      const selected = getHandlers().selectedConversationIdRef.current;
+      if (
+        cid &&
+        selected &&
+        cid.toLowerCase() === selected.toLowerCase() &&
+        (payload.typingRole === "visitor" || payload.userType === "visitor")
+      ) {
+        getHandlers().onVisitorTyping?.(
+          Boolean(getVisitorTypingDraft(cid)),
+          getVisitorTypingDraft(cid),
+        );
       }
     });
     const offStopTyping = socketClient.onStopTyping((payload: TypingPayload) => {
-      const cid = getHandlers().selectedConversationIdRef.current;
-      if (!cid || payload.conversationId !== cid) return;
-      getHandlers().onVisitorTyping(false);
+      if (
+        payload.userId &&
+        agentIdRef.current &&
+        payload.userId === agentIdRef.current &&
+        payload.userType !== "visitor"
+      ) {
+        return;
+      }
+      applyStopTypingSocketPayload(payload);
+      const cid = payload.conversationId?.trim();
+      const selected = getHandlers().selectedConversationIdRef.current;
+      if (
+        cid &&
+        selected &&
+        cid.toLowerCase() === selected.toLowerCase() &&
+        (payload.typingRole === "visitor" || payload.userType === "visitor")
+      ) {
+        getHandlers().onVisitorTyping?.(false);
+      }
     });
 
-    const offAssigned = socketClient.onChatAssigned(scheduleRefresh);
-    const offQueued = socketClient.onChatQueued(scheduleRefresh);
-    const offHandover = socketClient.onChatHandover(() => publishAgentInboxRefreshSoon());
+    const offAssigned = socketClient.onChatAssigned((p) =>
+      applyInboxDelta("chat_assigned", p),
+    );
+    const offQueued = socketClient.onChatQueued((p) =>
+      applyInboxDelta("chat_queued", p),
+    );
+    const offTalkToAgentTransfer = socketClient.onChatHandover((p) => {
+      if (publishInboxDeltas) {
+        const patch = buildInboxPatchFromSocket("chat_assigned", p, agentIdRef.current);
+        if (patch) {
+          publishAgentInboxDelta(patch);
+        } else {
+          publishAgentInboxRefreshAfterTalkToAgent();
+        }
+      }
+      getHandlers().onInboxSocketEvent?.("chat_talk_to_agent", p);
+    });
     const offResumed = socketClient.onChatResumed((p) => getHandlers().onChatResumed(p));
     const offClosed = socketClient.onChatClosed(emitSessionEndedOnce);
     const offCompleted = socketClient.onChatCompleted(emitSessionEndedOnce);
     const offTransferred = socketClient.onChatTransferred((p) => {
-      scheduleRefresh();
+      applyInboxDelta("chat_transferred", p);
       getHandlers().onChatTransferred?.(p);
     });
     const offSupervisorControl = socketClient.onSupervisorControl((p) => {
-      scheduleRefresh();
       getHandlers().onSupervisorControl?.(p);
+    });
+    const offVisitorProfile = socketClient.onVisitorProfileUpdated((p) => {
+      applyInboxDelta("visitor_profile_updated", p);
+      getHandlers().onVisitorProfileUpdated?.(p);
     });
     const offWhisper = socketClient.onChatWhisper((p) => getHandlers().onChatWhisper?.(p));
     const offTakeoverReq = socketClient.onTakeoverRequested((p) =>
@@ -229,14 +301,10 @@ export function useAgentChatSocket(
       getHandlers().onAgentDistributionSubmitted?.(p),
     );
 
-    scheduleRefresh();
-
     return () => {
       clearJoinRetries?.();
       clearJoinRetries = undefined;
-      if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
       if (reconnectSyncTimerRef.current) clearTimeout(reconnectSyncTimerRef.current);
-      refreshTimerRef.current = null;
       reconnectSyncTimerRef.current = null;
       offConnected();
       offSocketConnect();
@@ -249,7 +317,7 @@ export function useAgentChatSocket(
       offStopTyping();
       offAssigned();
       offQueued();
-      offHandover();
+      offTalkToAgentTransfer();
       offResumed();
       offClosed();
       offCompleted();
@@ -258,12 +326,13 @@ export function useAgentChatSocket(
       offWhisper();
       offTakeoverReq();
       offTakeoverUpd();
+      offVisitorProfile();
       offWrapUpForm();
       offWrapUpRequired();
       offWrapUpSubmitted();
       offDistributionSubmitted();
     };
-  }, [socketClient, token]);
+  }, [publishInboxDeltas, socketClient, token]);
 }
 
 export { conversationIdFromSocketPayload };

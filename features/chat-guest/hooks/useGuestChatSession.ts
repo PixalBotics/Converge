@@ -21,14 +21,15 @@ import {
   unwrapSocketMessagePayload,
 } from "@/lib/hooks/chat/chat-socket-delivery";
 import { exchangeGuestLinkToken, getGuestTranscript } from "@/services/chat/guest.api";
+import {
+  applyStopTypingSocketPayload,
+  applyTypingSocketPayload,
+} from "@/lib/hooks/chat/apply-typing-socket-payload";
 import { createChatSocketClient } from "@/services/chat/chatSocket";
-import type { ChatMessage } from "@/services/chat/chat.types";
+import type { ChatMessage, TypingPayload } from "@/services/chat/chat.types";
 import type { GuestTranscriptResponse } from "@/services/chat/guest.types";
 
 export type GuestChatPhase = "loading" | "ready" | "error" | "no_access";
-
-/** Lightweight REST catch-up while live socket is quiet (monitoring safety net). */
-const GUEST_LIVE_GAP_FILL_MS = 800;
 
 function errorMessage(err: unknown, fallback: string): string {
   if (err && typeof err === "object" && "response" in err) {
@@ -324,8 +325,39 @@ export function useGuestChatSession(
     const offMonitorLive = socketClient.onMonitorLiveUpdate((update) => {
       if (!sameConversationId(update.conversationId, session.conversationId)) return;
       const event = String(update.event ?? "").toLowerCase();
-      if (event.includes("typing")) {
-        scheduleReconnectSync();
+      if (event === "typing" || event === "stop_typing") {
+        const payload =
+          update.payload && typeof update.payload === "object"
+            ? ({
+                ...(update.payload as Record<string, unknown>),
+                conversationId:
+                  (update.payload as { conversationId?: string }).conversationId ??
+                  update.conversationId,
+              } as TypingPayload)
+            : ({ conversationId: update.conversationId } as TypingPayload);
+        if (event === "typing") {
+          applyTypingSocketPayload(payload);
+        } else {
+          applyStopTypingSocketPayload(payload);
+        }
+        return;
+      }
+      if (event.includes("typing") && !event.includes("stop")) {
+        applyTypingSocketPayload({
+          conversationId: update.conversationId,
+          ...(update.payload && typeof update.payload === "object"
+            ? (update.payload as TypingPayload)
+            : {}),
+        });
+        return;
+      }
+      if (event.includes("stop_typing")) {
+        applyStopTypingSocketPayload({
+          conversationId: update.conversationId,
+          ...(update.payload && typeof update.payload === "object"
+            ? (update.payload as TypingPayload)
+            : {}),
+        });
         return;
       }
       if (
@@ -337,6 +369,7 @@ export function useGuestChatSession(
         if (
           event.includes("supervisor") ||
           event.includes("control") ||
+          event.includes("talk_to_agent") ||
           event.includes("handover") ||
           event.includes("assigned")
         ) {
@@ -374,11 +407,11 @@ export function useGuestChatSession(
     });
     const offTyping = socketClient.onTyping((payload) => {
       if (!sameConversationId(payload.conversationId, session.conversationId)) return;
-      scheduleReconnectSync();
+      applyTypingSocketPayload(payload);
     });
     const offStopTyping = socketClient.onStopTyping((payload) => {
       if (!sameConversationId(payload.conversationId, session.conversationId)) return;
-      scheduleReconnectSync();
+      applyStopTypingSocketPayload(payload);
     });
     const markClosed = (payload: unknown) => {
       if (!sameConversationId(conversationIdFromSocketPayload(payload), session.conversationId)) {
@@ -424,9 +457,9 @@ export function useGuestChatSession(
     [],
   );
 
-  /** Fast merge while monitoring — covers socket payloads the guest JWT cannot parse. */
+  /** Gap-fill when socket is down — avoid aggressive polling while connected. */
   useEffect(() => {
-    if (!session || phase !== "ready") return;
+    if (!session || phase !== "ready" || isConnected) return;
     const isClosed =
       transcript?.chatCompleted === true ||
       String(transcript?.status ?? "").toLowerCase() === "closed";
@@ -436,17 +469,16 @@ export function useGuestChatSession(
       void mergeTranscriptGapFill(session);
     };
     tick();
-    const interval = window.setInterval(tick, GUEST_LIVE_GAP_FILL_MS);
+    const interval = window.setInterval(tick, CHAT_DISCONNECTED_SYNC_MS);
     return () => window.clearInterval(interval);
-  }, [mergeTranscriptGapFill, phase, session, transcript?.chatCompleted, transcript?.status]);
-
-  useEffect(() => {
-    if (!session || phase !== "ready" || isConnected) return;
-    const poll = window.setInterval(() => {
-      void mergeTranscriptGapFill(session);
-    }, CHAT_DISCONNECTED_SYNC_MS);
-    return () => window.clearInterval(poll);
-  }, [isConnected, mergeTranscriptGapFill, phase, session]);
+  }, [
+    isConnected,
+    mergeTranscriptGapFill,
+    phase,
+    session,
+    transcript?.chatCompleted,
+    transcript?.status,
+  ]);
 
   const refreshTranscript = useCallback(async () => {
     if (!session) return;
@@ -485,6 +517,30 @@ export function useGuestChatSession(
     setError("Session ended. Use your email link again to reconnect.");
   }, []);
 
+  const emitLiveTyping = useCallback(
+    (draft?: string) => {
+      const s = sessionRef.current;
+      if (!s) return;
+      const text = typeof draft === "string" ? draft : "";
+      const userId = s.involvementUserId?.trim();
+      if (!text.trim()) {
+        socketClient.emitStopTyping({
+          conversationId: s.conversationId,
+          userType: "agent",
+          ...(userId ? { userId } : {}),
+        });
+        return;
+      }
+      socketClient.emitTyping({
+        conversationId: s.conversationId,
+        userType: "agent",
+        ...(userId ? { userId } : {}),
+        draft: text,
+      });
+    },
+    [socketClient],
+  );
+
   return {
     phase,
     error,
@@ -495,6 +551,7 @@ export function useGuestChatSession(
     isConnected,
     refreshTranscript,
     appendOptimisticMessage,
+    emitLiveTyping,
     signOutGuest,
   };
 }

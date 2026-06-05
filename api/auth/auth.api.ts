@@ -25,9 +25,11 @@ import type {
 } from "../types/auth.types";
 import {
   clearImpersonationSession,
+  getImpersonationSession,
   isImpersonatingSessionActive,
   setImpersonationSession,
 } from "@/lib/auth/impersonation-session";
+import { snapshotFromAuthApiUser } from "@/lib/auth/impersonation-user";
 
 export async function getHealth(): Promise<HealthResponse> {
   const { data } = await apiClient.get<HealthResponse>("/health");
@@ -49,28 +51,67 @@ export async function login(body: LoginRequestBody): Promise<LoginSuccessData> {
   return data.data;
 }
 
+function actorSnapshotFromAccessToken(accessToken: string | null | undefined) {
+  if (!accessToken?.trim()) return undefined;
+  try {
+    const segments = accessToken.trim().split(".");
+    if (segments.length < 2) return undefined;
+    const payload = JSON.parse(atob(segments[1]!.replace(/-/g, "+").replace(/_/g, "/"))) as {
+      userId?: string;
+      email?: string;
+    };
+    const id = payload.userId?.trim();
+    const email = payload.email?.trim();
+    if (!id || !email) return undefined;
+    return { id, email, displayName: email };
+  } catch {
+    return undefined;
+  }
+}
+
+export function applyLoginAsTokenPair(data: LoginSuccessData): void {
+  setTokenPair(
+    {
+      accessToken: data.accessToken,
+      refreshToken: data.refreshToken,
+    },
+    {
+      accessExpiresIn: data.expiresIn,
+      refreshExpiresIn: data.refreshExpiresIn,
+    },
+  );
+}
+
 export async function loginAs(body: LoginAsRequestBody): Promise<LoginSuccessData> {
   const originalTokenPair = getTokenPair();
+  const actorUser = actorSnapshotFromAccessToken(originalTokenPair?.accessToken);
   const { data } = await apiClient.post<LoginResponseEnvelope>("/auth/login-as", body);
+  const loginData = data.data;
+  const impersonatedUser = snapshotFromAuthApiUser(loginData.user);
+
   if (originalTokenPair && !isImpersonatingSessionActive()) {
     setImpersonationSession({
       originalTokenPair,
       impersonatedUserId: body.targetUserId,
-      impersonatedLicenseKey: body.licenseKey,
+      impersonatedLicenseKey: body.licenseKey ?? "",
       startedAt: new Date().toISOString(),
+      impersonatedUser: impersonatedUser ?? undefined,
+      actorUser,
     });
+  } else if (isImpersonatingSessionActive()) {
+    const existing = getImpersonationSession();
+    if (existing) {
+      setImpersonationSession({
+        ...existing,
+        impersonatedUserId: body.targetUserId,
+        impersonatedLicenseKey: body.licenseKey ?? existing.impersonatedLicenseKey,
+        impersonatedUser: impersonatedUser ?? existing.impersonatedUser,
+      });
+    }
   }
-  setTokenPair(
-    {
-      accessToken: data.data.accessToken,
-      refreshToken: data.data.refreshToken,
-    },
-    {
-      accessExpiresIn: data.data.expiresIn,
-      refreshExpiresIn: data.data.refreshExpiresIn,
-    },
-  );
-  return data.data;
+
+  applyLoginAsTokenPair(loginData);
+  return loginData;
 }
 
 export async function verifyBearer(): Promise<void> {

@@ -34,10 +34,13 @@ import {
   PanelHeader,
   QueueAvatar,
 } from "@/features/chat-operations/styles/chat-operations.styled";
+import { useConversationTypingEntries } from "@/lib/hooks/chat/useConversationTyping";
+import { typingEntriesToPreviews } from "@/lib/hooks/chat/typing-preview-display";
 import { extractVisitorPresentation } from "@/services/chat/visitor-presentation";
 import { agentDisplayName } from "@/services/chat/monitor-normalizers";
 import type { MonitorConversationRow } from "@/services/chat/monitor.types";
 import type { ChatMessage } from "@/services/chat/chat.types";
+import { getSharedAgentChatSocket } from "@/services/chat/sharedAgentChatSocket";
 import {
   sendSupervisorControlMessage,
   supervisorCloseConversation,
@@ -78,6 +81,7 @@ export function MonitorTranscriptPanel({
   onMessageSent,
 }: MonitorTranscriptPanelProps) {
   const theme = useTheme() as AppTheme;
+  const socketClient = useMemo(() => getSharedAgentChatSocket(), []);
   const activeSupervisorId =
     supervisorControlUserId ?? conversation?.supervisorControlUserId ?? null;
   const isControlling =
@@ -114,6 +118,46 @@ export function MonitorTranscriptPanel({
     () =>
       isClosed ? inboxTranscriptDisplayForClosed(messages) : undefined,
     [isClosed, messages],
+  );
+
+  const remoteTypingEntries = useConversationTypingEntries(conversationId, {
+    excludeUserId: currentUserId,
+  });
+  const typingPreviews = useMemo(
+    () =>
+      typingEntriesToPreviews(remoteTypingEntries, {
+        visitorDisplayName: title,
+        agentDisplayName: agentLabel,
+      }),
+    [agentLabel, remoteTypingEntries, title],
+  );
+  const anyoneTyping = remoteTypingEntries.length > 0;
+
+  const emitStopTyping = useCallback(() => {
+    if (!conversationId || isClosed || !isControlling) return;
+    socketClient.emitStopTyping({
+      conversationId,
+      userType: "agent",
+      ...(currentUserId ? { userId: currentUserId } : {}),
+    });
+  }, [conversationId, currentUserId, isClosed, isControlling, socketClient]);
+
+  const emitTyping = useCallback(
+    (draft?: string) => {
+      if (!conversationId || isClosed || !isControlling) return;
+      const text = typeof draft === "string" ? draft : "";
+      if (!text.trim()) {
+        emitStopTyping();
+        return;
+      }
+      socketClient.emitTyping({
+        conversationId,
+        userType: "agent",
+        ...(currentUserId ? { userId: currentUserId } : {}),
+        draft: text,
+      });
+    },
+    [conversationId, currentUserId, emitStopTyping, isClosed, isControlling, socketClient],
   );
 
   const setComposer = useCallback(
@@ -328,10 +372,10 @@ export function MonitorTranscriptPanel({
                   borderRadius: 999,
                   fontSize: 11,
                   fontWeight: 600,
-                  color: visitorTyping
+                  color: anyoneTyping
                     ? theme.app.dashboard.accentCyan
                     : theme.palette.success.light,
-                  bgcolor: visitorTyping
+                  bgcolor: anyoneTyping
                     ? alpha(theme.app.dashboard.accentCyan, 0.14)
                     : alpha(theme.palette.success.main, 0.14),
                 }}
@@ -342,12 +386,12 @@ export function MonitorTranscriptPanel({
                     width: 6,
                     height: 6,
                     borderRadius: "50%",
-                    bgcolor: visitorTyping
+                    bgcolor: anyoneTyping
                       ? theme.app.dashboard.accentCyan
                       : theme.palette.success.main,
                   }}
                 />
-                {visitorTyping ? "Typing" : "Online"}
+                {anyoneTyping ? "Typing" : "Online"}
               </Box>
             ) : null}
             {canClose ? (
@@ -467,7 +511,7 @@ export function MonitorTranscriptPanel({
             conversationId={conversationId}
             messages={messages}
             visitorInitials={visitorInfo.initials}
-            visitorTyping={visitorTyping && !isClosed}
+            typingPreviews={typingPreviews}
             visitorDisplayName={title}
             agentDisplayName={agentLabel}
             showEmptyPlaceholder={!hasConversation}
@@ -481,8 +525,8 @@ export function MonitorTranscriptPanel({
           value={composer}
           onChange={setComposer}
           onSend={() => void sendToVisitor()}
-          onTyping={() => {}}
-          onStopTyping={() => {}}
+          onTyping={emitTyping}
+          onStopTyping={emitStopTyping}
           disabled={false}
           onInsertCanned={pushCannedToComposer}
           websiteId={websiteId}

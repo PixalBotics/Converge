@@ -11,6 +11,7 @@ import {
   type AuthSessionTeardownReason,
 } from "./auth-session-teardown";
 import { resetRefreshSessionFlight } from "./refresh-access-token";
+import { isAuthTransitionActive } from "@/lib/auth/auth-transition";
 
 let terminateInFlight: Promise<void> | null = null;
 let sessionTerminated = false;
@@ -56,6 +57,10 @@ export function terminateAuthSession(
     typeof window !== "undefined" &&
     isEmbedAppPath(window.location.pathname)
   ) {
+    return Promise.resolve();
+  }
+
+  if (isAuthTransitionActive()) {
     return Promise.resolve();
   }
 

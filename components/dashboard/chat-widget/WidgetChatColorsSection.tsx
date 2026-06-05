@@ -80,7 +80,7 @@ export function WidgetChatColorsSection({
             Widget UI colors (chat.colors)
           </Typography>
           <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, mt: 0.5 }}>
-            Maps to <code>theme.designJson.chat.colors</code> — messages, form fields, inquiry pills, and handover
+            Maps to <code>theme.designJson.chat.colors</code> — messages, form fields, inquiry pills, and Talk to agent
             button on the live embed.
           </Typography>
         </Box>

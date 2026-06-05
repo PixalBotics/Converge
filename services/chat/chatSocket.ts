@@ -1,6 +1,5 @@
 import type { Socket } from "socket.io-client";
 import {
-  buildSocketUrl,
   resolveSocketEndpoint,
   SocketConnection,
 } from "@/services/socket";
@@ -49,11 +48,25 @@ type ChatEventMap = {
   monitor_live_update: (payload: MonitorLiveUpdatePayload) => void;
   visitor_profile_updated: (payload: unknown) => void;
   chat_handover: (payload: unknown) => void;
+  chat_talk_to_agent: (payload: unknown) => void;
+  qa_queue_updated: (payload: unknown) => void;
+  qa_review_updated: (payload: unknown) => void;
 };
 
 export interface ChatSocketOptions {
   authToken?: string;
   forceNew?: boolean;
+}
+
+function bodyFromAgentPayload(payload: SocketAgentMessagePayload): Record<string, unknown> {
+  const body: Record<string, unknown> = {
+    conversationId: payload.conversationId,
+    message: payload.message,
+  };
+  if (payload.agentId !== undefined && payload.agentId !== "") {
+    body.agentId = payload.agentId;
+  }
+  return body;
 }
 
 const chatSocketEndpoint = resolveSocketEndpoint({
@@ -64,12 +77,15 @@ const chatSocketEndpoint = resolveSocketEndpoint({
 });
 
 export class ChatSocketClient {
-  private connection = new SocketConnection(buildSocketUrl(chatSocketEndpoint));
+  private connection = new SocketConnection(chatSocketEndpoint);
   private joinedRooms = new Set<string>();
 
   connect(options?: ChatSocketOptions): Socket {
     const existing = this.connection.getSocket();
-    if (existing?.connected && !options?.forceNew) return existing;
+    if (existing?.connected && !options?.forceNew) {
+      this.handleConnect();
+      return existing;
+    }
 
     const socket = this.connection.connect({
       authToken: options?.authToken,
@@ -78,7 +94,65 @@ export class ChatSocketClient {
 
     socket.off("connect", this.handleConnect);
     socket.on("connect", this.handleConnect);
+    if (socket.connected) {
+      this.handleConnect();
+    }
     return socket;
+  }
+
+  async waitUntilConnected(timeoutMs = 12_000): Promise<boolean> {
+    try {
+      await this.connection.waitUntilConnected(timeoutMs);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  async waitUntilSocketReady(timeoutMs = 12_000): Promise<boolean> {
+    try {
+      await this.connection.waitUntilSocketReady(timeoutMs);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  async joinRoomWithAck(
+    payload: JoinLeaveRoomPayload,
+    timeoutMs = 8_000,
+  ): Promise<void> {
+    this.joinedRooms.add(payload.conversationId);
+    const ready = await this.waitUntilSocketReady(timeoutMs);
+    if (!ready) {
+      throw new Error("Socket not ready for join_room");
+    }
+
+    return new Promise((resolve, reject) => {
+      const needle = payload.conversationId.toLowerCase();
+      const timer = setTimeout(() => {
+        cleanup();
+        reject(new Error("join_room ack timeout"));
+      }, timeoutMs);
+
+      const onJoined = (raw: unknown) => {
+        const cid =
+          raw && typeof raw === "object" && "conversationId" in raw
+            ? String((raw as { conversationId?: string }).conversationId ?? "")
+            : "";
+        if (cid.toLowerCase() !== needle) return;
+        cleanup();
+        resolve();
+      };
+
+      const cleanup = () => {
+        clearTimeout(timer);
+        offJoined();
+      };
+
+      const offJoined = this.connection.once("joined_room", onJoined);
+      this.connection.emit("join_room", { conversationId: payload.conversationId });
+    });
   }
 
   private handleConnect = (): void => {
@@ -87,9 +161,9 @@ export class ChatSocketClient {
     });
   };
 
-  disconnect(): void {
+  disconnect(hard = false): void {
     this.joinedRooms.clear();
-    this.connection.disconnect(true);
+    this.connection.disconnect(true, hard);
   }
 
   joinRoom(payload: JoinLeaveRoomPayload): void {
@@ -108,21 +182,92 @@ export class ChatSocketClient {
     this.connection.emit("visitor_message", payload);
   }
 
+  sendVisitorMessageWithAck(
+    payload: SocketVisitorMessagePayload,
+    timeoutMs?: number,
+  ): Promise<unknown> {
+    return this.connection.emitWithAck("visitor_message", payload, timeoutMs);
+  }
+
   sendAgentMessage(payload: SocketAgentMessagePayload): void {
-    const body: Record<string, unknown> = {
-      conversationId: payload.conversationId,
-      message: payload.message,
-    };
-    if (payload.agentId !== undefined && payload.agentId !== "") {
-      body.agentId = payload.agentId;
-    }
-    this.connection.emit("agent_message", body);
+    this.connection.emit("agent_message", bodyFromAgentPayload(payload));
+  }
+
+  sendAgentMessageWithAck(
+    payload: SocketAgentMessagePayload,
+    timeoutMs?: number,
+  ): Promise<unknown> {
+    return this.connection.emitWithAck("agent_message", bodyFromAgentPayload(payload), timeoutMs);
+  }
+
+  sendAgentCloseChatWithAck(
+    payload: { conversationId: string },
+    timeoutMs?: number,
+  ): Promise<unknown> {
+    return this.connection.emitWithAck("agent_close_chat", payload, timeoutMs);
+  }
+
+  sendAgentPickWaitingWithAck(
+    payload: { conversationId: string },
+    timeoutMs?: number,
+  ): Promise<unknown> {
+    return this.connection.emitWithAck("agent_pick_waiting", payload, timeoutMs);
+  }
+
+  sendSupervisorWhisperWithAck(
+    payload: { conversationId: string; message: string },
+    timeoutMs?: number,
+  ): Promise<unknown> {
+    return this.connection.emitWithAck("supervisor_whisper", payload, timeoutMs);
+  }
+
+  sendSupervisorTakeoverRequestWithAck(
+    payload: { conversationId: string; reason?: string },
+    timeoutMs?: number,
+  ): Promise<unknown> {
+    return this.connection.emitWithAck("supervisor_takeover_request", payload, timeoutMs);
+  }
+
+  sendSupervisorControlStartWithAck(
+    payload: { conversationId: string },
+    timeoutMs?: number,
+  ): Promise<unknown> {
+    return this.connection.emitWithAck("supervisor_control_start", payload, timeoutMs);
+  }
+
+  sendSupervisorControlReleaseWithAck(
+    payload: { conversationId: string },
+    timeoutMs?: number,
+  ): Promise<unknown> {
+    return this.connection.emitWithAck("supervisor_control_release", payload, timeoutMs);
+  }
+
+  sendSupervisorMessageWithAck(
+    payload: { conversationId: string; message: string },
+    timeoutMs?: number,
+  ): Promise<unknown> {
+    return this.connection.emitWithAck("supervisor_message", payload, timeoutMs);
+  }
+
+  sendQaAssignReviewWithAck(
+    payload: { conversationId: string; qaUserId?: string },
+    timeoutMs?: number,
+  ): Promise<unknown> {
+    return this.connection.emitWithAck("qa_assign_review", payload, timeoutMs);
+  }
+
+  sendQaUpsertSessionReviewWithAck(
+    payload: { conversationId: string; body: Record<string, unknown> },
+    timeoutMs?: number,
+  ): Promise<unknown> {
+    return this.connection.emitWithAck("qa_upsert_session_review", payload, timeoutMs);
   }
 
   emitTyping(payload: SocketTypingEmitPayload): void {
     const body: Record<string, unknown> = { conversationId: payload.conversationId };
     if (payload.userType !== undefined) body.userType = payload.userType;
     if (payload.userId !== undefined) body.userId = payload.userId;
+    if (payload.draft !== undefined) body.draft = payload.draft;
     this.connection.emit("typing", body);
   }
 
@@ -138,15 +283,14 @@ export class ChatSocketClient {
   }
 
   onSocketConnect(listener: () => void): () => void {
-    const socket = this.connection.getSocket();
-    socket?.on("connect", listener);
-    return () => socket?.off("connect", listener);
+    if (this.connection.isConnected()) {
+      queueMicrotask(() => listener());
+    }
+    return this.connection.on("connect", listener);
   }
 
   onSocketDisconnect(listener: () => void): () => void {
-    const socket = this.connection.getSocket();
-    socket?.on("disconnect", listener);
-    return () => socket?.off("disconnect", listener);
+    return this.connection.on("disconnect", listener);
   }
 
   onJoinedRoom(listener: ChatEventMap["joined_room"]): () => void {
@@ -209,6 +353,10 @@ export class ChatSocketClient {
 
   onChatQueued(listener: ChatEventMap["chat_queued"]): () => void {
     return this.on("chat_queued", listener);
+  }
+
+  onChatTalkToAgent(listener: ChatEventMap["chat_talk_to_agent"]): () => void {
+    return this.on("chat_talk_to_agent", listener);
   }
 
   onChatResumed(listener: ChatEventMap["chat_resumed"]): () => void {
@@ -281,6 +429,14 @@ export class ChatSocketClient {
 
   onChatHandover(listener: ChatEventMap["chat_handover"]): () => void {
     return this.on("chat_handover", listener);
+  }
+
+  onQaQueueUpdated(listener: ChatEventMap["qa_queue_updated"]): () => void {
+    return this.on("qa_queue_updated", listener);
+  }
+
+  onQaReviewUpdated(listener: ChatEventMap["qa_review_updated"]): () => void {
+    return this.on("qa_review_updated", listener);
   }
 
   isConnected(): boolean {

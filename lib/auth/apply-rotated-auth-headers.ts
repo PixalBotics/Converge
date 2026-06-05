@@ -5,6 +5,7 @@ import {
   setTokenPair,
   type TokenCookieHints,
 } from "@/api/storage/auth-cookies";
+import { isAuthTransitionActive } from "@/lib/auth/auth-transition";
 
 function readHeader(
   headers: Record<string, unknown> | undefined,
@@ -29,7 +30,12 @@ function readHeader(
  */
 export function applyRotatedAuthHeaders(
   headers: Record<string, unknown> | undefined,
+  options?: { allowDuringAuthTransition?: boolean },
 ): boolean {
+  if (isAuthTransitionActive() && !options?.allowDuringAuthTransition) {
+    return false;
+  }
+
   const accessToken = readHeader(headers, "X-Access-Token");
   if (!accessToken) return false;
 

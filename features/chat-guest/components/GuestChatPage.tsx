@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
 import Paper from "@mui/material/Paper";
@@ -14,6 +14,8 @@ import { ChatMessageList } from "@/features/chat-operations/components/ChatMessa
 import { PanelColumn, PanelHeader, QueueAvatar } from "@/features/chat-operations/styles/chat-operations.styled";
 import { parseVisitorInfo } from "@/features/chat-operations/utils/visitor-info";
 import { extractVisitorPresentation } from "@/services/chat/visitor-presentation";
+import { useConversationTypingEntries } from "@/lib/hooks/chat/useConversationTyping";
+import { typingEntriesToPreviews } from "@/lib/hooks/chat/typing-preview-display";
 import { useGuestChatSession } from "../hooks/useGuestChatSession";
 import { GuestSupervisorActions } from "./GuestSupervisorActions";
 import {
@@ -48,6 +50,18 @@ export function GuestChatPage() {
     guest.transcript as Record<string, unknown> | undefined,
   );
   const title = vp?.inboxTitle || vp?.displayName || visitorInfo.displayName;
+  const remoteTypingEntries = useConversationTypingEntries(
+    guest.session?.conversationId ?? null,
+    { excludeUserId: guest.session?.involvementUserId ?? null },
+  );
+  const typingPreviews = useMemo(
+    () =>
+      typingEntriesToPreviews(remoteTypingEntries, {
+        visitorDisplayName: title,
+        agentDisplayName: "Agent",
+      }),
+    [remoteTypingEntries, title],
+  );
   const subtitle = vp
     ? [vp.originLabel, vp.locationLabel].filter(Boolean).join(" · ")
     : guest.session?.websiteLabel ?? null;
@@ -189,6 +203,7 @@ export function GuestChatPage() {
                     conversationId={guest.session.conversationId}
                     messages={guest.messages}
                     visitorInitials={visitorInfo.initials}
+                    typingPreviews={typingPreviews}
                     visitorDisplayName={title}
                     agentDisplayName="Agent"
                     showEmptyPlaceholder={guest.messages.length === 0}
@@ -209,6 +224,7 @@ export function GuestChatPage() {
                 }
                 chatCompleted={isChatClosed}
                 onOptimisticAgentMessage={guest.appendOptimisticMessage}
+                onLiveTyping={guest.emitLiveTyping}
                 onActionComplete={() => void guest.refreshTranscript()}
               />
             </Box>

@@ -277,10 +277,6 @@ export function UsersTableSection(props: Props) {
                       loginAsMutation.mutate({
                         targetUserId: row.id,
                         licenseKey,
-                      }, {
-                        onSuccess: () => {
-                          window.location.assign("/dashboard");
-                        },
                       });
                     }}
                     sx={{
