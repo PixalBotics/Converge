@@ -35,7 +35,9 @@ export function normalizePrechatFields(raw: PrechatFieldDto[]): PrechatFieldDto[
   raw.forEach((row, index) => {
     const o = row as PrechatFieldDto & { fieldKey?: string };
     const label = String(o.label ?? o.key ?? o.fieldKey ?? "").trim();
-    let key = String(o.key ?? o.fieldKey ?? "").trim();
+    const rawKey = String(o.key ?? "").trim();
+    const rawFieldKey = String(o.fieldKey ?? "").trim();
+    let key = rawKey || rawFieldKey;
     if (!key) key = slugFieldKey(label || "field", index);
     while (usedKeys.has(key)) {
       key = `${key}_${index + 1}`;
