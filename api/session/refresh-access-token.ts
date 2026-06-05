@@ -1,11 +1,12 @@
 import axios from "axios";
 import { getApiBaseUrl } from "../config";
 import { joinUrl } from "../http/http-path";
-import { getRefreshToken, setTokenPair } from "../storage/auth-cookies";
+import { getAccessToken, getRefreshToken, setTokenPair } from "../storage/auth-cookies";
 import type { ApiEnvelope, AuthTokenPair, LoginSuccessData } from "../types/auth.types";
 import {
   releaseCrossTabRefreshLock,
   tryAcquireCrossTabRefreshLock,
+  waitForCrossTabRefreshLockRelease,
   waitForCrossTabTokenUpdate,
 } from "@/lib/auth/token-cross-tab-sync";
 
@@ -94,15 +95,23 @@ async function postRefreshOnce(refreshToken: string): Promise<AuthTokenPair> {
   return tokenPair;
 }
 
+function readStoredTokenPair(): AuthTokenPair | null {
+  const accessToken = getAccessToken();
+  const refreshToken = getRefreshToken();
+  if (!accessToken?.trim() || !refreshToken?.trim()) return null;
+  return { accessToken, refreshToken };
+}
+
 async function refreshWithStoredToken(): Promise<AuthTokenPair> {
   const refreshToken = getRefreshToken();
   if (!refreshToken) {
     throw new Error("Missing refresh token");
   }
 
-  const ownsLock = tryAcquireCrossTabRefreshLock();
+  const waitStartedAt = Date.now();
+  let ownsLock = tryAcquireCrossTabRefreshLock();
   if (!ownsLock) {
-    const synced = await waitForCrossTabTokenUpdate();
+    const synced = await waitForCrossTabTokenUpdate(15_000, waitStartedAt);
     if (synced?.accessToken && synced.refreshToken) {
       const pair = {
         accessToken: synced.accessToken,
@@ -114,11 +123,25 @@ async function refreshWithStoredToken(): Promise<AuthTokenPair> {
       });
       return pair;
     }
+
+    const rotatedLocally = readStoredTokenPair();
+    if (rotatedLocally && rotatedLocally.refreshToken !== refreshToken) {
+      return rotatedLocally;
+    }
+
+    await waitForCrossTabRefreshLockRelease();
+    ownsLock = tryAcquireCrossTabRefreshLock();
+    if (!ownsLock) {
+      const afterLock = readStoredTokenPair();
+      if (afterLock && afterLock.refreshToken !== refreshToken) {
+        return afterLock;
+      }
+    }
   }
 
   try {
     try {
-      return await postRefreshOnce(refreshToken);
+      return await postRefreshOnce(getRefreshToken() ?? refreshToken);
     } catch (first) {
       await new Promise((r) => setTimeout(r, 200));
       const retryToken = getRefreshToken();

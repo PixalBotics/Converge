@@ -11,13 +11,13 @@ import IconButton from "@mui/material/IconButton";
 import { useTheme } from "@mui/material/styles";
 import type { SxProps, Theme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
-import { FORM_MODAL_MUI_OVERLAY_Z_INDEX } from "@/lib/ui/dialogStacking";
+import { hideScrollbarsSx } from "@/lib/ui/hideScrollbars";
 import { Typography } from "@/components/common/Typography";
 import { SearchIcon } from "@/components/common/icons";
 import { resolveSx } from "@/utils/resolveSx";
 import {
   selectMenuItemSx,
-  selectMenuPaperSx,
+  selectMenuProps,
 } from "@/components/common/SelectField/SelectField.styles";
 import type { FilterableSearchBarProps } from "./FilterableSearchBar.types";
 
@@ -205,10 +205,7 @@ export function FilterableSearchBar({
               },
             }}
             SelectProps={{
-              MenuProps: {
-                sx: { zIndex: FORM_MODAL_MUI_OVERLAY_Z_INDEX },
-                PaperProps: { sx: selectMenuPaperSx(theme) },
-              },
+              MenuProps: selectMenuProps(theme),
             }}
           >
             {selectOptions.map((opt) => (
@@ -223,6 +220,7 @@ export function FilterableSearchBar({
           <Paper
             elevation={0}
             sx={{
+              ...hideScrollbarsSx,
               mt: 1,
               position: "absolute",
               top: "100%",

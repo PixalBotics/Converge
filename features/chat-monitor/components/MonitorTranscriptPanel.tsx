@@ -29,15 +29,23 @@ import {
 } from "@/features/chat-operations/utils/conversation-scoped-state";
 import { parseVisitorInfo } from "@/features/chat-operations/utils/visitor-info";
 import {
-  ChatHeaderMetaChip,
+  chatOpsAgentAssignPillSx,
+  chatOpsConversationMetaChipHeight,
+  chatOpsStatusChipSx,
+} from "@/features/chat-operations/styles/chat-operations.styles";
+import { mergeSx } from "@/lib/mui/merge-sx";
+import {
   PanelColumn,
   PanelHeader,
   QueueAvatar,
 } from "@/features/chat-operations/styles/chat-operations.styled";
+import { useConversationTypingEntries } from "@/lib/hooks/chat/useConversationTyping";
+import { typingEntriesToPreviews } from "@/lib/hooks/chat/typing-preview-display";
 import { extractVisitorPresentation } from "@/services/chat/visitor-presentation";
 import { agentDisplayName } from "@/services/chat/monitor-normalizers";
 import type { MonitorConversationRow } from "@/services/chat/monitor.types";
 import type { ChatMessage } from "@/services/chat/chat.types";
+import { getSharedAgentChatSocket } from "@/services/chat/sharedAgentChatSocket";
 import {
   sendSupervisorControlMessage,
   supervisorCloseConversation,
@@ -81,6 +89,7 @@ export function MonitorTranscriptPanel({
   onMessageSent,
 }: MonitorTranscriptPanelProps) {
   const theme = useTheme() as AppTheme;
+  const socketClient = useMemo(() => getSharedAgentChatSocket(), []);
   const activeSupervisorId =
     supervisorControlUserId ?? conversation?.supervisorControlUserId ?? null;
   const isControlling =
@@ -117,6 +126,46 @@ export function MonitorTranscriptPanel({
     () =>
       isClosed ? inboxTranscriptDisplayForClosed(messages) : undefined,
     [isClosed, messages],
+  );
+
+  const remoteTypingEntries = useConversationTypingEntries(conversationId, {
+    excludeUserId: currentUserId,
+  });
+  const typingPreviews = useMemo(
+    () =>
+      typingEntriesToPreviews(remoteTypingEntries, {
+        visitorDisplayName: title,
+        agentDisplayName: agentLabel,
+      }),
+    [agentLabel, remoteTypingEntries, title],
+  );
+  const anyoneTyping = remoteTypingEntries.length > 0;
+
+  const emitStopTyping = useCallback(() => {
+    if (!conversationId || isClosed || !isControlling) return;
+    socketClient.emitStopTyping({
+      conversationId,
+      userType: "agent",
+      ...(currentUserId ? { userId: currentUserId } : {}),
+    });
+  }, [conversationId, currentUserId, isClosed, isControlling, socketClient]);
+
+  const emitTyping = useCallback(
+    (draft?: string) => {
+      if (!conversationId || isClosed || !isControlling) return;
+      const text = typeof draft === "string" ? draft : "";
+      if (!text.trim()) {
+        emitStopTyping();
+        return;
+      }
+      socketClient.emitTyping({
+        conversationId,
+        userType: "agent",
+        ...(currentUserId ? { userId: currentUserId } : {}),
+        draft: text,
+      });
+    },
+    [conversationId, currentUserId, emitStopTyping, isClosed, isControlling, socketClient],
   );
 
   const setComposer = useCallback(
@@ -289,57 +338,102 @@ export function MonitorTranscriptPanel({
         <PanelHeader
           sx={{
             display: "flex",
-            alignItems: "center",
+            alignItems: "flex-start",
             justifyContent: "space-between",
-            gap: 1.5,
-            py: 1.25,
+            gap: 2,
+            py: 1.5,
+            px: 2,
             flexShrink: 0,
           }}
         >
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1.25, minWidth: 0, flex: 1 }}>
-            <QueueAvatar sx={{ width: 40, height: 40, fontSize: 13 }}>{visitorInfo.initials}</QueueAvatar>
-            <Box sx={{ minWidth: 0 }}>
-              <Typography fontWeight={700} sx={{ fontSize: 14, color: theme.app.text.primary }}>
+          <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1.5, minWidth: 0, flex: 1 }}>
+            <QueueAvatar sx={{ width: 44, height: 44, fontSize: 14, flexShrink: 0 }}>
+              {visitorInfo.initials}
+            </QueueAvatar>
+            <Box sx={{ minWidth: 0, pt: 0.15 }}>
+              <Typography
+                fontWeight={700}
+                sx={{ fontSize: 15, lineHeight: 1.3, color: theme.app.text.primary }}
+              >
                 {title}
               </Typography>
               {subtitle ? (
                 <Typography
                   variant="caption"
-                  sx={{ color: theme.app.dashboard.textMuted, fontSize: 11 }}
+                  sx={{
+                    display: "block",
+                    mt: 0.35,
+                    color: theme.app.dashboard.textMuted,
+                    fontSize: 11,
+                    lineHeight: 1.45,
+                  }}
                 >
                   {subtitle}
                 </Typography>
               ) : null}
-              <Box sx={{ display: "flex", gap: 0.5, mt: 0.5, flexWrap: "wrap", alignItems: "center" }}>
-                <Chip label={conversation!.status} size="small" sx={{ height: 20, fontSize: 10 }} />
-                <ChatHeaderMetaChip>
-                  <Typography variant="caption" sx={{ fontSize: 10, color: theme.app.dashboard.textMuted }}>
-                    Agent
-                  </Typography>
-                  <Typography sx={{ fontSize: 12, fontWeight: 600 }}>{agentLabel}</Typography>
-                </ChatHeaderMetaChip>
+              <Box
+                sx={{
+                  display: "flex",
+                  gap: 0.75,
+                  mt: 0.85,
+                  flexWrap: "wrap",
+                  alignItems: "center",
+                }}
+              >
+                <Chip
+                  label={conversation!.status}
+                  size="small"
+                  sx={{
+                    ...chatOpsStatusChipSx,
+                    textTransform: "capitalize",
+                  }}
+                />
+                <Box
+                  component="span"
+                  sx={mergeSx(chatOpsAgentAssignPillSx, {
+                    color: theme.app.text.primary,
+                    fontWeight: 600,
+                  })}
+                >
+                  {agentLabel}
+                </Box>
               </Box>
             </Box>
           </Box>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexShrink: 0 }}>
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 0.75,
+              flexShrink: 0,
+              alignSelf: "center",
+            }}
+          >
             {!isClosed ? (
               <Box
                 component="span"
                 sx={{
                   display: "inline-flex",
                   alignItems: "center",
+                  justifyContent: "center",
                   gap: 0.5,
-                  px: 0.85,
-                  py: 0.2,
+                  height: chatOpsConversationMetaChipHeight,
+                  boxSizing: "border-box",
+                  px: 1,
+                  py: 0,
                   borderRadius: 999,
                   fontSize: 11,
                   fontWeight: 600,
-                  color: visitorTyping
+                  color: anyoneTyping
                     ? theme.app.dashboard.accentCyan
                     : theme.palette.success.light,
-                  bgcolor: visitorTyping
+                  bgcolor: anyoneTyping
                     ? alpha(theme.app.dashboard.accentCyan, 0.14)
                     : alpha(theme.palette.success.main, 0.14),
+                  border: `1px solid ${alpha(
+                    visitorTyping ? theme.app.dashboard.accentCyan : theme.palette.success.main,
+                    0.28,
+                  )}`,
                 }}
               >
                 <Box
@@ -348,12 +442,12 @@ export function MonitorTranscriptPanel({
                     width: 6,
                     height: 6,
                     borderRadius: "50%",
-                    bgcolor: visitorTyping
+                    bgcolor: anyoneTyping
                       ? theme.app.dashboard.accentCyan
                       : theme.palette.success.main,
                   }}
                 />
-                {visitorTyping ? "Typing" : "Online"}
+                {anyoneTyping ? "Typing" : "Online"}
               </Box>
             ) : null}
             {canClose ? (
@@ -362,7 +456,13 @@ export function MonitorTranscriptPanel({
                 variant="secondary"
                 size="compact"
                 onClick={() => setCloseDialogOpen(true)}
-                sx={{ minWidth: 0, px: 1.25, py: 0.35, fontSize: 11 }}
+                sx={{
+                  minWidth: 0,
+                  height: chatOpsConversationMetaChipHeight,
+                  px: 1.25,
+                  py: 0,
+                  fontSize: 11,
+                }}
               >
                 Close
               </Button>
@@ -516,7 +616,7 @@ export function MonitorTranscriptPanel({
             conversationId={conversationId}
             messages={messages}
             visitorInitials={visitorInfo.initials}
-            visitorTyping={visitorTyping && !isClosed}
+            typingPreviews={typingPreviews}
             visitorDisplayName={title}
             agentDisplayName={agentLabel}
             showEmptyPlaceholder={!hasConversation}
@@ -530,8 +630,8 @@ export function MonitorTranscriptPanel({
           value={composer}
           onChange={setComposer}
           onSend={() => void sendToVisitor()}
-          onTyping={() => {}}
-          onStopTyping={() => {}}
+          onTyping={emitTyping}
+          onStopTyping={emitStopTyping}
           disabled={false}
           onInsertCanned={pushCannedToComposer}
           websiteId={websiteId}

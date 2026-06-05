@@ -51,11 +51,41 @@ export const departmentShiftFilterPopoverPairRowSx: SxProps<Theme> = {
   alignItems: "end",
 };
 
+/** Matches `Button` `baseButtonStyles` pill (py 10px + label + border). */
+const departmentShiftHeaderActionHeight = 42;
+
+export const departmentShiftHeaderChipSx: SxProps<Theme> = (theme) => {
+  const app = (theme as AppTheme).app;
+  return {
+    height: departmentShiftHeaderActionHeight,
+    boxSizing: "border-box",
+    borderRadius: "9999px",
+    fontWeight: 600,
+    fontSize: 14,
+    lineHeight: 1.2,
+    color: app.text.primary,
+    border: `1px solid ${app.dashboard.cardBorder}`,
+    bgcolor: "transparent",
+    "& .MuiChip-label": {
+      px: 2.25,
+      py: 0,
+      lineHeight: 1.2,
+    },
+  };
+};
+
 export const departmentShiftActionsSx: SxProps<Theme> = {
   display: "flex",
+  alignItems: "center",
   justifyContent: "flex-end",
   gap: 1.5,
   flexWrap: "wrap",
+  "& .MuiButton-root": {
+    height: departmentShiftHeaderActionHeight,
+    minHeight: departmentShiftHeaderActionHeight,
+    py: 0,
+    boxSizing: "border-box",
+  },
 };
 
 export const departmentShiftFilterHintSx: SxProps<Theme> = (theme) => ({

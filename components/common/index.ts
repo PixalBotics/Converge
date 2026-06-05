@@ -41,6 +41,12 @@ export type { DataTableProps, DataTableColumn } from "./DataTable/DataTable.type
 export { LoadingScreen } from "./LoadingScreen";
 export type { LoadingScreenProps } from "./LoadingScreen";
 export { SearchBar } from "./SearchBar/SearchBar";
+export {
+  SearchSubmitButton,
+  searchSubmitButtonIdleSx,
+  searchSubmitButtonActiveSx,
+} from "./SearchBar/SearchSubmitButton";
+export type { SearchSubmitButtonProps } from "./SearchBar/SearchSubmitButton";
 export { FilterableSearchBar } from "./SearchBar/FilterableSearchBar";
 export type {
   FilterableSearchOption,

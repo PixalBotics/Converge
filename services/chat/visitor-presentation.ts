@@ -54,6 +54,25 @@ export function getInboxRowLabels(
     };
   }
 
+  const raw =
+    conversation && typeof conversation === "object"
+      ? (conversation as Record<string, unknown>)
+      : null;
+  const flatDisplay =
+    typeof raw?.displayName === "string" ? raw.displayName.trim() : "";
+  const flatInbox =
+    typeof raw?.inboxTitle === "string" ? raw.inboxTitle.trim() : "";
+  if (flatDisplay || flatInbox) {
+    const title = flatInbox || flatDisplay;
+    const origin =
+      typeof raw?.originLabel === "string" ? raw.originLabel.trim() : "";
+    return {
+      title,
+      subtitle: origin || null,
+      initials: initialsFromName(flatDisplay || title),
+    };
+  }
+
   const fallback =
     fallbackDisplayName?.trim() ||
     `Visitor ${String(conversation.id).slice(0, 6)}`;

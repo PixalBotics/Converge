@@ -10,7 +10,7 @@ export {
   publishAppBoundary,
   subscribeAppBoundary,
 } from "./app-boundary-bus";
-export { classifyApiError } from "./classify-api-error";
+export { classifyApiError, isTransientNetworkError } from "./classify-api-error";
 export type { ClassifiedApiError } from "./classify-api-error";
 export {
   networkBoundary,

@@ -1,4 +1,5 @@
 import { apiClient } from "@/api";
+import { agentChatSocketAckOrRest } from "./agent-socket-api.util";
 import { normalizeConversationHistoryPayload } from "./conversation-normalizers";
 import { unwrapChatHttpData } from "./http";
 import { normalizeMonitorConversationList } from "./monitor-normalizers";
@@ -32,19 +33,31 @@ export async function fetchMonitorCapabilities(): Promise<MonitorCapabilities> {
 export async function fetchMonitorLive(
   filters: MonitorListFilters = {},
 ): Promise<MonitorConversationRow[]> {
-  const { data } = await apiClient.get<unknown>("/chat/monitor/live", {
-    params: compactMonitorQuery(filters),
-  });
-  return normalizeMonitorConversationList(unwrapChatHttpData(data));
+  const query = compactMonitorQuery(filters);
+  return agentChatSocketAckOrRest(
+    (socket) => socket.fetchMonitorLiveWithAck(query, 15_000),
+    async () => {
+      const { data } = await apiClient.get<unknown>("/chat/monitor/live", {
+        params: query,
+      });
+      return normalizeMonitorConversationList(unwrapChatHttpData(data));
+    },
+  );
 }
 
 export async function fetchMonitorClosed(
   filters: MonitorListFilters = {},
 ): Promise<MonitorConversationRow[]> {
-  const { data } = await apiClient.get<unknown>("/chat/monitor/closed", {
-    params: compactMonitorQuery(filters),
-  });
-  return normalizeMonitorConversationList(unwrapChatHttpData(data));
+  const query = compactMonitorQuery(filters);
+  return agentChatSocketAckOrRest(
+    (socket) => socket.fetchMonitorClosedWithAck(query, 15_000),
+    async () => {
+      const { data } = await apiClient.get<unknown>("/chat/monitor/closed", {
+        params: query,
+      });
+      return normalizeMonitorConversationList(unwrapChatHttpData(data));
+    },
+  );
 }
 
 export async function fetchMonitorDirectoryResellers(): Promise<
@@ -98,13 +111,11 @@ export async function fetchMonitorDirectoryAgents(params: {
   return unwrapChatHttpData<MonitorDirectoryAgentsResponse>(data);
 }
 
-export async function fetchMonitorTranscript(
+function parseMonitorTranscriptPayload(
+  raw: unknown,
   conversationId: string,
-): Promise<MonitorTranscriptResponse> {
-  const { data } = await apiClient.get<unknown>(
-    `/chat/monitor/conversations/${encodeURIComponent(conversationId)}/transcript`,
-  );
-  const unwrapped = unwrapChatHttpData<Record<string, unknown>>(data);
+): MonitorTranscriptResponse {
+  const unwrapped = unwrapChatHttpData<Record<string, unknown>>(raw);
   const normalized = normalizeConversationHistoryPayload(unwrapped, conversationId);
   return {
     ...unwrapped,
@@ -113,4 +124,19 @@ export async function fetchMonitorTranscript(
     visitor: normalized.visitor,
     readOnly: true,
   };
+}
+
+export async function fetchMonitorTranscript(
+  conversationId: string,
+): Promise<MonitorTranscriptResponse> {
+  return agentChatSocketAckOrRest(
+    (socket) =>
+      socket.fetchMonitorTranscriptWithAck({ conversationId }, 15_000),
+    async () => {
+      const { data } = await apiClient.get<unknown>(
+        `/chat/monitor/conversations/${encodeURIComponent(conversationId)}/transcript`,
+      );
+      return parseMonitorTranscriptPayload(data, conversationId);
+    },
+  );
 }

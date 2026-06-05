@@ -1,4 +1,5 @@
 import type { JsonRecord } from "@/api/types/common.types";
+import { DEFAULT_TALK_TO_AGENT_BUTTON_LABEL } from "./talk-to-agent.constants";
 import { normalizeWidgetInquiryOptions } from "./widget-inquiry.types";
 
 /** Defaults for PATCH slices not yet exposed in the add-widget UI (aligned with backend BOTH example). */
@@ -58,8 +59,8 @@ export const CHAT_WIZARD_PATCH_DEFAULTS = {
   responseGreetingMessage: "Good day!",
   responseSendPlaceholder: "Ask us anything…",
   responseAiPromptHint: "Be concise and helpful.",
-  responseAgentHandoverEnabled: true,
-  responseHandoverTriggerText: "Talk to agent",
+  responseTalkToAgentEnabled: true,
+  responseTalkToAgentTriggerText: DEFAULT_TALK_TO_AGENT_BUTTON_LABEL,
 };
 
 export function defaultWizardFormFields(): JsonRecord[] {

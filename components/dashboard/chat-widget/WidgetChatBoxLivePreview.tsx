@@ -90,9 +90,9 @@ export interface ChatBoxLivePreviewModel {
 
   prechatMessageEnabled: boolean;
 
-  handoverEnabled: boolean;
+  talkToAgentEnabled: boolean;
 
-  handoverTriggerText: string;
+  talkToAgentTriggerText: string;
 
   chatMode: WidgetInstallChatMode;
 
@@ -842,7 +842,7 @@ function ChatPreview({ model }: { model: ChatBoxLivePreviewModel }) {
               <SendRounded sx={{ fontSize: 18 }} />
             </IconButton>
           </Box>
-          {model.handoverEnabled && model.chatMode === "HYBRID" ? (
+          {model.talkToAgentEnabled && model.chatMode === "HYBRID" ? (
             <Box
               component="button"
               type="button"
@@ -853,15 +853,15 @@ function ChatPreview({ model }: { model: ChatBoxLivePreviewModel }) {
                 py: 0.85,
                 px: 1.25,
                 borderRadius: 2,
-                border: `1px solid ${c.handoverButtonBorder}`,
-                bgcolor: c.handoverButtonBg,
-                color: c.handoverButtonText,
+                border: `1px solid ${c.talkToAgentButtonBorder}`,
+                bgcolor: c.talkToAgentButtonBg,
+                color: c.talkToAgentButtonText,
                 fontSize: 13,
                 fontWeight: 600,
                 cursor: "default",
               }}
             >
-              {model.handoverTriggerText || "Talk to agent"}
+              {model.talkToAgentTriggerText || "Talk to agent"}
             </Box>
           ) : null}
         </Box>

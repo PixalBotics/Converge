@@ -35,6 +35,7 @@ import { VisitorInfoPanel } from "@/features/chat-operations/components/VisitorI
 import { MonitorSupervisorSidePanel } from "./MonitorSupervisorSidePanel";
 import { MonitorTranscriptPanel } from "./MonitorTranscriptPanel";
 import { extractVisitorPresentation } from "@/services/chat/visitor-presentation";
+import { agentDisplayName } from "@/services/chat/monitor-normalizers";
 import {
   chatMonitorAgentTableWrapSx,
   chatMonitorToolbarRowSx,
@@ -435,8 +436,9 @@ export function ChatMonitorWorkspace({
                 supervisorControlUserId={monitor.supervisorControlUserId}
                 visitorTyping={monitor.visitorTyping}
                 onSupervisorAction={() => {
-                  void monitor.refreshLists();
-                  monitor.refreshSelectedTranscript({ silent: true });
+                  monitor.updateSupervisorControl(
+                    monitor.supervisorControlUserId ?? null,
+                  );
                 }}
                 onMessageSent={() => {}}
               />
@@ -456,6 +458,11 @@ export function ChatMonitorWorkspace({
                     ? extractVisitorPresentation(monitor.selectedRow)
                     : null
                 }
+                assignedAgentLabel={
+                  monitor.selectedRow
+                    ? agentDisplayName(monitor.selectedRow.agent ?? null)
+                    : null
+                }
                 assignedAgentId={
                   monitor.selectedRow?.agent?.id ?? monitor.selectedRow?.agentId ?? null
                 }
@@ -464,8 +471,7 @@ export function ChatMonitorWorkspace({
                 supervisorReadOnly={monitorReadOnly || monitor.selectedRow?.status === "closed"}
                 hideSupervisorTools
                 onSupervisorActivity={() => {
-                  void monitor.refreshLists();
-                  monitor.refreshSelectedTranscript({ silent: true });
+                  /* socket updates lists + transcript */
                 }}
               />
               {monitor.selectedRow?.status !== "closed" ? (
@@ -490,7 +496,6 @@ export function ChatMonitorWorkspace({
                         monitor.updateSupervisorControl(sc ?? null);
                       }
                     }
-                    void monitor.refreshLists();
                   }}
                 />
               ) : null}

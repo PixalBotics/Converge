@@ -16,12 +16,13 @@ import {
   TablePagination,
   Button,
   SearchBar,
+  SearchSubmitButton,
   SelectField,
   ToolbarFilterPopover,
   ToolbarFilterPopoverPanel,
 } from "@/components/common";
 import type { DataTableColumn } from "@/components/common";
-import { AddCircleIcon, SearchIcon } from "@/components/common/icons";
+import { AddCircleIcon } from "@/components/common/icons";
 import {
   hrmsDesignationsKeys,
   useCompaniesByResellerQuery,
@@ -445,21 +446,13 @@ export default function DesignationsPage() {
                 sx={{ width: "100%" }}
               />
             </Box>
-            <Button
-              type="button"
-              variant="primary"
+            <SearchSubmitButton
               disabled={searchInput.trim() === search.trim()}
               onClick={() => {
                 setSearch(searchInput.trim());
                 setPage(1);
               }}
-              sx={{ minWidth: 132, whiteSpace: "nowrap", alignSelf: { xs: "stretch", sm: "center" } }}
-            >
-              <Box component="span" sx={{ display: "inline-flex", lineHeight: 0, mr: 0.75 }}>
-                <SearchIcon width={18} height={18} sx={{ color: "inherit" }} />
-              </Box>
-              Search
-            </Button>
+            />
             <ToolbarFilterPopover open={filterPanelOpen} onOpenChange={setFilterPanelOpen} active={hasActiveFilters}>
               {designationsFilterPanel}
             </ToolbarFilterPopover>

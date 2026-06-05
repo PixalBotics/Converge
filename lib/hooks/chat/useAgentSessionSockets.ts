@@ -1,92 +1,128 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { getAccessToken } from "@/api";
-import { publishAgentInboxRefresh } from "@/lib/hooks/chat/agent-inbox-refresh-bus";
-import { playNotificationSound } from "@/lib/notifications/notification-sounds";
-import { publishAppToast } from "@/lib/notify";
-import { getSharedAgentChatSocket } from "@/services/chat/sharedAgentChatSocket";
-import { conversationIdFromSocketPayload } from "./agent-chat.utils";
-
-const REFRESH_DEBOUNCE_MS = 500;
+import { useAuth } from "@/lib/auth";
+import { useAccessToken } from "@/lib/auth/use-access-token";
+import {
+  buildInboxPatchFromSocket,
+} from "@/lib/hooks/chat/agent-inbox-queue-patch";
+import { publishAgentInboxDelta } from "@/lib/hooks/chat/agent-inbox-delta-bus";
+import { publishAgentChatNotificationSync } from "@/lib/hooks/chat/agent-chat-notification-sync-bus";
+import { conversationIdFromSocketPayload } from "@/lib/hooks/chat/agent-chat.utils";
+import {
+  applyStopTypingSocketPayload,
+  applyTypingSocketPayload,
+} from "@/lib/hooks/chat/apply-typing-socket-payload";
+import type { TypingPayload } from "@/services/chat/chat.types";
+import {
+  connectSharedAgentChat,
+  getSharedAgentChatSocket,
+} from "@/services/chat/sharedAgentChatSocket";
 
 /**
- * Keeps agent `/chat` connected for the dashboard session (popups + queue refresh).
- * Inbox page adds message handlers via {@link useAgentChatSocket}.
+ * Keeps agent `/chat` connected for the dashboard session (popups + inbox deltas).
+ * Toast, sound, and bell badge are handled by {@link useNotifications} on `/notifications`.
  */
-export function useAgentSessionSockets(enabled: boolean): void {
-  const token = getAccessToken() ?? "";
-  const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const connectedTokenRef = useRef<string | null>(null);
-
+export function useAgentSessionSockets(
+  enabled: boolean,
+  options?: { inboxDeltas?: boolean },
+): void {
+  const token = useAccessToken() ?? "";
+  const { user } = useAuth();
+  const agentIdRef = useRef(user?.id);
+  agentIdRef.current = user?.id;
+  const inboxDeltas = options?.inboxDeltas ?? true;
   useEffect(() => {
     if (!enabled || !token) return undefined;
 
     const socketClient = getSharedAgentChatSocket();
-    const scheduleRefresh = () => {
-      if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
-      refreshTimerRef.current = setTimeout(() => {
-        refreshTimerRef.current = null;
-        publishAgentInboxRefresh();
-      }, REFRESH_DEBOUNCE_MS);
+    connectSharedAgentChat(token);
+
+    const applySocketInbox = (event: string, payload: unknown) => {
+      if (!inboxDeltas) return;
+      const patch = buildInboxPatchFromSocket(
+        event,
+        payload,
+        agentIdRef.current,
+      );
+      if (patch) {
+        publishAgentInboxDelta(patch);
+      }
     };
 
-    const tokenChanged = connectedTokenRef.current !== token;
-    if (tokenChanged) {
-      connectedTokenRef.current = token;
-      socketClient.connect({ authToken: token, forceNew: true });
-    } else {
-      socketClient.connect({ authToken: token });
-    }
-
     const offAssignment = socketClient.onAgentAssignmentPopup((payload) => {
-      playNotificationSound("chat");
-      const cid = conversationIdFromSocketPayload(payload);
-      const title =
-        typeof payload === "object" &&
-        payload &&
-        typeof (payload as { inboxTitle?: string }).inboxTitle === "string"
-          ? (payload as { inboxTitle: string }).inboxTitle.trim()
-          : "";
-      publishAppToast({
-        message: title
-          ? `New chat assigned · ${title}`
-          : cid
-            ? `New chat assigned · ${cid.slice(0, 8)}`
-            : "A new chat has been assigned to you",
-        variant: "success",
-      });
-      scheduleRefresh();
+      applySocketInbox("agent_assignment_popup", payload);
+      publishAgentChatNotificationSync(
+        "assignment",
+        conversationIdFromSocketPayload(payload) ?? undefined,
+      );
     });
 
     const offQueue = socketClient.onAgentQueuePopup((payload) => {
-      playNotificationSound("chat");
-      const title =
-        typeof payload === "object" &&
-        payload &&
-        typeof (payload as { inboxTitle?: string }).inboxTitle === "string"
-          ? (payload as { inboxTitle: string }).inboxTitle.trim()
-          : typeof payload === "object" &&
-              payload &&
-              typeof (payload as { displayName?: string }).displayName === "string"
-            ? (payload as { displayName: string }).displayName.trim()
-            : "";
-      publishAppToast({
-        message: title
-          ? `Visitor waiting in queue · ${title}`
-          : "A visitor is waiting in your department queue",
-        variant: "success",
-      });
-      scheduleRefresh();
+      applySocketInbox("agent_queue_popup", payload);
+      publishAgentChatNotificationSync(
+        "queue",
+        conversationIdFromSocketPayload(payload) ?? undefined,
+      );
     });
 
-    const offTransferred = socketClient.onChatTransferred(scheduleRefresh);
-    const offCompleted = socketClient.onChatCompleted(scheduleRefresh);
-    const offClosed = socketClient.onChatClosed(scheduleRefresh);
-    const offAssigned = socketClient.onChatAssigned(scheduleRefresh);
-    const offQueued = socketClient.onChatQueued(scheduleRefresh);
+    const offTransferred = socketClient.onChatTransferred((payload) => {
+      applySocketInbox("chat_transferred", payload);
+    });
+    const offCompleted = socketClient.onChatCompleted((payload) => {
+      applySocketInbox("chat_completed", payload);
+    });
+    const offClosed = socketClient.onChatClosed((payload) => {
+      applySocketInbox("chat_closed", payload);
+    });
+    const offAssigned = socketClient.onChatAssigned((payload) => {
+      applySocketInbox("chat_assigned", payload);
+    });
+    const offQueued = socketClient.onChatQueued((payload) => {
+      applySocketInbox("chat_queued", payload);
+    });
+    const offTalkToAgent = socketClient.onChatTalkToAgent((payload) => {
+      applySocketInbox("chat_talk_to_agent", payload);
+    });
+    const offResumed = socketClient.onChatResumed((payload) => {
+      applySocketInbox("chat_resumed", payload);
+    });
+    const offVisitorProfile = socketClient.onVisitorProfileUpdated((payload) => {
+      applySocketInbox("visitor_profile_updated", payload);
+    });
 
-    scheduleRefresh();
+    const offVisitorMessage = socketClient.onVisitorMessageRaw((payload) => {
+      publishAgentChatNotificationSync(
+        "visitor_message",
+        conversationIdFromSocketPayload(payload) ?? undefined,
+      );
+    });
+
+    const handleTyping = (payload: TypingPayload) => {
+      if (
+        payload.userId &&
+        user?.id &&
+        payload.userId === user.id &&
+        payload.userType !== "visitor"
+      ) {
+        return;
+      }
+      applyTypingSocketPayload(payload);
+    };
+    const handleStopTyping = (payload: TypingPayload) => {
+      if (
+        payload.userId &&
+        user?.id &&
+        payload.userId === user.id &&
+        payload.userType !== "visitor"
+      ) {
+        return;
+      }
+      applyStopTypingSocketPayload(payload);
+    };
+
+    const offTyping = socketClient.onTyping(handleTyping);
+    const offStopTyping = socketClient.onStopTyping(handleStopTyping);
 
     return () => {
       offAssignment();
@@ -96,8 +132,12 @@ export function useAgentSessionSockets(enabled: boolean): void {
       offClosed();
       offAssigned();
       offQueued();
-      if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
-      refreshTimerRef.current = null;
+      offTalkToAgent();
+      offResumed();
+      offVisitorProfile();
+      offVisitorMessage();
+      offTyping();
+      offStopTyping();
     };
-  }, [enabled, token]);
+  }, [enabled, inboxDeltas, token, user?.id]);
 }

@@ -7,11 +7,12 @@ function dash(theme: Theme) {
   return (theme as AppTheme).app.dashboard;
 }
 
-/** Full-bleed inbox workstation (Intercom / Front style) — fills main column under dashboard header. */
+/** Inbox workstation — full height inside main; no negative bleed (matches dashboard side gaps). */
 export const chatOpsPageWrapper: SxProps<Theme> = {
-  width: { xs: "calc(100% + 8px)", sm: "calc(100% + 12px)", md: "calc(100% + 16px)" },
-  maxWidth: "none",
-  mx: { xs: -0.5, sm: -0.75, md: -1 },
+  width: "100%",
+  maxWidth: "100%",
+  mx: 0,
+  boxSizing: "border-box",
   display: "flex",
   flexDirection: "column",
   flex: 1,
@@ -19,6 +20,15 @@ export const chatOpsPageWrapper: SxProps<Theme> = {
   height: "100%",
   minWidth: 0,
   overflow: "hidden",
+};
+
+/** Shared left/right inset for transcript, distribution cards, and context rail. */
+export const chatOpsTranscriptInsetSx: SxProps<Theme> = {
+  px: { xs: 1.5, sm: 2 },
+};
+
+export const chatOpsTranscriptInsetMxSx: SxProps<Theme> = {
+  mx: { xs: 1.5, sm: 2 },
 };
 
 /** Single shell — theme card surface (works with dynamic presets). */
@@ -115,7 +125,7 @@ export const chatOpsWorkspaceGrid: SxProps<Theme> = (theme) => {
     display: "grid",
     gridTemplateColumns: {
       xs: "1fr",
-      lg: "minmax(280px, 320px) minmax(0, 1fr) minmax(260px, 300px)",
+      lg: "minmax(0, 300px) minmax(0, 1fr) minmax(0, 280px)",
     },
     flex: 1,
     minHeight: 0,
@@ -195,7 +205,7 @@ export const chatOpsInboxSearchWrap: SxProps<Theme> = (theme) => ({
   py: 1.25,
   flexShrink: 0,
   borderBottom: `1px solid ${alpha(dash(theme).cardBorder, 0.12)}`,
-  "& > div": { width: "100%", minWidth: "100%" },
+  "& > div": { width: "100%", minWidth: 0, maxWidth: "100%" },
 });
 
 export const chatOpsInboxHeaderSx: SxProps<Theme> = (theme) => ({
@@ -205,6 +215,50 @@ export const chatOpsInboxHeaderSx: SxProps<Theme> = (theme) => ({
   flexShrink: 0,
   borderBottom: `1px solid ${alpha(dash(theme).cardBorder, 0.15)}`,
 });
+
+/** Status chip + agent pill on monitor/ops queue rows and transcript header. */
+export const chatOpsConversationMetaChipHeight = 26;
+
+export const chatOpsStatusChipSx: SxProps<Theme> = {
+  height: chatOpsConversationMetaChipHeight,
+  fontSize: 10,
+  fontWeight: 600,
+  "& .MuiChip-label": { px: 0.85, py: 0, lineHeight: 1.2 },
+};
+
+export const chatOpsAgentAssignPillSx: SxProps<Theme> = (theme) => {
+  const d = dash(theme);
+  return {
+    display: "inline-flex",
+    alignItems: "center",
+    height: chatOpsConversationMetaChipHeight,
+    boxSizing: "border-box",
+    px: 1,
+    borderRadius: 999,
+    fontSize: 11,
+    fontWeight: 600,
+    lineHeight: 1.2,
+    color: d.textMuted,
+    border: `1px solid ${alpha(d.cardBorder, 0.45)}`,
+    bgcolor: alpha(d.overlayLight, 0.35),
+    whiteSpace: "nowrap",
+    maxWidth: "100%",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+  };
+};
+
+/** Compact agent meta on monitor transcript (matches {@link chatOpsStatusChipSx}). */
+export const chatOpsAgentMetaChipSx: SxProps<Theme> = {
+  flexDirection: "row",
+  alignItems: "center",
+  gap: 0.5,
+  height: chatOpsConversationMetaChipHeight,
+  minHeight: chatOpsConversationMetaChipHeight,
+  py: 0,
+  px: 1,
+  minWidth: 0,
+};
 
 export const chatOpsConnectionPillSx = (connected: boolean): SxProps<Theme> => (theme) => ({
   display: "inline-flex",
@@ -242,6 +296,30 @@ export const chatOpsDetailLabelSx: SxProps<Theme> = (theme) => ({
 export const chatOpsDetailValueSx: SxProps<Theme> = (theme) => ({
   fontSize: 13,
   fontWeight: 500,
+  color: (theme as AppTheme).app.text.primary,
+  lineHeight: 1.45,
+  wordBreak: "break-word",
+});
+
+/** Two-column visitor profile metadata (website, agent, chat id, time, duration). */
+export const chatOpsProfileMetaGridSx: SxProps<Theme> = {
+  display: "grid",
+  gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" },
+  columnGap: 3,
+  rowGap: 2.5,
+};
+
+export const chatOpsProfileMetaLabelSx: SxProps<Theme> = (theme) => ({
+  fontSize: 13,
+  fontWeight: 700,
+  color: (theme as AppTheme).app.text.primary,
+  lineHeight: 1.35,
+  mb: 0.5,
+});
+
+export const chatOpsProfileMetaValueSx: SxProps<Theme> = (theme) => ({
+  fontSize: 13,
+  fontWeight: 400,
   color: (theme as AppTheme).app.text.primary,
   lineHeight: 1.45,
   wordBreak: "break-word",

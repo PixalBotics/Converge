@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { mergeVisitorPanelContext } from "@/features/chat-operations/utils/visitor-info";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getAccessToken } from "@/api";
 import {
@@ -8,6 +9,10 @@ import {
   sortMessagesChronologically,
   stableMessageDedupeKey,
 } from "@/lib/hooks/chat/agent-chat.utils";
+import {
+  applyMonitorListPatch,
+  buildMonitorPatchFromSocket,
+} from "@/lib/hooks/chat/monitor-list-patch";
 import { useAgentChatSocket } from "@/lib/hooks/chat/useAgentChatSocket";
 import {
   fetchMonitorCapabilities,
@@ -16,6 +21,7 @@ import {
   fetchMonitorTranscript,
 } from "@/services/chat/monitor.api";
 import type { ChatMessage } from "@/services/chat/chat.types";
+import type { MonitorLiveUpdatePayload } from "@/services/chat/chatSocket";
 import type {
   MonitorConversationRow,
   MonitorListFilters,
@@ -24,7 +30,7 @@ import type {
 import { getSharedAgentChatSocket } from "@/services/chat/sharedAgentChatSocket";
 import { chatMonitorKeys } from "./keys";
 
-const LIVE_REFRESH_DEBOUNCE_MS = 350;
+const RECONNECT_TRANSCRIPT_DEBOUNCE_MS = 500;
 
 export function useChatMonitor(
   initialConversationId?: string | null,
@@ -54,7 +60,8 @@ export function useChatMonitor(
   const messageMapRef = useRef(new Map<string, ChatMessage>());
   const selectedIdRef = useRef<string | null>(null);
   const selectedIsClosedRef = useRef(false);
-  const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const filtersRef = useRef(filters);
+  const reconnectSyncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     selectedIdRef.current = selectedConversationId;
@@ -63,6 +70,10 @@ export function useChatMonitor(
   useEffect(() => {
     selectedIsClosedRef.current = listTab === "closed";
   }, [listTab]);
+
+  useEffect(() => {
+    filtersRef.current = filters;
+  }, [filters]);
 
   const capabilitiesQuery = useQuery({
     queryKey: chatMonitorKeys.capabilities(),
@@ -77,17 +88,42 @@ export function useChatMonitor(
     queryKey: chatMonitorKeys.live(filters),
     queryFn: () => fetchMonitorLive(filters),
     enabled: capabilitiesReady,
+    staleTime: 60_000,
   });
 
   const closedQuery = useQuery({
     queryKey: chatMonitorKeys.closed(filters),
     queryFn: () => fetchMonitorClosed(filters),
     enabled: capabilitiesReady,
+    staleTime: 60_000,
   });
 
   const liveList = liveQuery.data ?? [];
   const closedList = closedQuery.data ?? [];
   const list = listTab === "live" ? liveList : closedList;
+
+  const patchMonitorLists = useCallback(
+    (event: string, payload: unknown, conversationIdHint?: string) => {
+      const patch = buildMonitorPatchFromSocket(event, payload, conversationIdHint);
+      if (!patch) return;
+
+      const activeFilters = filtersRef.current;
+      queryClient.setQueryData<MonitorConversationRow[]>(
+        chatMonitorKeys.live(activeFilters),
+        (prev) => {
+          const live = prev ?? [];
+          const closed =
+            queryClient.getQueryData<MonitorConversationRow[]>(
+              chatMonitorKeys.closed(activeFilters),
+            ) ?? [];
+          const next = applyMonitorListPatch(live, closed, patch);
+          queryClient.setQueryData(chatMonitorKeys.closed(activeFilters), next.closed);
+          return next.live;
+        },
+      );
+    },
+    [queryClient],
+  );
 
   const invalidateLists = useCallback(() => {
     void queryClient.invalidateQueries({ queryKey: chatMonitorKeys.all });
@@ -113,7 +149,10 @@ export function useChatMonitor(
         syncMessagesFromMap();
         const v = history.visitor;
         setVisitorFromHistory(
-          typeof v === "object" && v !== null ? (v as Record<string, unknown>) : null,
+          mergeVisitorPanelContext(
+            typeof v === "object" && v !== null ? (v as Record<string, unknown>) : null,
+            history as Record<string, unknown>,
+          ),
         );
         const sc = (history as { supervisorControlUserId?: string | null })
           .supervisorControlUserId;
@@ -136,22 +175,50 @@ export function useChatMonitor(
     [apiEnabled, syncMessagesFromMap, token],
   );
 
-  const scheduleListRefresh = useCallback(() => {
-    if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
-    refreshTimerRef.current = setTimeout(() => {
-      refreshTimerRef.current = null;
-      invalidateLists();
+  const scheduleReconnectTranscriptSync = useCallback(() => {
+    if (reconnectSyncTimerRef.current) clearTimeout(reconnectSyncTimerRef.current);
+    reconnectSyncTimerRef.current = setTimeout(() => {
+      reconnectSyncTimerRef.current = null;
       const cid = selectedIdRef.current;
-      if (cid) void loadTranscript(cid, { silent: true });
-    }, LIVE_REFRESH_DEBOUNCE_MS);
-  }, [invalidateLists, loadTranscript]);
+      if (cid && !selectedIsClosedRef.current) {
+        void loadTranscript(cid, { silent: true });
+      }
+    }, RECONNECT_TRANSCRIPT_DEBOUNCE_MS);
+  }, [loadTranscript]);
+
+  const handleListSocketEvent = useCallback(
+    (event: string, payload: unknown, conversationIdHint?: string) => {
+      patchMonitorLists(event, payload, conversationIdHint);
+    },
+    [patchMonitorLists],
+  );
+
+  const handleMonitorLiveUpdate = useCallback(
+    (update: MonitorLiveUpdatePayload) => {
+      handleListSocketEvent(
+        String(update.event ?? ""),
+        update.payload,
+        update.conversationId,
+      );
+    },
+    [handleListSocketEvent],
+  );
 
   const upsertMessage = useCallback(
     (message: ChatMessage) => {
       messageMapRef.current.set(stableMessageDedupeKey(message), message);
       syncMessagesFromMap();
+      if (message.content?.trim()) {
+        const event =
+          message.role === "visitor"
+            ? "visitor_message"
+            : message.role === "system"
+              ? "ai_message"
+              : "agent_message";
+        patchMonitorLists(event, message, message.conversationId);
+      }
     },
-    [syncMessagesFromMap],
+    [patchMonitorLists, syncMessagesFromMap],
   );
 
   const selectConversation = useCallback(
@@ -200,21 +267,33 @@ export function useChatMonitor(
     void selectConversation(initialConversationId);
   }, [apiEnabled, initialConversationId, selectConversation, token]);
 
-  const scheduleListRefreshRef = useRef(scheduleListRefresh);
-  scheduleListRefreshRef.current = scheduleListRefresh;
+  const handleListSocketEventRef = useRef(handleListSocketEvent);
+  handleListSocketEventRef.current = handleListSocketEvent;
+  const handleMonitorLiveUpdateRef = useRef(handleMonitorLiveUpdate);
+  handleMonitorLiveUpdateRef.current = handleMonitorLiveUpdate;
+  const scheduleReconnectTranscriptSyncRef = useRef(scheduleReconnectTranscriptSync);
+  scheduleReconnectTranscriptSyncRef.current = scheduleReconnectTranscriptSync;
 
   useAgentChatSocket(
     apiEnabled ? token : "",
     socketClient,
+    undefined,
     {
       onVisitorMessage: upsertMessage,
-      onRefreshQueues: () => scheduleListRefreshRef.current(),
+      onRefreshQueues: () => {},
+      onReconnectHistorySync: () => scheduleReconnectTranscriptSyncRef.current(),
+      onInboxSocketEvent: (event, payload) =>
+        handleListSocketEventRef.current(event, payload),
+      onMonitorLiveUpdate: (update) => handleMonitorLiveUpdateRef.current(update),
       onSessionEnded: (payload) => {
+        handleListSocketEventRef.current("chat_closed", payload);
         const endedId = conversationIdFromSocketPayload(payload);
-        if (endedId && endedId === selectedIdRef.current) clearSelection();
-        scheduleListRefreshRef.current();
+        if (endedId && endedId === selectedIdRef.current) {
+          setSupervisorControlUserId(null);
+        }
       },
-      onChatResumed: () => scheduleListRefreshRef.current(),
+      onChatResumed: (payload) =>
+        handleListSocketEventRef.current("chat_resumed", payload),
       onVisitorTyping: (typing) => setVisitorTyping(typing),
       onSupervisorControl: (payload) => {
         const cid = conversationIdFromSocketPayload(payload);
@@ -223,22 +302,21 @@ export function useChatMonitor(
             .supervisorControlUserId;
           if (sc !== undefined) setSupervisorControlUserId(sc);
         }
-        invalidateLists();
+        handleListSocketEventRef.current("chat_supervisor_control", payload, cid ?? undefined);
       },
       selectedConversationIdRef: selectedIdRef,
       selectedIsClosedRef,
     },
     setIsConnected,
+    { publishInboxDeltas: false },
   );
 
-  useEffect(() => {
-    const socket = socketClient;
-    const offMonitor = socket.onMonitorLiveUpdate(() => scheduleListRefreshRef.current());
-    return () => {
-      offMonitor();
-      if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
-    };
-  }, [socketClient]);
+  useEffect(
+    () => () => {
+      if (reconnectSyncTimerRef.current) clearTimeout(reconnectSyncTimerRef.current);
+    },
+    [],
+  );
 
   const filterOptions = useMemo(() => {
     const rows = [...(liveQuery.data ?? []), ...(closedQuery.data ?? [])];
@@ -278,7 +356,7 @@ export function useChatMonitor(
     ) ??
     null;
 
-  const listsLoading = liveQuery.isLoading || closedQuery.isFetching || closedQuery.isLoading;
+  const listsLoading = liveQuery.isLoading || closedQuery.isLoading;
 
   return {
     token,

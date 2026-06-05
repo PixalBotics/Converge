@@ -11,6 +11,7 @@ import { alpha, useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import { Typography } from "@/components/common";
 import { chatSemanticSurface } from "../styles/chat-semantic";
+import { chatOpsTranscriptInsetMxSx } from "../styles/chat-operations.styles";
 
 type ContextItem = {
   id: string;
@@ -74,7 +75,7 @@ export function ChatContextRail({
     <Box
       sx={{
         flexShrink: 0,
-        mx: 2,
+        ...chatOpsTranscriptInsetMxSx,
         mt: 1,
         borderRadius: 2,
         border: `1px solid ${railBorder}`,

@@ -26,9 +26,9 @@ export interface ResolvedWidgetColors {
   inquiryIdleBorder: string;
   inquirySelectedBg: string;
   inquirySelectedText: string;
-  handoverBackground: string;
-  handoverText: string;
-  handoverBorder: string;
+  talkToAgentBackground: string;
+  talkToAgentText: string;
+  talkToAgentBorder: string;
   borderRadiusPx: number;
   inputFontSizePx: number;
   bodyFontSizePx: number;
@@ -287,20 +287,23 @@ export function resolveWidgetColorTokens(input: ResolveWidgetColorTokensInput): 
     mixHex(secondary, panelBackground, 70),
   );
 
-  const handoverBackground = strFirst(
+  const talkToAgentBackground = strFirst(
+    colors?.talkToAgentButtonBg,
     colors?.handoverButtonBg,
     colors?.handover_button_bg,
     panelBackground,
   );
-  const handoverBorder = strFirst(
+  const talkToAgentBorder = strFirst(
+    colors?.talkToAgentButtonBorder,
     colors?.handoverButtonBorder,
     colors?.handover_button_border,
     primary,
   );
-  const handoverText = strFirst(
+  const talkToAgentText = strFirst(
+    colors?.talkToAgentButtonText,
     colors?.handoverButtonText,
     colors?.handover_button_text,
-    pickReadableText(handoverBackground, bodyText),
+    pickReadableText(talkToAgentBackground, bodyText),
   );
 
   const borderRadiusPx = Math.min(
@@ -337,9 +340,9 @@ export function resolveWidgetColorTokens(input: ResolveWidgetColorTokensInput): 
     inquiryIdleBorder,
     inquirySelectedBg,
     inquirySelectedText,
-    handoverBackground,
-    handoverText,
-    handoverBorder,
+    talkToAgentBackground,
+    talkToAgentText,
+    talkToAgentBorder,
     borderRadiusPx,
     inputFontSizePx,
     bodyFontSizePx,
@@ -392,9 +395,9 @@ export function buildChatColorsFromDraftScalars(args: {
     inquiryPillBorder: mixHex(secondaryColor, panelBackground, 70),
     inquiryPillSelectedBg: buttonColor,
     inquiryPillSelectedText: pickReadableText(buttonColor, iconColor),
-    handoverButtonBg: panelBackground,
-    handoverButtonText: pickReadableText(panelBackground, headerTextColor),
-    handoverButtonBorder: buttonColor,
+    talkToAgentButtonBg: panelBackground,
+    talkToAgentButtonText: pickReadableText(panelBackground, headerTextColor),
+    talkToAgentButtonBorder: buttonColor,
   };
 }
 

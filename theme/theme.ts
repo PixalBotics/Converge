@@ -1,4 +1,5 @@
 import { alpha, createTheme, darken } from "@mui/material/styles";
+import { hideScrollbarsSx } from "@/lib/ui/hideScrollbars";
 import type {} from "@mui/x-date-pickers/themeAugmentation";
 import { FORM_MODAL_MUI_OVERLAY_Z_INDEX } from "@/lib/ui/dialogStacking";
 
@@ -240,6 +241,19 @@ export function createAppMuiTheme(
               display: "none",
             },
           },
+        },
+      },
+      /** All MUI Autocomplete / Select menus — hide list scrollbars app-wide. */
+      MuiAutocomplete: {
+        styleOverrides: {
+          listbox: hideScrollbarsSx,
+          paper: hideScrollbarsSx,
+        },
+      },
+      MuiMenu: {
+        styleOverrides: {
+          list: hideScrollbarsSx,
+          paper: hideScrollbarsSx,
         },
       },
       /**

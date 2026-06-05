@@ -190,6 +190,58 @@ function parseLocation(merged: Record<string, unknown>): VisitorLocation | null 
   };
 }
 
+export function mergeVisitorPanelContext(
+  visitor: Record<string, unknown> | null | undefined,
+  history?: Record<string, unknown> | null,
+): Record<string, unknown> | null {
+  if (!visitor && !history) return null;
+  const h = history ?? {};
+  const v = visitor ?? {};
+  const agent =
+    typeof h.agent === "object" && h.agent !== null
+      ? (h.agent as Record<string, unknown>)
+      : null;
+  const agentNameFromRelation =
+    agent
+      ? [agent.firstName, agent.lastName]
+          .filter((part) => typeof part === "string" && part.trim())
+          .join(" ")
+          .trim() || readString(agent, "email")
+      : "";
+
+  const visitorTimezone =
+    readString(h, "visitorTimezone", "visitor_timezone") ||
+    readString(v, "timezone", "visitorTimezone");
+  const agentNameSnapshot =
+    readString(h, "agentNameSnapshot", "agentName", "agent_name") ||
+    agentNameFromRelation;
+  const agentTimezone =
+    readString(h, "agentTimezone", "agent_timezone") ||
+    (agent ? readString(agent, "timezone") : "");
+
+  return {
+    ...v,
+    visitorTimezone,
+    timezone: visitorTimezone,
+    agentNameSnapshot,
+    agentTimezone,
+    chatDurationSec:
+      readNumber(h, "chatDurationSec", "chat_duration_sec") ??
+      readNumber(v, "chatDurationSec", "chat_duration_sec"),
+    trafficSource:
+      readString(h, "trafficSourceSnapshot", "traffic_source_snapshot") ||
+      readString(v, "trafficSource", "traffic_source"),
+    sessionStartedAt:
+      readString(h, "startedAt", "sessionStartedAt") ||
+      readString(v, "sessionStartedAt", "createdAt"),
+    countryCode:
+      readString(v, "countryCode", "country_code") ||
+      (readString(v, "locationCountry", "location_country").length === 2
+        ? readString(v, "locationCountry", "location_country").toUpperCase()
+        : ""),
+  };
+}
+
 export function parseVisitorInfo(
   visitor: Record<string, unknown> | null,
   conversationMeta?: Record<string, unknown>,
@@ -218,6 +270,14 @@ export function parseVisitorInfo(
   const browser = readString(merged, "browser", "userAgent", "user_agent");
   const os = readString(merged, "os", "operatingSystem");
   const deviceType = readString(merged, "device", "deviceType", "device_type");
+  const timezone = readString(merged, "timezone", "visitorTimezone", "visitor_timezone");
+  const agentTimezone = readString(merged, "agentTimezone", "agent_timezone");
+  const agentName = readString(merged, "agentNameSnapshot", "agentName", "agent_name");
+  const trafficSource = readString(merged, "trafficSource", "traffic_source", "trafficSourceSnapshot");
+  const zipcode = readString(merged, "locationZipcode", "zipcode", "location_zipcode");
+  const region = readString(merged, "locationRegion", "region", "location_region");
+  const countryCode = readString(merged, "countryCode", "country_code");
+  const chatDurationSec = readNumber(merged, "chatDurationSec", "chat_duration_sec");
   const sessionStartedAt =
     readString(merged, "sessionStartedAt", "startedAt", "createdAt", "session_started_at") ||
     readNestedString(merged, ["session", "startedAt"]);
@@ -240,6 +300,11 @@ export function parseVisitorInfo(
     { label: "Company", value: company || "—" },
   ];
 
+  const durationLabel =
+    chatDurationSec != null && chatDurationSec > 0
+      ? `${Math.max(1, Math.round(chatDurationSec / 60))} min`
+      : "—";
+
   const sessionFields: VisitorInfoField[] = [
     { label: "Session ID", value: sessionId || "—" },
     {
@@ -254,8 +319,16 @@ export function parseVisitorInfo(
           })
         : "—",
     },
+    { label: "Chat duration", value: durationLabel },
+    { label: "Traffic source", value: trafficSource || "—" },
     { label: "Referrer", value: referrer || "—" },
     { label: "IP address", value: ip || "—" },
+    { label: "Country code", value: countryCode || "—" },
+    { label: "Region", value: region || "—" },
+    { label: "Zipcode", value: zipcode || "—" },
+    { label: "Visitor timezone", value: timezone || "—" },
+    { label: "Agent", value: agentName || "—" },
+    { label: "Agent timezone", value: agentTimezone || "—" },
     { label: "Browser", value: browser || "—" },
     { label: "OS", value: os || "—" },
     { label: "Device", value: deviceType || "—" },

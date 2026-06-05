@@ -149,10 +149,7 @@ export default function UserDetailPage() {
             disabled={!canLoginAs || isLoginAsPending}
             onClick={() => {
               if (!canLoginAs) return;
-              loginAsMutation.mutate(
-                { targetUserId: userId, licenseKey },
-                { onSuccess: () => window.location.assign("/dashboard") },
-              );
+              loginAsMutation.mutate({ targetUserId: userId, licenseKey });
             }}
             sx={{
               ...dataTableActionButton,

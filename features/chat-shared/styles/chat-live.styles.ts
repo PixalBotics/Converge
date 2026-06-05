@@ -1,10 +1,16 @@
 import { alpha } from "@mui/material/styles";
 import type { SxProps, Theme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
+import { pageWrapper } from "@/app/dashboard/companies/overview.styles";
+import { rolesPageWrapper } from "@/app/dashboard/roles/roles.styles";
+import { mergeSx } from "@/lib/mui/merge-sx";
 
 function dash(theme: Theme) {
   return (theme as AppTheme).app.dashboard;
 }
+
+/** Same inset as billing / my-attendance — centered column inside `<main>`. */
+export const chatLiveAdminPageInsetSx = mergeSx(pageWrapper, rolesPageWrapper);
 
 export const chatLivePageStackSx: SxProps<Theme> = {
   display: "flex",
@@ -57,9 +63,9 @@ export const chatLiveFilterGridSx: SxProps<Theme> = {
   display: "grid",
   gridTemplateColumns: {
     xs: "1fr",
-    sm: "repeat(2, 1fr)",
-    md: "repeat(3, 1fr)",
-    xl: "repeat(4, 1fr)",
+    sm: "repeat(2, minmax(0, 1fr))",
+    md: "repeat(3, minmax(0, 1fr))",
+    xl: "repeat(4, minmax(0, 1fr))",
   },
   gap: 1.25,
   alignItems: "end",
@@ -73,11 +79,20 @@ export const chatLiveNavStripSx: SxProps<Theme> = {
   width: "100%",
 };
 
+/** Same row height as Filter + queue stat pills on chat monitor / ops toolbars. */
+export const chatLiveToolbarControlHeightPx = 44;
+
 /** Filter button row on chat workstation toolbars (inbox / monitor). */
 export const chatLiveToolbarFilterRowSx: SxProps<Theme> = {
   display: "inline-flex",
   flexShrink: 0,
   alignItems: "center",
+  "& .MuiButton-root": {
+    height: chatLiveToolbarControlHeightPx,
+    minHeight: chatLiveToolbarControlHeightPx,
+    py: 0,
+    boxSizing: "border-box",
+  },
 };
 
 export const chatLiveNavRowSx: SxProps<Theme> = {
@@ -125,6 +140,20 @@ export const chatLiveViewSwitchRowSx: SxProps<Theme> = {
   gap: 2,
   mt: 1.25,
   flexShrink: 0,
+};
+
+/** Top row on agent/monitor workstations (view tabs + filter + queue stats). */
+export const chatLiveWorkstationToolbarRowSx: SxProps<Theme> = {
+  flexShrink: 0,
+  display: "flex",
+  flexWrap: "wrap",
+  alignItems: "center",
+  justifyContent: "space-between",
+  gap: 1,
+  // px: { xs: 0.5, md: 1 },
+  // pt: { xs: 1.25, md: 1.75 },
+  pb: 0.25,
+  mb: { xs: 1.25, md: 1.75 },
 };
 
 export const chatLiveViewSwitchBtnSx =
@@ -179,12 +208,17 @@ export const chatLiveQueueStatPillSx = (
   return {
     display: "inline-flex",
     alignItems: "center",
+    justifyContent: "center",
     gap: 0.5,
-    px: 1.15,
-    py: 0.4,
+    height: chatLiveToolbarControlHeightPx,
+    minHeight: chatLiveToolbarControlHeightPx,
+    boxSizing: "border-box",
+    px: 1.5,
+    py: 0,
     borderRadius: 999,
     fontSize: 12,
     fontWeight: 600,
+    lineHeight: 1.2,
     color: (theme as AppTheme).app.text.primary,
     border: `1px solid ${alpha(accent, 0.35)}`,
     bgcolor: alpha(accent, 0.12),

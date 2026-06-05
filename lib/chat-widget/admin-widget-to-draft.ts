@@ -401,12 +401,13 @@ export function mapAdminWidgetResponseToWidgetDraft(
     responseSendPlaceholder:
       pickStr(response ?? {}, ["sendPlaceholder"]) || defaultWidgetDraft.responseSendPlaceholder,
     responseAiPromptHint: pickStr(response ?? {}, ["aiPromptHint"]) || defaultWidgetDraft.responseAiPromptHint,
-    responseAgentHandoverEnabled:
-      pickBool(response ?? {}, ["agentHandoverEnabled"]) ??
+    responseTalkToAgentEnabled:
+      pickBool(response ?? {}, ["agentTalkToAgentEnabled", "agentHandoverEnabled"]) ??
       pickBool(config ?? {}, ["callHandoverEnabled"]) ??
-      defaultWidgetDraft.responseAgentHandoverEnabled,
-    responseHandoverTriggerText:
-      pickStr(response ?? {}, ["handoverTriggerText"]) || defaultWidgetDraft.responseHandoverTriggerText,
+      defaultWidgetDraft.responseTalkToAgentEnabled,
+    responseTalkToAgentTriggerText:
+      pickStr(response ?? {}, ["talkToAgentTriggerText", "handoverTriggerText"]) ||
+      defaultWidgetDraft.responseTalkToAgentTriggerText,
   };
 
   if (colors) {

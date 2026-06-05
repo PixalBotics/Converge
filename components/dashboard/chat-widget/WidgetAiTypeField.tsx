@@ -29,8 +29,8 @@ export function WidgetAiTypeField({
   const theme = useTheme() as AppTheme;
 
   return (
-    <Box>
-      <Typography variant="mediumLarge" sx={{ color: theme.app.text.primary, mb: 0.5 }}>
+    <Box sx={{ display: "flex", flexDirection: "column", gap: 1.25 }}>
+      <Typography variant="medium16" sx={{ color: theme.app.text.primary, fontWeight: 600 }}>
         AI type
       </Typography>
       <Typography variant="caption" sx={{ display: "block", color: theme.app.dashboard.textMuted, mb: 0.75 }}>
@@ -54,14 +54,14 @@ export function WidgetAiTypeField({
                 value={opt.value}
                 control={<Radio size="small" />}
                 label={
-                  <Typography variant="medium" sx={{ color: theme.app.dashboard.white95 }}>
+                  <Typography variant="body2" sx={{ color: theme.app.text.primary, fontWeight: 600 }}>
                     {opt.label}
                   </Typography>
                 }
               />
               <Typography
-                variant="caption"
-                sx={{ display: "block", pl: 4.25, color: theme.app.dashboard.textMuted, lineHeight: 1.45 }}
+                variant="body2"
+                sx={{ display: "block", pl: 4.25, color: theme.app.dashboard.textMuted, lineHeight: 1.5 }}
               >
                 {opt.description}
               </Typography>

@@ -81,7 +81,23 @@ export function releaseCrossTabRefreshLock(): void {
   }
 }
 
-export function waitForCrossTabTokenUpdate(timeoutMs = 15_000): Promise<StoredTokenSyncPayload | null> {
+function isFreshTokenSyncPayload(
+  payload: StoredTokenSyncPayload | null,
+  sinceMs: number,
+): payload is StoredTokenSyncPayload {
+  return Boolean(
+    payload?.accessToken?.trim() &&
+      payload.refreshToken?.trim() &&
+      typeof payload.at === "number" &&
+      payload.at > sinceMs,
+  );
+}
+
+/** Wait until another tab broadcasts a token pair newer than `sinceMs`. */
+export function waitForCrossTabTokenUpdate(
+  timeoutMs = 15_000,
+  sinceMs = Date.now(),
+): Promise<StoredTokenSyncPayload | null> {
   if (!isBrowser()) return Promise.resolve(null);
 
   return new Promise((resolve) => {
@@ -110,7 +126,7 @@ export function waitForCrossTabTokenUpdate(timeoutMs = 15_000): Promise<StoredTo
       if (event.key !== TOKEN_SYNC_STORAGE_KEY || !event.newValue) return;
       try {
         const parsed = JSON.parse(event.newValue) as StoredTokenSyncPayload;
-        if (parsed?.accessToken?.trim() && parsed?.refreshToken?.trim()) {
+        if (isFreshTokenSyncPayload(parsed, sinceMs)) {
           finish(parsed);
         }
       } catch {
@@ -119,13 +135,30 @@ export function waitForCrossTabTokenUpdate(timeoutMs = 15_000): Promise<StoredTo
     };
 
     const existing = readLatest();
-    if (existing && Date.now() - existing.at < REFRESH_LOCK_TTL_MS) {
+    if (isFreshTokenSyncPayload(existing, sinceMs)) {
       finish(existing);
       return;
     }
 
     window.addEventListener("storage", onStorage);
     const timer = window.setTimeout(() => finish(null), timeoutMs);
+  });
+}
+
+/** Poll until the cross-tab refresh lock is released or times out. */
+export function waitForCrossTabRefreshLockRelease(timeoutMs = REFRESH_LOCK_TTL_MS): Promise<void> {
+  if (!isBrowser()) return Promise.resolve();
+
+  const started = Date.now();
+  return new Promise((resolve) => {
+    const tick = () => {
+      if (!readRefreshLock() || Date.now() - started >= timeoutMs) {
+        resolve();
+        return;
+      }
+      window.setTimeout(tick, 100);
+    };
+    tick();
   });
 }
 

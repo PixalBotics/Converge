@@ -236,7 +236,7 @@ export function AiTrainingWebsiteManagePage({ variant }: { variant: AiTrainingKb
           type="button"
           variant="primary"
           sx={gradientPrimaryButtonSx}
-          href={aiTrainingAddHref(variant, websiteId)}
+          onClick={() => router.push(aiTrainingAddHref(variant, websiteId))}
         >
           + Add more training
         </Button>

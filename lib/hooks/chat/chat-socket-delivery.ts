@@ -66,6 +66,18 @@ export function normalizeSocketMessage(
   return normalized;
 }
 
+/** Nest/socket handlers may return the payload directly or wrapped in { success, data }. */
+export function unwrapSocketAckPayload(payload: unknown): unknown {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    return payload;
+  }
+  const o = payload as Record<string, unknown>;
+  if (o.success === true && o.data != null && typeof o.data === "object") {
+    return o.data;
+  }
+  return payload;
+}
+
 /** Debounced REST gap-fill only after reconnect or unparseable socket payload. */
 export const CHAT_RECONNECT_SYNC_DEBOUNCE_MS = 400;
 
@@ -86,6 +98,37 @@ export function scheduleJoinRoomRetries(
     }, delay),
   );
   return () => timers.forEach((t) => window.clearTimeout(t));
+}
+
+type RoomJoinSocket = {
+  joinRoomWithAck: (payload: { conversationId: string }) => Promise<void>;
+  joinRoom: (payload: { conversationId: string }) => void;
+};
+
+/** Prefer acked join; fall back to emit + staggered retries. */
+export function ensureConversationRoomJoin(
+  socketClient: RoomJoinSocket,
+  conversationId: string,
+  isActive: () => boolean,
+): () => void {
+  let retryCleanup: (() => void) | undefined;
+  const joinWithAck = (cid: string) =>
+    socketClient.joinRoomWithAck({ conversationId: cid });
+  const fallbackJoin = (cid: string) =>
+    socketClient.joinRoom({ conversationId: cid });
+
+  void joinWithAck(conversationId).catch(() => {
+    fallbackJoin(conversationId);
+    retryCleanup = scheduleJoinRoomRetries(
+      (cid) => {
+        void joinWithAck(cid).catch(() => fallbackJoin(cid));
+      },
+      conversationId,
+      isActive,
+    );
+  });
+
+  return () => retryCleanup?.();
 }
 
 export function conversationIdFromNotificationPayload(

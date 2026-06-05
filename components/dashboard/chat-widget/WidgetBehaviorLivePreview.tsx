@@ -35,8 +35,8 @@ export interface BehaviorLivePreviewModel {
   consentText: string;
   inquiryOn: boolean;
   inquiryOptions: string[];
-  handoverEnabled: boolean;
-  handoverTriggerText: string;
+  talkToAgentEnabled: boolean;
+  talkToAgentTriggerText: string;
   greetingMessage: string;
   firstMessage: string;
   sendPlaceholder: string;
@@ -149,9 +149,9 @@ function VisitorFormPreview({ model }: { model: BehaviorLivePreviewModel }) {
   );
 }
 
-function ChatWithHandoverPreview({ model }: { model: BehaviorLivePreviewModel }) {
+function ChatWithTalkToAgentPreview({ model }: { model: BehaviorLivePreviewModel }) {
   const c = model.colors;
-  const showHandover = model.handoverEnabled && model.chatMode === "HYBRID";
+  const showTalkToAgent = model.talkToAgentEnabled && model.chatMode === "HYBRID";
 
   return (
     <Stack spacing={1} sx={{ p: 0, flex: 1, minHeight: 0 }}>
@@ -246,7 +246,7 @@ function ChatWithHandoverPreview({ model }: { model: BehaviorLivePreviewModel })
               <SendRounded sx={{ fontSize: 18 }} />
             </IconButton>
           </Box>
-          {showHandover ? (
+          {showTalkToAgent ? (
             <Box
               component="button"
               type="button"
@@ -257,23 +257,23 @@ function ChatWithHandoverPreview({ model }: { model: BehaviorLivePreviewModel })
                 py: 0.85,
                 px: 1.25,
                 borderRadius: 2,
-                border: `1px solid ${c.handoverButtonBorder}`,
-                bgcolor: c.handoverButtonBg,
-                color: c.handoverButtonText,
+                border: `1px solid ${c.talkToAgentButtonBorder}`,
+                bgcolor: c.talkToAgentButtonBg,
+                color: c.talkToAgentButtonText,
                 fontSize: 13,
                 fontWeight: 600,
                 cursor: "default",
               }}
             >
-              {model.handoverTriggerText || "Talk to agent"}
+              {model.talkToAgentTriggerText || "Talk to agent"}
             </Box>
           ) : model.chatMode !== "HYBRID" ? (
             <Typography variant="caption" sx={{ color: c.chatMutedText, display: "block", mt: 1, textAlign: "center" }}>
-              Agent handover only in Hybrid mode.
+              Talk to agent is only available in Hybrid mode.
             </Typography>
           ) : (
             <Typography variant="caption" sx={{ color: c.chatMutedText, display: "block", mt: 1, textAlign: "center" }}>
-              Agent handover button hidden.
+              Talk to agent button hidden.
             </Typography>
           )}
         </Box>
@@ -333,7 +333,7 @@ export function WidgetBehaviorLivePreview({ model }: { model: BehaviorLivePrevie
             flexDirection: "column",
           }}
         >
-          {tab === "form" ? <VisitorFormPreview model={model} /> : <ChatWithHandoverPreview model={model} />}
+          {tab === "form" ? <VisitorFormPreview model={model} /> : <ChatWithTalkToAgentPreview model={model} />}
         </Box>
         {model.offlineMessage.trim() ? (
           <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, mt: 1, display: "block", textAlign: "center" }}>

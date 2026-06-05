@@ -25,12 +25,19 @@ import {
   ConfirmActionModal,
   SegmentedControl,
   SearchBar,
+  SearchSubmitButton,
   ToolbarFilterPopover,
   ToolbarFilterPopoverPanel,
 } from "@/components/common";
 import type { DataTableColumn } from "@/components/common";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
-import { rolesCard, rolesIconBox, rolesPageWrapper } from "../../roles/roles.styles";
+import {
+  rolesCard,
+  rolesFooterRow,
+  rolesIconBox,
+  rolesPageWrapper,
+  rolesPaginationWrapper,
+} from "../../roles/roles.styles";
 import { footerMutedText, pageWrapper } from "../../companies/overview.styles";
 import { publishAppToast } from "@/lib/notify";
 import { formatIsoDate, isRecord, pickNum, pickStr, unwrapApiData } from "@/lib/utils/core";
@@ -63,6 +70,7 @@ import {
 } from "@/app/dashboard/website-assigning/website-assigning.styles";
 import {
   departmentShiftActionsSx,
+  departmentShiftHeaderChipSx,
   departmentShiftFilterHintSx,
   departmentShiftFilterPopoverPairRowSx,
   departmentShiftFilterPopoverStackSx,
@@ -745,10 +753,9 @@ export default function DepartmentShiftPage() {
         </Box>
         <Box sx={departmentShiftActionsSx}>
           <Chip
-            size="small"
             label={`${totalEntries} assignment${totalEntries === 1 ? "" : "s"}`}
             variant="outlined"
-            sx={{ alignSelf: "center", borderColor: "rgba(255,255,255,0.35)", color: theme.app.dashboard.white95 }}
+            sx={departmentShiftHeaderChipSx}
           />
           <Button variant="primary" sx={gradientPrimaryButtonSx} onClick={() => setAssignOpen(true)}>
             Assign shift
@@ -784,15 +791,10 @@ export default function DepartmentShiftPage() {
                 placeholder="Search by shift or department name…"
               />
             </Box>
-            <Button
-              type="button"
-              variant="primary"
+            <SearchSubmitButton
               disabled={listSearchDraft.trim() === listAppliedSearch.trim()}
               onClick={handleListSearchApply}
-              sx={{ minWidth: 132, whiteSpace: "nowrap", alignSelf: { xs: "stretch", sm: "center" } }}
-            >
-              Search
-            </Button>
+            />
             <ToolbarFilterPopover
               open={listFilterOpen}
               onOpenChange={setListFilterOpen}
@@ -809,39 +811,37 @@ export default function DepartmentShiftPage() {
           </Alert>
         ) : null}
 
-        <Box sx={{ px: { xs: 1.5, sm: 2 }, pb: 0 }}>
-          <DataTable<AssignmentRow>
-            columns={columns}
-            rows={tableRows}
-            isLoading={(listQuery.isLoading || listQuery.isFetching) && !deptShiftsList403}
-            getRowId={(row) => row.id}
-            minWidth={920}
-            actionColumn={{
-              label: "Action",
-              render: (row) => (
-                <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
-                  <IconButton
-                    size="small"
-                    sx={{
-                      ...dataTableActionButton,
-                      color: "#ff6b6b",
-                      opacity: removeMutation.isPending ? 0.7 : 1,
-                    }}
-                    aria-label="Remove assignment"
-                    disabled={removeMutation.isPending}
-                    onClick={() => {
-                      setRemoveTarget(row);
-                    }}
-                  >
-                    <DeleteIcon fontSize="small" />
-                  </IconButton>
-                </Box>
-              ),
-            }}
-          />
-        </Box>
+        <DataTable<AssignmentRow>
+          columns={columns}
+          rows={tableRows}
+          isLoading={(listQuery.isLoading || listQuery.isFetching) && !deptShiftsList403}
+          getRowId={(row) => row.id}
+          minWidth={920}
+          actionColumn={{
+            label: "Action",
+            render: (row) => (
+              <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+                <IconButton
+                  size="small"
+                  sx={{
+                    ...dataTableActionButton,
+                    color: theme.app.dashboard.accentRedLight,
+                    opacity: removeMutation.isPending ? 0.7 : 1,
+                  }}
+                  aria-label="Remove assignment"
+                  disabled={removeMutation.isPending}
+                  onClick={() => {
+                    setRemoveTarget(row);
+                  }}
+                >
+                  <DeleteIcon fontSize="small" />
+                </IconButton>
+              </Box>
+            ),
+          }}
+        />
 
-        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mt: 2, px: { xs: 1.5, sm: 2 }, pb: { xs: 1.5, sm: 2 } }}>
+        <Box sx={rolesFooterRow}>
           <Typography variant="medium" sx={footerMutedText(theme)}>
             {deptShiftsList403
               ? deptShiftsList403
@@ -851,7 +851,9 @@ export default function DepartmentShiftPage() {
                   ? "No shift assignments found for the current filter."
                   : `Showing data ${footerRangeStart} to ${footerRangeEnd} of ${totalEntries} entries`}
           </Typography>
-          <TablePagination page={page} pageCount={pageCount} onPageChange={setPage} />
+          <Box sx={rolesPaginationWrapper}>
+            <TablePagination page={page} pageCount={pageCount} onPageChange={setPage} />
+          </Box>
         </Box>
       </DashboardCard>
 

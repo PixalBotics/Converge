@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import NightsStay from "@mui/icons-material/NightsStay";
 import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
-import { useTheme } from "@mui/material/styles";
+import { useTheme, type SxProps, type Theme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import { Checkbox, Typography } from "@/components/common";
 import {
@@ -183,23 +183,28 @@ export function SchedulingSectionCard({
   subtitle,
   step,
   children,
+  sx,
 }: {
   title: string;
   subtitle?: string;
   step?: number;
   children: ReactNode;
+  sx?: SxProps<Theme>;
 }) {
   const theme = useTheme() as AppTheme;
   return (
     <Box
-      sx={{
-        p: { xs: 2, sm: 2.5 },
-        mb: 2.5,
-        borderRadius: 2.5,
-        border: `1px solid ${theme.app.dashboard.cardBorder}`,
-        bgcolor: "rgba(255,255,255,0.03)",
-        boxShadow: "0 12px 40px rgba(0,0,0,0.12)",
-      }}
+      sx={mergeSx(
+        {
+          p: { xs: 2, sm: 2.5 },
+          mb: 2.5,
+          borderRadius: 2.5,
+          border: `1px solid ${theme.app.dashboard.cardBorder}`,
+          bgcolor: "rgba(255,255,255,0.03)",
+          boxShadow: "0 12px 40px rgba(0,0,0,0.12)",
+        },
+        sx,
+      )}
     >
       <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: subtitle ? 0.5 : 1.5 }}>
         {step ? (

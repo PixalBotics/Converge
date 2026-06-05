@@ -36,6 +36,17 @@ import { readWidgetChatColorsFromDraft } from "@/lib/chat-widget/widget-colors-d
 import { WidgetAiTypeField } from "@/components/dashboard/chat-widget/WidgetAiTypeField";
 import { syncResponseCopyFromChatBox } from "@/lib/chat-widget/sync-response-copy-from-chat-box";
 import {
+  notificationsCheckboxItemSx,
+  notificationsCheckboxRowSx,
+  notificationsFieldGroupSx,
+  notificationsFormStackSx,
+  notificationsInlineTogglesSx,
+  notificationsSectionHintSx,
+  notificationsSectionTitleSx,
+  notificationsSwitchLabelSx,
+  notificationsSwitchRowSx,
+} from "./notifications-advanced.styles";
+import {
   defaultWidgetDraft,
   type WidgetInstallChatMode,
 } from "@/lib/chat-widget/widgetDraft";
@@ -121,11 +132,11 @@ export default function ChatWidgetNotificationsPage() {
   const [prechatMessageEnabled, setPrechatMessageEnabled] = useState(d0.prechatMessageEnabled ?? true);
   const [prechatMessageRequired, setPrechatMessageRequired] = useState(d0.prechatMessageRequired ?? false);
   const [responseOfflineMessage, setResponseOfflineMessage] = useState(d0.responseOfflineMessage ?? "");
-  const [responseAgentHandoverEnabled, setResponseAgentHandoverEnabled] = useState(
-    d0.responseAgentHandoverEnabled ?? true,
+  const [responseTalkToAgentEnabled, setresponseTalkToAgentEnabled] = useState(
+    d0.responseTalkToAgentEnabled ?? true,
   );
-  const [responseHandoverTriggerText, setResponseHandoverTriggerText] = useState(
-    d0.responseHandoverTriggerText ?? "Talk to agent",
+  const [responseTalkToAgentTriggerText, setresponseTalkToAgentTriggerText] = useState(
+    d0.responseTalkToAgentTriggerText ?? "Talk to agent",
   );
   const [wizardWebsiteId, setWizardWebsiteId] = useState<string | undefined>(
     defaultWidgetDraft.websiteId,
@@ -181,10 +192,10 @@ export default function ChatWidgetNotificationsPage() {
     setPrechatMessageEnabled(d.prechatMessageEnabled ?? def.prechatMessageEnabled ?? true);
     setPrechatMessageRequired(d.prechatMessageRequired ?? def.prechatMessageRequired ?? false);
     setResponseOfflineMessage(d.responseOfflineMessage ?? def.responseOfflineMessage ?? "");
-    setResponseAgentHandoverEnabled(d.responseAgentHandoverEnabled ?? def.responseAgentHandoverEnabled ?? true);
+    setresponseTalkToAgentEnabled(d.responseTalkToAgentEnabled ?? def.responseTalkToAgentEnabled ?? true);
     setMotionEnabled(d.motionEnabled !== false);
-    setResponseHandoverTriggerText(
-      d.responseHandoverTriggerText ?? def.responseHandoverTriggerText ?? "Talk to agent",
+    setresponseTalkToAgentTriggerText(
+      d.responseTalkToAgentTriggerText ?? def.responseTalkToAgentTriggerText ?? "Talk to agent",
     );
     setInquiryRequired(d.inquiryRequired ?? def.inquiryRequired ?? false);
     setInquirySkipLabel(d.inquirySkipLabel ?? def.inquirySkipLabel ?? "General question");
@@ -244,8 +255,8 @@ export default function ChatWidgetNotificationsPage() {
       consentText: consentText.trim(),
       inquiryOn: inquiryOnFromDraft,
       inquiryOptions: inquiryOptionsList,
-      handoverEnabled: responseAgentHandoverEnabled,
-      handoverTriggerText: responseHandoverTriggerText.trim(),
+      talkToAgentEnabled: responseTalkToAgentEnabled,
+      talkToAgentTriggerText: responseTalkToAgentTriggerText.trim(),
       greetingMessage: (draft.greetingMessage ?? defaultWidgetDraft.greetingMessage) || "",
       firstMessage: (draft.firstMessage ?? defaultWidgetDraft.firstMessage) || "",
       sendPlaceholder:
@@ -272,8 +283,8 @@ export default function ChatWidgetNotificationsPage() {
     consentText,
     inquiryOnFromDraft,
     inquiryOptionsList,
-    responseAgentHandoverEnabled,
-    responseHandoverTriggerText,
+    responseTalkToAgentEnabled,
+    responseTalkToAgentTriggerText,
     responseOfflineMessage,
   ]);
 
@@ -381,8 +392,8 @@ export default function ChatWidgetNotificationsPage() {
           prechatMessageEnabled,
           prechatMessageRequired,
           responseOfflineMessage: responseOfflineMessage.trim(),
-          responseAgentHandoverEnabled,
-          responseHandoverTriggerText: responseHandoverTriggerText.trim() || "Talk to agent",
+          responseTalkToAgentEnabled,
+          responseTalkToAgentTriggerText: responseTalkToAgentTriggerText.trim() || "Talk to agent",
           motionEnabled,
           ...syncResponseCopyFromChatBox(prev),
         });
@@ -463,6 +474,7 @@ export default function ChatWidgetNotificationsPage() {
         </Typography>
       ) : null}
       <WidgetWizardPageLayout
+        showChecklist={false}
         checklistRefreshKey={checklistRefreshKey}
         preview={
           <Stack spacing={2.5}>
@@ -476,18 +488,18 @@ export default function ChatWidgetNotificationsPage() {
           title="Notification settings"
           subtitle="Browser and sound alerts when the visitor tab is in the background."
         >
-          <WidgetWizardToggleRow
-            label="Browser notification"
-            checked={browserNotification}
-            onChange={setBrowserNotification}
-          />
-          <WidgetWizardToggleRow
-            label="Sound notification"
-            checked={soundNotification}
-            onChange={setSoundNotification}
-          />
-          {soundNotification ? (
-            <Box sx={{ mt: 1.5 }}>
+          <Box sx={notificationsFormStackSx}>
+            <WidgetWizardToggleRow
+              label="Browser notification"
+              checked={browserNotification}
+              onChange={setBrowserNotification}
+            />
+            <WidgetWizardToggleRow
+              label="Sound notification"
+              checked={soundNotification}
+              onChange={setSoundNotification}
+            />
+            {soundNotification ? (
               <SelectField
                 label="Sound style"
                 value={notificationSoundId}
@@ -502,9 +514,7 @@ export default function ChatWidgetNotificationsPage() {
                 searchable={false}
                 menuMaxRows={4}
               />
-            </Box>
-          ) : null}
-          <Box sx={{ mt: 1.5 }}>
+            ) : null}
             <SelectField
               label="Launcher alert on new message"
               value={launcherBadgeMode}
@@ -517,8 +527,6 @@ export default function ChatWidgetNotificationsPage() {
               searchable={false}
               menuMaxRows={4}
             />
-          </Box>
-          <Box sx={{ mt: 1.5 }}>
             <WidgetTextField
               label="Fallback notification text"
               name="fallback"
@@ -531,49 +539,45 @@ export default function ChatWidgetNotificationsPage() {
         </SchedulingSectionCard>
 
         <SchedulingSectionCard
-          title="Chat routing & agent handoff"
+          title="Chat routing & Talk to agent"
           subtitle="Who replies first, embed domains, offline copy, and the Talk to agent button (Hybrid only)."
         >
-          <SelectField
-            label="Chat mode"
-            value={chatMode}
-            onChange={(v) => setChatMode(v as WidgetInstallChatMode)}
-            options={[
-              { label: "Hybrid — AI first, then human handoff", value: "HYBRID" },
-              { label: "AI only — no live agent button", value: "AI_ONLY" },
-              { label: "Agent only — no AI replies", value: "AGENT_ONLY" },
-            ]}
-            searchable={false}
-            menuMaxRows={6}
-          />
-          {shouldShowWidgetAiType(chatMode) ? (
-            <Box sx={{ mt: 1.5 }}>
+          <Box sx={notificationsFormStackSx}>
+            <SelectField
+              label="Chat mode"
+              value={chatMode}
+              onChange={(v) => setChatMode(v as WidgetInstallChatMode)}
+              options={[
+                { label: "Hybrid — AI first, then human handoff", value: "HYBRID" },
+                { label: "AI only — no live agent button", value: "AI_ONLY" },
+                { label: "Agent only — no AI replies", value: "AGENT_ONLY" },
+              ]}
+              searchable={false}
+              menuMaxRows={6}
+            />
+            {shouldShowWidgetAiType(chatMode) ? (
               <WidgetAiTypeField value={aiType} onChange={setAiType} />
-            </Box>
-          ) : null}
-          {chatMode === "HYBRID" ? (
-            <>
-              <Box sx={{ mt: 1.5 }}>
+            ) : null}
+            {chatMode === "HYBRID" ? (
+              <Box sx={notificationsFieldGroupSx}>
                 <WidgetWizardToggleRow
                   label="Show Talk to agent button"
                   description="Single handoff control in the chat composer area."
-                  checked={responseAgentHandoverEnabled}
-                  onChange={setResponseAgentHandoverEnabled}
+                  checked={responseTalkToAgentEnabled}
+                  onChange={setresponseTalkToAgentEnabled}
                 />
+                {responseTalkToAgentEnabled ? (
+                  <WidgetTextField
+                    label="Talk to agent button label"
+                    name="handover-label"
+                    value={responseTalkToAgentTriggerText}
+                    onChange={setresponseTalkToAgentTriggerText}
+                    maxLength={FIELD_MAX.shortLabel}
+                    placeholder="Talk to agent"
+                  />
+                ) : null}
               </Box>
-              {responseAgentHandoverEnabled ? (
-                <WidgetTextField
-                  label="Talk to agent button label"
-                  name="handover-label"
-                  value={responseHandoverTriggerText}
-                  onChange={setResponseHandoverTriggerText}
-                  maxLength={FIELD_MAX.shortLabel}
-                  placeholder="Talk to agent"
-                />
-              ) : null}
-            </>
-          ) : null}
-          <Box sx={{ mt: 1.5 }}>
+            ) : null}
             <WidgetTextField
               label="Offline message"
               name="resp-offline"
@@ -583,8 +587,6 @@ export default function ChatWidgetNotificationsPage() {
               placeholder="We are offline; leave a message and we will reply."
               helperText="When no agent is available on the site."
             />
-          </Box>
-          <Box sx={{ mt: 1.5 }}>
             <WidgetDomainListField
               label="Allowed website domains"
               name="allowed-domains"
@@ -599,6 +601,7 @@ export default function ChatWidgetNotificationsPage() {
           title="Widget behavior"
           subtitle="Bot, inquiry pills, and auto-open."
         >
+          <Box sx={notificationsFormStackSx}>
           {chatMode !== "AGENT_ONLY" ? (
             <WidgetWizardToggleRow
               label="AI bot enabled"
@@ -607,11 +610,11 @@ export default function ChatWidgetNotificationsPage() {
               onChange={setBotEnabled}
             />
           ) : (
-            <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, display: "block", mb: 1 }}>
+            <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, display: "block" }}>
               Agent-only mode — live agents reply; AI bot is off.
             </Typography>
           )}
-          <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, mb: 1 }}>
+          <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted }}>
             Inquiry topic pills:{" "}
             <strong>{inquiryOnFromDraft ? "On" : "Off"}</strong>
             {inquiryOnFromDraft
@@ -631,7 +634,7 @@ export default function ChatWidgetNotificationsPage() {
             .
           </Typography>
           {inquiryOnFromDraft ? (
-            <>
+            <Box sx={notificationsFieldGroupSx}>
               <WidgetWizardToggleRow
                 label="Require topic selection"
                 description="When off, visitors can use the general fallback topic (routes via fallback department)."
@@ -645,7 +648,7 @@ export default function ChatWidgetNotificationsPage() {
                 onChange={setInquirySkipLabel}
                 maxLength={FIELD_MAX.shortLabel}
               />
-            </>
+            </Box>
           ) : null}
           <WidgetWizardToggleRow label="Auto-open widget" checked={autoOpenEnabled} onChange={setAutoOpenEnabled} />
           <WidgetWizardToggleRow
@@ -668,33 +671,37 @@ export default function ChatWidgetNotificationsPage() {
             checked={motionEnabled}
             onChange={setMotionEnabled}
           />
+          </Box>
         </SchedulingSectionCard>
 
         <SchedulingSectionCard
           title="Video welcome"
           subtitle="Optional YouTube or Vimeo link before chat."
         >
-          <WidgetWizardToggleRow
-            label="Show video welcome"
-            checked={videoWelcomeOn}
-            onChange={setVideoWelcomeOn}
-          />
-          {videoWelcomeOn ? (
-            <WidgetUrlField
-              label="Video URL (YouTube / Vimeo)"
-              name="video-welcome-url"
-              value={videoWelcomeUrl}
-              onChange={setVideoWelcomeUrl}
-              videoEmbed
-              helperText="One embed link — shown before chat starts."
+          <Box sx={notificationsFormStackSx}>
+            <WidgetWizardToggleRow
+              label="Show video welcome"
+              checked={videoWelcomeOn}
+              onChange={setVideoWelcomeOn}
             />
-          ) : null}
+            {videoWelcomeOn ? (
+              <WidgetUrlField
+                label="Video URL (YouTube / Vimeo)"
+                name="video-welcome-url"
+                value={videoWelcomeUrl}
+                onChange={setVideoWelcomeUrl}
+                videoEmbed
+                helperText="One embed link — shown before chat starts."
+              />
+            ) : null}
+          </Box>
         </SchedulingSectionCard>
 
         <SchedulingSectionCard
           title="Visitor form"
           subtitle="Collect visitor details before chat starts. Greeting and chat copy stay on Chat Box Design."
         >
+          <Box sx={notificationsFormStackSx}>
           <WidgetWizardToggleRow label="Form enabled" checked={formEnabled} onChange={setFormEnabled} />
           <WidgetTextField label="Form title" name="form-title" value={formTitle} onChange={setFormTitle} maxLength={FIELD_MAX.title} />
           <WidgetTextField
@@ -711,7 +718,7 @@ export default function ChatWidgetNotificationsPage() {
             onChange={setFormSubmitLabel}
             maxLength={FIELD_MAX.shortLabel}
           />
-          <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, mb: 0.5, mt: 0.5 }}>
+          <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, mb: 0.5 }}>
             Fields to show
           </Typography>
           <Box sx={{ display: "flex", flexWrap: "wrap", gap: 2 }}>
@@ -730,15 +737,13 @@ export default function ChatWidgetNotificationsPage() {
               </Box>
             ))}
           </Box>
-          <Box sx={{ mt: 1.5 }}>
-            <WidgetWizardToggleRow
-              label="Consent required"
-              checked={consentRequired}
-              onChange={setConsentRequired}
-            />
-          </Box>
+          <WidgetWizardToggleRow
+            label="Consent required"
+            checked={consentRequired}
+            onChange={setConsentRequired}
+          />
           {consentRequired ? (
-            <>
+            <Box sx={notificationsFieldGroupSx}>
               <WidgetTextField
                 label="Consent text"
                 name="consent-text"
@@ -753,8 +758,9 @@ export default function ChatWidgetNotificationsPage() {
                 onChange={setPrivacyPolicyUrl}
                 helperText="Link opened from the consent checkbox."
               />
-            </>
+            </Box>
           ) : null}
+          </Box>
         </SchedulingSectionCard>
       </WidgetWizardPageLayout>
     </WidgetFlowShell>

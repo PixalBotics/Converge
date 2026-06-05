@@ -61,13 +61,16 @@ export function resolveTokenCookieMaxAgeSec(
   expiresInHint: string | null | undefined,
   fallbackSec: number,
 ): number {
+  const fromHint = parseAuthDurationToSec(expiresInHint);
+
   const expMs = decodeJwtExpMs(token);
   if (expMs) {
     const remainingSec = Math.floor((expMs - Date.now()) / 1000);
-    if (remainingSec > 60) return remainingSec;
+    if (remainingSec > 60) {
+      return Math.max(remainingSec, fromHint ?? fallbackSec);
+    }
   }
 
-  const fromHint = parseAuthDurationToSec(expiresInHint);
   if (fromHint != null) return fromHint;
 
   return fallbackSec;

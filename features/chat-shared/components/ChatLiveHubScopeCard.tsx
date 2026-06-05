@@ -16,6 +16,7 @@ import {
   websiteAssignmentSearchFieldWrapper,
   websiteAssignmentSearchRow,
 } from "@/app/dashboard/website-assigning/website-assigning.styles";
+import { mergeSx } from "@/lib/mui/merge-sx";
 import { ChatScopeFilterPopoverPanel } from "./ChatScopeFilterPopoverPanel";
 import { hasActiveChatScopeFilters } from "../utils/chat-scope-filters-active";
 import type { ChatScopeFilterState } from "../types";
@@ -61,7 +62,12 @@ export function ChatLiveHubScopeCard({
   );
 
   return (
-    <DashboardCard sx={websiteAssignmentFilterCard}>
+    <DashboardCard
+      sx={mergeSx(websiteAssignmentFilterCard, {
+        mt: { xs: 1.25, md: 1.75 },
+        flexShrink: 0,
+      })}
+    >
       <Box sx={websiteAssignmentFilterTitleRow}>
         <Box sx={websiteAssignmentFilterIconBox}>
           <FilterList sx={{ fontSize: 20 }} />

@@ -17,6 +17,46 @@ export interface PrechatFieldDto {
   options?: Array<{ label: string; value: string }>;
 }
 
+function slugFieldKey(label: string, index: number): string {
+  const base = label
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "_")
+    .replace(/[^a-z0-9_-]/g, "")
+    .slice(0, 48);
+  return base || `field_${index + 1}`;
+}
+
+/** Normalize admin/API rows (`fieldKey`, `type`, etc.) into stable react-hook-form keys. */
+export function normalizePrechatFields(raw: PrechatFieldDto[]): PrechatFieldDto[] {
+  const out: PrechatFieldDto[] = [];
+  const usedKeys = new Set<string>();
+
+  raw.forEach((row, index) => {
+    const o = row as PrechatFieldDto & { fieldKey?: string };
+    const label = String(o.label ?? o.key ?? o.fieldKey ?? "").trim();
+    const rawKey = String(o.key ?? "").trim();
+    const rawFieldKey = String(o.fieldKey ?? "").trim();
+    let key = rawKey || rawFieldKey;
+    if (!key) key = slugFieldKey(label || "field", index);
+    while (usedKeys.has(key)) {
+      key = `${key}_${index + 1}`;
+    }
+    usedKeys.add(key);
+
+    out.push({
+      ...o,
+      key,
+      label: label || key,
+      type: o.type ?? o.fieldType ?? "text",
+      fieldType: o.fieldType ?? o.type ?? "text",
+      required: o.required === true,
+    });
+  });
+
+  return out;
+}
+
 function fieldKind(field: PrechatFieldDto): string {
   const raw = field.fieldType ?? field.type ?? "text";
   const low = String(raw).toLowerCase();
@@ -101,7 +141,7 @@ export function extractPrechatFieldsFromWidgetConfig(
         : null;
 
   const fromFlags = formForFlags ? prechatFieldsFromFormFlags(formForFlags) : [];
-  if (fromFlags.length > 0) return fromFlags;
+  if (fromFlags.length > 0) return normalizePrechatFields(fromFlags);
 
   const fromForm = Array.isArray(form?.fields)
     ? (form?.fields as PrechatFieldDto[])
@@ -112,16 +152,18 @@ export function extractPrechatFieldsFromWidgetConfig(
       ? fromSettings
       : fromForm;
   if (Array.isArray(merged) && merged.length > 0) {
-    if (isLegacyWizardPlaceholderFields(merged)) {
-      return defaultVisitorFields;
+    if (isLegacyWizardPlaceholderFields(merged as PrechatFieldDto[])) {
+      return normalizePrechatFields(defaultVisitorFields);
     }
-    return merged;
+    return normalizePrechatFields(merged as PrechatFieldDto[]);
   }
 
   const rootFields = cfg.preChatFields;
-  return Array.isArray(rootFields)
-    ? (rootFields as PrechatFieldDto[])
-    : defaultVisitorFields;
+  return normalizePrechatFields(
+    Array.isArray(rootFields)
+      ? (rootFields as PrechatFieldDto[])
+      : defaultVisitorFields,
+  );
 }
 
 /** React Hook Form + zod resolver schema for pre-chat intake. */
@@ -129,13 +171,7 @@ export function buildDynamicPrechatZod(
   fields: PrechatFieldDto[],
 ): z.ZodObject<Record<string, z.ZodTypeAny>> {
   if (!fields.length) {
-    return z.object({
-      name: z.string().min(1, "Name is required"),
-      email: z
-        .union([z.string().email("Invalid email"), z.literal("")])
-        .optional(),
-      phone: z.string().optional(),
-    });
+    return z.object({});
   }
 
   const shape: Record<string, z.ZodTypeAny> = {};

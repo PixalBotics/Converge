@@ -12,7 +12,8 @@ import {
   CHAT_DISCONNECTED_SYNC_MS,
   CHAT_RECONNECT_SYNC_DEBOUNCE_MS,
   normalizeSocketMessage,
-  scheduleJoinRoomRetries,
+  ensureConversationRoomJoin,
+  unwrapSocketAckPayload,
   unwrapSocketMessagePayload,
 } from "./chat-socket-delivery";
 import { conversationIdFromSocketPayload } from "./agent-chat.utils";
@@ -26,7 +27,7 @@ import type {
   VisitorCreateConversationPayload,
   VisitorCreateConversationResponse,
 } from "@/services/chat/chat.types";
-import type { WidgetTranscriptMessage } from "@/services/chat/widget-visitor.api";
+import type { WidgetTranscriptMessage, WidgetTranscriptResult } from "@/services/chat/widget-visitor.api";
 
 export interface UseVisitorChatOptions {
   autoConnect?: boolean;
@@ -52,6 +53,8 @@ export interface UseVisitorChatReturn {
   isConnected: boolean;
   /** True when an agent is emitting typing for the active conversation. */
   agentTypingSeen: boolean;
+  /** Live draft preview while agent/supervisor types. */
+  agentTypingDraft: string;
   startConversation: (
     payload: VisitorCreateConversationPayload,
   ) => Promise<VisitorCreateConversationResponse>;
@@ -66,12 +69,18 @@ export interface UseVisitorChatReturn {
     content: string,
     options?: { messageType?: string },
   ) => Promise<void>;
-  emitTyping: () => void;
+  emitTyping: (draft?: string) => void;
   emitStopTyping: () => void;
   joinRoom: (conversationId: string) => void;
   leaveRoom: (conversationId: string) => void;
-  /** Reload messages from REST (initial load or reconnect gap-fill only). */
+  /** Reload messages (socket-first; REST only when socket unavailable). */
   refreshTranscript: () => Promise<void>;
+  /** Load transcript for any conversation id (resume on reload, etc.). */
+  loadTranscript: (
+    targetConversationId: string,
+  ) => Promise<
+    { ok: true; data: WidgetTranscriptResult } | { ok: false; message: string }
+  >;
 }
 
 function stableMessageDedupeKey(message: ChatMessage): string {
@@ -90,6 +99,7 @@ export function useVisitorChat(
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isConnected, setIsConnected] = useState(false);
   const [agentTypingFromOther, setAgentTypingFromOther] = useState(false);
+  const [agentTypingDraft, setAgentTypingDraft] = useState("");
   const messageMapRef = useRef(new Map<string, ChatMessage>());
   const conversationIdRef = useRef<string | null>(null);
   const widgetTokenRef = useRef<string | null | undefined>(
@@ -113,17 +123,22 @@ export function useVisitorChat(
   }, [options?.widgetSessionToken]);
 
   const reconnectSocket = useCallback(
-    (forceNew: boolean) => {
+    async (forceNew: boolean) => {
       const token = widgetTokenRef.current;
+      if (!token) {
+        setIsConnected(false);
+        return;
+      }
       socketClient.connect({
-        authToken: token ?? undefined,
+        authToken: token,
         forceNew,
       });
+      const ready = await socketClient.waitUntilConnected(12_000);
+      setIsConnected(ready && socketClient.isConnected());
       const cid = conversationIdRef.current;
-      if (cid) {
+      if (cid && socketClient.isConnected()) {
         socketClient.joinRoom({ conversationId: cid });
       }
-      setIsConnected(socketClient.isConnected());
     },
     [socketClient],
   );
@@ -133,7 +148,7 @@ export function useVisitorChat(
     if (!token) return undefined;
     const tokenChanged = connectedWidgetTokenRef.current !== token;
     connectedWidgetTokenRef.current = token;
-    reconnectSocket(tokenChanged);
+    void reconnectSocket(tokenChanged);
     return undefined;
   }, [options?.widgetSessionToken, reconnectSocket]);
 
@@ -174,15 +189,34 @@ export function useVisitorChat(
     setMessages(Array.from(messageMapRef.current.values()));
   }, []);
 
+  const loadTranscript = useCallback(
+    async (
+      targetConversationId: string,
+    ): Promise<
+      { ok: true; data: WidgetTranscriptResult } | { ok: false; message: string }
+    > => {
+      const wid = optionsRef.current?.websiteId?.trim();
+      if (!wid) return { ok: false, message: "Missing websiteId" };
+      const token = widgetTokenRef.current;
+      if (token) {
+        socketClient.connect({ authToken: token });
+        await socketClient.waitUntilSocketReady(12_000);
+      }
+      return fetchWidgetTranscript(
+        targetConversationId,
+        wid,
+        token ?? undefined,
+        socketClient,
+      );
+    },
+    [socketClient],
+  );
+
   const refreshTranscript = useCallback(async () => {
     const cid = conversationIdRef.current;
     const wid = optionsRef.current?.websiteId?.trim();
     if (!cid || !wid) return;
-    const res = await fetchWidgetTranscript(
-      cid,
-      wid,
-      widgetTokenRef.current ?? undefined,
-    );
+    const res = await loadTranscript(cid);
     if (!res.ok) return;
     messageMapRef.current.clear();
     for (const row of res.data.messages) {
@@ -200,18 +234,14 @@ export function useVisitorChat(
     }
     setMessages(filterVisitorWidgetMessages(Array.from(messageMapRef.current.values())));
     setAssigned(Boolean(res.data.assignedAgentId) || res.data.status === "assigned");
-  }, []);
+  }, [loadTranscript]);
 
-  /** Merge new rows from REST without clearing optimistic / socket state. */
+  /** Merge new rows without clearing optimistic / socket state. */
   const mergeTranscriptGapFill = useCallback(async () => {
     const cid = conversationIdRef.current;
     const wid = optionsRef.current?.websiteId?.trim();
     if (!cid || !wid) return;
-    const res = await fetchWidgetTranscript(
-      cid,
-      wid,
-      widgetTokenRef.current ?? undefined,
-    );
+    const res = await loadTranscript(cid);
     if (!res.ok) return;
     let changed = false;
     for (const row of res.data.messages) {
@@ -236,7 +266,7 @@ export function useVisitorChat(
     if (res.data.assignedAgentId || res.data.status === "assigned") {
       setAssigned(true);
     }
-  }, []);
+  }, [loadTranscript]);
 
   useEffect(() => {
     refreshTranscriptRef.current = mergeTranscriptGapFill;
@@ -317,23 +347,26 @@ export function useVisitorChat(
 
   useEffect(() => {
     if (!conversationId) return undefined;
-    void refreshTranscript();
-    socketClient.joinRoom({ conversationId });
-    const clearJoinRetries = scheduleJoinRoomRetries(
-      (cid) => socketClient.joinRoom({ conversationId: cid }),
+    const hasLocalMessages = messageMapRef.current.size > 0;
+    if (!socketClient.isConnected() || !hasLocalMessages) {
+      void refreshTranscript();
+    }
+    const clearJoinRetries = ensureConversationRoomJoin(
+      socketClient,
       conversationId,
       () =>
         conversationIdRef.current?.toLowerCase() === conversationId.toLowerCase(),
     );
-    if (isConnected) return clearJoinRetries;
+    if (socketClient.isConnected()) return clearJoinRetries;
     const poll = window.setInterval(() => {
+      if (socketClient.isConnected()) return;
       void refreshTranscriptRef.current?.();
     }, CHAT_DISCONNECTED_SYNC_MS);
     return () => {
       clearJoinRetries();
       window.clearInterval(poll);
     };
-  }, [conversationId, isConnected, refreshTranscript, socketClient]);
+  }, [conversationId, refreshTranscript, socketClient]);
 
   useEffect(
     () => () => {
@@ -351,15 +384,16 @@ export function useVisitorChat(
       clearJoinRetries = undefined;
       const cid = conversationIdRef.current;
       if (cid) {
-        socketClient.joinRoom({ conversationId: cid });
-        clearJoinRetries = scheduleJoinRoomRetries(
-          (roomId) => socketClient.joinRoom({ conversationId: roomId }),
+        clearJoinRetries = ensureConversationRoomJoin(
+          socketClient,
           cid,
           () => conversationIdRef.current?.toLowerCase() === cid.toLowerCase(),
         );
       }
       scheduleReconnectSync();
     };
+
+    setIsConnected(socketClient.isConnected());
 
     const offSocketConnect = socketClient.onSocketConnect(resyncAfterReconnect);
     const offSocketDisconnect = socketClient.onSocketDisconnect(() =>
@@ -405,7 +439,17 @@ export function useVisitorChat(
     });
 
     const offMonitorLive = socketClient.onMonitorLiveUpdate((update) => {
+      const openId = conversationIdRef.current;
       const event = String(update.event ?? "").toLowerCase();
+      if (
+        openId &&
+        update.conversationId?.toLowerCase() === openId.toLowerCase() &&
+        (event === "visitor_message" ||
+          event === "agent_message" ||
+          event === "ai_message")
+      ) {
+        return;
+      }
       if (
         event !== "visitor_message" &&
         event !== "agent_message" &&
@@ -452,13 +496,26 @@ export function useVisitorChat(
     const offTyping = socketClient.onTyping((payload: TypingPayload) => {
       const cid = conversationIdRef.current;
       if (!cid || payload.conversationId !== cid) return;
-      if (payload.userType === "agent") setAgentTypingFromOther(true);
+      const isRemoteAgent =
+        payload.userType === "agent" ||
+        payload.typingRole === "agent" ||
+        payload.typingRole === "supervisor";
+      if (isRemoteAgent) {
+        setAgentTypingFromOther(true);
+        setAgentTypingDraft(typeof payload.draft === "string" ? payload.draft : "");
+      }
     });
     const offStopTyping = socketClient.onStopTyping((payload: TypingPayload) => {
       const cid = conversationIdRef.current;
       if (!cid || payload.conversationId !== cid) return;
-      if (payload.userType === "agent") {
+      if (
+        payload.userType === "agent" ||
+        payload.typingRole === "agent" ||
+        payload.typingRole === "supervisor"
+      ) {
         setAgentTypingFromOther(false);
+      setAgentTypingDraft("");
+        setAgentTypingDraft("");
         scheduleReconnectSync();
       }
     });
@@ -490,6 +547,7 @@ export function useVisitorChat(
     const offClosed = socketClient.onChatClosed(() => {
       setAssigned(false);
       setAgentTypingFromOther(false);
+      setAgentTypingDraft("");
     });
 
     return () => {
@@ -531,21 +589,63 @@ export function useVisitorChat(
       payload: VisitorCreateConversationPayload,
     ): Promise<VisitorCreateConversationResponse> => {
       const token = widgetTokenRef.current;
-      socketClient.connect({
-        authToken: token ?? undefined,
-      });
+      if (token) {
+        socketClient.connect({ authToken: token });
+        await socketClient.waitUntilSocketReady(12_000);
+      }
 
-      const created = await createWidgetConversation(
-        payload,
-        widgetTokenRef.current ?? undefined,
-      );
+      let created: VisitorCreateConversationResponse | null = null;
+
+      if (socketClient.isConnected()) {
+        try {
+          const ack = await socketClient.startConversationWithAck(payload, 20_000);
+          const body = unwrapSocketAckPayload(ack);
+          if (
+            body &&
+            typeof body === "object" &&
+            "conversationId" in body &&
+            typeof (body as { conversationId?: unknown }).conversationId === "string"
+          ) {
+            created = body as VisitorCreateConversationResponse;
+          }
+        } catch {
+          /* REST fallback below */
+        }
+      }
+
+      if (!created) {
+        created = await createWidgetConversation(
+          payload,
+          widgetTokenRef.current ?? undefined,
+        );
+      }
       setConversationId(created.conversationId);
       conversationIdRef.current = created.conversationId;
       setVisitorId(created.visitorId ?? null);
       setAssigned(created.status === "assigned");
-      joinRoom(created.conversationId);
-      scheduleJoinRoomRetries(
-        (roomId) => socketClient.joinRoom({ conversationId: roomId }),
+      if (created.firstVisitorMessage) {
+        const visitorRow = normalizeServerMessage({
+          ...created.firstVisitorMessage,
+          conversationId: created.conversationId,
+          senderType: created.firstVisitorMessage.senderType ?? "visitor",
+        });
+        if (visitorRow && !isHiddenFromVisitorWidget(visitorRow)) {
+          upsertMessage(visitorRow);
+        }
+      }
+      const skipAi = optionsRef.current?.getSkipServerAiReply?.() === true;
+      if (!skipAi && created.aiMessage?.content?.trim()) {
+        const aiRow = normalizeServerMessage({
+          ...created.aiMessage,
+          conversationId: created.conversationId,
+          senderType: created.aiMessage.senderType ?? "ai",
+        });
+        if (aiRow && !isHiddenFromVisitorWidget(aiRow)) {
+          upsertMessage(aiRow);
+        }
+      }
+      ensureConversationRoomJoin(
+        socketClient,
         created.conversationId,
         () =>
           conversationIdRef.current?.toLowerCase() ===
@@ -553,7 +653,7 @@ export function useVisitorChat(
       );
       return created;
     },
-    [joinRoom, socketClient],
+    [socketClient, upsertMessage],
   );
 
   const resumeConversation = useCallback(
@@ -564,9 +664,12 @@ export function useVisitorChat(
       messages: WidgetTranscriptMessage[];
     }) => {
       const token = widgetTokenRef.current;
-      socketClient.connect({
-        authToken: token ?? undefined,
-      });
+      if (token) {
+        socketClient.connect({ authToken: token });
+        void socketClient.waitUntilConnected(12_000).then(() => {
+          setIsConnected(socketClient.isConnected());
+        });
+      }
       messageMapRef.current.clear();
       for (const row of params.messages) {
         const normalized = normalizeServerMessage({
@@ -586,16 +689,56 @@ export function useVisitorChat(
       conversationIdRef.current = params.conversationId;
       setVisitorId(params.visitorId ?? null);
       setAssigned(params.status === "assigned");
-      joinRoom(params.conversationId);
-      scheduleJoinRoomRetries(
-        (roomId) => socketClient.joinRoom({ conversationId: roomId }),
+      ensureConversationRoomJoin(
+        socketClient,
         params.conversationId,
         () =>
           conversationIdRef.current?.toLowerCase() ===
           params.conversationId.toLowerCase(),
       );
     },
-    [joinRoom, socketClient],
+    [socketClient],
+  );
+
+  const applyVisitorSendAck = useCallback(
+    (raw: unknown, optimisticKey: string) => {
+      messageMapRef.current.delete(optimisticKey);
+      const body = unwrapSocketAckPayload(raw);
+      if (!body || typeof body !== "object") {
+        setMessages(filterVisitorWidgetMessages(Array.from(messageMapRef.current.values())));
+        return;
+      }
+      const envelope = body as {
+        visitorMessage?: Record<string, unknown>;
+        aiMessage?: {
+          id?: string;
+          content?: string;
+          createdAt?: string;
+          senderType?: string;
+        };
+      };
+      const visitorRow = envelope.visitorMessage;
+      if (visitorRow) {
+        const normalized = normalizeServerMessage({
+          ...visitorRow,
+          conversationId,
+        });
+        if (normalized) upsertMessage(normalized);
+      } else {
+        setMessages(filterVisitorWidgetMessages(Array.from(messageMapRef.current.values())));
+      }
+      const skipAi = optionsRef.current?.getSkipServerAiReply?.() === true;
+      const aiRow = envelope.aiMessage;
+      if (!skipAi && aiRow?.content?.trim()) {
+        const normalized = normalizeServerMessage({
+          ...aiRow,
+          conversationId,
+          senderType: aiRow.senderType ?? "ai",
+        });
+        if (normalized) upsertMessage(normalized);
+      }
+    },
+    [conversationId, upsertMessage],
   );
 
   const sendMessage = useCallback(
@@ -612,8 +755,29 @@ export function useVisitorChat(
         role: "visitor",
         createdAt: new Date().toISOString(),
       };
+      const optimisticKey = stableMessageDedupeKey(optimisticMessage);
 
       upsertMessage(optimisticMessage);
+
+      const socketPayload = {
+        conversationId,
+        message: content,
+        currentPageUrl: pageUrl,
+        ...(sendOpts?.messageType ? { messageType: sendOpts.messageType } : {}),
+      };
+
+      await socketClient.waitUntilConnected(10_000);
+
+      if (socketClient.isConnected()) {
+        try {
+          const ack = await socketClient.sendVisitorMessageWithAck(socketPayload);
+          applyVisitorSendAck(ack, optimisticKey);
+          return;
+        } catch {
+          /* socket ack failed — REST fallback below */
+        }
+      }
+
       const raw = await sendWidgetVisitorMessage(
         conversationId,
         {
@@ -622,35 +786,30 @@ export function useVisitorChat(
           ...(sendOpts?.messageType ? { messageType: sendOpts.messageType } : {}),
         },
         widgetTokenRef.current ?? undefined,
+        optionsRef.current?.websiteId?.trim() ?? undefined,
       );
-      const skipAi = optionsRef.current?.getSkipServerAiReply?.() === true;
-      if (!skipAi && raw && typeof raw === "object") {
-        const envelope = raw as {
-          aiMessage?: {
-            id?: string;
-            content?: string;
-            createdAt?: string;
-            senderType?: string;
-          };
-        };
-        const aiRow = envelope.aiMessage;
-        if (aiRow?.content?.trim()) {
-          const normalized = normalizeServerMessage({
-            ...aiRow,
-            conversationId,
-            senderType: aiRow.senderType ?? "ai",
-          });
-          if (normalized) upsertMessage(normalized);
-        }
-      }
+      applyVisitorSendAck(raw, optimisticKey);
     },
-    [conversationId, resolvePageUrl, upsertMessage],
+    [
+      applyVisitorSendAck,
+      conversationId,
+      resolvePageUrl,
+      socketClient,
+      upsertMessage,
+    ],
   );
 
-  const emitTyping = useCallback(() => {
-    if (!conversationId) return;
-    socketClient.emitTyping({ conversationId, userType: "visitor" });
-  }, [conversationId, socketClient]);
+  const emitTyping = useCallback(
+    (draft?: string) => {
+      if (!conversationId) return;
+      socketClient.emitTyping({
+        conversationId,
+        userType: "visitor",
+        ...(draft !== undefined ? { draft } : {}),
+      });
+    },
+    [conversationId, socketClient],
+  );
 
   const emitStopTyping = useCallback(() => {
     if (!conversationId) return;
@@ -664,6 +823,7 @@ export function useVisitorChat(
     messages,
     isConnected,
     agentTypingSeen: agentTypingFromOther,
+    agentTypingDraft: agentTypingDraft.trim(),
     startConversation,
     resumeConversation,
     sendMessage,
@@ -672,5 +832,6 @@ export function useVisitorChat(
     joinRoom,
     leaveRoom,
     refreshTranscript,
+    loadTranscript,
   };
 }

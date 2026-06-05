@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -11,6 +11,7 @@ import VisibilityOutlined from "@mui/icons-material/VisibilityOutlined";
 import EditOutlined from "@mui/icons-material/EditOutlined";
 import DeleteOutline from "@mui/icons-material/DeleteOutline";
 import Box from "@mui/material/Box";
+import type { SxProps, Theme } from "@mui/material/styles";
 import Dialog from "@mui/material/Dialog";
 import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
@@ -42,6 +43,8 @@ import {
   integrationsSearchRow,
   integrationsSectionIconBox,
 } from "../integrations/integrations.styles";
+import { pageWrapper } from "../companies/overview.styles";
+import { rolesPageWrapper } from "../roles/roles.styles";
 import type { AdminWidgetTableRow } from "@/api/types/widgets.types";
 import {
   deleteWidget,
@@ -393,7 +396,7 @@ export default function ChatWidgetPage() {
   );
 
   return (
-    <Box sx={integrationsPageWrapper}>
+    <Box sx={[pageWrapper, rolesPageWrapper, integrationsPageWrapper] as SxProps<Theme>}>
       <Box sx={integrationsPageHeader}>
         <Box>
           <Typography variant="regularLarge" fontWeight={700} color="white" sx={{ mb: 0.5 }}>

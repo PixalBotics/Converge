@@ -73,13 +73,13 @@ export function WidgetChatColorsSection({
   };
 
   return (
-    <Box sx={{ mt: 2 }}>
+    <Box sx={{ display: "flex", flexDirection: "column", gap: 1.25 }}>
       <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1, flexWrap: "wrap" }}>
         <Box>
-          <Typography variant="mediumLarge" sx={{ color: theme.app.text.primary }}>
+          <Typography variant="medium16" sx={{ color: theme.app.text.primary, fontWeight: 600 }}>
             Widget UI colors (chat.colors)
           </Typography>
-          <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, mt: 0.5 }}>
+          <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, mt: 0.75, lineHeight: 1.5 }}>
             Maps to <code>theme.designJson.chat.colors</code> — messages, form fields, inquiry pills, and handover
             button on the live embed.
           </Typography>
@@ -109,10 +109,10 @@ export function WidgetChatColorsSection({
         >
           {WIDGET_CHAT_COLOR_FIELD_GROUPS.map((group) => (
             <Box key={group.title}>
-              <Typography variant="subtitle2" sx={{ color: theme.app.text.primary, mb: 0.5 }}>
+              <Typography variant="medium16" sx={{ color: theme.app.text.primary, fontWeight: 600, mb: 0.5 }}>
                 {group.title}
               </Typography>
-              <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, display: "block", mb: 1 }}>
+              <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, display: "block", mb: 1, lineHeight: 1.5 }}>
                 {group.description}
               </Typography>
               <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>

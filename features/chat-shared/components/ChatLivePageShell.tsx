@@ -5,7 +5,10 @@ import Box from "@mui/material/Box";
 import type { SxProps, Theme } from "@mui/material/styles";
 import { mergeSx } from "@/lib/mui/merge-sx";
 import { chatOpsPageWrapper } from "@/features/chat-operations/styles/chat-operations.styles";
-import { chatLivePageStackSx } from "../styles/chat-live.styles";
+import {
+  chatLiveAdminPageInsetSx,
+  chatLivePageStackSx,
+} from "../styles/chat-live.styles";
 
 type ChatLivePageShellVariant = "workstation" | "admin";
 
@@ -27,7 +30,7 @@ export function ChatLivePageShell({
   const baseSx =
     variant === "workstation"
       ? mergeSx(chatOpsPageWrapper, chatLivePageStackSx)
-      : chatLivePageStackSx;
+      : mergeSx(chatLiveAdminPageInsetSx, chatLivePageStackSx);
 
   return (
     <Box sx={sx ? mergeSx(baseSx, sx) : baseSx}>

@@ -345,8 +345,8 @@ export function applyExperienceToConfigRecord(
       offlineMessage: experience.content.offline,
       greetingMessage: experience.content.greeting,
       sendPlaceholder: experience.content.sendPlaceholder,
-      agentHandoverEnabled: experience.behavior.agentHandoverEnabled,
-      handoverTriggerText: experience.behavior.handoverTriggerText,
+      agentTalkToAgentEnabled: experience.behavior.agentTalkToAgentEnabled,
+      talkToAgentTriggerText: experience.behavior.talkToAgentTriggerText,
     },
     session: {
       ...(isRecord(config.session) ? config.session : {}),

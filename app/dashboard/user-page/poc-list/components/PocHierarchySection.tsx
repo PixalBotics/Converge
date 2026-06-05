@@ -17,13 +17,14 @@ import {
   StorefrontOutlined as StorefrontOutlinedIcon,
   ViewListOutlined as ViewListOutlinedIcon,
 } from "@mui/icons-material";
-import { Typography, DashboardCard, SearchBar } from "@/components/common";
+import { Typography, DashboardCard, SearchBar, TablePagination } from "@/components/common";
 import type { AppTheme } from "@/theme/theme";
 import {
   overviewTableCard,
   overviewTableCardHeader,
   overviewIconBox,
   overviewFooterRow,
+  overviewPaginationWrapper,
 } from "../../overview.styles";
 import type { PocListRow } from "../page";
 import { EmptyPocListState } from "./EmptyPocListState";
@@ -40,6 +41,8 @@ import {
 
 type ViewMode = "grouped" | "table";
 
+const POC_LIST_PAGE_SIZE = 20;
+
 function CountBadge({
   label,
   theme,
@@ -53,22 +56,56 @@ function CountBadge({
     <Box
       component="span"
       sx={{
-        px: 1,
-        py: 0.2,
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        boxSizing: "border-box",
+        minHeight: 26,
+        px: 1.25,
+        py: 0,
         borderRadius: "9999px",
-        fontSize: "0.7rem",
+        fontSize: "0.72rem",
         fontWeight: 600,
+        lineHeight: 1,
+        letterSpacing: "0.01em",
         whiteSpace: "nowrap",
         bgcolor: accent
-          ? alpha(theme.palette.primary.main, 0.18)
-          : alpha(theme.app.dashboard.white95, 0.08),
+          ? alpha(theme.palette.primary.main, 0.2)
+          : alpha(theme.app.dashboard.white95, 0.06),
         color: accent ? theme.palette.primary.light : theme.app.dashboard.textMuted,
-        border: `1px solid ${alpha(theme.app.dashboard.cardBorder, accent ? 0.6 : 1)}`,
+        border: `1px solid ${alpha(
+          accent ? theme.palette.primary.main : theme.app.dashboard.cardBorder,
+          accent ? 0.38 : 0.7,
+        )}`,
       }}
     >
       {label}
     </Box>
   );
+}
+
+/** Grouped / Flat list and Expand all / Collapse all — shared segmented control chrome. */
+function pocViewToggleGroupSx(theme: AppTheme) {
+  return {
+    flexShrink: 0,
+    "& .MuiToggleButton-root": {
+      px: 1.5,
+      py: 0.65,
+      textTransform: "none",
+      fontSize: "0.8rem",
+      fontWeight: 600,
+      color: theme.app.dashboard.textMuted,
+      borderColor: theme.app.dashboard.cardBorder,
+      "&.Mui-selected": {
+        color: theme.app.text.primary,
+        bgcolor: alpha(theme.palette.primary.main, 0.18),
+      },
+      "&:hover": {
+        color: theme.app.text.primary,
+        bgcolor: alpha(theme.palette.primary.main, 0.1),
+      },
+    },
+  };
 }
 
 function accordionShellSx(theme: AppTheme, nested = false) {
@@ -115,12 +152,12 @@ function ParentAccordion({
       <AccordionSummary
         expandIcon={<ExpandMoreIcon sx={{ color: alpha(theme.app.dashboard.white95, 0.75) }} />}
         sx={{
-          px: 1.75,
-          py: 0.5,
-          minHeight: 56,
+          px: 2,
+          py: 0.75,
+          minHeight: 58,
           alignItems: expanded ? "center" : "flex-start",
           "& .MuiAccordionSummary-content": {
-            my: 0.75,
+            my: 0.85,
             alignItems: expanded ? "center" : "flex-start",
             gap: 1.25,
           },
@@ -145,7 +182,7 @@ function ParentAccordion({
           <Typography sx={{ color: theme.app.dashboard.white95, fontWeight: 600, fontSize: "0.9rem" }} noWrap>
             {parent.name}
           </Typography>
-          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5, mt: 0.35 }}>
+          <Box sx={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 0.75, mt: 0.625 }}>
             <CountBadge
               theme={theme}
               label={`${childCount} child ${childCount === 1 ? "company" : "companies"}`}
@@ -161,7 +198,7 @@ function ParentAccordion({
               variant="caption"
               sx={{
                 color: theme.app.dashboard.textMuted,
-                mt: 0.5,
+                mt: 0.625,
                 display: "-webkit-box",
                 lineHeight: 1.45,
                 overflow: "hidden",
@@ -176,16 +213,19 @@ function ParentAccordion({
       </AccordionSummary>
       <AccordionDetails
         sx={{
-          px: 1.75,
-          pb: 1.75,
-          pt: 0,
+          px: 2,
+          pb: 2,
+          pt: 0.5,
           display: "flex",
           flexDirection: "column",
-          gap: 0.75,
+          gap: 1,
         }}
       >
         {childCount > 1 ? (
-          <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, px: 0.25, pb: 0.25 }}>
+          <Typography
+            variant="caption"
+            sx={{ color: theme.app.dashboard.textMuted, lineHeight: 1.5, pb: 0.25 }}
+          >
             {childCount} child companies under this parent — expand only the one you need.
           </Typography>
         ) : null}
@@ -193,7 +233,7 @@ function ParentAccordion({
           sx={{
             display: "flex",
             flexDirection: "column",
-            gap: 0.75,
+            gap: 1,
             ...(scrollChildren
               ? {
                   maxHeight: 360,
@@ -256,10 +296,10 @@ function ResellerAccordion({
       <AccordionSummary
         expandIcon={<ExpandMoreIcon sx={{ color: alpha(theme.app.dashboard.white95, 0.75), fontSize: 22 }} />}
         sx={{
-          px: 2,
-          py: 0.75,
-          minHeight: 72,
-          "& .MuiAccordionSummary-content": { my: 1, alignItems: "center", gap: 1.5 },
+          px: 2.25,
+          py: 1,
+          minHeight: 68,
+          "& .MuiAccordionSummary-content": { my: 0.85, alignItems: "center", gap: 1.5 },
         }}
       >
         <Box
@@ -280,7 +320,7 @@ function ResellerAccordion({
           <Typography sx={{ color: theme.app.dashboard.white95, fontWeight: 700, fontSize: "1rem" }} noWrap>
             {reseller.name}
           </Typography>
-          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5, mt: 0.5 }}>
+          <Box sx={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 0.75, mt: 0.75 }}>
             <CountBadge
               theme={theme}
               label={`${reseller.parentCount} parent${reseller.parentCount === 1 ? "" : "s"}`}
@@ -293,9 +333,14 @@ function ResellerAccordion({
           </Box>
         </Box>
       </AccordionSummary>
-      <AccordionDetails sx={{ px: 2, pb: 2, pt: 0, display: "flex", flexDirection: "column", gap: 1 }}>
+      <AccordionDetails
+        sx={{ px: 2.25, pb: 2.25, pt: 0.75, display: "flex", flexDirection: "column", gap: 1.25 }}
+      >
         {reseller.parentCount > 1 ? (
-          <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, px: 0.25 }}>
+          <Typography
+            variant="caption"
+            sx={{ color: theme.app.dashboard.textMuted, lineHeight: 1.5, mb: 0.25 }}
+          >
             {reseller.parentCount} parent companies · {reseller.childCount} child companies total
           </Typography>
         ) : null}
@@ -303,7 +348,7 @@ function ResellerAccordion({
           sx={{
             display: "flex",
             flexDirection: "column",
-            gap: 1,
+            gap: 1.25,
             ...(scrollParents
               ? {
                   maxHeight: 440,
@@ -377,6 +422,7 @@ export function PocHierarchySection({
   errorMessage,
 }: Props) {
   const [viewMode, setViewMode] = useState<ViewMode>("grouped");
+  const [page, setPage] = useState(1);
   const tree = useMemo(() => buildPocDirectoryTree(rows), [rows]);
 
   const [expandedResellers, setExpandedResellers] = useState<Set<string>>(() => new Set());
@@ -407,6 +453,19 @@ export function PocHierarchySection({
 
   const showEmpty = !isLoading && !errorMessage && allRowsCount === 0;
   const showFilteredEmpty = !isLoading && !errorMessage && allRowsCount > 0 && rows.length === 0;
+
+  useEffect(() => {
+    setPage(1);
+  }, [search, viewMode, rows.length]);
+
+  const tablePageCount = Math.max(1, Math.ceil(rows.length / POC_LIST_PAGE_SIZE));
+  const tablePage = Math.min(page, tablePageCount);
+  const tableRows = useMemo(() => {
+    const start = (tablePage - 1) * POC_LIST_PAGE_SIZE;
+    return rows.slice(start, start + POC_LIST_PAGE_SIZE);
+  }, [rows, tablePage]);
+  const tableFooterStart = rows.length === 0 ? 0 : (tablePage - 1) * POC_LIST_PAGE_SIZE + 1;
+  const tableFooterEnd = Math.min(tablePage * POC_LIST_PAGE_SIZE, rows.length);
 
   const expandAll = () => {
     const resellers = new Set<string>();
@@ -472,22 +531,7 @@ export function PocHierarchySection({
           onChange={(_, v: ViewMode | null) => {
             if (v) setViewMode(v);
           }}
-          sx={{
-            flexShrink: 0,
-            "& .MuiToggleButton-root": {
-              px: 1.5,
-              py: 0.65,
-              textTransform: "none",
-              fontSize: "0.8rem",
-              fontWeight: 600,
-              color: theme.app.dashboard.textMuted,
-              borderColor: theme.app.dashboard.cardBorder,
-              "&.Mui-selected": {
-                color: theme.app.text.primary,
-                bgcolor: alpha(theme.palette.primary.main, 0.18),
-              },
-            },
-          }}
+          sx={pocViewToggleGroupSx(theme)}
         >
           <ToggleButton value="grouped">
             <AccountTreeOutlinedIcon sx={{ fontSize: 16, mr: 0.75 }} />
@@ -499,46 +543,20 @@ export function PocHierarchySection({
           </ToggleButton>
         </ToggleButtonGroup>
         {viewMode === "grouped" && tree.resellers.length > 0 ? (
-          <Box sx={{ display: "flex", gap: 0.75, flexShrink: 0 }}>
-            <Box
-              component="button"
-              type="button"
-              onClick={expandAll}
-              sx={{
-                border: `1px solid ${theme.app.dashboard.cardBorder}`,
-                borderRadius: "9999px",
-                px: 1.25,
-                py: 0.5,
-                fontSize: "0.75rem",
-                fontWeight: 600,
-                cursor: "pointer",
-                bgcolor: "transparent",
-                color: theme.app.dashboard.textMuted,
-                "&:hover": { color: theme.app.text.primary, borderColor: alpha(theme.palette.primary.main, 0.5) },
-              }}
-            >
+          <ToggleButtonGroup
+            exclusive={false}
+            value={[]}
+            onChange={() => undefined}
+            size="small"
+            sx={pocViewToggleGroupSx(theme)}
+          >
+            <ToggleButton value="expand-all" onClick={expandAll}>
               Expand all
-            </Box>
-            <Box
-              component="button"
-              type="button"
-              onClick={collapseAll}
-              sx={{
-                border: `1px solid ${theme.app.dashboard.cardBorder}`,
-                borderRadius: "9999px",
-                px: 1.25,
-                py: 0.5,
-                fontSize: "0.75rem",
-                fontWeight: 600,
-                cursor: "pointer",
-                bgcolor: "transparent",
-                color: theme.app.dashboard.textMuted,
-                "&:hover": { color: theme.app.text.primary, borderColor: alpha(theme.palette.primary.main, 0.5) },
-              }}
-            >
+            </ToggleButton>
+            <ToggleButton value="collapse-all" onClick={collapseAll}>
               Collapse all
-            </Box>
-          </Box>
+            </ToggleButton>
+          </ToggleButtonGroup>
         ) : null}
       </Box>
 
@@ -566,9 +584,9 @@ export function PocHierarchySection({
           description="Try another keyword or clear the search field to see all active contacts."
         />
       ) : viewMode === "table" ? (
-        <PocListFlatTable theme={theme} rows={rows} />
+        <PocListFlatTable theme={theme} rows={tableRows} />
       ) : (
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 1.75 }}>
           {tree.resellers.map((reseller) => (
             <ResellerAccordion
               key={reseller.id}
@@ -609,11 +627,25 @@ export function PocHierarchySection({
       {!isLoading && !errorMessage && allRowsCount > 0 ? (
         <Box sx={overviewFooterRow}>
           <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted }}>
-            {tree.resellers.length} reseller{tree.resellers.length === 1 ? "" : "s"} · {rows.length} contact
-            {rows.length === 1 ? "" : "s"}
-            {search.trim() ? ` matching “${search.trim()}”` : ""}
-            {viewMode === "grouped" ? " · grouped view" : " · flat list"}
+            {viewMode === "table" ? (
+              <>
+                Showing data {tableFooterStart} to {tableFooterEnd} of {rows.length} entries
+                {search.trim() ? ` matching “${search.trim()}”` : ""}
+              </>
+            ) : (
+              <>
+                {tree.resellers.length} reseller{tree.resellers.length === 1 ? "" : "s"} · {rows.length} contact
+                {rows.length === 1 ? "" : "s"}
+                {search.trim() ? ` matching “${search.trim()}”` : ""}
+                {" · grouped view"}
+              </>
+            )}
           </Typography>
+          {viewMode === "table" ? (
+            <Box sx={overviewPaginationWrapper}>
+              <TablePagination page={tablePage} pageCount={tablePageCount} onPageChange={setPage} />
+            </Box>
+          ) : null}
         </Box>
       ) : null}
     </DashboardCard>

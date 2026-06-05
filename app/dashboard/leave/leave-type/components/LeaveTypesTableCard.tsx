@@ -13,6 +13,7 @@ import {
   DataTable,
   dataTableActionButton,
   SearchBar,
+  SearchSubmitButton,
   TablePagination,
   Typography,
 } from "@/components/common";
@@ -85,15 +86,10 @@ export function LeaveTypesTableCard({
           <Box sx={departmentsSearchFieldWrapper}>
             <SearchBar value={searchInput} onChange={onSearchInputChange} placeholder="Search anything.." />
           </Box>
-          <Button
-            type="button"
-            variant="primary"
+          <SearchSubmitButton
             disabled={searchInput.trim() === appliedSearch.trim()}
             onClick={onSearchApply}
-            sx={{ minWidth: 132, whiteSpace: "nowrap", alignSelf: { xs: "stretch", sm: "center" } }}
-          >
-            Search
-          </Button>
+          />
         </Box>
       </Box>
 

@@ -153,6 +153,7 @@ export function AppBoundaryProvider({ children }: { children: ReactNode }) {
 
     const onOnline = () => {
       dismissAppBoundary("network");
+      void retrySessionHydration();
     };
 
     window.addEventListener("offline", onOffline);

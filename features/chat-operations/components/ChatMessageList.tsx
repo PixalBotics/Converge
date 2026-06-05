@@ -6,6 +6,7 @@ import InboxOutlined from "@mui/icons-material/InboxOutlined";
 import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import { Typography } from "@/components/common";
+import type { TypingPreviewBubble } from "@/lib/hooks/chat/typing-preview-display";
 import type { ChatMessage } from "@/services/chat/chat.types";
 import { getMessageGroupPosition } from "../utils/message-grouping";
 import {
@@ -17,6 +18,7 @@ import {
   ChatMessageBubble,
   groupMessagesByDate,
 } from "./ChatMessageBubble";
+import { chatOpsTranscriptInsetSx } from "../styles/chat-operations.styles";
 import {
   EmptyState,
   EmptyStateIconRing,
@@ -30,6 +32,9 @@ interface ChatMessageListProps {
   conversationId?: string | null;
   visitorInitials?: string;
   visitorTyping?: boolean;
+  visitorTypingDraft?: string;
+  /** Live typing from any participant (visitor, agent, supervisor). */
+  typingPreviews?: TypingPreviewBubble[];
   visitorDisplayName?: string;
   agentDisplayName?: string;
   /** Full-pane empty when no conversation is selected. */
@@ -42,6 +47,8 @@ export function ChatMessageList({
   conversationId = null,
   visitorInitials = "V",
   visitorTyping = false,
+  visitorTypingDraft = "",
+  typingPreviews,
   visitorDisplayName = "Visitor",
   agentDisplayName = "You",
   showEmptyPlaceholder = false,
@@ -77,9 +84,26 @@ export function ChatMessageList({
 
   useLayoutEffect(() => {
     scrollThreadToBottom(true);
-  }, [displayMessages.length, lastMessageKey, visitorTyping, scrollThreadToBottom]);
+  }, [displayMessages.length, lastMessageKey, visitorTyping, typingPreviews?.length, scrollThreadToBottom]);
 
-  if (displayMessages.length === 0 && !visitorTyping) {
+  const activeTypingPreviews =
+    typingPreviews && typingPreviews.length > 0
+      ? typingPreviews
+      : visitorTyping
+        ? [
+            {
+              id: "visitor-legacy",
+              role: "visitor" as const,
+              label: visitorDisplayName,
+              draft: visitorTypingDraft.trim(),
+              kind: "visitor" as const,
+            },
+          ].filter((row) => row.draft.length > 0 || visitorTyping)
+        : [];
+
+  const showAnyTyping = activeTypingPreviews.length > 0;
+
+  if (displayMessages.length === 0 && !showAnyTyping) {
     return (
       <MessageThread ref={threadRef} sx={{ flex: "1 1 0", minHeight: 0 }}>
         <EmptyState>
@@ -109,9 +133,9 @@ export function ChatMessageList({
       sx={{
         flex: "1 1 0",
         minHeight: 0,
-        px: { xs: 2, md: 3 },
+        ...chatOpsTranscriptInsetSx,
         py: 2.5,
-        gap: 1.25,
+        gap: 0,
       }}
     >
       {groups.map((group) => (
@@ -130,18 +154,39 @@ export function ChatMessageList({
         </div>
       ))}
 
-      {visitorTyping ? (
-        <TypingIndicator>
-          <Typography variant="caption" sx={{ fontWeight: 500 }}>
-            {visitorDisplayName} is typing
-          </Typography>
-          <TypingDots aria-hidden>
-            <span />
-            <span />
-            <span />
-          </TypingDots>
-        </TypingIndicator>
-      ) : null}
+      {activeTypingPreviews.map((preview) => {
+        const hasDraft = preview.draft.length > 0;
+        if (hasDraft) {
+          return (
+            <ChatMessageBubble
+              key={preview.id}
+              message={{
+                id: preview.id,
+                conversationId: conversationId ?? "",
+                content: preview.draft,
+                role: preview.role,
+                metadata: { typingPreview: true },
+              }}
+              visitorInitials={visitorInitials}
+              visitorDisplayName={preview.label}
+              agentDisplayName={preview.label}
+              groupPosition="single"
+            />
+          );
+        }
+        return (
+          <TypingIndicator key={preview.id}>
+            <Typography variant="caption" sx={{ fontWeight: 500 }}>
+              {preview.label} is typing
+            </Typography>
+            <TypingDots aria-hidden>
+              <span />
+              <span />
+              <span />
+            </TypingDots>
+          </TypingIndicator>
+        );
+      })}
     </MessageThread>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import ComputerOutlined from "@mui/icons-material/ComputerOutlined";
 import EmailOutlined from "@mui/icons-material/EmailOutlined";
 import ExpandMore from "@mui/icons-material/ExpandMore";
@@ -18,7 +18,23 @@ import Link from "@mui/material/Link";
 import { alpha, useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import { InputField, Typography } from "@/components/common";
-import { chatOpsDetailLabelSx, chatOpsDetailValueSx } from "../styles/chat-operations.styles";
+import {
+  chatOpsDetailLabelSx,
+  chatOpsDetailValueSx,
+  chatOpsProfileMetaGridSx,
+  chatOpsProfileMetaLabelSx,
+  chatOpsProfileMetaValueSx,
+} from "../styles/chat-operations.styles";
+import { mergeSx } from "@/lib/mui/merge-sx";
+import {
+  formatProfileChatDurationMinutes,
+  formatProfileChatId,
+  formatProfileChatTimeUtc,
+  isConversationClosed,
+  readAgentLabelFromMeta,
+  resolveChatEndedAt,
+  resolveChatStartedAt,
+} from "../utils/visitor-profile-meta";
 import type { AgentVisitorPresentation } from "@/services/chat/chat.types";
 import { parseVisitorInfo } from "../utils/visitor-info";
 import { VisitorLocationMap } from "./VisitorLocationMap";
@@ -47,6 +63,7 @@ interface VisitorInfoPanelProps {
   websiteId?: string | null;
   conversationMeta?: Record<string, unknown> | null;
   visitorPresentation?: AgentVisitorPresentation | null;
+  assignedAgentLabel?: string | null;
   assignedAgentId?: string | null;
   currentUserId?: string;
   hasOperational: (p: string) => boolean;
@@ -63,13 +80,112 @@ interface VisitorInfoPanelProps {
 }
 
 function DetailField({ label, value }: { label: string; value: string }) {
-  const theme = useTheme() as AppTheme;
   return (
     <Box>
       <Typography component="div" sx={chatOpsDetailLabelSx}>{label}</Typography>
       <Typography component="div" sx={chatOpsDetailValueSx}>
         {value}
       </Typography>
+    </Box>
+  );
+}
+
+function ProfileMetaField({
+  label,
+  value,
+  href,
+}: {
+  label: string;
+  value: string;
+  href?: string | null;
+}) {
+  const theme = useTheme() as AppTheme;
+  return (
+    <Box>
+      <Typography component="div" sx={chatOpsProfileMetaLabelSx}>
+        {label}
+      </Typography>
+      {href ? (
+        <Link
+          href={href}
+          target="_blank"
+          rel="noopener noreferrer"
+          sx={mergeSx(chatOpsProfileMetaValueSx, {
+            color: theme.app.dashboard.accentBlue,
+            textDecoration: "underline",
+            display: "inline-block",
+          })}
+        >
+          {value}
+        </Link>
+      ) : (
+        <Typography component="div" sx={chatOpsProfileMetaValueSx}>
+          {value}
+        </Typography>
+      )}
+    </Box>
+  );
+}
+
+function VisitorProfileMetaGrid({
+  conversationId,
+  conversationMeta,
+  visitorPresentation,
+  assignedAgentLabel,
+  sessionStartedAt,
+  currentPageUrl,
+}: {
+  conversationId: string;
+  conversationMeta?: Record<string, unknown> | null;
+  visitorPresentation?: AgentVisitorPresentation | null;
+  assignedAgentLabel?: string | null;
+  sessionStartedAt?: string;
+  currentPageUrl?: string;
+}) {
+  const websiteUrl =
+    visitorPresentation?.websiteUrl?.trim() ||
+    currentPageUrl?.trim() ||
+    (typeof conversationMeta?.websiteUrl === "string" ? conversationMeta.websiteUrl.trim() : "") ||
+    "";
+  const websiteDisplay = websiteUrl || "—";
+  const agentLabel =
+    assignedAgentLabel?.trim() ||
+    readAgentLabelFromMeta(conversationMeta) ||
+    "Unassigned";
+  const chatId = formatProfileChatId(conversationId);
+  const startedAt = resolveChatStartedAt(conversationMeta, sessionStartedAt);
+  const endedAt = resolveChatEndedAt(conversationMeta);
+  const closed = isConversationClosed(conversationMeta);
+
+  const [durationLabel, setDurationLabel] = useState(() =>
+    startedAt ? formatProfileChatDurationMinutes(startedAt, endedAt ? new Date(endedAt).getTime() : undefined) : "—",
+  );
+
+  useEffect(() => {
+    if (!startedAt) {
+      setDurationLabel("—");
+      return;
+    }
+    const endMs = endedAt ? new Date(endedAt).getTime() : undefined;
+    const tick = () => setDurationLabel(formatProfileChatDurationMinutes(startedAt, endMs));
+    tick();
+    if (closed || endMs != null) return;
+    const id = window.setInterval(tick, 30_000);
+    return () => window.clearInterval(id);
+  }, [startedAt, endedAt, closed]);
+
+  const chatTime = useMemo(
+    () => (startedAt ? formatProfileChatTimeUtc(startedAt) : "—"),
+    [startedAt],
+  );
+
+  return (
+    <Box sx={{ ...chatOpsProfileMetaGridSx, px: 2, pt: 2, pb: 2 }}>
+      <ProfileMetaField label="Website" value={websiteDisplay} href={websiteUrl || null} />
+      <ProfileMetaField label="Chat time" value={chatTime} />
+      <ProfileMetaField label="Agent" value={agentLabel} />
+      <ProfileMetaField label="Chat duration" value={durationLabel} />
+      <ProfileMetaField label="Chat ID" value={chatId} />
     </Box>
   );
 }
@@ -91,6 +207,7 @@ export function VisitorInfoPanel({
   websiteId = null,
   conversationMeta,
   visitorPresentation = null,
+  assignedAgentLabel = null,
   assignedAgentId = null,
   currentUserId,
   hasOperational,
@@ -114,11 +231,6 @@ export function VisitorInfoPanel({
     canUseSupervisorTools(hasOperational) && Boolean(conversationId) && !supervisorReadOnly;
   const supervisor = useConversationSupervisor(conversationId, supervisorEnabled);
 
-  useEffect(() => {
-    if (!supervisorEnabled || supervisorRefreshToken === 0) return;
-    void supervisor.refresh();
-  }, [supervisorRefreshToken, supervisorEnabled, supervisor.refresh]);
-
   const journey =
     parsed.journey.length > 0
       ? parsed.journey
@@ -140,9 +252,17 @@ export function VisitorInfoPanel({
           <PanelHeader sx={{ py: 1.25, px: 2 }}>
             <Typography sx={chatOpsPaneTitleSx}>Visitor profile</Typography>
           </PanelHeader>
+          <VisitorProfileMetaGrid
+            conversationId={conversationId}
+            conversationMeta={conversationMeta}
+            visitorPresentation={visitorPresentation}
+            assignedAgentLabel={assignedAgentLabel}
+            sessionStartedAt={parsed.sessionStartedAt}
+            currentPageUrl={parsed.currentPageUrl}
+          />
           <ProfileAccordion sx={{ px: 0 }}>
           <ProfileHeroCard>
-            <Box sx={{ display: "flex", gap: 1.5, alignItems: "center" }}>
+            <Box sx={{ display: "flex", gap: 1.5, alignItems: "flex-start" }}>
               <QueueAvatar sx={{ width: 52, height: 52, fontSize: 15 }}>{parsed.initials}</QueueAvatar>
               <Box sx={{ minWidth: 0 }}>
                 <Typography fontWeight={700} sx={{ fontSize: 15, color: theme.app.text.primary }}>
@@ -247,7 +367,7 @@ export function VisitorInfoPanel({
             </AccordionSummary>
             <AccordionDetails sx={{ pt: 0, pb: 2 }}>
               <ProfileDetailRow>
-                {parsed.sessionFields.slice(0, 3).map((f) => (
+                {parsed.sessionFields.map((f) => (
                   <DetailField key={f.label} label={f.label} value={f.value} />
                 ))}
               </ProfileDetailRow>

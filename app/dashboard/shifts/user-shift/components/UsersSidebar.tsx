@@ -12,6 +12,7 @@ import {
   Button,
   DashboardCard,
   SearchBar,
+  SearchSubmitButton,
   SelectField,
   TablePagination,
   ToolbarFilterPopover,
@@ -337,7 +338,7 @@ export function UsersSidebar({
   };
 
   return (
-    <DashboardCard sx={{ ...rolesCard, p: { xs: 1.25, sm: 1.5, md: 1.75 } }}>
+    <DashboardCard sx={{ ...rolesCard, p: { xs: 1.25, sm: 1.5, md: 1.75 }, height: "auto" }}>
       <Typography variant="mediumLarge" fontWeight={700} sx={{ mb: 0.5, color: "text.primary" }}>
         Users
       </Typography>
@@ -353,24 +354,18 @@ export function UsersSidebar({
           />
         </Box>
         <Box sx={userShiftUsersSearchActionsSx}>
-          <Button
-            type="button"
-            variant="primary"
+          <SearchSubmitButton
             disabled={searchApplyDisabled}
             onClick={onSearchApply}
             sx={{
               flexShrink: 0,
-              alignSelf: { xs: "stretch", sm: "center" },
               minHeight: 40,
               px: 2.5,
               py: 1,
-              whiteSpace: "nowrap",
               width: { xs: "100%", sm: "auto" },
               minWidth: { xs: 0, sm: 120 },
             }}
-          >
-            Search
-          </Button>
+          />
           <Box sx={{ flexShrink: 0, display: "inline-flex", alignItems: "center" }}>
             <ToolbarFilterPopover open={filterOpen} onOpenChange={setFilterOpen} active={filterActive}>
               {userListFilterPanel}
@@ -381,7 +376,13 @@ export function UsersSidebar({
 
       <Box sx={{ mt: 1.25, mb: 1, borderTop: `1px solid ${theme.palette.divider}` }} />
 
-      <Box sx={{ maxHeight: { xs: 360, lg: "calc(100vh - 320px)" }, overflow: "auto" }}>
+      <Box
+        sx={{
+          maxHeight: { xs: 360, lg: "calc(100vh - 320px)" },
+          overflow: "auto",
+          "&::-webkit-scrollbar": { display: "none" },
+        }}
+      >
         <List dense disablePadding>
           {(typeFilter === "all" || typeFilter === "Internal") && internalUsers.length > 0 ? (
             <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, px: 0.5, py: 0.5, display: "block" }}>

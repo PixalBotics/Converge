@@ -4,7 +4,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSearchParams, useRouter } from "next/navigation";
 import Box from "@mui/material/Box";
-import { getAccessToken, postAgentAiSuggestion, parseAgentSuggestResponse } from "@/api";
+import { postAgentAiSuggestion, parseAgentSuggestResponse } from "@/api";
+import { useAccessToken } from "@/lib/auth/use-access-token";
 import type { AgentAiAction } from "@/api/ai/agent-suggest.api";
 import { buildAgentCopilotInput, agentAiActionNeedsWebsite } from "@/lib/ai/agent-copilot-input";
 import { useAuth, useResellerListScope } from "@/lib/auth";
@@ -13,7 +14,6 @@ import {
   needsChatScopeFilters,
   useChatApiGates,
 } from "@/lib/permissions";
-import { useNotificationsContext } from "@/lib/notifications/NotificationsContext";
 import { useAgentChat } from "@/lib/hooks/chat/useAgentChat";
 import { mergeSx } from "@/lib/mui/merge-sx";
 import { extractApiErrorMessageForToast, publishAppToast } from "@/lib/notify";
@@ -34,6 +34,7 @@ import { chatMonitorKeys } from "@/features/chat-monitor/hooks/keys";
 import { useChatMonitor } from "@/features/chat-monitor/hooks/useChatMonitor";
 import {
   chatLiveAgentStackSx,
+  chatLiveWorkstationToolbarRowSx,
 } from "@/features/chat-shared/styles/chat-live.styles";
 import type { AgentVisitorPresentation, ConversationSummary } from "@/services/chat/chat.types";
 import { extractVisitorPresentation } from "@/services/chat/visitor-presentation";
@@ -48,7 +49,6 @@ import {
   patchConversationDraft,
 } from "../utils/conversation-scoped-state";
 import { ChatConversationPanel } from "./ChatConversationPanel";
-import { AgentDistributionPrompt } from "./AgentDistributionPrompt";
 import { ChatQueueSidebar } from "./ChatQueueSidebar";
 import { VisitorInfoPanel } from "./VisitorInfoPanel";
 import {
@@ -66,22 +66,13 @@ export function ChatOperationsWorkspace() {
   const gates = useChatApiGates();
   const monitorApiEnabled = gates.monitor;
   const { canFilterByResellerId } = useResellerListScope();
-  const notifications = useNotificationsContext();
   const searchParams = useSearchParams();
   const router = useRouter();
   const inboxAllowed = gates.agentInbox;
   const showScopeFilters = needsChatScopeFilters(hasOperational, canFilterByResellerId);
-  const accessToken = inboxAllowed ? getAccessToken() ?? "" : "";
+  const accessToken = useAccessToken() ?? "";
   const scopeFilters = useChatScopeFilters(undefined, { apiEnabled: showScopeFilters });
   const conversationIdFromUrl = searchParams.get("conversationId")?.trim() ?? "";
-
-  const markAllChatNotificationsRead = notifications?.markAllRead;
-
-  useEffect(() => {
-    if (inboxAllowed && markAllChatNotificationsRead) {
-      void markAllChatNotificationsRead("chat");
-    }
-  }, [inboxAllowed, markAllChatNotificationsRead]);
 
   useEffect(() => {
     if (searchParams.get("wrapUp") !== "1" || !conversationIdFromUrl) return;
@@ -173,6 +164,7 @@ export function ChatOperationsWorkspace() {
       (c) =>
         (c.status === "waiting" ||
           c.queuedForAgent === true ||
+          c.talkToAgentRequested === true ||
           c.handoverRequested === true) &&
         !isUnassignedActiveChat(c),
     );
@@ -291,10 +283,6 @@ export function ChatOperationsWorkspace() {
   const visitorPresentation: AgentVisitorPresentation | null = selectedSummary
     ? extractVisitorPresentation(selectedSummary)
     : null;
-  const conversationMeta =
-    selectedSummary && typeof selectedSummary === "object"
-      ? (selectedSummary as Record<string, unknown>)
-      : null;
   const viewingOtherAgent = Boolean(
     superviseAgent && teamAgent?.userId && teamAgent.userId !== user?.id,
   );
@@ -303,6 +291,15 @@ export function ChatOperationsWorkspace() {
     user?.displayName?.trim() ||
     user?.email?.trim() ||
     "You";
+  const conversationMeta =
+    selectedSummary && typeof selectedSummary === "object"
+      ? ({
+          ...(selectedSummary as Record<string, unknown>),
+          ...(assignedAgentLabel
+            ? { agentNameSnapshot: assignedAgentLabel, agentName: assignedAgentLabel }
+            : {}),
+        } as Record<string, unknown>)
+      : null;
   const assignedAgentId =
     typeof selectedSummary?.assignedAgentId === "string"
       ? selectedSummary.assignedAgentId
@@ -563,19 +560,7 @@ export function ChatOperationsWorkspace() {
     <ChatLivePageShell variant="workstation" sx={chatLiveAgentStackSx}>
       {showScopeFilters ? (
         <>
-          <Box
-            sx={{
-              flexShrink: 0,
-              display: "flex",
-              flexWrap: "wrap",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: 1,
-              px: { xs: 0.5, md: 1 },
-              pt: 0.5,
-              pb: 0.25,
-            }}
-          >
+          <Box sx={chatLiveWorkstationToolbarRowSx}>
             <ChatLiveViewSwitch
               options={[
                 { id: "team", label: "By website" },
@@ -702,6 +687,8 @@ export function ChatOperationsWorkspace() {
               readOnly={agentReadOnly}
               assignedAgentLabel={assignedAgentLabel}
               visitorTyping={agentChat.visitorTypingSelected && !agentChat.selectedIsClosed}
+              visitorTypingDraft={agentChat.visitorTypingDraft}
+              remoteTypingEntries={agentChat.remoteTypingEntries}
               composer={composer}
               onComposerChange={setComposer}
               onSend={() => void sendNow()}
@@ -742,6 +729,7 @@ export function ChatOperationsWorkspace() {
               websiteId={websiteIdEffective || null}
               conversationMeta={conversationMeta}
               visitorPresentation={visitorPresentation}
+              assignedAgentLabel={assignedAgentLabel}
               assignedAgentId={assignedAgentId}
               currentUserId={user?.id}
               hasOperational={hasOperational}
@@ -759,13 +747,6 @@ export function ChatOperationsWorkspace() {
       </Box>
 
     </ChatLivePageShell>
-
-      {wrapUpForSelected?.requiresDistributionForm && !wrapUpForSelected.distributionSubmitted ? (
-        <AgentDistributionPrompt
-          payload={wrapUpForSelected}
-          onDismiss={agentChat.dismissWrapUp}
-        />
-      ) : null}
     </>
   );
 }
