@@ -1,13 +1,11 @@
 "use client";
 
 import Box from "@mui/material/Box";
-import { useTheme } from "@mui/material/styles";
-import type { AppTheme } from "@/theme/theme";
 import {
   Button,
   SelectField,
+  FilterPanelHeader,
   ToolbarFilterPopoverPanel,
-  Typography,
 } from "@/components/common";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
 import { websiteAssignmentFilterGrid } from "@/app/dashboard/website-assigning/website-assigning.styles";
@@ -44,8 +42,6 @@ export function DistributionListFilterPanel({
   onClearAll,
   onClose,
 }: DistributionListFilterPanelProps) {
-  const theme = useTheme() as AppTheme;
-
   return (
     <ToolbarFilterPopoverPanel
       footer={
@@ -59,15 +55,10 @@ export function DistributionListFilterPanel({
         </>
       }
     >
-      <Typography variant="medium" fontWeight={700} sx={{ mb: 0.5 }}>
-        Distribution filters
-      </Typography>
-      <Typography
-        variant="caption"
-        sx={{ display: "block", mb: 1.5, lineHeight: 1.5, color: theme.app.dashboard.textMuted }}
-      >
-        Narrow the table by organization scope or published status. Search still matches names and URLs.
-      </Typography>
+      <FilterPanelHeader
+        title="Distribution filters"
+        description="Narrow the table by organization scope or published status. Search still matches names and URLs."
+      />
       <Box sx={websiteAssignmentFilterGrid}>
         <SelectField
           label="Status"

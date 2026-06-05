@@ -195,7 +195,7 @@ export function DistributionListPage() {
       <DashboardCard sx={{ p: { xs: 2, md: 2.5 } }}>
         <Box sx={{ display: "flex", flexWrap: "wrap", gap: 2, alignItems: "center", mb: 2 }}>
           <Box sx={{ flex: "1 1 240px", minWidth: 0 }}>
-            <Typography fontWeight={700} sx={{ fontSize: 18, mb: 0.5 }}>
+            <Typography fontWeight={700} sx={{ fontSize: 22, lineHeight: "22px", mb: 0.5 }}>
               Distribution
             </Typography>
             <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted }}>
@@ -221,6 +221,7 @@ export function DistributionListPage() {
             flexWrap: "wrap",
             gap: 1.5,
             alignItems: "center",
+            justifyContent: "flex-end",
             mb: 2,
           }}
         >
@@ -228,7 +229,7 @@ export function DistributionListPage() {
             value={search}
             onChange={setSearch}
             placeholder="Search client, company, website, department…"
-            sx={{ flex: "1 1 240px", minWidth: 0, maxWidth: 420 }}
+            sx={{ flex: "0 1 420px", minWidth: { xs: "100%", sm: 240 }, maxWidth: 420 }}
           />
           <ToolbarFilterPopover
             open={filterPopoverOpen}

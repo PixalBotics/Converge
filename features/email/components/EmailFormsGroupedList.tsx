@@ -14,7 +14,7 @@ import ExpandMore from "@mui/icons-material/ExpandMore";
 import LanguageOutlined from "@mui/icons-material/LanguageOutlined";
 import StorefrontOutlined from "@mui/icons-material/StorefrontOutlined";
 import type { AppTheme } from "@/theme/theme";
-import { Typography } from "@/components/common";
+import { Typography, dataTableActionButton } from "@/components/common";
 import type { EmailFormListItem } from "@/api/email/email-forms.api";
 import { groupEmailFormsByOrg } from "../utils/group-email-forms";
 
@@ -61,13 +61,13 @@ function WebsiteFormRow({
         alignItems: "center",
         px: 2,
         py: 1.35,
-        borderBottom: `1px solid ${alpha(theme.app.dashboard.cardBorder, 0.45)}`,
+        borderBottom: `1px solid ${theme.app.dashboard.cardBorder}`,
         "&:last-of-type": { borderBottom: "none" },
-        "&:hover": { bgcolor: alpha(theme.palette.primary.main, 0.04) },
+        "&:hover": { bgcolor: alpha(theme.palette.common.white, 0.03) },
       }}
     >
       <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1.25, minWidth: 0 }}>
-        <LanguageOutlined sx={{ fontSize: 18, color: theme.palette.primary.light, mt: 0.25 }} />
+        <LanguageOutlined sx={{ fontSize: 18, color: theme.app.dashboard.white60, mt: 0.25 }} />
         <Box sx={{ minWidth: 0 }}>
           <Typography variant="small" fontWeight={600} color="white" sx={{ wordBreak: "break-word" }}>
             {item.website}
@@ -92,13 +92,19 @@ function WebsiteFormRow({
       </Typography>
 
       <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 0.5 }}>
-        <IconButton size="small" aria-label={`Edit form for ${item.website}`} onClick={() => onEdit(item)}>
+        <IconButton
+          size="small"
+          aria-label={`Edit form for ${item.website}`}
+          sx={{ ...dataTableActionButton, color: theme.app.dashboard.white80 }}
+          onClick={() => onEdit(item)}
+        >
           <EditOutlined fontSize="small" />
         </IconButton>
         <IconButton
           size="small"
           aria-label={`Delete form for ${item.website}`}
           disabled={deleting}
+          sx={{ ...dataTableActionButton, color: theme.app.dashboard.accentRedLight }}
           onClick={() => onDelete(item)}
         >
           <DeleteOutline fontSize="small" />
@@ -129,10 +135,9 @@ function ChildCompanyBlock({
   return (
     <Box
       sx={{
-        borderRadius: 2,
-        border: `1px solid ${alpha(theme.app.dashboard.cardBorder, 0.85)}`,
+        borderRadius: 1.5,
+        border: `1px solid ${theme.app.dashboard.cardBorder}`,
         overflow: "hidden",
-        bgcolor: alpha(theme.palette.common.white, 0.02),
       }}
     >
       <Box
@@ -143,11 +148,11 @@ function ChildCompanyBlock({
           flexWrap: "wrap",
           alignItems: "center",
           gap: 1,
-          borderBottom: `1px solid ${alpha(theme.app.dashboard.cardBorder, 0.65)}`,
-          bgcolor: alpha(theme.palette.common.white, 0.03),
+          borderBottom: `1px solid ${theme.app.dashboard.cardBorder}`,
+          bgcolor: alpha(theme.palette.common.white, 0.02),
         }}
       >
-        <BusinessOutlined sx={{ fontSize: 18, color: theme.palette.primary.light }} />
+        <BusinessOutlined sx={{ fontSize: 18, color: theme.app.dashboard.white60 }} />
         <Box sx={{ flex: 1, minWidth: 0 }}>
           <Typography variant="small" fontWeight={700} color="white">
             {childCompany}
@@ -163,10 +168,10 @@ function ChildCompanyBlock({
           label={`${websites.length} site${websites.length === 1 ? "" : "s"}`}
           sx={{
             height: 22,
-            fontWeight: 700,
+            fontWeight: 600,
             fontSize: 11,
-            bgcolor: alpha(theme.palette.primary.main, 0.12),
-            color: theme.palette.primary.light,
+            bgcolor: alpha(theme.palette.common.white, 0.06),
+            color: theme.app.dashboard.textMuted,
           }}
         />
       </Box>
@@ -179,30 +184,30 @@ function ChildCompanyBlock({
             gap: 2,
             px: 2,
             py: 0.85,
-            borderBottom: `1px solid ${alpha(theme.app.dashboard.cardBorder, 0.45)}`,
+            borderBottom: `1px solid ${theme.app.dashboard.cardBorder}`,
           }}
         >
-          <Typography variant="caption" fontWeight={700} sx={{ color: theme.app.dashboard.textMuted }}>
+          <Typography variant="caption" fontWeight={600} sx={{ color: theme.app.dashboard.white80 }}>
             Website
           </Typography>
           <Typography
             variant="caption"
-            fontWeight={700}
-            sx={{ color: theme.app.dashboard.textMuted, textAlign: "center", minWidth: 88 }}
+            fontWeight={600}
+            sx={{ color: theme.app.dashboard.white80, textAlign: "center", minWidth: 88 }}
           >
             Form type
           </Typography>
           <Typography
             variant="caption"
-            fontWeight={700}
-            sx={{ color: theme.app.dashboard.textMuted, textAlign: "center", minWidth: 64 }}
+            fontWeight={600}
+            sx={{ color: theme.app.dashboard.white80, textAlign: "center", minWidth: 64 }}
           >
             Fields
           </Typography>
           <Typography
             variant="caption"
-            fontWeight={700}
-            sx={{ color: theme.app.dashboard.textMuted, textAlign: "right", minWidth: 72 }}
+            fontWeight={600}
+            sx={{ color: theme.app.dashboard.white80, textAlign: "right", minWidth: 72 }}
           >
             Actions
           </Typography>
@@ -240,11 +245,9 @@ function ResellerGroupCard({
   return (
     <Box
       sx={{
-        borderRadius: 2.5,
-        border: `1px solid ${alpha(theme.app.dashboard.cardBorder, 0.9)}`,
+        borderRadius: 1.5,
+        border: `1px solid ${theme.app.dashboard.cardBorder}`,
         overflow: "hidden",
-        bgcolor: alpha(theme.palette.common.white, 0.02),
-        boxShadow: `0 12px 36px ${alpha(theme.palette.common.black, 0.18)}`,
       }}
     >
       <Box
@@ -265,11 +268,12 @@ function ResellerGroupCard({
           px: 2,
           py: 1.5,
           cursor: "pointer",
-          background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.16)} 0%, ${alpha(theme.app.dashboard.pillBg, 0.9)} 100%)`,
-          borderBottom: open ? `1px solid ${alpha(theme.app.dashboard.cardBorder, 0.65)}` : "none",
+          bgcolor: alpha(theme.palette.common.white, 0.02),
+          borderBottom: open ? `1px solid ${theme.app.dashboard.cardBorder}` : "none",
+          "&:hover": { bgcolor: alpha(theme.palette.common.white, 0.04) },
         }}
       >
-        <StorefrontOutlined sx={{ color: theme.palette.primary.light }} />
+        <StorefrontOutlined sx={{ color: theme.app.dashboard.white60 }} />
         <Box sx={{ flex: 1, minWidth: 0 }}>
           <Typography variant="medium" fontWeight={700} color="white">
             {group.resellerName}
@@ -284,15 +288,16 @@ function ResellerGroupCard({
           label="Reseller"
           sx={{
             height: 22,
-            fontWeight: 700,
+            fontWeight: 600,
             fontSize: 11,
-            bgcolor: alpha(theme.palette.common.white, 0.08),
+            bgcolor: alpha(theme.palette.common.white, 0.06),
             color: theme.app.dashboard.textMuted,
           }}
         />
         <IconButton
           size="small"
           aria-label={open ? "Collapse reseller group" : "Expand reseller group"}
+          sx={{ ...dataTableActionButton, color: theme.app.dashboard.white80 }}
           onClick={(e) => {
             e.stopPropagation();
             setOpen((v) => !v);
@@ -347,22 +352,34 @@ export function EmailFormsGroupedList({
   if (items.length === 0) return null;
 
   return (
-    <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+    <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
       <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
         <Chip
           size="small"
           label={`${stats.resellers} reseller${stats.resellers === 1 ? "" : "s"}`}
-          sx={{ fontWeight: 700, bgcolor: alpha(theme.palette.primary.main, 0.12), color: theme.palette.primary.light }}
+          sx={{
+            fontWeight: 600,
+            bgcolor: alpha(theme.palette.common.white, 0.06),
+            color: theme.app.dashboard.textMuted,
+          }}
         />
         <Chip
           size="small"
           label={`${stats.children} child compan${stats.children === 1 ? "y" : "ies"}`}
-          sx={{ fontWeight: 700, bgcolor: alpha(theme.palette.common.white, 0.06), color: theme.app.dashboard.textMuted }}
+          sx={{
+            fontWeight: 600,
+            bgcolor: alpha(theme.palette.common.white, 0.06),
+            color: theme.app.dashboard.textMuted,
+          }}
         />
         <Chip
           size="small"
           label={`${stats.websites} website form${stats.websites === 1 ? "" : "s"}`}
-          sx={{ fontWeight: 700, bgcolor: alpha(theme.palette.success.main, 0.12), color: theme.palette.success.light }}
+          sx={{
+            fontWeight: 600,
+            bgcolor: alpha(theme.palette.common.white, 0.06),
+            color: theme.app.dashboard.textMuted,
+          }}
         />
       </Box>
 

@@ -157,7 +157,7 @@ export function InvolvementUsersTab({
   );
 
   return (
-    <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+    <Box sx={{ display: "flex", flexDirection: "column", gap: 2, flex: 1, minHeight: 0 }}>
       <InvolvementTabToolbarCard
         icon={<GroupsOutlined />}
         iconColor={theme.app.dashboard.accentBlue}
@@ -170,20 +170,20 @@ export function InvolvementUsersTab({
         addLabel="Add involvement users"
         onAdd={() => setAddOpen(true)}
         canAdd={canEdit}
-      />
-
-      <DataTable<InvolvementListRow>
-        columns={columns}
-        rows={rows}
-        getRowId={(row) => row.id}
-        isLoading={listQuery.isLoading}
-        emptyState={{
-          title: listQuery.isError ? "Could not load" : "No involvement users",
-          description: listQuery.isError
-            ? "Check permissions and try again."
-            : "No rows in your scope yet. Use Add involvement users.",
-        }}
-      />
+      >
+        <DataTable<InvolvementListRow>
+          columns={columns}
+          rows={rows}
+          getRowId={(row) => row.id}
+          isLoading={listQuery.isLoading}
+          emptyState={{
+            title: listQuery.isError ? "Could not load" : "No involvement users",
+            description: listQuery.isError
+              ? "Check permissions and try again."
+              : "No rows in your scope yet. Use Add involvement users.",
+          }}
+        />
+      </InvolvementTabToolbarCard>
 
       <InvolvementAddSupervisorsModal
         open={addOpen}

@@ -62,6 +62,8 @@ export { FilterButton } from "./FilterButton/FilterButton";
 export { ToolbarFilterPopover } from "./ToolbarFilterPopover/ToolbarFilterPopover";
 export { ToolbarFilterPopoverPanel } from "./ToolbarFilterPopoverPanel";
 export type { ToolbarFilterPopoverPanelProps } from "./ToolbarFilterPopoverPanel";
+export { FilterPanelHeader, filterPanelDescriptionSx } from "./FilterPanelHeader";
+export type { FilterPanelHeaderProps } from "./FilterPanelHeader";
 export { TablePagination } from "./TablePagination/TablePagination";
 export { FormModal } from "./FormModal/FormModal";
 export { EditIpBlockModal } from "./EditIpBlockModal/EditIpBlockModal";

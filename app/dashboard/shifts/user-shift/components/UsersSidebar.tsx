@@ -16,6 +16,7 @@ import {
   SelectField,
   TablePagination,
   ToolbarFilterPopover,
+  FilterPanelHeader,
   ToolbarFilterPopoverPanel,
   Typography,
 } from "@/components/common";
@@ -167,9 +168,7 @@ export function UsersSidebar({
           </>
         }
       >
-        <Typography variant="medium" fontWeight={700} sx={{ color: theme.palette.text.primary, mb: 1.5 }}>
-          Filters
-        </Typography>
+        <FilterPanelHeader title="Filters" />
         <Box sx={userShiftFilterPopoverStackSx}>
             <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
               <Chip

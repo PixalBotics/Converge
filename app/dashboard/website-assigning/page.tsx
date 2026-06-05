@@ -333,7 +333,10 @@ export default function WebsiteAssigningPage() {
           <Typography variant="regularLarge" fontWeight={700} sx={{ color: theme.app.text.primary, mb: 0.5, letterSpacing: "-0.02em" }}>
             Website assignments
           </Typography>
-          <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted, maxWidth: 560 }}>
+          <Typography
+            variant="medium"
+            sx={{ color: theme.app.dashboard.textMuted, maxWidth: 560, fontSize: 14, lineHeight: "20px" }}
+          >
             Manage service schedules and agent rosters per website — scoped to your reseller or client.
           </Typography>
         </Box>

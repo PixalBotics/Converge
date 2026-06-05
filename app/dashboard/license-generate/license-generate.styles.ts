@@ -52,8 +52,7 @@ export const licenseGenerateFilterGrid: SxProps<Theme> = {
   display: "grid",
   gridTemplateColumns: {
     xs: "1fr",
-    sm: "repeat(2, 1fr)",
-    lg: "repeat(4, minmax(0, 1fr)) minmax(120px, auto)",
+    sm: "repeat(2, minmax(0, 1fr))",
   },
   gap: 2,
   alignItems: "end",

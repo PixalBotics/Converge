@@ -1,13 +1,11 @@
 "use client";
 
 import Box from "@mui/material/Box";
-import { useTheme } from "@mui/material/styles";
-import type { AppTheme } from "@/theme/theme";
 import {
   Button,
   SelectField,
+  FilterPanelHeader,
   ToolbarFilterPopoverPanel,
-  Typography,
 } from "@/components/common";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
 import { websiteAssignmentFilterGrid } from "@/app/dashboard/website-assigning/website-assigning.styles";
@@ -39,8 +37,6 @@ export function ChatInvolvementScopeFilterPanel({
   onClearAll,
   onClose,
 }: ChatInvolvementScopeFilterPanelProps) {
-  const theme = useTheme() as AppTheme;
-
   return (
     <ToolbarFilterPopoverPanel
       footer={
@@ -54,16 +50,10 @@ export function ChatInvolvementScopeFilterPanel({
         </>
       }
     >
-      <Typography variant="medium" fontWeight={700} sx={{ mb: 0.5 }}>
-        Table filters
-      </Typography>
-      <Typography
-        variant="caption"
-        sx={{ display: "block", mb: 1.5, lineHeight: 1.5, color: theme.app.dashboard.textMuted }}
-      >
-        Narrows the list below only. Platform sees all data in scope; reseller users see their
-        reseller. Add supervisors uses a separate form.
-      </Typography>
+      <FilterPanelHeader
+        title="Table filters"
+        description="Narrows the list below only. Platform sees all data in scope; reseller users see their reseller. Add supervisors uses a separate form."
+      />
       <Box sx={websiteAssignmentFilterGrid}>
         {canFilterByResellerId ? (
           <SelectField

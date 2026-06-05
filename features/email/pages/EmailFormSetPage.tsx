@@ -14,7 +14,8 @@ import TuneOutlined from "@mui/icons-material/TuneOutlined";
 import ViewListOutlined from "@mui/icons-material/ViewListOutlined";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import type { AppTheme } from "@/theme/theme";
-import { Button, InputField, Typography } from "@/components/common";
+import { integrationsMainCardSx } from "@/app/dashboard/integrations/integrations.styles";
+import { Button, DashboardCard, InputField, Typography } from "@/components/common";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
 import {
   getEmailFormForWebsite,
@@ -33,11 +34,7 @@ import type { PickWebsitePreset } from "@/features/website-assignments/component
 import { publishAppToast } from "@/lib/notify";
 import { extractApiErrorMessageForToast } from "@/lib/notify/extract-api-message";
 import { pageWrapper } from "@/app/dashboard/dashboard.styles";
-import {
-  EmailBuilderLayout,
-  EmailBuilderPanel,
-  EmailBuilderSectionTitle,
-} from "../styles/email-design.styled";
+import { EmailBuilderLayout } from "../styles/email-design.styled";
 import {
   emailFormBuilderPageSx,
   emailFormStickyFooterSx,
@@ -204,23 +201,20 @@ export function EmailFormSetPage() {
       </Box>
 
       {!isPickWebsiteComplete(preset) ? (
-        <EmailBuilderPanel sx={{ mb: 2 }}>
-          <EmailBuilderSectionTitle>
-            <Typography variant="small" fontWeight={700} color="white">
+        <DashboardCard sx={integrationsMainCardSx}>
+          <Box sx={{ minWidth: 0 }}>
+            <Typography variant="mediumLarge" color="white" fontWeight={600}>
               Website scope
             </Typography>
-          </EmailBuilderSectionTitle>
-          <Typography
-            variant="caption"
-            sx={{ color: theme.app.dashboard.textMuted, display: "block", mb: 2, lineHeight: 1.55 }}
-          >
-            Distribution forms are scoped per website. Select organization and site below — no popup.
-          </Typography>
-          <PickWebsiteFields
-            value={preset}
-            onChange={setPreset}
-          />
-        </EmailBuilderPanel>
+            <Typography
+              variant="small"
+              sx={{ color: theme.app.dashboard.textMuted, mt: 0.25, display: "block", maxWidth: 640 }}
+            >
+              Distribution forms are scoped per website. Select organization and site below — no popup.
+            </Typography>
+          </Box>
+          <PickWebsiteFields value={preset} onChange={setPreset} />
+        </DashboardCard>
       ) : formQuery.isLoading ? (
         <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", lg: "1fr 1fr" }, gap: 2 }}>
           <Skeleton variant="rounded" height={420} sx={{ borderRadius: 2.5 }} />
@@ -229,14 +223,18 @@ export function EmailFormSetPage() {
       ) : (
         <EmailBuilderLayout>
           <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-            <EmailBuilderPanel>
-              <EmailBuilderSectionTitle>
-                <Typography variant="small" fontWeight={700} color="white">
-                  Scope & template
-                </Typography>
-              </EmailBuilderSectionTitle>
+            <DashboardCard sx={integrationsMainCardSx}>
+              <Typography variant="mediumLarge" color="white" fontWeight={600}>
+                Groups & templates
+              </Typography>
+              <Typography
+                variant="small"
+                sx={{ color: theme.app.dashboard.textMuted, mt: 0.25, display: "block", maxWidth: 640 }}
+              >
+                Choose standard or custom fields for this website&apos;s distribution wrap-up email.
+              </Typography>
 
-              <Box sx={emailFormWebsiteScopeSx}>
+              <Box sx={{ ...emailFormWebsiteScopeSx, mt: 1.5 }}>
                 <Box
                   sx={{
                     width: 44,
@@ -300,15 +298,15 @@ export function EmailFormSetPage() {
               </Box>
 
               <InputField
-                label="Form name"
+                label="Master name"
                 name="formName"
                 value={formName}
                 onChange={(e) => setFormName(e.target.value)}
                 placeholder={formType === "standard" ? "Standard distribution form" : "Custom distribution form"}
               />
-            </EmailBuilderPanel>
+            </DashboardCard>
 
-            <EmailBuilderPanel>
+            <DashboardCard sx={integrationsMainCardSx}>
               <EmailFormFieldsPanel
                 fields={fields}
                 formType={formType}
@@ -329,7 +327,7 @@ export function EmailFormSetPage() {
                   {saveMutation.isPending ? "Saving…" : "Save configuration"}
                 </Button>
               </Box>
-            </EmailBuilderPanel>
+            </DashboardCard>
           </Box>
 
           <EmailFormPreviewPanel formName={formName} formType={formType} fields={fields} />

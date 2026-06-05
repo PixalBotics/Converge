@@ -1,14 +1,12 @@
 "use client";
 
 import Box from "@mui/material/Box";
-import { useTheme } from "@mui/material/styles";
-import type { AppTheme } from "@/theme/theme";
 import {
   Button,
   Calendar,
+  FilterPanelHeader,
   SelectField,
   ToolbarFilterPopoverPanel,
-  Typography,
 } from "@/components/common";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
 import { websiteAssignmentFilterGrid } from "@/app/dashboard/website-assigning/website-assigning.styles";
@@ -58,8 +56,6 @@ export function ChatScopeFilterPopoverPanel({
   title = "Scope filters",
   hint,
 }: ChatScopeFilterPopoverPanelProps) {
-  const theme = useTheme() as AppTheme;
-
   return (
     <ToolbarFilterPopoverPanel
       footer={
@@ -73,17 +69,7 @@ export function ChatScopeFilterPopoverPanel({
         </>
       }
     >
-      <Typography variant="medium" fontWeight={700} sx={{ mb: 0.5 }}>
-        {title}
-      </Typography>
-      {hint ? (
-        <Typography
-          variant="caption"
-          sx={{ display: "block", mb: 1.5, lineHeight: 1.5, color: theme.app.dashboard.textMuted }}
-        >
-          {hint}
-        </Typography>
-      ) : null}
+      <FilterPanelHeader title={title} description={hint} />
       <Box sx={websiteAssignmentFilterGrid}>
         {canFilterByResellerId ? (
           <SelectField

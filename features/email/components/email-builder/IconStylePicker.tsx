@@ -58,7 +58,8 @@ export function IconStylePicker({
   compact?: boolean;
 }) {
   const theme = useTheme() as AppTheme;
-  const accent = accentColor ?? theme.palette.primary.main;
+  const selectionAccent = theme.palette.primary.main;
+  const accent = accentColor ?? selectionAccent;
   const d = theme.app.dashboard;
 
   return (
@@ -99,19 +100,27 @@ export function IconStylePicker({
                 textAlign: "center",
                 cursor: disabled ? "not-allowed" : "pointer",
                 borderRadius: 1.5,
-                border: `1px solid ${selected ? alpha(accent, 0.7) : alpha(d.cardBorder, 0.9)}`,
-                bgcolor: selected
-                  ? `linear-gradient(160deg, ${alpha(accent, 0.22)} 0%, ${alpha(theme.palette.common.black, 0.12)} 100%)`
+                border: `1px solid ${selected ? alpha(selectionAccent, 0.65) : alpha(d.cardBorder, 0.9)}`,
+                background: selected
+                  ? `linear-gradient(145deg, ${alpha(selectionAccent, 0.16)} 0%, ${alpha(theme.palette.common.white, 0.04)} 100%)`
                   : alpha(theme.palette.common.white, 0.04),
+                color: selected ? theme.palette.primary.light : theme.app.text.primary,
+                font: "inherit",
+                appearance: "none",
+                WebkitAppearance: "none",
                 opacity: disabled ? 0.55 : 1,
-                transition: "border-color 0.15s, background 0.15s, box-shadow 0.15s",
-                boxShadow: selected ? `0 4px 14px ${alpha(accent, 0.2)}` : "none",
+                transition: "border-color 0.15s, background 0.15s, box-shadow 0.15s, color 0.15s",
+                boxShadow: selected ? `0 4px 14px ${alpha(selectionAccent, 0.15)}` : "none",
                 "&:hover": disabled
                   ? undefined
-                  : {
-                      borderColor: accent,
-                      bgcolor: `${accent}14`,
-                    },
+                  : selected
+                    ? {
+                        borderColor: alpha(selectionAccent, 0.75),
+                      }
+                    : {
+                        borderColor: selectionAccent,
+                        background: alpha(selectionAccent, 0.08),
+                      },
               }}
             >
               {selected ? (
@@ -121,7 +130,7 @@ export function IconStylePicker({
                     top: 6,
                     right: 6,
                     fontSize: 14,
-                    color: accent,
+                    color: selectionAccent,
                   }}
                 />
               ) : null}
@@ -136,13 +145,20 @@ export function IconStylePicker({
               >
                 {previewGlyph(sampleField, opt.value, accent)}
               </Box>
-              <Typography variant="caption" fontWeight={selected ? 700 : 600} sx={{ display: "block" }}>
+              <Typography
+                variant="caption"
+                fontWeight={selected ? 700 : 600}
+                sx={{
+                  display: "block",
+                  color: selected ? theme.palette.primary.light : theme.app.text.primary,
+                }}
+              >
                 {opt.label.split(" (")[0]}
               </Typography>
               <Typography
                 variant="caption"
                 sx={{
-                  color: d.textMuted,
+                  color: selected ? alpha(theme.palette.primary.light, 0.88) : d.textMuted,
                   display: "block",
                   lineHeight: 1.25,
                   mt: 0.25,

@@ -2,13 +2,13 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import PaletteOutlined from "@mui/icons-material/PaletteOutlined";
 import Box from "@mui/material/Box";
-import Skeleton from "@mui/material/Skeleton";
 import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
+import { integrationsMainCardSx } from "@/app/dashboard/integrations/integrations.styles";
 import {
   Button,
+  DashboardCard,
   DataTable,
   SearchBar,
   TablePagination,
@@ -17,13 +17,10 @@ import {
 import type { DataTableColumn } from "@/components/common";
 import { AddCircleIcon } from "@/components/common/icons";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
-import { iconGlyphSx } from "@/lib/design-system";
 import { useAuth } from "@/lib/auth";
 import { useEmailTemplateAccess } from "../hooks/useEmailTemplateAccess";
 import { EMAIL_ROUTES } from "../email.constants";
 import { EmailAddResellerDesignModal } from "../components/EmailAddResellerDesignModal";
-import { EmailConfigTableCard } from "../styles/email-configuration.styled";
-import { EmailTableCardHeader } from "../components/EmailTableCardHeader";
 import { EmailDesignPreviewOverlay } from "../components/EmailDesignPreviewOverlay";
 import { EmailDesignSourceChip } from "../components/EmailDesignSourceChip";
 import { EmailDesignTableActions } from "../components/EmailDesignTableActions";
@@ -144,20 +141,29 @@ export function EmailDesignHubPage() {
 
   return (
     <>
-      <EmailConfigTableCard elevation={0}>
-        <EmailTableCardHeader
-          icon={
-            <PaletteOutlined
-              sx={{
-                ...(iconGlyphSx("sm") as object),
-                color: theme.app.dashboard.white95,
-              }}
-            />
-          }
-          title="Reseller email designs"
-          subtitle="Resellers use the platform template by default. Add or edit a custom design when a reseller needs their own branding."
-          action={addButton}
-        />
+      <DashboardCard sx={integrationsMainCardSx}>
+        <Box
+          sx={{
+            display: "flex",
+            flexWrap: "wrap",
+            alignItems: "flex-start",
+            justifyContent: "space-between",
+            gap: 1.5,
+          }}
+        >
+          <Box sx={{ minWidth: 0 }}>
+            <Typography variant="mediumLarge" color="white" fontWeight={600}>
+              Reseller email designs
+            </Typography>
+            <Typography
+              variant="small"
+              sx={{ color: theme.app.dashboard.textMuted, mt: 0.25, display: "block", maxWidth: 640 }}
+            >
+              Resellers use the platform template by default. Add or edit a custom design when a reseller needs their own branding.
+            </Typography>
+          </Box>
+          {addButton ? <Box sx={{ flexShrink: 0 }}>{addButton}</Box> : null}
+        </Box>
 
         <Box sx={emailToolbarRow}>
           <SearchBar
@@ -177,8 +183,6 @@ export function EmailDesignHubPage() {
           getRowId={(r) => r.resellerId}
           isLoading={isLoading}
           minWidth={760}
-          size="medium"
-          tableSx={emailDesignCatalogTableSx}
           emptyState={{
             title: catalogQuery.isError ? "Could not load designs" : "No reseller designs yet",
             description: catalogQuery.isError
@@ -229,7 +233,7 @@ export function EmailDesignHubPage() {
             onPageChange={isLoading ? undefined : setPage}
           />
         </Box>
-      </EmailConfigTableCard>
+      </DashboardCard>
 
       <EmailAddResellerDesignModal open={addOpen} onClose={() => setAddOpen(false)} />
 

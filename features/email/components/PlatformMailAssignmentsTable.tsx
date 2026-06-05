@@ -3,11 +3,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Box from "@mui/material/Box";
-import GroupsOutlined from "@mui/icons-material/GroupsOutlined";
 import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
-import { iconGlyphSx } from "@/lib/design-system";
-import { Button, DataTable, Typography } from "@/components/common";
+import { integrationsMainCardSx } from "@/app/dashboard/integrations/integrations.styles";
+import { Button, DashboardCard, DataTable, Typography } from "@/components/common";
 import type { DataTableColumn } from "@/components/common";
 import type { PlatformMailAssignmentListItem } from "../types";
 import { AddCircleIcon } from "@/components/common/icons";
@@ -22,12 +21,10 @@ import {
 } from "../hooks/useEmailSettings";
 import { EmailTestStatusCell } from "./EmailTestStatusCell";
 import { PROVIDER_CODE_LABELS, EMAIL_ROUTES } from "../email.constants";
-import { EmailConfigTableCard, EmailHelpAlert } from "../styles/email-configuration.styled";
+import { EmailHelpAlert } from "../styles/email-configuration.styled";
 import { departmentsFooterRow, footerMutedText, gradientPrimaryButtonSx } from "../styles/email-page.styles";
-import { emailAssignmentsTableSx, emailTablePanelSx } from "../styles/email-table.styles";
 import { EmailStatusChip } from "./EmailStatusChip";
 import { EmailTableActions } from "./EmailTableActions";
-import { EmailTableCardHeader } from "./EmailTableCardHeader";
 import { EmailTableTextCell } from "./EmailTableTextCell";
 
 function formatPlatformSender(fromName?: string | null, fromEmail?: string | null): string {
@@ -177,20 +174,29 @@ export function PlatformMailAssignmentsTable({
         </EmailHelpAlert>
       ) : null}
 
-      <EmailConfigTableCard elevation={0}>
-        <EmailTableCardHeader
-          icon={
-            <GroupsOutlined
-              sx={{
-                ...(iconGlyphSx("sm") as object),
-                color: theme.app.dashboard.white95,
-              }}
-            />
-          }
-          title="Resellers on platform mail"
-          subtitle="These resellers send using the global platform configuration."
-          action={assignButton}
-        />
+      <DashboardCard sx={integrationsMainCardSx}>
+        <Box
+          sx={{
+            display: "flex",
+            flexWrap: "wrap",
+            alignItems: "flex-start",
+            justifyContent: "space-between",
+            gap: 1.5,
+          }}
+        >
+          <Box sx={{ minWidth: 0 }}>
+            <Typography variant="mediumLarge" color="white" fontWeight={600}>
+              Resellers on platform mail
+            </Typography>
+            <Typography
+              variant="small"
+              sx={{ color: theme.app.dashboard.textMuted, mt: 0.25, display: "block", maxWidth: 640 }}
+            >
+              These resellers send using the global platform configuration.
+            </Typography>
+          </Box>
+          {assignButton ? <Box sx={{ flexShrink: 0 }}>{assignButton}</Box> : null}
+        </Box>
 
         <DataTable<PlatformMailAssignmentListItem>
           columns={columns}
@@ -198,9 +204,6 @@ export function PlatformMailAssignmentsTable({
           getRowId={(row) => row.id || row.resellerId}
           isLoading={isLoading}
           minWidth={1040}
-          size="medium"
-          tableSx={emailAssignmentsTableSx}
-          containerSx={emailTablePanelSx}
           emptyState={{
             title: listQuery.isError
               ? "Could not load assignments"
@@ -252,7 +255,7 @@ export function PlatformMailAssignmentsTable({
             {isLoading ? "Loading…" : `${rows.length} reseller${rows.length === 1 ? "" : "s"}`}
           </Typography>
         </Box>
-      </EmailConfigTableCard>
+      </DashboardCard>
 
       <PlatformMailAssignmentModal
         open={modalOpen}

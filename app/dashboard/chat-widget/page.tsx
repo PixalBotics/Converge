@@ -12,10 +12,6 @@ import EditOutlined from "@mui/icons-material/EditOutlined";
 import DeleteOutline from "@mui/icons-material/DeleteOutline";
 import Box from "@mui/material/Box";
 import type { SxProps, Theme } from "@mui/material/styles";
-import Dialog from "@mui/material/Dialog";
-import DialogActions from "@mui/material/DialogActions";
-import DialogContent from "@mui/material/DialogContent";
-import DialogTitle from "@mui/material/DialogTitle";
 import IconButton from "@mui/material/IconButton";
 import { alpha } from "@mui/material/styles";
 import { useTheme } from "@mui/material/styles";
@@ -24,6 +20,8 @@ import {
   Button,
   DashboardCard,
   DataTable,
+  dataTableActionButton,
+  filterPanelDescriptionSx,
   SearchBar,
   TablePagination,
   Typography,
@@ -51,6 +49,7 @@ import {
   listAdminWidgets,
   widgetResponseData,
 } from "@/api/widgets/widgets.api";
+import { DeleteWidgetConfirmModal } from "@/features/chat-widget/components/DeleteWidgetConfirmModal";
 import { LauncherPresetIcon } from "@/lib/chat-widget/launcherIcons";
 import {
   mapAdminWidgetToTableRow,
@@ -402,8 +401,8 @@ export default function ChatWidgetPage() {
           <Typography variant="regularLarge" fontWeight={700} color="white" sx={{ mb: 0.5 }}>
             Widget Management
           </Typography>
-          <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted, maxWidth: 640 }}>
-            List widgets from GET /widgets, add installs with POST /widgets/installations, paste the returned embed snippet.
+          <Typography variant="medium" sx={[{ maxWidth: 640 }, filterPanelDescriptionSx]}>
+            Manage chat widgets, create installs, and copy embed code for your websites.
           </Typography>
         </Box>
         <Box sx={integrationsHeaderActions}>
@@ -478,42 +477,35 @@ export default function ChatWidgetPage() {
                 );
               const pathBase = `/dashboard/chat-widget/${encodeURIComponent(key)}`;
               return (
-                <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75 }} onClick={(e) => e.stopPropagation()}>
-                  <Button
-                    type="button"
-                    variant="outlined"
+                <Box
+                  sx={{ display: "flex", justifyContent: "flex-end", gap: 0.5, flexShrink: 0 }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <IconButton
                     size="small"
-                    startIcon={<VisibilityOutlined sx={{ fontSize: 16 }} />}
+                    sx={{ ...dataTableActionButton, color: theme.app.dashboard.white80 }}
                     aria-label={`View widget ${key}`}
                     onClick={() => router.push(pathBase)}
                   >
-                    View
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="primary"
-                    sx={gradientPrimaryButtonSx}
+                    <VisibilityOutlined fontSize="small" />
+                  </IconButton>
+                  <IconButton
                     size="small"
-                    startIcon={<EditOutlined sx={{ fontSize: 16 }} />}
+                    sx={{ ...dataTableActionButton, color: theme.app.dashboard.white80 }}
                     aria-label={`Edit widget ${key}`}
                     onClick={() => router.push(`${pathBase}/edit`)}
                   >
-                    Edit
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outlined"
+                    <EditOutlined fontSize="small" />
+                  </IconButton>
+                  <IconButton
                     size="small"
-                    startIcon={<DeleteOutline sx={{ fontSize: 16 }} />}
                     aria-label={`Delete widget ${key}`}
+                    disabled={deleteBusy}
                     onClick={() => setDeleteDialogKey(key)}
-                    sx={{
-                      borderColor: theme.palette.error.main,
-                      color: theme.palette.error.light,
-                    }}
+                    sx={{ ...dataTableActionButton, color: theme.app.dashboard.accentRedLight }}
                   >
-                    Delete
-                  </Button>
+                    <DeleteOutline fontSize="small" />
+                  </IconButton>
                 </Box>
               );
             },
@@ -959,49 +951,14 @@ export default function ChatWidgetPage() {
         </>
       ) : null}
 
-      <Dialog
+      <DeleteWidgetConfirmModal
         open={Boolean(deleteDialogKey)}
-        onClose={() => !deleteBusy && setDeleteDialogKey(null)}
-        maxWidth="sm"
-        fullWidth
-      >
-        <DialogTitle>Delete this widget?</DialogTitle>
-        <DialogContent>
-          <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted }}>
-            Soft-deletes this widget on the server. The website assignment is not removed.
-          </Typography>
-          {deleteDialogKey ? (
-            <Typography
-              variant="body2"
-              sx={{ mt: 1.5, fontFamily: "monospace", wordBreak: "break-all" }}
-            >
-              {deleteDialogKey}
-            </Typography>
-          ) : null}
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button
-            type="button"
-            variant="secondary"
-            disabled={deleteBusy}
-            onClick={() => setDeleteDialogKey(null)}
-          >
-            Cancel
-          </Button>
-          <Button
-            type="button"
-            variant="primary"
-            disabled={deleteBusy}
-            onClick={() => void confirmDeleteWidget()}
-            sx={{
-              bgcolor: theme.palette.error.main,
-              "&:hover": { bgcolor: theme.palette.error.dark },
-            }}
-          >
-            {deleteBusy ? "Deleting…" : "Delete"}
-          </Button>
-        </DialogActions>
-      </Dialog>
+        widgetKey={deleteDialogKey ?? undefined}
+        description="Soft-deletes this widget on the server. The website assignment is not removed."
+        onDismiss={() => setDeleteDialogKey(null)}
+        onConfirm={() => void confirmDeleteWidget()}
+        isDeleting={deleteBusy}
+      />
     </Box>
   );
 }

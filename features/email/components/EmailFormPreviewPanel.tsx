@@ -5,7 +5,8 @@ import Chip from "@mui/material/Chip";
 import { alpha, useTheme } from "@mui/material/styles";
 import MailOutline from "@mui/icons-material/MailOutline";
 import type { AppTheme } from "@/theme/theme";
-import { Typography } from "@/components/common";
+import { integrationsMainCardSx } from "@/app/dashboard/integrations/integrations.styles";
+import { DashboardCard, Typography } from "@/components/common";
 import type { EmailFormFieldRow } from "@/api/email/email-forms.api";
 import { isConfigurableEmailFormFieldKey } from "../constants/agent-distribution-form-fields";
 import { groupEmailFormFields } from "../utils/email-form-field-groups";
@@ -14,7 +15,7 @@ import {
   emailFormPreviewDeviceSx,
   emailFormPreviewHeaderSx,
 } from "../styles/email-form-builder.styles";
-import { EmailBuilderPanel, EmailPreviewSticky } from "../styles/email-design.styled";
+import { EmailPreviewSticky } from "../styles/email-design.styled";
 
 export function EmailFormPreviewPanel({
   formName,
@@ -36,13 +37,16 @@ export function EmailFormPreviewPanel({
 
   return (
     <EmailPreviewSticky>
-      <EmailBuilderPanel sx={{ gap: 1.5 }}>
-        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1 }}>
-          <Box>
-            <Typography variant="medium" fontWeight={700} color="white">
+      <DashboardCard sx={integrationsMainCardSx}>
+        <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 1 }}>
+          <Box sx={{ minWidth: 0 }}>
+            <Typography variant="mediumLarge" color="white" fontWeight={600}>
               Live preview
             </Typography>
-            <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, display: "block" }}>
+            <Typography
+              variant="small"
+              sx={{ color: theme.app.dashboard.textMuted, mt: 0.25, display: "block" }}
+            >
               How included fields appear in the distribution wrap-up email.
             </Typography>
           </Box>
@@ -50,9 +54,10 @@ export function EmailFormPreviewPanel({
             size="small"
             label={`${included.length} fields`}
             sx={{
-              fontWeight: 700,
-              bgcolor: alpha(theme.palette.primary.main, 0.16),
-              color: theme.palette.primary.light,
+              fontWeight: 600,
+              bgcolor: alpha(theme.palette.common.white, 0.06),
+              color: theme.app.dashboard.textMuted,
+              flexShrink: 0,
             }}
           />
         </Box>
@@ -119,7 +124,7 @@ export function EmailFormPreviewPanel({
             ))}
           </Box>
         </Box>
-      </EmailBuilderPanel>
+      </DashboardCard>
     </EmailPreviewSticky>
   );
 }
