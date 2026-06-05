@@ -11,15 +11,20 @@ import { Typography } from "@/components/common";
 import { SidebarReactIcon } from "@/components/common/icons";
 import { isNavPathSelected, type DashboardNavItem } from "@/lib/permissions";
 import {
+  collapsedNavItemSx,
   navItemSx,
   listIconDefaultSx,
   listIconSelectedSx,
   navTypographyBase,
+  sectionDividerSx,
   sectionLabelSx,
   listSx,
 } from "./styles/sidebar.styles";
 import { sidebarNavLabel } from "./dashboard-sidebar.labels";
 import { ActivityNavGroup } from "./ActivityNavGroup";
+import { SidebarNavTooltip } from "./SidebarNavTooltip";
+import { mergeSx } from "@/lib/mui/merge-sx";
+import { shouldCollapseSidebarForNavHref } from "./sidebar-collapse-on-nav";
 
 type NavTextProps = typeof navTypographyBase;
 
@@ -30,6 +35,8 @@ export function DashboardActivityNavList({
   showActivityNavSkeleton,
   showNoModulesHint,
   isDesktop,
+  collapsed = false,
+  onCollapseSidebar,
   onClose,
 }: {
   activityItems: DashboardNavItem[];
@@ -38,15 +45,24 @@ export function DashboardActivityNavList({
   showActivityNavSkeleton: boolean;
   showNoModulesHint: boolean;
   isDesktop: boolean;
+  collapsed?: boolean;
+  onCollapseSidebar?: () => void;
   onClose?: () => void;
 }) {
-  const onNavigate = () => {
+  const onNavigate = (href?: string) => {
+    if (href && shouldCollapseSidebarForNavHref(href)) {
+      onCollapseSidebar?.();
+    }
     if (!isDesktop) onClose?.();
   };
 
   return (
     <List dense={false} sx={listSx}>
-      <Typography sx={sectionLabelSx}>ACTIVITY</Typography>
+      {collapsed ? (
+        <Box sx={sectionDividerSx} aria-hidden />
+      ) : (
+        <Typography sx={sectionLabelSx}>ACTIVITY</Typography>
+      )}
       {showActivityNavSkeleton ? (
         <Box sx={{ display: "flex", flexDirection: "column", gap: 1.25, py: 0.5, px: 0.5 }}>
           {Array.from({ length: 7 }).map((_, i) => (
@@ -62,7 +78,7 @@ export function DashboardActivityNavList({
             />
           ))}
         </Box>
-      ) : showNoModulesHint ? (
+      ) : showNoModulesHint && !collapsed ? (
         <Typography
           variant="body2"
           sx={{
@@ -84,25 +100,30 @@ export function DashboardActivityNavList({
                 item={item}
                 pathname={pathname}
                 navTextProps={navTextProps}
+                collapsed={collapsed}
                 onNavigate={onNavigate}
               />
             );
           }
           const selected = isNavPathSelected(pathname, item.href, item.prefixMatch);
+          const label = sidebarNavLabel(item.label);
           return (
-            <ListItemButton
-              key={item.href}
-              component={Link}
-              href={item.href}
-              selected={selected}
-              sx={navItemSx}
-              onClick={onNavigate}
-            >
-              <ListItemIcon sx={selected ? listIconSelectedSx : listIconDefaultSx}>
-                <SidebarReactIcon iconKey={item.iconKey} />
-              </ListItemIcon>
-              <ListItemText primary={sidebarNavLabel(item.label)} primaryTypographyProps={navTextProps} />
-            </ListItemButton>
+            <SidebarNavTooltip key={item.href} collapsed={collapsed} title={label}>
+              <ListItemButton
+                component={Link}
+                href={item.href}
+                selected={selected}
+                sx={mergeSx(navItemSx, collapsed ? collapsedNavItemSx : undefined)}
+                onClick={() => onNavigate(item.href)}
+              >
+                <ListItemIcon sx={selected ? listIconSelectedSx : listIconDefaultSx}>
+                  <SidebarReactIcon iconKey={item.iconKey} />
+                </ListItemIcon>
+                {!collapsed ? (
+                  <ListItemText primary={label} primaryTypographyProps={navTextProps} />
+                ) : null}
+              </ListItemButton>
+            </SidebarNavTooltip>
           );
         })
       )}
