@@ -1,12 +1,12 @@
-/** Layout / hit-target sizes — tuned for touch + visibility (theme customize page). */
+/** Layout / hit-target sizes — theme customize page (compact grid). */
 export const THEME_SWATCH = {
-  tileRadius: "10px",
-  tileCompactPx: 80,
-  circlePx: 120,
+  tileRadius: "8px",
+  tileCompactPx: 64,
+  circlePx: 88,
   /** Outer ring (conic) = inner fill + 2× ring padding. */
-  pickerRingPx: 120,
-  pickerRingPaddingPx: 5,
+  pickerRingPx: 88,
+  pickerRingPaddingPx: 4,
   /** Palette icon inside the custom-color picker trigger. */
-  pickerIconPx: 22,
+  pickerIconPx: 18,
   popoverSpectrumPx: 84,
 } as const;

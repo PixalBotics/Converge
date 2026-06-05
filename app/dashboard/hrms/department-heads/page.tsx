@@ -21,6 +21,7 @@ import {
   DataTable,
   FormModal,
   SearchBar,
+  SearchSubmitButton,
   SegmentedControl,
   SelectField,
   TablePagination,
@@ -62,7 +63,6 @@ import { useAuth, sessionMayPickInternalUserScope } from "@/lib/auth";
 import { canManageDepartmentHeads, canRemoveDepartmentHead } from "@/lib/permissions";
 import { resolveUserKind, type UserKind } from "@/lib/hrms/user-kind";
 import { SearchIcon } from "@/components/common/icons";
-import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
 import {
   departmentsCardHeader,
   departmentsSearchFieldWrapper,
@@ -947,18 +947,12 @@ export default function DepartmentHeadsPage() {
                   <Button type="button" variant="secondary" onClick={applyHeadsFilters}>
                     Apply
                   </Button>
-                  <Button type="button" variant="primary" sx={gradientPrimaryButtonSx} onClick={() => setFilterPanelOpen(false)}>
-                    Done
-                  </Button>
                 </Box>
               </>
             ) : (
               <>
                 <Button type="button" variant="secondary" disabled={!canClearAttendanceDraft} onClick={clearAttendanceListFilters}>
                   Clear filters
-                </Button>
-                <Button type="button" variant="primary" sx={gradientPrimaryButtonSx} onClick={() => setFilterPanelOpen(false)}>
-                  Done
                 </Button>
               </>
             )}
@@ -1171,18 +1165,11 @@ export default function DepartmentHeadsPage() {
                   sx={{ width: "100%" }}
                 />
               </Box>
-              <Button
-                type="button"
-                variant="primary"
+              <SearchSubmitButton
                 disabled={headsSearch.trim() === appliedHeadsSearch.trim()}
                 onClick={applyHeadsSearch}
-                sx={{ minWidth: 120, whiteSpace: "nowrap", alignSelf: { xs: "stretch", sm: "center" } }}
-              >
-                <Box component="span" sx={{ display: "inline-flex", lineHeight: 0 }}>
-                  <SearchIcon width={18} height={18} sx={{ color: "inherit" }} />
-                </Box>
-                Search
-              </Button>
+                sx={{ minWidth: 120 }}
+              />
               <ToolbarFilterPopover open={filterPanelOpen} onOpenChange={setFilterPanelOpen} active={filterToolbarActive}>
                 {departmentHeadsFilterPanel}
               </ToolbarFilterPopover>

@@ -35,6 +35,7 @@ import { VisitorInfoPanel } from "@/features/chat-operations/components/VisitorI
 import { MonitorSupervisorSidePanel } from "./MonitorSupervisorSidePanel";
 import { MonitorTranscriptPanel } from "./MonitorTranscriptPanel";
 import { extractVisitorPresentation } from "@/services/chat/visitor-presentation";
+import { agentDisplayName } from "@/services/chat/monitor-normalizers";
 import {
   chatMonitorAgentTableWrapSx,
   chatMonitorToolbarRowSx,
@@ -455,6 +456,11 @@ export function ChatMonitorWorkspace({
                 visitorPresentation={
                   monitor.selectedRow
                     ? extractVisitorPresentation(monitor.selectedRow)
+                    : null
+                }
+                assignedAgentLabel={
+                  monitor.selectedRow
+                    ? agentDisplayName(monitor.selectedRow.agent ?? null)
                     : null
                 }
                 assignedAgentId={

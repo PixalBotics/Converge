@@ -15,6 +15,7 @@ import {
   DataTable,
   FormModal,
   SearchBar,
+  SearchSubmitButton,
   SelectField,
   TablePagination,
   Typography,
@@ -344,16 +345,16 @@ export function PoolMembersPanel({
         <Box sx={{ flex: "1 1 220px", minWidth: 0 }}>
           <SearchBar value={memberSearchInput} onChange={setMemberSearchInput} placeholder="Search name or email…" />
         </Box>
-        <Button
-          variant="outlined"
-          disabled={membersQuery.isFetching}
+        <SearchSubmitButton
+          disabled={
+            membersQuery.isFetching ||
+            memberSearchInput.trim() === memberSearchApplied.trim()
+          }
           onClick={() => {
-            setMemberSearchApplied(memberSearchInput);
+            setMemberSearchApplied(memberSearchInput.trim());
             setMemberPage(1);
           }}
-        >
-          Search
-        </Button>
+        />
       </Box>
 
       <DataTable<MemberRow>

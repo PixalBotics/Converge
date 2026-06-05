@@ -5,8 +5,4 @@ export type AccountMenuProps = {
   isImpersonating: boolean;
   onLogout: () => void;
   onLoginAsAdmin: () => void;
-  /** Defaults: `/dashboard/settings/profile` */
-  profileHref?: string;
-  /** Defaults: `/dashboard/theme` */
-  themeHref?: string;
 };

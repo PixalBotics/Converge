@@ -4,6 +4,7 @@ import { useState } from "react";
 import Menu from "@mui/material/Menu";
 import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
+import { hideScrollbarsSx } from "@/lib/ui/hideScrollbars";
 import type { DropdownProps, DropdownOption } from "./Dropdown.types";
 import { DropdownMenuRow, DropdownTrigger } from "./Dropdown.styled";
 
@@ -33,6 +34,7 @@ export function Dropdown({
 
   const blur = String(app.dashboard.cardBackdropBlur ?? "").trim();
   const defaultPaperSx = {
+    ...hideScrollbarsSx,
     mt: 1.5,
     minWidth: 180,
     maxHeight: 320,

@@ -2,32 +2,40 @@
 
 import { useMemo, useState } from "react";
 import Box from "@mui/material/Box";
-import MoreHoriz from "@mui/icons-material/MoreHoriz";
-import FilterAltOutlined from "@mui/icons-material/FilterAltOutlined";
-import AddCircleOutline from "@mui/icons-material/AddCircleOutline";
 import BlurOnRounded from "@mui/icons-material/BlurOnRounded";
+import MoreHoriz from "@mui/icons-material/MoreHoriz";
 import IconButton from "@mui/material/IconButton";
 import Link from "next/link";
+import type { SxProps, Theme } from "@mui/material/styles";
 import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
-import { Button, DashboardCard, DataTable, SelectField, TablePagination, Typography, dataTableActionButton } from "@/components/common";
-import type { DataTableColumn } from "@/components/common";
-import { filterChromeButtonSx } from "@/components/common/FilterButton/filter-button.styles";
-import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
 import {
+  Button,
+  DashboardCard,
+  DataTable,
+  SelectField,
+  TablePagination,
+  Typography,
+  dataTableActionButton,
+} from "@/components/common";
+import type { DataTableColumn } from "@/components/common";
+import { AddCircleIcon } from "@/components/common/icons";
+import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
+import { pageWrapper, footerMutedText } from "../companies/overview.styles";
+import { rolesCard, rolesFooterRow, rolesIconBox, rolesPageWrapper, rolesPaginationWrapper } from "../roles/roles.styles";
+import {
+  billingApplyFilterButtonSx,
   billingCardHeaderSx,
-  billingCardSx,
+  billingCreateInvoiceButtonSx,
   billingFilterGridSx,
-  billingFooterRowSx,
-  billingHeaderActionsSx,
+  billingHeaderButtonsSx,
   billingHeaderSx,
-  billingPaginationWrapSx,
-  billingPageWrapper,
   billingStatusPaidSx,
   billingSubtextSx,
+  billingTodaysDetailButtonSx,
 } from "./billing.styles";
 
-type BillingRow = {
+type BillingInvoiceRow = {
   id: string;
   invoiceId: string;
   billType: string;
@@ -40,16 +48,29 @@ type BillingRow = {
   status: "Paid";
 };
 
-const RESELLER_OPTIONS = [{ label: "TechDistributors", value: "tech-distributors" }];
-const PARENT_OPTIONS = [{ label: "ABC Group", value: "abc-group" }];
-const CHILD_OPTIONS = [{ label: "Native Group", value: "native-group" }];
-const WEBSITE_OPTIONS = [{ label: "Native Group", value: "native-group" }];
+const RESELLER_OPTIONS = [
+  { label: "TechDistributors", value: "tech-distributors" },
+  { label: "Beta Retailers", value: "beta-retailers" },
+];
+const PARENT_OPTIONS = [
+  { label: "ABC Group", value: "abc-group" },
+  { label: "Alpha Tech", value: "alpha-tech" },
+];
+const CHILD_OPTIONS = [
+  { label: "Native Group", value: "native-group" },
+  { label: "Matrix Group", value: "matrix-group" },
+];
+const WEBSITE_OPTIONS = [
+  { label: "Native Group", value: "native-group" },
+  { label: "alphatech.com", value: "alphatech-com" },
+];
 
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 8;
 const DISPLAY_TOTAL_ENTRIES = 256_000;
+const ASSIGNED_USERS_COUNT = 48;
 
-const ROWS: BillingRow[] = Array.from({ length: 18 }, (_, i) => ({
-  id: `bill-${i + 1}`,
+const ROWS: BillingInvoiceRow[] = Array.from({ length: 16 }, (_, i) => ({
+  id: `billing-invoice-${i + 1}`,
   invoiceId: "INV-2024",
   billType: "Reseller",
   reseller: "Beta Retailers",
@@ -86,10 +107,11 @@ export default function BillingPage() {
     const start = (page - 1) * PAGE_SIZE;
     return ROWS.slice(start, start + PAGE_SIZE);
   }, [page]);
+
   const rangeStart = paginatedRows.length ? (page - 1) * PAGE_SIZE + 1 : 0;
   const rangeEnd = (page - 1) * PAGE_SIZE + paginatedRows.length;
 
-  const columns = useMemo<DataTableColumn<BillingRow>[]>(
+  const columns = useMemo<DataTableColumn<BillingInvoiceRow>[]>(
     () => [
       { id: "invoiceId", label: "Invoice ID" },
       { id: "billType", label: "Bill Type" },
@@ -113,7 +135,7 @@ export default function BillingPage() {
   );
 
   return (
-    <Box sx={billingPageWrapper}>
+    <Box sx={[pageWrapper, rolesPageWrapper] as SxProps<Theme>}>
       <Box sx={billingHeaderSx}>
         <Box>
           <Typography variant="regularLarge" fontWeight={700} color="white">
@@ -123,8 +145,8 @@ export default function BillingPage() {
             Generate and distribute licenses to client companies
           </Typography>
         </Box>
-        <Box sx={billingHeaderActionsSx}>
-          <Button type="button" variant="outlined" startIcon={<FilterAltOutlined sx={{ fontSize: 17 }} />} sx={filterChromeButtonSx}>
+        <Box sx={billingHeaderButtonsSx}>
+          <Button type="button" variant="outlined" sx={billingTodaysDetailButtonSx}>
             Todays Detail
           </Button>
           <Button
@@ -132,45 +154,58 @@ export default function BillingPage() {
             component={Link}
             href="/dashboard/billing/create-invoice"
             variant="primary"
-            startIcon={<AddCircleOutline sx={{ fontSize: 17 }} />}
-            sx={gradientPrimaryButtonSx}
+            startIcon={<AddCircleIcon width={16} height={16} />}
+            sx={{ ...billingCreateInvoiceButtonSx, ...(gradientPrimaryButtonSx as object) }}
           >
             Create Invoice
           </Button>
         </Box>
       </Box>
 
-      <DashboardCard sx={billingCardSx}>
+      <DashboardCard sx={rolesCard}>
         <Box sx={billingCardHeaderSx}>
-          <BlurOnRounded sx={{ fontSize: 19, color: theme.app.dashboard.white95 }} />
+          <Box sx={rolesIconBox}>
+            <BlurOnRounded sx={{ fontSize: 18, color: theme.app.dashboard.white95 }} />
+          </Box>
           <Typography variant="mediumLarge" color="white" fontWeight={600}>
             Select Filter
           </Typography>
         </Box>
         <Box sx={billingFilterGridSx}>
           <SelectField label="Reseller" value={reseller} onChange={setReseller} options={RESELLER_OPTIONS} />
-          <SelectField label="Parent Company" value={parentCompany} onChange={setParentCompany} options={PARENT_OPTIONS} />
+          <SelectField
+            label="Parent Company"
+            value={parentCompany}
+            onChange={setParentCompany}
+            options={PARENT_OPTIONS}
+          />
           <SelectField label="Child Company" value={childCompany} onChange={setChildCompany} options={CHILD_OPTIONS} />
           <SelectField label="Website" value={website} onChange={setWebsite} options={WEBSITE_OPTIONS} />
-          <Button type="button" variant="primary" sx={{ minWidth: 120, width: { xs: "100%", lg: "auto" } }}>
+          <Button
+            type="button"
+            variant="primary"
+            sx={{ ...billingApplyFilterButtonSx, ...(gradientPrimaryButtonSx as object) }}
+          >
             Apply Filter
           </Button>
         </Box>
       </DashboardCard>
 
-      <DashboardCard sx={billingCardSx}>
+      <DashboardCard sx={rolesCard}>
         <Box sx={billingCardHeaderSx}>
-          <BlurOnRounded sx={{ fontSize: 19, color: theme.app.dashboard.white95 }} />
+          <Box sx={rolesIconBox}>
+            <BlurOnRounded sx={{ fontSize: 18, color: theme.app.dashboard.white95 }} />
+          </Box>
           <Typography variant="mediumLarge" color="white" fontWeight={600}>
-            Assigned Users (48)
+            {`Assigned Users (${ASSIGNED_USERS_COUNT})`}
           </Typography>
         </Box>
 
-        <DataTable<BillingRow>
+        <DataTable<BillingInvoiceRow>
           columns={columns}
           rows={paginatedRows}
           getRowId={(row) => row.id}
-          minWidth={1240}
+          minWidth={1200}
           actionColumn={{
             label: "Action",
             render: () => (
@@ -183,11 +218,11 @@ export default function BillingPage() {
           }}
         />
 
-        <Box sx={billingFooterRowSx}>
-          <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted }}>
+        <Box sx={rolesFooterRow}>
+          <Typography variant="medium" sx={footerMutedText(theme)}>
             {`Showing data ${rangeStart} to ${rangeEnd} of ${formatCompactEntryTotal(DISPLAY_TOTAL_ENTRIES)} entries`}
           </Typography>
-          <Box sx={billingPaginationWrapSx}>
+          <Box sx={rolesPaginationWrapper}>
             <TablePagination page={page} pageCount={pageCount} onPageChange={setPage} />
           </Box>
         </Box>

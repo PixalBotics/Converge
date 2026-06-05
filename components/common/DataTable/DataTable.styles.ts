@@ -61,6 +61,12 @@ export const dataTableCellMuted: SxProps<Theme> = (theme) => ({
       : (theme as AppTheme).app.text.primary,
 });
 
+/** Empty-state row cell — no horizontal inset from default `th, td` padding. */
+export const dataTableEmptyStateCell: SxProps<Theme> = {
+  borderBottom: "none",
+  padding: "0 !important",
+};
+
 export const dataTableActionButton: SxProps<Theme> = (theme) => ({
   color:
     theme.palette.mode === "light"

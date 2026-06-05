@@ -20,8 +20,8 @@ export const dashboardChatWorkstationMainSx: SxProps<Theme> = {
   display: "flex",
   flexDirection: "column",
   overflow: "hidden",
-  py: 0,
-  px: { xs: 0, sm: 0.5, md: 1 },
+  // py: 0,
+  // px: { xs: 0, sm: 0.5, md: 1 },
 };
 
 /** Frosted main column when `mainBackdropBlur` is set on the theme. */

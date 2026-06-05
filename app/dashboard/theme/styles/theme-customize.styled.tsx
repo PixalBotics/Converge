@@ -50,6 +50,8 @@ function gradientPrimaryButtonCss(theme: Theme) {
 export const ThemeCustomizeRoot = styled(Box)(({ theme }) => ({
   width: "100%",
   maxWidth: 1600,
+  minWidth: 0,
+  overflowX: "clip",
   marginLeft: "auto",
   marginRight: "auto",
   boxSizing: "border-box",
@@ -70,32 +72,25 @@ export const ThemeCustomizeDefaultRow = styled(Box)(({ theme }) => ({
 export const ThemeCustomizeSwatchesRow = styled(Box)(({ theme }) => ({
   display: "flex",
   flexWrap: "wrap",
-  gap: theme.spacing(2),
+  gap: theme.spacing(1.25),
   alignItems: "flex-start",
   padding: selectionHaloSafePaddingPx,
-  margin: theme.spacing(-1),
-  overflow: "visible",
+  overflowX: "clip",
 }));
 
 export const ThemeCustomizeColorGrid = styled(Box)(({ theme }) => ({
   display: "grid",
   width: "100%",
+  minWidth: 0,
   boxSizing: "border-box",
-  gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
-  gap: theme.spacing(2),
-  marginBottom: theme.spacing(4),
+  gridTemplateColumns: `repeat(auto-fill, ${THEME_SWATCH.circlePx}px)`,
+  gap: theme.spacing(1.25),
+  marginBottom: theme.spacing(3),
   padding: selectionHaloSafePaddingPx,
-  marginLeft: theme.spacing(-1),
-  marginRight: theme.spacing(-1),
-  overflow: "visible",
+  overflowX: "clip",
+  justifyContent: "flex-start",
   justifyItems: "center",
   alignItems: "start",
-  [theme.breakpoints.up("sm")]: {
-    gridTemplateColumns: "repeat(5, minmax(0, 1fr))",
-  },
-  [theme.breakpoints.up("md")]: {
-    gridTemplateColumns: "repeat(8, minmax(0, 1fr))",
-  },
 }));
 
 // —— Typography —————————————————————————————————————————————————————————————
@@ -139,16 +134,33 @@ export const ThemeUnsavedAlert = styled(Alert)(({ theme }) => {
   return {
     marginBottom: theme.spacing(2.5),
     alignItems: "center",
+    flexWrap: "nowrap",
     borderColor: alpha(app.dashboard.accentOrange, 0.55),
     backgroundColor: alpha(app.dashboard.accentOrange, 0.08),
     color: app.text.primary,
-    "& .MuiAlert-message": { width: "100%" },
+    "& .MuiAlert-icon": { flexShrink: 0 },
+    "& .MuiAlert-message": {
+      flex: "1 1 auto",
+      minWidth: 0,
+      padding: 0,
+    },
+    "& .MuiAlert-action": {
+      flex: "0 0 auto",
+      alignItems: "center",
+      alignSelf: "center",
+      paddingTop: 0,
+      paddingLeft: theme.spacing(2),
+      marginRight: 0,
+    },
   };
 });
 
 export const ThemeSaveAccountButton = styled(Button)(({ theme }) => ({
   ...gradientPrimaryButtonCss(theme),
   fontWeight: 700,
+  whiteSpace: "nowrap",
+  flexShrink: 0,
+  minWidth: "max-content",
   boxShadow: `0 2px 12px ${alpha(theme.palette.common.black, theme.palette.mode === "dark" ? 0.35 : 0.12)}`,
 }));
 
@@ -179,7 +191,8 @@ export const ThemeSwatchButtonRoot = styled("button", {
     overflow: isCircle ? "hidden" : "visible",
     boxShadow: $selected && isCircle ? selectionCircleShadow(theme) : "none",
     transition: "box-shadow 0.15s ease, transform 0.15s ease, outline 0.15s ease",
-    flexShrink: 0,
+    flexShrink: isCircle ? 1 : 0,
+    minWidth: isCircle ? 0 : undefined,
     ...selectionOutlineCss(theme, $selected && !isCircle),
     "&:hover": isCircle ? { transform: "scale(1.06)" } : {},
     "&:focus-visible": {
@@ -188,8 +201,10 @@ export const ThemeSwatchButtonRoot = styled("button", {
     },
     ...(isCircle
       ? {
-          width: THEME_SWATCH.circlePx,
-          height: THEME_SWATCH.circlePx,
+          width: "100%",
+          maxWidth: THEME_SWATCH.circlePx,
+          aspectRatio: "1",
+          height: "auto",
           borderRadius: "50%",
         }
       : {
@@ -244,9 +259,12 @@ export const ThemeColorPickerTrigger = styled("button", {
   position: "relative",
   margin: 0,
   padding: THEME_SWATCH.pickerRingPaddingPx,
-  width: THEME_SWATCH.pickerRingPx,
-  height: THEME_SWATCH.pickerRingPx,
-  flexShrink: 0,
+  width: "100%",
+  maxWidth: THEME_SWATCH.pickerRingPx,
+  aspectRatio: "1",
+  height: "auto",
+  flexShrink: 1,
+  minWidth: 0,
   border: "none",
   borderRadius: "50%",
   cursor: "pointer",

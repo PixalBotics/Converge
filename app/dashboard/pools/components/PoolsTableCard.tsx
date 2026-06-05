@@ -14,6 +14,7 @@ import {
   DataTable,
   dataTableActionButton,
   SearchBar,
+  SearchSubmitButton,
   TablePagination,
   Typography,
 } from "@/components/common";
@@ -111,15 +112,10 @@ export function PoolsTableCard({
           <Box sx={departmentsSearchFieldWrapper}>
             <SearchBar value={search} onChange={onSearchChange} placeholder="Search anything.." />
           </Box>
-          <Button
-            type="button"
-            variant="primary"
+          <SearchSubmitButton
             disabled={isLoading || searchSubmitDisabled}
             onClick={onSearchSubmit}
-            sx={{ minWidth: 132, whiteSpace: "nowrap", alignSelf: { xs: "stretch", sm: "center" } }}
-          >
-            Search
-          </Button>
+          />
         </Box>
       </Box>
 

@@ -51,9 +51,8 @@ import {
 import { WidgetWizardStepGuide } from "@/features/chat-widget/components/WidgetWizardStepGuide";
 import {
   WidgetTextField,
-  WidgetUrlField,
 } from "@/features/chat-widget/components/WidgetFormFields";
-import { FIELD_MAX, validateSingleHttpUrl } from "@/lib/chat-widget/widget-field-validation";
+import { FIELD_MAX } from "@/lib/chat-widget/widget-field-validation";
 
 function parseInsetPxString(raw: string, fallback: number): number {
   const n = Number.parseInt(raw.trim(), 10);
@@ -93,15 +92,6 @@ export default function ChatWidgetButtonDesignPage() {
   );
   const [proactiveAvatarDataUrl, setProactiveAvatarDataUrl] = useState("");
   const [proactiveAvatarFileName, setProactiveAvatarFileName] = useState("");
-  const [proactiveCtaEnabled, setProactiveCtaEnabled] = useState(
-    defaultWidgetDraft.proactiveSecondaryCtaEnabled ?? false,
-  );
-  const [proactiveCtaLabel, setProactiveCtaLabel] = useState(
-    defaultWidgetDraft.proactiveSecondaryCtaLabel ?? "Contact us on WhatsApp",
-  );
-  const [proactiveCtaHref, setProactiveCtaHref] = useState(
-    defaultWidgetDraft.proactiveSecondaryCtaHref ?? "https://wa.me/",
-  );
   const proactiveAvatarUploadRef = useRef<HTMLInputElement | null>(null);
   const iconUploadRef = useRef<HTMLInputElement | null>(null);
   const [saving, setSaving] = useState(false);
@@ -156,13 +146,6 @@ export default function ChatWidgetButtonDesignPage() {
     setProactiveAvatarEnabled(d.proactiveTeaserAvatarEnabled === true);
     setProactiveAvatarDataUrl(d.proactiveTeaserAvatarDataUrl ?? "");
     setProactiveAvatarFileName(d.proactiveTeaserAvatarDataUrl ? "Agent avatar" : "");
-    setProactiveCtaEnabled(d.proactiveSecondaryCtaEnabled ?? false);
-    setProactiveCtaLabel(
-      d.proactiveSecondaryCtaLabel ?? defaultWidgetDraft.proactiveSecondaryCtaLabel ?? "",
-    );
-    setProactiveCtaHref(
-      d.proactiveSecondaryCtaHref ?? defaultWidgetDraft.proactiveSecondaryCtaHref ?? "",
-    );
     setThemeName(d.themeName ?? "Brand Default");
     setThemePrimaryColor(d.themePrimaryColor ?? "");
     setThemeSecondaryColor(d.themeSecondaryColor ?? "#64748b");
@@ -198,19 +181,16 @@ export default function ChatWidgetButtonDesignPage() {
         proactiveTeaser,
         proactiveTeaserAvatarEnabled: proactiveAvatarEnabled,
         proactiveTeaserAvatarDataUrl: proactiveAvatarDataUrl,
-        proactiveSecondaryCtaEnabled: proactiveCtaEnabled,
-        proactiveSecondaryCtaLabel: proactiveCtaLabel,
-        proactiveSecondaryCtaHref: proactiveCtaHref,
-        proactiveSecondaryCtaKind: proactiveCtaEnabled ? "whatsapp" : "",
+        proactiveSecondaryCtaEnabled: false,
+        proactiveSecondaryCtaLabel: "",
+        proactiveSecondaryCtaHref: "",
+        proactiveSecondaryCtaKind: "",
       } as WidgetDraft),
     [
       proactiveTeaserEnabled,
       proactiveTeaser,
       proactiveAvatarEnabled,
       proactiveAvatarDataUrl,
-      proactiveCtaEnabled,
-      proactiveCtaLabel,
-      proactiveCtaHref,
     ],
   );
 
@@ -242,17 +222,6 @@ export default function ChatWidgetButtonDesignPage() {
         return;
       }
 
-      if (proactiveCtaEnabled) {
-        const ctaErr = validateSingleHttpUrl(proactiveCtaHref, {
-          required: true,
-          label: "Secondary button link",
-        });
-        if (ctaErr) {
-          publishAppToast({ variant: "error", message: ctaErr });
-          return;
-        }
-      }
-
       setSaving(true);
       try {
         const colorSeed = readWidgetChatColorsFromDraft({
@@ -280,10 +249,10 @@ export default function ChatWidgetButtonDesignPage() {
           proactiveTeaser: proactiveTeaser.trim(),
           proactiveTeaserAvatarEnabled: proactiveAvatarEnabled,
           proactiveTeaserAvatarDataUrl: proactiveAvatarEnabled ? proactiveAvatarDataUrl : "",
-          proactiveSecondaryCtaEnabled: proactiveCtaEnabled,
-          proactiveSecondaryCtaLabel: proactiveCtaLabel.trim(),
-          proactiveSecondaryCtaHref: proactiveCtaHref.trim(),
-          proactiveSecondaryCtaKind: proactiveCtaEnabled ? "whatsapp" : "",
+          proactiveSecondaryCtaEnabled: false,
+          proactiveSecondaryCtaLabel: "",
+          proactiveSecondaryCtaHref: "",
+          proactiveSecondaryCtaKind: "",
           completed: false,
           widgetId: prev.widgetId?.startsWith("wgt_") ? prev.widgetId : rk,
           themeName: themeName.trim() || "Brand Default",
@@ -387,6 +356,7 @@ export default function ChatWidgetButtonDesignPage() {
         </Typography>
       ) : null}
       <WidgetWizardPageLayout
+        showChecklist={false}
         checklistRefreshKey={checklistRefreshKey}
         preview={
           <WidgetLauncherLivePreview
@@ -410,8 +380,10 @@ export default function ChatWidgetButtonDesignPage() {
       >
         <WidgetWizardStepGuide step="button" />
         <SchedulingSectionCard title="Launcher shape & position" subtitle="Floating button geometry and screen placement.">
-      <Typography variant="mediumLarge" sx={{ color: theme.app.text.primary, mb: -1.25 }}>Button Shape</Typography>
-      <Box sx={{ display: "flex", gap: 1.5, flexWrap: "wrap", mt: 0.75 }}>
+      <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
+      <Box>
+      <Typography variant="mediumLarge" sx={{ color: theme.app.text.primary, mb: 1 }}>Button Shape</Typography>
+      <Box sx={{ display: "flex", gap: 1.5, flexWrap: "wrap" }}>
         <IconButton
           type="button"
           aria-label="Circle button shape"
@@ -461,11 +433,12 @@ export default function ChatWidgetButtonDesignPage() {
         </IconButton>
       </Box>
 
-      <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, mt: -0.75, mb: 0.5 }}>
+      <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, mt: 0.75 }}>
         {buttonShape === "circle" ? "Circle" : buttonShape === "rounded" ? "Rounded" : "Square"}
       </Typography>
+      </Box>
 
-      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 2, mb: 1.5 }}>
+      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 2 }}>
         <WidgetColorPickerField
           label="Button color"
           value={selectedButtonColor}
@@ -489,6 +462,7 @@ export default function ChatWidgetButtonDesignPage() {
       <SchedulingSectionCard
         title="Invitation bubble"
         subtitle="Optional callout above the launcher when chat is closed. Turn off if you only want the FAB."
+        sx={{ mb: 0, p: { xs: 1.75, sm: 2 } }}
       >
         <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1 }}>
           <Typography variant="body2" sx={{ color: theme.app.text.primary, fontWeight: 600 }}>
@@ -547,44 +521,15 @@ export default function ChatWidgetButtonDesignPage() {
           ) : null}
         </Box>
         ) : null}
-        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mt: 1.5 }}>
-          <Typography variant="body2" sx={{ color: theme.app.text.primary, fontWeight: 600 }}>
-            Secondary button (e.g. WhatsApp)
-          </Typography>
-          <Switch
-            checked={proactiveCtaEnabled}
-            onChange={(_, checked) => setProactiveCtaEnabled(checked)}
-            color="success"
-          />
-        </Box>
-        {proactiveCtaEnabled ? (
-          <>
-            <WidgetTextField
-              label="Secondary button label"
-              name="proactive-cta-label"
-              value={proactiveCtaLabel}
-              onChange={setProactiveCtaLabel}
-              maxLength={FIELD_MAX.shortLabel}
-              helperText="e.g. Chat on WhatsApp"
-            />
-            <WidgetUrlField
-              label="Secondary button link"
-              name="proactive-cta-href"
-              value={proactiveCtaHref}
-              onChange={setProactiveCtaHref}
-              required={proactiveCtaEnabled}
-              helperText="One https link only — opens in a new tab."
-            />
-          </>
-        ) : null}
           </>
         ) : null}
       </SchedulingSectionCard>
 
-      <Typography variant="mediumLarge" sx={{ color: theme.app.text.primary, mb: -1.25 }}>
+      <Box>
+      <Typography variant="mediumLarge" sx={{ color: theme.app.text.primary, mb: 0.5 }}>
         Default launcher icon
       </Typography>
-      <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, mb: 0.75 }}>
+      <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, mb: 1.25 }}>
        Upload your own file below to override.
       </Typography>
       <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", alignItems: "center", mb: 1.25 }}>
@@ -666,6 +611,7 @@ export default function ChatWidgetButtonDesignPage() {
         </Typography>
       </Box>
       <Box component="input" ref={iconUploadRef} type="file" accept=".svg,.png,.jpg,.jpeg,.webp" onChange={handleIconUpload} sx={{ display: "none" }} />
+      </Box>
 
       <SelectField
         label="Button Position"
@@ -678,10 +624,11 @@ export default function ChatWidgetButtonDesignPage() {
         ]}
       />
 
-      <Typography variant="mediumLarge" sx={{ color: theme.app.text.primary, mb: -1 }}>
+      <Box>
+      <Typography variant="mediumLarge" sx={{ color: theme.app.text.primary, mb: 0.5 }}>
         Launcher position (fine tune)
       </Typography>
-      <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, mb: 0.75 }}>
+      <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, mb: 1.25 }}>
         A larger bottom inset moves the launcher farther from the corner and higher above the bottom edge of the screen. Side inset controls spacing from the left or right edge. When Center is selected, horizontal shift (left/right slide) applies.
       </Typography>
       <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 1.5 }}>
@@ -701,6 +648,9 @@ export default function ChatWidgetButtonDesignPage() {
           onChange={(event) => setLauncherInsetSide(event.target.value)}
           inputProps={{ inputMode: "numeric", pattern: "[0-9]*", min: 0, max: 240 }}
         />
+      </Box>
+      </Box>
+
       </Box>
 
         </SchedulingSectionCard>

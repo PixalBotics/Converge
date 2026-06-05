@@ -22,6 +22,7 @@ import { inboxTranscriptDisplayForClosed } from "../utils/inbox-transcript-messa
 import { ChatWhisperComposerStrip } from "./ChatWhisperComposerStrip";
 import { ChatComposer } from "./ChatComposer";
 import { ChatMessageList } from "./ChatMessageList";
+import { chatOpsConversationMetaChipHeight } from "../styles/chat-operations.styles";
 import {
   ChatHeaderMetaChip,
   PanelColumn,
@@ -185,22 +186,44 @@ export function ChatConversationPanel({
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            gap: 2,
+            gap: { xs: 1.5, sm: 2 },
             py: 1.5,
+            px: 2,
           }}
         >
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, minWidth: 0, flex: 1 }}>
-            <QueueAvatar sx={{ width: 44, height: 44, fontSize: 14 }}>{visitorInfo.initials}</QueueAvatar>
-            <Box sx={{ minWidth: 0 }}>
-              <Typography fontWeight={700} sx={{ fontSize: 15, color: theme.app.text.primary }}>
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "flex-start",
+              gap: 1.5,
+              minWidth: 0,
+              flex: 1,
+              pr: { sm: 1 },
+            }}
+          >
+            <QueueAvatar sx={{ width: 44, height: 44, fontSize: 14, flexShrink: 0 }}>
+              {visitorInfo.initials}
+            </QueueAvatar>
+            <Box sx={{ minWidth: 0, display: "flex", flexDirection: "column", gap: 0.35 }}>
+              <Typography
+                fontWeight={700}
+                sx={{
+                  fontSize: 15,
+                  lineHeight: 1.3,
+                  color: theme.app.text.primary,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
                 {headerTitle}
               </Typography>
               {headerSubtitle ? (
                 <Typography
                   sx={{
                     fontSize: 11,
+                    lineHeight: 1.4,
                     color: theme.app.dashboard.textMuted,
-                    mt: 0.25,
                     overflow: "hidden",
                     textOverflow: "ellipsis",
                     whiteSpace: "nowrap",
@@ -214,10 +237,13 @@ export function ChatConversationPanel({
                 sx={{
                   display: "inline-flex",
                   alignItems: "center",
+                  alignSelf: "flex-start",
                   gap: 0.5,
-                  mt: 0.5,
-                  px: 0.85,
-                  py: 0.2,
+                  mt: 0.15,
+                  height: chatOpsConversationMetaChipHeight,
+                  boxSizing: "border-box",
+                  px: 1,
+                  py: 0,
                   borderRadius: 999,
                   fontSize: 11,
                   fontWeight: 600,
@@ -250,13 +276,21 @@ export function ChatConversationPanel({
               </Box>
             </Box>
           </Box>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexShrink: 0 }}>
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 1,
+              flexShrink: 0,
+              ml: { xs: 0, sm: 1.5 },
+            }}
+          >
             <Box
               sx={{
                 display: { xs: "none", sm: "flex" },
-                gap: 0.75,
-                flexWrap: "wrap",
-                justifyContent: "flex-end",
+                gap: 1,
+                flexWrap: "nowrap",
+                alignItems: "center",
               }}
             >
               <ChatHeaderMetaChip>
@@ -283,7 +317,14 @@ export function ChatConversationPanel({
                   variant="secondary"
                   size="compact"
                   onClick={() => void onCloseChat()}
-                  sx={{ display: { xs: "none", md: "inline-flex" }, minWidth: 0, px: 1.5 }}
+                  sx={{
+                    display: { xs: "none", md: "inline-flex" },
+                    minWidth: 0,
+                    height: chatOpsConversationMetaChipHeight,
+                    px: 1.5,
+                    py: 0,
+                    fontSize: 11,
+                  }}
                 >
                   Close chat
                 </Button>

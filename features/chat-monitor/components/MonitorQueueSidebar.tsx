@@ -21,6 +21,10 @@ import {
 } from "@/features/chat-operations/styles/chat-operations.styled";
 import { chatOpsPaneTitleSx } from "@/features/chat-operations/styles/chat-operations.styles";
 import {
+  chatOpsAgentAssignPillSx,
+  chatOpsStatusChipSx,
+} from "@/features/chat-operations/styles/chat-operations.styles";
+import {
   chatMonitorFilterWrap,
   chatMonitorInboxHeaderSx,
   chatMonitorInboxTabsRow,
@@ -201,11 +205,11 @@ export function MonitorQueueSidebar({
                     <Chip
                       label={conversation.status}
                       size="small"
-                      sx={{ height: 20, fontSize: 10, ...chip }}
+                      sx={{ ...chatOpsStatusChipSx, ...chip }}
                     />
-                    <Typography variant="caption" sx={{ fontSize: 11, color: theme.app.dashboard.textMuted }}>
+                    <Box component="span" sx={chatOpsAgentAssignPillSx}>
                       {agentDisplayName(conversation.agent)}
-                    </Typography>
+                    </Box>
                   </Box>
                   <Typography
                     variant="small"

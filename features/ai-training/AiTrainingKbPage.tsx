@@ -4,8 +4,6 @@ import { useMemo, useState } from "react";
 import AutoStories from "@mui/icons-material/AutoStories";
 import SmartToyOutlined from "@mui/icons-material/SmartToyOutlined";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/common";
-import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
 import {
   useAiAssistantKbTrainingWebsitesQuery,
   useAiChatbotTrainingWebsitesQuery,
@@ -94,16 +92,6 @@ export function AiTrainingKbPage({ variant }: { variant: AiTrainingKbVariant }) 
       title={copy.title}
       subtitle={copy.subtitle}
       icon={<HeaderIcon sx={{ color: "primary.main", fontSize: 28 }} />}
-      actions={
-        <Button
-          type="button"
-          variant="primary"
-          sx={gradientPrimaryButtonSx}
-          href={aiTrainingAddHref(variant)}
-        >
-          + Add training
-        </Button>
-      }
     >
       <AiTrainingHowItWorks variant={variant} />
 

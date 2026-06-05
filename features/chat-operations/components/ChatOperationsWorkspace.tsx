@@ -34,6 +34,7 @@ import { chatMonitorKeys } from "@/features/chat-monitor/hooks/keys";
 import { useChatMonitor } from "@/features/chat-monitor/hooks/useChatMonitor";
 import {
   chatLiveAgentStackSx,
+  chatLiveWorkstationToolbarRowSx,
 } from "@/features/chat-shared/styles/chat-live.styles";
 import type { AgentVisitorPresentation, ConversationSummary } from "@/services/chat/chat.types";
 import { extractVisitorPresentation } from "@/services/chat/visitor-presentation";
@@ -48,7 +49,6 @@ import {
   patchConversationDraft,
 } from "../utils/conversation-scoped-state";
 import { ChatConversationPanel } from "./ChatConversationPanel";
-import { AgentDistributionPrompt } from "./AgentDistributionPrompt";
 import { ChatQueueSidebar } from "./ChatQueueSidebar";
 import { VisitorInfoPanel } from "./VisitorInfoPanel";
 import {
@@ -555,19 +555,7 @@ export function ChatOperationsWorkspace() {
     <ChatLivePageShell variant="workstation" sx={chatLiveAgentStackSx}>
       {showScopeFilters ? (
         <>
-          <Box
-            sx={{
-              flexShrink: 0,
-              display: "flex",
-              flexWrap: "wrap",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: 1,
-              px: { xs: 0.5, md: 1 },
-              pt: 0.5,
-              pb: 0.25,
-            }}
-          >
+          <Box sx={chatLiveWorkstationToolbarRowSx}>
             <ChatLiveViewSwitch
               options={[
                 { id: "team", label: "By website" },
@@ -736,6 +724,7 @@ export function ChatOperationsWorkspace() {
               websiteId={websiteIdEffective || null}
               conversationMeta={conversationMeta}
               visitorPresentation={visitorPresentation}
+              assignedAgentLabel={assignedAgentLabel}
               assignedAgentId={assignedAgentId}
               currentUserId={user?.id}
               hasOperational={hasOperational}
@@ -753,13 +742,6 @@ export function ChatOperationsWorkspace() {
       </Box>
 
     </ChatLivePageShell>
-
-      {wrapUpForSelected?.requiresDistributionForm && !wrapUpForSelected.distributionSubmitted ? (
-        <AgentDistributionPrompt
-          payload={wrapUpForSelected}
-          onDismiss={agentChat.dismissWrapUp}
-        />
-      ) : null}
     </>
   );
 }

@@ -22,18 +22,28 @@ function CountBadge({ label, theme, accent }: { label: string; theme: AppTheme; 
     <Box
       component="span"
       sx={{
-        px: 1,
-        py: 0.2,
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        boxSizing: "border-box",
+        minHeight: 26,
+        px: 1.25,
+        py: 0,
         borderRadius: "9999px",
-        fontSize: "0.7rem",
+        fontSize: "0.72rem",
         fontWeight: 600,
+        lineHeight: 1,
+        letterSpacing: "0.01em",
         whiteSpace: "nowrap",
         flexShrink: 0,
         bgcolor: accent
-          ? alpha(theme.palette.primary.main, 0.18)
-          : alpha(theme.app.dashboard.white95, 0.08),
+          ? alpha(theme.palette.primary.main, 0.2)
+          : alpha(theme.app.dashboard.white95, 0.06),
         color: accent ? theme.palette.primary.light : theme.app.dashboard.textMuted,
-        border: `1px solid ${alpha(theme.app.dashboard.cardBorder, accent ? 0.6 : 1)}`,
+        border: `1px solid ${alpha(
+          accent ? theme.palette.primary.main : theme.app.dashboard.cardBorder,
+          accent ? 0.38 : 0.7,
+        )}`,
       }}
     >
       {label}
@@ -66,7 +76,7 @@ export function PocChildCompanyAccordion({ child, expanded, onToggle }: Props) {
       sx={{
         bgcolor: alpha(theme.app.dashboard.white95, 0.02),
         border: `1px solid ${alpha(theme.app.dashboard.cardBorder, 0.85)}`,
-        borderRadius: "10px !important",
+        borderRadius: "12px !important",
         overflow: "hidden",
         "&:before": { display: "none" },
         "&.Mui-expanded": { margin: 0 },
@@ -75,10 +85,10 @@ export function PocChildCompanyAccordion({ child, expanded, onToggle }: Props) {
       <AccordionSummary
         expandIcon={<ExpandMoreIcon sx={{ fontSize: 20, color: theme.app.dashboard.textMuted }} />}
         sx={{
-          px: 1.25,
-          py: 0,
-          minHeight: 48,
-          "& .MuiAccordionSummary-content": { my: 0.65, alignItems: "center", gap: 1 },
+          px: 1.5,
+          py: 0.5,
+          minHeight: 52,
+          "& .MuiAccordionSummary-content": { my: 0.75, alignItems: "center", gap: 1.25 },
         }}
       >
         <Box
@@ -96,18 +106,34 @@ export function PocChildCompanyAccordion({ child, expanded, onToggle }: Props) {
           <BusinessOutlinedIcon sx={{ fontSize: 17 }} />
         </Box>
         <Box sx={{ flex: 1, minWidth: 0 }}>
-          <Typography variant="body2" color="white" fontWeight={600} noWrap>
-            {child.name}
-          </Typography>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
+            <Typography
+              variant="body2"
+              color="white"
+              fontWeight={600}
+              noWrap
+              sx={{ flex: "1 1 auto", minWidth: 0 }}
+            >
+              {child.name}
+            </Typography>
+            <CountBadge
+              theme={theme}
+              accent
+              label={`${pocCount} POC${pocCount === 1 ? "" : "s"}`}
+            />
+          </Box>
           {!expanded ? (
-            <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted }} noWrap>
+            <Typography
+              variant="caption"
+              sx={{ color: theme.app.dashboard.textMuted, mt: 0.375, display: "block" }}
+              noWrap
+            >
               {pocCount} contact{pocCount === 1 ? "" : "s"} — expand to view
             </Typography>
           ) : null}
         </Box>
-        <CountBadge theme={theme} accent label={`${pocCount} POC`} />
       </AccordionSummary>
-      <AccordionDetails sx={{ px: 1.25, pb: 1.25, pt: 0 }}>
+      <AccordionDetails sx={{ px: 1.5, pb: 1.5, pt: 0.5 }}>
         <Box
           sx={{
             display: "grid",
@@ -115,7 +141,7 @@ export function PocChildCompanyAccordion({ child, expanded, onToggle }: Props) {
               xs: "1fr",
               md: pocCount > 1 ? "repeat(2, minmax(0, 1fr))" : "1fr",
             },
-            gap: 1,
+            gap: 1.25,
           }}
         >
           {visibleContacts.map((contact) => (

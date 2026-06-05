@@ -14,6 +14,7 @@ import {
   dataTableHeaderCell,
   dataTableCellDefault,
   dataTableCellMuted,
+  dataTableEmptyStateCell,
 } from "./DataTable.styles";
 import type { AppTheme } from "@/theme/theme";
 
@@ -107,47 +108,59 @@ export function DataTable<T extends Record<string, unknown>>({
         <Box component="tbody">
           {shouldShowEmptyState ? (
             <Box component="tr">
-              <Box component="td" colSpan={columns.length + (actionColumn ? 1 : 0)} sx={{ borderBottom: "none", px: 0, py: 0 }}>
+              <Box component="td" colSpan={columns.length + (actionColumn ? 1 : 0)} sx={dataTableEmptyStateCell}>
                 <Box
                   sx={(theme) => {
                     const app = (theme as AppTheme).app;
                     return {
-                      mx: { xs: 1, sm: 1.5, md: 2 },
+                      mx: 0,
                       my: { xs: 1.25, sm: 1.75, md: 2.25 },
-                      borderRadius: 3.5,
-                      border: `1px solid ${alpha(app.dashboard.white95, 0.14)}`,
-                      boxShadow: `inset 0 1px 0 ${alpha(app.dashboard.white95, 0.08)}`,
-                      bgcolor: alpha(app.dashboard.overlayLight, 0.52),
+                      borderRadius: 3,
+                      border: `1px dashed ${app.dashboard.cardBorder}`,
+                      bgcolor: app.dashboard.overlayLight,
                       minHeight: 190,
                       display: "flex",
                       flexDirection: "column",
                       alignItems: "center",
                       justifyContent: "center",
                       textAlign: "center",
-                      gap: 0.9,
-                      px: 2.5,
+                      gap: 1.25,
+                      pl: 0,
+                      pr: 0,
                       py: 2,
+                      width: "100%",
+                      boxSizing: "border-box",
                     };
                   }}
                 >
                   <Box
-                    sx={(theme) => ({
-                      width: 54,
-                      height: 54,
-                      borderRadius: "50%",
-                      display: "grid",
-                      placeItems: "center",
-                      color: (theme as AppTheme).app.dashboard.white95,
-                      border: `1px solid ${alpha((theme as AppTheme).app.dashboard.white95, 0.18)}`,
-                      background: `linear-gradient(180deg, ${alpha((theme as AppTheme).app.dashboard.white95, 0.16)} 0%, ${alpha((theme as AppTheme).app.dashboard.white95, 0.05)} 100%)`,
-                    })}
+                    sx={(theme) => {
+                      const app = (theme as AppTheme).app;
+                      return {
+                        width: 52,
+                        height: 52,
+                        borderRadius: "50%",
+                        display: "grid",
+                        placeItems: "center",
+                        color: app.dashboard.textMuted,
+                        bgcolor: app.dashboard.pillBg,
+                        border: `1px solid ${app.dashboard.cardBorder}`,
+                      };
+                    }}
                   >
                     <EmptyStateIcon sx={{ fontSize: 26 }} />
                   </Box>
                   <Typography variant="subtitle2" sx={{ color: (theme) => (theme as AppTheme).app.dashboard.white95, fontWeight: 600 }}>
                     {emptyState?.title ?? "No records yet"}
                   </Typography>
-                  <Typography variant="body2" sx={{ color: (theme) => (theme as AppTheme).app.dashboard.textMuted, maxWidth: 520, lineHeight: 1.55 }}>
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      color: (theme) => (theme as AppTheme).app.dashboard.textMuted,
+                      maxWidth: 520,
+                      lineHeight: 1.55,
+                    }}
+                  >
                     {emptyState?.description ?? "There is no data available for the current filter."}
                   </Typography>
                 </Box>

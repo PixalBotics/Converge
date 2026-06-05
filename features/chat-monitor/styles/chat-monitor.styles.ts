@@ -71,14 +71,4 @@ export const chatMonitorAgentTableWrapSx: SxProps<Theme> = {
   minHeight: 0,
 };
 
-export const chatMonitorToolbarRowSx: SxProps<Theme> = {
-  flexShrink: 0,
-  display: "flex",
-  flexWrap: "wrap",
-  alignItems: "center",
-  justifyContent: "space-between",
-  gap: 1,
-  px: { xs: 0.5, md: 1 },
-  pt: 0.5,
-  pb: 0.25,
-};
+export { chatLiveWorkstationToolbarRowSx as chatMonitorToolbarRowSx } from "@/features/chat-shared/styles/chat-live.styles";

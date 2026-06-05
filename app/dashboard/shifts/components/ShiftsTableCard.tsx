@@ -15,6 +15,7 @@ import {
   DataTable,
   dataTableActionButton,
   SearchBar,
+  SearchSubmitButton,
   TablePagination,
   ToolbarFilterPopover,
   Typography,
@@ -157,15 +158,10 @@ export function ShiftsTableCard({
             <SearchBar value={searchInput} onChange={onSearchInputChange} placeholder={searchPlaceholder} />
           </Box>
           {showSearchSubmitButton ? (
-            <Button
-              type="button"
-              variant="primary"
+            <SearchSubmitButton
               disabled={searchInput.trim() === appliedSearch.trim()}
               onClick={onSearchApply}
-              sx={{ minWidth: 132, whiteSpace: "nowrap", alignSelf: { xs: "stretch", sm: "center" } }}
-            >
-              Search
-            </Button>
+            />
           ) : null}
           {showFilter ? (
             <ToolbarFilterPopover
@@ -179,48 +175,46 @@ export function ShiftsTableCard({
         </Box>
       </Box>
 
-      <Box sx={{ px: { xs: 0.5, sm: 1 }, pb: 0.5 }}>
-        <DataTable<ShiftRow>
-          columns={columns}
-          rows={rows}
-          isLoading={isLoading}
-          getRowId={(row) => row.id}
-          minWidth={1000}
-          emptyState={{
-            title: emptyState?.title ?? "No shift templates",
-            description: emptyState?.description ?? "No results for this search.",
-          }}
-          actionColumn={{
-            label: "Actions",
-            render: (row) => (
-              <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 0.5 }}>
-                <IconButton
-                  size="small"
-                  sx={dataTableActionButton}
-                  aria-label="Edit shift"
-                  disabled={disableActions || !canEdit}
-                  onClick={() => onEdit(row)}
-                >
-                  <EditIcon fontSize="small" />
-                </IconButton>
-                <IconButton
-                  size="small"
-                  aria-label="Delete shift"
-                  disabled={disableActions || !canDelete}
-                  onClick={() => onDelete(row)}
-                  sx={{
-                    ...dataTableActionButton,
-                    color: theme.app.dashboard.accentRedLight,
-                    opacity: disableActions ? 0.7 : 1,
-                  }}
-                >
-                  <DeleteIcon fontSize="small" />
-                </IconButton>
-              </Box>
-            ),
-          }}
-        />
-      </Box>
+      <DataTable<ShiftRow>
+        columns={columns}
+        rows={rows}
+        isLoading={isLoading}
+        getRowId={(row) => row.id}
+        minWidth={1000}
+        emptyState={{
+          title: emptyState?.title ?? "No shift templates",
+          description: emptyState?.description ?? "No results for this search.",
+        }}
+        actionColumn={{
+          label: "Actions",
+          render: (row) => (
+            <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 0.5 }}>
+              <IconButton
+                size="small"
+                sx={dataTableActionButton}
+                aria-label="Edit shift"
+                disabled={disableActions || !canEdit}
+                onClick={() => onEdit(row)}
+              >
+                <EditIcon fontSize="small" />
+              </IconButton>
+              <IconButton
+                size="small"
+                aria-label="Delete shift"
+                disabled={disableActions || !canDelete}
+                onClick={() => onDelete(row)}
+                sx={{
+                  ...dataTableActionButton,
+                  color: theme.app.dashboard.accentRedLight,
+                  opacity: disableActions ? 0.7 : 1,
+                }}
+              >
+                <DeleteIcon fontSize="small" />
+              </IconButton>
+            </Box>
+          ),
+        }}
+      />
 
       <Box
         sx={

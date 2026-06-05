@@ -506,7 +506,6 @@ export default function ShiftsPage() {
 
   const shiftsFilterPanel = useMemo(() => {
     if (!mayPickInternal) return null;
-    const sectionRule = `1px solid ${alpha(theme.app.dashboard.white95, 0.1)}`;
     return (
       <ToolbarFilterPopoverPanel
         footer={
@@ -542,11 +541,8 @@ export default function ShiftsPage() {
           <Box
             sx={{
               mt: 2,
-              pt: 2,
               display: "grid",
               gap: 1.75,
-              borderTop: sectionRule,
-              bgcolor: alpha(theme.app.dashboard.white95, 0.03),
             }}
           >
             <SelectField

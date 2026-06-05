@@ -125,7 +125,7 @@ export default function ThemeCustomizeClient() {
       <ThemeSectionLabel variant="medium16">Color themes</ThemeSectionLabel>
 
       <ThemeCustomizeColorGrid>
-        <HoverTooltip label="Custom color — open picker" fullWidth={false}>
+        <HoverTooltip label="Custom color — open picker" fullWidth>
           <ThemeColorPickerTrigger
             type="button"
             aria-label="Custom color — open picker"
@@ -141,7 +141,7 @@ export default function ThemeCustomizeClient() {
         </HoverTooltip>
 
         {solidColorPresets.map((p) => (
-          <HoverTooltip key={p.id} label={p.label} fullWidth={false}>
+          <HoverTooltip key={p.id} label={p.label} fullWidth>
             <ThemeSwatchButton
               shape="circle"
               selected={p.id === presetId}

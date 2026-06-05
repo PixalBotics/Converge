@@ -62,12 +62,12 @@ export function PocContactCard({ contact }: Props) {
   return (
     <Box
       sx={{
-        p: 1.5,
+        p: 1.75,
         borderRadius: 2,
         border: `1px solid ${alpha(theme.app.dashboard.cardBorder, 0.95)}`,
         bgcolor: alpha(theme.app.dashboard.white95, 0.04),
         display: "flex",
-        gap: 1.25,
+        gap: 1.5,
         alignItems: "flex-start",
         transition: "border-color 160ms ease, background-color 160ms ease",
         "&:hover": {
@@ -114,7 +114,7 @@ export function PocContactCard({ contact }: Props) {
             No email
           </Typography>
         )}
-        <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5, mt: 0.75 }}>
+        <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.625, mt: 0.875 }}>
           <DetailChip label={contact.designationTitle} />
           <DetailChip label={contact.departmentName} />
         </Box>

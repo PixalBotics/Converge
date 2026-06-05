@@ -13,7 +13,12 @@ import {
 } from "@/components/common/InputField/outlineFieldCursor";
 import { FORM_MODAL_MUI_OVERLAY_Z_INDEX } from "@/lib/ui/dialogStacking";
 import { textFieldStyles } from "@/components/common/InputField/InputField.styles";
-import { selectFieldStyles, selectMenuItemSx, selectMenuPaperSx } from "./SelectField.styles";
+import {
+  hideScrollbarsSx,
+  selectFieldStyles,
+  selectMenuItemSx,
+  selectMenuPaperSx,
+} from "./SelectField.styles";
 
 export interface SelectFieldOption {
   label: string;
@@ -69,22 +74,19 @@ export function SelectField({
    * MUI Menu `Paper` defaults to a large max-height; we cap height and keep scrolling on the
    * `MenuList` so options are not visually “cut” at the panel edge.
    */
-  const menuListSx = menuMaxHeightPx
-    ? {
-        flex: "1 1 auto",
-        minHeight: 0,
-        maxHeight: "100%",
-        overflowY: "auto",
-        overscrollBehavior: "contain",
-        py: 0.5,
-        // Keep dropdown scroll behavior but hide scrollbar visuals.
-        scrollbarWidth: "none",
-        msOverflowStyle: "none",
-        "&::-webkit-scrollbar": {
-          display: "none",
-        },
-      }
-    : undefined;
+  const menuListSx = {
+    ...hideScrollbarsSx,
+    ...(menuMaxHeightPx
+      ? {
+          flex: "1 1 auto",
+          minHeight: 0,
+          maxHeight: "100%",
+          overflowY: "auto",
+          overscrollBehavior: "contain",
+          py: 0.5,
+        }
+      : {}),
+  };
 
   const menuPaperSx = menuMaxHeightPx
     ? {
@@ -144,9 +146,6 @@ export function SelectField({
               }}
             />
           )}
-          ListboxProps={{
-            style: menuMaxHeightPx ? { maxHeight: menuMaxHeightPx, overflow: "auto" } : undefined,
-          }}
           slotProps={{
             popper: {
               placement: "bottom-start",
@@ -159,6 +158,14 @@ export function SelectField({
             },
             paper: {
               sx: [selectMenuPaperSx(theme), menuPaperSx ?? {}],
+            },
+            listbox: {
+              sx: [
+                hideScrollbarsSx,
+                menuMaxHeightPx
+                  ? { maxHeight: menuMaxHeightPx, overflow: "auto", overscrollBehavior: "contain" }
+                  : {},
+              ],
             },
           }}
         />
@@ -214,7 +221,7 @@ export function SelectField({
             anchorOrigin: { vertical: "bottom", horizontal: "left" },
             transformOrigin: { vertical: "top", horizontal: "left" },
             ...(menuCapped ? { marginThreshold: 8 } : {}),
-            MenuListProps: menuListSx ? { sx: menuListSx } : undefined,
+            MenuListProps: { sx: menuListSx },
             PaperProps: {
               sx: [selectMenuPaperSx(theme), menuPaperSx ?? {}],
               ...(paperStyle ? { style: paperStyle } : {}),

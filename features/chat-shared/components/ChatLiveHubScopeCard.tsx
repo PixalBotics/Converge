@@ -61,7 +61,12 @@ export function ChatLiveHubScopeCard({
   );
 
   return (
-    <DashboardCard sx={websiteAssignmentFilterCard}>
+    <DashboardCard
+      sx={[
+        websiteAssignmentFilterCard,
+        { mt: { xs: 1.25, md: 1.75 }, flexShrink: 0 },
+      ]}
+    >
       <Box sx={websiteAssignmentFilterTitleRow}>
         <Box sx={websiteAssignmentFilterIconBox}>
           <FilterList sx={{ fontSize: 20 }} />

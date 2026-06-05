@@ -8,6 +8,7 @@ import Paper from "@mui/material/Paper";
 import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import { FORM_MODAL_MUI_OVERLAY_Z_INDEX } from "@/lib/ui/dialogStacking";
+import { hideScrollbarsSx } from "@/lib/ui/hideScrollbars";
 import { Label } from "@/components/common/Label";
 import { Typography } from "@/components/common/Typography";
 import { SearchIcon } from "@/components/common/icons";
@@ -172,6 +173,7 @@ export function FilterableComboField({
             <Paper
               elevation={0}
               sx={{
+                ...hideScrollbarsSx,
                 mt: 1,
                 position: "absolute",
                 top: "100%",

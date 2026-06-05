@@ -6,7 +6,7 @@ import IconButton from "@mui/material/IconButton";
 import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import { Person as PersonIcon, Edit as EditIcon, Delete as DeleteIcon } from "@mui/icons-material";
-import { AddCircleIcon, SearchIcon } from "@/components/common/icons";
+import { AddCircleIcon } from "@/components/common/icons";
 import {
   Typography,
   DashboardCard,
@@ -14,6 +14,7 @@ import {
   dataTableActionButton,
   Button,
   SearchBar,
+  SearchSubmitButton,
   TablePagination,
 } from "@/components/common";
 import type { DataTableColumn } from "@/components/common";
@@ -179,18 +180,10 @@ export default function RolesPage() {
             <Box sx={{ flex: 1, minWidth: 0 }}>
               <SearchBar value={searchInput} onChange={setSearchInput} placeholder="Search roles…" sx={{ width: "100%" }} />
             </Box>
-            <Button
-              type="button"
-              variant="primary"
+            <SearchSubmitButton
               disabled={searchInput.trim() === search.trim()}
               onClick={() => setSearch(searchInput)}
-              sx={{ minWidth: 132, whiteSpace: "nowrap" }}
-            >
-              <Box component="span" sx={{ display: "inline-flex", lineHeight: 0 }}>
-                <SearchIcon width={18} height={18} sx={{ color: "inherit" }} />
-              </Box>
-              Search
-            </Button>
+            />
           </Box>
         </Box>
 

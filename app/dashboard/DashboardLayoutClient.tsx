@@ -148,13 +148,13 @@ export default function DashboardLayoutClient({
         bgcolor: "transparent",
         background: (theme) =>
           (theme as { appBackground?: string }).appBackground ?? mainBackgroundGradient,
-        p: chatWorkstation ? { xs: 0, md: 1 } : { xs: 0, md: 2 },
-        gap: chatWorkstation ? { xs: 0, md: 1 } : { xs: 0, md: 2 },
+        p: { xs: 0, md: 2 },
+        gap: { xs: 0, md: 2 },
       }}
     >
       <DashboardSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <Box sx={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, minHeight: 0 }}>
-        <Box sx={{ flexShrink: 0, mb: chatWorkstation ? { xs: 0, md: 0.5 } : undefined }}>
+        <Box sx={{ flexShrink: 0 }}>
           <DashboardHeader onMenuClick={() => setSidebarOpen(true)} />
           <ImpersonationBanner />
         </Box>
@@ -166,8 +166,8 @@ export default function DashboardLayoutClient({
                 ? dashboardChatWorkstationMainSx
                 : {
                     flex: 1,
-                    py: { xs: 2, sm: 3 },
-                    px: { xs: 1.5, sm: 2, md: 2.5 },
+                    // py: { xs: 2, sm: 3 },
+                    // px: { xs: 1.5, sm: 2, md: 2.5 },
                     overflow: "auto",
                     boxSizing: "border-box",
                   },

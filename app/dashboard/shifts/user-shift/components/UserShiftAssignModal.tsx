@@ -294,16 +294,7 @@ export function UserShiftAssignModal({
           scrollY
           containerSx={{
             maxHeight: { xs: 380, sm: 420 },
-            overflowX: "auto",
-            overflowY: "auto",
             borderRadius: 0,
-            scrollbarWidth: "thin",
-            msOverflowStyle: "auto",
-            "&::-webkit-scrollbar": {
-              display: "block",
-              width: 10,
-              height: 10,
-            },
           }}
           emptyState={{
             title: "No users to show",
