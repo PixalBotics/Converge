@@ -25,6 +25,7 @@ import {
   chatOpsProfileMetaLabelSx,
   chatOpsProfileMetaValueSx,
 } from "../styles/chat-operations.styles";
+import { mergeSx } from "@/lib/mui/merge-sx";
 import {
   formatProfileChatDurationMinutes,
   formatProfileChatId,
@@ -109,14 +110,11 @@ function ProfileMetaField({
           href={href}
           target="_blank"
           rel="noopener noreferrer"
-          sx={[
-            chatOpsProfileMetaValueSx,
-            {
-              color: theme.app.dashboard.accentBlue,
-              textDecoration: "underline",
-              display: "inline-block",
-            },
-          ]}
+          sx={mergeSx(chatOpsProfileMetaValueSx, {
+            color: theme.app.dashboard.accentBlue,
+            textDecoration: "underline",
+            display: "inline-block",
+          })}
         >
           {value}
         </Link>

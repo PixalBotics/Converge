@@ -566,12 +566,12 @@ export default function ChatWidgetNotificationsPage() {
                   checked={responseTalkToAgentEnabled}
                   onChange={setresponseTalkToAgentEnabled}
                 />
-                {responseAgentHandoverEnabled ? (
+                {responseTalkToAgentEnabled ? (
                   <WidgetTextField
                     label="Talk to agent button label"
                     name="handover-label"
-                    value={responseHandoverTriggerText}
-                    onChange={setResponseHandoverTriggerText}
+                    value={responseTalkToAgentTriggerText}
+                    onChange={setresponseTalkToAgentTriggerText}
                     maxLength={FIELD_MAX.shortLabel}
                     placeholder="Talk to agent"
                   />

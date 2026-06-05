@@ -33,6 +33,7 @@ import {
   chatOpsConversationMetaChipHeight,
   chatOpsStatusChipSx,
 } from "@/features/chat-operations/styles/chat-operations.styles";
+import { mergeSx } from "@/lib/mui/merge-sx";
 import {
   PanelColumn,
   PanelHeader,
@@ -383,10 +384,10 @@ export function MonitorTranscriptPanel({
                 />
                 <Box
                   component="span"
-                  sx={[
-                    chatOpsAgentAssignPillSx,
-                    { color: theme.app.text.primary, fontWeight: 600 },
-                  ]}
+                  sx={mergeSx(chatOpsAgentAssignPillSx, {
+                    color: theme.app.text.primary,
+                    fontWeight: 600,
+                  })}
                 >
                   {agentLabel}
                 </Box>

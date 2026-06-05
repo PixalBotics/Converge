@@ -5,6 +5,7 @@ import Box from "@mui/material/Box";
 import Link from "next/link";
 import ArrowBackRounded from "@mui/icons-material/ArrowBackRounded";
 import { Typography } from "@/components/common";
+import { mergeSx } from "@/lib/mui/merge-sx";
 import { pageWrapper } from "../../companies/overview.styles";
 import {
   invoiceBackLinkSx,
@@ -19,7 +20,7 @@ type InvoicePageShellProps = {
 
 export function InvoicePageShell({ title, children }: InvoicePageShellProps) {
   return (
-    <Box sx={[pageWrapper, invoicePageWrapperSx]}>
+    <Box sx={mergeSx(pageWrapper, invoicePageWrapperSx)}>
       <Box sx={invoicePageHeaderSx}>
         <Link href="/dashboard/billing" style={{ textDecoration: "none" }}>
           <Box component="span" sx={invoiceBackLinkSx}>
