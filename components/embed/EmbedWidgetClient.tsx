@@ -47,6 +47,7 @@ import {
   markWidgetTrackSent,
   shouldSkipWidgetTrack,
 } from "@/lib/widget-runtime/widget-track-dedupe";
+import { ChatFormattedMessage } from "@/lib/safe-markdown/ChatFormattedMessage";
 import { normalizeChatMessageText } from "@/lib/safe-markdown/text";
 import { useVisitorChat } from "@/lib/hooks/chat/useVisitorChat";
 import {
@@ -2365,13 +2366,10 @@ function MessageBubble({
           appearance ? embedTranscriptBubbleInnerSx(appearance, bubbleRole) : {}
         }
       >
-        <Typography
-          variant="body2"
-          component="div"
-          sx={{ wordBreak: "break-word", whiteSpace: "pre-wrap", color: "inherit" }}
-        >
-          {normalizeChatMessageText(message.content)}
-        </Typography>
+        <ChatFormattedMessage
+          text={message.content}
+          linkColor={appearance?.colors.primary ?? "#2563eb"}
+        />
       </Box>
     </Box>
   );

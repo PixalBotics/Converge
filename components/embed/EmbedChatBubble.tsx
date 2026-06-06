@@ -1,9 +1,9 @@
 "use client";
 
 import Box from "@mui/material/Box";
-import Typography from "@mui/material/Typography";
 import type { ReactNode } from "react";
 import type { RuntimeChatAppearance } from "@/lib/widget-runtime/widget-runtime-appearance";
+import { ChatFormattedMessage } from "@/lib/safe-markdown/ChatFormattedMessage";
 import {
   embedChatBubbleInnerSx,
   embedChatBubbleShellSx,
@@ -28,13 +28,7 @@ export function EmbedChatBubble({
     return (
       <Box sx={embedChatBubbleShellSx(align)}>
         <Box sx={embedChatBubbleInnerSx(appearance, role)}>
-          <Typography
-            variant="body2"
-            component="div"
-            sx={{ color: "inherit", whiteSpace: "pre-wrap", wordBreak: "break-word" }}
-          >
-            {text}
-          </Typography>
+          <ChatFormattedMessage text={text} linkColor={appearance.colors.primary} />
         </Box>
       </Box>
     );
