@@ -29,7 +29,7 @@ export function WidgetEmbedTestLink({
   });
   if (!origin) return null;
 
-  const params = new URLSearchParams({ widgetKey: key });
+  const params = new URLSearchParams({ widgetKey: key, sandbox: "1" });
   if (websiteId?.trim()) params.set("websiteId", websiteId.trim());
   const href = `${origin}/embed/widget?${params.toString()}`;
 
@@ -58,10 +58,10 @@ export function WidgetEmbedTestLink({
         </Box>
       ) : null}
       <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, display: "block", mb: 0.75 }}>
-        Same iframe embed as customer sites (Install embed code uses dashboard widget.js)
+        Sandbox embed — same UI as customer sites, without analytics
       </Typography>
       <Link href={href} target="_blank" rel="noopener noreferrer" sx={{ display: "inline-flex", alignItems: "center", gap: 0.5, fontWeight: 600 }}>
-        Open embed preview
+        Open widget sandbox
         <OpenInNew sx={{ fontSize: 16 }} />
       </Link>
     </Box>

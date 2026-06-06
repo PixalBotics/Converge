@@ -78,7 +78,8 @@ export function WidgetWizardPageLayout({
             Live preview (draft)
           </Typography>
           <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, display: "block", mb: 1.5 }}>
-            Matches your edits here — customer sites update after you publish on Install.
+            Matches your edits here — customer sites update after you publish on Install. Use{" "}
+            <strong>Test sandbox</strong> on the widget detail page for full interactive testing.
           </Typography>
           {preview}
         </Box>
