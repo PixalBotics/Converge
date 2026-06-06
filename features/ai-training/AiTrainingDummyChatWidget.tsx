@@ -5,6 +5,7 @@ import Box from "@mui/material/Box";
 import IconButton from "@mui/material/IconButton";
 import SendRounded from "@mui/icons-material/SendRounded";
 import ScienceOutlined from "@mui/icons-material/ScienceOutlined";
+import { ChatFormattedMessage } from "@/lib/safe-markdown/ChatFormattedMessage";
 
 export type TestChatTurn = {
   id: string;
@@ -162,20 +163,10 @@ export function AiTrainingDummyChatWidget({
                   color: turn.role === "visitor" ? "#fff" : "#0f172a",
                   border: turn.role === "bot" ? "1px solid #e2e8f0" : "none",
                   boxShadow: turn.role === "bot" ? "0 1px 2px rgba(15,23,42,0.04)" : "none",
+                  fontSize: 13,
                 }}
               >
-                <Box
-                  component="p"
-                  sx={{
-                    m: 0,
-                    whiteSpace: "pre-wrap",
-                    lineHeight: 1.45,
-                    fontSize: 13,
-                    color: "inherit",
-                  }}
-                >
-                  {turn.text}
-                </Box>
+                <ChatFormattedMessage text={turn.text} linkColor="#2563eb" />
               </Box>
               {turn.role === "bot" && turn.replyHint ? (
                 <Box
