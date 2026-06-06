@@ -97,6 +97,13 @@ function pctLabel(value: number | null | undefined): string {
   return `${value}%`;
 }
 
+function visitorEngagementLabel(row: WebsiteVisitorRow): string {
+  if (row.hasLead) return "Lead captured";
+  if (row.hasChatted) return "Chatted";
+  if (row.widgetOpened) return "Opened widget";
+  return "Browsed only";
+}
+
 function truncateUrl(url: string, max = 48): string {
   const t = url.trim();
   if (t.length <= max) return t;
@@ -128,6 +135,8 @@ export function WebsiteAnalyticsDashboard() {
   const [trafficSource, setTrafficSource] = useState("");
   const [leadsOnly, setLeadsOnly] = useState(false);
   const [chattedOnly, setChattedOnly] = useState(false);
+  const [widgetOnly, setWidgetOnly] = useState(false);
+  const [browsingOnly, setBrowsingOnly] = useState(false);
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
@@ -139,7 +148,7 @@ export function WebsiteAnalyticsDashboard() {
 
   useEffect(() => {
     setPage(1);
-  }, [websiteId, from, to, trafficSource, leadsOnly, chattedOnly, search]);
+  }, [websiteId, from, to, trafficSource, leadsOnly, chattedOnly, widgetOnly, browsingOnly, search]);
 
   const reportQuery = useQuery({
     queryKey: ["website-analytics-report", websiteId, from, to],
@@ -158,6 +167,8 @@ export function WebsiteAnalyticsDashboard() {
       trafficSource,
       leadsOnly,
       chattedOnly,
+      widgetOnly,
+      browsingOnly,
       search,
     ],
     queryFn: () =>
@@ -170,6 +181,7 @@ export function WebsiteAnalyticsDashboard() {
         trafficSource: trafficSource || undefined,
         hasLead: leadsOnly || undefined,
         hasChatted: chattedOnly || undefined,
+        widgetOpened: widgetOnly ? true : browsingOnly ? false : undefined,
         search: search || undefined,
         sortBy: "lastSeenAt",
         sortDir: "desc",
@@ -205,7 +217,8 @@ export function WebsiteAnalyticsDashboard() {
               {row.name?.trim() || row.email?.trim() || "Site visitor"}
             </Typography>
             <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted }}>
-              {row.email || row.phone || "No form — browsing only"}
+              {visitorEngagementLabel(row)}
+              {row.email || row.phone ? ` · ${row.email || row.phone}` : " · No form"}
             </Typography>
           </Box>
         ),
@@ -257,7 +270,11 @@ export function WebsiteAnalyticsDashboard() {
         render: (_, row) => (
           <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
             <Chip size="small" label={`${row.pageViewCount} views`} variant="outlined" />
-            {row.widgetOpened ? <Chip size="small" color="info" label="Widget" /> : null}
+            {row.widgetOpened ? (
+              <Chip size="small" color="info" label="Opened widget" />
+            ) : (
+              <Chip size="small" variant="outlined" label="Browsed only" />
+            )}
             {row.hasChatted ? <Chip size="small" color="success" label="Chat" /> : null}
             {row.hasLead ? <Chip size="small" color="warning" label="Lead" /> : null}
           </Box>
@@ -365,9 +382,14 @@ export function WebsiteAnalyticsDashboard() {
               hint={`${report.summary.pageViews.toLocaleString()} page views`}
             />
             <KpiCard
+              label="Browsing only"
+              value={String(report.summary.browsingOnlyVisitors ?? Math.max(0, report.summary.uniqueVisitors - report.summary.widgetOpens))}
+              hint={pctLabel(report.summary.browsingOnlyRatePct) + " viewed site, no widget click"}
+            />
+            <KpiCard
               label="Widget opens"
               value={String(report.summary.widgetOpens)}
-              hint={pctLabel(report.summary.widgetOpenRatePct) + " of visitors"}
+              hint={pctLabel(report.summary.widgetOpenRatePct) + " clicked chat launcher"}
             />
             <KpiCard
               label="Chats started"
@@ -418,6 +440,7 @@ export function WebsiteAnalyticsDashboard() {
                   <Tooltip />
                   <Legend />
                   <Line type="monotone" dataKey="visitors" stroke={theme.app.dashboard.accentCyan} dot={false} />
+                  <Line type="monotone" dataKey="widgetOpens" stroke={theme.app.dashboard.accentPurple} dot={false} />
                   <Line type="monotone" dataKey="chats" stroke={theme.app.dashboard.accentGreen} dot={false} />
                   <Line type="monotone" dataKey="leads" stroke={theme.app.dashboard.accentOrange} dot={false} />
                 </LineChart>
@@ -453,7 +476,10 @@ export function WebsiteAnalyticsDashboard() {
             <Box
               sx={{
                 display: "grid",
-                gridTemplateColumns: { xs: "1fr", md: "180px 140px 140px 1fr auto" },
+                gridTemplateColumns: {
+                  xs: "1fr",
+                  md: "minmax(140px, 180px) repeat(4, auto) 1fr auto",
+                },
                 gap: 1,
                 mb: 1.5,
                 alignItems: "center",
@@ -480,6 +506,34 @@ export function WebsiteAnalyticsDashboard() {
                 onClick={() => setChattedOnly((v) => !v)}
               >
                 Chatted only
+              </Button>
+              <Button
+                type="button"
+                variant={widgetOnly ? "primary" : "outlined"}
+                size="compact"
+                onClick={() => {
+                  setWidgetOnly((v) => {
+                    const next = !v;
+                    if (next) setBrowsingOnly(false);
+                    return next;
+                  });
+                }}
+              >
+                Widget opened
+              </Button>
+              <Button
+                type="button"
+                variant={browsingOnly ? "primary" : "outlined"}
+                size="compact"
+                onClick={() => {
+                  setBrowsingOnly((v) => {
+                    const next = !v;
+                    if (next) setWidgetOnly(false);
+                    return next;
+                  });
+                }}
+              >
+                Browsing only
               </Button>
               <InputField
                 label="Search name, email, IP, city…"
@@ -624,6 +678,16 @@ function VisitorDetailBody({ detail }: { detail: Record<string, unknown> }) {
 
   return (
     <Box>
+      <DetailRow
+        label="Engagement"
+        value={
+          detail.widgetOpened === true
+            ? detail.hasChatted === true
+              ? "Opened widget · chatted"
+              : "Opened widget"
+            : "Browsed only (no widget click)"
+        }
+      />
       <DetailRow label="Name" value={String(detail.name ?? "")} />
       <DetailRow label="Email" value={String(detail.email ?? "")} />
       <DetailRow label="Phone" value={String(detail.phone ?? "")} />
