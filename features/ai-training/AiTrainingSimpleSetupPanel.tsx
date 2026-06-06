@@ -44,11 +44,16 @@ import { studioColors } from "./ai-training-studio.tokens";
 const STEPS = ["Train", "Replies", "Test"];
 
 const QUICK_TESTS = [
-  { label: "Say hi", message: "hi" },
-  { label: "Ask a question", message: "What services do you offer?" },
-  { label: "Not sure path", message: "asdfghjkl random nonsense xyz" },
-  { label: "Talk to agent", message: "I want to talk to a human agent" },
-];
+  { label: "Say hi", message: "hi", id: "hi" },
+  { label: "Ask a question", message: "What services do you offer?", id: "question" },
+  { label: "Not sure path", message: "asdfghjkl random nonsense xyz", id: "nonsense" },
+  {
+    label: "Talk to agent",
+    message: "I want to talk to a human agent",
+    id: "talk_to_agent",
+    hybridOnly: true,
+  },
+] as const;
 
 function ReplyCard({
   icon,
@@ -114,11 +119,13 @@ export function AiTrainingSimpleSetupPanel({
   variant,
   indexedCount,
   onQuickTest,
+  chatMode = "HYBRID",
 }: {
   websiteId: string;
   variant: AiTrainingKbVariant;
   indexedCount: number;
   onQuickTest: (message: string) => void;
+  chatMode?: "AI_ONLY" | "HYBRID" | "AGENT_ONLY";
 }) {
   const theme = useTheme() as AppTheme;
   const d = theme.app.dashboard;
@@ -139,6 +146,9 @@ export function AiTrainingSimpleSetupPanel({
 
   const trainingReady = indexedCount > 0;
   const saving = updateBehavior.isPending || saveFlow.isPending;
+  const quickTests = QUICK_TESTS.filter(
+    (t) => !("hybridOnly" in t && t.hybridOnly) || chatMode === "HYBRID",
+  );
 
   const saveAll = async () => {
     if (!draft) return;
@@ -156,6 +166,27 @@ export function AiTrainingSimpleSetupPanel({
       publishAppToast({
         variant: "error",
         message: extractApiErrorMessageForToast(e) ?? "Could not save.",
+      });
+    }
+  };
+
+  const saveAutoLearn = async (enabled: boolean) => {
+    try {
+      await updateBehavior.mutateAsync({
+        websiteId,
+        body: { autoLearnFromVisitorPages: enabled },
+      });
+      setDraft((p) => (p ? { ...p, autoLearnFromVisitorPages: enabled } : p));
+      publishAppToast({
+        variant: "success",
+        message: enabled
+          ? "Auto-learn enabled — new visitor pages will be indexed in the background."
+          : "Auto-learn turned off.",
+      });
+    } catch (e) {
+      publishAppToast({
+        variant: "error",
+        message: extractApiErrorMessageForToast(e) ?? "Could not save setting.",
       });
     }
   };
@@ -236,6 +267,42 @@ export function AiTrainingSimpleSetupPanel({
                     : "Without indexed training, the bot can only use your fallback replies."}
                 </Typography>
               </Box>
+            </Box>
+            <Box
+              sx={{
+                p: 2,
+                borderRadius: 2.5,
+                bgcolor: c.surfaceMuted,
+                border: `1px solid ${c.border}`,
+              }}
+            >
+              <FormControlLabel
+                sx={{ alignItems: "flex-start", m: 0 }}
+                control={
+                  <Checkbox
+                    checked={draft.autoLearnFromVisitorPages}
+                    disabled={updateBehavior.isPending}
+                    onChange={(e) => void saveAutoLearn(e.target.checked)}
+                    size="small"
+                    sx={{
+                      color: d.textMuted,
+                      "&.Mui-checked": { color: theme.palette.primary.main },
+                      mt: 0.1,
+                    }}
+                  />
+                }
+                label={
+                  <Box>
+                    <Typography variant="body2" fontWeight={700} sx={{ color: c.text }}>
+                      Auto-learn from visitor pages
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: d.textMuted, lineHeight: 1.45, display: "block" }}>
+                      When enabled, new pages visitors view on your site are added to training in the
+                      background (rate-limited, same domain only). Manual training is unchanged.
+                    </Typography>
+                  </Box>
+                }
+              />
             </Box>
             <Box sx={{ display: "flex", gap: 1.5, flexWrap: "wrap" }}>
               <Button
@@ -406,7 +473,7 @@ export function AiTrainingSimpleSetupPanel({
                 Or tap a quick test below — the message sends automatically and highlights the bot path.
               </Typography>
               <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
-                {QUICK_TESTS.map((t) => (
+                {quickTests.map((t) => (
                   <Button
                     key={t.label}
                     type="button"

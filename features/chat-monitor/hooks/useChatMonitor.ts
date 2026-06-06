@@ -14,11 +14,11 @@ import {
   buildMonitorPatchFromSocket,
 } from "@/lib/hooks/chat/monitor-list-patch";
 import { useAgentChatSocket } from "@/lib/hooks/chat/useAgentChatSocket";
+import { getConversationHistory } from "@/services/chat/agent-inbox.api";
 import {
   fetchMonitorCapabilities,
   fetchMonitorClosed,
   fetchMonitorLive,
-  fetchMonitorTranscript,
 } from "@/services/chat/monitor.api";
 import type { ChatMessage } from "@/services/chat/chat.types";
 import type { MonitorLiveUpdatePayload } from "@/services/chat/chatSocket";
@@ -31,6 +31,25 @@ import { getSharedAgentChatSocket } from "@/services/chat/sharedAgentChatSocket"
 import { chatMonitorKeys } from "./keys";
 
 const RECONNECT_TRANSCRIPT_DEBOUNCE_MS = 500;
+const MONITOR_LIST_TAB_KEY = "converge.chat-monitor.listTab";
+
+function readMonitorListTab(): MonitorListTab {
+  if (typeof window === "undefined") return "live";
+  try {
+    return sessionStorage.getItem(MONITOR_LIST_TAB_KEY) === "closed" ? "closed" : "live";
+  } catch {
+    return "live";
+  }
+}
+
+function writeMonitorListTab(tab: MonitorListTab): void {
+  if (typeof window === "undefined") return;
+  try {
+    sessionStorage.setItem(MONITOR_LIST_TAB_KEY, tab);
+  } catch {
+    /* ignore quota / private mode */
+  }
+}
 
 export function useChatMonitor(
   initialConversationId?: string | null,
@@ -41,7 +60,12 @@ export function useChatMonitor(
   const queryClient = useQueryClient();
   const socketClient = useMemo(() => getSharedAgentChatSocket(), []);
 
-  const [listTab, setListTab] = useState<MonitorListTab>("live");
+  const [listTab, setListTabState] = useState<MonitorListTab>(() => readMonitorListTab());
+
+  const setListTab = useCallback((tab: MonitorListTab) => {
+    setListTabState(tab);
+    writeMonitorListTab(tab);
+  }, []);
   const [filters, setFilters] = useState<MonitorListFilters>({});
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(
     initialConversationId ?? null,
@@ -141,7 +165,7 @@ export function useChatMonitor(
         setTranscriptError(null);
       }
       try {
-        const history = await fetchMonitorTranscript(conversationId);
+        const history = await getConversationHistory(conversationId, token);
         messageMapRef.current.clear();
         for (const msg of history.messages) {
           messageMapRef.current.set(stableMessageDedupeKey(msg), msg);
@@ -180,7 +204,7 @@ export function useChatMonitor(
     reconnectSyncTimerRef.current = setTimeout(() => {
       reconnectSyncTimerRef.current = null;
       const cid = selectedIdRef.current;
-      if (cid && !selectedIsClosedRef.current) {
+      if (cid) {
         void loadTranscript(cid, { silent: true });
       }
     }, RECONNECT_TRANSCRIPT_DEBOUNCE_MS);
@@ -206,6 +230,8 @@ export function useChatMonitor(
 
   const upsertMessage = useCallback(
     (message: ChatMessage) => {
+      if (selectedIsClosedRef.current && message.role !== "system") return;
+
       messageMapRef.current.set(stableMessageDedupeKey(message), message);
       syncMessagesFromMap();
       if (message.content?.trim()) {
@@ -227,12 +253,33 @@ export function useChatMonitor(
       if (prev && prev !== conversationId) {
         socketClient.leaveRoom({ conversationId: prev });
       }
+
+      if (listTab === "closed") {
+        writeMonitorListTab("closed");
+      }
+
+      const closedRows =
+        queryClient.getQueryData<MonitorConversationRow[]>(
+          chatMonitorKeys.closed(filtersRef.current),
+        ) ?? [];
+      const liveRows =
+        queryClient.getQueryData<MonitorConversationRow[]>(
+          chatMonitorKeys.live(filtersRef.current),
+        ) ?? [];
+      const inClosed = closedRows.some((r) => r.id === conversationId);
+      const inLive = liveRows.some((r) => r.id === conversationId);
+      if (inClosed && !inLive) {
+        setListTab("closed");
+      } else if (inLive && !inClosed) {
+        setListTab("live");
+      }
+
       setSelectedConversationId(conversationId);
       selectedIdRef.current = conversationId;
       socketClient.joinRoom({ conversationId });
       await loadTranscript(conversationId);
     },
-    [loadTranscript, socketClient],
+    [listTab, loadTranscript, queryClient, setListTab, socketClient],
   );
 
   const updateSupervisorControl = useCallback((userId: string | null) => {
@@ -259,6 +306,29 @@ export function useChatMonitor(
     setTranscriptError(null);
     setVisitorTyping(false);
   }, [socketClient]);
+
+  const prevListTabRef = useRef(listTab);
+  useEffect(() => {
+    if (prevListTabRef.current === listTab) return;
+    prevListTabRef.current = listTab;
+    const cid = selectedIdRef.current;
+    if (listTab === "closed" && cid) {
+      void loadTranscript(cid, { silent: true });
+    }
+  }, [listTab, loadTranscript]);
+
+  const initialTabSyncedRef = useRef(false);
+  useEffect(() => {
+    if (!initialConversationId || closedQuery.isLoading || initialTabSyncedRef.current) {
+      return;
+    }
+    const inClosed = closedList.some((r) => r.id === initialConversationId);
+    const inLive = liveList.some((r) => r.id === initialConversationId);
+    if (inClosed && !inLive) {
+      setListTab("closed");
+    }
+    initialTabSyncedRef.current = true;
+  }, [closedList, closedQuery.isLoading, initialConversationId, liveList, setListTab]);
 
   const initialAppliedRef = useRef(false);
   useEffect(() => {

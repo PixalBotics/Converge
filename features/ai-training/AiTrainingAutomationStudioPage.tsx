@@ -353,6 +353,7 @@ export function AiTrainingAutomationStudioPage({
             websiteId={websiteId}
             variant={variant}
             indexedCount={indexedCount}
+            chatMode={testContext.data?.chatMode ?? "HYBRID"}
             onQuickTest={(msg) => void sendMessage(msg)}
           />
         }

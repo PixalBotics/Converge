@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Box from "@mui/material/Box";
 import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
@@ -54,6 +54,8 @@ export function ClosePolicyModal({
   const [websiteId, setWebsiteId] = useState("");
   const [saveFn, setSaveFn] = useState<(() => void) | null>(null);
   const lockScope = Boolean(initialWebsiteId.trim());
+  /** Skip scope-reset effects while hydrating dropdowns from a loaded website. */
+  const skipScopeResetRef = useRef(false);
 
   const companiesTreeQuery = useScopedCompanyTreeQuery(
     resellerId,
@@ -104,28 +106,30 @@ export function ClosePolicyModal({
   }, [open, initialWebsiteId]);
 
   useEffect(() => {
-    if (!open || lockScope || !settingsQuery.data?.website) return;
-    const w = settingsQuery.data.website;
-    if (w.resellerId) setResellerId(w.resellerId);
-    if (w.parentCompanyId) setParentCompanyId(w.parentCompanyId);
-    if (w.childCompanyId) setChildCompanyId(w.childCompanyId);
-  }, [open, lockScope, settingsQuery.data?.website]);
-
-  useEffect(() => {
     if (!open || lockScope) return;
+    skipScopeResetRef.current = true;
     setParentCompanyId("");
     setChildCompanyId("");
     setWebsiteId("");
+    queueMicrotask(() => {
+      skipScopeResetRef.current = false;
+    });
   }, [resellerId, lockScope, open]);
 
   useEffect(() => {
     if (!open || lockScope) return;
+    if (skipScopeResetRef.current) return;
+    skipScopeResetRef.current = true;
     setChildCompanyId("");
     setWebsiteId("");
+    queueMicrotask(() => {
+      skipScopeResetRef.current = false;
+    });
   }, [parentCompanyId, lockScope, open]);
 
   useEffect(() => {
     if (!open || lockScope) return;
+    if (skipScopeResetRef.current) return;
     setWebsiteId("");
   }, [childCompanyId, lockScope, open]);
 
@@ -186,6 +190,19 @@ export function ClosePolicyModal({
     if (!websiteId.trim() || !canEdit) return;
     saveFn?.();
   };
+
+  const handleSaveSettings = useCallback(
+    (body: Parameters<typeof saveSettings.mutate>[0]) => {
+      saveSettings.mutate(body, {
+        onSuccess: () => {
+          onSaved();
+          onClose();
+        },
+        onError,
+      });
+    },
+    [onClose, onError, onSaved, saveSettings],
+  );
 
   const isEditingExisting = Boolean(initialWebsiteId);
 
@@ -272,15 +289,7 @@ export function ClosePolicyModal({
             saving={saveSettings.isPending}
             hideSaveButton
             onSaveReady={setSaveFn}
-            onSave={(body) => {
-              saveSettings.mutate(body, {
-                onSuccess: () => {
-                  onSaved();
-                  onClose();
-                },
-                onError,
-              });
-            }}
+            onSave={handleSaveSettings}
           />
         )}
       </Box>

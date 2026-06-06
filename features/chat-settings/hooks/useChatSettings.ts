@@ -40,6 +40,8 @@ export function useWebsiteChatSettingsQuery(websiteId: string, apiEnabled = true
     queryKey: chatSettingsKeys.website(websiteId),
     queryFn: () => fetchWebsiteChatSettings(websiteId),
     enabled: apiEnabled && Boolean(websiteId?.trim()),
+    staleTime: 30_000,
+    refetchOnWindowFocus: false,
   });
 }
 

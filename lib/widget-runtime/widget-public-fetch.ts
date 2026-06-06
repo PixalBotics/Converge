@@ -75,7 +75,13 @@ function parseAiVisitorRespondResponse(raw: unknown): AiVisitorRespondResponse {
     ? (km as NonNullable<AiVisitorRespondResponse["knowledgeMatches"]>)
     : undefined;
 
-  return { response, intent, shouldEscalate, knowledgeMatches };
+  const topRaw = o.topKnowledgeMatch ?? o.top_knowledge_match;
+  const topKnowledgeMatch =
+    topRaw && typeof topRaw === "object" && !Array.isArray(topRaw)
+      ? (topRaw as NonNullable<AiVisitorRespondResponse["topKnowledgeMatch"]>)
+      : undefined;
+
+  return { response, intent, shouldEscalate, knowledgeMatches, topKnowledgeMatch };
 }
 
 function coerceSurfaces(input: unknown): WidgetSurfacesDto {

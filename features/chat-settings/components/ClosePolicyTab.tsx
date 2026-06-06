@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import Box from "@mui/material/Box";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Switch from "@mui/material/Switch";
@@ -136,10 +136,13 @@ export function ClosePolicyTab({
     });
   }, [onSave, ops, settings.defaultDepartmentId]);
 
+  const handleSaveRef = useRef(handleSave);
+  handleSaveRef.current = handleSave;
+
   useEffect(() => {
     if (!onSaveReady) return;
-    onSaveReady(handleSave);
-  }, [handleSave, onSaveReady]);
+    onSaveReady(() => handleSaveRef.current());
+  }, [onSaveReady]);
 
   const sectionDisabled = !canEdit || !policyEnabled;
 

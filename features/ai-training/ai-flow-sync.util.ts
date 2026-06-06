@@ -8,6 +8,7 @@ export type SimpleSetupDraft = {
   escalationMessage: string;
   confidenceThreshold: number;
   strictKbOnly: boolean;
+  autoLearnFromVisitorPages: boolean;
 };
 
 function nodeDetail(graph: FlowBuilderGraph | null | undefined, type: string): string {
@@ -41,6 +42,7 @@ export function readSimpleSetupDraft(
     escalationMessage: escalation,
     confidenceThreshold: behavior.confidenceThreshold ?? 0.26,
     strictKbOnly: behavior.strictKbOnly ?? false,
+    autoLearnFromVisitorPages: behavior.autoLearnFromVisitorPages ?? false,
   };
 }
 
@@ -72,6 +74,7 @@ export function simpleSetupToBehaviorBody(
   return {
     confidenceThreshold: draft.confidenceThreshold,
     strictKbOnly: draft.strictKbOnly,
+    autoLearnFromVisitorPages: draft.autoLearnFromVisitorPages,
     greetingMessage: draft.greetingMessage.trim() || null,
     lowConfidenceMessage: draft.notSureMessage.trim() || null,
     noMatchMessage: draft.notSureMessage.trim() || null,
