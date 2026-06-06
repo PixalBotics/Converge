@@ -4,7 +4,7 @@ import type { ChatMessage, ChatParticipantRole } from "./chat.types";
 export type RawChatMessagePayload = Record<string, unknown>;
 
 function coerceString(value: unknown): string {
-  return typeof value === "string" ? value : "";
+  return typeof value === "string" ? value.trim() : "";
 }
 
 const POLICY_SYSTEM_MESSAGE_TYPES = new Set([
@@ -33,8 +33,21 @@ function inferRole(payload: Record<string, unknown>): ChatParticipantRole {
     return "system";
   }
 
-  const roleRaw = coerceString(payload.role).toLowerCase();
-  const senderTypeRaw = coerceString(payload.senderType ?? payload.sender_type).toLowerCase();
+  const explicitRole = coerceString(payload.role).toLowerCase();
+  if (explicitRole === "ai") return "ai";
+  if (
+    explicitRole === "visitor" ||
+    explicitRole === "agent" ||
+    explicitRole === "system" ||
+    explicitRole === "assistant"
+  ) {
+    return explicitRole === "assistant" ? "ai" : (explicitRole as ChatParticipantRole);
+  }
+
+  const roleRaw = explicitRole;
+  const senderTypeRaw = coerceString(
+    payload.senderType ?? payload.sender_type,
+  ).toLowerCase();
   const userTypeRaw = coerceString(
     (payload.userType ?? payload.authorType) as unknown,
   ).toLowerCase();
@@ -44,16 +57,6 @@ function inferRole(payload: Record<string, unknown>): ChatParticipantRole {
   if (senderTypeRaw === "agent") return "agent";
   if (senderTypeRaw === "ai") return "ai";
 
-  if (roleRaw === "ai") return "ai";
-  if (
-    roleRaw === "visitor" ||
-    roleRaw === "agent" ||
-    roleRaw === "system" ||
-    roleRaw === "assistant"
-  ) {
-    if (roleRaw === "assistant") return "ai";
-    return roleRaw as ChatParticipantRole;
-  }
   if (userTypeRaw === "visitor") return "visitor";
   if (userTypeRaw === "agent") return "agent";
   if (

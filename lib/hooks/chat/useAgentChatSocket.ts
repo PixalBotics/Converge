@@ -146,7 +146,7 @@ export function useAgentChatSocket(
       clearJoinRetries?.();
       clearJoinRetries = undefined;
       const cid = getHandlers().selectedConversationIdRef.current;
-      if (cid && !getHandlers().selectedIsClosedRef.current) {
+      if (cid) {
         clearJoinRetries = ensureConversationRoomJoin(
           socketClient,
           cid,
@@ -179,8 +179,10 @@ export function useAgentChatSocket(
 
       const cid = getHandlers().selectedConversationIdRef.current;
       const event = String(update.event ?? "").toLowerCase();
+      const selectedIsClosed = getHandlers().selectedIsClosedRef.current;
       if (
         cid &&
+        !selectedIsClosed &&
         update.conversationId?.toLowerCase() === cid.toLowerCase() &&
         (event === "visitor_message" ||
           event === "agent_message" ||

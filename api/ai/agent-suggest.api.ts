@@ -167,7 +167,12 @@ export function parseAgentSuggestResponse(payload: unknown): AgentSuggestParsed 
     }
   }
 
-  const reply = resolveVisitorAiMessageContent(primary, knowledgeMatches);
+  const topKm =
+    data && typeof data === "object" && !Array.isArray(data)
+      ? (data as Record<string, unknown>).topKnowledgeMatch ??
+        (data as Record<string, unknown>).top_knowledge_match
+      : undefined;
+  const reply = resolveVisitorAiMessageContent(primary, knowledgeMatches, topKm);
   const sources = knowledgeMatches
     .map((m) => formatKnowledgeMatchCitation(m))
     .filter(Boolean)

@@ -152,6 +152,7 @@ export function useChatScopeFilters(
       (canFilterByResellerId && filters.resellerId.trim());
     if (!hasOrg) return null;
     const ids = websiteOptions.filter((o) => o.value).map((o) => o.value);
+    if (!ids.length && websitesQuery.isLoading) return null;
     return ids.length ? new Set(ids) : new Set<string>();
   }, [
     canFilterByResellerId,
@@ -160,6 +161,7 @@ export function useChatScopeFilters(
     filters.resellerId,
     filters.websiteId,
     websiteOptions,
+    websitesQuery.isLoading,
   ]);
 
   const resetFilters = () => setFilters(emptyChatScopeFilters());

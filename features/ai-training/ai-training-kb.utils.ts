@@ -9,7 +9,7 @@ export const CHATBOT_SOURCE_TYPE_OPTIONS: { label: string; value: ChatbotSourceT
 ];
 
 export const CHATBOT_WEBSITE_URL_HELPER =
-  "Paste your homepage or any page on your registered domain. We find sitemap.xml automatically (robots.txt), scrape your site, and index it — no sitemap link needed.";
+  "Paste your homepage or any page on your registered domain. We find sitemap.xml (robots.txt), crawl same-site pages (up to the configured page limit), and index them — no sitemap link needed.";
 
 export const ASSISTANT_WEBSITE_URL_HELPER =
   "Paste a page on your registered domain. We auto-find the sitemap, scrape the site, and index it for agent copilot — separate from visitor chatbot training.";
