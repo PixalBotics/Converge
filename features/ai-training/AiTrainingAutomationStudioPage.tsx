@@ -24,8 +24,9 @@ import { AiTrainingStudioSettingsRail } from "./AiTrainingStudioSettingsRail";
 import { AiTrainingStudioViewToggle } from "./AiTrainingStudioViewToggle";
 import {
   AiTrainingDummyChatWidget,
-  type DummyChatTurn,
+  type TestChatTurn,
 } from "./AiTrainingDummyChatWidget";
+import { formatTestReplyHint } from "./ai-training-test-reply-hint.util";
 import { AiTrainingFloatingTestChat } from "./AiTrainingFloatingTestChat";
 import { aiTrainingTestStudioHref } from "./ai-training-routes";
 import { AiTrainingStudioHeaderTabs } from "./AiTrainingStudioHeaderTabs";
@@ -128,7 +129,7 @@ export function AiTrainingAutomationStudioPage({
 
   const [input, setInput] = useState("");
 
-  const [turns, setTurns] = useState<DummyChatTurn[]>([]);
+  const [turns, setTurns] = useState<TestChatTurn[]>([]);
 
   const [pipeline, setPipeline] = useState<AiPipelineStep[]>([]);
 
@@ -235,7 +236,12 @@ export function AiTrainingAutomationStudioPage({
       setFlowExecutionErrors(result.flowExecutionErrors ?? []);
       setTurns((prev) => [
         ...prev,
-        { id: `b-${Date.now()}`, role: "bot", text: answer || "(No reply text)" },
+        {
+          id: `b-${Date.now()}`,
+          role: "bot",
+          text: answer || "(No reply text)",
+          replyHint: formatTestReplyHint(result),
+        },
       ]);
     } catch (e) {
       publishAppToast({
@@ -304,7 +310,7 @@ export function AiTrainingAutomationStudioPage({
 
   const testChat = (
     <AiTrainingFloatingTestChat
-      siteHint={websiteHost || "training"}
+      siteHint={websiteHost || "indexed training"}
       turnCount={turns.length}
       defaultOpen={false}
       anchor={studioView === "advanced" ? "right" : "left"}
@@ -322,7 +328,7 @@ export function AiTrainingAutomationStudioPage({
         }}
         sending={testMutation.isPending}
         botLabel={botLabel}
-        siteHint={websiteHost || "live training"}
+        siteHint={websiteHost || "indexed training"}
       />
     </AiTrainingFloatingTestChat>
   );

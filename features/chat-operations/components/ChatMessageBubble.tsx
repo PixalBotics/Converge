@@ -111,6 +111,7 @@ export function ChatMessageBubble({
               justifyContent: isOutgoing ? "flex-end" : "flex-start",
               alignSelf: isOutgoing ? "stretch" : undefined,
               width: isOutgoing ? "100%" : undefined,
+              textAlign: isOutgoing ? "right" : "left",
               px: isOutgoing ? 0 : 0.5,
             }}
           >

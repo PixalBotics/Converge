@@ -285,12 +285,79 @@ export function ChatConversationPanel({
           <Box
             sx={{
               display: "flex",
-              alignItems: "center",
-              gap: 1,
+              flexDirection: "column",
+              alignItems: "flex-end",
+              gap: 0.75,
               flexShrink: 0,
               ml: { xs: 0, sm: 1.5 },
             }}
           >
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                gap: 1,
+                flexWrap: "nowrap",
+              }}
+            >
+              {!readOnly ? (
+                <GuestLinkHeaderAction
+                  conversationId={conversationId}
+                  hasOperational={hasOperational}
+                />
+              ) : null}
+              {onCloseChat ? (
+                <>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="compact"
+                    onClick={() => void onCloseChat()}
+                    sx={{
+                      display: { xs: "none", md: "inline-flex" },
+                      minWidth: 0,
+                      height: chatOpsConversationMetaChipHeight,
+                      px: 1.5,
+                      py: 0,
+                      fontSize: 11,
+                    }}
+                  >
+                    Close chat
+                  </Button>
+                  <IconButton
+                    size="small"
+                    aria-label="More actions"
+                    onClick={(e) => setMenuAnchor(e.currentTarget)}
+                    sx={{ color: theme.app.dashboard.iconMuted, display: { md: "none" } }}
+                  >
+                    <MoreVert />
+                  </IconButton>
+                  <Menu
+                    anchorEl={menuAnchor}
+                    open={Boolean(menuAnchor)}
+                    onClose={() => setMenuAnchor(null)}
+                    slotProps={{
+                      paper: {
+                        sx: {
+                          bgcolor: theme.app.dashboard.menuSurfaceBg,
+                          border: `1px solid ${theme.app.dashboard.cardBorder}`,
+                        },
+                      },
+                    }}
+                  >
+                    <MenuItem
+                      onClick={() => {
+                        setMenuAnchor(null);
+                        onCloseChat();
+                      }}
+                      sx={{ color: theme.palette.error.light }}
+                    >
+                      Close conversation
+                    </MenuItem>
+                  </Menu>
+                </>
+              ) : null}
+            </Box>
             <Box
               sx={{
                 display: { xs: "none", sm: "flex" },
@@ -316,63 +383,6 @@ export function ChatConversationPanel({
                 </Typography>
               </ChatHeaderMetaChip>
             </Box>
-            {!readOnly ? (
-              <GuestLinkHeaderAction
-                conversationId={conversationId}
-                hasOperational={hasOperational}
-              />
-            ) : null}
-            {onCloseChat ? (
-              <>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="compact"
-                  onClick={() => void onCloseChat()}
-                  sx={{
-                    display: { xs: "none", md: "inline-flex" },
-                    minWidth: 0,
-                    height: chatOpsConversationMetaChipHeight,
-                    px: 1.5,
-                    py: 0,
-                    fontSize: 11,
-                  }}
-                >
-                  Close chat
-                </Button>
-                <IconButton
-                  size="small"
-                  aria-label="More actions"
-                  onClick={(e) => setMenuAnchor(e.currentTarget)}
-                  sx={{ color: theme.app.dashboard.iconMuted, display: { md: "none" } }}
-                >
-                  <MoreVert />
-                </IconButton>
-                <Menu
-                  anchorEl={menuAnchor}
-                  open={Boolean(menuAnchor)}
-                  onClose={() => setMenuAnchor(null)}
-                  slotProps={{
-                    paper: {
-                      sx: {
-                        bgcolor: theme.app.dashboard.menuSurfaceBg,
-                        border: `1px solid ${theme.app.dashboard.cardBorder}`,
-                      },
-                    },
-                  }}
-                >
-                  <MenuItem
-                    onClick={() => {
-                      setMenuAnchor(null);
-                      onCloseChat();
-                    }}
-                    sx={{ color: theme.palette.error.light }}
-                  >
-                    Close conversation
-                  </MenuItem>
-                </Menu>
-              </>
-            ) : null}
           </Box>
         </PanelHeader>
       ) : null}

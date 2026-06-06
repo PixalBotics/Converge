@@ -39,7 +39,7 @@ export function ProfileMetaGridCell({
   fullWidth?: boolean;
 }) {
   const theme = useTheme() as AppTheme;
-  const d = theme.app.dashboard;
+  const accent = theme.palette.primary.main;
 
   return (
     <Box
@@ -47,12 +47,12 @@ export function ProfileMetaGridCell({
         minWidth: 0,
         p: 1.25,
         borderRadius: 1.5,
-        bgcolor: alpha(d.overlayLight, 0.35),
-        border: `1px solid ${alpha(d.cardBorder, 0.22)}`,
+        bgcolor: alpha(accent, 0.08),
+        border: `1px solid ${alpha(accent, 0.18)}`,
         ...(fullWidth ? { gridColumn: "1 / -1" } : {}),
       }}
     >
-      <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, mb: 0.65 }}>
+      <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
         <Box
           sx={{
             display: "flex",
@@ -62,8 +62,8 @@ export function ProfileMetaGridCell({
             height: 26,
             flexShrink: 0,
             borderRadius: 0.75,
-            bgcolor: alpha(d.accentIndigo, 0.12),
-            color: d.accentViolet,
+            bgcolor: alpha(accent, 0.16),
+            color: accent,
           }}
         >
           {icon}
@@ -89,7 +89,7 @@ export function ProfileMetaBlock({
   children: ReactNode;
 }) {
   const theme = useTheme() as AppTheme;
-  const d = theme.app.dashboard;
+  const accent = theme.palette.primary.main;
 
   return (
     <Box
@@ -100,8 +100,8 @@ export function ProfileMetaBlock({
         px: 1.25,
         py: 1,
         borderRadius: 1.25,
-        bgcolor: alpha(d.overlayLight, 0.45),
-        border: `1px solid ${alpha(d.cardBorder, 0.28)}`,
+        bgcolor: alpha(accent, 0.08),
+        border: `1px solid ${alpha(accent, 0.18)}`,
       }}
     >
       <Box
@@ -113,8 +113,8 @@ export function ProfileMetaBlock({
           height: 32,
           flexShrink: 0,
           borderRadius: 1,
-          bgcolor: alpha(d.accentIndigo, 0.14),
-          color: d.accentViolet,
+          bgcolor: alpha(accent, 0.16),
+          color: accent,
         }}
       >
         {icon}
@@ -149,8 +149,9 @@ export function BlockValue({
         sx={mergeSx(chatOpsProfileMetaValueSx, {
           display: "block",
           wordBreak: "break-all",
-          color: theme.app.dashboard.accentBlue,
+          color: theme.app.text.primary,
           fontWeight: 500,
+          mt: 1,
         })}
       >
         {children}
@@ -163,6 +164,7 @@ export function BlockValue({
       component="div"
       sx={mergeSx(chatOpsProfileMetaValueSx, {
         color: muted ? theme.app.dashboard.textMuted : theme.app.text.primary,
+        mt: 1,
       })}
     >
       {children}

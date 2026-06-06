@@ -314,7 +314,6 @@ export const chatOpsProfileMetaLabelSx: SxProps<Theme> = (theme) => ({
   fontWeight: 700,
   color: (theme as AppTheme).app.text.primary,
   lineHeight: 1.35,
-  mb: 0.5,
 });
 
 export const chatOpsProfileMetaValueSx: SxProps<Theme> = (theme) => ({

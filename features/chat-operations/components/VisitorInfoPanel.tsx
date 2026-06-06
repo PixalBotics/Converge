@@ -102,7 +102,7 @@ function AccordionSectionTitle({
     <Box sx={{ display: "flex", alignItems: "center" }}>
       <Box
         component="span"
-        sx={{ fontSize: 18, color: theme.app.dashboard.accentViolet, mr: 1, display: "flex" }}
+        sx={{ fontSize: 18, color: theme.palette.primary.main, mr: 1, display: "flex" }}
       >
         {icon}
       </Box>
@@ -226,7 +226,7 @@ export function VisitorInfoPanel({
     <PanelColumn sx={{ height: "100%" }}>
       {!conversationId ? (
         <EmptyState sx={{ flex: 1, py: 8 }}>
-          <PersonOutline sx={{ fontSize: 36, opacity: 0.3, color: theme.app.dashboard.accentViolet }} />
+          <PersonOutline sx={{ fontSize: 36, opacity: 0.3, color: theme.palette.primary.main }} />
           <Typography sx={{ color: theme.app.dashboard.textMuted, fontSize: 13, maxWidth: 200 }}>
             Visitor context appears here when you select a chat
           </Typography>

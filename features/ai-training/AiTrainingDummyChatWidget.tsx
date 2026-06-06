@@ -4,14 +4,20 @@ import { useRef, useEffect } from "react";
 import Box from "@mui/material/Box";
 import IconButton from "@mui/material/IconButton";
 import SendRounded from "@mui/icons-material/SendRounded";
-import { Typography } from "@/components/common";
+import ScienceOutlined from "@mui/icons-material/ScienceOutlined";
 
-export type DummyChatTurn = {
+export type TestChatTurn = {
   id: string;
   role: "visitor" | "bot";
   text: string;
+  /** Shown under bot replies — e.g. AI vs preset message. */
+  replyHint?: string;
 };
 
+/** @deprecated Use TestChatTurn */
+export type DummyChatTurn = TestChatTurn;
+
+/** Lightweight test chat shell — real API replies, not the live embed widget. */
 export function AiTrainingDummyChatWidget({
   turns,
   input,
@@ -22,7 +28,7 @@ export function AiTrainingDummyChatWidget({
   siteHint,
   compact,
 }: {
-  turns: DummyChatTurn[];
+  turns: TestChatTurn[];
   input: string;
   onInputChange: (value: string) => void;
   onSend: () => void;
@@ -46,11 +52,11 @@ export function AiTrainingDummyChatWidget({
         overflow: "hidden",
         boxShadow: "0 20px 50px rgba(0,0,0,0.35), 0 0 0 1px rgba(255,255,255,0.08)",
         border: "1px solid rgba(148,163,184,0.25)",
-        bgcolor: "rgba(255,255,255,0.98)",
+        bgcolor: "#ffffff",
+        color: "#0f172a",
         display: "flex",
         flexDirection: "column",
         minHeight: compact ? 380 : 440,
-        backdropFilter: "blur(12px)",
       }}
     >
       <Box
@@ -80,14 +86,33 @@ export function AiTrainingDummyChatWidget({
           AI
         </Box>
         <Box sx={{ minWidth: 0, flex: 1 }}>
-          <Typography variant="body2" fontWeight={700} sx={{ color: "inherit", lineHeight: 1.2 }}>
+          <Box component="span" sx={{ fontSize: 13, fontWeight: 700, lineHeight: 1.2, display: "block" }}>
             {botLabel}
-          </Typography>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-            <Box sx={{ width: 6, height: 6, borderRadius: "50%", bgcolor: "#4ade80" }} />
-            <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.9)", fontSize: 11 }}>
-              {siteHint || "sandbox"}
-            </Typography>
+          </Box>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, mt: 0.35, flexWrap: "wrap" }}>
+            <Box
+              sx={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 0.35,
+                px: 0.65,
+                py: 0.1,
+                borderRadius: 999,
+                bgcolor: "rgba(255,255,255,0.18)",
+                fontSize: 10,
+                fontWeight: 700,
+                letterSpacing: 0.02,
+              }}
+            >
+              <ScienceOutlined sx={{ fontSize: 11 }} />
+              Test environment
+            </Box>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+              <Box sx={{ width: 6, height: 6, borderRadius: "50%", bgcolor: "#4ade80" }} />
+              <Box component="span" sx={{ color: "rgba(255,255,255,0.92)", fontSize: 11 }}>
+                {siteHint || "Indexed training"}
+              </Box>
+            </Box>
           </Box>
         </Box>
       </Box>
@@ -104,17 +129,27 @@ export function AiTrainingDummyChatWidget({
         }}
       >
         {turns.length === 0 ? (
-          <Typography variant="body2" sx={{ color: "#64748b", textAlign: "center", mt: 3, px: 1.5, fontSize: 13 }}>
-            Send a message — the bot replies using your indexed training data.
-          </Typography>
+          <Box
+            sx={{
+              color: "#64748b",
+              textAlign: "center",
+              mt: 3,
+              px: 1.5,
+              fontSize: 13,
+              lineHeight: 1.55,
+            }}
+          >
+            Same AI pipeline as your live widget — send a message to test replies from indexed training.
+          </Box>
         ) : (
           turns.map((turn) => (
             <Box
               key={turn.id}
               sx={{
-                mb: 1,
+                mb: 1.1,
                 display: "flex",
-                justifyContent: turn.role === "visitor" ? "flex-end" : "flex-start",
+                flexDirection: "column",
+                alignItems: turn.role === "visitor" ? "flex-end" : "flex-start",
               }}
             >
               <Box
@@ -126,19 +161,44 @@ export function AiTrainingDummyChatWidget({
                   bgcolor: turn.role === "visitor" ? "#1e63d5" : "#fff",
                   color: turn.role === "visitor" ? "#fff" : "#0f172a",
                   border: turn.role === "bot" ? "1px solid #e2e8f0" : "none",
+                  boxShadow: turn.role === "bot" ? "0 1px 2px rgba(15,23,42,0.04)" : "none",
                 }}
               >
-                <Typography variant="body2" sx={{ whiteSpace: "pre-wrap", lineHeight: 1.45, fontSize: 13 }}>
+                <Box
+                  component="p"
+                  sx={{
+                    m: 0,
+                    whiteSpace: "pre-wrap",
+                    lineHeight: 1.45,
+                    fontSize: 13,
+                    color: "inherit",
+                  }}
+                >
                   {turn.text}
-                </Typography>
+                </Box>
               </Box>
+              {turn.role === "bot" && turn.replyHint ? (
+                <Box
+                  component="span"
+                  sx={{
+                    mt: 0.35,
+                    ml: 0.25,
+                    fontSize: 10,
+                    fontWeight: 600,
+                    color: "#64748b",
+                    letterSpacing: 0.01,
+                  }}
+                >
+                  {turn.replyHint}
+                </Box>
+              ) : null}
             </Box>
           ))
         )}
         {sending ? (
-          <Typography variant="caption" sx={{ color: "#64748b", pl: 0.5 }}>
+          <Box component="span" sx={{ color: "#64748b", fontSize: 12, pl: 0.5 }}>
             Bot is typing…
-          </Typography>
+          </Box>
         ) : null}
       </Box>
 
@@ -155,7 +215,7 @@ export function AiTrainingDummyChatWidget({
         <Box
           component="textarea"
           value={input}
-          placeholder="Test message…"
+          placeholder="Type a test message…"
           rows={1}
           onChange={(e) => onInputChange(e.target.value)}
           onKeyDown={(e) => {
@@ -177,6 +237,9 @@ export function AiTrainingDummyChatWidget({
             minHeight: 38,
             maxHeight: 88,
             outline: "none",
+            color: "#0f172a",
+            bgcolor: "#fff",
+            "&::placeholder": { color: "#94a3b8", opacity: 1 },
             "&:focus": { borderColor: "#1e63d5" },
           }}
         />
