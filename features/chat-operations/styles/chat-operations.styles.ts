@@ -304,9 +304,9 @@ export const chatOpsDetailValueSx: SxProps<Theme> = (theme) => ({
 /** Two-column visitor profile metadata (website, agent, chat id, time, duration). */
 export const chatOpsProfileMetaGridSx: SxProps<Theme> = {
   display: "grid",
-  gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" },
-  columnGap: 3,
-  rowGap: 2.5,
+  gridTemplateColumns: "1fr 1fr",
+  columnGap: 1.25,
+  rowGap: 1.25,
 };
 
 export const chatOpsProfileMetaLabelSx: SxProps<Theme> = (theme) => ({

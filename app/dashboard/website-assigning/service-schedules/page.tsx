@@ -27,6 +27,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { websiteAssignmentsKeys } from "@/lib/hooks/query/website-assignments/keys";
 import type { DataTableColumn } from "@/components/common";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
+import { mergeSx } from "@/lib/mui/merge-sx";
 import { ServiceScheduleTableActions } from "@/features/website-assignments/components/ServiceScheduleTableActions";
 import { WebsiteAssignmentScopeFilterPanel } from "@/features/website-assignments/components/WebsiteAssignmentScopeFilterPanel";
 import { useWebsiteAssignmentScopeFilters } from "@/features/website-assignments/hooks/useWebsiteAssignmentScopeFilters";
@@ -251,7 +252,7 @@ export default function ServiceSchedulesPage() {
           <Typography variant="regularLarge" fontWeight={700} sx={{ mb: 0.5 }}>
             Service scheduling
           </Typography>
-          <Typography variant="medium" sx={[{ maxWidth: 640 }, filterPanelDescriptionSx]}>
+          <Typography variant="medium" sx={mergeSx(filterPanelDescriptionSx, { maxWidth: 640 })}>
             Step 1: set operating mode, service hours, and visitor topics per website. Step 2: assign
             agents when status is ready.
           </Typography>

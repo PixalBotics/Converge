@@ -1,31 +1,33 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
+import AccessTimeOutlined from "@mui/icons-material/AccessTimeOutlined";
+import BusinessOutlined from "@mui/icons-material/BusinessOutlined";
 import ComputerOutlined from "@mui/icons-material/ComputerOutlined";
 import EmailOutlined from "@mui/icons-material/EmailOutlined";
 import ExpandMore from "@mui/icons-material/ExpandMore";
+import InfoOutlined from "@mui/icons-material/InfoOutlined";
 import LanguageOutlined from "@mui/icons-material/LanguageOutlined";
+import LinkOutlined from "@mui/icons-material/LinkOutlined";
 import LocationOnOutlined from "@mui/icons-material/LocationOnOutlined";
 import PersonOutline from "@mui/icons-material/PersonOutline";
 import PhoneOutlined from "@mui/icons-material/PhoneOutlined";
+import PublicOutlined from "@mui/icons-material/PublicOutlined";
+import RouteOutlined from "@mui/icons-material/RouteOutlined";
+import ScheduleOutlined from "@mui/icons-material/ScheduleOutlined";
 import SmartphoneOutlined from "@mui/icons-material/SmartphoneOutlined";
+import SupportAgentOutlined from "@mui/icons-material/SupportAgentOutlined";
+import TagOutlined from "@mui/icons-material/TagOutlined";
+import TimerOutlined from "@mui/icons-material/TimerOutlined";
 import Accordion from "@mui/material/Accordion";
 import AccordionDetails from "@mui/material/AccordionDetails";
 import AccordionSummary from "@mui/material/AccordionSummary";
 import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
-import Link from "@mui/material/Link";
 import { alpha, useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import { InputField, Typography } from "@/components/common";
-import {
-  chatOpsDetailLabelSx,
-  chatOpsDetailValueSx,
-  chatOpsProfileMetaGridSx,
-  chatOpsProfileMetaLabelSx,
-  chatOpsProfileMetaValueSx,
-} from "../styles/chat-operations.styles";
-import { mergeSx } from "@/lib/mui/merge-sx";
+import { chatOpsPaneTitleSx } from "../styles/chat-operations.styles";
 import {
   formatProfileChatDurationMinutes,
   formatProfileChatId,
@@ -39,20 +41,17 @@ import type { AgentVisitorPresentation } from "@/services/chat/chat.types";
 import { parseVisitorInfo } from "../utils/visitor-info";
 import { VisitorLocationMap } from "./VisitorLocationMap";
 import { SupervisorToolsPanel } from "./SupervisorToolsPanel";
-import { GuestLinkPanel } from "./GuestLinkPanel";
+import {
+  ProfileMetaGridCell,
+  ProfileMetaGridSection,
+} from "./VisitorProfileBlocks";
 import { useConversationSupervisor } from "../hooks/useConversationSupervisor";
 import { canUseSupervisorTools } from "@/lib/permissions/chat-access";
 import {
-  chatOpsPaneTitleSx,
-} from "../styles/chat-operations.styles";
-import {
   EmptyState,
-  JourneyStep,
-  JourneyTimeline,
   PanelColumn,
   PanelHeader,
   ProfileAccordion,
-  ProfileDetailRow,
   ProfileHeroCard,
   QueueAvatar,
 } from "../styles/chat-operations.styled";
@@ -75,120 +74,10 @@ interface VisitorInfoPanelProps {
   onFallbackWebsiteIdChange?: (value: string) => void;
   onCloseChat?: () => void | Promise<void>;
   closeDisabled?: boolean;
-  /** Monitor workstation renders supervisor tools in a separate column strip. */
   hideSupervisorTools?: boolean;
 }
 
-function DetailField({ label, value }: { label: string; value: string }) {
-  return (
-    <Box>
-      <Typography component="div" sx={chatOpsDetailLabelSx}>{label}</Typography>
-      <Typography component="div" sx={chatOpsDetailValueSx}>
-        {value}
-      </Typography>
-    </Box>
-  );
-}
-
-function ProfileMetaField({
-  label,
-  value,
-  href,
-}: {
-  label: string;
-  value: string;
-  href?: string | null;
-}) {
-  const theme = useTheme() as AppTheme;
-  return (
-    <Box>
-      <Typography component="div" sx={chatOpsProfileMetaLabelSx}>
-        {label}
-      </Typography>
-      {href ? (
-        <Link
-          href={href}
-          target="_blank"
-          rel="noopener noreferrer"
-          sx={mergeSx(chatOpsProfileMetaValueSx, {
-            color: theme.app.dashboard.accentBlue,
-            textDecoration: "underline",
-            display: "inline-block",
-          })}
-        >
-          {value}
-        </Link>
-      ) : (
-        <Typography component="div" sx={chatOpsProfileMetaValueSx}>
-          {value}
-        </Typography>
-      )}
-    </Box>
-  );
-}
-
-function VisitorProfileMetaGrid({
-  conversationId,
-  conversationMeta,
-  visitorPresentation,
-  assignedAgentLabel,
-  sessionStartedAt,
-  currentPageUrl,
-}: {
-  conversationId: string;
-  conversationMeta?: Record<string, unknown> | null;
-  visitorPresentation?: AgentVisitorPresentation | null;
-  assignedAgentLabel?: string | null;
-  sessionStartedAt?: string;
-  currentPageUrl?: string;
-}) {
-  const websiteUrl =
-    visitorPresentation?.websiteUrl?.trim() ||
-    currentPageUrl?.trim() ||
-    (typeof conversationMeta?.websiteUrl === "string" ? conversationMeta.websiteUrl.trim() : "") ||
-    "";
-  const websiteDisplay = websiteUrl || "—";
-  const agentLabel =
-    assignedAgentLabel?.trim() ||
-    readAgentLabelFromMeta(conversationMeta) ||
-    "Unassigned";
-  const chatId = formatProfileChatId(conversationId);
-  const startedAt = resolveChatStartedAt(conversationMeta, sessionStartedAt);
-  const endedAt = resolveChatEndedAt(conversationMeta);
-  const closed = isConversationClosed(conversationMeta);
-
-  const [durationLabel, setDurationLabel] = useState(() =>
-    startedAt ? formatProfileChatDurationMinutes(startedAt, endedAt ? new Date(endedAt).getTime() : undefined) : "—",
-  );
-
-  useEffect(() => {
-    if (!startedAt) {
-      setDurationLabel("—");
-      return;
-    }
-    const endMs = endedAt ? new Date(endedAt).getTime() : undefined;
-    const tick = () => setDurationLabel(formatProfileChatDurationMinutes(startedAt, endMs));
-    tick();
-    if (closed || endMs != null) return;
-    const id = window.setInterval(tick, 30_000);
-    return () => window.clearInterval(id);
-  }, [startedAt, endedAt, closed]);
-
-  const chatTime = useMemo(
-    () => (startedAt ? formatProfileChatTimeUtc(startedAt) : "—"),
-    [startedAt],
-  );
-
-  return (
-    <Box sx={{ ...chatOpsProfileMetaGridSx, px: 2, pt: 2, pb: 2 }}>
-      <ProfileMetaField label="Website" value={websiteDisplay} href={websiteUrl || null} />
-      <ProfileMetaField label="Chat time" value={chatTime} />
-      <ProfileMetaField label="Agent" value={agentLabel} />
-      <ProfileMetaField label="Chat duration" value={durationLabel} />
-      <ProfileMetaField label="Chat ID" value={chatId} />
-    </Box>
-  );
-}
+const iconSx = { fontSize: 18 };
 
 function accordionSx(theme: AppTheme): object {
   const d = theme.app.dashboard;
@@ -199,6 +88,53 @@ function accordionSx(theme: AppTheme): object {
     borderBottom: `1px solid ${alpha(d.cardBorder, 0.35)}`,
     "&.Mui-expanded": { margin: 0 },
   };
+}
+
+function AccordionSectionTitle({
+  icon,
+  label,
+}: {
+  icon: ReactNode;
+  label: string;
+}) {
+  const theme = useTheme() as AppTheme;
+  return (
+    <Box sx={{ display: "flex", alignItems: "center" }}>
+      <Box
+        component="span"
+        sx={{ fontSize: 18, color: theme.app.dashboard.accentViolet, mr: 1, display: "flex" }}
+      >
+        {icon}
+      </Box>
+      <Typography fontWeight={600} sx={{ fontSize: 14 }}>
+        {label}
+      </Typography>
+    </Box>
+  );
+}
+
+function sessionFieldIcon(label: string): ReactNode {
+  const lower = label.toLowerCase();
+  if (lower.includes("session")) return <TagOutlined sx={iconSx} />;
+  if (lower.includes("start") || lower.includes("time")) return <ScheduleOutlined sx={iconSx} />;
+  if (lower.includes("duration")) return <TimerOutlined sx={iconSx} />;
+  if (lower.includes("agent")) return <SupportAgentOutlined sx={iconSx} />;
+  if (lower.includes("referrer") || lower.includes("traffic")) return <PublicOutlined sx={iconSx} />;
+  if (lower.includes("browser") || lower.includes("device") || lower.includes("os")) {
+    return <ComputerOutlined sx={iconSx} />;
+  }
+  if (lower.includes("country") || lower.includes("region") || lower.includes("zip") || lower.includes("ip")) {
+    return <LocationOnOutlined sx={iconSx} />;
+  }
+  return <InfoOutlined sx={iconSx} />;
+}
+
+function contactFieldIcon(label: string): ReactNode {
+  const lower = label.toLowerCase();
+  if (lower.includes("email")) return <EmailOutlined sx={iconSx} />;
+  if (lower.includes("phone")) return <PhoneOutlined sx={iconSx} />;
+  if (lower.includes("company")) return <BusinessOutlined sx={iconSx} />;
+  return <PersonOutline sx={iconSx} />;
 }
 
 export function VisitorInfoPanel({
@@ -226,10 +162,55 @@ export function VisitorInfoPanel({
   const displayName = visitorPresentation?.displayName?.trim() || parsed.displayName;
   const originLine = visitorPresentation?.originLabel?.trim() || null;
   const locationLine = visitorPresentation?.locationLabel?.trim() || parsed.location?.label || null;
-  const [expanded, setExpanded] = useState<string | false>("contact");
+  const [expanded, setExpanded] = useState<string | false>(false);
   const supervisorEnabled =
     canUseSupervisorTools(hasOperational) && Boolean(conversationId) && !supervisorReadOnly;
   const supervisor = useConversationSupervisor(conversationId, supervisorEnabled);
+
+  const startedAt = resolveChatStartedAt(conversationMeta, parsed.sessionStartedAt);
+  const endedAt = resolveChatEndedAt(conversationMeta);
+  const closed = isConversationClosed(conversationMeta);
+  const [durationLabel, setDurationLabel] = useState(() =>
+    startedAt
+      ? formatProfileChatDurationMinutes(
+          startedAt,
+          endedAt ? new Date(endedAt).getTime() : undefined,
+        )
+      : "—",
+  );
+
+  useEffect(() => {
+    if (!startedAt) {
+      setDurationLabel("—");
+      return;
+    }
+    const endMs = endedAt ? new Date(endedAt).getTime() : undefined;
+    const tick = () =>
+      setDurationLabel(formatProfileChatDurationMinutes(startedAt, endMs));
+    tick();
+    if (closed || endMs != null) return;
+    const id = window.setInterval(tick, 30_000);
+    return () => window.clearInterval(id);
+  }, [startedAt, endedAt, closed]);
+
+  const websiteUrl =
+    visitorPresentation?.websiteUrl?.trim() ||
+    parsed.currentPageUrl?.trim() ||
+    (typeof conversationMeta?.websiteUrl === "string" ? conversationMeta.websiteUrl.trim() : "") ||
+    "";
+  const agentLabel =
+    assignedAgentLabel?.trim() ||
+    readAgentLabelFromMeta(conversationMeta) ||
+    "Unassigned";
+  const chatId = conversationId ? formatProfileChatId(conversationId) : "—";
+  const chatTime = startedAt ? formatProfileChatTimeUtc(startedAt) : "—";
+  const live = Boolean(startedAt && !closed);
+  const deviceLabel = [parsed.browser, parsed.os].filter(Boolean).join(" · ") || null;
+  const isMobile = parsed.os?.toLowerCase().includes("mobile");
+  const sessionField = (label: string) =>
+    parsed.sessionFields.find((f) => f.label === label)?.value ?? "—";
+  const visitorTimezone = sessionField("Visitor timezone");
+  const agentTimezoneLabel = sessionField("Agent timezone");
 
   const journey =
     parsed.journey.length > 0
@@ -237,6 +218,9 @@ export function VisitorInfoPanel({
       : parsed.currentPageUrl
         ? [{ url: parsed.currentPageUrl, at: undefined }]
         : [];
+
+  const toggle = (key: string) => (_: unknown, isExp: boolean) =>
+    setExpanded(isExp ? key : false);
 
   return (
     <PanelColumn sx={{ height: "100%" }}>
@@ -252,226 +236,288 @@ export function VisitorInfoPanel({
           <PanelHeader sx={{ py: 1.25, px: 2 }}>
             <Typography sx={chatOpsPaneTitleSx}>Visitor profile</Typography>
           </PanelHeader>
-          <VisitorProfileMetaGrid
-            conversationId={conversationId}
-            conversationMeta={conversationMeta}
-            visitorPresentation={visitorPresentation}
-            assignedAgentLabel={assignedAgentLabel}
-            sessionStartedAt={parsed.sessionStartedAt}
-            currentPageUrl={parsed.currentPageUrl}
-          />
+
           <ProfileAccordion sx={{ px: 0 }}>
-          <ProfileHeroCard>
-            <Box sx={{ display: "flex", gap: 1.5, alignItems: "flex-start" }}>
-              <QueueAvatar sx={{ width: 52, height: 52, fontSize: 15 }}>{parsed.initials}</QueueAvatar>
-              <Box sx={{ minWidth: 0 }}>
-                <Typography fontWeight={700} sx={{ fontSize: 15, color: theme.app.text.primary }}>
-                  {displayName}
-                </Typography>
-                {originLine ? (
-                  <Typography sx={{ fontSize: 11, color: theme.app.dashboard.textMuted, mt: 0.5 }}>
-                    {originLine}
+            <ProfileHeroCard
+              sx={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "stretch",
+                gap: 1.25,
+              }}
+            >
+              <Box
+                sx={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  textAlign: "center",
+                  gap: 0.75,
+                }}
+              >
+                <QueueAvatar sx={{ width: 56, height: 56, fontSize: 16 }}>{parsed.initials}</QueueAvatar>
+                <Box sx={{ minWidth: 0, width: "100%" }}>
+                  <Typography
+                    fontWeight={700}
+                    sx={{ fontSize: 16, color: theme.app.text.primary, lineHeight: 1.3 }}
+                  >
+                    {displayName}
                   </Typography>
-                ) : null}
-                {locationLine ? (
-                  <Typography sx={{ fontSize: 11, color: theme.app.dashboard.textMuted, mt: 0.25 }}>
-                    {locationLine}
-                  </Typography>
-                ) : null}
-                <Chip
-                  label={visitorPresentation?.visitorProfileComplete ? "Profile complete" : "Active user"}
-                  size="small"
-                  sx={{
-                    mt: 0.75,
-                    height: 22,
-                    fontSize: 11,
-                    fontWeight: 600,
-                    bgcolor: alpha(theme.palette.primary.main, 0.2),
-                    color: theme.app.text.primary,
-                  }}
+                  <Chip
+                    label={visitorPresentation?.visitorProfileComplete ? "Profile complete" : "Active user"}
+                    size="small"
+                    sx={{
+                      mt: 0.75,
+                      height: 22,
+                      fontSize: 11,
+                      fontWeight: 600,
+                      bgcolor: alpha(theme.palette.primary.main, 0.2),
+                      color: theme.app.text.primary,
+                    }}
+                  />
+                </Box>
+              </Box>
+            </ProfileHeroCard>
+
+            <ProfileMetaGridSection>
+              <ProfileMetaGridCell
+                icon={<LanguageOutlined sx={{ fontSize: 16 }} />}
+                label="Website"
+                href={websiteUrl || null}
+              >
+                {websiteUrl || "—"}
+              </ProfileMetaGridCell>
+              <ProfileMetaGridCell
+                icon={<ScheduleOutlined sx={{ fontSize: 16 }} />}
+                label="Chat time"
+              >
+                {chatTime}
+              </ProfileMetaGridCell>
+              <ProfileMetaGridCell
+                icon={<SupportAgentOutlined sx={{ fontSize: 16 }} />}
+                label="Agent"
+              >
+                {agentLabel}
+              </ProfileMetaGridCell>
+              <ProfileMetaGridCell
+                icon={<TimerOutlined sx={{ fontSize: 16 }} />}
+                label="Chat duration"
+              >
+                {durationLabel}
+              </ProfileMetaGridCell>
+              <ProfileMetaGridCell
+                icon={<TagOutlined sx={{ fontSize: 16 }} />}
+                label="Chat ID"
+              >
+                {chatId}
+              </ProfileMetaGridCell>
+              <ProfileMetaGridCell
+                icon={<AccessTimeOutlined sx={{ fontSize: 16 }} />}
+                label="Visitor timezone"
+              >
+                {visitorTimezone}
+              </ProfileMetaGridCell>
+              <ProfileMetaGridCell
+                icon={<ScheduleOutlined sx={{ fontSize: 16 }} />}
+                label="Agent timezone"
+              >
+                {agentTimezoneLabel}
+              </ProfileMetaGridCell>
+            </ProfileMetaGridSection>
+
+            <Accordion
+              expanded={expanded === "visitor"}
+              onChange={toggle("visitor")}
+              disableGutters
+              sx={accordionSx(theme)}
+            >
+              <AccordionSummary expandIcon={<ExpandMore sx={{ color: theme.app.dashboard.iconMuted }} />}>
+                <AccordionSectionTitle icon={<PersonOutline />} label="Visitor info" />
+              </AccordionSummary>
+              <AccordionDetails sx={{ p: 0 }}>
+                <ProfileMetaGridSection>
+                  {locationLine ? (
+                    <ProfileMetaGridCell icon={<LocationOnOutlined sx={iconSx} />} label="Location">
+                      {locationLine}
+                    </ProfileMetaGridCell>
+                  ) : null}
+                  {originLine ? (
+                    <ProfileMetaGridCell icon={<PublicOutlined sx={iconSx} />} label="Origin">
+                      {originLine}
+                    </ProfileMetaGridCell>
+                  ) : null}
+                  {deviceLabel ? (
+                    <ProfileMetaGridCell
+                      icon={
+                        isMobile ? (
+                          <SmartphoneOutlined sx={iconSx} />
+                        ) : (
+                          <ComputerOutlined sx={iconSx} />
+                        )
+                      }
+                      label="Device"
+                      fullWidth={!locationLine && !originLine}
+                    >
+                      {deviceLabel}
+                    </ProfileMetaGridCell>
+                  ) : null}
+                </ProfileMetaGridSection>
+              </AccordionDetails>
+            </Accordion>
+
+            <Accordion
+              expanded={expanded === "session"}
+              onChange={toggle("session")}
+              disableGutters
+              sx={accordionSx(theme)}
+            >
+              <AccordionSummary expandIcon={<ExpandMore sx={{ color: theme.app.dashboard.iconMuted }} />}>
+                <AccordionSectionTitle icon={<ScheduleOutlined />} label="Chat session" />
+              </AccordionSummary>
+              <AccordionDetails sx={{ p: 0 }}>
+                <ProfileMetaGridSection>
+                  {live ? (
+                    <ProfileMetaGridCell
+                      icon={<AccessTimeOutlined sx={{ ...iconSx, color: theme.palette.success.light }} />}
+                      label="Status"
+                      fullWidth
+                    >
+                      <Box component="span" sx={{ color: theme.palette.success.light, fontWeight: 600 }}>
+                        Live session
+                      </Box>
+                    </ProfileMetaGridCell>
+                  ) : null}
+                  {parsed.sessionFields.map((f) => (
+                    <ProfileMetaGridCell
+                      key={f.label}
+                      icon={sessionFieldIcon(f.label)}
+                      label={f.label}
+                      muted={f.value === "—"}
+                    >
+                      {f.value}
+                    </ProfileMetaGridCell>
+                  ))}
+                </ProfileMetaGridSection>
+              </AccordionDetails>
+            </Accordion>
+
+            <Accordion
+              expanded={expanded === "contact"}
+              onChange={toggle("contact")}
+              disableGutters
+              sx={accordionSx(theme)}
+            >
+              <AccordionSummary expandIcon={<ExpandMore sx={{ color: theme.app.dashboard.iconMuted }} />}>
+                <AccordionSectionTitle icon={<EmailOutlined />} label="Contact info" />
+              </AccordionSummary>
+              <AccordionDetails sx={{ p: 0 }}>
+                <ProfileMetaGridSection>
+                  {parsed.contactFields.map((f) => (
+                    <ProfileMetaGridCell
+                      key={f.label}
+                      icon={contactFieldIcon(f.label)}
+                      label={f.label}
+                      muted={f.value === "—"}
+                    >
+                      {f.value}
+                    </ProfileMetaGridCell>
+                  ))}
+                </ProfileMetaGridSection>
+              </AccordionDetails>
+            </Accordion>
+
+            {parsed.location ? (
+              <Accordion
+                expanded={expanded === "location"}
+                onChange={toggle("location")}
+                disableGutters
+                sx={accordionSx(theme)}
+              >
+                <AccordionSummary expandIcon={<ExpandMore sx={{ color: theme.app.dashboard.iconMuted }} />}>
+                  <AccordionSectionTitle icon={<LocationOnOutlined />} label="Location map" />
+                </AccordionSummary>
+                <AccordionDetails sx={{ px: 2, pb: 2, pt: 0 }}>
+                  <VisitorLocationMap location={parsed.location} />
+                </AccordionDetails>
+              </Accordion>
+            ) : null}
+
+            {parsed.currentPageUrl ? (
+              <Accordion
+                expanded={expanded === "page"}
+                onChange={toggle("page")}
+                disableGutters
+                sx={accordionSx(theme)}
+              >
+                <AccordionSummary expandIcon={<ExpandMore sx={{ color: theme.app.dashboard.iconMuted }} />}>
+                  <AccordionSectionTitle icon={<LanguageOutlined />} label="Current page" />
+                </AccordionSummary>
+                <AccordionDetails sx={{ p: 0 }}>
+                  <ProfileMetaGridSection>
+                    <ProfileMetaGridCell
+                      icon={<LinkOutlined sx={iconSx} />}
+                      label="Page URL"
+                      href={parsed.currentPageUrl}
+                      fullWidth
+                    >
+                      {parsed.currentPageUrl}
+                    </ProfileMetaGridCell>
+                  </ProfileMetaGridSection>
+                </AccordionDetails>
+              </Accordion>
+            ) : null}
+
+            {journey.length > 0 ? (
+              <Accordion
+                expanded={expanded === "journey"}
+                onChange={toggle("journey")}
+                disableGutters
+                sx={accordionSx(theme)}
+              >
+                <AccordionSummary expandIcon={<ExpandMore sx={{ color: theme.app.dashboard.iconMuted }} />}>
+                  <AccordionSectionTitle icon={<RouteOutlined />} label="Visitor journey" />
+                </AccordionSummary>
+                <AccordionDetails sx={{ p: 0 }}>
+                  <ProfileMetaGridSection>
+                    {journey.map((step, i) => (
+                      <ProfileMetaGridCell
+                        key={`${step.url}-${i}`}
+                        icon={<RouteOutlined sx={iconSx} />}
+                        label={step.at ? `Visit · ${step.at}` : `Step ${i + 1}`}
+                        href={step.url}
+                        fullWidth={journey.length === 1}
+                      >
+                        {step.url}
+                      </ProfileMetaGridCell>
+                    ))}
+                  </ProfileMetaGridSection>
+                </AccordionDetails>
+              </Accordion>
+            ) : null}
+
+            {supervisorEnabled && !hideSupervisorTools ? (
+              <Box sx={{ px: 2, pb: 1, pt: 0.5 }}>
+                <SupervisorToolsPanel
+                  conversationId={conversationId}
+                  assignedAgentId={assignedAgentId}
+                  currentUserId={currentUserId}
+                  hasOperational={hasOperational}
+                  supervisor={supervisor}
                 />
               </Box>
-            </Box>
-            {(parsed.browser || parsed.os) && (
-              <Box sx={{ display: "flex", gap: 1, mt: 1.5, color: theme.app.dashboard.textMuted }}>
-                {parsed.os?.toLowerCase().includes("mobile") ? (
-                  <SmartphoneOutlined sx={{ fontSize: 16 }} />
-                ) : (
-                  <ComputerOutlined sx={{ fontSize: 16 }} />
-                )}
-                <Typography sx={{ fontSize: 12 }}>
-                  {[parsed.browser, parsed.os].filter(Boolean).join(" · ")}
-                </Typography>
-              </Box>
-            )}
-            {parsed.location?.label ? (
-              <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, mt: 1 }}>
-                <LocationOnOutlined sx={{ fontSize: 18, color: theme.app.dashboard.accentViolet }} />
-                <Typography sx={{ fontSize: 13 }}>{parsed.location.label}</Typography>
+            ) : null}
+
+            {showWebsiteFallback && onFallbackWebsiteIdChange ? (
+              <Box sx={{ p: 2 }}>
+                <InputField
+                  label="Website UUID"
+                  placeholder="For AI when websiteId is missing"
+                  value={fallbackWebsiteId}
+                  onChange={(e) => onFallbackWebsiteIdChange(e.target.value)}
+                />
               </Box>
             ) : null}
-          </ProfileHeroCard>
-
-          <Box sx={{ px: 2, pb: 1 }}>
-            <GuestLinkPanel
-              conversationId={conversationId}
-              hasOperational={hasOperational}
-              disabled={supervisorReadOnly || closeDisabled}
-            />
-          </Box>
-
-          <Accordion
-            expanded={expanded === "contact"}
-            onChange={(_, isExp) => setExpanded(isExp ? "contact" : false)}
-            disableGutters
-            sx={accordionSx(theme)}
-          >
-            <AccordionSummary expandIcon={<ExpandMore sx={{ color: theme.app.dashboard.iconMuted }} />}>
-              <Typography fontWeight={600} sx={{ fontSize: 14 }}>
-                Contact info
-              </Typography>
-            </AccordionSummary>
-            <AccordionDetails sx={{ pt: 0, pb: 2 }}>
-              <ProfileDetailRow>
-                {parsed.email ? (
-                  <Box sx={{ display: "flex", gap: 1, alignItems: "flex-start" }}>
-                    <EmailOutlined sx={{ fontSize: 18, color: theme.app.dashboard.iconMuted }} />
-                    <Typography sx={{ fontSize: 13, wordBreak: "break-all" }}>{parsed.email}</Typography>
-                  </Box>
-                ) : null}
-                {parsed.phone ? (
-                  <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
-                    <PhoneOutlined sx={{ fontSize: 18, color: theme.app.dashboard.iconMuted }} />
-                    <Typography sx={{ fontSize: 13 }}>{parsed.phone}</Typography>
-                  </Box>
-                ) : null}
-                {!parsed.email && !parsed.phone ? (
-                  <Typography sx={{ fontSize: 13, color: theme.app.dashboard.textMuted }}>
-                    No contact details captured
-                  </Typography>
-                ) : null}
-              </ProfileDetailRow>
-            </AccordionDetails>
-          </Accordion>
-
-          <Accordion
-            expanded={expanded === "session"}
-            onChange={(_, isExp) => setExpanded(isExp ? "session" : false)}
-            disableGutters
-            sx={accordionSx(theme)}
-          >
-            <AccordionSummary expandIcon={<ExpandMore sx={{ color: theme.app.dashboard.iconMuted }} />}>
-              <Typography fontWeight={600} sx={{ fontSize: 14 }}>
-                Session
-              </Typography>
-            </AccordionSummary>
-            <AccordionDetails sx={{ pt: 0, pb: 2 }}>
-              <ProfileDetailRow>
-                {parsed.sessionFields.map((f) => (
-                  <DetailField key={f.label} label={f.label} value={f.value} />
-                ))}
-              </ProfileDetailRow>
-            </AccordionDetails>
-          </Accordion>
-
-          {parsed.location ? (
-            <Accordion
-              expanded={expanded === "location"}
-              onChange={(_, isExp) => setExpanded(isExp ? "location" : false)}
-              disableGutters
-              sx={accordionSx(theme)}
-            >
-              <AccordionSummary expandIcon={<ExpandMore sx={{ color: theme.app.dashboard.iconMuted }} />}>
-                <Typography fontWeight={600} sx={{ fontSize: 14 }}>
-                  Location
-                </Typography>
-              </AccordionSummary>
-              <AccordionDetails sx={{ pt: 0, pb: 2 }}>
-                <VisitorLocationMap location={parsed.location} />
-              </AccordionDetails>
-            </Accordion>
-          ) : null}
-
-          {parsed.currentPageUrl ? (
-            <Accordion
-              expanded={expanded === "page"}
-              onChange={(_, isExp) => setExpanded(isExp ? "page" : false)}
-              disableGutters
-              sx={accordionSx(theme)}
-            >
-              <AccordionSummary expandIcon={<ExpandMore sx={{ color: theme.app.dashboard.iconMuted }} />}>
-                <Typography fontWeight={600} sx={{ fontSize: 14 }}>
-                  Current page
-                </Typography>
-              </AccordionSummary>
-              <AccordionDetails sx={{ pt: 0, pb: 2 }}>
-                <Box sx={{ display: "flex", gap: 0.75, alignItems: "flex-start" }}>
-                  <LanguageOutlined sx={{ fontSize: 18, color: theme.app.dashboard.iconMuted }} />
-                  <Link
-                    href={parsed.currentPageUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    sx={{ fontSize: 12, wordBreak: "break-all", color: theme.app.dashboard.accentBlue }}
-                  >
-                    {parsed.currentPageUrl}
-                  </Link>
-                </Box>
-              </AccordionDetails>
-            </Accordion>
-          ) : null}
-
-          {journey.length > 0 ? (
-            <Accordion
-              expanded={expanded === "journey"}
-              onChange={(_, isExp) => setExpanded(isExp ? "journey" : false)}
-              disableGutters
-              sx={accordionSx(theme)}
-            >
-              <AccordionSummary expandIcon={<ExpandMore sx={{ color: theme.app.dashboard.iconMuted }} />}>
-                <Typography fontWeight={600} sx={{ fontSize: 14 }}>
-                  Visitor journey
-                </Typography>
-              </AccordionSummary>
-              <AccordionDetails sx={{ pt: 0, pb: 2 }}>
-                <JourneyTimeline>
-                  {journey.map((step, i) => (
-                    <JourneyStep key={`${step.url}-${i}`}>
-                      {step.at ? (
-                        <Typography sx={{ fontSize: 11, color: theme.app.dashboard.textMuted, mb: 0.25 }}>
-                          {step.at}
-                        </Typography>
-                      ) : null}
-                      <Typography sx={{ fontSize: 12, wordBreak: "break-all" }}>{step.url}</Typography>
-                    </JourneyStep>
-                  ))}
-                </JourneyTimeline>
-              </AccordionDetails>
-            </Accordion>
-          ) : null}
-
-          {supervisorEnabled && !hideSupervisorTools ? (
-            <Box sx={{ px: 2, pb: 1 }}>
-              <SupervisorToolsPanel
-                conversationId={conversationId}
-                assignedAgentId={assignedAgentId}
-                currentUserId={currentUserId}
-                hasOperational={hasOperational}
-                supervisor={supervisor}
-              />
-            </Box>
-          ) : null}
-
-          {showWebsiteFallback && onFallbackWebsiteIdChange ? (
-            <Box sx={{ p: 2 }}>
-              <InputField
-                label="Website UUID"
-                placeholder="For AI when websiteId is missing"
-                value={fallbackWebsiteId}
-                onChange={(e) => onFallbackWebsiteIdChange(e.target.value)}
-              />
-            </Box>
-          ) : null}
-        </ProfileAccordion>
+          </ProfileAccordion>
         </>
       )}
     </PanelColumn>

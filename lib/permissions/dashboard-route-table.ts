@@ -106,6 +106,13 @@ export const ROUTE_RULES: readonly RouteRule[] = [
     label: "Chat reports",
     prefixMatch: true,
   },
+  {
+    permission: "page:chat-reports",
+    href: "/dashboard/website-analytics",
+    iconKey: "reports",
+    label: "Website analytics",
+    prefixMatch: true,
+  },
   { permission: "page:chat-widget", href: "/dashboard/chat-widget", iconKey: "chatWidget", label: "Widget", prefixMatch: true },
   {
     permission: "page:chat-close-policy",

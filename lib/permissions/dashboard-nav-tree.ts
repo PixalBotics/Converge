@@ -77,6 +77,7 @@ const LIVE_CHAT_GROUP: DashboardNavItem = {
     chatNavItem(PAGE.CHAT_QA, "/dashboard/qa/inbox", "QA inbox", "chat", CHAT_QA_OPERATIONAL_ANY),
     chatNavItem(PAGE.CHAT_QA_ROSTER, "/dashboard/qa/roster", "QA roster", "chat", [OP.qa.chatAssign]),
     chatNavItem(PAGE.CHAT_REPORTS, "/dashboard/chat-reports", "Reports", "reports", [OP.chat.reportView]),
+    chatNavItem(PAGE.CHAT_REPORTS, "/dashboard/website-analytics", "Website analytics", "reports", [OP.chat.reportView]),
     chatNavItem(PAGE.CHAT_WIDGET, "/dashboard/chat-widget", "Widget", "chatWidget"),
     chatNavItem(PAGE.CHAT_CLOSE_POLICY, "/dashboard/chat-settings", "Settings", "chatWidget"),
     chatNavItem(PAGE.CHAT_CANNED, "/dashboard/chat-canned", "Canned messages", "chatWidget"),

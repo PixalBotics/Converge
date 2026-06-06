@@ -2,6 +2,7 @@
 
 import Box from "@mui/material/Box";
 import { Button, Calendar, SelectField, Typography, filterPanelDescriptionSx } from "@/components/common";
+import { mergeSx } from "@/lib/mui/merge-sx";
 import type { ChatScopeFilterState } from "../types";
 import { websiteAssignmentFilterGrid } from "@/app/dashboard/website-assigning/website-assigning.styles";
 
@@ -48,7 +49,7 @@ export function ChatScopeFiltersPanel({
   return (
     <Box>
       {hint && !compact ? (
-        <Typography variant="medium" sx={[{ mb: 1 }, filterPanelDescriptionSx]}>
+        <Typography variant="medium" sx={mergeSx(filterPanelDescriptionSx, { mb: 1 })}>
           {hint}
         </Typography>
       ) : null}

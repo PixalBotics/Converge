@@ -38,10 +38,14 @@ import {
   hostFromWebsiteUrl,
   isReindexBulkResult,
   KB_BACKGROUND_TRAINING_STARTED_MESSAGE,
+  KB_TRAINING_SOURCES_POLL_MS,
   toastMessageForCreateResult,
   type AiTrainingKbVariant,
 } from "./ai-training-kb.utils";
 import { useAiTrainingHierarchy } from "./use-ai-training-hierarchy";
+import { buildAiTrainingSessionScope } from "./ai-training-scope.util";
+import { useAuth } from "@/lib/auth";
+import { AiTrainingTestSidebar } from "./AiTrainingTestSidebar";
 
 const LIST_LIMIT = 20;
 
@@ -50,12 +54,15 @@ export function AiTrainingWebsiteManagePage({ variant }: { variant: AiTrainingKb
   const router = useRouter();
   const searchParams = useSearchParams();
   const websiteIdParam = searchParams.get("websiteId")?.trim() ?? "";
+  const highlightTestPanel = searchParams.get("panel") === "test";
 
   const isChatbot = variant === "chatbot";
   const HeaderIcon = isChatbot ? SmartToyOutlined : AutoStories;
   const listHref = aiTrainingListHref(variant);
 
   const hierarchy = useAiTrainingHierarchy();
+  const { user } = useAuth();
+  const sessionScope = useMemo(() => buildAiTrainingSessionScope(user), [user]);
   const [statusFilter, setStatusFilter] = useState("");
   const [listOffset, setListOffset] = useState(0);
   const [reindexIncludeFailed, setReindexIncludeFailed] = useState(false);
@@ -64,11 +71,11 @@ export function AiTrainingWebsiteManagePage({ variant }: { variant: AiTrainingKb
   const [synced, setSynced] = useState(false);
 
   const chatbotTrainingWebsites = useAiChatbotTrainingWebsitesQuery(
-    { limit: 500, trainedOnly: false },
+    { limit: 500, trainedOnly: false, ...sessionScope },
     { enabled: isChatbot },
   );
   const assistantTrainingWebsites = useAiAssistantKbTrainingWebsitesQuery(
-    { limit: 500, trainedOnly: false },
+    { limit: 500, trainedOnly: false, ...sessionScope },
     { enabled: !isChatbot },
   );
   const trainingWebsitesQuery = isChatbot ? chatbotTrainingWebsites : assistantTrainingWebsites;
@@ -118,7 +125,7 @@ export function AiTrainingWebsiteManagePage({ variant }: { variant: AiTrainingKb
     refetchInterval: (query) => {
       const items = query.state.data?.items ?? [];
       return items.some((i) => i.status === "processing" || i.status === "pending")
-        ? 5000
+        ? KB_TRAINING_SOURCES_POLL_MS
         : false;
     },
   });
@@ -127,7 +134,7 @@ export function AiTrainingWebsiteManagePage({ variant }: { variant: AiTrainingKb
     refetchInterval: (query) => {
       const items = query.state.data?.items ?? [];
       return items.some((i) => i.status === "processing" || i.status === "pending")
-        ? 5000
+        ? KB_TRAINING_SOURCES_POLL_MS
         : false;
     },
   });
@@ -137,6 +144,9 @@ export function AiTrainingWebsiteManagePage({ variant }: { variant: AiTrainingKb
   const hasBackgroundTraining = listItems.some(
     (i) => i.status === "processing" || i.status === "pending",
   );
+  const processingCount = listItems.filter(
+    (i) => i.status === "processing" || i.status === "pending",
+  ).length;
   const listTotal = sourcesQuery.data?.total ?? 0;
   const reindexBusy = reindexChatbot.isPending || reindexAssistant.isPending;
 
@@ -249,9 +259,19 @@ export function AiTrainingWebsiteManagePage({ variant }: { variant: AiTrainingKb
       {hasBackgroundTraining ? (
         <Alert severity="info" sx={{ borderRadius: 1 }}>
           {KB_BACKGROUND_TRAINING_STARTED_MESSAGE}
+          {processingCount > 0 ? ` (${processingCount} item(s) in progress)` : ""}
         </Alert>
       ) : null}
 
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: { xs: "1fr", lg: "1fr 380px" },
+          gap: 2,
+          alignItems: "start",
+        }}
+      >
+        <Stack spacing={2}>
       {registeredHost ? (
         <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted }}>
           Domain: {registeredHost}
@@ -332,6 +352,17 @@ export function AiTrainingWebsiteManagePage({ variant }: { variant: AiTrainingKb
           </Button>
         </Stack>
       </DashboardCard>
+        </Stack>
+
+        {websiteId ? (
+          <AiTrainingTestSidebar
+            variant={variant}
+            websiteId={websiteId}
+            websiteUrl={registeredUrl || undefined}
+            highlight={highlightTestPanel}
+          />
+        ) : null}
+      </Box>
     </AiTrainingPageShell>
   );
 }

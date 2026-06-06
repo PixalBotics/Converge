@@ -237,6 +237,64 @@ export class ChatSocketClient {
     return this.connection.emitWithAck("fetch_monitor_transcript", payload, timeoutMs);
   }
 
+  fetchAgentHistoryWithAck(
+    payload: { conversationId: string },
+    timeoutMs?: number,
+  ): Promise<unknown> {
+    return this.connection.emitWithAck("fetch_agent_history", payload, timeoutMs);
+  }
+
+  trackEventWithAck(
+    payload: Record<string, unknown>,
+    timeoutMs?: number,
+  ): Promise<unknown> {
+    return this.connection.emitWithAck("track_event", payload, timeoutMs);
+  }
+
+  fetchWebsiteLeadsSummaryWithAck(
+    payload: { websiteId: string; from?: string; to?: string },
+    timeoutMs?: number,
+  ): Promise<unknown> {
+    return this.connection.emitWithAck("fetch_website_leads_summary", payload, timeoutMs);
+  }
+
+  fetchWebsiteAnalyticsReportWithAck(
+    payload: { websiteId: string; from?: string; to?: string },
+    timeoutMs?: number,
+  ): Promise<unknown> {
+    return this.connection.emitWithAck("fetch_website_analytics_report", payload, timeoutMs);
+  }
+
+  fetchWebsiteVisitorsWithAck(
+    payload: Record<string, unknown>,
+    timeoutMs?: number,
+  ): Promise<unknown> {
+    return this.connection.emitWithAck("fetch_website_visitors", payload, timeoutMs);
+  }
+
+  fetchWebsiteVisitorDetailWithAck(
+    payload: { websiteId: string; visitorId: string },
+    timeoutMs?: number,
+  ): Promise<unknown> {
+    return this.connection.emitWithAck(
+      "fetch_website_visitor_detail",
+      payload,
+      timeoutMs,
+    );
+  }
+
+  fetchChatReportOverviewWithAck(
+    payload: {
+      from?: string;
+      to?: string;
+      websiteId?: string;
+      departmentId?: string;
+    },
+    timeoutMs?: number,
+  ): Promise<unknown> {
+    return this.connection.emitWithAck("fetch_chat_report_overview", payload, timeoutMs);
+  }
+
   fetchGuestLinkTargetWithAck(
     payload: { conversationId: string },
     timeoutMs?: number,

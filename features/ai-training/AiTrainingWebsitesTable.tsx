@@ -54,6 +54,7 @@ export function AiTrainingWebsitesTable({
   isLoading,
   isFetching,
   onSelectWebsite,
+  onTestWebsite,
   onRefresh,
   showCompanyColumns,
   filterPopoverOpen,
@@ -70,6 +71,7 @@ export function AiTrainingWebsitesTable({
   isLoading: boolean;
   isFetching: boolean;
   onSelectWebsite: (row: KbTrainingWebsiteSummary) => void;
+  onTestWebsite: (row: KbTrainingWebsiteSummary) => void;
   onRefresh: () => void;
   showCompanyColumns: boolean;
   filterPopoverOpen: boolean;
@@ -201,14 +203,17 @@ export function AiTrainingWebsitesTable({
     () => ({
       label: "Action",
       render: (row: WebsiteRow) => (
-        <Box onClick={(e) => e.stopPropagation()}>
+        <Box sx={{ display: "flex", gap: 0.75 }} onClick={(e) => e.stopPropagation()}>
+          <Button type="button" variant="secondary" size="small" onClick={() => onTestWebsite(row)}>
+            Test
+          </Button>
           <Button type="button" variant="secondary" size="small" onClick={() => onSelectWebsite(row)}>
             Open
           </Button>
         </Box>
       ),
     }),
-    [onSelectWebsite],
+    [onSelectWebsite, onTestWebsite],
   );
 
   return (

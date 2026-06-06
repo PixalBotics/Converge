@@ -18,6 +18,7 @@ import {
 } from "@/components/common";
 import type { DataTableColumn } from "@/components/common";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
+import { mergeSx } from "@/lib/mui/merge-sx";
 import type { ClosePolicyListRow } from "@/services/chat/close-policy-list.types";
 import type { ChatScopeFilterState } from "@/features/chat-shared/types";
 import { useClosePolicyListQuery } from "../hooks/useChatSettings";
@@ -211,7 +212,7 @@ export function ClosePolicyListTab({
           <Button
             type="button"
             variant="primary"
-            sx={[gradientPrimaryButtonSx, { flexShrink: 0 }]}
+            sx={mergeSx(gradientPrimaryButtonSx, { flexShrink: 0 })}
             startIcon={<Add />}
             onClick={openAdd}
           >

@@ -141,6 +141,7 @@ export function buildVisitorWidgetEmbedScript(input: {
     })
   ).replace(/\/+$/, "");
   const key = input.widgetKey.trim();
+  const api = resolveWidgetApiOrigin().replace(/\/+$/, "");
   const scriptSrc = resolveWidgetLoaderScriptUrl({
     apiEmbedAppOrigin: input.apiEmbedAppOrigin ?? app,
     browserOrigin:
@@ -148,10 +149,11 @@ export function buildVisitorWidgetEmbedScript(input: {
   });
   if (!app || !scriptSrc) {
     return `<!-- Converge widget — set NEXT_PUBLIC_WIDGET_EMBED_ORIGIN to your Next.js app URL (not the API) -->
-<script src="YOUR_APP_ORIGIN/widget.js" data-widget-key="${key}" data-app-origin="YOUR_APP_ORIGIN" defer></script>`;
+<script src="YOUR_APP_ORIGIN/widget.js" data-widget-key="${key}" data-app-origin="YOUR_APP_ORIGIN" data-api-origin="YOUR_API_ORIGIN" defer></script>`;
   }
-  return `<!-- Converge widget — iframe matches dashboard preview; API config via /embed/widget -->
-<script src="${scriptSrc}" data-widget-key="${key}" data-app-origin="${app}" defer></script>`;
+  const apiAttr = api ? `\n  data-api-origin="${api}"` : "";
+  return `<!-- Converge widget — page views tracked on script load; chat iframe loads separately -->
+<script src="${scriptSrc}" data-widget-key="${key}" data-app-origin="${app}"${apiAttr} defer></script>`;
 }
 
 /** @deprecated Alias — use {@link buildVisitorWidgetEmbedScript}. */
@@ -189,6 +191,12 @@ export function normalizeEmbedSnippetForApi(
     return `${p1}${app}/widget.js${p3}`;
   });
   out = out.replace(/(data-app-origin=")([^"]*)(")/gi, `$1${app}$3`);
-  out = out.replace(/\sdata-api-origin="[^"]*"/gi, "");
+  if (apiOrigin) {
+    if (/\sdata-api-origin="/i.test(out)) {
+      out = out.replace(/(data-api-origin=")([^"]*)(")/gi, `$1${apiOrigin}$3`);
+    } else {
+      out = out.replace(/(<script[^>]*)/i, `$1 data-api-origin="${apiOrigin}"`);
+    }
+  }
   return out;
 }

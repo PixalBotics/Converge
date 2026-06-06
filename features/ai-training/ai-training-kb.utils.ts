@@ -27,10 +27,13 @@ What is the escalation path for billing disputes?
 Route to Billing L2 via the #billing-escalations channel.`;
 
 /** Shown in UI; backend default is higher (see KB_WEB_MAX_PAGES). */
-export const KB_WEB_MAX_PAGES_HINT = 500;
+export const KB_WEB_MAX_PAGES_HINT = 25;
+
+/** Poll interval while sources are indexing — keeps server load lower than 5s. */
+export const KB_TRAINING_SOURCES_POLL_MS = 15_000;
 
 export const KB_BACKGROUND_TRAINING_STARTED_MESSAGE =
-  "Site training started in the background. This page will update automatically — large sites may take several minutes. When status is Indexed, the AI can answer from that content.";
+  "Training runs on the server while you keep working. This page refreshes every ~15 seconds. When status is Indexed, use Test on the right to talk to the AI.";
 
 export const ASSISTANT_SOURCE_TYPE_OPTIONS: { label: string; value: AssistantSourceType }[] = [
   { label: "Website URL (auto scrape)", value: "URL" },

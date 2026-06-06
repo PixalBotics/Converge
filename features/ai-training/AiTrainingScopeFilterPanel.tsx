@@ -3,7 +3,9 @@
 import Box from "@mui/material/Box";
 import Checkbox from "@mui/material/Checkbox";
 import FormControlLabel from "@mui/material/FormControlLabel";
-import { Button, FilterPanelHeader, SelectField, ToolbarFilterPopoverPanel } from "@/components/common";
+import { useTheme } from "@mui/material/styles";
+import type { AppTheme } from "@/theme/theme";
+import { Button, FilterPanelHeader, SelectField, ToolbarFilterPopoverPanel, Typography } from "@/components/common";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
 import { aiTrainingFilterPopoverGridSx } from "./ai-training-ui.styles";
 import type { useAiTrainingHierarchy } from "./use-ai-training-hierarchy";
@@ -25,6 +27,7 @@ export function AiTrainingScopeFilterPanel({
   onClear: () => void;
   onClose: () => void;
 }) {
+  const theme = useTheme() as AppTheme;
   const hasDraft =
     Boolean(hierarchy.resellerId.trim()) ||
     Boolean(hierarchy.parentCompanyId.trim()) ||

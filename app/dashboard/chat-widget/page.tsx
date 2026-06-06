@@ -28,6 +28,7 @@ import {
 } from "@/components/common";
 import type { DataTableColumn } from "@/components/common";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
+import { mergeSx } from "@/lib/mui/merge-sx";
 import {
   integrationsCardTitleRow,
   integrationsCardToolbar,
@@ -401,7 +402,7 @@ export default function ChatWidgetPage() {
           <Typography variant="regularLarge" fontWeight={700} color="white" sx={{ mb: 0.5 }}>
             Widget Management
           </Typography>
-          <Typography variant="medium" sx={[{ maxWidth: 640 }, filterPanelDescriptionSx]}>
+          <Typography variant="medium" sx={mergeSx(filterPanelDescriptionSx, { maxWidth: 640 })}>
             Manage chat widgets, create installs, and copy embed code for your websites.
           </Typography>
         </Box>

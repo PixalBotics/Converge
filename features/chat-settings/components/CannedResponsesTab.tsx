@@ -16,6 +16,7 @@ import {
 } from "@/components/common";
 import type { DataTableColumn } from "@/components/common";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
+import { mergeSx } from "@/lib/mui/merge-sx";
 import type { CannedResponseListRow } from "@/services/chat/canned-responses.types";
 import type { ChatScopeFilterState } from "@/features/chat-shared/types";
 import {
@@ -157,7 +158,7 @@ export function CannedResponsesTab({
               <Button
                 type="button"
                 variant="primary"
-                sx={[gradientPrimaryButtonSx, { flexShrink: 0 }]}
+                sx={mergeSx(gradientPrimaryButtonSx, { flexShrink: 0 })}
                 startIcon={<Add />}
                 onClick={openAdd}
               >
@@ -186,7 +187,7 @@ export function CannedResponsesTab({
             <Button
               type="button"
               variant="primary"
-              sx={[gradientPrimaryButtonSx, { flexShrink: 0 }]}
+              sx={mergeSx(gradientPrimaryButtonSx, { flexShrink: 0 })}
               startIcon={<Add />}
               onClick={openAdd}
             >

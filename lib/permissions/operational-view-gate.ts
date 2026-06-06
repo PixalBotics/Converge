@@ -65,6 +65,10 @@ const PREFIX_VIEW_RULES: readonly { prefix: string; anyOf: readonly string[] }[]
     anyOf: [OP.chat.reportView],
   },
   {
+    prefix: "/dashboard/website-analytics",
+    anyOf: [OP.chat.reportView],
+  },
+  {
     prefix: "/dashboard/chat-settings/close-policy",
     anyOf: [OP.chatWidget.view, OP.chatWidget.update],
   },

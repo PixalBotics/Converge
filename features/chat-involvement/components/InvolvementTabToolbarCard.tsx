@@ -12,6 +12,7 @@ import {
   Typography,
 } from "@/components/common";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
+import { mergeSx } from "@/lib/mui/merge-sx";
 import {
   websiteAssignmentSearchFieldWrapper,
   websiteAssignmentSearchRow,
@@ -86,7 +87,7 @@ export function InvolvementTabToolbarCard({
           <Button
             type="button"
             variant="primary"
-            sx={[gradientPrimaryButtonSx, { flexShrink: 0 }]}
+            sx={mergeSx(gradientPrimaryButtonSx, { flexShrink: 0 })}
             startIcon={<Add />}
             onClick={onAdd}
           >

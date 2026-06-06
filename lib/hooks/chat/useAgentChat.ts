@@ -254,6 +254,15 @@ export function useAgentChat(params: UseAgentChatParams): UseAgentChatReturn {
         messageMapRef.current.set(stableMessageDedupeKey(msg), msg);
       }
       syncMessagesFromMap();
+      const v = history.visitor;
+      setVisitorFromHistory((prev) =>
+        mergeVisitorPanelContext(
+          typeof v === "object" && v !== null
+            ? (v as Record<string, unknown>)
+            : prev,
+          history as Record<string, unknown>,
+        ),
+      );
     } catch {
       /* transient — next reconnect sync will retry */
     }
@@ -415,14 +424,31 @@ export function useAgentChat(params: UseAgentChatParams): UseAgentChatReturn {
       ) {
         setSelectedIsClosed(false);
         selectedIsClosedRef.current = false;
+        setPendingWrapUp(null);
+        for (const [key, msg] of messageMapRef.current) {
+          const mt =
+            typeof msg.metadata?.messageType === "string"
+              ? msg.metadata.messageType
+              : "";
+          if (
+            mt === "distribution_link" ||
+            mt === "close_form_link" ||
+            mt === "distribution_setup_required" ||
+            mt === "policy_close"
+          ) {
+            messageMapRef.current.delete(key);
+          }
+        }
+        syncMessagesFromMap();
         ensureConversationRoomJoin(
           socketClient,
           resumedId,
           () => selectedConversationIdRef.current?.toLowerCase() === resumedId.toLowerCase(),
         );
+        void reloadConversationHistory(resumedId);
       }
     },
-    [params.agentId, socketClient],
+    [params.agentId, reloadConversationHistory, socketClient, syncMessagesFromMap],
   );
 
   const handleAgentWrapUpForm = useCallback(

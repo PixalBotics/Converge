@@ -59,6 +59,7 @@ function buildReviewBody(
     summary: string;
     coachingNotes: string;
     checklist: Record<string, boolean>;
+    meaningfulChat: boolean;
   },
 ): UpsertQaSessionReviewBody {
   const checklistJson: Record<string, unknown> = {};
@@ -73,6 +74,7 @@ function buildReviewBody(
     summary: fields.summary.trim() || undefined,
     coachingNotes: fields.coachingNotes.trim() || undefined,
     checklistJson,
+    ...(status === "completed" ? { meaningfulChat: fields.meaningfulChat } : {}),
   };
 }
 
@@ -112,6 +114,7 @@ export function QaSessionReviewPanel({
   const [summary, setSummary] = useState("");
   const [coachingNotes, setCoachingNotes] = useState("");
   const [checklist, setChecklist] = useState<Record<string, boolean>>({});
+  const [meaningfulChat, setMeaningfulChat] = useState(false);
 
   const formFields = useMemo(
     () => ({
@@ -121,8 +124,9 @@ export function QaSessionReviewPanel({
       summary,
       coachingNotes,
       checklist,
+      meaningfulChat,
     }),
-    [starRating, failureReason, overallScore, summary, coachingNotes, checklist],
+    [starRating, failureReason, overallScore, summary, coachingNotes, checklist, meaningfulChat],
   );
 
   useEffect(() => {
@@ -134,6 +138,7 @@ export function QaSessionReviewPanel({
       setSummary("");
       setCoachingNotes("");
       setChecklist(readChecklist(null));
+      setMeaningfulChat(false);
       return;
     }
     setStatus(review.status);
@@ -459,6 +464,23 @@ export function QaSessionReviewPanel({
           label={<Typography variant="caption">{item.label}</Typography>}
         />
       ))}
+
+      <FormControlLabel
+        sx={{ display: "flex", ml: 0, mt: 1, mb: 0.5 }}
+        control={
+          <Checkbox
+            size="small"
+            checked={meaningfulChat}
+            disabled={!canEdit || saving || isCompleted}
+            onChange={(_, v) => setMeaningfulChat(v)}
+          />
+        }
+        label={
+          <Typography variant="caption">
+            Count as meaningful chat (website analytics)
+          </Typography>
+        }
+      />
 
       {canEdit && !isCompleted ? (
         <Box sx={{ display: "flex", flexDirection: "column", gap: 1, mt: 2 }}>

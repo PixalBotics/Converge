@@ -719,6 +719,7 @@ export function ChatOperationsWorkspace() {
               onDismissWhisper={agentChat.dismissWhisper}
               distributionFormHref={distributionFormHref}
               requiresDistributionForm={Boolean(wrapUpForSelected?.requiresDistributionForm)}
+              hasOperational={hasOperational}
             />
           </Box>
 

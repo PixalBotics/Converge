@@ -84,7 +84,7 @@ export function ChatScopeTableFiltersCard({
             onClick={(e) => e.stopPropagation()}
           />
         ) : null}
-        <Typography variant="medium" sx={[{ ml: "auto", display: { xs: "none", md: "block" } }, filterPanelDescriptionSx]}>
+        <Typography variant="medium" sx={mergeSx(filterPanelDescriptionSx, { ml: "auto", display: { xs: "none", md: "block" } })}>
           {hint}
         </Typography>
         <IconButton
@@ -104,7 +104,7 @@ export function ChatScopeTableFiltersCard({
       </Box>
       <Collapse in={expanded}>
         <Box sx={{ display: "flex", flexDirection: "column", gap: 1, pt: 1.25 }}>
-          <Typography variant="medium" sx={[{ display: { xs: "block", md: "none" } }, filterPanelDescriptionSx]}>
+          <Typography variant="medium" sx={mergeSx(filterPanelDescriptionSx, { display: { xs: "block", md: "none" } })}>
             {hint}
           </Typography>
           <Box

@@ -59,6 +59,8 @@ export type InboxTranscriptDisplayOptions = {
   /** Website uses email distribution — show distribution form, not legacy wrap-up. */
   requiresDistributionForm?: boolean;
   distributionFormHref?: string | null;
+  /** Hide post-close form cards while the conversation is live again. */
+  hidePostCloseForms?: boolean;
 };
 
 export function prepareInboxTranscriptMessages(
@@ -66,6 +68,12 @@ export function prepareInboxTranscriptMessages(
   opts?: InboxTranscriptDisplayOptions,
 ): ChatMessage[] {
   let list = sortMessagesChronologically(messages);
+
+  if (opts?.hidePostCloseForms) {
+    list = list.filter((message) => !isInboxFormLinkMessage(message));
+    return list;
+  }
+
   const wantsDistribution = opts?.requiresDistributionForm === true;
   const distributionHref = opts?.distributionFormHref?.trim() ?? "";
   const hasDistribution = list.some(
