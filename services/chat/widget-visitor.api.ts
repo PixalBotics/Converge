@@ -14,6 +14,21 @@ export type WidgetTranscriptSocketClient = {
     payload: { conversationId: string; websiteId: string },
     timeoutMs?: number,
   ): Promise<unknown>;
+  requestTalkToAgentWithAck(
+    payload: { conversationId: string; websiteId: string },
+    timeoutMs?: number,
+  ): Promise<unknown>;
+  updateVisitorWithAck?(
+    payload: {
+      conversationId: string;
+      websiteId: string;
+      name?: string;
+      email?: string;
+      phone?: string;
+      sessionId?: string;
+    },
+    timeoutMs?: number,
+  ): Promise<unknown>;
   connect(options?: { authToken?: string; forceNew?: boolean }): unknown;
 };
 
@@ -351,13 +366,89 @@ export type WidgetTalkToAgentResult = {
 /** @deprecated Use {@link WidgetTalkToAgentResult}. */
 export type WidgetRequestHumanResult = WidgetTalkToAgentResult;
 
+function parseWidgetTalkToAgentPayload(raw: unknown): WidgetTalkToAgentResult | null {
+  const peeled = peelSuccessEnvelope(raw);
+  const o =
+    peeled !== null && typeof peeled === "object" && !Array.isArray(peeled)
+      ? (peeled as Record<string, unknown>)
+      : null;
+  if (!o) return null;
+
+  return {
+    message:
+      typeof o.message === "string"
+        ? o.message
+        : "Your request has been sent to our team.",
+    assignedAgentId:
+      typeof o.assignedAgentId === "string" ? o.assignedAgentId : null,
+    queuedForAgent: o.queuedForAgent === true,
+    talkToAgentRequested:
+      o.talkToAgentRequested === true || o.handoverRequested === true,
+    talkToAgentPending:
+      o.talkToAgentPending === true ||
+      o.handoverPending === true ||
+      ("handoverPending" in o && o.handoverPending === true),
+    handoverRequested:
+      o.talkToAgentRequested === true || o.handoverRequested === true,
+    handoverPending:
+      o.talkToAgentPending === true ||
+      o.handoverPending === true ||
+      ("handoverPending" in o && o.handoverPending === true),
+  };
+}
+
+async function requestTalkToAgentViaSocket(
+  conversationId: string,
+  websiteId: string,
+  widgetBearerToken: string,
+  socketClient?: WidgetTranscriptSocketClient,
+): Promise<WidgetTalkToAgentResult | null> {
+  const trySocket = async (socket: WidgetTranscriptSocketClient): Promise<WidgetTalkToAgentResult | null> => {
+    socket.connect({ authToken: widgetBearerToken });
+    const ready = await socket.waitUntilSocketReady(12_000);
+    if (!ready || !socket.isConnected()) return null;
+    try {
+      const ack = await socket.requestTalkToAgentWithAck(
+        { conversationId, websiteId },
+        15_000,
+      );
+      return parseWidgetTalkToAgentPayload(ack);
+    } catch {
+      return null;
+    }
+  };
+
+  if (socketClient) {
+    const parsed = await trySocket(socketClient);
+    if (parsed) return parsed;
+  }
+
+  const shared = await ensureWidgetTrackSocket(widgetBearerToken);
+  if (!shared) return null;
+  return trySocket(shared);
+}
+
 export async function postWidgetTalkToAgent(
   conversationId: string,
   websiteId: string,
   widgetBearerToken?: string,
+  socketClient?: WidgetTranscriptSocketClient,
 ): Promise<
   { ok: true; data: WidgetTalkToAgentResult } | { ok: false; message: string }
 > {
+  const token = widgetBearerToken?.trim();
+  if (token) {
+    const socketData = await requestTalkToAgentViaSocket(
+      conversationId,
+      websiteId,
+      token,
+      socketClient,
+    );
+    if (socketData) {
+      return { ok: true, data: socketData };
+    }
+  }
+
   const base = getResolvedPublicApiBaseUrl();
   const url =
     `${base}/chat/widget/conversations/${encodeURIComponent(conversationId)}` +
@@ -390,36 +481,11 @@ export async function postWidgetTalkToAgent(
       return { ok: false, message };
     }
 
-    const raw = peelSuccessEnvelope(await res.json());
-    const o =
-      raw !== null && typeof raw === "object" && !Array.isArray(raw)
-        ? (raw as Record<string, unknown>)
-        : {};
-
-    return {
-      ok: true,
-      data: {
-        message:
-          typeof o.message === "string"
-            ? o.message
-            : "Your request has been sent to our team.",
-        assignedAgentId:
-          typeof o.assignedAgentId === "string" ? o.assignedAgentId : null,
-        queuedForAgent: o.queuedForAgent === true,
-        talkToAgentRequested:
-          o.talkToAgentRequested === true || o.handoverRequested === true,
-        talkToAgentPending:
-          o.talkToAgentPending === true ||
-          o.handoverPending === true ||
-          ("handoverPending" in o && o.handoverPending === true),
-        handoverRequested:
-          o.talkToAgentRequested === true || o.handoverRequested === true,
-        handoverPending:
-          o.talkToAgentPending === true ||
-          o.handoverPending === true ||
-          ("handoverPending" in o && o.handoverPending === true),
-      },
-    };
+    const parsed = parseWidgetTalkToAgentPayload(await res.json());
+    if (!parsed) {
+      return { ok: false, message: "Invalid talk-to-agent response" };
+    }
+    return { ok: true, data: parsed };
   } catch (e) {
     return {
       ok: false,

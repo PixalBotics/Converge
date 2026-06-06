@@ -117,9 +117,6 @@ import {
   postWidgetSession,
 } from "@/lib/widget-runtime/widget-public-fetch";
 import type { WidgetConfigEnvelope } from "@/lib/widget-runtime/widget-types";
-import {
-  postWidgetTalkToAgent,
-} from "@/services/chat/widget-visitor.api";
 import { decodeJwtExpMs } from "@/lib/widget-runtime/jwt-expiry";
 import {
   clearConversationId,
@@ -1684,11 +1681,7 @@ function WidgetChatPanel({
       persistHybridEscalated(siteKey, chat.conversationId);
     }
     setTalkToAgentStatus(null);
-    const res = await postWidgetTalkToAgent(
-      chat.conversationId,
-      websiteId,
-      sessionToken,
-    );
+    const res = await chat.requestTalkToAgent();
     setTalkToAgentBusy(false);
     if (res.ok) {
       setTalkToAgentStatus(res.data.message);

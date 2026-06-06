@@ -204,6 +204,27 @@ export class ChatSocketClient {
     return this.connection.emitWithAck("fetch_transcript", payload, timeoutMs);
   }
 
+  requestTalkToAgentWithAck(
+    payload: { conversationId: string; websiteId: string },
+    timeoutMs?: number,
+  ): Promise<unknown> {
+    return this.connection.emitWithAck("request_talk_to_agent", payload, timeoutMs);
+  }
+
+  updateVisitorWithAck(
+    payload: {
+      conversationId: string;
+      websiteId: string;
+      name?: string;
+      email?: string;
+      phone?: string;
+      sessionId?: string;
+    },
+    timeoutMs?: number,
+  ): Promise<unknown> {
+    return this.connection.emitWithAck("update_visitor", payload, timeoutMs);
+  }
+
   fetchMonitorLiveWithAck(
     payload: {
       websiteId?: string;
