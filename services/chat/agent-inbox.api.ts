@@ -1,4 +1,5 @@
 import { apiClient } from "@/api";
+import { agentChatSocketAckOrRest } from "./agent-socket-api.util";
 import type {
   AgentSendMessagePayload,
   ChatCloseResponse,
@@ -60,14 +61,17 @@ export async function getConversationHistory(
   conversationId: string,
   token?: string,
 ): Promise<ConversationHistoryResponse> {
-  const { data } = await apiClient.get<unknown>(
-    `/chat/agent/conversations/${encodeURIComponent(conversationId)}/history`,
-    { headers: chatAuthHeaders(token) },
+  const payload = await agentChatSocketAckOrRest<unknown>(
+    (socket) => socket.fetchAgentHistoryWithAck({ conversationId }, 15_000),
+    async () => {
+      const { data } = await apiClient.get<unknown>(
+        `/chat/agent/conversations/${encodeURIComponent(conversationId)}/history`,
+        { headers: chatAuthHeaders(token) },
+      );
+      return unwrapChatHttpData(data);
+    },
   );
-  return normalizeConversationHistoryPayload(
-    unwrapChatHttpData(data),
-    conversationId,
-  );
+  return normalizeConversationHistoryPayload(payload, conversationId);
 }
 
 export async function getMyActiveChats(token?: string): Promise<ConversationSummary[]> {

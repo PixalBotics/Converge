@@ -26,6 +26,7 @@ import {
   SelectField,
   TablePagination,
   ToolbarFilterPopover,
+  FilterPanelHeader,
   ToolbarFilterPopoverPanel,
   Typography,
   UserTypeBadge,
@@ -959,9 +960,7 @@ export default function DepartmentHeadsPage() {
           </Box>
         }
       >
-        <Typography variant="medium" fontWeight={700} sx={{ color: theme.app.text.primary, mb: 1.5 }}>
-          Filters
-        </Typography>
+        <FilterPanelHeader title="Filters" />
         <Box
           sx={{
             display: "grid",

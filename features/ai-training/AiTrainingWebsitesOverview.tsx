@@ -66,6 +66,7 @@ export function AiTrainingWebsitesOverview({
   isError,
   errorMessage,
   onSelectWebsite,
+  onTestWebsite,
   onRefresh,
   showCompanyColumns,
   filtersActive,
@@ -86,6 +87,7 @@ export function AiTrainingWebsitesOverview({
   isError: boolean;
   errorMessage: string | null;
   onSelectWebsite: (row: KbTrainingWebsiteSummary) => void;
+  onTestWebsite: (row: KbTrainingWebsiteSummary) => void;
   onRefresh: () => void;
   showCompanyColumns: boolean;
   filtersActive: boolean;
@@ -186,6 +188,7 @@ export function AiTrainingWebsitesOverview({
         onClearFilters={onClearFilters}
         onRefresh={onRefresh}
         onSelectWebsite={onSelectWebsite}
+        onTestWebsite={onTestWebsite}
       />
 
       <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, display: "block", mt: 1.5 }}>

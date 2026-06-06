@@ -148,17 +148,20 @@ function parseLocation(merged: Record<string, unknown>): VisitorLocation | null 
     readNestedObject(merged, ["session", "geo"]);
 
   const city =
+    readString(merged, "locationCity", "location_city") ||
     readString(merged, "city") ||
     readNestedString(merged, ["location", "city"]) ||
-    (geo ? readString(geo, "city") : "");
+    (geo ? readString(geo, "city", "locationCity") : "");
   const region =
+    readString(merged, "locationRegion", "location_region") ||
     readString(merged, "region", "state", "province") ||
     readNestedString(merged, ["location", "region"]) ||
     (geo ? readString(geo, "region", "state") : "");
   const country =
-    readString(merged, "country") ||
+    readString(merged, "locationCountry", "location_country") ||
+    readString(merged, "country", "countryCode", "country_code") ||
     readNestedString(merged, ["location", "country"]) ||
-    (geo ? readString(geo, "country") : "");
+    (geo ? readString(geo, "country", "countryCode") : "");
 
   const latitude =
     readNumber(merged, "latitude", "lat") ??
@@ -217,6 +220,7 @@ export function mergeVisitorPanelContext(
     agentNameFromRelation;
   const agentTimezone =
     readString(h, "agentTimezone", "agent_timezone") ||
+    readString(v, "agentTimezone", "agent_timezone") ||
     (agent ? readString(agent, "timezone") : "");
 
   return {

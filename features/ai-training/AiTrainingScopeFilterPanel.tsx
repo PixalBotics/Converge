@@ -5,7 +5,7 @@ import Checkbox from "@mui/material/Checkbox";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
-import { Button, SelectField, ToolbarFilterPopoverPanel, Typography } from "@/components/common";
+import { Button, FilterPanelHeader, SelectField, ToolbarFilterPopoverPanel, Typography } from "@/components/common";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
 import { aiTrainingFilterPopoverGridSx } from "./ai-training-ui.styles";
 import type { useAiTrainingHierarchy } from "./use-ai-training-hierarchy";
@@ -28,7 +28,6 @@ export function AiTrainingScopeFilterPanel({
   onClose: () => void;
 }) {
   const theme = useTheme() as AppTheme;
-
   const hasDraft =
     Boolean(hierarchy.resellerId.trim()) ||
     Boolean(hierarchy.parentCompanyId.trim()) ||
@@ -56,15 +55,10 @@ export function AiTrainingScopeFilterPanel({
         </>
       }
     >
-      <Typography variant="medium" fontWeight={700} sx={{ color: theme.app.text.primary, mb: 0.5 }}>
-        Filter websites
-      </Typography>
-      <Typography
-        variant="caption"
-        sx={{ color: theme.app.dashboard.textMuted, display: "block", mb: 1.5, lineHeight: 1.5 }}
-      >
-        Narrows the table only. Add-training pages use their own website picker.
-      </Typography>
+      <FilterPanelHeader
+        title="Filter websites"
+        description="Narrows the table only. Add-training pages use their own website picker."
+      />
       <Box sx={aiTrainingFilterPopoverGridSx}>
         <SelectField
           label="Reseller"

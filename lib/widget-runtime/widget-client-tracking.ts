@@ -1,3 +1,5 @@
+import { peekClientGeoHints } from "./client-geo-hints";
+
 export function readClientTimezone(): string | undefined {
   try {
     return Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -27,15 +29,20 @@ export function buildWidgetTrackingPayload(params: {
   phone?: string;
   consentGiven?: boolean;
 }) {
+  const geo = peekClientGeoHints();
   return {
     websiteId: params.websiteId,
     eventType: params.eventType,
     sessionId: params.sessionId,
     pageUrl: params.pageUrl,
     referrerUrl: params.referrerUrl,
-    timezone: readClientTimezone(),
-    locale: readClientLocale(),
-    screenResolution: readScreenResolution(),
+    timezone: geo.clientTimezone ?? readClientTimezone(),
+    locale: geo.clientLocale ?? readClientLocale(),
+    screenResolution: geo.clientScreenResolution ?? readScreenResolution(),
+    locationCity: geo.clientLocationCity,
+    locationCountry: geo.clientLocationCountry,
+    locationRegion: geo.clientLocationRegion,
+    locationZipcode: geo.clientLocationZipcode,
     consentGiven: params.consentGiven,
     name: params.name,
     email: params.email,

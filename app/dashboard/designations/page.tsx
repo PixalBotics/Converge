@@ -19,6 +19,7 @@ import {
   SearchSubmitButton,
   SelectField,
   ToolbarFilterPopover,
+  FilterPanelHeader,
   ToolbarFilterPopoverPanel,
 } from "@/components/common";
 import type { DataTableColumn } from "@/components/common";
@@ -305,9 +306,7 @@ export default function DesignationsPage() {
           </>
         }
       >
-        <Typography variant="medium" fontWeight={700} sx={{ mb: 1.5 }}>
-          Filters
-        </Typography>
+        <FilterPanelHeader title="Filters" />
         <Box sx={{ display: "grid", gap: 1.75 }}>
           {mayPickInternalTypeFilter ? (
             <SelectField

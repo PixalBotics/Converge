@@ -37,4 +37,27 @@ describe("normalizeServerMessage", () => {
     });
     expect(m).toMatchObject({ content: "Hello from assistant", role: "ai" });
   });
+
+  it("maps policy distribution_link to system role", () => {
+    const m = normalizeServerMessage({
+      id: "m4",
+      conversationId: "c1",
+      content: "Open form",
+      senderType: "AI",
+      messageType: "distribution_link",
+    });
+    expect(m?.role).toBe("system");
+  });
+
+  it("preserves sentBySupervisor from attachmentMetadata", () => {
+    const m = normalizeServerMessage({
+      id: "m5",
+      conversationId: "c1",
+      content: "Supervisor reply",
+      senderType: "agent",
+      attachmentMetadata: { sentBySupervisor: true },
+    });
+    expect(m?.metadata?.sentBySupervisor).toBe(true);
+    expect(m?.role).toBe("agent");
+  });
 });

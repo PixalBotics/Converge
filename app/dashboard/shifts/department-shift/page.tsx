@@ -27,6 +27,7 @@ import {
   SearchBar,
   SearchSubmitButton,
   ToolbarFilterPopover,
+  FilterPanelHeader,
   ToolbarFilterPopoverPanel,
 } from "@/components/common";
 import type { DataTableColumn } from "@/components/common";
@@ -603,9 +604,7 @@ export default function DepartmentShiftPage() {
           </>
         }
       >
-        <Typography variant="medium" fontWeight={700} sx={{ color: theme.app.text.primary, mb: 1.5 }}>
-          Filters
-        </Typography>
+        <FilterPanelHeader title="Filters" />
         {mayPickInternal ? (
           <Box sx={{ mb: 2 }}>
             <Typography variant="caption" sx={{ display: "block", mb: 0.75, color: theme.app.dashboard.textMuted }}>

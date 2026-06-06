@@ -82,7 +82,7 @@ export function unwrapSocketAckPayload(payload: unknown): unknown {
 export const CHAT_RECONNECT_SYNC_DEBOUNCE_MS = 400;
 
 /** Slow REST poll only while chat socket is disconnected (recovery safety net). */
-export const CHAT_DISCONNECTED_SYNC_MS = 30_000;
+export const CHAT_DISCONNECTED_SYNC_MS = 90_000;
 
 /** Staggered join_room retries while socket handshake completes. */
 export const CHAT_JOIN_ROOM_RETRY_MS = [250, 1000, 2500] as const;

@@ -43,6 +43,10 @@ import {
 import { EmbedChatMediaBubbles } from "@/components/embed/EmbedChatMediaBubble";
 import { EmbedInputField } from "@/components/embed/EmbedInputField";
 import { resolveClientGeoHints } from "@/lib/widget-runtime/client-geo-hints";
+import {
+  markWidgetTrackSent,
+  shouldSkipWidgetTrack,
+} from "@/lib/widget-runtime/widget-track-dedupe";
 import { normalizeChatMessageText } from "@/lib/safe-markdown/text";
 import { useVisitorChat } from "@/lib/hooks/chat/useVisitorChat";
 import {
@@ -119,6 +123,7 @@ import {
 import { decodeJwtExpMs } from "@/lib/widget-runtime/jwt-expiry";
 import {
   clearConversationId,
+  ensureVisitorSessionId,
   generateClientSessionId,
   persistConversationId,
   persistHybridEscalated,
@@ -361,6 +366,8 @@ function FloatingChatEmbed({
   const [panelHeaderStatus, setPanelHeaderStatus] =
     useState<EmbedPanelHeaderStatus | null>(null);
   const launcherOpenRef = useRef(false);
+  const sessionTokenRef = useRef(sessionToken);
+  sessionTokenRef.current = sessionToken;
   const [unreadCount, setUnreadCount] = useState(0);
   const [launcherPreview, setLauncherPreview] = useState("");
   const siteKey = `${widgetKey}:${websiteId}`;
@@ -387,8 +394,17 @@ function FloatingChatEmbed({
     if (launcherOpen) {
       setUnreadCount(0);
       setLauncherPreview("");
-      const sid = readVisitorSessionId(siteKey) ?? undefined;
+      const sid = ensureVisitorSessionId(widgetKey);
       void (async () => {
+        if (
+          shouldSkipWidgetTrack({
+            eventType: "widget_open",
+            sessionId: sid,
+            pageUrl: parentPageUrl,
+          })
+        ) {
+          return;
+        }
         const geo = await resolveClientGeoHints();
         const { trackWidgetAnalytics } = await import("@/services/chat/widget-visitor.api");
         await trackWidgetAnalytics(
@@ -406,8 +422,13 @@ function FloatingChatEmbed({
             locationRegion: geo.clientLocationRegion,
             locationZipcode: geo.clientLocationZipcode,
           },
-          sessionToken,
+          sessionTokenRef.current,
         );
+        markWidgetTrackSent({
+          eventType: "widget_open",
+          sessionId: sid,
+          pageUrl: parentPageUrl,
+        });
       })();
     } else {
       setPanelHeaderStatus(null);
@@ -426,8 +447,17 @@ function FloatingChatEmbed({
 
   useEffect(() => {
     if (!websiteId) return;
-    const sid = readVisitorSessionId(siteKey) ?? undefined;
+    const sid = ensureVisitorSessionId(widgetKey);
     void (async () => {
+      if (
+        shouldSkipWidgetTrack({
+          eventType: "page_view",
+          sessionId: sid,
+          pageUrl: parentPageUrl,
+        })
+      ) {
+        return;
+      }
       const geo = await resolveClientGeoHints();
       const { trackWidgetAnalytics } = await import("@/services/chat/widget-visitor.api");
       await trackWidgetAnalytics(
@@ -445,10 +475,15 @@ function FloatingChatEmbed({
           locationRegion: geo.clientLocationRegion,
           locationZipcode: geo.clientLocationZipcode,
         },
-        sessionToken,
+        sessionTokenRef.current,
       );
+      markWidgetTrackSent({
+        eventType: "page_view",
+        sessionId: sid,
+        pageUrl: parentPageUrl,
+      });
     })();
-  }, [websiteId, siteKey, parentPageUrl, sessionToken]);
+  }, [websiteId, siteKey, parentPageUrl]);
 
   useEffect(() => {
     const hasPersistedConversation = Boolean(readConversationId(siteKey));
@@ -2231,12 +2266,20 @@ function WidgetTextUsPanel({
           visitorSessionId,
           "Text Us inquiry",
         );
+        const geo = await resolveClientGeoHints();
         await chat.startConversation({
           websiteId,
           visitor,
           firstMessage,
           currentPageUrl: parentPageUrl,
           referrerUrl: typeof document !== "undefined" ? document.referrer : "",
+          clientTimezone: geo.clientTimezone,
+          clientLocale: geo.clientLocale,
+          clientScreenResolution: geo.clientScreenResolution,
+          clientLocationCity: geo.clientLocationCity,
+          clientLocationCountry: geo.clientLocationCountry,
+          clientLocationRegion: geo.clientLocationRegion,
+          clientLocationZipcode: geo.clientLocationZipcode,
         });
         setDone(true);
       } catch (err) {

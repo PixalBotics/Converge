@@ -18,12 +18,12 @@ export function SettingsProfilePanel() {
   ];
 
   return (
-    <Box sx={{ display: "flex", flexDirection: "column", gap: 2, p: { xs: 1.5, md: 2.5 } }}>
+    <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
       <Box>
         <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted }}>
           Settings › Profile
         </Typography>
-        <Typography variant="h6" fontWeight={600} color="white" sx={{ mt: 0.5 }}>
+        <Typography fontWeight={700} color="white" sx={{ mt: 0.5, fontSize: 22, lineHeight: "22px" }}>
           Profile
         </Typography>
       </Box>

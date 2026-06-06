@@ -10,7 +10,7 @@ import Collapse from "@mui/material/Collapse";
 import IconButton from "@mui/material/IconButton";
 import { alpha, useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
-import { DashboardCard, ToolbarFilterPopover, Typography } from "@/components/common";
+import { DashboardCard, ToolbarFilterPopover, Typography, filterPanelDescriptionSx } from "@/components/common";
 import {
   websiteAssignmentFilterCard,
   websiteAssignmentFilterIconBox,
@@ -43,7 +43,7 @@ export function ChatScopeTableFiltersCard({
   }, [hasActiveFilters]);
 
   return (
-    <DashboardCard sx={mergeSx(websiteAssignmentFilterCard, { py: expanded ? undefined : 1.25 })}>
+    <DashboardCard sx={mergeSx(websiteAssignmentFilterCard, { py: expanded ? undefined : 1.25, mb: 0 })}>
       <Box
         sx={
           mergeSx(websiteAssignmentFilterTitleRow, {
@@ -84,10 +84,7 @@ export function ChatScopeTableFiltersCard({
             onClick={(e) => e.stopPropagation()}
           />
         ) : null}
-        <Typography
-          variant="caption"
-          sx={{ color: theme.app.dashboard.textMuted, ml: "auto", display: { xs: "none", md: "block" } }}
-        >
+        <Typography variant="medium" sx={mergeSx(filterPanelDescriptionSx, { ml: "auto", display: { xs: "none", md: "block" } })}>
           {hint}
         </Typography>
         <IconButton
@@ -107,10 +104,7 @@ export function ChatScopeTableFiltersCard({
       </Box>
       <Collapse in={expanded}>
         <Box sx={{ display: "flex", flexDirection: "column", gap: 1, pt: 1.25 }}>
-          <Typography
-            variant="caption"
-            sx={{ color: theme.app.dashboard.textMuted, display: { xs: "block", md: "none" } }}
-          >
+          <Typography variant="medium" sx={mergeSx(filterPanelDescriptionSx, { display: { xs: "block", md: "none" } })}>
             {hint}
           </Typography>
           <Box

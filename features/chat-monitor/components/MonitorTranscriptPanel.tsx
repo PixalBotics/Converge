@@ -19,6 +19,7 @@ import { buildAgentCopilotInput, agentAiActionNeedsWebsite } from "@/lib/ai/agen
 import { Button, InputField, Typography } from "@/components/common";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
 import { ChatComposer } from "@/features/chat-operations/components/ChatComposer";
+import { GuestLinkHeaderAction } from "@/features/chat-operations/components/GuestLinkHeaderAction";
 import { ChatMessageList } from "@/features/chat-operations/components/ChatMessageList";
 import { inboxTranscriptDisplayForClosed } from "@/features/chat-operations/utils/inbox-transcript-messages";
 import {
@@ -124,7 +125,9 @@ export function MonitorTranscriptPanel({
 
   const transcriptDisplay = useMemo(
     () =>
-      isClosed ? inboxTranscriptDisplayForClosed(messages) : undefined,
+      isClosed
+        ? inboxTranscriptDisplayForClosed(messages)
+        : { hidePostCloseForms: true },
     [isClosed, messages],
   );
 
@@ -450,6 +453,12 @@ export function MonitorTranscriptPanel({
                 {anyoneTyping ? "Typing" : "Online"}
               </Box>
             ) : null}
+            {!isClosed && !monitorReadOnly ? (
+              <GuestLinkHeaderAction
+                conversationId={conversationId}
+                hasOperational={hasOperational}
+              />
+            ) : null}
             {canClose ? (
               <Button
                 type="button"
@@ -572,7 +581,7 @@ export function MonitorTranscriptPanel({
       </Dialog>
       )}
 
-      {!isArchive && (isControlling ? (
+      {!isArchive && isControlling ? (
         <Typography
           variant="caption"
           sx={{
@@ -583,16 +592,16 @@ export function MonitorTranscriptPanel({
             color: theme.app.dashboard.accentBlue,
           }}
         >
-          You are replying as supervisor — use the composer below (canned + AI assistant).
+          Supervisor mode — replies go to the visitor.
         </Typography>
-      ) : monitorReadOnly ? (
+      ) : monitorReadOnly && !isArchive ? (
         <Typography
           variant="caption"
           sx={{ px: 2, py: 0.5, flexShrink: 0, fontSize: 11, color: theme.app.dashboard.textMuted }}
         >
           Read-only monitor view.
         </Typography>
-      ) : null)}
+      ) : null}
 
       {loadError ? (
         <Box sx={{ p: 3 }}>

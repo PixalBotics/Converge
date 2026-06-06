@@ -1,8 +1,8 @@
 "use client";
 
 import Box from "@mui/material/Box";
-import { Button, Calendar, SelectField, Typography } from "@/components/common";
-import type { AppTheme } from "@/theme/theme";
+import { Button, Calendar, SelectField, Typography, filterPanelDescriptionSx } from "@/components/common";
+import { mergeSx } from "@/lib/mui/merge-sx";
 import type { ChatScopeFilterState } from "../types";
 import { websiteAssignmentFilterGrid } from "@/app/dashboard/website-assigning/website-assigning.styles";
 
@@ -49,14 +49,7 @@ export function ChatScopeFiltersPanel({
   return (
     <Box>
       {hint && !compact ? (
-        <Typography
-          variant="caption"
-          sx={(theme) => ({
-            color: (theme as AppTheme).app.dashboard.textMuted,
-            display: "block",
-            mb: 1,
-          })}
-        >
+        <Typography variant="medium" sx={mergeSx(filterPanelDescriptionSx, { mb: 1 })}>
           {hint}
         </Typography>
       ) : null}

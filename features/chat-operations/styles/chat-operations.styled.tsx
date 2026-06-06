@@ -125,6 +125,8 @@ export const MessageThread = styled(Box)({
   scrollbarWidth: "none",
   msOverflowStyle: "none",
   background: "transparent",
+  paddingLeft: 4,
+  paddingRight: 40,
   "&::-webkit-scrollbar": { display: "none" },
 });
 

@@ -11,7 +11,6 @@ import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import {
   Button,
-  DashboardFilterSection,
   DataTable,
   InputField,
   SelectField,
@@ -19,6 +18,7 @@ import {
 } from "@/components/common";
 import type { DataTableColumn } from "@/components/common";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
+import { mergeSx } from "@/lib/mui/merge-sx";
 import type { ClosePolicyListRow } from "@/services/chat/close-policy-list.types";
 import type { ChatScopeFilterState } from "@/features/chat-shared/types";
 import { useClosePolicyListQuery } from "../hooks/useChatSettings";
@@ -193,35 +193,42 @@ export function ClosePolicyListTab({
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5, minHeight: 0, flex: 1 }}>
-      <DashboardFilterSection
-        titleSlot={
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1.25 }}>
-            <SettingsOutlined sx={{ color: theme.app.dashboard.accentBlue, fontSize: 22 }} />
-            <Typography fontWeight={700} sx={{ fontSize: 15, color: theme.app.text.primary }}>
-              Close policies in scope
-            </Typography>
-          </Box>
-        }
-        actionSlot={
-          canEdit ? (
-            <Button
-              type="button"
-              variant="primary"
-              sx={gradientPrimaryButtonSx}
-              startIcon={<Add />}
-              onClick={openAdd}
-            >
-              Add close policy
-            </Button>
-          ) : null
-        }
-      />
+      <Box
+        sx={{
+          display: "flex",
+          flexWrap: "wrap",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 1.5,
+        }}
+      >
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1.25, minWidth: 0 }}>
+          <SettingsOutlined sx={{ color: theme.app.dashboard.accentBlue, fontSize: 22 }} />
+          <Typography variant="mediumLarge" color="white" fontWeight={600}>
+            Close policies in scope
+          </Typography>
+        </Box>
+        {canEdit ? (
+          <Button
+            type="button"
+            variant="primary"
+            sx={mergeSx(gradientPrimaryButtonSx, { flexShrink: 0 })}
+            startIcon={<Add />}
+            onClick={openAdd}
+          >
+            Add close policy
+          </Button>
+        ) : null}
+      </Box>
 
       <Box
         sx={{
           display: "grid",
           gridTemplateColumns: { xs: "1fr", sm: "1fr 200px" },
           gap: 1.5,
+          alignItems: "end",
+          mt: 1.5,
+          pt: 0.5,
         }}
       >
         <InputField
@@ -230,12 +237,20 @@ export function ClosePolicyListTab({
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           dense
+          sx={{
+            "& .MuiFormHelperText-root": {
+              display: "none",
+              minHeight: 0,
+              marginTop: 0,
+            },
+          }}
         />
         <SelectField
           label="Policy status"
           value={statusFilter}
           onChange={(v) => setStatusFilter(v as ClosePolicyStatusFilter)}
           options={STATUS_FILTER_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
+          dense
         />
       </Box>
 

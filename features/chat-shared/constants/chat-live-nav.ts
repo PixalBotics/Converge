@@ -11,6 +11,7 @@ export const CHAT_LIVE_NAV_ITEMS: ChatLiveNavItem[] = [
 export const CHAT_CONFIGURE_NAV_ITEMS: ChatLiveNavItem[] = [
   { href: "/dashboard/qa/roster", label: "QA roster" },
   { href: "/dashboard/chat-reports", label: "Reports" },
+  { href: "/dashboard/website-analytics", label: "Website analytics" },
   { href: "/dashboard/chat-widget", label: "Widget" },
   { href: "/dashboard/chat-settings", label: "Settings" },
   { href: "/dashboard/chat-canned", label: "Canned" },

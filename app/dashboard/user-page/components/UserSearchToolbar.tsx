@@ -12,6 +12,7 @@ import {
   SearchSubmitButton,
   SegmentedControl,
   ToolbarFilterPopover,
+  FilterPanelHeader,
   ToolbarFilterPopoverPanel,
   Typography,
   Divider,
@@ -131,12 +132,10 @@ export function UserSearchToolbar(props: Props) {
               </>
             }
           >
-            <Typography variant="medium" fontWeight={700} sx={{ mb: 0.5, color: theme.app.text.primary }}>
-              List filters
-            </Typography>
-            <Typography variant="caption" sx={{ display: "block", mb: 1.5, color: theme.app.dashboard.textMuted }}>
-              Pick user type. For External, narrow by reseller, then parent company.
-            </Typography>
+            <FilterPanelHeader
+              title="List filters"
+              description="Pick user type. For External, narrow by reseller, then parent company."
+            />
 
             <Typography variant="caption" sx={{ display: "block", mb: 0.75, fontWeight: 600, color: theme.app.text.primary }}>
               User type

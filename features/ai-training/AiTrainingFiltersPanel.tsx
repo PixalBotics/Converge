@@ -7,7 +7,8 @@ import Box from "@mui/material/Box";
 import Collapse from "@mui/material/Collapse";
 import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
-import { Button, SelectField, Typography } from "@/components/common";
+import { Button, SelectField, Typography, filterPanelDescriptionSx } from "@/components/common";
+import { mergeSx } from "@/lib/mui/merge-sx";
 import { aiTrainingFilterGridSx } from "./ai-training-ui.styles";
 import type { useAiTrainingHierarchy } from "./use-ai-training-hierarchy";
 
@@ -65,7 +66,7 @@ export function AiTrainingFiltersPanel({
           sx={{ display: "flex", alignItems: "center", gap: 1, cursor: "pointer" }}
         >
           <FilterList sx={{ color: theme.app.dashboard.accentBlue }} />
-          <Typography variant="body2" fontWeight={700} color="white">
+          <Typography variant="mediumLarge" fontWeight={600} color="white">
             Filter websites {filtersActive ? "(active)" : "(optional)"}
           </Typography>
           <ExpandMore
@@ -84,7 +85,7 @@ export function AiTrainingFiltersPanel({
       </Box>
 
       <Collapse in={open}>
-        <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, display: "block", mt: 1.5, mb: 1.5 }}>
+        <Typography variant="medium" sx={mergeSx(filterPanelDescriptionSx, { mt: 1.5, mb: 1.5 })}>
           The table lists all trained websites in your scope by default. Use the filters below to narrow by reseller or company.
         </Typography>
         <Box sx={aiTrainingFilterGridSx}>

@@ -11,7 +11,15 @@ import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
 import { alpha, useTheme } from "@mui/material/styles";
+import type { SxProps, Theme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
+import { pageWrapper } from "@/app/dashboard/companies/overview.styles";
+import {
+  integrationsHeaderActions,
+  integrationsPageHeader,
+  integrationsPageWrapper,
+} from "@/app/dashboard/integrations/integrations.styles";
+import { rolesPageWrapper } from "@/app/dashboard/roles/roles.styles";
 import type { JsonRecord } from "@/api/types/common.types";
 import {
   deleteWidget,
@@ -257,72 +265,72 @@ export function ChatWidgetDetailClient({
   const title = variant === "manage" ? "Manage widget" : "Widget details";
 
   return (
-    <Box
-      sx={{
-        width: "100%",
-        maxWidth: 1280,
-        mx: "auto",
-        display: "flex",
-        flexDirection: "column",
-        gap: 2,
-        py: 1,
-        px: { xs: 1.5, sm: 2 },
-      }}
-    >
-      <Box sx={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 1.5 }}>
-        <Button
-          type="button"
-          variant="outlined"
-          startIcon={<ArrowBack sx={{ fontSize: 18 }} />}
-          onClick={() => router.push("/dashboard/chat-widget")}
-        >
-          All widgets
-        </Button>
-        <Typography variant="regularLarge" fontWeight={700} color="white">
-          {title}
-        </Typography>
-        {variant === "view" ? (
-          <>
-            <Button
-              type="button"
-              variant="secondary"
-              size="small"
-              onClick={() =>
-                router.push(`/dashboard/chat-widget/${encodeURIComponent(widgetKey)}/edit`)
-              }
-            >
-              Edit configuration
-            </Button>
-            <Button
-              type="button"
-              variant="outlined"
-              size="small"
-              onClick={() => setDeleteOpen(true)}
-              sx={{
-                borderColor: theme.palette.error.main,
-                color: theme.palette.error.light,
-              }}
-            >
-              Delete
-            </Button>
-          </>
-        ) : null}
+    <Box sx={[pageWrapper, rolesPageWrapper, integrationsPageWrapper] as SxProps<Theme>}>
+      <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
         <Box
-          component="code"
           sx={{
-            ml: { xs: 0, sm: "auto" },
-            px: 1.25,
-            py: 0.5,
-            borderRadius: 1,
-            bgcolor: alpha(theme.palette.common.white, 0.06),
-            border: `1px solid ${theme.app.dashboard.cardBorder}`,
-            color: theme.app.dashboard.textMuted,
-            fontSize: "0.8rem",
-            wordBreak: "break-all",
-            maxWidth: "100%",
+            display: "flex",
+            flexWrap: "wrap",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 1,
           }}
         >
-          {widgetKey}
+          <Button
+            type="button"
+            variant="outlined"
+            startIcon={<ArrowBack sx={{ fontSize: 18 }} />}
+            onClick={() => router.push("/dashboard/chat-widget")}
+          >
+            All widgets
+          </Button>
+          <Box
+            component="code"
+            sx={{
+              px: 1.25,
+              py: 0.5,
+              borderRadius: 1,
+              bgcolor: alpha(theme.palette.common.white, 0.06),
+              border: `1px solid ${theme.app.dashboard.cardBorder}`,
+              color: theme.app.dashboard.textMuted,
+              fontSize: "0.8rem",
+              wordBreak: "break-all",
+              maxWidth: "100%",
+            }}
+          >
+            {widgetKey}
+          </Box>
+        </Box>
+        <Box sx={[integrationsPageHeader, { mb: 0 }] as SxProps<Theme>}>
+          <Typography variant="regularLarge" fontWeight={700} color="white">
+            {title}
+          </Typography>
+          {variant === "view" ? (
+            <Box sx={integrationsHeaderActions}>
+              <Button
+                type="button"
+                variant="secondary"
+                size="small"
+                onClick={() =>
+                  router.push(`/dashboard/chat-widget/${encodeURIComponent(widgetKey)}/edit`)
+                }
+              >
+                Edit configuration
+              </Button>
+              <Button
+                type="button"
+                variant="outlined"
+                size="small"
+                onClick={() => setDeleteOpen(true)}
+                sx={{
+                  borderColor: theme.palette.error.main,
+                  color: theme.palette.error.light,
+                }}
+              >
+                Delete
+              </Button>
+            </Box>
+          ) : null}
         </Box>
       </Box>
 

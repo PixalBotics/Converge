@@ -15,6 +15,12 @@ export function aiTrainingAddHref(variant: AiTrainingKbVariant, websiteId?: stri
   return `${base}?websiteId=${encodeURIComponent(websiteId.trim())}`;
 }
 
-export function aiTrainingManageHref(variant: AiTrainingKbVariant, websiteId: string): string {
-  return `${BASE[variant]}/manage?websiteId=${encodeURIComponent(websiteId.trim())}`;
+export function aiTrainingManageHref(
+  variant: AiTrainingKbVariant,
+  websiteId: string,
+  options?: { panel?: "test" },
+): string {
+  const base = `${BASE[variant]}/manage?websiteId=${encodeURIComponent(websiteId.trim())}`;
+  if (options?.panel === "test") return `${base}&panel=test`;
+  return base;
 }

@@ -18,6 +18,7 @@ import type { AiChatMessage } from "../types/ai-chat";
 import { parseVisitorInfo } from "../utils/visitor-info";
 import type { ChatWhisperSocketPayload } from "@/services/chat/supervisor.types";
 import { ChatContextRail } from "./ChatContextRail";
+import { GuestLinkHeaderAction } from "./GuestLinkHeaderAction";
 import { inboxTranscriptDisplayForClosed } from "../utils/inbox-transcript-messages";
 import { ChatWhisperComposerStrip } from "./ChatWhisperComposerStrip";
 import { ChatComposer } from "./ChatComposer";
@@ -65,6 +66,7 @@ interface ChatConversationPanelProps {
   /** Fallback when post-close distribution link is not yet in transcript history. */
   distributionFormHref?: string | null;
   requiresDistributionForm?: boolean;
+  hasOperational?: (p: string) => boolean;
 }
 
 function formatDuration(seconds: number): string {
@@ -107,6 +109,7 @@ export function ChatConversationPanel({
   onDismissWhisper,
   distributionFormHref = null,
   requiresDistributionForm = false,
+  hasOperational = () => false,
 }: ChatConversationPanelProps) {
   const theme = useTheme() as AppTheme;
   const visitorInfo = parseVisitorInfo(visitor, conversationMeta ?? undefined);
@@ -156,6 +159,9 @@ export function ChatConversationPanel({
         requiresDistributionForm: true,
         distributionFormHref: distributionFormHref.trim(),
       };
+    }
+    if (!readOnly) {
+      return { hidePostCloseForms: true };
     }
     return undefined;
   }, [messages, readOnly, requiresDistributionForm, distributionFormHref]);
@@ -310,6 +316,12 @@ export function ChatConversationPanel({
                 </Typography>
               </ChatHeaderMetaChip>
             </Box>
+            {!readOnly ? (
+              <GuestLinkHeaderAction
+                conversationId={conversationId}
+                hasOperational={hasOperational}
+              />
+            ) : null}
             {onCloseChat ? (
               <>
                 <Button
