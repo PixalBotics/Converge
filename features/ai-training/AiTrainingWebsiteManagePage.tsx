@@ -28,11 +28,13 @@ import {
   useDeleteAiChatbotSourceMutation,
 } from "@/lib/hooks/query/ai-knowledge";
 import { AiTrainingPageShell } from "./AiTrainingPageShell";
+import { AiTrainingStudioHeaderTabs } from "./AiTrainingStudioHeaderTabs";
 import { AiTrainingSourcePreview } from "./AiTrainingSourcePreview";
 import { AiTrainingSourcesTable } from "./AiTrainingSourcesTable";
 import {
   aiTrainingAddHref,
   aiTrainingListHref,
+  aiTrainingTestStudioHref,
 } from "./ai-training-routes";
 import {
   hostFromWebsiteUrl,
@@ -45,7 +47,6 @@ import {
 import { useAiTrainingHierarchy } from "./use-ai-training-hierarchy";
 import { buildAiTrainingSessionScope } from "./ai-training-scope.util";
 import { useAuth } from "@/lib/auth";
-import { AiTrainingTestSidebar } from "./AiTrainingTestSidebar";
 
 const LIST_LIMIT = 20;
 
@@ -54,7 +55,6 @@ export function AiTrainingWebsiteManagePage({ variant }: { variant: AiTrainingKb
   const router = useRouter();
   const searchParams = useSearchParams();
   const websiteIdParam = searchParams.get("websiteId")?.trim() ?? "";
-  const highlightTestPanel = searchParams.get("panel") === "test";
 
   const isChatbot = variant === "chatbot";
   const HeaderIcon = isChatbot ? SmartToyOutlined : AutoStories;
@@ -242,14 +242,19 @@ export function AiTrainingWebsiteManagePage({ variant }: { variant: AiTrainingKb
       backHref={listHref}
       backLabel="All trained websites"
       actions={
-        <Button
-          type="button"
-          variant="primary"
-          sx={gradientPrimaryButtonSx}
-          onClick={() => router.push(aiTrainingAddHref(variant, websiteId))}
-        >
-          + Add more training
-        </Button>
+        <>
+          {websiteId ? (
+            <AiTrainingStudioHeaderTabs variant={variant} websiteId={websiteId} active="training" />
+          ) : null}
+          <Button
+            type="button"
+            variant="primary"
+            sx={gradientPrimaryButtonSx}
+            onClick={() => router.push(aiTrainingAddHref(variant, websiteId))}
+          >
+            + Add more training
+          </Button>
+        </>
       }
     >
       {(reindexBusy || sourcesQuery.isFetching || hasBackgroundTraining) && websiteId ? (
@@ -263,15 +268,27 @@ export function AiTrainingWebsiteManagePage({ variant }: { variant: AiTrainingKb
         </Alert>
       ) : null}
 
-      <Box
-        sx={{
-          display: "grid",
-          gridTemplateColumns: { xs: "1fr", lg: "1fr 380px" },
-          gap: 2,
-          alignItems: "start",
-        }}
-      >
-        <Stack spacing={2}>
+      <Stack spacing={2}>
+      {websiteId ? (
+        <DashboardCard sx={{ p: 2.5, border: `1px solid ${theme.palette.primary.main}`, bgcolor: "rgba(59,130,246,0.06)" }}>
+          <Typography variant="mediumLarge" color="white" fontWeight={600} sx={{ mb: 0.5 }}>
+            Test on real training data
+          </Typography>
+          <Typography variant="small" sx={{ color: theme.app.dashboard.textMuted, mb: 2, maxWidth: 640 }}>
+            Open the automation studio — CRM-style flow on the left, settings in the rail, and a preview
+            bot that answers from this website&apos;s indexed content.
+          </Typography>
+          <Button
+            type="button"
+            variant="primary"
+            sx={gradientPrimaryButtonSx}
+            onClick={() => router.push(aiTrainingTestStudioHref(variant, websiteId))}
+          >
+            Open automation studio
+          </Button>
+        </DashboardCard>
+      ) : null}
+
       {registeredHost ? (
         <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted }}>
           Domain: {registeredHost}
@@ -352,17 +369,7 @@ export function AiTrainingWebsiteManagePage({ variant }: { variant: AiTrainingKb
           </Button>
         </Stack>
       </DashboardCard>
-        </Stack>
-
-        {websiteId ? (
-          <AiTrainingTestSidebar
-            variant={variant}
-            websiteId={websiteId}
-            websiteUrl={registeredUrl || undefined}
-            highlight={highlightTestPanel}
-          />
-        ) : null}
-      </Box>
+      </Stack>
     </AiTrainingPageShell>
   );
 }

@@ -16,6 +16,7 @@ import {
   dashboardMainTextSx,
 } from "./dashboard.styles";
 import { isDashboardChatWorkstationPath } from "@/features/chat-shared/utils/chat-workstation-path";
+import { isDashboardAiTrainingStudioPath } from "@/features/ai-training/ai-training-studio-path";
 import { mainBackgroundGradient } from "@/theme/theme";
 
 export default function DashboardLayoutClient({
@@ -116,6 +117,8 @@ export default function DashboardLayoutClient({
   }
 
   const chatWorkstation = isDashboardChatWorkstationPath(pathname);
+  const aiTrainingStudio = isDashboardAiTrainingStudioPath(pathname);
+  const immersiveWorkstation = chatWorkstation || aiTrainingStudio;
 
   if (routeAccessBlocked) {
     return (
@@ -162,7 +165,7 @@ export default function DashboardLayoutClient({
           component="main"
           sx={
             [
-              chatWorkstation
+              immersiveWorkstation
                 ? dashboardChatWorkstationMainSx
                 : {
                     flex: 1,
