@@ -20,7 +20,16 @@ export function aiTrainingManageHref(
   websiteId: string,
   options?: { panel?: "test" },
 ): string {
+  if (options?.panel === "test") {
+    return aiTrainingTestStudioHref(variant, websiteId);
+  }
   const base = `${BASE[variant]}/manage?websiteId=${encodeURIComponent(websiteId.trim())}`;
-  if (options?.panel === "test") return `${base}&panel=test`;
   return base;
+}
+
+export function aiTrainingTestStudioHref(
+  variant: AiTrainingKbVariant,
+  websiteId: string,
+): string {
+  return `${BASE[variant]}/test?websiteId=${encodeURIComponent(websiteId.trim())}`;
 }

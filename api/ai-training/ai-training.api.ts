@@ -25,12 +25,42 @@ export type AiPipelineStep = {
   label: string;
   detail: string;
   status: "done" | "skipped" | "failed" | "warn";
+  flowNodeId?: string;
+};
+
+export type FlowBuilderGraph = {
+  nodes: {
+    id: string;
+    type: string;
+    label: string;
+    detail: string;
+    x: number;
+    y: number;
+  }[];
+  edges: {
+    id: string;
+    from: string;
+    to: string;
+    label?: string;
+  }[];
 };
 
 export type AiTrainingKnowledgeMatch = {
   content: string;
   score: number;
   sourceRef?: string;
+};
+
+export type FlowExecutionStep = {
+  nodeId: string;
+  nodeType: string;
+  nodeLabel: string;
+  status: "done" | "skipped" | "failed" | "warn";
+  detail: string;
+  edgeId?: string;
+  edgeLabel?: string;
+  conditionResult?: string;
+  output?: string;
 };
 
 export type AiTrainingTestRespondResult =
@@ -42,12 +72,20 @@ export type AiTrainingTestRespondResult =
       knowledgeMatches?: AiTrainingKnowledgeMatch[];
       topKnowledgeMatch?: { content: string; score: number } | null;
       pipeline?: AiPipelineStep[];
+      activeFlowNodeIds?: string[];
+      activeFlowEdgeIds?: string[];
+      flowExecution?: FlowExecutionStep[];
+      flowExecutionErrors?: string[];
     }
   | {
       variant: "assistant";
       action: string;
       output: string | unknown;
       pipeline?: AiPipelineStep[];
+      activeFlowNodeIds?: string[];
+      activeFlowEdgeIds?: string[];
+      flowExecution?: FlowExecutionStep[];
+      flowExecutionErrors?: string[];
     };
 
 export async function fetchAiTrainingBehavior(
@@ -87,4 +125,26 @@ export async function postAiTrainingTestRespond(body: {
 }): Promise<AiTrainingTestRespondResult> {
   const { data } = await apiClient.post<unknown>("/ai-training/test-respond", body);
   return unwrapAiKnowledgeData<AiTrainingTestRespondResult>(data);
+}
+
+export async function fetchAiTrainingAutomationFlow(
+  websiteId: string,
+  variant: "chatbot" | "assistant",
+): Promise<FlowBuilderGraph> {
+  const { data } = await apiClient.get<unknown>(
+    `/ai-training/websites/${encodeURIComponent(websiteId)}/automation-flow`,
+    { params: { variant } },
+  );
+  return unwrapAiKnowledgeData<FlowBuilderGraph>(data);
+}
+
+export async function patchAiTrainingAutomationFlow(
+  websiteId: string,
+  body: FlowBuilderGraph & { variant: "chatbot" | "assistant" },
+): Promise<FlowBuilderGraph> {
+  const { data } = await apiClient.patch<unknown>(
+    `/ai-training/websites/${encodeURIComponent(websiteId)}/automation-flow`,
+    body,
+  );
+  return unwrapAiKnowledgeData<FlowBuilderGraph>(data);
 }
