@@ -1,2 +1,2 @@
 export { default } from "./DashboardSidebar";
-export { SIDEBAR_WIDTH } from "./styles/sidebar.styles";
+export { SIDEBAR_COLLAPSED_WIDTH, SIDEBAR_WIDTH } from "./styles/sidebar.styles";

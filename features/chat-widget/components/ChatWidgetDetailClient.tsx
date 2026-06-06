@@ -44,6 +44,7 @@ import { publishAppToast } from "@/lib/notify";
 import { extractApiErrorMessageForToast } from "@/lib/notify/extract-api-message";
 import { parseSnapshotForPreview } from "@/lib/chat-widget/snapshot-preview-model";
 import { WidgetSnapshotPreview } from "./WidgetSnapshotPreview";
+import { WidgetSandboxPanel } from "./WidgetSandboxPanel";
 import { WidgetDeployStatusCard } from "./WidgetDeployStatusCard";
 
 type SummaryRow = { label: string; value: string };
@@ -197,22 +198,6 @@ export function ChatWidgetDetailClient({
     () => (admin ? formatWidgetAdminSummary(admin) : []),
     [admin],
   );
-
-  const previewSrc = useMemo(() => {
-    if (!widgetKey.trim() || !embedAppOrigin) return "";
-    const parentHost =
-      typeof window !== "undefined" ? window.location.hostname || "localhost" : "localhost";
-    const parentPage =
-      typeof window !== "undefined"
-        ? `${window.location.origin}/dashboard/chat-widget/${encodeURIComponent(widgetKey)}`
-        : "";
-    const q = new URLSearchParams({
-      widgetKey,
-      parentHost,
-      parentPage,
-    });
-    return `${embedAppOrigin}/embed/widget?${q.toString()}`;
-  }, [widgetKey, embedAppOrigin]);
 
   const snapshotPreview = useMemo(
     () => parseSnapshotForPreview(snapshot),
@@ -479,9 +464,9 @@ export function ChatWidgetDetailClient({
             <DashboardCard sx={{ p: 2, display: "flex", flexDirection: "column", gap: 2, height: "auto" }}>
               <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1 }}>
                 <Typography variant="mediumLarge" color="white" fontWeight={600}>
-                  Live preview
+                  Test sandbox
                 </Typography>
-                {previewSrc ? (
+                {widgetKey.trim() && embedAppOrigin ? (
                   <Button
                     type="button"
                     variant="outlined"
@@ -494,8 +479,8 @@ export function ChatWidgetDetailClient({
                 ) : null}
               </Box>
               <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted }}>
-                Same widget visitors see on your site after you publish and add your domain to the
-                allow list.
+                Try the full visitor widget here — form, chat, and AI. Sandbox mode skips analytics
+                and lead counters.
                 {sessionExpiresIn.trim()
                   ? ` Visitor sessions expire after ${sessionExpiresIn.trim()}.`
                   : null}
@@ -515,7 +500,7 @@ export function ChatWidgetDetailClient({
                   URL. Set it to this dashboard host ({typeof window !== "undefined" ? window.location.origin : "Netlify app URL"}), not Render. Preview uses the dashboard host automatically.
                 </Typography>
               ) : null}
-              {!previewSrc && embedAppOrigin === "" ? (
+              {!embedAppOrigin && widgetKey.trim() ? (
                 <Typography variant="body2" sx={{ color: theme.palette.error.light }}>
                   Could not resolve embed host. Set{" "}
                   <Box component="span" sx={{ fontFamily: "monospace" }}>
@@ -524,42 +509,17 @@ export function ChatWidgetDetailClient({
                   to your Next.js app URL on Netlify, then redeploy.
                 </Typography>
               ) : null}
-              <Box
-                sx={{
-                  position: "relative",
-                  mx: "auto",
-                  width: "100%",
-                  maxWidth: 380,
-                  borderRadius: 3,
-                  overflow: "hidden",
-                  border: `12px solid ${alpha(theme.palette.common.white, 0.12)}`,
-                  boxShadow: "0 24px 60px rgba(0,0,0,0.45)",
-                  bgcolor: "#0f172a",
-                  minHeight: previewSrc ? 520 : 120,
-                }}
-              >
-                {previewSrc ? (
-                  <Box
-                    component="iframe"
-                    key={iframeKey}
-                    title="Visitor embed preview"
-                    src={previewSrc}
-                    sx={{
-                      width: "100%",
-                      height: 560,
-                      border: "none",
-                      display: "block",
-                      bgcolor: "#fff",
-                    }}
-                  />
-                ) : (
-                  <Box sx={{ py: 6, px: 2, textAlign: "center" }}>
-                    <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted }}>
-                      Live preview unavailable — check embed host configuration.
-                    </Typography>
-                  </Box>
-                )}
-              </Box>
+              {widgetKey.trim() && embedAppOrigin ? (
+                <WidgetSandboxPanel
+                  widgetKey={widgetKey}
+                  refreshKey={iframeKey}
+                  title="Visitor widget"
+                />
+              ) : (
+                <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted }}>
+                  Publish the widget to open the test sandbox.
+                </Typography>
+              )}
             </DashboardCard>
           </Box>
         </Box>

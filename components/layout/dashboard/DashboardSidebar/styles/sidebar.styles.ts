@@ -4,6 +4,10 @@ import type { AppTheme } from "@/theme/theme";
 import { typographyVariants } from "@/components/common/Typography/typography.styles";
 
 export const SIDEBAR_WIDTH = 260;
+export const SIDEBAR_COLLAPSED_WIDTH = 72;
+
+export const getSidebarWidth = (collapsed: boolean) =>
+  collapsed ? SIDEBAR_COLLAPSED_WIDTH : SIDEBAR_WIDTH;
 
 /** Slightly roomier line box than `medium16`’s 100% — lines up with the 24px icon slot in the nav row. */
 export const navTypographyBase = {
@@ -140,8 +144,9 @@ export const navItemSx: SxProps<Theme> = (theme) => {
   };
 };
 
-export const sidebarInnerSx: SxProps<Theme> = {
-  width: SIDEBAR_WIDTH,
+export const sidebarInnerSx = (collapsed = false): SxProps<Theme> => ({
+  width: getSidebarWidth(collapsed),
+  transition: "width 0.2s ease",
   height: "100%",
   backgroundColor: (t) => {
     const isLight = t.palette.mode === "light";
@@ -168,6 +173,35 @@ export const sidebarInnerSx: SxProps<Theme> = {
   display: "flex",
   flexDirection: "column",
   overflow: "hidden",
+});
+
+export const collapsedNavItemSx: SxProps<Theme> = {
+  justifyContent: "center",
+  pl: "12px",
+  pr: "12px",
+  mr: 0,
+  "& .MuiListItemIcon-root": {
+    mr: 0,
+    minWidth: 0,
+  },
+  "&.Mui-selected": {
+    borderRadius: "10px",
+  },
+};
+
+export const collapsedHeaderBoxSx: SxProps<Theme> = {
+  height: 56,
+  justifyContent: "center",
+  p: 1,
+};
+
+export const sectionDividerSx: SxProps<Theme> = (theme) => {
+  const app = (theme as AppTheme).app;
+  return {
+    mx: 1.5,
+    my: 1.25,
+    borderTop: `1px solid ${app.dashboard.shellBorder}`,
+  };
 };
 
 export const headerBoxSx: SxProps<Theme> = (theme) => {
@@ -282,10 +316,11 @@ export const listIconDefaultSx: SxProps<Theme> = {
   },
 };
 
-export const desktopWrapperSx: SxProps<Theme> = (theme) => {
+export const desktopWrapperSx = (collapsed = false): SxProps<Theme> => (theme) => {
   const app = (theme as AppTheme).app;
   return {
-    width: SIDEBAR_WIDTH,
+    width: getSidebarWidth(collapsed),
+    transition: "width 0.2s ease",
     height: { xs: "100vh", md: "calc(100vh - 32px)" },
     position: "sticky",
     top: { xs: 0, md: 16 },
@@ -300,6 +335,24 @@ export const desktopWrapperSx: SxProps<Theme> = (theme) => {
     },
   };
 };
+
+export const sidebarCollapseToggleSx = (collapsed = false): SxProps<Theme> => (theme) => ({
+  color: (theme as AppTheme).app.dashboard.white80,
+  flexShrink: 0,
+  "@keyframes sidebarCollapseNudge": {
+    "0%, 100%": { transform: "translateX(0)", opacity: 0.72 },
+    "50%": {
+      transform: `translateX(${collapsed ? 3 : -3}px)`,
+      opacity: 1,
+    },
+  },
+  "& .MuiSvgIcon-root": {
+    animation: "sidebarCollapseNudge 2.2s ease-in-out infinite",
+  },
+  "&:hover .MuiSvgIcon-root": {
+    animationPlayState: "paused",
+  },
+});
 
 /** Backdrop tint when the mobile nav uses MUI `Drawer` (Modal portal — not `position: fixed` in layout tree). */
 export const mobileDrawerBackdropSx: SxProps<Theme> = (theme) => ({

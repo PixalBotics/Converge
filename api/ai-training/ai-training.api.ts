@@ -20,6 +20,13 @@ export type AiTrainingTestContext = {
   defaultAiBehavior: WebsiteAiBehavior;
 };
 
+export type AiPipelineStep = {
+  id: string;
+  label: string;
+  detail: string;
+  status: "done" | "skipped" | "failed" | "warn";
+};
+
 export type AiTrainingKnowledgeMatch = {
   content: string;
   score: number;
@@ -34,11 +41,13 @@ export type AiTrainingTestRespondResult =
       replySource?: string;
       knowledgeMatches?: AiTrainingKnowledgeMatch[];
       topKnowledgeMatch?: { content: string; score: number } | null;
+      pipeline?: AiPipelineStep[];
     }
   | {
       variant: "assistant";
       action: string;
       output: string | unknown;
+      pipeline?: AiPipelineStep[];
     };
 
 export async function fetchAiTrainingBehavior(

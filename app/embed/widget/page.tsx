@@ -21,6 +21,11 @@ function EmbedWidgetPageInner() {
     }
   }
 
+  const sandboxMode =
+    sp.get("sandbox") === "1" ||
+    sp.get("sandbox") === "true" ||
+    sp.get("trainingTest") === "1";
+
   if (!widgetKey) {
     return (
       <main style={{ padding: 16, fontFamily: "system-ui,sans-serif", fontSize: 14 }}>
@@ -43,6 +48,7 @@ function EmbedWidgetPageInner() {
         widgetKey={widgetKey}
         parentHost={parentHost}
         parentPageUrl={parentPageUrl}
+        sandboxMode={sandboxMode}
       />
     </main>
   );
