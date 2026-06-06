@@ -54,6 +54,8 @@ export interface VisitorCreateConversationPayload {
   inquiryLabel?: string;
   /** Skip server AI on pre-chat registration message; embed handles welcome locally. */
   deferInitialAiReply?: boolean;
+  /** Dashboard sandbox preview — no analytics or lead counters. */
+  sandbox?: boolean;
   /** @deprecated Use routingKey + inquiryDepartmentId from widget inquire config */
   topic?: string;
 }

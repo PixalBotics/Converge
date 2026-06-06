@@ -4,7 +4,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   createWidgetConversation,
   fetchWidgetTranscript,
+  postWidgetTalkToAgent,
   sendWidgetVisitorMessage,
+  type WidgetTalkToAgentResult,
 } from "@/services/chat/widget-visitor.api";
 import { createChatSocketClient } from "@/services/chat/chatSocket";
 import { normalizeServerMessage } from "@/services/chat/normalize-message";
@@ -80,6 +82,10 @@ export interface UseVisitorChatReturn {
     targetConversationId: string,
   ) => Promise<
     { ok: true; data: WidgetTranscriptResult } | { ok: false; message: string }
+  >;
+  /** HYBRID: request human agent (socket-first). */
+  requestTalkToAgent: () => Promise<
+    { ok: true; data: WidgetTalkToAgentResult } | { ok: false; message: string }
   >;
 }
 
@@ -816,6 +822,20 @@ export function useVisitorChat(
     socketClient.emitStopTyping({ conversationId, userType: "visitor" });
   }, [conversationId, socketClient]);
 
+  const requestTalkToAgent = useCallback(async () => {
+    const cid = conversationIdRef.current;
+    const wid = optionsRef.current?.websiteId?.trim();
+    if (!cid || !wid) {
+      return { ok: false as const, message: "Conversation not started." };
+    }
+    const token = widgetTokenRef.current;
+    if (token) {
+      socketClient.connect({ authToken: token });
+      await socketClient.waitUntilSocketReady(12_000);
+    }
+    return postWidgetTalkToAgent(cid, wid, token ?? undefined, socketClient);
+  }, [socketClient]);
+
   return {
     conversationId,
     visitorId,
@@ -833,5 +853,6 @@ export function useVisitorChat(
     leaveRoom,
     refreshTranscript,
     loadTranscript,
+    requestTalkToAgent,
   };
 }

@@ -14,6 +14,7 @@ export type WebsiteAnalyticsReport = {
   summary: {
     uniqueVisitors: number;
     pageViews: number;
+    browsingOnlyVisitors: number;
     widgetOpens: number;
     chatsStarted: number;
     meaningfulChats: number;
@@ -22,9 +23,11 @@ export type WebsiteAnalyticsReport = {
     chatRatePct: number | null;
     leadRatePct: number | null;
     widgetOpenRatePct: number | null;
+    browsingOnlyRatePct: number | null;
   };
   funnel: {
     visitors: number;
+    browsingOnly: number;
     widgetOpened: number;
     chatted: number;
     leads: number;
@@ -98,6 +101,7 @@ export type WebsiteVisitorsQuery = {
   trafficSource?: string;
   hasLead?: boolean;
   hasChatted?: boolean;
+  widgetOpened?: boolean;
   search?: string;
   sortBy?: string;
   sortDir?: string;
@@ -144,6 +148,8 @@ export async function fetchWebsiteVisitors(
     ...(params.trafficSource ? { trafficSource: params.trafficSource } : {}),
     ...(params.hasLead === true ? { hasLead: true } : {}),
     ...(params.hasChatted === true ? { hasChatted: true } : {}),
+    ...(params.widgetOpened === true ? { widgetOpened: true } : {}),
+    ...(params.widgetOpened === false ? { widgetOpened: false } : {}),
     ...(params.search?.trim() ? { search: params.search.trim() } : {}),
     ...(params.sortBy ? { sortBy: params.sortBy } : {}),
     ...(params.sortDir ? { sortDir: params.sortDir } : {}),

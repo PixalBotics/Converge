@@ -117,9 +117,6 @@ import {
   postWidgetSession,
 } from "@/lib/widget-runtime/widget-public-fetch";
 import type { WidgetConfigEnvelope } from "@/lib/widget-runtime/widget-types";
-import {
-  postWidgetTalkToAgent,
-} from "@/services/chat/widget-visitor.api";
 import { decodeJwtExpMs } from "@/lib/widget-runtime/jwt-expiry";
 import {
   clearConversationId,
@@ -152,12 +149,15 @@ export interface EmbedWidgetClientProps {
   widgetKey: string;
   parentHost: string;
   parentPageUrl: string;
+  /** Dashboard preview — skips widget analytics tracking. */
+  sandboxMode?: boolean;
 }
 
 export function EmbedWidgetClient({
   widgetKey,
   parentHost,
   parentPageUrl,
+  sandboxMode = false,
 }: EmbedWidgetClientProps) {
   const [boot, setBoot] = useState<BootState>({ phase: "loading" });
 
@@ -275,6 +275,7 @@ export function EmbedWidgetClient({
       parentPageUrl={parentPageUrl}
       envelope={boot.config}
       sessionToken={boot.sessionToken}
+      sandboxMode={sandboxMode}
     />
   );
 }
@@ -351,6 +352,7 @@ function FloatingChatEmbed({
   configRecord,
   appearance,
   textUsBelow,
+  sandboxMode = false,
 }: {
   widgetKey: string;
   welcomeText: string;
@@ -361,6 +363,7 @@ function FloatingChatEmbed({
   configRecord: Record<string, unknown>;
   appearance: RuntimeChatAppearance;
   textUsBelow?: ReactNode;
+  sandboxMode?: boolean;
 }) {
   const [launcherOpen, setLauncherOpen] = useState(false);
   const [panelHeaderStatus, setPanelHeaderStatus] =
@@ -394,6 +397,7 @@ function FloatingChatEmbed({
     if (launcherOpen) {
       setUnreadCount(0);
       setLauncherPreview("");
+      if (sandboxMode) return;
       const sid = ensureVisitorSessionId(widgetKey);
       void (async () => {
         if (
@@ -433,7 +437,7 @@ function FloatingChatEmbed({
     } else {
       setPanelHeaderStatus(null);
     }
-  }, [launcherOpen, websiteId, siteKey, parentPageUrl, sessionToken]);
+  }, [launcherOpen, websiteId, siteKey, parentPageUrl, sessionToken, sandboxMode]);
 
   useEffect(() => {
     if (!greetingAck) {
@@ -446,7 +450,7 @@ function FloatingChatEmbed({
   }, []);
 
   useEffect(() => {
-    if (!websiteId) return;
+    if (!websiteId || sandboxMode) return;
     const sid = ensureVisitorSessionId(widgetKey);
     void (async () => {
       if (
@@ -483,7 +487,7 @@ function FloatingChatEmbed({
         pageUrl: parentPageUrl,
       });
     })();
-  }, [websiteId, siteKey, parentPageUrl]);
+  }, [websiteId, siteKey, parentPageUrl, sandboxMode, widgetKey]);
 
   useEffect(() => {
     const hasPersistedConversation = Boolean(readConversationId(siteKey));
@@ -723,6 +727,7 @@ function FloatingChatEmbed({
                       configRecord={configRecord}
                       appearance={appearance}
                       launcherOpenRef={launcherOpenRef}
+                      sandboxMode={sandboxMode}
                       onIncomingWhileClosed={handleIncomingAlert}
                       onHeaderStatusChange={setPanelHeaderStatus}
                     />
@@ -987,11 +992,13 @@ function WidgetSurfaces({
   parentPageUrl,
   envelope,
   sessionToken,
+  sandboxMode = false,
 }: {
   widgetKey: string;
   parentPageUrl: string;
   envelope: WidgetConfigEnvelope;
   sessionToken: string;
+  sandboxMode?: boolean;
 }) {
   const chatOn =
     envelope.surfaces?.chatEnabled !== false &&
@@ -1023,6 +1030,7 @@ function WidgetSurfaces({
           sessionToken={sessionToken}
           configRecord={configRecord}
           appearance={appearance}
+          sandboxMode={sandboxMode}
           textUsBelow={
             textOn ? (
               <WidgetTextUsPanel
@@ -1074,6 +1082,7 @@ function WidgetChatPanel({
   configRecord,
   appearance,
   launcherOpenRef,
+  sandboxMode = false,
   onIncomingWhileClosed,
   onHeaderStatusChange,
 }: {
@@ -1088,6 +1097,7 @@ function WidgetChatPanel({
   configRecord: Record<string, unknown>;
   appearance?: RuntimeChatAppearance;
   launcherOpenRef?: MutableRefObject<boolean>;
+  sandboxMode?: boolean;
   onIncomingWhileClosed?: (preview: string) => void;
   onHeaderStatusChange?: (status: EmbedPanelHeaderStatus | null) => void;
 }) {
@@ -1096,6 +1106,7 @@ function WidgetChatPanel({
   const panelBg = appearance?.chatBox.backgroundColor;
   const accentColor = appearance?.launcher.buttonColor;
   const siteKey = `${widgetKey}:${websiteId}`;
+  const persistenceKey = sandboxMode ? `sandbox:${siteKey}` : siteKey;
   const fields = useMemo(
     () => extractPrechatFieldsFromWidgetConfig(configRecord),
     [configRecord],
@@ -1151,12 +1162,12 @@ function WidgetChatPanel({
   const [resumeChecked, setResumeChecked] = useState(false);
 
   const visitorSessionId = useMemo(() => {
-    const existing = readVisitorSessionId(siteKey);
+    const existing = readVisitorSessionId(persistenceKey);
     if (existing) return existing;
     const created = generateClientSessionId();
-    persistVisitorSessionId(siteKey, created);
+    persistVisitorSessionId(persistenceKey, created);
     return created;
-  }, [siteKey]);
+  }, [persistenceKey]);
 
   const pageUrlGetter = useCallback(() => parentPageUrl, [parentPageUrl]);
 
@@ -1210,13 +1221,13 @@ function WidgetChatPanel({
   }, [chat.refreshTranscript]);
 
   useEffect(() => {
-    const stored = readHybridEscalatedConversationId(siteKey);
+    const stored = readHybridEscalatedConversationId(persistenceKey);
     if (stored && chat.conversationId && stored === chat.conversationId) {
       setEscalated(true);
       escalatedRef.current = true;
       setLocalAiMessages([]);
     }
-  }, [chat.conversationId, siteKey]);
+  }, [chat.conversationId, persistenceKey]);
 
   const { resumeConversation, loadTranscript } = chat;
 
@@ -1226,7 +1237,7 @@ function WidgetChatPanel({
       return;
     }
     let cancelled = false;
-    const storedConvId = readConversationId(siteKey);
+    const storedConvId = readConversationId(persistenceKey);
     if (!storedConvId) {
       setResumeChecked(true);
       return;
@@ -1235,13 +1246,13 @@ function WidgetChatPanel({
       const res = await loadTranscript(storedConvId);
       if (cancelled) return;
       if (!res.ok) {
-        clearConversationId(siteKey);
+        clearConversationId(persistenceKey);
         setResumeChecked(true);
         return;
       }
       const { data } = res;
       if (data.chatCompleted || !data.canSendMessages) {
-        clearConversationId(siteKey);
+        clearConversationId(persistenceKey);
         setResumeChecked(true);
         return;
       }
@@ -1251,7 +1262,7 @@ function WidgetChatPanel({
         status: data.status,
         messages: data.messages,
       });
-      persistConversationId(siteKey, storedConvId);
+      persistConversationId(persistenceKey, storedConvId);
       if (data.talkToAgentRequested || data.handoverRequested) {
         setEscalated(true);
         escalatedRef.current = true;
@@ -1480,8 +1491,9 @@ function WidgetChatPanel({
           inquiryPoolId: optionalUuid(routingTargets.poolId),
           inquiryLabel: effectiveInquiry?.label,
           deferInitialAiReply: mode === "AI_ONLY" || mode === "HYBRID",
+          ...(sandboxMode ? { sandbox: true } : {}),
         });
-        persistConversationId(siteKey, created.conversationId);
+        persistConversationId(persistenceKey, created.conversationId);
         if (created.resumed) {
           if (created.talkToAgentRequested || created.handoverRequested) {
             setEscalated(true);
@@ -1684,11 +1696,7 @@ function WidgetChatPanel({
       persistHybridEscalated(siteKey, chat.conversationId);
     }
     setTalkToAgentStatus(null);
-    const res = await postWidgetTalkToAgent(
-      chat.conversationId,
-      websiteId,
-      sessionToken,
-    );
+    const res = await chat.requestTalkToAgent();
     setTalkToAgentBusy(false);
     if (res.ok) {
       setTalkToAgentStatus(res.data.message);

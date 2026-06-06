@@ -12,7 +12,7 @@ import { extractApiErrorMessageForToast } from "@/lib/notify/extract-api-message
 import { AiTrainingHowItWorks } from "./AiTrainingHowItWorks";
 import { AiTrainingPageShell } from "./AiTrainingPageShell";
 import { AiTrainingWebsitesOverview } from "./AiTrainingWebsitesOverview";
-import { aiTrainingAddHref, aiTrainingManageHref } from "./ai-training-routes";
+import { aiTrainingAddHref, aiTrainingManageHref, aiTrainingTestStudioHref } from "./ai-training-routes";
 import type { AiTrainingKbVariant } from "./ai-training-kb.utils";
 import { useAiTrainingHierarchy } from "./use-ai-training-hierarchy";
 import { buildAiTrainingSessionScope } from "./ai-training-scope.util";
@@ -125,7 +125,7 @@ export function AiTrainingKbPage({ variant }: { variant: AiTrainingKbVariant }) 
         onRefresh={() => void trainingWebsitesQuery.refetch()}
         onSelectWebsite={(row) => router.push(aiTrainingManageHref(variant, row.websiteId))}
         onTestWebsite={(row) =>
-          router.push(aiTrainingManageHref(variant, row.websiteId, { panel: "test" }))
+          router.push(aiTrainingTestStudioHref(variant, row.websiteId))
         }
         onAddTraining={() => router.push(aiTrainingAddHref(variant))}
       />

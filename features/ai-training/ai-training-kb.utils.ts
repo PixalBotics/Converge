@@ -33,7 +33,7 @@ export const KB_WEB_MAX_PAGES_HINT = 25;
 export const KB_TRAINING_SOURCES_POLL_MS = 15_000;
 
 export const KB_BACKGROUND_TRAINING_STARTED_MESSAGE =
-  "Training runs on the server while you keep working. This page refreshes every ~15 seconds. When status is Indexed, use Test on the right to talk to the AI.";
+  "Training runs on the server while you keep working. This page refreshes every ~15 seconds. When status is Indexed, open Automation studio to test on real data.";
 
 export const ASSISTANT_SOURCE_TYPE_OPTIONS: { label: string; value: AssistantSourceType }[] = [
   { label: "Website URL (auto scrape)", value: "URL" },
