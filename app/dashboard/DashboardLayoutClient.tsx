@@ -171,6 +171,7 @@ export default function DashboardLayoutClient({
                     overflow: "auto",
                     boxSizing: "border-box",
                   },
+              { mt: "10px" },
               dashboardMainTextSx,
               dashboardMainGlassSx,
             ] as SxProps<Theme>
