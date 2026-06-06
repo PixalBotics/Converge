@@ -52,12 +52,13 @@ export const ScrollRegion = styled(Box)({
 
 export const ProfileHeroCard = styled(Box)(({ theme }) => {
   const d = dash(theme);
+  const accent = theme.palette.primary.main;
   return {
-    margin: theme.spacing(0, 1.5, 1.5),
+    margin: theme.spacing(1.25, 1.5, 1.5),
     padding: theme.spacing(1.5),
     borderRadius: 10,
-    border: `1px solid ${alpha(d.cardBorder, 0.32)}`,
-    background: `linear-gradient(165deg, ${alpha(d.accentIndigo, 0.12)} 0%, ${alpha(d.overlayLight, 0.2)} 100%)`,
+    border: `1px solid ${alpha(accent, 0.22)}`,
+    background: `linear-gradient(165deg, ${alpha(accent, 0.14)} 0%, ${alpha(d.overlayLight, 0.2)} 100%)`,
   };
 });
 
@@ -160,7 +161,7 @@ export const MessageRowOuter = styled(Box, {
   gap: 8,
   alignSelf: system ? "stretch" : outgoing ? "flex-end" : "flex-start",
   maxWidth: system ? "100%" : "min(560px, 88%)",
-  width: outgoing ? "fit-content" : "100%",
+  width: "100%",
   marginLeft: outgoing ? "auto" : 0,
 }));
 
@@ -169,9 +170,7 @@ export const MessageRow = styled(Box, {
 })<{ outgoing?: boolean; system?: boolean }>(({ theme, outgoing, system }) => ({
   display: "flex",
   flexDirection: "column",
-  flex: outgoing ? "0 0 auto" : system ? undefined : 1,
-  width: outgoing ? "max-content" : undefined,
-  maxWidth: outgoing ? "100%" : undefined,
+  flex: outgoing || system ? "1 1 auto" : 1,
   minWidth: 0,
   gap: theme.spacing(0.65),
   alignItems: outgoing ? "flex-end" : "flex-start",

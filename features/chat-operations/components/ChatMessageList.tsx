@@ -18,7 +18,6 @@ import {
   ChatMessageBubble,
   groupMessagesByDate,
 } from "./ChatMessageBubble";
-import { chatOpsTranscriptInsetSx } from "../styles/chat-operations.styles";
 import {
   EmptyState,
   EmptyStateIconRing,
@@ -133,7 +132,8 @@ export function ChatMessageList({
       sx={{
         flex: "1 1 0",
         minHeight: 0,
-        ...chatOpsTranscriptInsetSx,
+        pl: { xs: 1.5, sm: 2 },
+        pr: "10px",
         py: 2.5,
         gap: 0,
       }}
