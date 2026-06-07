@@ -65,11 +65,18 @@ export function extractKnowledgeSnippetsForFallback(
 export function resolveVisitorAiMessageContent(
   response: string,
   knowledgeMatches?: unknown,
+  topKnowledgeMatch?: unknown,
 ): string {
   const primary = (response ?? "").trim();
   if (!isDegradedVisitorAiReply(primary)) return primary;
   const kb = extractKnowledgeSnippetsForFallback(knowledgeMatches);
   if (kb) return kb;
+  if (topKnowledgeMatch && typeof topKnowledgeMatch === "object") {
+    const preview = (topKnowledgeMatch as { chunkPreview?: string }).chunkPreview;
+    if (typeof preview === "string" && preview.trim().length > 0) {
+      return preview.trim();
+    }
+  }
   return primary;
 }
 

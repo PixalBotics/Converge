@@ -21,6 +21,7 @@ import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.style
 import { mergeSx } from "@/lib/mui/merge-sx";
 import type { ClosePolicyListRow } from "@/services/chat/close-policy-list.types";
 import type { ChatScopeFilterState } from "@/features/chat-shared/types";
+import { useDebouncedValue } from "@/lib/hooks/use-debounced-value";
 import { useClosePolicyListQuery } from "../hooks/useChatSettings";
 import { ClosePolicyStatusChip } from "./ClosePolicyStatusChip";
 import { ClosePolicyModal } from "./ClosePolicyModal";
@@ -60,6 +61,7 @@ export function ClosePolicyListTab({
   const [modalOpen, setModalOpen] = useState(false);
   const [editWebsiteId, setEditWebsiteId] = useState("");
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebouncedValue(search, 400);
   const [statusFilter, setStatusFilter] = useState<ClosePolicyStatusFilter>("all");
 
   useEffect(() => {
@@ -82,7 +84,7 @@ export function ClosePolicyListTab({
     parentCompanyId: filters.parentCompanyId,
     childCompanyId: filters.childCompanyId,
     websiteId: filters.websiteId,
-    search: search.trim() || undefined,
+    search: debouncedSearch.trim() || undefined,
   });
 
   const rows = useMemo(() => {

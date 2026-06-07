@@ -5,7 +5,6 @@ import ChatRounded from "@mui/icons-material/ChatRounded";
 import CloseRounded from "@mui/icons-material/CloseRounded";
 import Box from "@mui/material/Box";
 import IconButton from "@mui/material/IconButton";
-import { Typography } from "@/components/common";
 
 /** Floating test chat — stays on the right; canvas controls live bottom-left. */
 export function AiTrainingFloatingTestChat({
@@ -74,11 +73,14 @@ export function AiTrainingFloatingTestChat({
             <ChatRounded sx={{ fontSize: 18 }} />
           </Box>
           <Box sx={{ textAlign: "left", minWidth: 0 }}>
-            <Typography variant="caption" fontWeight={800} sx={{ color: "inherit", display: "block", lineHeight: 1.2 }}>
+            <Box
+              component="span"
+              sx={{ color: "#fff", fontSize: 12, fontWeight: 800, display: "block", lineHeight: 1.2 }}
+            >
               Test chat
-            </Typography>
-            <Typography
-              variant="caption"
+            </Box>
+            <Box
+              component="span"
               sx={{
                 color: "rgba(255,255,255,0.85)",
                 fontSize: 10,
@@ -89,8 +91,8 @@ export function AiTrainingFloatingTestChat({
                 maxWidth: 180,
               }}
             >
-              {siteHint || "Live training"}
-            </Typography>
+              {siteHint || "Test environment"}
+            </Box>
           </Box>
           {turnCount > 0 ? (
             <Box

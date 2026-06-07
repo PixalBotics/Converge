@@ -53,6 +53,7 @@ export function monitorRowMatchesScope(
   row: MonitorConversationRow,
   scope: ChatScopeFilterState,
   websiteIdsInScope: Set<string> | null,
+  options?: { closedTab?: boolean },
 ): boolean {
   if (scope.websiteId.trim() && row.websiteId !== scope.websiteId.trim()) return false;
   if (websiteIdsInScope && row.websiteId && !websiteIdsInScope.has(row.websiteId)) {
@@ -71,7 +72,13 @@ export function monitorRowMatchesScope(
     return false;
   }
   if (scope.poolId.trim() && row.poolId !== scope.poolId.trim()) return false;
-  if (scope.status.trim() && row.status !== scope.status.trim()) return false;
+  if (
+    !options?.closedTab &&
+    scope.status.trim() &&
+    row.status !== scope.status.trim()
+  ) {
+    return false;
+  }
   return true;
 }
 

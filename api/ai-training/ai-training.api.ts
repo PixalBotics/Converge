@@ -4,6 +4,7 @@ import { unwrapAiKnowledgeData } from "../ai-knowledge/unwrap";
 export type WebsiteAiBehavior = {
   confidenceThreshold: number | null;
   strictKbOnly: boolean;
+  autoLearnFromVisitorPages: boolean;
   greetingMessage: string | null;
   noMatchMessage: string | null;
   lowConfidenceMessage: string | null;
@@ -17,6 +18,8 @@ export type AiTrainingTestContext = {
   websiteName: string | null;
   websiteUrl: string;
   widgetKey: string | null;
+  chatMode?: "AI_ONLY" | "HYBRID" | "AGENT_ONLY";
+  talkToAgentEnabled?: boolean;
   defaultAiBehavior: WebsiteAiBehavior;
 };
 

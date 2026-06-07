@@ -118,12 +118,19 @@ export function ChatMonitorWorkspace({
     monitor.setFilters,
   ]);
 
-  const applyClientScopeFilter = !teamMode && showScopeFilters;
+  const isPlatformMonitor = monitor.capabilities?.mode === "platform";
+  const applyClientScopeFilter =
+    !teamMode && showScopeFilters && !isPlatformMonitor;
 
   const matchScope = useMemo(
     () => (row: (typeof monitor.liveList)[number]) =>
-      monitorRowMatchesScope(row, scopeFilters.filters, scopeFilters.websiteIdsInScope),
-    [scopeFilters.filters, scopeFilters.websiteIdsInScope],
+      monitorRowMatchesScope(
+        row,
+        scopeFilters.filters,
+        scopeFilters.websiteIdsInScope,
+        { closedTab: monitor.listTab === "closed" },
+      ),
+    [monitor.listTab, scopeFilters.filters, scopeFilters.websiteIdsInScope],
   );
 
   const scopedLive = useMemo(
@@ -136,6 +143,14 @@ export function ChatMonitorWorkspace({
   );
 
   const scopedList = monitor.listTab === "live" ? scopedLive : scopedClosed;
+
+  const sidebarConversations = useMemo(() => {
+    const selectedId = monitor.selectedConversationId;
+    const selected = monitor.selectedRow;
+    if (!selectedId || !selected) return scopedList;
+    if (scopedList.some((r) => r.id === selectedId)) return scopedList;
+    return [selected, ...scopedList];
+  }, [monitor.selectedConversationId, monitor.selectedRow, scopedList]);
 
   const departmentOptions = useMemo(
     () => [
@@ -202,6 +217,17 @@ export function ChatMonitorWorkspace({
     void monitor.selectConversation(id);
     router.replace(`/dashboard/chat-monitor/${encodeURIComponent(id)}`, { scroll: false });
   };
+
+  const handleListTabChange = (tab: "live" | "closed") => {
+    monitor.setListTab(tab);
+  };
+
+  useEffect(() => {
+    if (initialConversationId || monitor.selectedConversationId) return;
+    if (typeof window === "undefined") return;
+    if (!window.location.pathname.includes("/dashboard/chat-monitor/")) return;
+    router.replace("/dashboard/chat-monitor", { scroll: false });
+  }, [initialConversationId, monitor.selectedConversationId, router]);
 
   const handleViewModeChange = (mode: MonitorViewMode) => {
     setViewMode(mode);
@@ -407,8 +433,8 @@ export function ChatMonitorWorkspace({
             <Box data-monitor-pane="inbox">
               <MonitorQueueSidebar
                 listTab={monitor.listTab}
-                onListTabChange={monitor.setListTab}
-                conversations={scopedList}
+                onListTabChange={handleListTabChange}
+                conversations={sidebarConversations}
                 selectedConversationId={monitor.selectedConversationId}
                 onSelectConversation={handleSelect}
                 liveCount={scopedLive.length}

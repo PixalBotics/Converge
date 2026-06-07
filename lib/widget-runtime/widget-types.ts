@@ -93,5 +93,10 @@ export interface AiVisitorRespondResponse {
     sourceId: string;
     sourceRef?: string;
     score?: number;
+    snippet?: string;
+    content?: string;
   }>;
+  topKnowledgeMatch?: {
+    chunkPreview?: string;
+  } | null;
 }

@@ -1,2 +1,3 @@
-echo "Running pre-commit checks (imports, typecheck, lint, tests, build)..."
+echo "Running pre-commit checks (imports, typecheck, lint, tests)..."
+echo "Full production build runs in GitHub CI — local: npm run validate:full"
 npm run validate:commit
