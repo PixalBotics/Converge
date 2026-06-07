@@ -96,7 +96,7 @@ export function DataTable<T extends Record<string, unknown>>({
                   [
                     dataTableHeaderCell,
                     sizeCellSx,
-                    { textAlign: actionColumn.align ?? "right", width: 96 },
+                    { textAlign: actionColumn.align ?? "right", width: actionColumn.width ?? 96 },
                   ] as SxProps<Theme>
                 }
               >
@@ -235,7 +235,12 @@ export function DataTable<T extends Record<string, unknown>>({
               {actionColumn && (
                 <Box
                   component="td"
-                  sx={[sizeCellSx, { textAlign: actionColumn.align ?? "right", width: 96 }] as SxProps<Theme>}
+                  sx={
+                    [
+                      sizeCellSx,
+                      { textAlign: actionColumn.align ?? "right", width: actionColumn.width ?? 96 },
+                    ] as SxProps<Theme>
+                  }
                   onClick={(e) => e.stopPropagation()}
                 >
                   {isLoading ? (

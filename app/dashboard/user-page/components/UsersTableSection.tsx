@@ -48,6 +48,7 @@ type Props = {
   setSelectedSuggestion: (v: UserSuggestion | undefined) => void;
   isSuggestionsLoading: boolean;
   onSearch: () => void;
+  searchSubmitDisabled?: boolean;
   listUserTypeFilter: UserListTypeFilter;
   onListUserTypeFilterChange: (value: UserListTypeFilter) => void;
   showInternalUserTypeOption: boolean;
@@ -79,6 +80,7 @@ export function UsersTableSection(props: Props) {
     setSelectedSuggestion,
     isSuggestionsLoading,
     onSearch,
+    searchSubmitDisabled,
     listUserTypeFilter,
     onListUserTypeFilterChange,
     showInternalUserTypeOption,
@@ -208,6 +210,7 @@ export function UsersTableSection(props: Props) {
           setSelectedSuggestion={setSelectedSuggestion}
           isSuggestionsLoading={isSuggestionsLoading}
           onSearch={onSearch}
+          searchSubmitDisabled={searchSubmitDisabled}
           listUserTypeFilter={listUserTypeFilter}
           onListUserTypeFilterChange={onListUserTypeFilterChange}
           showInternalUserTypeOption={showInternalUserTypeOption}

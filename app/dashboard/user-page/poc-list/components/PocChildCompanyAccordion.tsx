@@ -18,6 +18,7 @@ import { PocContactCard } from "./PocContactCard";
 const POC_PREVIEW_LIMIT = 4;
 
 function CountBadge({ label, theme, accent }: { label: string; theme: AppTheme; accent?: boolean }) {
+  const accentColor = theme.app.dashboard.accentBlue;
   return (
     <Box
       component="span"
@@ -37,12 +38,12 @@ function CountBadge({ label, theme, accent }: { label: string; theme: AppTheme; 
         whiteSpace: "nowrap",
         flexShrink: 0,
         bgcolor: accent
-          ? alpha(theme.palette.primary.main, 0.2)
+          ? alpha(accentColor, 0.14)
           : alpha(theme.app.dashboard.white95, 0.06),
-        color: accent ? theme.palette.primary.light : theme.app.dashboard.textMuted,
+        color: accent ? accentColor : theme.app.dashboard.textMuted,
         border: `1px solid ${alpha(
-          accent ? theme.palette.primary.main : theme.app.dashboard.cardBorder,
-          accent ? 0.38 : 0.7,
+          accent ? accentColor : theme.app.dashboard.cardBorder,
+          accent ? 0.28 : 0.5,
         )}`,
       }}
     >
@@ -74,8 +75,8 @@ export function PocChildCompanyAccordion({ child, expanded, onToggle }: Props) {
         if (!open) setShowAllPocs(false);
       }}
       sx={{
-        bgcolor: alpha(theme.app.dashboard.white95, 0.02),
-        border: `1px solid ${alpha(theme.app.dashboard.cardBorder, 0.85)}`,
+        bgcolor: alpha(theme.app.dashboard.pillBg, 0.85),
+        border: `1px solid ${alpha(theme.app.dashboard.cardBorder, 0.38)}`,
         borderRadius: "12px !important",
         overflow: "hidden",
         "&:before": { display: "none" },
@@ -99,8 +100,8 @@ export function PocChildCompanyAccordion({ child, expanded, onToggle }: Props) {
             flexShrink: 0,
             display: "grid",
             placeItems: "center",
-            bgcolor: alpha(theme.palette.primary.main, 0.12),
-            color: theme.palette.primary.light,
+            bgcolor: alpha(theme.app.dashboard.accentBlue, 0.12),
+            color: theme.app.dashboard.accentBlue,
           }}
         >
           <BusinessOutlinedIcon sx={{ fontSize: 17 }} />
@@ -164,7 +165,7 @@ export function PocChildCompanyAccordion({ child, expanded, onToggle }: Props) {
               cursor: "pointer",
               bgcolor: "transparent",
               color: theme.app.dashboard.accentBlue,
-              "&:hover": { bgcolor: alpha(theme.palette.primary.main, 0.08) },
+              "&:hover": { bgcolor: alpha(theme.app.dashboard.accentBlue, 0.08) },
             }}
           >
             Show all {pocCount} contacts

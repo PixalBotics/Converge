@@ -173,13 +173,15 @@ export const chatOpsInboxTabsRow: SxProps<Theme> = (theme) => {
     p: 0.35,
     borderRadius: 8,
     bgcolor: alpha(d.overlayLight, 0.25),
+    overflowX: "auto",
+    flexWrap: "nowrap",
   };
 };
 
 export const chatOpsInboxTabSx = (active: boolean): SxProps<Theme> => (theme) => {
   const d = dash(theme);
   return {
-    flex: 1,
+    flex: "1 0 auto",
     border: "none",
     borderRadius: 8,
     py: 0.7,
@@ -188,6 +190,7 @@ export const chatOpsInboxTabSx = (active: boolean): SxProps<Theme> => (theme) =>
     fontFamily: "inherit",
     fontSize: 12,
     fontWeight: active ? 700 : 500,
+    whiteSpace: "nowrap",
     color: active ? (theme as AppTheme).app.text.primary : d.textMuted,
     background: active
       ? `linear-gradient(135deg, ${alpha(d.accentBlue, 0.35)} 0%, ${alpha(d.accentIndigo, 0.28)} 100%)`

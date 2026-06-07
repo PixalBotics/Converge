@@ -4,7 +4,7 @@ import type { AppTheme } from "@/theme/theme";
 
 export const calendarFieldStyles = (theme: Theme) => {
   const app = (theme as AppTheme).app;
-  const hoverTintBase = app.dashboard.overlayLight ?? app.dashboard.overlayMedium ?? app.dashboard.pillBg ?? "#1f2a44";
+  const accent = theme.palette.primary.main;
   return {
     "& .MuiPickersOutlinedInput-root": {
       borderRadius: "12px",
@@ -66,11 +66,12 @@ export const calendarFieldStyles = (theme: Theme) => {
       },
     },
     "& .MuiInputAdornment-root .MuiIconButton-root": {
-      color: app.text.placeholder,
+      color: app.dashboard.iconMuted ?? app.text.placeholder,
       borderRadius: "9999px",
+      transition: "background-color 0.15s ease, color 0.15s ease",
       "&:hover": {
-        backgroundColor: alpha(hoverTintBase, 0.7),
-        color: app.text.primary,
+        backgroundColor: alpha(accent, 0.16),
+        color: accent,
       },
     },
   } as const;

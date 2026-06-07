@@ -162,6 +162,22 @@ export default function UserPage() {
     setPage(1);
   };
 
+  const searchSubmitDisabled = useMemo(() => {
+    if (searchInput.trim() !== appliedSearch.trim()) return false;
+
+    const draftIds: typeof appliedFilterIds = {};
+    if (selectedSuggestion?.id) {
+      if (filterKind === "user") draftIds.userId = selectedSuggestion.id;
+      if (filterKind === "company" || filterKind === "reseller") draftIds.companyId = selectedSuggestion.id;
+      if (filterKind === "parentCompany") draftIds.parentCompanyId = selectedSuggestion.id;
+      if (filterKind === "department") draftIds.departmentId = selectedSuggestion.id;
+      if (filterKind === "designation" || filterKind === "role") draftIds.designationId = selectedSuggestion.id;
+    }
+
+    const keys = ["userId", "companyId", "parentCompanyId", "departmentId", "designationId"] as const;
+    return keys.every((key) => (draftIds[key] ?? undefined) === (appliedFilterIds[key] ?? undefined));
+  }, [searchInput, appliedSearch, filterKind, selectedSuggestion, appliedFilterIds]);
+
   useEffect(() => {
     // When search is cleared via the SearchBar cross button, reset filters to show full data.
     if (searchInput.trim().length > 0) return;
@@ -263,6 +279,7 @@ export default function UserPage() {
         setSelectedSuggestion={setSelectedSuggestion}
         isSuggestionsLoading={isSuggestionsLoading}
         onSearch={runSearch}
+        searchSubmitDisabled={searchSubmitDisabled}
         listUserTypeFilter={listUserTypeFilter}
         onListUserTypeFilterChange={handleListUserTypeFilterChange}
         showInternalUserTypeOption={showInternalUsersCard}
