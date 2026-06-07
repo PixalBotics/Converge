@@ -206,11 +206,7 @@ export function AiTrainingAutomationStudioPage({
       let answer = "";
       let steps: AiPipelineStep[] = result.pipeline ?? [];
 
-      answer =
-        result.response?.trim() ||
-        (typeof (result as { output?: unknown }).output === "string"
-          ? (result as { output: string }).output
-          : "");
+      answer = result.response?.trim() || "";
       if (result.knowledgeMatches?.length) {
         const sources = result.knowledgeMatches
           .slice(0, 3)
