@@ -87,7 +87,16 @@ export function ChatMessageBubble({
   }
 
   return (
-    <MessageRowOuter outgoing={isOutgoing} sx={rowSpacingSx}>
+    <MessageRowOuter
+      outgoing={isOutgoing}
+      sx={rowSpacingSx}
+      {...(message.id
+        ? {
+            "data-chat-message-id": message.id,
+            "data-chat-message-role": message.role,
+          }
+        : {})}
+    >
       {!isOutgoing && showAvatar ? (
         <MessageAvatar aria-hidden>{visitorInitials}</MessageAvatar>
       ) : !isOutgoing ? (

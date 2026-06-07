@@ -22,8 +22,9 @@ import { GuestLinkHeaderAction } from "./GuestLinkHeaderAction";
 import { inboxTranscriptDisplayForClosed } from "../utils/inbox-transcript-messages";
 import { ChatWhisperComposerStrip } from "./ChatWhisperComposerStrip";
 import { ChatComposer } from "./ChatComposer";
-import { ChatMessageList } from "./ChatMessageList";
+import { ChatMessageList, type VisitorProfileCaptureSelection } from "./ChatMessageList";
 import { chatOpsConversationMetaChipHeight } from "../styles/chat-operations.styles";
+import type { VisitorProfileField } from "@/services/chat/visitor-profile.types";
 import {
   ChatHeaderMetaChip,
   PanelColumn,
@@ -67,6 +68,12 @@ interface ChatConversationPanelProps {
   distributionFormHref?: string | null;
   requiresDistributionForm?: boolean;
   hasOperational?: (p: string) => boolean;
+  profileCaptureEnabled?: boolean;
+  onCaptureField?: (
+    field: VisitorProfileField,
+    selection: VisitorProfileCaptureSelection,
+  ) => void | Promise<void>;
+  profileCaptureBusy?: boolean;
 }
 
 function formatDuration(seconds: number): string {
@@ -110,6 +117,9 @@ export function ChatConversationPanel({
   distributionFormHref = null,
   requiresDistributionForm = false,
   hasOperational = () => false,
+  profileCaptureEnabled = false,
+  onCaptureField,
+  profileCaptureBusy = false,
 }: ChatConversationPanelProps) {
   const theme = useTheme() as AppTheme;
   const visitorInfo = parseVisitorInfo(visitor, conversationMeta ?? undefined);
@@ -407,6 +417,9 @@ export function ChatConversationPanel({
           visitorDisplayName={visitorInfo.displayName}
           agentDisplayName={assignedAgentLabel}
           showEmptyPlaceholder={!hasConversation}
+          profileCaptureEnabled={profileCaptureEnabled}
+          onCaptureField={onCaptureField}
+          profileCaptureBusy={profileCaptureBusy}
         />
       </Box>
 

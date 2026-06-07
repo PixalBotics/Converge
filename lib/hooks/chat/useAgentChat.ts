@@ -81,6 +81,7 @@ export interface UseAgentChatReturn {
   /** True when the current user may post a visitor-visible reply. */
   canSendMessage: boolean;
   sendBlockedReason: string | null;
+  applyVisitorProfileUpdate: (payload: unknown) => void;
 }
 
 export function useAgentChat(params: UseAgentChatParams): UseAgentChatReturn {
@@ -356,26 +357,51 @@ export function useAgentChat(params: UseAgentChatParams): UseAgentChatReturn {
     [params.agentId],
   );
 
-  const handleVisitorProfileUpdated = useCallback((payload: unknown) => {
+  const applyVisitorProfileUpdate = useCallback((payload: unknown) => {
     const cid = conversationIdFromSocketPayload(payload);
     if (!cid || cid !== selectedConversationIdRef.current) return;
     if (typeof payload !== "object" || !payload) return;
     const o = payload as Record<string, unknown>;
-    const displayName =
-      typeof o.displayName === "string"
-        ? o.displayName
-        : typeof o.inboxTitle === "string"
-          ? o.inboxTitle
-          : null;
-    if (!displayName) return;
+    const vp =
+      o.visitorPresentation && typeof o.visitorPresentation === "object"
+        ? (o.visitorPresentation as Record<string, unknown>)
+        : null;
+    const name =
+      typeof o.name === "string" && o.name.trim()
+        ? o.name.trim()
+        : typeof vp?.displayName === "string" && vp.displayName.trim()
+          ? vp.displayName.trim()
+          : typeof o.displayName === "string" && o.displayName.trim()
+            ? o.displayName.trim()
+            : null;
+    if (!name && !(typeof vp?.inboxTitle === "string" && vp.inboxTitle.trim())) return;
+
     setVisitorFromHistory((prev) => ({
       ...(prev ?? {}),
-      name: displayName,
-      displayName,
-      email: typeof o.email === "string" ? o.email : prev?.email,
-      phone: typeof o.phone === "string" ? o.phone : prev?.phone,
+      ...(name ? { name, displayName: name } : {}),
+      email:
+        typeof o.email === "string"
+          ? o.email
+          : o.email === null
+            ? null
+            : prev?.email,
+      phone:
+        typeof o.phone === "string"
+          ? o.phone
+          : o.phone === null
+            ? null
+            : prev?.phone,
+      visitorProfileComplete:
+        typeof o.visitorProfileComplete === "boolean"
+          ? o.visitorProfileComplete
+          : typeof vp?.visitorProfileComplete === "boolean"
+            ? vp.visitorProfileComplete
+            : prev?.visitorProfileComplete,
+      ...(vp ? { visitorPresentation: vp } : {}),
     }));
   }, []);
+
+  const handleVisitorProfileUpdated = applyVisitorProfileUpdate;
 
   const handleTakeoverActivity = useCallback(
     (payload?: unknown) => {
@@ -915,5 +941,6 @@ export function useAgentChat(params: UseAgentChatParams): UseAgentChatReturn {
     supervisorRefreshToken: supervisorTick,
     canSendMessage,
     sendBlockedReason,
+    applyVisitorProfileUpdate,
   };
 }

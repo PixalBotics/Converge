@@ -14,6 +14,8 @@ import {
   needsChatScopeFilters,
   useChatApiGates,
 } from "@/lib/permissions";
+import { OP } from "@/lib/permissions/operational-keys";
+import { PAGE } from "@/lib/permissions/permission-constants";
 import { useAgentChat } from "@/lib/hooks/chat/useAgentChat";
 import { mergeSx } from "@/lib/mui/merge-sx";
 import { extractApiErrorMessageForToast, publishAppToast } from "@/lib/notify";
@@ -48,8 +50,11 @@ import {
   patchConversationAiState,
   patchConversationDraft,
 } from "../utils/conversation-scoped-state";
+import type { VisitorProfileField } from "@/services/chat/visitor-profile.types";
 import { ChatConversationPanel } from "./ChatConversationPanel";
 import { ChatQueueSidebar } from "./ChatQueueSidebar";
+import type { VisitorProfileCaptureSelection } from "./ChatMessageList";
+import { useVisitorProfileCapture } from "../hooks/useVisitorProfileCapture";
 import { VisitorInfoPanel } from "./VisitorInfoPanel";
 import {
   chatOpsPageWrapper,
@@ -511,6 +516,69 @@ export function ChatOperationsWorkspace() {
     });
   };
 
+  const canCaptureVisitorProfile = useMemo(() => {
+    if (!inboxAllowed || !accessToken || !agentChat.selectedConversationId) return false;
+    if (
+      viewingOtherAgent ||
+      agentChat.selectedIsClosed ||
+      Boolean(agentChat.sendBlockedReason)
+    ) {
+      return false;
+    }
+    return (
+      hasOperational(OP.chat.updateVisitorProfile) ||
+      hasOperational(OP.chat.access) ||
+      hasPage(PAGE.CHAT) ||
+      hasPage(PAGE.CHAT_INBOX)
+    );
+  }, [
+    accessToken,
+    agentChat.selectedConversationId,
+    agentChat.selectedIsClosed,
+    agentChat.sendBlockedReason,
+    hasOperational,
+    hasPage,
+    inboxAllowed,
+    viewingOtherAgent,
+  ]);
+
+  const { captureField } = useVisitorProfileCapture({
+    conversationId: agentChat.selectedConversationId,
+    token: accessToken,
+    enabled: canCaptureVisitorProfile,
+    onApplied: (result) => {
+      agentChat.applyVisitorProfileUpdate({
+        conversationId: result.conversationId,
+        visitorId: result.visitorId,
+        name: result.name,
+        email: result.email,
+        phone: result.phone,
+        visitorProfileComplete: result.visitorProfileComplete,
+        visitorPresentation: result.visitorPresentation,
+        displayName: result.visitorPresentation.displayName,
+        inboxTitle: result.visitorPresentation.inboxTitle,
+        subtitle: result.visitorPresentation.subtitle,
+      });
+    },
+  });
+
+  const [profileCaptureBusy, setProfileCaptureBusy] = useState(false);
+
+  const handleCaptureField = useCallback(
+    async (field: VisitorProfileField, selection: VisitorProfileCaptureSelection) => {
+      setProfileCaptureBusy(true);
+      try {
+        await captureField(field, selection.text, {
+          messageId: selection.messageId,
+          sourceText: selection.text,
+        });
+      } finally {
+        setProfileCaptureBusy(false);
+      }
+    },
+    [captureField],
+  );
+
   const sendBlockedHint = agentChat.sendBlockedReason;
 
   if (permissionsSyncing) {
@@ -720,6 +788,9 @@ export function ChatOperationsWorkspace() {
               distributionFormHref={distributionFormHref}
               requiresDistributionForm={Boolean(wrapUpForSelected?.requiresDistributionForm)}
               hasOperational={hasOperational}
+              profileCaptureEnabled={canCaptureVisitorProfile}
+              onCaptureField={handleCaptureField}
+              profileCaptureBusy={profileCaptureBusy}
             />
           </Box>
 

@@ -1,3 +1,4 @@
+import { isAxiosError } from "axios";
 import { apiClient } from "@/api";
 import { agentChatSocketAckOrRest } from "./agent-socket-api.util";
 import type {
@@ -14,6 +15,40 @@ import {
   normalizeConversationList,
 } from "./conversation-normalizers";
 import { chatAuthHeaders, unwrapChatHttpData } from "./http";
+import {
+  VisitorProfileConflictError,
+  type PatchVisitorProfileBody,
+  type PatchVisitorProfileResult,
+  type VisitorProfileField,
+} from "./visitor-profile.types";
+
+function readVisitorProfileConflict(
+  payload: unknown,
+): { message: string; field: VisitorProfileField; currentValue: string } | null {
+  if (!payload || typeof payload !== "object") return null;
+  const root = payload as Record<string, unknown>;
+  const err =
+    root.error && typeof root.error === "object"
+      ? (root.error as Record<string, unknown>)
+      : root;
+  const code = typeof err.code === "string" ? err.code : "";
+  if (code !== "VISITOR_FIELD_ALREADY_SET") return null;
+  const message =
+    typeof err.message === "string" && err.message.trim()
+      ? err.message.trim()
+      : "This field is already set.";
+  const details =
+    err.details && typeof err.details === "object"
+      ? (err.details as Record<string, unknown>)
+      : null;
+  const fieldRaw = typeof details?.field === "string" ? details.field : "";
+  const field: VisitorProfileField | null =
+    fieldRaw === "name" || fieldRaw === "email" || fieldRaw === "phone" ? fieldRaw : null;
+  if (!field) return null;
+  const currentValue =
+    typeof details?.currentValue === "string" ? details.currentValue : "";
+  return { message, field, currentValue };
+}
 
 /** @deprecated Use `createWidgetConversation` from `widget-visitor.api` (no dashboard session side effects). */
 export async function createConversation(
@@ -105,4 +140,31 @@ export async function postAgentWebsiteAvailabilityCheck(
     { headers: chatAuthHeaders(token) },
   );
   return unwrapChatHttpData(data);
+}
+
+export async function patchAgentVisitorProfile(
+  conversationId: string,
+  body: PatchVisitorProfileBody,
+  token?: string,
+): Promise<PatchVisitorProfileResult> {
+  try {
+    const { data } = await apiClient.patch<unknown>(
+      `/chat/agent/conversations/${encodeURIComponent(conversationId)}/visitor-profile`,
+      body,
+      { headers: chatAuthHeaders(token) },
+    );
+    return unwrapChatHttpData<PatchVisitorProfileResult>(data);
+  } catch (err) {
+    if (isAxiosError(err) && err.response?.status === 409) {
+      const conflict = readVisitorProfileConflict(err.response.data);
+      if (conflict) {
+        throw new VisitorProfileConflictError(
+          conflict.message,
+          conflict.field,
+          conflict.currentValue,
+        );
+      }
+    }
+    throw err;
+  }
 }

@@ -31,6 +31,7 @@ export const OP = {  accountSetup: {
     takeoverRequest: "chat:takeover:request",
     takeoverApprove: "chat:takeover:approve",
     guestLinkSend: "chat:guest-link:send",
+    updateVisitorProfile: "chat:update-visitor-profile",
     supervisorClose: "chat:supervisor:close",
     reportView: "chat:report:view",
   },

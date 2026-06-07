@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useLayoutEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import ForumOutlined from "@mui/icons-material/ForumOutlined";
 import InboxOutlined from "@mui/icons-material/InboxOutlined";
 import { useTheme } from "@mui/material/styles";
@@ -8,6 +8,7 @@ import type { AppTheme } from "@/theme/theme";
 import { Typography } from "@/components/common";
 import type { TypingPreviewBubble } from "@/lib/hooks/chat/typing-preview-display";
 import type { ChatMessage } from "@/services/chat/chat.types";
+import type { VisitorProfileField } from "@/services/chat/visitor-profile.types";
 import { getMessageGroupPosition } from "../utils/message-grouping";
 import {
   prepareInboxTranscriptMessages,
@@ -25,6 +26,15 @@ import {
   TypingDots,
   TypingIndicator,
 } from "../styles/chat-operations.styled";
+import {
+  VisitorTextCaptureToolbar,
+  type VisitorTextCaptureAnchor,
+} from "./VisitorTextCaptureToolbar";
+
+export interface VisitorProfileCaptureSelection {
+  text: string;
+  messageId: string;
+}
 
 interface ChatMessageListProps {
   messages: ChatMessage[];
@@ -39,6 +49,12 @@ interface ChatMessageListProps {
   /** Full-pane empty when no conversation is selected. */
   showEmptyPlaceholder?: boolean;
   transcriptDisplay?: InboxTranscriptDisplayOptions;
+  profileCaptureEnabled?: boolean;
+  onCaptureField?: (
+    field: VisitorProfileField,
+    selection: VisitorProfileCaptureSelection,
+  ) => void | Promise<void>;
+  profileCaptureBusy?: boolean;
 }
 
 export function ChatMessageList({
@@ -52,9 +68,17 @@ export function ChatMessageList({
   agentDisplayName = "You",
   showEmptyPlaceholder = false,
   transcriptDisplay,
+  profileCaptureEnabled = false,
+  onCaptureField,
+  profileCaptureBusy = false,
 }: ChatMessageListProps) {
   const theme = useTheme() as AppTheme;
   const threadRef = useRef<HTMLDivElement | null>(null);
+  const [captureMenu, setCaptureMenu] = useState<{
+    anchor: VisitorTextCaptureAnchor;
+    text: string;
+    messageId: string;
+  } | null>(null);
   const displayMessages = useMemo(
     () => prepareInboxTranscriptMessages(messages, transcriptDisplay),
     [messages, transcriptDisplay],
@@ -84,6 +108,89 @@ export function ChatMessageList({
   useLayoutEffect(() => {
     scrollThreadToBottom(true);
   }, [displayMessages.length, lastMessageKey, visitorTyping, typingPreviews?.length, scrollThreadToBottom]);
+
+  const dismissCaptureMenu = useCallback(() => {
+    setCaptureMenu(null);
+  }, []);
+
+  const handleThreadMouseUp = useCallback(() => {
+    if (!profileCaptureEnabled || !onCaptureField) {
+      dismissCaptureMenu();
+      return;
+    }
+    const selection = window.getSelection();
+    if (!selection || selection.isCollapsed || selection.rangeCount === 0) {
+      dismissCaptureMenu();
+      return;
+    }
+    const text = selection.toString().trim();
+    if (!text || text.length > 240) {
+      dismissCaptureMenu();
+      return;
+    }
+    const anchorNode = selection.anchorNode;
+    const element =
+      anchorNode instanceof Element ? anchorNode : anchorNode?.parentElement ?? null;
+    const bubble = element?.closest("[data-chat-message-id]");
+    if (!bubble) {
+      dismissCaptureMenu();
+      return;
+    }
+    if (bubble.getAttribute("data-chat-message-role") !== "visitor") {
+      dismissCaptureMenu();
+      return;
+    }
+    const messageId = bubble.getAttribute("data-chat-message-id")?.trim();
+    if (!messageId) {
+      dismissCaptureMenu();
+      return;
+    }
+    const rect = selection.getRangeAt(0).getBoundingClientRect();
+    if (!rect.width && !rect.height) {
+      dismissCaptureMenu();
+      return;
+    }
+    setCaptureMenu({
+      text,
+      messageId,
+      anchor: {
+        x: rect.left + rect.width / 2,
+        y: rect.top,
+      },
+    });
+  }, [dismissCaptureMenu, onCaptureField, profileCaptureEnabled]);
+
+  useEffect(() => {
+    if (!profileCaptureEnabled) {
+      dismissCaptureMenu();
+      return;
+    }
+    const thread = threadRef.current;
+    if (!thread) return;
+    thread.addEventListener("mouseup", handleThreadMouseUp);
+    thread.addEventListener("scroll", dismissCaptureMenu, { passive: true });
+    return () => {
+      thread.removeEventListener("mouseup", handleThreadMouseUp);
+      thread.removeEventListener("scroll", dismissCaptureMenu);
+    };
+  }, [dismissCaptureMenu, handleThreadMouseUp, profileCaptureEnabled]);
+
+  useEffect(() => {
+    dismissCaptureMenu();
+  }, [conversationId, dismissCaptureMenu]);
+
+  const handleCaptureFieldSelect = useCallback(
+    (field: VisitorProfileField) => {
+      if (!captureMenu || !onCaptureField) return;
+      void onCaptureField(field, {
+        text: captureMenu.text,
+        messageId: captureMenu.messageId,
+      });
+      window.getSelection()?.removeAllRanges();
+      dismissCaptureMenu();
+    },
+    [captureMenu, dismissCaptureMenu, onCaptureField],
+  );
 
   const activeTypingPreviews =
     typingPreviews && typingPreviews.length > 0
@@ -127,6 +234,7 @@ export function ChatMessageList({
   }
 
   return (
+    <>
     <MessageThread
       ref={threadRef}
       sx={{
@@ -188,5 +296,15 @@ export function ChatMessageList({
         );
       })}
     </MessageThread>
+    {captureMenu ? (
+      <VisitorTextCaptureToolbar
+        anchor={captureMenu.anchor}
+        selectedText={captureMenu.text}
+        busy={profileCaptureBusy}
+        onSelectField={handleCaptureFieldSelect}
+        onDismiss={dismissCaptureMenu}
+      />
+    ) : null}
+    </>
   );
 }
