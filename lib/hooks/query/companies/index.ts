@@ -8,6 +8,7 @@ export {
   useAbandonAllCompanySetupDraftsMutation,
   useCompanySetupDraftsListQuery,
   useCompanyPocDirectoryQuery,
+  useWebsiteDirectoryQuery,
   useCreateCompanySetupDraftMutation,
   useParentCompanyQuery,
   useSubmitCompanySetupDraftMutation,
@@ -15,7 +16,7 @@ export {
   useUpdateCompanySetupDraftMutation,
   useUpdateParentCompanyMutation,
 } from "./hooks";
-export type { CompaniesListParams } from "./hooks";
+export type { CompaniesListParams, WebsiteDirectoryParams } from "./hooks";
 export {
   useClientPermissionsQuery,
   useReplaceClientPermissionsMutation,

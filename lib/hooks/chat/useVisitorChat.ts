@@ -57,6 +57,10 @@ export interface UseVisitorChatReturn {
   agentTypingSeen: boolean;
   /** Live draft preview while agent/supervisor types. */
   agentTypingDraft: string;
+  /** True while the server is generating an AI reply (before/during stream). */
+  botReplying: boolean;
+  /** Streaming AI reply text (grows token-by-token via `ai_reply_delta`). */
+  botStreamingText: string;
   startConversation: (
     payload: VisitorCreateConversationPayload,
   ) => Promise<VisitorCreateConversationResponse>;
@@ -106,6 +110,13 @@ export function useVisitorChat(
   const [isConnected, setIsConnected] = useState(false);
   const [agentTypingFromOther, setAgentTypingFromOther] = useState(false);
   const [agentTypingDraft, setAgentTypingDraft] = useState("");
+  const [botReplying, setBotReplying] = useState(false);
+  const [botStreamingText, setBotStreamingText] = useState("");
+
+  const clearBotStream = useCallback(() => {
+    setBotReplying(false);
+    setBotStreamingText("");
+  }, []);
   const messageMapRef = useRef(new Map<string, ChatMessage>());
   const conversationIdRef = useRef<string | null>(null);
   const widgetTokenRef = useRef<string | null | undefined>(
@@ -232,6 +243,7 @@ export function useVisitorChat(
         content: row.content,
         senderType: row.senderType,
         messageType: row.messageType,
+        attachmentMetadata: row.attachmentMetadata,
         createdAt: row.createdAt,
       });
       if (normalized && !isHiddenFromVisitorWidget(normalized)) {
@@ -257,6 +269,7 @@ export function useVisitorChat(
         content: row.content,
         senderType: row.senderType,
         messageType: row.messageType,
+        attachmentMetadata: row.attachmentMetadata,
         createdAt: row.createdAt,
       });
       if (!normalized || isHiddenFromVisitorWidget(normalized)) continue;
@@ -343,12 +356,13 @@ export function useVisitorChat(
         setAssigned(true);
         optionsRef.current?.onIncomingReply?.(normalized);
       } else if (normalized.role === "ai" || normalized.role === "system") {
+        clearBotStream();
         if (optionsRef.current?.getSkipServerAiReply?.() !== true) {
           optionsRef.current?.onIncomingReply?.(normalized);
         }
       }
     },
-    [scheduleReconnectSync, upsertMessage],
+    [clearBotStream, scheduleReconnectSync, upsertMessage],
   );
 
   useEffect(() => {
@@ -438,10 +452,43 @@ export function useVisitorChat(
     });
     const offAiMessage = socketClient.onAiMessageRaw((payload) => {
       if (optionsRef.current?.getSkipServerAiReply?.() === true) return;
+      clearBotStream();
       deliverIncomingMessage(payload, {
         forcedRole: "system",
         trustActiveConversation: true,
       });
+    });
+
+    const offAiReplyStart = socketClient.onAiReplyStart((payload) => {
+      const cid = conversationIdRef.current;
+      if (
+        !cid ||
+        typeof payload !== "object" ||
+        !payload ||
+        (payload as { conversationId?: string }).conversationId !== cid
+      ) {
+        return;
+      }
+      if (optionsRef.current?.getSkipServerAiReply?.() === true) return;
+      setBotReplying(true);
+      setBotStreamingText("");
+    });
+
+    const offAiReplyDelta = socketClient.onAiReplyDelta((payload) => {
+      const cid = conversationIdRef.current;
+      if (
+        !cid ||
+        typeof payload !== "object" ||
+        !payload ||
+        (payload as { conversationId?: string }).conversationId !== cid
+      ) {
+        return;
+      }
+      if (optionsRef.current?.getSkipServerAiReply?.() === true) return;
+      const delta = (payload as { delta?: string }).delta;
+      if (!delta) return;
+      setBotReplying(true);
+      setBotStreamingText((prev) => prev + delta);
     });
 
     const offMonitorLive = socketClient.onMonitorLiveUpdate((update) => {
@@ -566,6 +613,8 @@ export function useVisitorChat(
       offAgentMessage();
       offSupervisorControl();
       offAiMessage();
+      offAiReplyStart();
+      offAiReplyDelta();
       offMonitorLive();
       offHandover();
       offTyping();
@@ -574,7 +623,7 @@ export function useVisitorChat(
       offQueued();
       offClosed();
     };
-  }, [deliverIncomingMessage, scheduleReconnectSync, socketClient]);
+  }, [clearBotStream, deliverIncomingMessage, scheduleReconnectSync, socketClient]);
 
   const joinRoom = useCallback(
     (roomConversationId: string) => {
@@ -684,6 +733,7 @@ export function useVisitorChat(
           content: row.content,
           senderType: row.senderType,
           messageType: row.messageType,
+          attachmentMetadata: row.attachmentMetadata,
           createdAt: row.createdAt,
         });
         if (normalized && !isHiddenFromVisitorWidget(normalized)) {
@@ -735,6 +785,7 @@ export function useVisitorChat(
       }
       const skipAi = optionsRef.current?.getSkipServerAiReply?.() === true;
       const aiRow = envelope.aiMessage;
+      clearBotStream();
       if (!skipAi && aiRow?.content?.trim()) {
         const normalized = normalizeServerMessage({
           ...aiRow,
@@ -744,13 +795,19 @@ export function useVisitorChat(
         if (normalized) upsertMessage(normalized);
       }
     },
-    [conversationId, upsertMessage],
+    [clearBotStream, conversationId, upsertMessage],
   );
 
   const sendMessage = useCallback(
     async (content: string, sendOpts?: { messageType?: string }) => {
       if (!conversationId) {
         throw new Error("Conversation not started. Call startConversation first.");
+      }
+
+      const skipAi = optionsRef.current?.getSkipServerAiReply?.() === true;
+      if (!skipAi) {
+        setBotReplying(true);
+        setBotStreamingText("");
       }
 
       const pageUrl = resolvePageUrl();
@@ -798,6 +855,7 @@ export function useVisitorChat(
     },
     [
       applyVisitorSendAck,
+      clearBotStream,
       conversationId,
       resolvePageUrl,
       socketClient,
@@ -844,6 +902,8 @@ export function useVisitorChat(
     isConnected,
     agentTypingSeen: agentTypingFromOther,
     agentTypingDraft: agentTypingDraft.trim(),
+    botReplying,
+    botStreamingText,
     startConversation,
     resumeConversation,
     sendMessage,

@@ -48,6 +48,7 @@ import {
   shouldSkipWidgetTrack,
 } from "@/lib/widget-runtime/widget-track-dedupe";
 import { ChatFormattedMessage } from "@/lib/safe-markdown/ChatFormattedMessage";
+import { EmbedProductRichCard, isRichCardMessage, readMessageRichCard } from "@/components/embed/EmbedProductRichCard";
 import { normalizeChatMessageText } from "@/lib/safe-markdown/text";
 import { useVisitorChat } from "@/lib/hooks/chat/useVisitorChat";
 import {
@@ -1313,6 +1314,11 @@ function WidgetChatPanel({
     if (!aiPending) return;
     const since = aiPendingSinceRef.current;
     if (!since) return;
+    if (chat.botStreamingText.trim()) {
+      setAiPending(false);
+      aiPendingSinceRef.current = null;
+      return;
+    }
     const gotAi = chat.messages.some((m) => {
       if (m.role !== "system") return false;
       if (!m.createdAt) return true;
@@ -1322,7 +1328,7 @@ function WidgetChatPanel({
       setAiPending(false);
       aiPendingSinceRef.current = null;
     }
-  }, [aiPending, chat.messages]);
+  }, [aiPending, chat.botStreamingText, chat.messages]);
 
   const mergeDisplayMessages = useMemo(() => {
     const map = new Map<string, ChatMessage>();
@@ -2016,6 +2022,14 @@ function WidgetChatPanel({
             appearance={appearance}
           />
         ))}
+        {assistantHandlesChat &&
+        !escalated &&
+        (chat.botReplying || chat.botStreamingText.trim()) &&
+        appearance ? (
+          <EmbedChatBubble appearance={appearance} role="assistant">
+            {chat.botStreamingText.trim() || "…"}
+          </EmbedChatBubble>
+        ) : null}
         {chat.agentTypingSeen && chat.agentTypingDraft && appearance ? (
           <EmbedChatBubble appearance={appearance} role="assistant">
             {chat.agentTypingDraft}
@@ -2358,6 +2372,8 @@ function MessageBubble({
 }) {
   const bubbleRole = resolveEmbedMessageBubbleRole(message.role);
   const alignRight = bubbleRole === "visitor";
+  const richCard = readMessageRichCard(message.metadata);
+  const showRichCard = isRichCardMessage(message.metadata) && richCard;
 
   return (
     <Box sx={appearance ? embedChatBubbleShellSx(alignRight ? "end" : "start") : {}}>
@@ -2366,10 +2382,18 @@ function MessageBubble({
           appearance ? embedTranscriptBubbleInnerSx(appearance, bubbleRole) : {}
         }
       >
-        <ChatFormattedMessage
-          text={message.content}
-          linkColor={appearance?.colors.primary ?? "#2563eb"}
-        />
+        {showRichCard ? (
+          <EmbedProductRichCard
+            card={richCard}
+            text={message.content}
+            appearance={appearance}
+          />
+        ) : (
+          <ChatFormattedMessage
+            text={message.content}
+            linkColor={appearance?.colors.primary ?? "#2563eb"}
+          />
+        )}
       </Box>
     </Box>
   );

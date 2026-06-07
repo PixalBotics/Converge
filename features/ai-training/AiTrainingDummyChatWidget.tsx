@@ -140,7 +140,7 @@ export function AiTrainingDummyChatWidget({
               lineHeight: 1.55,
             }}
           >
-            Same AI pipeline as your live widget — send a message to test replies from indexed training.
+            Same AI pipeline as your live widget — multi-turn chat and indexed training. Ask follow-up questions to test context.
           </Box>
         ) : (
           turns.map((turn) => (

@@ -9,6 +9,7 @@ import {
   abandonAllCompanySetupDrafts,
   listCompanySetupDrafts,
   listCompanyPocDirectory,
+  listWebsiteDirectory,
   getParentCompany,
   listCompanies,
   submitCompanySetupDraft,
@@ -109,6 +110,27 @@ export function useCompanyPocDirectoryQuery(
   return useQuery({
     queryKey: companiesKeys.pocDirectory(params),
     queryFn: () => listCompanyPocDirectory(params),
+    enabled: options?.enabled ?? true,
+  });
+}
+
+export type WebsiteDirectoryParams = {
+  page?: number;
+  limit?: number;
+  all?: boolean;
+  search?: string;
+  resellerId?: string;
+  parentCompanyId?: string;
+  childCompanyId?: string;
+};
+
+export function useWebsiteDirectoryQuery(
+  params?: WebsiteDirectoryParams,
+  options?: { enabled?: boolean },
+) {
+  return useQuery({
+    queryKey: companiesKeys.websiteDirectory(params),
+    queryFn: () => listWebsiteDirectory(params),
     enabled: options?.enabled ?? true,
   });
 }

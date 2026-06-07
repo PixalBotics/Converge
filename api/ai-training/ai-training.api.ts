@@ -82,8 +82,11 @@ export type AiTrainingTestRespondResult =
     }
   | {
       variant: "assistant";
-      action: string;
-      output: string | unknown;
+      intent?: string;
+      response: string;
+      replySource?: string;
+      knowledgeMatches?: AiTrainingKnowledgeMatch[];
+      topKnowledgeMatch?: { content: string; score: number } | null;
       pipeline?: AiPipelineStep[];
       activeFlowNodeIds?: string[];
       activeFlowEdgeIds?: string[];
@@ -125,6 +128,8 @@ export async function postAiTrainingTestRespond(body: {
   variant: "chatbot" | "assistant";
   message: string;
   currentPageUrl?: string;
+  /** Prior turns — `visitor:` / `ai:` lines; current message excluded. */
+  history?: string[];
 }): Promise<AiTrainingTestRespondResult> {
   const { data } = await apiClient.post<unknown>("/ai-training/test-respond", body);
   return unwrapAiKnowledgeData<AiTrainingTestRespondResult>(data);

@@ -188,6 +188,10 @@ export function AiTrainingAutomationStudioPage({
     const trimmed = message.trim();
     if (!trimmed || testMutation.isPending || !websiteId) return;
 
+    const history = turns.map((t) =>
+      t.role === "visitor" ? `visitor: ${t.text}` : `ai: ${t.text}`,
+    );
+
     setTurns((prev) => [...prev, { id: `v-${Date.now()}`, role: "visitor", text: trimmed }]);
 
     try {
@@ -196,37 +200,35 @@ export function AiTrainingAutomationStudioPage({
         variant,
         message: trimmed,
         ...(websiteUrl ? { currentPageUrl: websiteUrl } : {}),
+        ...(history.length > 0 ? { history } : {}),
       });
 
       let answer = "";
       let steps: AiPipelineStep[] = result.pipeline ?? [];
 
-      if (result.variant === "chatbot") {
-        answer = result.response ?? "";
-        if (result.knowledgeMatches?.length) {
-          const sources = result.knowledgeMatches
-            .slice(0, 3)
-            .map((m) => m.sourceRef || "KB chunk")
-            .join(", ");
-          steps = [
-            ...steps.filter((s) => s.id !== "kb_search"),
-            ...(steps.some((s) => s.id === "kb_search")
-              ? []
-              : [
-                  {
-                    id: "kb_search",
-                    label: "KB search",
-                    detail: `${result.knowledgeMatches.length} match(es): ${sources}`,
-                    status: "done" as const,
-                  },
-                ]),
-          ];
-        }
-      } else {
-        answer =
-          typeof result.output === "string"
-            ? result.output
-            : JSON.stringify(result.output, null, 2);
+      answer =
+        result.response?.trim() ||
+        (typeof (result as { output?: unknown }).output === "string"
+          ? (result as { output: string }).output
+          : "");
+      if (result.knowledgeMatches?.length) {
+        const sources = result.knowledgeMatches
+          .slice(0, 3)
+          .map((m) => m.sourceRef || "KB chunk")
+          .join(", ");
+        steps = [
+          ...steps.filter((s) => s.id !== "kb_search"),
+          ...(steps.some((s) => s.id === "kb_search")
+            ? []
+            : [
+                {
+                  id: "kb_search",
+                  label: "KB search",
+                  detail: `${result.knowledgeMatches.length} match(es): ${sources}`,
+                  status: "done" as const,
+                },
+              ]),
+        ];
       }
 
       setPipeline(steps);

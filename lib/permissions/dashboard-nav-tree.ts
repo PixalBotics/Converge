@@ -219,13 +219,21 @@ const WEBSITE_GROUP: DashboardNavItem = {
   section: "activity",
   iconKey: "websiteAssignments",
   permission: null,
-  permissionsAny: [PAGE.WEBSITE_ASSIGNMENTS],
+  permissionsAny: [PAGE.WEBSITE_ASSIGNMENTS, "page:clients"],
   children: [
     {
       ...toNavItem(PAGE.WEBSITE_ASSIGNMENTS)!,
       label: "Website assign",
       prefixMatch: true,
-      pathExcludes: ["/service-schedules", "/service-scheduling"],
+      pathExcludes: ["/service-schedules", "/service-scheduling", "/dashboard/websites"],
+    },
+    {
+      href: "/dashboard/websites",
+      label: "Website directory",
+      section: "activity",
+      iconKey: "websiteAssignments",
+      permission: "page:clients",
+      prefixMatch: false,
     },
     {
       href: "/dashboard/website-assigning/service-schedules",

@@ -13,6 +13,16 @@ export interface AgentVisitorPresentation {
   websiteUrl: string;
 }
 
+/** Rich product/project card attached to AI messages. */
+export interface VisitorAiRichCard {
+  title: string;
+  description?: string;
+  imageUrl?: string;
+  linkUrl?: string;
+  price?: string;
+  brand?: string;
+}
+
 /** Unified client chat message shape (REST + realtime). */
 export interface ChatMessage {
   id?: string;
@@ -67,6 +77,7 @@ export interface WidgetConversationMessageDto {
   content?: string;
   senderType?: string;
   messageType?: string;
+  attachmentMetadata?: Record<string, unknown>;
   createdAt?: string;
 }
 
