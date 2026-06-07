@@ -17,6 +17,12 @@ export function formatTestReplyHint(result: AiTrainingTestRespondResult): string
   }
 
   if (result.replySource === "template") {
+    if (detail.includes("preset fallback") || detail.includes("preset low-confidence")) {
+      return "Preset · fallback message";
+    }
+    if (detail.includes("training excerpt") || detail.includes("weak llm replaced")) {
+      return "Training excerpt · weak AI answer replaced";
+    }
     if (result.intent === "talk_to_agent" || detail.includes("escalation")) {
       return "Preset · talk to agent";
     }
