@@ -28,6 +28,7 @@ type ChatEventMap = {
   agent_message: (payload: ChatMessage) => void;
   ai_message: (payload: ChatMessage) => void;
   ai_reply_delta: (payload: unknown) => void;
+  ai_reply_start: (payload: unknown) => void;
   typing: (payload: TypingPayload) => void;
   stop_typing: (payload: TypingPayload) => void;
   chat_assigned: (payload: unknown) => void;
@@ -493,6 +494,10 @@ export class ChatSocketClient {
 
   onAiReplyDelta(listener: ChatEventMap["ai_reply_delta"]): () => void {
     return this.on("ai_reply_delta", listener);
+  }
+
+  onAiReplyStart(listener: ChatEventMap["ai_reply_start"]): () => void {
+    return this.on("ai_reply_start", listener);
   }
 
   onChatAssigned(listener: ChatEventMap["chat_assigned"]): () => void {

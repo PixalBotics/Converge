@@ -50,6 +50,13 @@ export const ROUTE_RULES: readonly RouteRule[] = [
     iconKey: "websiteAssignments",
     prefixMatch: true,
   },
+  {
+    permission: "page:clients",
+    href: "/dashboard/websites",
+    iconKey: "websiteAssignments",
+    label: "Website directory",
+    prefixMatch: false,
+  },
   { permission: "page:roles", href: "/dashboard/roles", iconKey: "roles" },
   { permission: "page:departments", href: "/dashboard/departments", iconKey: "departments" },
   {
@@ -314,6 +321,7 @@ const DASHBOARD_URL_SEGMENT_TO_PAGE: Readonly<Record<string, PagePermission>> = 
   companies: "page:account-setup",
   "account-setup": "page:account-setup",
   "website-assigning": "page:website-assignments",
+  websites: "page:clients",
   roles: "page:roles",
   departments: "page:departments",
   designations: "page:designations",

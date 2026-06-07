@@ -141,7 +141,9 @@ export function ClosePolicyTab({
 
   useEffect(() => {
     if (!onSaveReady) return;
-    onSaveReady(() => handleSaveRef.current());
+    onSaveReady(() => {
+      handleSaveRef.current();
+    });
   }, [onSaveReady]);
 
   const sectionDisabled = !canEdit || !policyEnabled;

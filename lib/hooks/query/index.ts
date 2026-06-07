@@ -27,6 +27,7 @@ export {
   useAbandonAllCompanySetupDraftsMutation,
   useCompanySetupDraftsListQuery,
   useCompanyPocDirectoryQuery,
+  useWebsiteDirectoryQuery,
   useCreateCompanySetupDraftMutation,
   useParentCompanyQuery,
   useSubmitCompanySetupDraftMutation,
@@ -34,7 +35,7 @@ export {
   useUpdateCompanySetupDraftMutation,
   useUpdateParentCompanyMutation,
 } from "./companies";
-export type { CompaniesListParams } from "./companies";
+export type { CompaniesListParams, WebsiteDirectoryParams } from "./companies";
 export { rolesKeys } from "./roles";
 export {
   useCreateRoleMutation,
