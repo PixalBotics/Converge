@@ -6,6 +6,7 @@ import Chip from "@mui/material/Chip";
 import { alpha, useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import { filterPanelDescriptionSx, SelectField, Typography } from "@/components/common";
+import { mergeSx } from "@/lib/mui/merge-sx";
 import { useQaChannelDepartmentsQuery } from "@/features/chat-qa/hooks/useQaChannelDepartmentsQuery";
 import { useQaInternalPoolsQuery } from "@/features/chat-qa/hooks/useQaInternalPoolsQuery";
 import { QaDirectoryUserPicker } from "@/features/chat-qa/components/QaDirectoryUserPicker";
@@ -169,7 +170,7 @@ export function QaRosterChannelPanel({
         />
       </Box>
 
-      <Typography variant="medium" sx={[filterPanelDescriptionSx, { mb: 1.5 }]}>
+      <Typography variant="medium" sx={mergeSx(filterPanelDescriptionSx, { mb: 1.5 })}>
         Dedicated QA staff only — users on the <strong>live chat roster</strong> for this website are
         hidden. They handle chats; QA reviewers score closed conversations in the QA inbox.
       </Typography>
