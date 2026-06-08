@@ -1,7 +1,12 @@
 import { apiClient } from "@/api/http/axios-instance";
 import { agentChatSocketAckOrRest } from "./agent-socket-api.util";
 import { chatAuthHeaders, unwrapChatHttpData } from "./http";
-import type { ChatReportOverview, ChatReportQuery } from "./reports.types";
+import type { QaReviewBundle } from "./qa.types";
+import type {
+  ChatReportOverview,
+  ChatReportQuery,
+  QaQualityReport,
+} from "./reports.types";
 
 function reportParams(query: ChatReportQuery): Record<string, string> {
   const params: Record<string, string> = {};
@@ -35,4 +40,27 @@ export async function fetchChatReportOverview(
       return unwrapChatHttpData<ChatReportOverview>(data);
     },
   );
+}
+
+export async function fetchQaQualityReport(
+  query: ChatReportQuery = {},
+  token?: string,
+): Promise<QaQualityReport> {
+  const { data } = await apiClient.get<unknown>("/chat/reports/qa-quality", {
+    params: reportParams(query),
+    headers: chatAuthHeaders(token),
+  });
+  return unwrapChatHttpData<QaQualityReport>(data);
+}
+
+/** Supervisors (pool/dept/external heads) — full read-only QA review without QA inbox. */
+export async function fetchSupervisorQaReviewBundle(
+  conversationId: string,
+  token?: string,
+): Promise<QaReviewBundle> {
+  const { data } = await apiClient.get<unknown>(
+    `/chat/reports/qa-review/${encodeURIComponent(conversationId)}`,
+    { headers: chatAuthHeaders(token) },
+  );
+  return unwrapChatHttpData<QaReviewBundle>(data);
 }

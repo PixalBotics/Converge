@@ -1,5 +1,25 @@
 export type ChatParticipantRole = "visitor" | "agent" | "ai" | "system";
 
+export type VisitorProfileField = "name" | "email" | "phone";
+
+export type PatchAgentVisitorProfileBody = {
+  field: VisitorProfileField;
+  value: string;
+  sourceMessageId?: string;
+  sourceText?: string;
+  confirmOverwrite?: boolean;
+};
+
+export type AgentVisitorProfileUpdateResult = {
+  visitorId: string;
+  conversationId: string;
+  name: string | null;
+  email: string | null;
+  phone: string | null;
+  visitorProfileComplete: boolean;
+  visitorPresentation: AgentVisitorPresentation;
+};
+
 /** Backend `AgentVisitorPresentation` — lists, popups, monitor rows. */
 export interface AgentVisitorPresentation {
   visitorProfileComplete: boolean;
@@ -11,6 +31,16 @@ export interface AgentVisitorPresentation {
   websiteName: string;
   childCompanyName: string;
   websiteUrl: string;
+}
+
+/** Rich product/project card attached to AI messages. */
+export interface VisitorAiRichCard {
+  title: string;
+  description?: string;
+  imageUrl?: string;
+  linkUrl?: string;
+  price?: string;
+  brand?: string;
 }
 
 /** Unified client chat message shape (REST + realtime). */
@@ -67,6 +97,7 @@ export interface WidgetConversationMessageDto {
   content?: string;
   senderType?: string;
   messageType?: string;
+  attachmentMetadata?: Record<string, unknown>;
   createdAt?: string;
 }
 
@@ -110,6 +141,12 @@ export interface ConversationSummary {
   conversationId?: string;
   websiteId?: string;
   departmentId?: string | null;
+  serviceChannel?: "Internal" | "External" | string | null;
+  lastTransferFrom?: {
+    userId: string;
+    label: string;
+    transferredAt?: string;
+  } | null;
   status?: "assigned" | "waiting" | "active" | "closed" | string;
   visitorId?: string;
   assignedAgentId?: string | null;

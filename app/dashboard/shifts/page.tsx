@@ -65,7 +65,7 @@ export default function ShiftsPage() {
   const queryClient = useQueryClient();
   const { hasOperational, isPlatformAdmin, user: authUser } = useAuth();
   const mayPickInternal = useMemo(
-    () => sessionMayPickInternalUserScope(isPlatformAdmin, authUser?.userType),
+    () => sessionMayPickInternalUserScope(isPlatformAdmin, authUser),
     [isPlatformAdmin, authUser?.userType],
   );
   const canCreateShift = canShiftAction(hasOperational, "create");

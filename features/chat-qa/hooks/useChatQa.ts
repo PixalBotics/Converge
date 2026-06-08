@@ -14,7 +14,10 @@ import {
 import type {
   MessageQaAnnotation,
   QaQueueFilters,
+  QaQueueRow,
+  QaReviewBundle,
   QaReviewStatus,
+  QaSessionReview,
   UpsertQaMessageAnnotationBody,
   UpsertQaSessionReviewBody,
 } from "@/services/chat/qa.types";
@@ -25,6 +28,11 @@ import { useChatQaSocket } from "@/lib/hooks/chat/useChatQaSocket";
 import { chatQaKeys } from "./keys";
 
 export type QaStatusTab = QaReviewStatus | "all";
+
+function filterQueueByStatus(rows: QaQueueRow[], statusTab: QaStatusTab): QaQueueRow[] {
+  if (statusTab === "all") return rows;
+  return rows.filter((r) => r.status === statusTab);
+}
 
 export function useChatQa(
   initialConversationId?: string | null,
@@ -42,34 +50,34 @@ export function useChatQa(
   const [bundleLoading, setBundleLoading] = useState(false);
   const [bundleError, setBundleError] = useState<string | null>(null);
 
-  const queueFilters = useMemo((): QaQueueFilters => {
-    const next = { ...filters };
-    if (statusTab !== "all") next.status = statusTab;
-    else delete next.status;
-    return next;
-  }, [filters, statusTab]);
-
-  const queueQuery = useQuery({
-    queryKey: chatQaKeys.queue(queueFilters),
-    queryFn: () => fetchQaMyQueue(queueFilters, token),
-    enabled: apiEnabled && Boolean(token),
-  });
-
-  const countFilters = useMemo((): QaQueueFilters => {
-    const { status: _s, ...rest } = queueFilters;
+  /** Single socket fetch — status tab filtered client-side (avoids duplicate HTTP). */
+  const baseQueueFilters = useMemo((): QaQueueFilters => {
+    const { status: _s, ...rest } = filters;
     return rest;
-  }, [queueFilters]);
+  }, [filters]);
 
-  const countQuery = useQuery({
-    queryKey: chatQaKeys.countQueue(countFilters),
-    queryFn: () => fetchQaMyQueue(countFilters, token),
+  const allQueueQuery = useQuery({
+    queryKey: chatQaKeys.queue(baseQueueFilters),
+    queryFn: () => fetchQaMyQueue(baseQueueFilters, token),
     enabled: apiEnabled && Boolean(token),
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
   });
+
+  const allQueueRows = allQueueQuery.data ?? [];
+
+  const queue = useMemo(
+    () => filterQueueByStatus(allQueueRows, statusTab),
+    [allQueueRows, statusTab],
+  );
 
   const bundleQuery = useQuery({
     queryKey: chatQaKeys.bundle(selectedConversationId ?? ""),
     queryFn: () => fetchQaReviewBundle(selectedConversationId!, token),
     enabled: apiEnabled && Boolean(token && selectedConversationId),
+    staleTime: 120_000,
+    refetchOnWindowFocus: false,
+    placeholderData: (prev) => prev,
   });
 
   const messages: ChatMessage[] = useMemo(() => {
@@ -130,8 +138,26 @@ export function useChatQa(
       if (!selectedConversationId || !token) return;
       setBundleLoading(true);
       try {
-        await upsertQaSessionReview(selectedConversationId, body, token);
-        refreshBundle();
+        const updated = await upsertQaSessionReview(selectedConversationId, body, token);
+        if (updated && typeof updated === "object") {
+          queryClient.setQueryData<QaReviewBundle | undefined>(
+            chatQaKeys.bundle(selectedConversationId),
+            (prev) => {
+              if (!prev) return prev;
+              const patch = updated as Partial<QaSessionReview>;
+              const base: QaSessionReview = prev.review ?? {
+                id: patch.id ?? "",
+                conversationId: selectedConversationId,
+                websiteId: patch.websiteId ?? "",
+                status: body.status,
+              };
+              return {
+                ...prev,
+                review: { ...base, ...patch },
+              };
+            },
+          );
+        }
         refreshQueue();
         publishAppToast({
           message:
@@ -152,21 +178,34 @@ export function useChatQa(
         setBundleLoading(false);
       }
     },
-    [refreshBundle, refreshQueue, selectedConversationId, token],
+    [queryClient, refreshQueue, selectedConversationId, token],
   );
 
   const saveMessageAnnotation = useCallback(
     async (messageId: string, body: UpsertQaMessageAnnotationBody) => {
-      if (!token) return;
+      if (!token || !selectedConversationId) return;
       setBundleLoading(true);
       try {
-        await upsertQaMessageAnnotation(messageId, body, token);
-        refreshBundle();
+        const saved = await upsertQaMessageAnnotation(messageId, body, token);
+        if (saved && typeof saved === "object") {
+          queryClient.setQueryData<QaReviewBundle | undefined>(
+            chatQaKeys.bundle(selectedConversationId),
+            (prev) => {
+              if (!prev) return prev;
+              const annotations = [...(prev.annotations ?? [])];
+              const idx = annotations.findIndex((a) => a.messageId === messageId);
+              const next = { ...(saved as MessageQaAnnotation), messageId };
+              if (idx >= 0) annotations[idx] = { ...annotations[idx], ...next };
+              else annotations.push(next);
+              return { ...prev, annotations };
+            },
+          );
+        }
       } finally {
         setBundleLoading(false);
       }
     },
-    [refreshBundle, token],
+    [queryClient, selectedConversationId, token],
   );
 
   const claimReview = useCallback(async () => {
@@ -212,14 +251,14 @@ export function useChatQa(
 
   const websiteOptions = useMemo(() => {
     const map = new Map<string, string>();
-    for (const row of queueQuery.data ?? []) {
+    for (const row of allQueueRows) {
       const w = row.conversation?.website;
       if (w?.id) {
         map.set(w.id, w.name?.trim() || w.childCompany?.name?.trim() || w.id.slice(0, 8));
       }
     }
     return [...map.entries()].map(([id, label]) => ({ id, label }));
-  }, [queueQuery.data]);
+  }, [allQueueRows]);
 
   return {
     token,
@@ -227,14 +266,14 @@ export function useChatQa(
     setStatusTab,
     filters,
     setFilters,
-    queue: queueQuery.data ?? [],
-    queueLoading: queueQuery.isLoading,
-    queueError: queueQuery.error,
+    queue,
+    queueLoading: allQueueQuery.isLoading,
+    queueError: allQueueQuery.error,
     refreshQueue,
     selectedConversationId,
     selectConversation,
     bundle: bundleQuery.data ?? null,
-    bundleLoading: bundleQuery.isLoading || bundleLoading,
+    bundleLoading: bundleQuery.isFetching || bundleLoading,
     bundleError: bundleQuery.error ? String(bundleQuery.error) : bundleError,
     messages,
     visitorFromHistory,
@@ -246,10 +285,10 @@ export function useChatQa(
     refreshBundle,
     websiteOptions,
     statusCounts: {
-      pending: (countQuery.data ?? []).filter((r) => r.status === "pending").length,
-      in_progress: (countQuery.data ?? []).filter((r) => r.status === "in_progress").length,
-      completed: (countQuery.data ?? []).filter((r) => r.status === "completed").length,
-      all: countQuery.data?.length ?? 0,
+      pending: allQueueRows.filter((r) => r.status === "pending").length,
+      in_progress: allQueueRows.filter((r) => r.status === "in_progress").length,
+      completed: allQueueRows.filter((r) => r.status === "completed").length,
+      all: allQueueRows.length,
     },
   };
 }

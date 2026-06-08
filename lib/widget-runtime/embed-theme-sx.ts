@@ -1,7 +1,55 @@
 import type { CSSProperties } from "react";
 import type { SxProps, Theme } from "@mui/material/styles";
 import type { ChatParticipantRole } from "@/services/chat/chat.types";
+import {
+  resolveBubbleSurfaceSx,
+  resolveLauncherFabSurfaceSx,
+  resolveWidgetPanelSurfaceSx,
+} from "@/lib/chat-widget/launcher-style";
+import {
+  normalizeAgentAvatarPreset,
+  normalizeVisitorAvatarPreset,
+} from "@/lib/chat-widget/chat-avatar-presets";
 import type { RuntimeChatAppearance } from "./widget-runtime-appearance";
+
+export const EMBED_CHAT_AVATAR_SIZE_PX = 32;
+export const EMBED_CHAT_AVATAR_GAP_PX = 8;
+export const EMBED_CHAT_AVATAR_COLUMN_PX =
+  EMBED_CHAT_AVATAR_SIZE_PX + EMBED_CHAT_AVATAR_GAP_PX;
+
+export function embedChatBubbleMaxWidth(): string {
+  return `calc(100% - ${EMBED_CHAT_AVATAR_COLUMN_PX}px)`;
+}
+
+/** Keep left/right transcript gutters even when only the agent avatar is enabled. */
+export function shouldMirrorEmbedChatAvatarColumn(
+  appearance: RuntimeChatAppearance,
+  align: "start" | "end",
+  showAvatar: boolean,
+): boolean {
+  if (showAvatar) return false;
+  if (align === "end") {
+    return appearance.avatars.agent.enabled && !appearance.avatars.visitor.enabled;
+  }
+  return appearance.avatars.visitor.enabled && !appearance.avatars.agent.enabled;
+}
+
+export function resolveEmbedChatAvatarDisplay(
+  appearance: RuntimeChatAppearance,
+  variant: "agent" | "visitor",
+): { url: string; preset: string } {
+  const config =
+    variant === "visitor" ? appearance.avatars.visitor : appearance.avatars.agent;
+  const url =
+    config.url.trim() ||
+    (variant === "agent" ? appearance.launcher.proactiveTeaserAvatarUrl.trim() : "") ||
+    "";
+  const preset =
+    variant === "visitor"
+      ? normalizeVisitorAvatarPreset(config.preset)
+      : normalizeAgentAvatarPreset(config.preset);
+  return { url, preset };
+}
 
 /**
  * Published `chat.colors` only defines incoming/outgoing bubbles.
@@ -14,47 +62,21 @@ export function resolveEmbedMessageBubbleRole(
   return "assistant";
 }
 
-/** Floating launcher FAB — flat, no MUI elevation shadow. */
+/** Floating launcher FAB — style presets (solid, gradient, glass, glow). */
 export function embedLauncherFabSx(
   appearance: RuntimeChatAppearance,
   shape: string,
   sizePx: number,
 ): SxProps<Theme> {
-  const radius =
-    shape === "square" ? "10px" : shape === "rounded" ? "16px" : "50%";
-  const noShadow = {
-    boxShadow: "none !important",
-    filter: "none",
-    backgroundImage: "none",
-  };
-  return {
-    width: sizePx,
-    height: sizePx,
-    minWidth: sizePx,
-    minHeight: sizePx,
-    flexShrink: 0,
-    borderRadius: radius,
-    bgcolor: `${appearance.launcher.buttonColor} !important`,
-    color: `${appearance.launcher.iconColor} !important`,
-    overflow: "hidden",
-    border: "none",
-    ...noShadow,
-    transition: "background-color 0.15s ease",
-    "&:hover": {
-      bgcolor: `${appearance.launcher.buttonHoverColor} !important`,
-      color: `${appearance.launcher.iconColor} !important`,
-      ...noShadow,
-    },
-    "&:active": noShadow,
-    "&:focus": noShadow,
-    "&:focus-visible": {
-      ...noShadow,
-      outline: `2px solid ${appearance.colors.primary}`,
-      outlineOffset: 2,
-    },
-    "&.Mui-focusVisible": noShadow,
-    "&.MuiIconButton-root": noShadow,
-  };
+  const surface = resolveLauncherFabSurfaceSx({
+    style: appearance.launcher.style,
+    buttonColor: appearance.launcher.buttonColor,
+    buttonHoverColor: appearance.launcher.buttonHoverColor,
+    iconColor: appearance.launcher.iconColor,
+    shape,
+    sizePx,
+  });
+  return surface;
 }
 
 /** Single scroll region for chat transcript (avoids nested scrollbars). */
@@ -62,13 +84,15 @@ export function embedPanelMessageListSx(
   appearance: RuntimeChatAppearance,
 ): SxProps<Theme> {
   const c = appearance.colors;
+  const padX = Math.max(10, appearance.densityTokens.panelPaddingPx * 0.65);
   return {
     flex: 1,
     minHeight: 0,
     overflowY: "auto",
     overflowX: "hidden",
-    pr: 0.25,
-    mr: -0.25,
+    px: `${padX}px`,
+    pt: 0.5,
+    pb: 1,
     scrollbarWidth: "thin",
     scrollbarColor: `${c.mutedText}40 transparent`,
     "&::-webkit-scrollbar": { width: 6 },
@@ -94,11 +118,12 @@ export function embedPanelMessageListSx(
 export function embedEmbeddedChatPanelSx(
   appearance: RuntimeChatAppearance,
 ): SxProps<Theme> {
-  const pad = appearance.densityTokens.panelPaddingPx / 8;
+  const padY = appearance.densityTokens.panelPaddingPx / 8;
   return {
     border: "none",
     borderRadius: 0,
-    p: pad,
+    px: 0,
+    py: padY,
     bgcolor: "transparent",
     display: "flex",
     flexDirection: "column",
@@ -122,21 +147,59 @@ export function embedComposerFooterSx(
   };
 }
 
+/** Sticky composer + optional Talk to agent — stays visible inside fixed panel height. */
+export function embedComposerFooterStackSx(
+  appearance: RuntimeChatAppearance,
+): SxProps<Theme> {
+  const c = appearance.colors;
+  const padX = Math.max(10, appearance.densityTokens.panelPaddingPx * 0.65);
+  return {
+    flexShrink: 0,
+    width: "100%",
+    mt: "auto",
+    pt: 1,
+    px: `${padX}px`,
+    pb: 0.5,
+    borderTop: `1px solid ${c.inputBorder}`,
+    display: "flex",
+    flexDirection: "column",
+    gap: 0.75,
+  };
+}
+
 export function embedTeaserPreviewSx(
   appearance: RuntimeChatAppearance,
 ): SxProps<Theme> {
+  return embedIncomingPreviewBubbleSx(appearance);
+}
+
+/** Closed-widget last-message preview — matches incoming chat bubble colors. */
+export function embedIncomingPreviewBubbleSx(
+  appearance: RuntimeChatAppearance,
+): SxProps<Theme> {
+  const c = appearance.colors;
   return {
-    maxWidth: 280,
+    maxWidth: 300,
     px: 1.5,
-    py: 1,
+    py: 1.25,
     cursor: "pointer",
     borderRadius: `${Math.max(10, appearance.borderRadiusPx)}px`,
-    bgcolor: appearance.chatBox.backgroundColor,
-    color: appearance.bodyTextColor,
-    fontSize: 13,
+    bgcolor: c.incomingBubbleBg,
+    color: c.incomingBubbleText,
+    fontSize: c.bodyFontSizePx ?? 13,
     lineHeight: 1.45,
-    border: `1px solid ${appearance.colors.inputBorder}`,
-    boxShadow: "0 2px 8px rgba(15, 23, 42, 0.08)",
+    fontFamily: c.fontFamily,
+    border: `1px solid ${c.incomingBubbleBg}`,
+    boxShadow: "0 2px 10px rgba(15, 23, 42, 0.1)",
+    ...(appearance.motionEnabled
+      ? {
+          animation: "converge-widget-teaser-in 0.35s ease",
+          "@keyframes converge-widget-teaser-in": {
+            from: { opacity: 0, transform: "translateY(8px)" },
+            to: { opacity: 1, transform: "translateY(0)" },
+          },
+        }
+      : {}),
   };
 }
 
@@ -194,16 +257,33 @@ export function embedMutedTextSx(appearance: RuntimeChatAppearance): SxProps<The
 
 export function embedPanelPaperSx(appearance: RuntimeChatAppearance): SxProps<Theme> {
   const c = appearance.colors;
-  const radius = Math.max(12, appearance.borderRadiusPx);
   return {
-    borderRadius: `${radius}px`,
-    bgcolor: c.panelBackground,
+    ...resolveWidgetPanelSurfaceSx({
+      style: appearance.panelSurfaceStyle,
+      buttonColor: appearance.launcher.buttonColor,
+      buttonHoverColor: appearance.launcher.buttonHoverColor,
+      panelBackground: c.panelBackground,
+      borderRadiusPx: appearance.borderRadiusPx,
+    }),
     color: c.bodyText,
     fontFamily: c.fontFamily,
     overflow: "hidden" as const,
-    boxShadow: "none",
-    border: `1px solid ${c.inputBorder}`,
   };
+}
+
+export function embedPanelBodyBackgroundSx(
+  appearance: RuntimeChatAppearance,
+): SxProps<Theme> {
+  if (appearance.panelSurfaceStyle === "glass") {
+    return { bgcolor: "transparent" };
+  }
+  if (appearance.panelSurfaceStyle === "gradient") {
+    return {
+      bgcolor: "transparent",
+      background: `linear-gradient(180deg, transparent 0%, ${appearance.chatBox.backgroundColor}88 100%)`,
+    };
+  }
+  return { bgcolor: appearance.chatBox.backgroundColor };
 }
 
 export function embedInputFieldSx(appearance: RuntimeChatAppearance): SxProps<Theme> {
@@ -339,9 +419,35 @@ export function embedChatBubbleShellSx(
 ): SxProps<Theme> {
   return {
     alignSelf: align === "end" ? "flex-end" : "flex-start",
-    maxWidth: "88%",
+    maxWidth: embedChatBubbleMaxWidth(),
     width: "fit-content",
-    mb: 0.5,
+    mb: 0.75,
+    minWidth: 0,
+  };
+}
+
+export function embedChatAvatarSpacerSx(): SxProps<Theme> {
+  return {
+    width: EMBED_CHAT_AVATAR_SIZE_PX,
+    height: EMBED_CHAT_AVATAR_SIZE_PX,
+    flexShrink: 0,
+  };
+}
+
+/** Assistant / greeting row with optional avatar (wizard-style). */
+export function embedChatBubbleRowSx(
+  align: "start" | "end" = "start",
+): SxProps<Theme> {
+  return {
+    display: "flex",
+    alignItems: "flex-start",
+    gap: `${EMBED_CHAT_AVATAR_GAP_PX}px`,
+    alignSelf: align === "end" ? "flex-end" : "flex-start",
+    maxWidth: "100%",
+    width: "fit-content",
+    mb: 0.75,
+    flexDirection: "row",
+    justifyContent: align === "end" ? "flex-end" : "flex-start",
   };
 }
 
@@ -350,22 +456,48 @@ export function embedChatBubbleInnerSx(
   role: "greeting" | "assistant" | "visitor",
 ): SxProps<Theme> {
   const c = appearance.colors;
+  const accent = appearance.accentPalette;
   const radius = Math.max(10, appearance.borderRadiusPx);
+  const bubbleShape =
+    appearance.borderRadiusPx >= 20 ? "pill" : appearance.borderRadiusPx <= 6 ? "square" : "rounded";
+  const tailRadius = bubbleShape === "pill" ? radius : bubbleShape === "square" ? 4 : 4;
   const base = {
-    px: 1.25,
-    py: 0.9,
+    px: 1.5,
+    py: 1.05,
     fontFamily: c.fontFamily,
     fontSize: c.bodyFontSizePx,
-    lineHeight: 1.5,
+    lineHeight: 1.55,
     wordBreak: "break-word" as const,
-    boxShadow: "none",
+    border: `1px solid ${accent.border}40`,
+    boxShadow: `0 2px 6px ${accent.main}16`,
   };
+  const surface = resolveBubbleSurfaceSx({
+    style: appearance.bubbleSurfaceStyle,
+    role,
+    baseBg:
+      role === "visitor"
+        ? c.outgoingBubbleBg
+        : role === "greeting"
+          ? c.greetingBubbleBg
+          : c.incomingBubbleBg,
+    baseText:
+      role === "visitor"
+        ? c.outgoingBubbleText
+        : role === "greeting"
+          ? c.greetingBubbleText
+          : c.incomingBubbleText,
+    primary: c.primary,
+    hover: appearance.launcher.buttonHoverColor,
+  });
+
   if (role === "visitor") {
     return {
       ...base,
-      borderRadius: `${radius}px ${radius}px 4px ${radius}px`,
+      borderRadius: `${radius}px ${radius}px ${tailRadius}px ${radius}px`,
       bgcolor: `${c.outgoingBubbleBg} !important`,
       color: `${c.outgoingBubbleText} !important`,
+      borderColor: `${c.outgoingBubbleBg}55`,
+      ...surface,
     };
   }
   if (role === "greeting") {
@@ -374,13 +506,18 @@ export function embedChatBubbleInnerSx(
       borderRadius: `${radius}px`,
       bgcolor: `${c.greetingBubbleBg} !important`,
       color: `${c.greetingBubbleText} !important`,
+      borderColor: `${accent.border}44`,
+      boxShadow: `0 2px 8px ${accent.main}18`,
+      ...surface,
     };
   }
   return {
     ...base,
-    borderRadius: `${radius}px ${radius}px ${radius}px 4px`,
+    borderRadius: `${radius}px ${radius}px ${radius}px ${tailRadius}px`,
     bgcolor: `${c.incomingBubbleBg} !important`,
     color: `${c.incomingBubbleText} !important`,
+    borderColor: `${accent.border}40`,
+    ...surface,
   };
 }
 

@@ -69,7 +69,9 @@ export function ChatOperationsWorkspace() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const inboxAllowed = gates.agentInbox;
-  const showScopeFilters = needsChatScopeFilters(hasOperational, canFilterByResellerId);
+  const showScopeFilters = needsChatScopeFilters(hasOperational, canFilterByResellerId, {
+    isPoolHead: user?.isPoolHead === true,
+  });
   const accessToken = useAccessToken() ?? "";
   const scopeFilters = useChatScopeFilters(undefined, { apiEnabled: showScopeFilters });
   const conversationIdFromUrl = searchParams.get("conversationId")?.trim() ?? "";
@@ -526,7 +528,7 @@ export function ChatOperationsWorkspace() {
       <Box sx={chatOpsPageWrapper}>
         <PermissionDeniedPanel
           title="Agent inbox not available"
-          description="Requires page:chat-inbox (or legacy page:chat) and chat:access on GET /auth/me (e.g. chat:bundle:agent). Sign out and back in after role changes."
+          description="Supervisors and admins use Chat Monitor. Agents and pool heads need chat:bundle:agent or chat:bundle:pool-head on GET /auth/me. Sign out and back in after role changes."
         />
       </Box>
     );

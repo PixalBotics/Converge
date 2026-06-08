@@ -11,6 +11,8 @@ export interface User {
   /** From `/auth/me` when the backend attaches HRMS pool scope to the user. */
   poolId?: string;
   poolName?: string;
+  /** From `/auth/me` — user is head of at least one HRMS pool. */
+  isPoolHead?: boolean;
   /** Tenant reseller scope (`/auth/me` user or JWT). */
   resellerId?: string;
   /** External portfolio admin (`/auth/me` or JWT). */

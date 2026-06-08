@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useLayoutEffect, useMemo, useRef } from "react";
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 import ForumOutlined from "@mui/icons-material/ForumOutlined";
 import InboxOutlined from "@mui/icons-material/InboxOutlined";
 import { useTheme } from "@mui/material/styles";
@@ -18,6 +18,8 @@ import {
   ChatMessageBubble,
   groupMessagesByDate,
 } from "./ChatMessageBubble";
+import { VisitorProfileCaptureMenu } from "./VisitorProfileCaptureMenu";
+import type { VisitorProfileCaptureAnchor } from "../utils/visitor-profile-capture";
 import {
   EmptyState,
   EmptyStateIconRing,
@@ -39,6 +41,8 @@ interface ChatMessageListProps {
   /** Full-pane empty when no conversation is selected. */
   showEmptyPlaceholder?: boolean;
   transcriptDisplay?: InboxTranscriptDisplayOptions;
+  /** Allow selecting visitor message text to set name/email/phone. */
+  profileCaptureEnabled?: boolean;
 }
 
 export function ChatMessageList({
@@ -52,9 +56,20 @@ export function ChatMessageList({
   agentDisplayName = "You",
   showEmptyPlaceholder = false,
   transcriptDisplay,
+  profileCaptureEnabled = false,
 }: ChatMessageListProps) {
   const theme = useTheme() as AppTheme;
   const threadRef = useRef<HTMLDivElement | null>(null);
+  const [captureAnchor, setCaptureAnchor] =
+    useState<VisitorProfileCaptureAnchor | null>(null);
+  const captureEnabled = profileCaptureEnabled && Boolean(conversationId);
+
+  const handleProfileCaptureSelection = useCallback(
+    (anchor: VisitorProfileCaptureAnchor) => {
+      setCaptureAnchor(anchor);
+    },
+    [],
+  );
   const displayMessages = useMemo(
     () => prepareInboxTranscriptMessages(messages, transcriptDisplay),
     [messages, transcriptDisplay],
@@ -76,6 +91,10 @@ export function ChatMessageList({
     }
     el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
   }, []);
+
+  useLayoutEffect(() => {
+    setCaptureAnchor(null);
+  }, [conversationId]);
 
   useLayoutEffect(() => {
     scrollThreadToBottom(true);
@@ -149,6 +168,10 @@ export function ChatMessageList({
               visitorDisplayName={visitorDisplayName}
               agentDisplayName={agentDisplayName}
               groupPosition={getMessageGroupPosition(idx, group.messages)}
+              profileCaptureEnabled={captureEnabled}
+              onProfileCaptureSelection={
+                captureEnabled ? handleProfileCaptureSelection : undefined
+              }
             />
           ))}
         </div>
@@ -187,6 +210,14 @@ export function ChatMessageList({
           </TypingIndicator>
         );
       })}
+
+      {captureEnabled && conversationId ? (
+        <VisitorProfileCaptureMenu
+          conversationId={conversationId}
+          anchor={captureAnchor}
+          onClose={() => setCaptureAnchor(null)}
+        />
+      ) : null}
     </MessageThread>
   );
 }

@@ -31,6 +31,8 @@ import { useLoginMutation, useLogoutMutation } from "@/lib/hooks";
 import { clearAppQueryCache } from "@/lib/hooks/query/core/app-query-cache";
 import { extractApiErrorMessageForToast } from "@/lib/notify";
 import { AUTH_PATHS, shouldSkipRemoteAuthHydration } from "./auth-paths";
+import { clearClientAuthStorage } from "./clear-client-auth-state";
+import { sessionExpiredLoginHref } from "./session-expired-login";
 import { registerApplyLoginAsSession } from "./apply-login-as-session";
 import {
   beginAuthTransition,
@@ -53,6 +55,7 @@ import {
 import { createPermissionCan } from "@/lib/permissions/access-helpers";
 import {
   extractIsPlatformAdmin,
+  resolveIsPlatformAdmin,
   extractPermissionsByType,
   hasOperationalPermission,
   hasPagePermission,
@@ -109,6 +112,7 @@ type ApiUser = {
   wide_reseller_scope?: boolean;
   parentCompanyId?: string;
   parent_company_id?: string;
+  isPoolHead?: boolean;
 };
 
 function parseApiUserType(user: ApiUser): AuthUserType | undefined {
@@ -139,6 +143,18 @@ function isJwtPlatformAdmin(payload: AccessTokenPayload | null): boolean {
     const s = String(r).toLowerCase().replace(/\s+/g, "");
     return s.includes("platformadmin") || (s.includes("platform") && s.includes("admin"));
   });
+}
+
+function resolvePlatformAdminFromAuthPayload(
+  payload: unknown,
+  options?: { impersonating?: boolean },
+): boolean {
+  if (options?.impersonating) {
+    return resolveIsPlatformAdmin(payload);
+  }
+  return resolveIsPlatformAdmin(payload, () =>
+    isJwtPlatformAdmin(decodeJwtPayload(getAccessToken() ?? "")),
+  );
 }
 
 function mapRoleNameToAppRole(roleName?: string): User["role"] {
@@ -200,6 +216,7 @@ function mapApiUserToUser(user: ApiUser): User | null {
     userType: parseApiUserType(user),
     poolId,
     poolName,
+    isPoolHead: user.isPoolHead === true,
     resellerId,
     wideResellerScope,
     parentCompanyId,
@@ -401,6 +418,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsLoading(false);
   }, [resolveUserForImpersonation]);
 
+  /** Public auth routes must not treat cookie JWT as a live session (keeps login form editable). */
+  const preparePublicAuthRoute = useCallback(() => {
+    setUser(null);
+    setPermissionsByType(undefined);
+    setIsPlatformAdmin(false);
+    setIsImpersonating(false);
+    setAuthGate("ready");
+    setIsLoading(false);
+  }, []);
+
+  const redirectToExpiredLogin = useCallback(() => {
+    clearClientAuthStorage();
+    setUser(null);
+    setPermissionsByType(undefined);
+    setIsPlatformAdmin(false);
+    setIsImpersonating(false);
+    setAuthGate("ready");
+    setIsLoading(false);
+    accountThemeFromMeAppliedRef.current = false;
+    router.replace(sessionExpiredLoginHref());
+  }, [router]);
+
   const allowAuthSession = useCallback(() => {
     dismissAppBoundary();
     setAuthGate("ready");
@@ -449,15 +488,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
         }
 
-        setUser(null);
-        setPermissionsByType(undefined);
-        setIsPlatformAdmin(false);
-        setIsImpersonating(false);
-        setAuthGate("blocked");
+        redirectToExpiredLogin();
         publishAuthErrorBoundary(error);
       })();
     },
-    [allowAuthSession, applyLocalAuthFromCookies, isSkipHydrationPath],
+    [allowAuthSession, applyLocalAuthFromCookies, isSkipHydrationPath, redirectToExpiredLogin],
   );
 
   const handleTransientSessionSyncFailure = useCallback(
@@ -561,10 +596,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             ? (mergePermissionsByType(permissionMode.login, fromMe) ?? fromMe ?? permissionMode.login)
             : fromMe;
         const impersonating = isImpersonatingSessionActive();
-        const platformAdmin = impersonating
-          ? extractIsPlatformAdmin(mePayload)
-          : extractIsPlatformAdmin(mePayload) ||
-            isJwtPlatformAdmin(decodeJwtPayload(getAccessToken() ?? ""));
+        const platformAdmin = resolvePlatformAdminFromAuthPayload(mePayload, {
+          impersonating,
+        });
         flushSync(() => {
           setPermissionsByType(mergedPermissions ?? undefined);
           setUser(
@@ -610,7 +644,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           impersonatedUser: impersonatedSnapshot,
         });
       }
-      const platformAdmin = extractIsPlatformAdmin(response);
+      const platformAdmin = resolvePlatformAdminFromAuthPayload(response);
 
       flushSync(() => {
         setPermissionsByType(loginPerms ?? undefined);
@@ -695,9 +729,44 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     prevPathnameRef.current = current;
   }, [pathname, pullRemoteAuthSession]);
 
+  const recoverImpersonationSession = useCallback(async (): Promise<boolean> => {
+    if (!isImpersonatingSessionActive() || !(getAccessToken() || getRefreshToken())) {
+      return false;
+    }
+
+    applyLocalAuthFromCookies();
+    beginAuthTransition("impersonation-hydrate");
+    try {
+      const mePayload = await getMe({ permissionsBreakdown: true });
+      const meUser = extractUserFromMePayload(mePayload);
+      const mappedMeUser = meUser ? mapApiUserToUser(meUser) : null;
+      const fromMe = extractPermissionsByType(mePayload);
+      flushSync(() => {
+        setPermissionsByType(fromMe ?? undefined);
+        setUser(mappedMeUser ?? resolveUserForImpersonation());
+        setIsImpersonating(true);
+        setIsPlatformAdmin(resolvePlatformAdminFromAuthPayload(mePayload, { impersonating: true }));
+      });
+      syncAccountThemeFromMePayload(mePayload);
+      allowAuthSession();
+      return true;
+    } catch {
+      applyLocalAuthFromCookies();
+      allowAuthSession();
+      return true;
+    } finally {
+      endAuthTransition();
+    }
+  }, [
+    allowAuthSession,
+    applyLocalAuthFromCookies,
+    resolveUserForImpersonation,
+    syncAccountThemeFromMePayload,
+  ]);
+
   const runSessionHydration = useCallback(async () => {
     if (isSkipHydrationPath()) {
-      applyLocalAuthFromCookies();
+      preparePublicAuthRoute();
       return;
     }
 
@@ -707,34 +776,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const session = await synchronizeAuthSession();
       if (isSkipHydrationPath()) {
-        applyLocalAuthFromCookies();
+        preparePublicAuthRoute();
         return;
       }
 
       if (session.status === "invalid") {
-        if (isImpersonatingSessionActive() && (getAccessToken() || getRefreshToken())) {
-          applyLocalAuthFromCookies();
-          try {
-            const mePayload = await getMe({ permissionsBreakdown: true });
-            const meUser = extractUserFromMePayload(mePayload);
-            const mappedMeUser = meUser ? mapApiUserToUser(meUser) : null;
-            const fromMe = extractPermissionsByType(mePayload);
-            flushSync(() => {
-              setPermissionsByType(fromMe ?? undefined);
-              setUser(mappedMeUser ?? resolveUserForImpersonation());
-              setIsImpersonating(true);
-              setIsPlatformAdmin(extractIsPlatformAdmin(mePayload));
-            });
-            syncAccountThemeFromMePayload(mePayload);
-            allowAuthSession();
-            return;
-          } catch {
-            applyLocalAuthFromCookies();
-            allowAuthSession();
-            return;
-          }
+        if (await recoverImpersonationSession()) {
+          return;
         }
-        setAuthGate("blocked");
+        redirectToExpiredLogin();
         return;
       }
 
@@ -766,21 +816,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       );
       setIsImpersonating(impersonating);
       setIsPlatformAdmin(
-        impersonating
-          ? extractIsPlatformAdmin(mePayload)
-          : extractIsPlatformAdmin(mePayload) ||
-              isJwtPlatformAdmin(decodeJwtPayload(getAccessToken() ?? "")),
+        resolvePlatformAdminFromAuthPayload(mePayload, { impersonating }),
       );
       syncAccountThemeFromMePayload(mePayload);
       allowAuthSession();
     } catch (err: unknown) {
       if (isSkipHydrationPath()) {
-        applyLocalAuthFromCookies();
+        preparePublicAuthRoute();
         return;
       }
-      if (isImpersonatingSessionActive() && (getAccessToken() || getRefreshToken())) {
-        applyLocalAuthFromCookies();
-        allowAuthSession();
+      if (await recoverImpersonationSession()) {
         return;
       }
       blockAuthSession(err);
@@ -791,10 +836,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [
     allowAuthSession,
-    applyLocalAuthFromCookies,
     blockAuthSession,
     handleTransientSessionSyncFailure,
     isSkipHydrationPath,
+    preparePublicAuthRoute,
+    recoverImpersonationSession,
+    redirectToExpiredLogin,
     resolveUserForImpersonation,
     syncAccountThemeFromMePayload,
   ]);
@@ -811,8 +858,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   /** Client navigations to `/auth/login` etc. must not keep dashboard user without re-evaluating cookies. */
   useEffect(() => {
     if (!shouldSkipRemoteAuthHydration(pathname)) return;
-    applyLocalAuthFromCookies();
-  }, [pathname, applyLocalAuthFromCookies]);
+    preparePublicAuthRoute();
+  }, [pathname, preparePublicAuthRoute]);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -860,9 +907,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         });
         setUser(mappedMeUser ?? getUserFromAccessToken());
         setIsImpersonating(isImpersonatingSessionActive());
-        setIsPlatformAdmin(
-          extractIsPlatformAdmin(mePayload) || isJwtPlatformAdmin(decodeJwtPayload(getAccessToken() ?? "")),
-        );
+        setIsPlatformAdmin(resolvePlatformAdminFromAuthPayload(mePayload));
         syncAccountThemeFromMePayload(mePayload);
         allowAuthSession();
       } catch (err: unknown) {
@@ -975,9 +1020,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (loginPerms) {
             setPermissionsByType(loginPerms);
           }
-          setIsPlatformAdmin(
-            extractIsPlatformAdmin(response) || isJwtPlatformAdmin(decodeJwtPayload(getAccessToken() ?? "")),
-          );
+          setIsPlatformAdmin(resolvePlatformAdminFromAuthPayload(response));
         });
         /**
          * Initial `/auth` mount skips `/auth/me`, and client navigation to the dashboard
@@ -1068,8 +1111,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const meUser = extractUserFromMePayload(mePayload);
       const mappedMeUser = meUser ? mapApiUserToUser(meUser) : null;
       const incoming = extractPermissionsByType(mePayload);
-      const platformAdmin =
-        extractIsPlatformAdmin(mePayload) || isJwtPlatformAdmin(decodeJwtPayload(getAccessToken() ?? ""));
+      const platformAdmin = resolvePlatformAdminFromAuthPayload(mePayload);
       let restoredPermissions: PermissionsByType | undefined;
       flushSync(() => {
         restoredPermissions = incoming ?? undefined;

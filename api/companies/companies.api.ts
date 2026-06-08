@@ -3,6 +3,7 @@ import type { JsonRecord } from "../types/common.types";
 import type {
   CompaniesListResponseEnvelope,
   ParentCompanyDetailEnvelope,
+  WebsiteDirectoryResponseEnvelope,
 } from "../types/companies.types";
 
 export async function listCompanies(
@@ -63,6 +64,23 @@ export async function listCompanyPocDirectory(query?: {
   all?: boolean;
 }): Promise<unknown> {
   const { data } = await apiClient.get("/companies/poc-directory", {
+    params: query ?? {},
+  });
+  return data;
+}
+
+export async function listWebsiteDirectory(query?: {
+  page?: number;
+  limit?: number;
+  all?: boolean;
+  search?: string;
+  resellerId?: string;
+  parentCompanyId?: string;
+  childCompanyId?: string;
+}): Promise<WebsiteDirectoryResponseEnvelope> {
+  const { data } = await apiClient.get<WebsiteDirectoryResponseEnvelope>(
+    "/companies/website-directory",
+    {
     params: query ?? {},
   });
   return data;

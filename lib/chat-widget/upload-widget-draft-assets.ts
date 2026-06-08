@@ -56,7 +56,14 @@ const MAX_INLINE_BYTES = 48 * 1024 * 1024;
 
 async function uploadAssetFile(params: {
   websiteId: string;
-  assetType: "button_icon" | "teaser_avatar" | "banner_image" | "banner_video";
+  assetType:
+    | "button_icon"
+    | "teaser_avatar"
+    | "banner_image"
+    | "banner_video"
+    | "header_logo"
+    | "agent_avatar"
+    | "visitor_avatar";
   file: File;
   label: string;
   errors: string[];
@@ -146,6 +153,57 @@ export async function uploadDraftWidgetAssets(params: {
       }
     } else {
       errors.push("Banner: could not read uploaded file.");
+    }
+  }
+
+  const headerLogoUrl = draft.headerLogoDataUrl?.trim();
+  if (headerLogoUrl?.startsWith("data:") && headerLogoUrl.length < MAX_INLINE_BYTES) {
+    const file = await dataUrlToFile(headerLogoUrl, "widget-header-logo", ".png");
+    if (file) {
+      const publicUrl = await uploadAssetFile({
+        websiteId,
+        assetType: "header_logo",
+        file,
+        label: "Header logo",
+        errors,
+      });
+      if (publicUrl) urls.headerLogoPublicUrl = publicUrl;
+    } else {
+      errors.push("Header logo: could not read uploaded file.");
+    }
+  }
+
+  const agentAvatarUrl = draft.agentAvatarDataUrl?.trim();
+  if (agentAvatarUrl?.startsWith("data:") && agentAvatarUrl.length < MAX_INLINE_BYTES) {
+    const file = await dataUrlToFile(agentAvatarUrl, "widget-agent-avatar", ".png");
+    if (file) {
+      const publicUrl = await uploadAssetFile({
+        websiteId,
+        assetType: "agent_avatar",
+        file,
+        label: "Agent avatar",
+        errors,
+      });
+      if (publicUrl) urls.agentAvatarPublicUrl = publicUrl;
+    } else {
+      errors.push("Agent avatar: could not read uploaded file.");
+    }
+  }
+
+  const visitorAvatarUrl = draft.visitorAvatarDataUrl?.trim();
+  if (visitorAvatarUrl?.startsWith("data:") && visitorAvatarUrl.length < MAX_INLINE_BYTES) {
+    const file = await dataUrlToFile(visitorAvatarUrl, "widget-visitor-avatar", ".png");
+    if (file) {
+      const publicUrl = await uploadAssetFile({
+        websiteId,
+        assetType: "visitor_avatar",
+        file,
+        label: "Visitor avatar",
+        errors,
+      });
+      if (publicUrl) urls.visitorAvatarPublicUrl = publicUrl;
+    } else {
+      errors.push("Visitor avatar: could not read uploaded file.");
     }
   }
 

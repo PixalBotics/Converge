@@ -89,7 +89,7 @@ export default function DesignationsPage() {
   const theme = useTheme() as AppTheme;
   const { hasOperational, isPlatformAdmin, user } = useAuth();
   const mayPickInternalTypeFilter = useMemo(
-    () => sessionMayPickInternalUserScope(isPlatformAdmin, user?.userType),
+    () => sessionMayPickInternalUserScope(isPlatformAdmin, user),
     [isPlatformAdmin, user?.userType],
   );
   const canCreateDes = canDesignationAction(hasOperational, "create");

@@ -24,7 +24,7 @@ import { useChatQa } from "../hooks/useChatQa";
 import { QaQueueSidebar } from "./QaQueueSidebar";
 import { QaAnnotatedTranscript } from "./QaAnnotatedTranscript";
 import { QaSessionReviewPanel } from "./QaSessionReviewPanel";
-import { QaTimelinePanel } from "./QaTimelinePanel";
+import { QaSessionContextPanel } from "./QaSessionContextPanel";
 import { useQaRosterQuery } from "@/features/chat-settings/hooks/useChatSettings";
 import { chatQaWorkspaceGrid, chatQaWorkspaceShell } from "../styles/chat-qa.styles";
 import { QA_HUB_BASE } from "@/features/chat-qa/constants/qa-nav";
@@ -191,7 +191,7 @@ export function ChatQaWorkspace({
               onAssignTo={qa.assignReviewTo}
               saving={qa.bundleLoading}
             />
-            <QaTimelinePanel bundle={qa.bundle} />
+            <QaSessionContextPanel bundle={qa.bundle} />
           </Box>
         </Box>
       </Box>

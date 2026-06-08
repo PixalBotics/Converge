@@ -53,6 +53,10 @@ export function ClosePolicyModal({
   const [childCompanyId, setChildCompanyId] = useState("");
   const [websiteId, setWebsiteId] = useState("");
   const [saveFn, setSaveFn] = useState<(() => void) | null>(null);
+  /** Store save callback in state without invoking it (setState treats functions as updaters). */
+  const registerSaveHandler = useCallback((save: () => void) => {
+    setSaveFn(() => save);
+  }, []);
   const lockScope = Boolean(initialWebsiteId.trim());
   /** Skip scope-reset effects while hydrating dropdowns from a loaded website. */
   const skipScopeResetRef = useRef(false);
@@ -288,7 +292,7 @@ export function ClosePolicyModal({
             canEdit={canEdit}
             saving={saveSettings.isPending}
             hideSaveButton
-            onSaveReady={setSaveFn}
+            onSaveReady={registerSaveHandler}
             onSave={handleSaveSettings}
           />
         )}

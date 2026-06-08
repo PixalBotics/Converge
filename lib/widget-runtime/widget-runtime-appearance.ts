@@ -1,4 +1,13 @@
+import {
+  normalizeAgentAvatarPreset,
+  normalizeVisitorAvatarPreset,
+} from "@/lib/chat-widget/chat-avatar-presets";
 import type { LauncherIconPresetId } from "@/lib/chat-widget/widgetDraft";
+import { normalizeLauncherIconPreset } from "@/lib/chat-widget/launcher-icon-presets";
+import {
+  normalizeLauncherStyle,
+  type WidgetLauncherStyleId,
+} from "@/lib/chat-widget/launcher-style";
 import {
   normalizeDesignAccent,
   normalizeDesignDensity,
@@ -43,6 +52,18 @@ import {
   resolvePanelGreetingCopy,
   resolveChatWelcomeCopy,
 } from "@/lib/chat-widget/widget-feature-toggles";
+
+/** `settings.ui.buttonIconUrl` wins; explicit "" clears a stale designJson launcher icon. */
+function resolveLauncherCustomIconUrl(
+  uiIcon: unknown,
+  rootIcon: unknown,
+  designLauncherIcon: unknown,
+): string {
+  if (typeof uiIcon === "string") return uiIcon.trim();
+  if (typeof rootIcon === "string" && rootIcon.trim()) return rootIcon.trim();
+  if (typeof designLauncherIcon === "string") return designLauncherIcon.trim();
+  return "";
+}
 import type { ProactiveSecondaryCta } from "@/lib/chat-widget/proactive-teaser-types";
 
 export interface RuntimeLauncherAppearance {
@@ -63,10 +84,12 @@ export interface RuntimeLauncherAppearance {
   buttonColor: string;
   buttonHoverColor: string;
   iconColor: string;
+  style: WidgetLauncherStyleId;
 }
 
 export interface RuntimeChatBoxAppearance {
   headerTitle: string;
+  headerLogoUrl: string;
   headerAlign: "left" | "center";
   headerBg: string;
   headerTextColor: string;
@@ -111,9 +134,23 @@ export function resolveEmbedGreetingMessage(
   );
 }
 
+export interface RuntimeChatAvatarAppearance {
+  enabled: boolean;
+  url: string;
+  preset: string;
+}
+
 export interface RuntimeChatAppearance {
   launcher: RuntimeLauncherAppearance;
   chatBox: RuntimeChatBoxAppearance;
+  /** Panel shell style — separate from launcher FAB. */
+  panelSurfaceStyle: WidgetLauncherStyleId;
+  /** Message bubble surface style. */
+  bubbleSurfaceStyle: WidgetLauncherStyleId;
+  avatars: {
+    agent: RuntimeChatAvatarAppearance;
+    visitor: RuntimeChatAvatarAppearance;
+  };
   colors: ResolvedWidgetColors;
   /** Welcome / continue step copy (`config.welcomeMessage`, `response.welcomeMessage`). */
   welcomeMessage: string;
@@ -151,6 +188,7 @@ export interface RuntimeChatAppearance {
   notificationSoundId: WidgetSoundId;
   launcherBadgeMode: WidgetLauncherBadgeMode;
   fallbackNotificationText: string;
+  closedMessagePreviewEnabled: boolean;
   motionEnabled: boolean;
   /** `theme.designJson.accent` / `density` — panel spacing + accent family. */
   designAccent: DesignAccentId;
@@ -158,14 +196,6 @@ export interface RuntimeChatAppearance {
   accentPalette: AccentPalette;
   densityTokens: DensityTokens;
 }
-
-const LAUNCHER_PRESETS = new Set<string>([
-  "",
-  "phosphor-chat-circle",
-  "phosphor-chats-circle",
-  "phosphor-chat-dots",
-  "phosphor-chat-teardrop",
-]);
 
 function isObj(v: unknown): v is Record<string, unknown> {
   return v !== null && typeof v === "object" && !Array.isArray(v);
@@ -203,8 +233,7 @@ function normalizeHeaderAlign(raw: string): RuntimeChatBoxAppearance["headerAlig
 }
 
 function normalizeIconPreset(raw: string): LauncherIconPresetId {
-  if (LAUNCHER_PRESETS.has(raw)) return raw as LauncherIconPresetId;
-  return "phosphor-chat-circle";
+  return normalizeLauncherIconPreset(raw, "phosphor-chat-circle");
 }
 
 function readDesignJson(cfg: Record<string, unknown>): Record<string, unknown> | null {
@@ -301,8 +330,28 @@ export function extractRuntimeChatAppearance(
   const djUi = dj && isObj(dj.ui) ? dj.ui : null;
   const chat = dj && isObj(dj.chat) ? dj.chat : null;
   const launcher = chat && isObj(chat.launcher) ? chat.launcher : null;
+  const chatPanel = chat && isObj(chat.panel) ? chat.panel : null;
+  const chatBubbles = chat && isObj(chat.bubbles) ? chat.bubbles : null;
+  const chatAvatars = chat && isObj(chat.avatars) ? chat.avatars : null;
+  const chatAgentAvatar =
+    chatAvatars && isObj(chatAvatars.agent) ? chatAvatars.agent : null;
+  const chatVisitorAvatar =
+    chatAvatars && isObj(chatAvatars.visitor) ? chatAvatars.visitor : null;
   const chatBox = chat && isObj(chat.chatBox) ? chat.chatBox : null;
   const colors = chat && isObj(chat.colors) ? chat.colors : null;
+  const experience = parseWidgetExperienceV1(configRecord._experience);
+  const expPanel =
+    experience && isObj(experience.design.panel) ? experience.design.panel : null;
+  const expBubbles =
+    experience && isObj(experience.design.bubbles) ? experience.design.bubbles : null;
+  const expAvatars =
+    experience && isObj(experience.design.avatars) ? experience.design.avatars : null;
+  const expAgentAvatar =
+    expAvatars && isObj(expAvatars.agent) ? expAvatars.agent : null;
+  const expVisitorAvatar =
+    expAvatars && isObj(expAvatars.visitor) ? expAvatars.visitor : null;
+  const expLauncher =
+    experience && isObj(experience.design.launcher) ? experience.design.launcher : null;
   const designTokens =
     (isObj(configRecord._designThemeTokens) ? configRecord._designThemeTokens : null) ??
     (dj && isObj(dj.theme) ? dj.theme : null);
@@ -397,6 +446,12 @@ export function extractRuntimeChatAppearance(
     configRecord.fallbackNotificationText,
     "You have a new message from support.",
   );
+  const closedMessagePreviewEnabled = runtimeBoolFirst(
+    true,
+    ui?.closedMessagePreviewEnabled,
+    djUi?.closedMessagePreviewEnabled,
+    configRecord.closedMessagePreviewEnabled,
+  );
   const autoOpenOnReturnVisit =
     behavior?.autoOpenOnReturnVisit === true || behavior?.autoOpenReturnVisit === true;
 
@@ -460,6 +515,7 @@ export function extractRuntimeChatAppearance(
     notificationSoundId,
     launcherBadgeMode,
     fallbackNotificationText,
+    closedMessagePreviewEnabled,
     motionEnabled: behavior?.motionEnabled !== false,
     designAccent,
     designDensity,
@@ -564,16 +620,38 @@ export function extractRuntimeChatAppearance(
           "phosphor-chat-circle",
         ),
       ),
-      iconUrl: strFirst(launcher?.iconUrl, ui?.buttonIconUrl),
+      iconUrl: resolveLauncherCustomIconUrl(
+        ui?.buttonIconUrl,
+        configRecord.buttonIconUrl,
+        launcher?.iconUrl,
+      ),
       buttonColor,
       buttonHoverColor: buttonHover,
       iconColor,
+      style: normalizeLauncherStyle(
+        launcher?.style ??
+          ui?.launcherStyle ??
+          djUi?.launcherStyle ??
+          expLauncher?.style,
+      ),
     };
     })(),
     chatBox: {
-      headerTitle: strFirst(chatBox?.headerTitle, ui?.headerTitle, "Live chat"),
+      headerTitle: strFirst(chatBox?.headerTitle, ui?.headerTitle),
+      headerLogoUrl: strFirst(
+        chatBox?.headerLogoUrl,
+        ui?.headerLogoUrl,
+        configRecord.headerLogoUrl,
+        expPanel?.headerLogoUrl,
+      ),
       headerAlign: normalizeHeaderAlign(
-        strFirst(chatBox?.headerAlign, chatBox?.headerTitleAlign, ui?.headerTitleAlign, "center"),
+        strFirst(
+          chatBox?.headerAlign,
+          chatBox?.headerTitleAlign,
+          ui?.headerTitleAlign,
+          expPanel?.headerAlign,
+          "center",
+        ),
       ),
       headerBg: resolvedColors.headerBackground,
       headerTextColor,
@@ -596,6 +674,71 @@ export function extractRuntimeChatAppearance(
         Math.max(320, numFirst(chatBox?.boxHeight, ui?.boxHeight, djUi?.boxHeight) ?? 480),
       ),
       fontFamily: resolvedColors.fontFamily,
+    },
+    panelSurfaceStyle: normalizeLauncherStyle(
+      strFirst(
+        ui?.panelSurfaceStyle,
+        djUi?.panelSurfaceStyle,
+        chatPanel?.surfaceStyle,
+        chatBox?.panelSurfaceStyle,
+        expPanel?.surfaceStyle,
+        launcher?.style,
+      ),
+    ),
+    bubbleSurfaceStyle: normalizeLauncherStyle(
+      strFirst(
+        ui?.bubbleSurfaceStyle,
+        djUi?.bubbleSurfaceStyle,
+        chatBubbles?.surfaceStyle,
+        chatBox?.bubbleSurfaceStyle,
+        expBubbles?.surfaceStyle,
+        "solid",
+      ),
+    ),
+    avatars: {
+      agent: {
+        enabled:
+          ui?.agentAvatarEnabled !== false &&
+          djUi?.agentAvatarEnabled !== false &&
+          expAgentAvatar?.enabled !== false,
+        url: strFirst(
+          ui?.agentAvatarUrl,
+          djUi?.agentAvatarUrl,
+          chatAgentAvatar?.url,
+          expAgentAvatar?.url,
+          ui?.proactiveTeaserAvatarUrl,
+          djUi?.proactiveTeaserAvatarUrl,
+        ),
+        preset: normalizeAgentAvatarPreset(
+          strFirst(
+            chatAgentAvatar?.preset,
+            ui?.agentAvatarPreset,
+            djUi?.agentAvatarPreset,
+            expAgentAvatar?.preset,
+          ),
+        ),
+      },
+      visitor: {
+        enabled:
+          ui?.visitorAvatarEnabled === true ||
+          djUi?.visitorAvatarEnabled === true ||
+          chatVisitorAvatar?.enabled === true ||
+          expVisitorAvatar?.enabled === true,
+        url: strFirst(
+          ui?.visitorAvatarUrl,
+          djUi?.visitorAvatarUrl,
+          chatVisitorAvatar?.url,
+          expVisitorAvatar?.url,
+        ),
+        preset: normalizeVisitorAvatarPreset(
+          strFirst(
+            chatVisitorAvatar?.preset,
+            ui?.visitorAvatarPreset,
+            djUi?.visitorAvatarPreset,
+            expVisitorAvatar?.preset,
+          ),
+        ),
+      },
     },
   };
 }

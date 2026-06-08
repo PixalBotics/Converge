@@ -1,4 +1,5 @@
 import { getResolvedPublicApiBaseUrl } from "@/lib/public-api/resolved-base-url";
+import type { WidgetEmbedEnv } from "./widget-embed-env";
 import { WIDGET_FETCH_CREDENTIALS } from "./widget-fetch-credentials";
 import {
   configRecordFromEnvelope,
@@ -405,10 +406,75 @@ export async function getWidgetRuntimeConfig(widgetKey: string) {
   return { ok: true as const, data: normalized };
 }
 
+export async function getWidgetPublicPreviewRuntimeConfig(
+  widgetKey: string,
+  previewShareToken: string,
+) {
+  const token = previewShareToken.trim();
+  const result = await fetchJsonPublic<unknown>(
+    `/widget/preview-config/${encodeURIComponent(widgetKey)}?token=${encodeURIComponent(token)}`,
+    { method: "GET" },
+  );
+  if (!result.ok) return result;
+  const peeled = peelSuccessEnvelope(result.data);
+  const normalized = normalizePublicWidgetConfigEnvelope(peeled, widgetKey);
+  return { ok: true as const, data: normalized };
+}
+
+/**
+ * Dashboard sandbox uses authenticated draft preview; production/staging use public published config.
+ */
+export async function getWidgetRuntimeConfigForEmbed(
+  widgetKey: string,
+  embedEnv: WidgetEmbedEnv,
+  options?: { previewShareToken?: string },
+) {
+  if (embedEnv === "dashboard_preview") {
+    const shareToken = options?.previewShareToken?.trim();
+    if (shareToken) {
+      return getWidgetPublicPreviewRuntimeConfig(widgetKey, shareToken);
+    }
+
+    try {
+      const { getWidgetDraftPreviewEmbedConfig } = await import(
+        "@/api/widgets/widgets.api"
+      );
+      const raw = await getWidgetDraftPreviewEmbedConfig(widgetKey);
+      const peeled = peelSuccessEnvelope(raw);
+      const normalized = normalizePublicWidgetConfigEnvelope(peeled, widgetKey);
+      return { ok: true as const, data: normalized };
+    } catch (e) {
+      const axiosErr = e as {
+        response?: { status?: number; data?: { message?: string; error?: string } };
+      };
+      const status = axiosErr.response?.status ?? 0;
+      const body = axiosErr.response?.data;
+      const message =
+        (typeof body?.message === "string" ? body.message : null) ??
+        (typeof body?.error === "string" ? body.error : null) ??
+        (e instanceof Error ? e.message : "Failed to load preview config");
+      if (status === 401 || status === 403) {
+        return {
+          ok: false as const,
+          status,
+          message:
+            status === 401
+              ? "Sign in to the dashboard to preview your saved draft."
+              : message,
+        };
+      }
+      return { ok: false as const, status, message: String(message) };
+    }
+  }
+  return getWidgetRuntimeConfig(widgetKey);
+}
+
 export async function postWidgetSession(body: WidgetSessionRequest) {
   const payload: Record<string, unknown> = { widgetKey: body.widgetKey };
   const originHost = body.originHost?.trim();
   if (originHost) payload.originHost = originHost;
+  const previewShareToken = body.previewShareToken?.trim();
+  if (previewShareToken) payload.previewShareToken = previewShareToken;
 
   const result = await fetchJsonPublic<unknown>(`/widget/session`, {
     method: "POST",

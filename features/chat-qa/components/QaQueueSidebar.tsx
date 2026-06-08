@@ -186,6 +186,14 @@ export function QaQueueSidebar({
                       size="small"
                       sx={{ height: 20, fontSize: 10, ...chip }}
                     />
+                    {row.pool?.name || row.conversation?.pool?.name ? (
+                      <Chip
+                        label={row.pool?.name ?? row.conversation?.pool?.name}
+                        size="small"
+                        variant="outlined"
+                        sx={{ height: 20, fontSize: 10 }}
+                      />
+                    ) : null}
                     {row.assignSource ? (
                       <Chip
                         label={row.assignSource}

@@ -191,7 +191,8 @@ export type InboxQueuePatch =
       kind: "row_enrich";
       conversationId: string;
       fields: Partial<ConversationSummary>;
-    };
+    }
+  | { kind: "conversation_reassigned_away"; conversationId: string };
 
 export function buildInboxPatchFromSocket(
   event: string,
@@ -208,6 +209,10 @@ export function buildInboxPatchFromSocket(
     ev === "chat_transferred" ||
     ev === "chat_talk_to_agent"
   ) {
+    const fromAgentId =
+      payload && typeof payload === "object"
+        ? String((payload as { fromAgentId?: string }).fromAgentId ?? "").trim()
+        : "";
     const toAgentId =
       payload && typeof payload === "object"
         ? String(
@@ -217,6 +222,13 @@ export function buildInboxPatchFromSocket(
               "",
           ).trim()
         : "";
+    if (
+      currentAgentId &&
+      fromAgentId &&
+      fromAgentId.toLowerCase() === currentAgentId.toLowerCase()
+    ) {
+      return { kind: "conversation_reassigned_away", conversationId };
+    }
     if (!toAgentId) {
       if (ev === "chat_talk_to_agent") {
         if (!summary) return null;
@@ -233,6 +245,11 @@ export function buildInboxPatchFromSocket(
       }
       return null;
     }
+    const lastTransferFrom =
+      payload && typeof payload === "object"
+        ? (payload as { lastTransferFrom?: ConversationSummary["lastTransferFrom"] })
+            .lastTransferFrom
+        : undefined;
     const row =
       summary ??
       normalizeConversationSummary({
@@ -255,6 +272,7 @@ export function buildInboxPatchFromSocket(
         assignedAgentId: toAgentId,
         agentId: toAgentId,
         queuedForAgent: false,
+        ...(lastTransferFrom ? { lastTransferFrom } : {}),
       },
     };
   }
@@ -361,6 +379,11 @@ export function applyInboxQueuePatch(
         closedChats,
         needsClosedRefresh: true,
       };
+    }
+    case "conversation_reassigned_away": {
+      activeChats = removeId(activeChats, patch.conversationId);
+      waitingChats = removeId(waitingChats, patch.conversationId);
+      return { activeChats, waitingChats, closedChats };
     }
     case "conversation_resumed": {
       waitingChats = upsertRow(waitingChats, {

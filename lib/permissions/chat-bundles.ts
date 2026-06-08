@@ -12,12 +12,12 @@ export const CHAT_BUNDLE_OPTIONS = [
   {
     code: "chat:bundle:pool-head",
     label: "Pool Head",
-    description: "Agent inbox + pool monitor, whisper, takeover",
+    description: "Personal agent inbox + pool monitor, whisper, takeover",
   },
   {
     code: "chat:bundle:department-head",
     label: "Department Head",
-    description: "Dept monitor, pool monitor, whisper, takeover",
+    description: "Dept/pool monitor, whisper, takeover (no agent inbox)",
   },
   {
     code: "chat:bundle:team-lead",

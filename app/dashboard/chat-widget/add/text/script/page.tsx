@@ -104,7 +104,7 @@ export default function TextWidgetScriptPage() {
           widgetKey,
           widgetKind: "text",
           draft: readChatWizardDraft(null),
-          publishNow: true,
+          publishNow: false,
           assetUrls,
         });
         if (cancelled) return;

@@ -42,9 +42,41 @@ function hasChatConfigPage(
   );
 }
 
-/** Agent inbox APIs — always from `/auth/me` expanded lists, never role bundle codes. */
-export function canAgentChatFromArrays(perms: AuthPermissionArrays): boolean {
-  return hasChatOpsPage(perms, PAGE.CHAT_INBOX) && canPermissionCode(OP.chat.access, perms);
+export type AgentInboxEligibilityOptions = {
+  /** Pool heads use a plain agent queue for transferred chats — not monitor scope filters. */
+  isPoolHead?: boolean;
+};
+
+function hasAgentInboxAccessOperational(perms: AuthPermissionArrays): boolean {
+  const code = OP.chat.access;
+  if (perms.isPlatformAdmin) {
+    return perms.page.includes(code) || perms.operational.includes(code);
+  }
+  return canPermissionCode(code, perms);
+}
+
+function hasMonitorParentCompanyScope(perms: AuthPermissionArrays): boolean {
+  const code = OP.chat.monitorParentCompany;
+  if (perms.isPlatformAdmin) {
+    return perms.page.includes(code) || perms.operational.includes(code);
+  }
+  return canPermissionCode(code, perms);
+}
+
+/**
+ * Personal agent inbox — from `/auth/me` expanded lists only.
+ * Excludes platform / parent-company monitors (use Chat Monitor); pool heads keep inbox.
+ */
+export function canAgentChatFromArrays(
+  perms: AuthPermissionArrays,
+  options?: AgentInboxEligibilityOptions,
+): boolean {
+  if (!hasChatOpsPage(perms, PAGE.CHAT_INBOX)) return false;
+  if (!hasAgentInboxAccessOperational(perms)) return false;
+  if (options?.isPoolHead) return true;
+  if (perms.isPlatformAdmin && canMonitorFromArrays(perms)) return false;
+  if (hasMonitorParentCompanyScope(perms)) return false;
+  return true;
 }
 
 export function canMonitorFromArrays(perms: AuthPermissionArrays): boolean {
@@ -141,16 +173,26 @@ export function canMonitorRoute(
 }
 
 /**
- * Agent inbox: no org filters for plain agents.
- * Pool head, department head, platform monitor, or reseller bucket (when allowed).
+ * Agent inbox: no org filters for plain agents or pool heads (personal queue only).
+ * Department head / platform monitor / reseller bucket (when allowed) on supervisor inbox views.
  * QA / reports / settings pages pass their own `apiEnabled` to `useChatScopeFilters`.
  */
 export function needsChatScopeFilters(
   hasOperational: (permission: string) => boolean,
   canFilterByResellerId = false,
+  options?: Pick<AgentInboxEligibilityOptions, "isPoolHead">,
 ): boolean {
+  if (options?.isPoolHead) return false;
   if (canFilterByResellerId) return true;
   return CHAT_INBOX_SCOPE_FILTER_OPERATIONAL.some((p) => hasOperational(p));
+}
+
+/** Sidebar / route gate for `/dashboard/chat-operations`. */
+export function canShowAgentInboxNav(
+  perms: AuthPermissionArrays,
+  options?: AgentInboxEligibilityOptions,
+): boolean {
+  return canAgentChatFromArrays(perms, options);
 }
 
 export function buildChatLiveNavItems(
@@ -193,6 +235,7 @@ export function buildChatLiveNavItems(
       hasOperational(OP.chatWidget.view) ||
       hasOperational(OP.chatWidget.update))
   ) {
+    items.push({ href: "/dashboard/chat-settings/qa-policy", label: "QA policy" });
     items.push({ href: "/dashboard/qa/roster", label: "QA roster" });
   }
   if (
@@ -242,6 +285,16 @@ const CHAT_QA_OPERATIONAL = [
 
 export function canViewChatReports(hasOperational: (permission: string) => boolean): boolean {
   return hasOperational(OP.chat.reportView);
+}
+
+/** Pool / department / external monitor leads — scoped team QA quality page. */
+export function canAccessQaTeamReports(
+  hasOperational: (permission: string) => boolean,
+  isPlatformAdmin = false,
+): boolean {
+  if (!canViewChatReports(hasOperational)) return false;
+  if (isPlatformAdmin) return true;
+  return canAccessChatMonitor(hasOperational);
 }
 
 export function canAccessChatQa(hasOperational: (permission: string) => boolean): boolean {

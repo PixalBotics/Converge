@@ -152,6 +152,10 @@ export function normalizeServerMessage(payload: unknown): ChatMessage | null {
     if (attachmentMetadata.sentBySupervisor === true) {
       mergedMetadata.sentBySupervisor = true;
     }
+    const richCard = attachmentMetadata.richCard;
+    if (richCard && typeof richCard === "object" && !Array.isArray(richCard)) {
+      mergedMetadata.richCard = richCard;
+    }
     if (typeof attachmentMetadata.path === "string") {
       mergedMetadata.path = attachmentMetadata.path;
     }

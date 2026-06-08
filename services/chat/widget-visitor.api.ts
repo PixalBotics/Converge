@@ -188,6 +188,7 @@ export type WidgetTranscriptMessage = {
   senderType: string;
   content: string;
   messageType?: string;
+  attachmentMetadata?: Record<string, unknown>;
   createdAt: string;
 };
 
@@ -237,11 +238,18 @@ function parseWidgetTranscriptPayload(
     const createdAt =
       typeof m.createdAt === "string" ? m.createdAt : new Date().toISOString();
     if (!id || !content.trim()) continue;
+    const attachmentMetadata =
+      m.attachmentMetadata &&
+      typeof m.attachmentMetadata === "object" &&
+      !Array.isArray(m.attachmentMetadata)
+        ? (m.attachmentMetadata as Record<string, unknown>)
+        : undefined;
     messages.push({
       id,
       content,
       senderType,
       messageType: typeof m.messageType === "string" ? m.messageType : undefined,
+      ...(attachmentMetadata ? { attachmentMetadata } : {}),
       createdAt,
     });
   }

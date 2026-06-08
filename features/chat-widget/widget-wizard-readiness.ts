@@ -1,6 +1,7 @@
 import type { WidgetDraft } from "@/lib/chat-widget/widgetDraft";
 import { defaultWidgetDraft } from "@/lib/chat-widget/widgetDraft";
 import { normalizeWidgetInquiryOptions } from "@/lib/chat-widget/widget-inquiry.types";
+import { isWidgetInquiryOptionConfigured } from "@/lib/chat-widget/visitor-topics.mapper";
 import { isProactiveTeaserFeatureOn, resolveProactiveTeaser } from "@/lib/chat-widget/widget-feature-toggles";
 
 export type WidgetWizardCheckItem = {
@@ -15,12 +16,7 @@ export function buildWidgetWizardChecklist(draft: WidgetDraft): WidgetWizardChec
   const websiteOk = Boolean(draft.websiteId?.trim());
   const remoteOk = Boolean(draft.remoteWidgetKey?.trim() || draft.widgetId?.trim());
   const inquiry = normalizeWidgetInquiryOptions(draft.inquiryOptions ?? []);
-  const inquiryConfigured = inquiry.some(
-    (t) =>
-      t.label.trim() &&
-      t.internalDepartmentId?.trim() &&
-      t.externalDepartmentId?.trim(),
-  );
+  const inquiryConfigured = inquiry.some(isWidgetInquiryOptionConfigured);
   const domains = (draft.allowedDomains ?? [])
     .map((d) => d.trim())
     .filter(Boolean);
@@ -86,7 +82,7 @@ export function buildWidgetWizardChecklist(draft: WidgetDraft): WidgetWizardChec
       detail: draft.inquiryOn
         ? inquiryConfigured
           ? `${inquiry.length} topic(s) with departments`
-          : "Enable topics on Chat Box step + Save"
+          : "Enable topics on Notifications step + Save"
         : "Pills hidden (optional)",
       ok: !draft.inquiryOn || inquiryConfigured,
     },

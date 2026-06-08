@@ -67,7 +67,7 @@ export function AddUserModal({
   const trimmedEditId = editUserId?.trim() ?? "";
   const { isPlatformAdmin, user: authUser } = useAuth();
   const mayPickInternalSessionScope = useMemo(
-    () => sessionMayPickInternalUserScope(isPlatformAdmin, authUser?.userType),
+    () => sessionMayPickInternalUserScope(isPlatformAdmin, authUser),
     [isPlatformAdmin, authUser?.userType],
   );
   const mayAssignWideResellerScope = useMemo(

@@ -181,3 +181,39 @@ export interface ParentCompanyDetailPayload {
 }
 
 export type ParentCompanyDetailEnvelope = ApiEnvelope<ParentCompanyDetailPayload>;
+
+export interface WebsiteDirectoryPoc {
+  userId: string;
+  name: string;
+  email: string;
+}
+
+export interface WebsiteDirectoryItem {
+  websiteId: string;
+  url: string;
+  name: string;
+  createdAt: string;
+  resellerId: string;
+  resellerName: string;
+  parentCompanyId: string;
+  parentCompanyName: string;
+  childCompanyId: string;
+  childCompanyName: string;
+  pocs: WebsiteDirectoryPoc[];
+  createdByUserId: string;
+  createdByName: string;
+  createdByEmail: string;
+  createdByRoleId: string | null;
+  createdByRoleName: string;
+  createdByUserType: string;
+}
+
+export interface WebsiteDirectoryData {
+  items: WebsiteDirectoryItem[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+export type WebsiteDirectoryResponseEnvelope = ApiEnvelope<WebsiteDirectoryData>;

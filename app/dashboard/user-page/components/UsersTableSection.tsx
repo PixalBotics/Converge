@@ -24,6 +24,7 @@ import {
 } from "@/components/common";
 import { userIconPath } from "@/assets";
 import { useAuth } from "@/lib/auth/AuthContext";
+import type { SessionListFilterScope } from "@/lib/auth";
 import type { AppTheme } from "@/theme/theme";
 import { useLoginAsMutation, useSoftDeleteUserMutation } from "@/lib/hooks";
 import type { FilterKind, UserListTypeFilter, UserRow, UserSuggestion } from "../types";
@@ -52,6 +53,7 @@ type Props = {
   listUserTypeFilter: UserListTypeFilter;
   onListUserTypeFilterChange: (value: UserListTypeFilter) => void;
   showInternalUserTypeOption: boolean;
+  listFilterScope: SessionListFilterScope;
   listScopeResellerId: string;
   listScopeParentCompanyId: string;
   onListScopeResellerChange: (value: string) => void;
@@ -84,6 +86,7 @@ export function UsersTableSection(props: Props) {
     listUserTypeFilter,
     onListUserTypeFilterChange,
     showInternalUserTypeOption,
+    listFilterScope,
     listScopeResellerId,
     listScopeParentCompanyId,
     onListScopeResellerChange,
@@ -214,6 +217,7 @@ export function UsersTableSection(props: Props) {
           listUserTypeFilter={listUserTypeFilter}
           onListUserTypeFilterChange={onListUserTypeFilterChange}
           showInternalUserTypeOption={showInternalUserTypeOption}
+          listFilterScope={listFilterScope}
           listScopeResellerId={listScopeResellerId}
           listScopeParentCompanyId={listScopeParentCompanyId}
           onListScopeResellerChange={onListScopeResellerChange}

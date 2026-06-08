@@ -26,6 +26,12 @@ import {
   fetchQaWebsiteRosterExclusions,
   saveQaWebsiteRoster,
 } from "@/services/chat/qa-roster.api";
+import {
+  fetchGlobalQaPolicy,
+  saveGlobalQaPolicy,
+  type QaPolicyScopeQuery,
+  type UpsertQaPolicyBody,
+} from "@/services/chat/qa-policy.api";
 import { LIST_ALL_QUERY } from "@/lib/constants/pagination";
 import {
   parseDepartmentCatalog,
@@ -220,12 +226,34 @@ export function useQaRosterExclusionsQuery(websiteId: string, enabled = true) {
 export function useSaveQaRosterMutation(websiteId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: { internalUserIds: string[]; externalUserIds: string[] }) =>
+    mutationFn: (body: Parameters<typeof saveQaWebsiteRoster>[1]) =>
       saveQaWebsiteRoster(websiteId, body),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: chatSettingsKeys.qaRoster(websiteId) });
       void qc.invalidateQueries({ queryKey: chatSettingsKeys.qaRosterExclusions(websiteId) });
       void qc.invalidateQueries({ queryKey: ["qa-roster-list"] });
+    },
+  });
+}
+
+export function useGlobalQaPolicyQuery(scope: QaPolicyScopeQuery, enabled = true) {
+  return useQuery({
+    queryKey: chatSettingsKeys.globalQaPolicy(scope),
+    queryFn: () => fetchGlobalQaPolicy(scope),
+    enabled,
+    staleTime: 30_000,
+  });
+}
+
+export function useSaveGlobalQaPolicyMutation(scope: QaPolicyScopeQuery) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: UpsertQaPolicyBody) => saveGlobalQaPolicy(scope, body),
+    onSuccess: () => {
+      void qc.invalidateQueries({
+        queryKey: chatSettingsKeys.globalQaPolicy(scope),
+      });
+      void qc.invalidateQueries({ queryKey: chatSettingsKeys.all });
     },
   });
 }

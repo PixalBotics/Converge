@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import ChatRounded from "@mui/icons-material/ChatRounded";
 import CloudUploadOutlined from "@mui/icons-material/CloudUploadOutlined";
 import Box from "@mui/material/Box";
 import Switch from "@mui/material/Switch";
@@ -14,7 +13,7 @@ import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.style
 import { WidgetFlowShell } from "@/features/chat-widget";
 import { WidgetWizardPageLayout } from "@/features/chat-widget/components/WidgetWizardPageLayout";
 import { SchedulingSectionCard } from "@/features/website-assignments/components/ServiceSchedulingSections";
-import { LAUNCHER_ICON_PRESETS, LauncherPresetIcon } from "@/lib/chat-widget/launcherIcons";
+import { WidgetLauncherIconPicker } from "@/components/dashboard/chat-widget/WidgetLauncherIconPicker";
 import { mergeWizardDraftForPublish } from "@/lib/chat-widget/merge-wizard-draft-for-publish";
 import {
   patchRemoteWidgetConfigurationWithMeta,
@@ -32,19 +31,28 @@ import {
   useChatWidgetWizardEdit,
   withChatEditQuery,
 } from "@/lib/chat-widget/chat-wizard-edit";
+import { normalizeAgentAvatarPreset } from "@/lib/chat-widget/chat-avatar-presets";
 import {
+  buildChatColorsFromWidgetDraft,
   readWidgetChatColorsFromDraft,
   widgetChatColorsDraftToPatch,
 } from "@/lib/chat-widget/widget-colors-draft";
 import { WidgetLauncherLivePreview } from "@/components/dashboard/chat-widget/WidgetLauncherLivePreview";
 import { WidgetColorPickerField } from "@/components/dashboard/chat-widget/WidgetColorPickerField";
+import { WIDGET_BRAND_COLOR_PRESETS } from "@/lib/chat-widget/brand-color-presets";
 import {
-  DESIGN_ACCENT_SELECT_OPTIONS,
-  DESIGN_DENSITY_SELECT_OPTIONS,
-} from "@/lib/chat-widget/design-accent-density";
+  WIDGET_LAUNCHER_STYLE_OPTIONS,
+  type WidgetLauncherStyleId,
+} from "@/lib/chat-widget/launcher-style";
 import { proactiveTeaserPreviewFromDraft } from "@/lib/chat-widget/proactive-teaser-from-draft";
 import {
+  normalizeWhatsAppHref,
+  validateWhatsAppHref,
+} from "@/lib/chat-widget/proactive-whatsapp";
+import { WidgetWizardToggleRow } from "@/features/chat-widget/components/WidgetWizardToggleRow";
+import {
   defaultWidgetDraft,
+  normalizeButtonPosition,
   type LauncherIconPresetId,
   type WidgetDraft,
 } from "@/lib/chat-widget/widgetDraft";
@@ -53,17 +61,12 @@ import {
   WidgetTextField,
 } from "@/features/chat-widget/components/WidgetFormFields";
 import { FIELD_MAX } from "@/lib/chat-widget/widget-field-validation";
+import { useWizardStepFlush } from "@/lib/chat-widget/widget-wizard-step-flush";
 
 function parseInsetPxString(raw: string, fallback: number): number {
   const n = Number.parseInt(raw.trim(), 10);
   if (!Number.isFinite(n)) return fallback;
   return Math.min(240, Math.max(0, n));
-}
-
-function clampNum(raw: string, min: number, max: number, fallback: number): number {
-  const n = Number.parseInt(raw.trim(), 10);
-  if (!Number.isFinite(n)) return fallback;
-  return Math.min(max, Math.max(min, n));
 }
 
 export default function ChatWidgetButtonDesignPage() {
@@ -72,13 +75,16 @@ export default function ChatWidgetButtonDesignPage() {
   const { recordSave } = useWidgetWizardSaveTrace();
   const { editWidgetKey, draftReady, hydrateError } = useChatWidgetWizardEdit();
   const [buttonShape, setButtonShape] = useState<"circle" | "rounded" | "square">("circle");
-  const [buttonPosition, setButtonPosition] = useState("right");
+  const [buttonPosition, setButtonPosition] = useState<"left" | "right">("right");
   const [selectedButtonColor, setSelectedButtonColor] = useState("#2AA9E0");
   const [selectedHoverColor, setSelectedHoverColor] = useState("#1C8DC2");
   const [selectedIconColor, setSelectedIconColor] = useState("#FFFFFF");
   const [iconFileName, setIconFileName] = useState("");
   const [iconDataUrl, setIconDataUrl] = useState("");
   const [launcherIconPreset, setLauncherIconPreset] = useState<LauncherIconPresetId>("phosphor-chat-circle");
+  const [launcherStyle, setLauncherStyle] = useState<WidgetLauncherStyleId>(
+    defaultWidgetDraft.launcherStyle ?? "solid",
+  );
   const [launcherInsetBottom, setLauncherInsetBottom] = useState("28");
   const [launcherInsetSide, setLauncherInsetSide] = useState("28");
   const [proactiveTeaserEnabled, setProactiveTeaserEnabled] = useState(
@@ -92,53 +98,36 @@ export default function ChatWidgetButtonDesignPage() {
   );
   const [proactiveAvatarDataUrl, setProactiveAvatarDataUrl] = useState("");
   const [proactiveAvatarFileName, setProactiveAvatarFileName] = useState("");
+  const [proactiveSecondaryCtaEnabled, setProactiveSecondaryCtaEnabled] = useState(
+    defaultWidgetDraft.proactiveSecondaryCtaEnabled ?? false,
+  );
+  const [proactiveSecondaryCtaLabel, setProactiveSecondaryCtaLabel] = useState(
+    defaultWidgetDraft.proactiveSecondaryCtaLabel ?? "Contact us on WhatsApp",
+  );
+  const [proactiveSecondaryCtaHref, setProactiveSecondaryCtaHref] = useState(
+    defaultWidgetDraft.proactiveSecondaryCtaHref ?? "",
+  );
+  const [closedMessagePreviewEnabled, setClosedMessagePreviewEnabled] = useState(
+    defaultWidgetDraft.closedMessagePreviewEnabled !== false,
+  );
   const proactiveAvatarUploadRef = useRef<HTMLInputElement | null>(null);
   const iconUploadRef = useRef<HTMLInputElement | null>(null);
   const [saving, setSaving] = useState(false);
   const [checklistRefreshKey, setChecklistRefreshKey] = useState(0);
 
-  const [themeName, setThemeName] = useState(defaultWidgetDraft.themeName ?? "Brand Default");
-  const [themePrimaryColor, setThemePrimaryColor] = useState(
-    defaultWidgetDraft.themePrimaryColor ?? "",
-  );
-  const [themeSecondaryColor, setThemeSecondaryColor] = useState(
-    defaultWidgetDraft.themeSecondaryColor ?? "#64748b",
-  );
-  const [themeFontFamily, setThemeFontFamily] = useState(
-    defaultWidgetDraft.themeFontFamily ?? "Inter, system-ui, sans-serif",
-  );
-  const [themeBubbleStyle, setThemeBubbleStyle] = useState(defaultWidgetDraft.themeBubbleStyle ?? "rounded");
-  const [themeBorderRadiusPxStr, setThemeBorderRadiusPxStr] = useState(
-    String(defaultWidgetDraft.themeBorderRadiusPx ?? 12),
-  );
-  const [themeWelcomeFontStr, setThemeWelcomeFontStr] = useState(
-    String(defaultWidgetDraft.themeWelcomeFontSizePx ?? 18),
-  );
-  const [themeBodyFontStr, setThemeBodyFontStr] = useState(String(defaultWidgetDraft.themeBodyFontSizePx ?? 14));
-  const [themeInputFontStr, setThemeInputFontStr] = useState(String(defaultWidgetDraft.themeInputFontSizePx ?? 14));
-  const [themeCtaFontStr, setThemeCtaFontStr] = useState(String(defaultWidgetDraft.themeCtaFontSizePx ?? 15));
-  const [themeConsentFontStr, setThemeConsentFontStr] = useState(
-    String(defaultWidgetDraft.themeConsentFontSizePx ?? 12),
-  );
-  const [themeLineHeightStr, setThemeLineHeightStr] = useState(String(defaultWidgetDraft.themeLineHeightPx ?? 22));
-  const [themeDesignJsonAccent, setThemeDesignJsonAccent] = useState(
-    defaultWidgetDraft.themeDesignJsonAccent ?? "blue",
-  );
-  const [themeDesignJsonDensity, setThemeDesignJsonDensity] = useState(
-    defaultWidgetDraft.themeDesignJsonDensity ?? "comfortable",
-  );
-
   useEffect(() => {
     if (!draftReady) return;
     const d = readChatWizardDraft(resolveEditWidgetKeyForNavigation(editWidgetKey) || undefined);
     setButtonShape(d.buttonShape);
-    setButtonPosition(d.buttonPosition);
+    const pos = normalizeButtonPosition(d.buttonPosition);
+    setButtonPosition(pos === "left" ? "left" : "right");
     setSelectedButtonColor(d.buttonColor || "#2AA9E0");
     setSelectedHoverColor(d.buttonHoverColor || "#1C8DC2");
     setSelectedIconColor(d.iconColor || "#FFFFFF");
     setIconDataUrl(d.iconDataUrl || "");
     setIconFileName(d.iconDataUrl ? "Uploaded icon" : "");
     setLauncherIconPreset(d.launcherIconPreset);
+    setLauncherStyle(d.launcherStyle ?? defaultWidgetDraft.launcherStyle ?? "solid");
     setLauncherInsetBottom(String(d.launcherInsetBottomPx ?? 28));
     setLauncherInsetSide(String(d.launcherInsetSidePx ?? 28));
     setProactiveTeaserEnabled(d.proactiveTeaserEnabled !== false);
@@ -146,21 +135,128 @@ export default function ChatWidgetButtonDesignPage() {
     setProactiveAvatarEnabled(d.proactiveTeaserAvatarEnabled === true);
     setProactiveAvatarDataUrl(d.proactiveTeaserAvatarDataUrl ?? "");
     setProactiveAvatarFileName(d.proactiveTeaserAvatarDataUrl ? "Agent avatar" : "");
-    setThemeName(d.themeName ?? "Brand Default");
-    setThemePrimaryColor(d.themePrimaryColor ?? "");
-    setThemeSecondaryColor(d.themeSecondaryColor ?? "#64748b");
-    setThemeFontFamily(d.themeFontFamily ?? "Inter, system-ui, sans-serif");
-    setThemeBubbleStyle(d.themeBubbleStyle ?? "rounded");
-    setThemeBorderRadiusPxStr(String(d.themeBorderRadiusPx ?? 12));
-    setThemeWelcomeFontStr(String(d.themeWelcomeFontSizePx ?? 18));
-    setThemeBodyFontStr(String(d.themeBodyFontSizePx ?? 14));
-    setThemeInputFontStr(String(d.themeInputFontSizePx ?? 14));
-    setThemeCtaFontStr(String(d.themeCtaFontSizePx ?? 15));
-    setThemeConsentFontStr(String(d.themeConsentFontSizePx ?? 12));
-    setThemeLineHeightStr(String(d.themeLineHeightPx ?? 22));
-    setThemeDesignJsonAccent(d.themeDesignJsonAccent ?? "blue");
-    setThemeDesignJsonDensity(d.themeDesignJsonDensity ?? "comfortable");
-  }, [draftReady, editWidgetKey]);
+    setProactiveSecondaryCtaEnabled(d.proactiveSecondaryCtaEnabled === true);
+    setProactiveSecondaryCtaLabel(
+      d.proactiveSecondaryCtaLabel ?? defaultWidgetDraft.proactiveSecondaryCtaLabel ?? "",
+    );
+    setProactiveSecondaryCtaHref(
+      d.proactiveSecondaryCtaHref ?? defaultWidgetDraft.proactiveSecondaryCtaHref ?? "",
+    );
+    setClosedMessagePreviewEnabled(d.closedMessagePreviewEnabled !== false);
+  }, [draftReady, editWidgetKey, checklistRefreshKey]);
+
+  const stepStateRef = useRef({
+    draftReady,
+    editWidgetKey,
+    buttonShape,
+    buttonPosition,
+    launcherInsetBottom,
+    launcherInsetSide,
+    selectedButtonColor,
+    selectedHoverColor,
+    selectedIconColor,
+    iconDataUrl,
+    launcherIconPreset,
+    launcherStyle,
+    proactiveTeaserEnabled,
+    proactiveTeaser,
+    proactiveAvatarEnabled,
+    proactiveAvatarDataUrl,
+    proactiveSecondaryCtaEnabled,
+    proactiveSecondaryCtaLabel,
+    proactiveSecondaryCtaHref,
+    closedMessagePreviewEnabled,
+  });
+  stepStateRef.current = {
+    draftReady,
+    editWidgetKey,
+    buttonShape,
+    buttonPosition,
+    launcherInsetBottom,
+    launcherInsetSide,
+    selectedButtonColor,
+    selectedHoverColor,
+    selectedIconColor,
+    iconDataUrl,
+    launcherIconPreset,
+    launcherStyle,
+    proactiveTeaserEnabled,
+    proactiveTeaser,
+    proactiveAvatarEnabled,
+    proactiveAvatarDataUrl,
+    proactiveSecondaryCtaEnabled,
+    proactiveSecondaryCtaLabel,
+    proactiveSecondaryCtaHref,
+    closedMessagePreviewEnabled,
+  };
+
+  const flushStepToDraft = useCallback(() => {
+    const s = stepStateRef.current;
+    if (!s.draftReady) return;
+    const editKey = resolveEditWidgetKeyForNavigation(s.editWidgetKey);
+    const prev = readChatWizardDraft(editKey || undefined);
+    const bottomPx = parseInsetPxString(s.launcherInsetBottom, 28);
+    const sidePx = parseInsetPxString(s.launcherInsetSide, 28);
+    const whatsappHref = normalizeWhatsAppHref(s.proactiveSecondaryCtaHref);
+    saveChatWizardDraft(editKey || undefined, {
+      type: "chat",
+      buttonShape: s.buttonShape,
+      buttonPosition: s.buttonPosition,
+      launcherInsetBottomPx: bottomPx,
+      launcherInsetSidePx: sidePx,
+      buttonColor: s.selectedButtonColor || "#2AA9E0",
+      buttonHoverColor: s.selectedHoverColor || "#1C8DC2",
+      iconColor: s.selectedIconColor || "#FFFFFF",
+      iconDataUrl: s.iconDataUrl,
+      launcherIconPreset: s.launcherIconPreset,
+      launcherStyle: s.launcherStyle,
+      proactiveTeaserEnabled: s.proactiveTeaserEnabled,
+      proactiveTeaser: s.proactiveTeaser.trim(),
+      proactiveTeaserAvatarEnabled: s.proactiveAvatarEnabled,
+      proactiveTeaserAvatarDataUrl: s.proactiveAvatarEnabled ? s.proactiveAvatarDataUrl : "",
+      proactiveSecondaryCtaEnabled: s.proactiveSecondaryCtaEnabled,
+      proactiveSecondaryCtaLabel: s.proactiveSecondaryCtaEnabled
+        ? s.proactiveSecondaryCtaLabel.trim()
+        : "",
+      proactiveSecondaryCtaHref: s.proactiveSecondaryCtaEnabled ? whatsappHref : "",
+      proactiveSecondaryCtaKind: s.proactiveSecondaryCtaEnabled ? "whatsapp" : "",
+      closedMessagePreviewEnabled: s.closedMessagePreviewEnabled,
+      themePrimaryColor: prev.themePrimaryColor ?? s.selectedButtonColor,
+      ...widgetChatColorsDraftToPatch(
+        readWidgetChatColorsFromDraft({
+          ...prev,
+          buttonColor: s.selectedButtonColor || "#2AA9E0",
+          buttonHoverColor: s.selectedHoverColor || "#1C8DC2",
+          iconColor: s.selectedIconColor || "#FFFFFF",
+        }),
+      ),
+    });
+  }, []);
+
+  useWizardStepFlush(flushStepToDraft);
+
+  const themePreview = useMemo(() => {
+    if (!draftReady) {
+      return {
+        accent: defaultWidgetDraft.themeDesignJsonAccent ?? "blue",
+        density: defaultWidgetDraft.themeDesignJsonDensity ?? "comfortable",
+        launcherBadgeMode: defaultWidgetDraft.launcherBadgeMode ?? "count",
+        fallbackNotificationText:
+          defaultWidgetDraft.fallbackNotificationText ??
+          "You have a new message from support.",
+      };
+    }
+    const d = readChatWizardDraft(resolveEditWidgetKeyForNavigation(editWidgetKey) || undefined);
+    return {
+      accent: d.themeDesignJsonAccent ?? defaultWidgetDraft.themeDesignJsonAccent ?? "blue",
+      density: d.themeDesignJsonDensity ?? defaultWidgetDraft.themeDesignJsonDensity ?? "comfortable",
+      launcherBadgeMode: d.launcherBadgeMode ?? defaultWidgetDraft.launcherBadgeMode ?? "count",
+      fallbackNotificationText:
+        d.fallbackNotificationText ??
+        defaultWidgetDraft.fallbackNotificationText ??
+        "You have a new message from support.",
+    };
+  }, [draftReady, editWidgetKey, checklistRefreshKey]);
 
   const handleIconUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -174,6 +270,42 @@ export default function ChatWidgetButtonDesignPage() {
   const previewBottomPx = parseInsetPxString(launcherInsetBottom, 28);
   const previewSidePx = parseInsetPxString(launcherInsetSide, 28);
 
+  const incomingPreviewColors = useMemo(() => {
+    const base = draftReady
+      ? readChatWizardDraft(resolveEditWidgetKeyForNavigation(editWidgetKey) || undefined)
+      : defaultWidgetDraft;
+    const colors = buildChatColorsFromWidgetDraft({
+      ...base,
+      buttonColor: selectedButtonColor || base.buttonColor,
+      buttonHoverColor: selectedHoverColor || base.buttonHoverColor,
+      iconColor: selectedIconColor || base.iconColor,
+      backgroundColor: base.backgroundColor,
+      textColor: base.textColor,
+      themeSecondaryColor: base.themeSecondaryColor,
+    });
+    const agentAvatarUrl =
+      (base.agentAvatarDataUrl?.trim().startsWith("http") ? base.agentAvatarDataUrl.trim() : "") ||
+      (proactiveAvatarEnabled && proactiveAvatarDataUrl?.trim().startsWith("http")
+        ? proactiveAvatarDataUrl.trim()
+        : "");
+    return {
+      bg: colors.incomingMessageBg,
+      text: colors.incomingMessageText,
+      muted: colors.mutedText,
+      agentUrl: agentAvatarUrl,
+      agentPreset: normalizeAgentAvatarPreset(base.agentAvatarPreset),
+    };
+  }, [
+    draftReady,
+    editWidgetKey,
+    selectedButtonColor,
+    selectedHoverColor,
+    selectedIconColor,
+    proactiveAvatarEnabled,
+    proactiveAvatarDataUrl,
+    checklistRefreshKey,
+  ]);
+
   const teaserPreview = useMemo(
     () =>
       proactiveTeaserPreviewFromDraft({
@@ -181,16 +313,21 @@ export default function ChatWidgetButtonDesignPage() {
         proactiveTeaser,
         proactiveTeaserAvatarEnabled: proactiveAvatarEnabled,
         proactiveTeaserAvatarDataUrl: proactiveAvatarDataUrl,
-        proactiveSecondaryCtaEnabled: false,
-        proactiveSecondaryCtaLabel: "",
-        proactiveSecondaryCtaHref: "",
-        proactiveSecondaryCtaKind: "",
+        proactiveSecondaryCtaEnabled,
+        proactiveSecondaryCtaLabel,
+        proactiveSecondaryCtaHref: normalizeWhatsAppHref(proactiveSecondaryCtaHref),
+        proactiveSecondaryCtaKind: proactiveSecondaryCtaEnabled ? "whatsapp" : "",
+        closedMessagePreviewEnabled,
       } as WidgetDraft),
     [
       proactiveTeaserEnabled,
       proactiveTeaser,
       proactiveAvatarEnabled,
       proactiveAvatarDataUrl,
+      proactiveSecondaryCtaEnabled,
+      proactiveSecondaryCtaLabel,
+      proactiveSecondaryCtaHref,
+      closedMessagePreviewEnabled,
     ],
   );
 
@@ -208,6 +345,18 @@ export default function ChatWidgetButtonDesignPage() {
     if (saving) return;
     const bottomPx = parseInsetPxString(launcherInsetBottom, 28);
     const sidePx = parseInsetPxString(launcherInsetSide, 28);
+    const whatsappHref = normalizeWhatsAppHref(proactiveSecondaryCtaHref);
+    if (proactiveSecondaryCtaEnabled) {
+      const whatsappError = validateWhatsAppHref(proactiveSecondaryCtaHref);
+      if (whatsappError) {
+        publishAppToast({ variant: "error", message: whatsappError });
+        return;
+      }
+      if (!proactiveSecondaryCtaLabel.trim()) {
+        publishAppToast({ variant: "error", message: "WhatsApp button label is required." });
+        return;
+      }
+    }
     void (async () => {
       const editKey = resolveEditWidgetKeyForNavigation(editWidgetKey);
       const prev = readChatWizardDraft(editKey || undefined);
@@ -230,14 +379,14 @@ export default function ChatWidgetButtonDesignPage() {
           buttonHoverColor: selectedHoverColor || "#1C8DC2",
           iconColor: selectedIconColor || "#FFFFFF",
           textColor: prev.textColor ?? defaultWidgetDraft.textColor,
-          themeSecondaryColor: themeSecondaryColor.trim() || "#64748b",
+          themeSecondaryColor: prev.themeSecondaryColor ?? defaultWidgetDraft.themeSecondaryColor,
           backgroundColor: prev.backgroundColor ?? defaultWidgetDraft.backgroundColor,
         });
 
         saveChatWizardDraft(editKey || undefined, {
           type: "chat",
           buttonShape,
-          buttonPosition: buttonPosition as "left" | "center" | "right",
+          buttonPosition,
           launcherInsetBottomPx: bottomPx,
           launcherInsetSidePx: sidePx,
           buttonColor: selectedButtonColor || "#2AA9E0",
@@ -245,31 +394,39 @@ export default function ChatWidgetButtonDesignPage() {
           iconColor: selectedIconColor || "#FFFFFF",
           iconDataUrl,
           launcherIconPreset,
+          launcherStyle,
           proactiveTeaserEnabled,
           proactiveTeaser: proactiveTeaser.trim(),
           proactiveTeaserAvatarEnabled: proactiveAvatarEnabled,
           proactiveTeaserAvatarDataUrl: proactiveAvatarEnabled ? proactiveAvatarDataUrl : "",
-          proactiveSecondaryCtaEnabled: false,
-          proactiveSecondaryCtaLabel: "",
-          proactiveSecondaryCtaHref: "",
-          proactiveSecondaryCtaKind: "",
+          proactiveSecondaryCtaEnabled,
+          proactiveSecondaryCtaLabel: proactiveSecondaryCtaEnabled
+            ? proactiveSecondaryCtaLabel.trim()
+            : "",
+          proactiveSecondaryCtaHref: proactiveSecondaryCtaEnabled ? whatsappHref : "",
+          proactiveSecondaryCtaKind: proactiveSecondaryCtaEnabled ? "whatsapp" : "",
+          closedMessagePreviewEnabled,
           completed: false,
           widgetId: prev.widgetId?.startsWith("wgt_") ? prev.widgetId : rk,
-          themeName: themeName.trim() || "Brand Default",
-          themePrimaryColor: themePrimaryColor.trim() || selectedButtonColor || undefined,
-          themeSecondaryColor: themeSecondaryColor.trim() || "#64748b",
+          themeName: prev.themeName ?? defaultWidgetDraft.themeName,
+          themePrimaryColor: prev.themePrimaryColor ?? selectedButtonColor,
+          themeSecondaryColor: prev.themeSecondaryColor ?? defaultWidgetDraft.themeSecondaryColor,
           ...widgetChatColorsDraftToPatch(colorSeed),
-          themeFontFamily: themeFontFamily.trim() || "Inter, system-ui, sans-serif",
-          themeBubbleStyle: themeBubbleStyle.trim() || "rounded",
-          themeBorderRadiusPx: clampNum(themeBorderRadiusPxStr, 0, 48, 12),
-          themeWelcomeFontSizePx: clampNum(themeWelcomeFontStr, 10, 32, 18),
-          themeBodyFontSizePx: clampNum(themeBodyFontStr, 10, 28, 14),
-          themeInputFontSizePx: clampNum(themeInputFontStr, 10, 28, 14),
-          themeCtaFontSizePx: clampNum(themeCtaFontStr, 10, 28, 15),
-          themeConsentFontSizePx: clampNum(themeConsentFontStr, 8, 24, 12),
-          themeLineHeightPx: clampNum(themeLineHeightStr, 14, 40, 22),
-          themeDesignJsonAccent: themeDesignJsonAccent.trim() || "blue",
-          themeDesignJsonDensity: themeDesignJsonDensity.trim() || "comfortable",
+          themeFontFamily: prev.themeFontFamily ?? defaultWidgetDraft.themeFontFamily,
+          themeBubbleStyle: prev.themeBubbleStyle ?? defaultWidgetDraft.themeBubbleStyle,
+          themeBorderRadiusPx: prev.themeBorderRadiusPx ?? defaultWidgetDraft.themeBorderRadiusPx,
+          themeWelcomeFontSizePx:
+            prev.themeWelcomeFontSizePx ?? defaultWidgetDraft.themeWelcomeFontSizePx,
+          themeBodyFontSizePx: prev.themeBodyFontSizePx ?? defaultWidgetDraft.themeBodyFontSizePx,
+          themeInputFontSizePx: prev.themeInputFontSizePx ?? defaultWidgetDraft.themeInputFontSizePx,
+          themeCtaFontSizePx: prev.themeCtaFontSizePx ?? defaultWidgetDraft.themeCtaFontSizePx,
+          themeConsentFontSizePx:
+            prev.themeConsentFontSizePx ?? defaultWidgetDraft.themeConsentFontSizePx,
+          themeLineHeightPx: prev.themeLineHeightPx ?? defaultWidgetDraft.themeLineHeightPx,
+          themeDesignJsonAccent:
+            prev.themeDesignJsonAccent ?? defaultWidgetDraft.themeDesignJsonAccent,
+          themeDesignJsonDensity:
+            prev.themeDesignJsonDensity ?? defaultWidgetDraft.themeDesignJsonDensity,
         });
         const latest = readChatWizardDraft(editKey || undefined);
         const patchMeta = await patchRemoteWidgetConfigurationWithMeta({
@@ -325,8 +482,8 @@ export default function ChatWidgetButtonDesignPage() {
   return (
     <WidgetFlowShell
       pageTitle="Widget Customization"
-      subtitle="Connect your workflow with industry-leading CRM platform minutes."
-      cardTitle="Button Shape"
+      subtitle="Shape, colors, and position of the floating chat launcher."
+      cardTitle="Launcher design"
       currentStep={0}
       footer={
         <>
@@ -361,7 +518,7 @@ export default function ChatWidgetButtonDesignPage() {
         preview={
           <WidgetLauncherLivePreview
             buttonShape={buttonShape}
-            buttonPosition={buttonPosition as "left" | "center" | "right"}
+            buttonPosition={buttonPosition}
             insetBottomPx={previewBottomPx}
             insetSidePx={previewSidePx}
             buttonColor={selectedButtonColor || "#2AA9E0"}
@@ -373,8 +530,17 @@ export default function ChatWidgetButtonDesignPage() {
             proactiveTeaserActive={teaserPreview.active}
             proactiveTeaserAvatarUrl={teaserPreview.avatarUrl}
             proactiveSecondaryCta={teaserPreview.secondaryCta}
-            accent={themeDesignJsonAccent}
-            density={themeDesignJsonDensity}
+            accent={themePreview.accent}
+            density={themePreview.density}
+            launcherStyle={launcherStyle}
+            closedMessagePreviewEnabled={closedMessagePreviewEnabled}
+            incomingPreviewSampleText={themePreview.fallbackNotificationText}
+            incomingPreviewBg={incomingPreviewColors.bg}
+            incomingPreviewTextColor={incomingPreviewColors.text}
+            incomingPreviewMutedColor={incomingPreviewColors.muted}
+            incomingPreviewAgentUrl={incomingPreviewColors.agentUrl}
+            incomingPreviewAgentPreset={incomingPreviewColors.agentPreset}
+            launcherBadgeMode={themePreview.launcherBadgeMode}
           />
         }
       >
@@ -459,6 +625,74 @@ export default function ChatWidgetButtonDesignPage() {
         />
       </Box>
 
+      <Box>
+        <Typography variant="body2" sx={{ color: theme.app.text.primary, fontWeight: 600, mb: 0.75 }}>
+          Brand presets
+        </Typography>
+        <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
+          {WIDGET_BRAND_COLOR_PRESETS.map((preset) => (
+            <Button
+              key={preset.id}
+              type="button"
+              variant="secondary"
+              size="small"
+              onClick={() => {
+                setSelectedButtonColor(preset.buttonColor);
+                setSelectedHoverColor(preset.buttonHoverColor);
+                setSelectedIconColor(preset.iconColor);
+              }}
+              sx={{
+                minWidth: 0,
+                px: 1.25,
+                py: 0.5,
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 0.75,
+              }}
+            >
+              <Box
+                aria-hidden
+                sx={{
+                  width: 14,
+                  height: 14,
+                  borderRadius: "50%",
+                  bgcolor: preset.buttonColor,
+                  border: "1px solid rgba(255,255,255,0.35)",
+                }}
+              />
+              {preset.label}
+            </Button>
+          ))}
+        </Box>
+      </Box>
+
+      <Box>
+        <Typography variant="body2" sx={{ color: theme.app.text.primary, fontWeight: 600, mb: 0.75 }}>
+          Launcher style
+        </Typography>
+        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr 1fr", sm: "repeat(4, 1fr)" }, gap: 1 }}>
+          {WIDGET_LAUNCHER_STYLE_OPTIONS.map((opt) => {
+            const selected = launcherStyle === opt.id;
+            return (
+              <Button
+                key={opt.id}
+                type="button"
+                variant={selected ? "primary" : "secondary"}
+                onClick={() => setLauncherStyle(opt.id)}
+                sx={{ flexDirection: "column", alignItems: "flex-start", textAlign: "left", py: 1.25 }}
+              >
+                <Typography variant="caption" fontWeight={700} sx={{ display: "block" }}>
+                  {opt.label}
+                </Typography>
+                <Typography variant="caption" sx={{ opacity: 0.8, lineHeight: 1.3 }}>
+                  {opt.description}
+                </Typography>
+              </Button>
+            );
+          })}
+        </Box>
+      </Box>
+
       <SchedulingSectionCard
         title="Invitation bubble"
         subtitle="Optional callout above the launcher when chat is closed. Turn off if you only want the FAB."
@@ -521,8 +755,52 @@ export default function ChatWidgetButtonDesignPage() {
           ) : null}
         </Box>
         ) : null}
+        <WidgetWizardToggleRow
+          label="WhatsApp button"
+          description="Optional second action in the invitation bubble — opens WhatsApp in a new tab."
+          checked={proactiveSecondaryCtaEnabled}
+          onChange={setProactiveSecondaryCtaEnabled}
+          disabled={!proactiveTeaserEnabled}
+        />
+        {proactiveSecondaryCtaEnabled && proactiveTeaserEnabled ? (
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5, mt: 1 }}>
+            <WidgetTextField
+              label="WhatsApp button label"
+              name="proactive-whatsapp-label"
+              value={proactiveSecondaryCtaLabel}
+              onChange={setProactiveSecondaryCtaLabel}
+              maxLength={FIELD_MAX.shortLabel}
+              placeholder="Contact us on WhatsApp"
+            />
+            <WidgetTextField
+              label="WhatsApp number or link"
+              name="proactive-whatsapp-href"
+              value={proactiveSecondaryCtaHref}
+              onChange={setProactiveSecondaryCtaHref}
+              maxLength={FIELD_MAX.url}
+              placeholder="+1 555 0100 or https://wa.me/15550100"
+              helperText="Phone number with country code, or a full wa.me link."
+            />
+          </Box>
+        ) : null}
           </>
         ) : null}
+      </SchedulingSectionCard>
+
+      <SchedulingSectionCard
+        title="Closed-widget alerts"
+        subtitle="What visitors see on your site before they open chat."
+        sx={{ mb: 0, p: { xs: 1.75, sm: 2 } }}
+      >
+        <WidgetWizardToggleRow
+          label="Live message preview"
+          description="When an agent replies while chat is closed, show their message above the launcher (replaces the invitation bubble until opened)."
+          checked={closedMessagePreviewEnabled}
+          onChange={setClosedMessagePreviewEnabled}
+        />
+        <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, display: "block", mt: 1 }}>
+          Unread badge style is configured on the Notifications step. Preview shows the current badge setting.
+        </Typography>
       </SchedulingSectionCard>
 
       <Box>
@@ -532,52 +810,23 @@ export default function ChatWidgetButtonDesignPage() {
       <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, mb: 1.25 }}>
        Upload your own file below to override.
       </Typography>
-      <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", alignItems: "center", mb: 1.25 }}>
-        <IconButton
-          type="button"
-          onClick={() => {
-            setLauncherIconPreset("");
-            setIconDataUrl("");
-            setIconFileName("");
-          }}
-          title="Simple chat icon"
-          sx={{
-            width: 48,
-            height: 48,
-            borderRadius: "50%",
-            border: `2px solid ${launcherIconPreset === "" && !iconDataUrl ? theme.app.dashboard.accentBlue : theme.app.dashboard.cardBorder}`,
-            bgcolor: selectedButtonColor || "#2AA9E0",
-            "&:hover": { bgcolor: selectedHoverColor || "#1C8DC2" },
-          }}
-        >
-          <ChatRounded sx={{ color: selectedIconColor || "#FFFFFF", fontSize: 24 }} />
-        </IconButton>
-        {LAUNCHER_ICON_PRESETS.map((preset) => {
-          const selected = !iconDataUrl && launcherIconPreset === preset.id;
-          return (
-            <IconButton
-              key={preset.id}
-              type="button"
-              onClick={() => {
-                setLauncherIconPreset(preset.id);
-                setIconDataUrl("");
-                setIconFileName("");
-              }}
-              title={preset.label}
-              sx={{
-                width: 48,
-                height: 48,
-                borderRadius: "50%",
-                border: `2px solid ${selected ? theme.app.dashboard.accentBlue : theme.app.dashboard.cardBorder}`,
-                bgcolor: selectedButtonColor || "#2AA9E0",
-                "&:hover": { bgcolor: selectedHoverColor || "#1C8DC2" },
-              }}
-            >
-              <LauncherPresetIcon presetId={preset.id} color={selectedIconColor || "#FFFFFF"} fontSizePx={26} />
-            </IconButton>
-          );
-        })}
-      </Box>
+      <WidgetLauncherIconPicker
+        buttonColor={selectedButtonColor || "#2AA9E0"}
+        hoverColor={selectedHoverColor || "#1C8DC2"}
+        iconColor={selectedIconColor || "#FFFFFF"}
+        launcherIconPreset={launcherIconPreset}
+        iconDataUrl={iconDataUrl}
+        onSelectDefault={() => {
+          setLauncherIconPreset("");
+          setIconDataUrl("");
+          setIconFileName("");
+        }}
+        onSelectPreset={(id) => {
+          setLauncherIconPreset(id);
+          setIconDataUrl("");
+          setIconFileName("");
+        }}
+      />
 
       <Box
         role="button"
@@ -616,11 +865,10 @@ export default function ChatWidgetButtonDesignPage() {
       <SelectField
         label="Button Position"
         value={buttonPosition}
-        onChange={setButtonPosition}
+        onChange={(v) => setButtonPosition(v === "left" ? "left" : "right")}
         options={[
           { label: "Left", value: "left" },
           { label: "Right", value: "right" },
-          { label: "Center", value: "center" },
         ]}
       />
 
@@ -629,7 +877,7 @@ export default function ChatWidgetButtonDesignPage() {
         Launcher position (fine tune)
       </Typography>
       <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, mb: 1.25 }}>
-        A larger bottom inset moves the launcher farther from the corner and higher above the bottom edge of the screen. Side inset controls spacing from the left or right edge. When Center is selected, horizontal shift (left/right slide) applies.
+        Bottom inset moves the launcher up from the screen edge. Side inset controls spacing from the left or right corner.
       </Typography>
       <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 1.5 }}>
         <InputField
@@ -641,7 +889,7 @@ export default function ChatWidgetButtonDesignPage() {
           inputProps={{ inputMode: "numeric", pattern: "[0-9]*", min: 0, max: 240 }}
         />
         <InputField
-          label={buttonPosition === "center" ? "Horizontal shift (px)" : "Inset from side (px)"}
+          label="Inset from side (px)"
           name="launcher-inset-side"
           type="text"
           value={launcherInsetSide}
@@ -653,103 +901,6 @@ export default function ChatWidgetButtonDesignPage() {
 
       </Box>
 
-        </SchedulingSectionCard>
-
-        <SchedulingSectionCard title="Brand theme" subtitle="Typography, spacing, and panel styling saved with the launcher.">
-      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 1.5 }}>
-        <InputField label="Theme name" name="theme-name" value={themeName} onChange={(e) => setThemeName(e.target.value)} />
-        <WidgetColorPickerField
-          label="Primary color"
-          value={themePrimaryColor}
-          onChange={setThemePrimaryColor}
-          fallback={selectedButtonColor || "#2563eb"}
-          optional
-        />
-        <WidgetColorPickerField
-          label="Secondary color"
-          value={themeSecondaryColor}
-          onChange={setThemeSecondaryColor}
-          fallback="#64748b"
-        />
-        <InputField
-          label="Font family"
-          name="theme-font"
-          value={themeFontFamily}
-          onChange={(e) => setThemeFontFamily(e.target.value)}
-          sx={{ gridColumn: { sm: "1 / -1" } }}
-        />
-        <SelectField
-          label="Bubble style"
-          value={themeBubbleStyle}
-          onChange={setThemeBubbleStyle}
-          options={[
-            { label: "Rounded", value: "rounded" },
-            { label: "Square", value: "square" },
-            { label: "Pill", value: "pill" },
-          ]}
-        />
-        <InputField
-          label="Border radius (px)"
-          name="theme-radius"
-          value={themeBorderRadiusPxStr}
-          onChange={(e) => setThemeBorderRadiusPxStr(e.target.value)}
-          inputProps={{ inputMode: "numeric" }}
-        />
-        <InputField
-          label="Welcome font size (px)"
-          name="theme-welcome-font"
-          value={themeWelcomeFontStr}
-          onChange={(e) => setThemeWelcomeFontStr(e.target.value)}
-          inputProps={{ inputMode: "numeric" }}
-        />
-        <InputField
-          label="Body font size (px)"
-          name="theme-body-font"
-          value={themeBodyFontStr}
-          onChange={(e) => setThemeBodyFontStr(e.target.value)}
-          inputProps={{ inputMode: "numeric" }}
-        />
-        <InputField
-          label="Input font size (px)"
-          name="theme-input-font"
-          value={themeInputFontStr}
-          onChange={(e) => setThemeInputFontStr(e.target.value)}
-          inputProps={{ inputMode: "numeric" }}
-        />
-        <InputField
-          label="CTA font size (px)"
-          name="theme-cta-font"
-          value={themeCtaFontStr}
-          onChange={(e) => setThemeCtaFontStr(e.target.value)}
-          inputProps={{ inputMode: "numeric" }}
-        />
-        <InputField
-          label="Consent font size (px)"
-          name="theme-consent-font"
-          value={themeConsentFontStr}
-          onChange={(e) => setThemeConsentFontStr(e.target.value)}
-          inputProps={{ inputMode: "numeric" }}
-        />
-        <InputField
-          label="Line height (px)"
-          name="theme-line-height"
-          value={themeLineHeightStr}
-          onChange={(e) => setThemeLineHeightStr(e.target.value)}
-          inputProps={{ inputMode: "numeric" }}
-        />
-        <SelectField
-          label="Design accent"
-          value={themeDesignJsonAccent}
-          onChange={setThemeDesignJsonAccent}
-          options={DESIGN_ACCENT_SELECT_OPTIONS}
-        />
-        <SelectField
-          label="Design density"
-          value={themeDesignJsonDensity}
-          onChange={setThemeDesignJsonDensity}
-          options={DESIGN_DENSITY_SELECT_OPTIONS}
-        />
-      </Box>
         </SchedulingSectionCard>
       </WidgetWizardPageLayout>
     </WidgetFlowShell>

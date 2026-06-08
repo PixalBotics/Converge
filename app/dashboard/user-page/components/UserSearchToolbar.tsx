@@ -20,6 +20,7 @@ import {
 } from "@/components/common";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
 import type { AppTheme } from "@/theme/theme";
+import type { SessionListFilterScope } from "@/lib/auth";
 import { overviewSearchFieldWrapper, overviewSearchRow } from "../overview.styles";
 
 type Props = {
@@ -36,6 +37,7 @@ type Props = {
   listUserTypeFilter: UserListTypeFilter;
   onListUserTypeFilterChange: (v: UserListTypeFilter) => void;
   showInternalUserTypeOption: boolean;
+  listFilterScope: SessionListFilterScope;
   listScopeResellerId: string;
   listScopeParentCompanyId: string;
   onListScopeResellerChange: (v: string) => void;
@@ -61,6 +63,7 @@ export function UserSearchToolbar(props: Props) {
     listUserTypeFilter,
     onListUserTypeFilterChange,
     showInternalUserTypeOption,
+    listFilterScope,
     listScopeResellerId,
     listScopeParentCompanyId,
     onListScopeResellerChange,
@@ -74,26 +77,39 @@ export function UserSearchToolbar(props: Props) {
   const theme = useTheme() as AppTheme;
   const [filterOpen, setFilterOpen] = useState(false);
 
-  const userTypeSegmentOptions = useMemo(
-    () => [
-      { value: "all", label: "All" },
-      ...(showInternalUserTypeOption ? [{ value: "Internal", label: "Internal" }] : []),
-      { value: "External", label: "External" },
-    ],
-    [showInternalUserTypeOption],
-  );
+  const userTypeSegmentOptions = useMemo(() => {
+    const opts: { value: string; label: string }[] = [];
+    if (showInternalUserTypeOption) {
+      opts.push({ value: "all", label: "All" });
+      opts.push({ value: "Internal", label: "Internal" });
+    }
+    if (listFilterScope.mayPickExternal) {
+      opts.push({ value: "External", label: "External" });
+    }
+    if (opts.length === 0) {
+      opts.push({ value: "External", label: "External" });
+    }
+    return opts;
+  }, [showInternalUserTypeOption, listFilterScope.mayPickExternal]);
 
-  const handleSearch = () => {
-    onSearch();
-  };
+  const tenantScopeVisible =
+    listFilterScope.showTenantScopeFilters &&
+    (listUserTypeFilter === "External" || !showInternalUserTypeOption);
+
+  const resellerLocked = listFilterScope.resellerPickerMode === "locked";
+  const parentLocked = listFilterScope.parentCompanyPickerMode === "locked";
 
   const filterActive =
-    listUserTypeFilter !== "all"
+    listUserTypeFilter !== listFilterScope.defaultUserTypeFilter
     || Boolean(listScopeResellerId.trim())
     || Boolean(listScopeParentCompanyId.trim());
 
-  const externalScopeEnabled = listUserTypeFilter === "External";
-  const parentSelectDisabled = !externalScopeEnabled || !listScopeResellerId.trim();
+  const parentSelectDisabled =
+    !tenantScopeVisible || !listScopeResellerId.trim() || parentLocked;
+
+  const filterDescription = showInternalUserTypeOption
+    ? "Pick user type. For External, narrow by reseller, then parent company."
+    : "Your session is tenant-scoped. Refine external users by parent company when allowed.";
 
   return (
     <Box sx={overviewSearchRow}>
@@ -108,7 +124,7 @@ export function UserSearchToolbar(props: Props) {
         suggestions={suggestions}
         isSuggestionsLoading={isSuggestionsLoading}
         searchAriaLabel="User search input"
-        onEnter={handleSearch}
+        onEnter={onSearch}
         sx={overviewSearchFieldWrapper}
       />
 
@@ -134,27 +150,28 @@ export function UserSearchToolbar(props: Props) {
               </>
             }
           >
-            <FilterPanelHeader
-              title="List filters"
-              description="Pick user type. For External, narrow by reseller, then parent company."
-            />
+            <FilterPanelHeader title="List filters" description={filterDescription} />
 
-            <Typography variant="caption" sx={{ display: "block", mb: 0.75, fontWeight: 600, color: theme.app.text.primary }}>
-              User type
-            </Typography>
-            <SegmentedControl
-              options={userTypeSegmentOptions}
-              value={listUserTypeFilter}
-              onChange={(v) => onListUserTypeFilterChange(v as UserListTypeFilter)}
-              size="small"
-              sx={{
-                width: "100%",
-                display: "flex",
-                "& .MuiToggleButtonGroup-grouped": { flex: 1, minWidth: 0 },
-              }}
-            />
+            {userTypeSegmentOptions.length > 1 ? (
+              <>
+                <Typography variant="caption" sx={{ display: "block", mb: 0.75, fontWeight: 600, color: theme.app.text.primary }}>
+                  User type
+                </Typography>
+                <SegmentedControl
+                  options={userTypeSegmentOptions}
+                  value={listUserTypeFilter}
+                  onChange={(v) => onListUserTypeFilterChange(v as UserListTypeFilter)}
+                  size="small"
+                  sx={{
+                    width: "100%",
+                    display: "flex",
+                    "& .MuiToggleButtonGroup-grouped": { flex: 1, minWidth: 0 },
+                  }}
+                />
+              </>
+            ) : null}
 
-            {externalScopeEnabled ? (
+            {tenantScopeVisible ? (
               <>
                 <Divider sx={{ my: 2, borderBottom: `1px solid ${theme.app.dashboard.cardBorder}` }} />
                 <Box
@@ -166,30 +183,36 @@ export function UserSearchToolbar(props: Props) {
                   }}
                 >
                   <Typography variant="caption" sx={{ display: "block", mb: 1.25, fontWeight: 600, color: theme.app.text.primary }}>
-                    External scope
+                    Tenant scope
                   </Typography>
                   <Typography variant="caption" sx={{ display: "block", mb: 1.5, color: theme.app.dashboard.textMuted, lineHeight: 1.5 }}>
-                    Step 1: choose a reseller (optional). Step 2: parent companies load for that reseller; pick one to filter the list.
+                    {resellerLocked
+                      ? "Reseller is fixed to your session. Pick a parent company when your role allows it."
+                      : "Choose a reseller (optional), then a parent company to narrow external users."}
                   </Typography>
                   <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                    <FilterableComboField
-                      label="Reseller"
-                      value={listScopeResellerId}
-                      onChange={onListScopeResellerChange}
-                      options={resellerSelectOptions}
-                      placeholder="Type to find a reseller…"
-                      disabled={resellerFilterDisabled}
-                      inputAriaLabel="Filter users by reseller"
-                    />
-                    <FilterableComboField
-                      label="Parent company"
-                      value={listScopeParentCompanyId}
-                      onChange={onListScopeParentCompanyChange}
-                      options={parentCompanySelectOptions}
-                      placeholder="Type to find a parent company…"
-                      disabled={parentSelectDisabled}
-                      inputAriaLabel="Filter users by parent company"
-                    />
+                    {listFilterScope.resellerPickerMode !== "hidden" ? (
+                      <FilterableComboField
+                        label="Reseller"
+                        value={listScopeResellerId}
+                        onChange={onListScopeResellerChange}
+                        options={resellerSelectOptions}
+                        placeholder="Type to find a reseller…"
+                        disabled={resellerFilterDisabled || resellerLocked}
+                        inputAriaLabel="Filter users by reseller"
+                      />
+                    ) : null}
+                    {listFilterScope.parentCompanyPickerMode !== "hidden" ? (
+                      <FilterableComboField
+                        label="Parent company"
+                        value={listScopeParentCompanyId}
+                        onChange={onListScopeParentCompanyChange}
+                        options={parentCompanySelectOptions}
+                        placeholder="Type to find a parent company…"
+                        disabled={parentSelectDisabled}
+                        inputAriaLabel="Filter users by parent company"
+                      />
+                    ) : null}
                   </Box>
                 </Box>
               </>

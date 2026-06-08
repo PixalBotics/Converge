@@ -14,4 +14,6 @@ export const companiesKeys = {
   detail: (id: string) => [...companiesKeys.all, "detail", id] as const,
   pocDirectory: (params?: Params) =>
     [...companiesKeys.all, "poc-directory", params] as const,
+  websiteDirectory: (params?: Params) =>
+    [...companiesKeys.all, "website-directory", params] as const,
 };

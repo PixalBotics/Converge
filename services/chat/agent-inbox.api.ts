@@ -1,10 +1,21 @@
 import { apiClient } from "@/api";
-import { agentChatSocketAckOrRest } from "./agent-socket-api.util";
+import {
+  agentChatSocketAckOrRest,
+  agentChatSocketAckRequired,
+  ensureAgentChatSocketReady,
+} from "./agent-socket-api.util";
+import { unwrapSocketAckPayload } from "@/lib/hooks/chat/chat-socket-delivery";
+import {
+  isSocketTransportError,
+  isVisitorProfileBusinessError,
+} from "@/features/chat-operations/utils/visitor-profile-capture";
 import type {
   AgentSendMessagePayload,
+  AgentVisitorProfileUpdateResult,
   ChatCloseResponse,
   ConversationHistoryResponse,
   ConversationSummary,
+  PatchAgentVisitorProfileBody,
   VisitorCreateConversationPayload,
   VisitorCreateConversationResponse,
   VisitorSendMessagePayload,
@@ -43,6 +54,43 @@ export async function sendAgentMessage(
     { headers: chatAuthHeaders(token) },
   );
   return unwrapChatHttpData(data);
+}
+
+export interface TransferToPoolHeadResponse {
+  conversationId: string;
+  transfer: {
+    conversationId: string;
+    fromAgentId: string;
+    toAgentId: string;
+  };
+  fromAgent: { id: string; label: string };
+  toAgent: { id: string; label: string };
+  assignedRank?: string | null;
+  lastTransferFrom?: {
+    userId: string;
+    label: string;
+    transferredAt?: string;
+  } | null;
+}
+
+export async function transferConversationToPoolHead(
+  conversationId: string,
+  _token?: string,
+): Promise<TransferToPoolHeadResponse> {
+  return agentChatSocketAckRequired<TransferToPoolHeadResponse>(
+    (socket) => socket.transferToPoolHeadWithAck({ conversationId }, 15_000),
+    "transfer to pool head",
+  );
+}
+
+export async function getAgentConversationHistorySocket(
+  conversationId: string,
+): Promise<ConversationHistoryResponse> {
+  const payload = await agentChatSocketAckRequired<unknown>(
+    (socket) => socket.fetchAgentHistoryWithAck({ conversationId }, 15_000),
+    "load conversation history",
+  );
+  return normalizeConversationHistoryPayload(payload, conversationId);
 }
 
 export async function closeConversation(
@@ -105,4 +153,39 @@ export async function postAgentWebsiteAvailabilityCheck(
     { headers: chatAuthHeaders(token) },
   );
   return unwrapChatHttpData(data);
+}
+
+export async function patchAgentVisitorProfile(
+  conversationId: string,
+  body: PatchAgentVisitorProfileBody,
+  token?: string,
+): Promise<AgentVisitorProfileUpdateResult> {
+  const restCall = async () => {
+    const { data } = await apiClient.patch<unknown>(
+      `/chat/agent/conversations/${encodeURIComponent(conversationId)}/visitor-profile`,
+      body,
+      { headers: chatAuthHeaders(token) },
+    );
+    return unwrapChatHttpData<AgentVisitorProfileUpdateResult>(data);
+  };
+
+  const socket = await ensureAgentChatSocketReady();
+  if (socket) {
+    try {
+      const ack = await socket.updateVisitorProfileWithAck(
+        { conversationId, ...body },
+        15_000,
+      );
+      const payload = unwrapSocketAckPayload(ack);
+      if (payload !== undefined && payload !== null && typeof payload === "object") {
+        return unwrapChatHttpData<AgentVisitorProfileUpdateResult>(payload);
+      }
+    } catch (err) {
+      if (isVisitorProfileBusinessError(err) || !isSocketTransportError(err)) {
+        throw err;
+      }
+    }
+  }
+
+  return restCall();
 }

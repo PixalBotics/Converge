@@ -12,7 +12,7 @@ import {
   useUserFilterSuggestionsQuery,
   useUsersListQuery,
 } from "@/lib/hooks";
-import { useAuth, sessionMayPickInternalUserScope } from "@/lib/auth";
+import { useAuth, resolveSessionListFilterScope } from "@/lib/auth";
 import { UserStatsCards } from "./components/UserStatsCards";
 import { UsersTableSection } from "./components/UsersTableSection";
 import { AddUserModal } from "./components/AddUserModal";
@@ -39,10 +39,11 @@ import {
 export default function UserPage() {
   const theme = useTheme() as AppTheme;
   const { hasOperational, isPlatformAdmin, user: authUser } = useAuth();
-  const showInternalUsersCard = useMemo(
-    () => sessionMayPickInternalUserScope(isPlatformAdmin, authUser?.userType),
-    [isPlatformAdmin, authUser?.userType],
+  const listFilterScope = useMemo(
+    () => resolveSessionListFilterScope(isPlatformAdmin, authUser),
+    [isPlatformAdmin, authUser],
   );
+  const showInternalUsersCard = listFilterScope.mayPickInternal;
   const canCreateUser = hasOperational("user:create");
   const [searchInput, setSearchInput] = useState("");
   const [appliedSearch, setAppliedSearch] = useState("");
@@ -62,11 +63,31 @@ export default function UserPage() {
   const [listScopeResellerId, setListScopeResellerId] = useState("");
   const [listScopeParentCompanyId, setListScopeParentCompanyId] = useState("");
 
-  const resellersQuery = useCompaniesSetupResellersQuery({ enabled: true });
+  const tenantScopeActive =
+    listFilterScope.showTenantScopeFilters &&
+    (listUserTypeFilter === "External" || !listFilterScope.mayPickInternal);
+
+  useEffect(() => {
+    if (listFilterScope.lockedResellerId) {
+      setListScopeResellerId(listFilterScope.lockedResellerId);
+    }
+    if (listFilterScope.lockedParentCompanyId) {
+      setListScopeParentCompanyId(listFilterScope.lockedParentCompanyId);
+    }
+    if (!listFilterScope.mayPickInternal) {
+      setListUserTypeFilter((prev) =>
+        prev === "Internal" ? listFilterScope.defaultUserTypeFilter : prev,
+      );
+    }
+  }, [listFilterScope]);
+
+  const resellersQuery = useCompaniesSetupResellersQuery({
+    enabled: tenantScopeActive && listFilterScope.resellerPickerMode !== "hidden",
+  });
   const companiesByResellerQuery = useCompaniesByResellerQuery(
     listScopeResellerId,
     { view: "tree", sortBy: "name", sortOrder: "asc", all: true },
-    { enabled: listUserTypeFilter === "External" && listScopeResellerId.trim().length > 0 },
+    { enabled: tenantScopeActive && listScopeResellerId.trim().length > 0 },
   );
 
   const resellerOptions = useMemo(() => {
@@ -84,7 +105,7 @@ export default function UserPage() {
   }, [resellerOptions, resellersQuery.isLoading]);
 
   const parentCompanySelectOptions = useMemo((): FilterableComboOption[] => {
-    if (listUserTypeFilter !== "External") {
+    if (!tenantScopeActive) {
       return [{ value: "", label: "—", disabled: true }];
     }
     if (!listScopeResellerId.trim()) {
@@ -98,11 +119,18 @@ export default function UserPage() {
     return parents.length > 0
       ? [head, ...parents]
       : [{ value: "", label: "No parent companies for this reseller", disabled: true }];
-  }, [listUserTypeFilter, listScopeResellerId, companiesByResellerQuery.data, companiesByResellerQuery.isFetching]);
+  }, [tenantScopeActive, listScopeResellerId, companiesByResellerQuery.data, companiesByResellerQuery.isFetching]);
+
+  const effectiveListUserType =
+    listUserTypeFilter === "all"
+      ? listFilterScope.mayPickInternal
+        ? undefined
+        : "External"
+      : listUserTypeFilter;
 
   /** Reseller list ids are company rows — GET /users scopes reseller-only via `companyId`, not `resellerId`. */
   const externalResellerOnlyCompanyId =
-    listUserTypeFilter === "External" &&
+    tenantScopeActive &&
     listScopeResellerId.trim().length > 0 &&
     !listScopeParentCompanyId.trim()
       ? listScopeResellerId.trim()
@@ -112,9 +140,9 @@ export default function UserPage() {
     page,
     limit: 20,
     search: appliedSearch.trim() || undefined,
-    userType: listUserTypeFilter === "all" ? undefined : listUserTypeFilter,
+    userType: effectiveListUserType,
     parentCompanyId:
-      listUserTypeFilter === "External" && listScopeParentCompanyId.trim()
+      tenantScopeActive && listScopeParentCompanyId.trim()
         ? listScopeParentCompanyId.trim()
         : appliedFilterIds.parentCompanyId,
     userId: appliedFilterIds.userId,
@@ -210,16 +238,21 @@ export default function UserPage() {
 
   const handleListUserTypeFilterChange = (value: UserListTypeFilter) => {
     setListUserTypeFilter(value);
-    if (value !== "External") {
+    if (value !== "External" && !listFilterScope.lockedResellerId) {
       setListScopeResellerId("");
       setListScopeParentCompanyId("");
+    } else if (value !== "External") {
+      setListScopeResellerId(listFilterScope.lockedResellerId ?? "");
+      setListScopeParentCompanyId(listFilterScope.lockedParentCompanyId ?? "");
     }
     setPage(1);
   };
 
   const handleListScopeResellerChange = (value: string) => {
     setListScopeResellerId(value);
-    setListScopeParentCompanyId("");
+    if (!listFilterScope.lockedParentCompanyId) {
+      setListScopeParentCompanyId("");
+    }
     setPage(1);
   };
 
@@ -229,9 +262,9 @@ export default function UserPage() {
   };
 
   const resetListFilters = () => {
-    setListUserTypeFilter("all");
-    setListScopeResellerId("");
-    setListScopeParentCompanyId("");
+    setListUserTypeFilter(listFilterScope.defaultUserTypeFilter);
+    setListScopeResellerId(listFilterScope.lockedResellerId ?? "");
+    setListScopeParentCompanyId(listFilterScope.lockedParentCompanyId ?? "");
     setPage(1);
   };
 
@@ -283,6 +316,7 @@ export default function UserPage() {
         listUserTypeFilter={listUserTypeFilter}
         onListUserTypeFilterChange={handleListUserTypeFilterChange}
         showInternalUserTypeOption={showInternalUsersCard}
+        listFilterScope={listFilterScope}
         listScopeResellerId={listScopeResellerId}
         listScopeParentCompanyId={listScopeParentCompanyId}
         onListScopeResellerChange={handleListScopeResellerChange}

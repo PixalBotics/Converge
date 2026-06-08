@@ -27,6 +27,13 @@ import { Button, Typography } from "@/components/common";
 import type { WidgetChatColorsDraft } from "@/lib/chat-widget/widget-colors-draft";
 
 import type { WidgetInstallChatMode } from "@/lib/chat-widget/widgetDraft";
+import {
+  resolveBubbleSurfaceSx,
+  resolveWidgetPanelHeaderSurfaceSx,
+  resolveWidgetPanelSurfaceSx,
+  type WidgetLauncherStyleId,
+} from "@/lib/chat-widget/launcher-style";
+import { WidgetChatAvatarBubble } from "@/lib/chat-widget/widget-chat-avatar-svg";
 
 
 
@@ -37,6 +44,8 @@ export type ChatBoxPreviewTab = "greeting" | "chat" | "prechat";
 export interface ChatBoxLivePreviewModel {
 
   headerTitle: string;
+
+  headerLogoDataUrl?: string;
 
   headerAlign: "Center" | "Left";
 
@@ -96,6 +105,22 @@ export interface ChatBoxLivePreviewModel {
 
   chatMode: WidgetInstallChatMode;
 
+  panelSurfaceStyle?: WidgetLauncherStyleId;
+
+  bubbleSurfaceStyle?: WidgetLauncherStyleId;
+
+  agentAvatarEnabled?: boolean;
+
+  agentAvatarDataUrl?: string;
+
+  agentAvatarPreset?: string;
+
+  visitorAvatarEnabled?: boolean;
+
+  visitorAvatarDataUrl?: string;
+
+  visitorAvatarPreset?: string;
+
 }
 
 
@@ -108,108 +133,50 @@ function clampBox(n: number, min: number, max: number, fallback: number): number
 
 
 
-function AgentAvatar() {
-
-  return (
-
-    <Box
-
-      sx={{
-
-        width: 28,
-
-        height: 28,
-
-        borderRadius: "50%",
-
-        bgcolor: "#E5E7EB",
-
-        border: "1px solid #CBD5E1",
-
-        display: "inline-flex",
-
-        alignItems: "center",
-
-        justifyContent: "center",
-
-        flexShrink: 0,
-
-      }}
-
-    >
-
-      <ChatRounded sx={{ color: "#64748B", fontSize: 16 }} />
-
-    </Box>
-
-  );
-
-}
-
-
-
 function Bubble({
-
   children,
-
   bg,
-
   color,
-
   alignSelf,
-
   maxWidth = "88%",
-
+  model,
+  role = "assistant",
 }: {
-
   children: React.ReactNode;
-
   bg: string;
-
   color: string;
-
   alignSelf: "flex-start" | "flex-end";
-
   maxWidth?: string;
-
+  model: ChatBoxLivePreviewModel;
+  role?: "assistant" | "visitor" | "greeting";
 }) {
-
+  const surface = resolveBubbleSurfaceSx({
+    style: model.bubbleSurfaceStyle ?? "solid",
+    role,
+    baseBg: bg,
+    baseText: color,
+    primary: model.buttonColor,
+    hover: model.buttonColor,
+  });
   return (
-
     <Box
-
       sx={{
-
         alignSelf,
-
         maxWidth,
-
         px: 1.25,
-
         py: 0.9,
-
         borderRadius: 1.5,
-
         bgcolor: bg,
-
         color,
-
         fontSize: 13,
-
         lineHeight: 1.45,
-
         wordBreak: "break-word",
-
+        ...surface,
       }}
-
     >
-
       {children}
-
     </Box>
-
   );
-
 }
 
 
@@ -383,37 +350,25 @@ function PreviewShell({
 
 
   return (
-
     <Box
-
       sx={{
-
-        borderRadius: 2,
-
+        ...resolveWidgetPanelSurfaceSx({
+          style: model.panelSurfaceStyle ?? "solid",
+          buttonColor: model.buttonColor,
+          buttonHoverColor: model.buttonColor,
+          panelBackground: model.backgroundColor,
+          borderRadiusPx: 12,
+        }),
         overflow: "hidden",
-
-        border: `1px solid ${c.inputBorderColor}`,
-
-        bgcolor: model.backgroundColor,
-
         width: "100%",
-
         maxWidth: width,
-
         minHeight: minHeight ?? Math.min(height, 420),
-
         mx: "auto",
-
         display: "flex",
-
         flexDirection: "column",
-
         color: c.chatBodyText,
-
         fontSize: 13,
-
       }}
-
     >
 
       {children}
@@ -578,8 +533,27 @@ function PrechatPreview({ model }: { model: ChatBoxLivePreviewModel }) {
 
 
 
+function PanelHeaderLogo({ src }: { src?: string }) {
+  if (!src?.trim()) return null;
+  return (
+    <Box
+      component="img"
+      src={src}
+      alt=""
+      sx={{
+        height: 28,
+        width: "auto",
+        maxWidth: 96,
+        objectFit: "contain",
+        flexShrink: 0,
+      }}
+    />
+  );
+}
+
 function GreetingPreview({ model }: { model: ChatBoxLivePreviewModel }) {
   const c = model.colors;
+  const headerJustify = model.headerAlign === "Left" ? "flex-start" : "center";
   const headerTextAlign = model.headerAlign === "Left" ? "left" : "center";
   return (
     <PreviewShell model={model}>
@@ -587,16 +561,40 @@ function GreetingPreview({ model }: { model: ChatBoxLivePreviewModel }) {
         sx={{
           px: 1.5,
           py: 1.1,
-          bgcolor: model.buttonColor,
           color: model.textColor,
+          ...resolveWidgetPanelHeaderSurfaceSx({
+            style: model.panelSurfaceStyle ?? "solid",
+            headerBg: model.buttonColor,
+          }),
         }}
       >
-        <Typography variant="subtitle2" sx={{ color: "inherit", fontWeight: 700, textAlign: headerTextAlign }}>
-          {model.headerTitle || "Live chat"}
-        </Typography>
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: headerJustify,
+            gap: 0.75,
+          }}
+        >
+          <PanelHeaderLogo src={model.headerLogoDataUrl} />
+          {model.headerTitle.trim() ? (
+            <Typography
+              variant="subtitle2"
+              sx={{ color: "inherit", fontWeight: 700, textAlign: headerTextAlign }}
+            >
+              {model.headerTitle.trim()}
+            </Typography>
+          ) : null}
+        </Box>
       </Box>
       <Stack spacing={1.5} sx={{ p: 1.5, flex: 1 }}>
-        <Bubble bg={c.greetingBubbleBg} color={c.greetingBubbleText} alignSelf="flex-start">
+        <Bubble
+          model={model}
+          role="greeting"
+          bg={c.greetingBubbleBg}
+          color={c.greetingBubbleText}
+          alignSelf="flex-start"
+        >
           {model.greetingMessage.trim() || "Add a panel greeting on this step."}
         </Bubble>
         <Button type="button" variant="primary" tabIndex={-1} sx={{ alignSelf: "stretch", bgcolor: model.buttonColor }}>
@@ -622,46 +620,32 @@ function ChatPreview({ model }: { model: ChatBoxLivePreviewModel }) {
     <PreviewShell model={model}>
 
       <Box
-
         sx={{
-
           px: 1.5,
-
           py: 1.1,
-
-          bgcolor: model.buttonColor,
-
           color: model.textColor,
-
+          ...resolveWidgetPanelHeaderSurfaceSx({
+            style: model.panelSurfaceStyle ?? "solid",
+            headerBg: model.buttonColor,
+          }),
         }}
-
       >
-
         <Box
-
           sx={{
-
             display: "flex",
-
             alignItems: "center",
-
             justifyContent: headerJustify,
-
             gap: 1,
-
           }}
-
         >
-
-          <AgentAvatar />
-
+          <PanelHeaderLogo src={model.headerLogoDataUrl} />
           <Box sx={{ textAlign: headerTextAlign }}>
 
-            <Typography variant="subtitle2" sx={{ color: "inherit", fontWeight: 700, fontSize: 14 }}>
-
-              {model.headerTitle || "Live chat"}
-
-            </Typography>
+            {model.headerTitle.trim() ? (
+              <Typography variant="subtitle2" sx={{ color: "inherit", fontWeight: 700, fontSize: 14 }}>
+                {model.headerTitle.trim()}
+              </Typography>
+            ) : null}
 
             <Typography variant="caption" sx={{ color: "inherit", opacity: 0.85 }}>
 
@@ -741,25 +725,25 @@ function ChatPreview({ model }: { model: ChatBoxLivePreviewModel }) {
 
             )}
 
-            {(model.bannerTitle || model.bannerDescription) && (
+            {(model.bannerTitle.trim() || model.bannerDescription.trim()) && (
 
               <Box sx={{ px: 1, py: 0.75 }}>
 
-                {model.bannerTitle ? (
+                {model.bannerTitle.trim() ? (
 
                   <Typography variant="caption" sx={{ color: c.chatBodyText, fontWeight: 700, display: "block" }}>
 
-                    {model.bannerTitle}
+                    {model.bannerTitle.trim()}
 
                   </Typography>
 
                 ) : null}
 
-                {model.bannerDescription ? (
+                {model.bannerDescription.trim() ? (
 
                   <Typography variant="caption" sx={{ color: c.chatMutedText, display: "block" }}>
 
-                    {model.bannerDescription}
+                    {model.bannerDescription.trim()}
 
                   </Typography>
 
@@ -776,28 +760,52 @@ function ChatPreview({ model }: { model: ChatBoxLivePreviewModel }) {
 
 
         {model.firstMessage.trim() ? (
-
           <Box sx={{ display: "flex", alignItems: "flex-start", gap: 0.75 }}>
-
-            <AgentAvatar />
-
-            <Bubble bg={c.incomingMessageBg} color={c.incomingMessageText} alignSelf="flex-start">
-
+            {model.agentAvatarEnabled !== false ? (
+              <WidgetChatAvatarBubble
+                avatarUrl={model.agentAvatarDataUrl}
+                preset={model.agentAvatarPreset}
+                accentColor={model.buttonColor}
+                variant="agent"
+                size={32}
+              />
+            ) : null}
+            <Bubble
+              model={model}
+              role="assistant"
+              bg={c.incomingMessageBg}
+              color={c.incomingMessageText}
+              alignSelf="flex-start"
+              maxWidth="calc(100% - 40px)"
+            >
               {model.firstMessage}
-
             </Bubble>
-
           </Box>
-
         ) : null}
 
-
-
-        <Bubble bg={c.outgoingMessageBg} color={c.outgoingMessageText} alignSelf="flex-end" maxWidth="78%">
-
-          Sample visitor message
-
-        </Bubble>
+        <Box sx={{ display: "flex", alignItems: "flex-start", gap: 0.75, alignSelf: "flex-end" }}>
+          <Bubble
+            model={model}
+            role="visitor"
+            bg={c.outgoingMessageBg}
+            color={c.outgoingMessageText}
+            alignSelf="flex-end"
+            maxWidth="calc(100% - 40px)"
+          >
+            Sample visitor message
+          </Bubble>
+          {model.visitorAvatarEnabled ? (
+            <WidgetChatAvatarBubble
+              avatarUrl={model.visitorAvatarDataUrl}
+              preset={model.visitorAvatarPreset}
+              accentColor={model.buttonColor}
+              variant="visitor"
+              size={32}
+            />
+          ) : model.agentAvatarEnabled !== false ? (
+            <Box sx={{ width: 32, height: 32, flexShrink: 0 }} aria-hidden />
+          ) : null}
+        </Box>
 
 
 

@@ -41,3 +41,59 @@ export type ChatReportOverview = {
   byRoutingKey: ChatReportMetricBucket[];
   byAgent: ChatReportMetricBucket[];
 };
+
+export type QaQualityAgentRow = {
+  key: string;
+  label: string;
+  reviewCount: number;
+  avgScore: number | null;
+  lowScoreCount: number;
+  slowReplyChats: number;
+  timelyResponseMisses: number;
+  failureReasons: Record<string, number>;
+};
+
+export type QaQualityReport = {
+  range: { from: string; to: string };
+  slowReplyThresholdSeconds: number;
+  summary: {
+    completedReviews: number;
+    avgQaScore: number | null;
+    slowReplyChatCount: number;
+    checklistMisses: Record<string, number>;
+  };
+  byAgent: QaQualityAgentRow[];
+  byWebsite: Array<{
+    key: string;
+    label: string;
+    reviewCount: number;
+    avgScore: number | null;
+    slowReplyChats: number;
+  }>;
+  recentIssues: Array<{
+    conversationId: string;
+    websiteLabel: string;
+    agentLabel: string;
+    poolName: string | null;
+    overallScore: number | null;
+    failureReason: string | null;
+    slowReplyCount: number;
+    maxReplySeconds: number | null;
+    completedAt: string | null;
+    routingKey: string | null;
+  }>;
+  reviewLog: Array<{
+    conversationId: string;
+    websiteLabel: string;
+    agentLabel: string;
+    qaReviewerLabel: string;
+    poolName: string | null;
+    overallScore: number | null;
+    starRating: number | null;
+    failureReason: string | null;
+    slowReplyCount: number;
+    maxReplySeconds: number | null;
+    completedAt: string | null;
+    routingKey: string | null;
+  }>;
+};

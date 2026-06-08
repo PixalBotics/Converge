@@ -19,6 +19,7 @@ import { parseVisitorInfo } from "../utils/visitor-info";
 import type { ChatWhisperSocketPayload } from "@/services/chat/supervisor.types";
 import { ChatContextRail } from "./ChatContextRail";
 import { GuestLinkHeaderAction } from "./GuestLinkHeaderAction";
+import { TransferToHeadHeaderAction } from "./TransferToHeadHeaderAction";
 import { inboxTranscriptDisplayForClosed } from "../utils/inbox-transcript-messages";
 import { ChatWhisperComposerStrip } from "./ChatWhisperComposerStrip";
 import { ChatComposer } from "./ChatComposer";
@@ -113,6 +114,21 @@ export function ChatConversationPanel({
 }: ChatConversationPanelProps) {
   const theme = useTheme() as AppTheme;
   const visitorInfo = parseVisitorInfo(visitor, conversationMeta ?? undefined);
+  const serviceChannel =
+    typeof conversationMeta?.serviceChannel === "string"
+      ? conversationMeta.serviceChannel
+      : null;
+  const lastTransferFrom =
+    conversationMeta?.lastTransferFrom &&
+    typeof conversationMeta.lastTransferFrom === "object" &&
+    typeof (conversationMeta.lastTransferFrom as { label?: string }).label ===
+      "string"
+      ? (conversationMeta.lastTransferFrom as {
+          label: string;
+          userId?: string;
+          transferredAt?: string;
+        })
+      : null;
   const headerTitle =
     visitorPresentation?.inboxTitle?.trim() ||
     visitorPresentation?.displayName?.trim() ||
@@ -238,6 +254,21 @@ export function ChatConversationPanel({
                   {headerSubtitle}
                 </Typography>
               ) : null}
+              {lastTransferFrom?.label ? (
+                <Typography
+                  sx={{
+                    fontSize: 10,
+                    lineHeight: 1.4,
+                    fontWeight: 600,
+                    color: theme.app.dashboard.accentOrange,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  Transferred by {lastTransferFrom.label}
+                </Typography>
+              ) : null}
               <Box
                 component="span"
                 sx={{
@@ -301,10 +332,14 @@ export function ChatConversationPanel({
               }}
             >
               {!readOnly ? (
-                <GuestLinkHeaderAction
-                  conversationId={conversationId}
-                  hasOperational={hasOperational}
-                />
+                <>
+                  <TransferToHeadHeaderAction conversationId={conversationId} />
+                  <GuestLinkHeaderAction
+                    conversationId={conversationId}
+                    hasOperational={hasOperational}
+                    serviceChannel={serviceChannel}
+                  />
+                </>
               ) : null}
               {onCloseChat ? (
                 <>
@@ -407,6 +442,7 @@ export function ChatConversationPanel({
           visitorDisplayName={visitorInfo.displayName}
           agentDisplayName={assignedAgentLabel}
           showEmptyPlaceholder={!hasConversation}
+          profileCaptureEnabled={hasConversation && !readOnly}
         />
       </Box>
 
