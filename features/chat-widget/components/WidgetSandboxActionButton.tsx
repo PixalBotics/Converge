@@ -168,7 +168,7 @@ export function WidgetSandboxActionButton({
         disabled={copyBusy}
         sx={{
           borderColor: alpha(theme.palette.primary.main, 0.5),
-          color: theme.app.dashboard.textPrimary,
+          color: theme.app.text.primary,
         }}
       >
         Copy public link

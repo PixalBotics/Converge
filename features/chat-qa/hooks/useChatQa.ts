@@ -15,7 +15,9 @@ import type {
   MessageQaAnnotation,
   QaQueueFilters,
   QaQueueRow,
+  QaReviewBundle,
   QaReviewStatus,
+  QaSessionReview,
   UpsertQaMessageAnnotationBody,
   UpsertQaSessionReviewBody,
 } from "@/services/chat/qa.types";
@@ -138,12 +140,22 @@ export function useChatQa(
       try {
         const updated = await upsertQaSessionReview(selectedConversationId, body, token);
         if (updated && typeof updated === "object") {
-          queryClient.setQueryData(
+          queryClient.setQueryData<QaReviewBundle | undefined>(
             chatQaKeys.bundle(selectedConversationId),
-            (prev) =>
-              prev
-                ? { ...prev, review: { ...(prev.review ?? {}), ...(updated as object) } }
-                : prev,
+            (prev) => {
+              if (!prev) return prev;
+              const patch = updated as Partial<QaSessionReview>;
+              const base: QaSessionReview = prev.review ?? {
+                id: patch.id ?? "",
+                conversationId: selectedConversationId,
+                websiteId: patch.websiteId ?? "",
+                status: body.status,
+              };
+              return {
+                ...prev,
+                review: { ...base, ...patch },
+              };
+            },
           );
         }
         refreshQueue();
@@ -176,7 +188,7 @@ export function useChatQa(
       try {
         const saved = await upsertQaMessageAnnotation(messageId, body, token);
         if (saved && typeof saved === "object") {
-          queryClient.setQueryData(
+          queryClient.setQueryData<QaReviewBundle | undefined>(
             chatQaKeys.bundle(selectedConversationId),
             (prev) => {
               if (!prev) return prev;
