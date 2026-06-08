@@ -20,6 +20,7 @@ import {
   selectMenuProps,
 } from "@/components/common/SelectField/SelectField.styles";
 import type { FilterableSearchBarProps } from "./FilterableSearchBar.types";
+import { searchToolbarFieldMetrics } from "./searchToolbarMetrics";
 
 export function FilterableSearchBar({
   value,
@@ -75,13 +76,12 @@ export function FilterableSearchBar({
             alignItems: "center",
             gap: 1,
             px: 1.25,
-            py: 0.6,
             borderRadius: "9999px",
             bgcolor: theme.app.dashboard.pillBg,
             border: `1px solid ${theme.app.dashboard.cardBorder}`,
-            minHeight: 44,
             cursor: "text",
             overflow: "hidden",
+            ...searchToolbarFieldMetrics,
             "& .converge-search-input": {
               color: theme.app.text.primary,
               fontFamily: "Manrope",

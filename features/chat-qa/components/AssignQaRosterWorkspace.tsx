@@ -10,6 +10,7 @@ import type { AppTheme } from "@/theme/theme";
 import {
   Button,
   DashboardCard,
+  filterPanelDescriptionSx,
   PermissionDeniedPanel,
   SelectField,
   Typography,
@@ -196,35 +197,37 @@ export function AssignQaRosterWorkspace({ preset }: { preset?: QaAssignPreset | 
         navPreset="configure"
       />
 
-      <Box sx={websiteAssignmentPageHeader}>
+      <Box sx={mergeSx(websiteAssignmentPageHeader, { mb: 0 })}>
         <Button
           type="button"
           variant="secondary"
           startIcon={<ArrowBack />}
           component={NextLink}
           href="/dashboard/qa/roster"
-          sx={{ color: theme.app.dashboard.textMuted, alignSelf: "flex-start", mb: 1 }}
+          sx={{ color: theme.app.dashboard.textMuted, alignSelf: "flex-start" }}
         >
           Back to QA roster
         </Button>
       </Box>
 
-      <DashboardCard sx={websiteAssignmentModernCardSx}>
-        <Box sx={websiteAssignmentHeroSx}>
-          <Box sx={websiteAssignmentSectionIconSx}>
-            <FactCheckOutlined />
+      <Box sx={websiteAssignmentHeroSx}>
+        <Box sx={{ display: "flex", alignItems: "flex-start", gap: 2, flexWrap: "wrap" }}>
+          <Box sx={websiteAssignmentSectionIconSx} aria-hidden>
+            <FactCheckOutlined sx={{ fontSize: 22 }} />
           </Box>
-          <Box sx={{ minWidth: 0 }}>
-            <Typography fontWeight={700} sx={{ fontSize: 17, color: theme.app.text.primary }}>
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            <Typography variant="mediumLarge" fontWeight={600} sx={{ color: theme.app.text.primary }}>
               Website scope
             </Typography>
-            <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted }}>
-              Same org picker as website assignments—then pick internal pools and QA reviewers below.
+            <Typography variant="medium" sx={mergeSx(filterPanelDescriptionSx, { maxWidth: 640 })}>
+              Same org picker as website assignments—then choose departments and reviewers below.
             </Typography>
           </Box>
         </Box>
+      </Box>
 
-        <Box sx={mergeSx(websiteAssignmentFilterGrid, assignWebsiteFormGridSx, { mt: 2 })}>
+      <DashboardCard sx={websiteAssignmentModernCardSx}>
+        <Box sx={mergeSx(websiteAssignmentFilterGrid, assignWebsiteFormGridSx)}>
           {canFilterByResellerId ? (
             <SelectField
               label="Reseller"

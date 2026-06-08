@@ -411,6 +411,7 @@ export function ChatTranscriptsListWorkspace() {
         title="Chat transcripts"
         subtitle="Search by reseller, website, agent, or chat ID. Use Filters for tenant scope and date range."
         navPreset="none"
+        hideBottomBorder
       />
 
       <DashboardCard sx={overviewTableCard}>

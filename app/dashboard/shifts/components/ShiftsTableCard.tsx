@@ -123,8 +123,8 @@ export function ShiftsTableCard({
         ] as SxProps<Theme>
       }
     >
-      <Box sx={[departmentsCardHeader, { pb: 1.25 }] as SxProps<Theme>}>
-        <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1.5, minWidth: 0 }}>
+      <Box sx={departmentsCardHeader}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, minWidth: 0 }}>
           <Box
             sx={
               [

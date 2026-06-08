@@ -171,9 +171,9 @@ export function ChatTranscriptDetailWorkspace({
         sx={{
           flexShrink: 0,
           display: "flex",
-          flexWrap: "wrap",
-          alignItems: "center",
-          gap: 1.25,
+          flexDirection: "column",
+          alignItems: "flex-start",
+          gap: 1,
           px: { xs: 1, md: 1.5 },
           pt: { xs: 0.5, md: 0.75 },
           pb: 1,
@@ -188,30 +188,43 @@ export function ChatTranscriptDetailWorkspace({
         >
           Back
         </Button>
-        <Box sx={{ minWidth: 0, flex: "1 1 200px" }}>
-          <Typography variant="h6" fontWeight={700} sx={{ lineHeight: 1.25 }}>
-            {pageTitle}
-          </Typography>
-          <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted }}>
-            Archived conversation · {conversationId.slice(0, 8)}…
-          </Typography>
-        </Box>
-        {monitorRow?.agent ? (
-          <Chip
-            size="small"
-            label={`Agent: ${agentDisplayName(monitorRow.agent)}`}
-            sx={{ fontWeight: 600 }}
-          />
-        ) : null}
-        <Chip
-          size="small"
-          label={String(conv?.status ?? transcripts.selectedRow?.status ?? "—")}
+        <Box
           sx={{
-            fontWeight: 600,
-            color: theme.app.dashboard.textMuted,
-            border: `1px solid ${alpha(theme.app.dashboard.cardBorder, 0.35)}`,
+            display: "flex",
+            alignItems: "flex-start",
+            justifyContent: "space-between",
+            gap: 1.25,
+            width: "100%",
+            minWidth: 0,
           }}
-        />
+        >
+          <Box sx={{ minWidth: 0, flex: "1 1 200px" }}>
+            <Typography variant="h6" fontWeight={700} sx={{ lineHeight: 1.25 }}>
+              {pageTitle}
+            </Typography>
+            <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted }}>
+              Archived conversation · {conversationId.slice(0, 8)}…
+            </Typography>
+          </Box>
+          <Box sx={{ display: "flex", flexShrink: 0, flexWrap: "wrap", gap: 1, justifyContent: "flex-end" }}>
+            {monitorRow?.agent ? (
+              <Chip
+                size="small"
+                label={`Agent: ${agentDisplayName(monitorRow.agent)}`}
+                sx={{ fontWeight: 600 }}
+              />
+            ) : null}
+            <Chip
+              size="small"
+              label={String(conv?.status ?? transcripts.selectedRow?.status ?? "—")}
+              sx={{
+                fontWeight: 600,
+                color: theme.app.dashboard.textMuted,
+                border: `1px solid ${alpha(theme.app.dashboard.cardBorder, 0.35)}`,
+              }}
+            />
+          </Box>
+        </Box>
       </Box>
 
       {(tenantChips.length > 0 || transcripts.detail?.participants?.length) ? (

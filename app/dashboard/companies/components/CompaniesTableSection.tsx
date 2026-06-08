@@ -223,6 +223,7 @@ export function CompaniesTableSection({
           minWidth={980}
           actionColumn={{
             label: "Action",
+            width: 200,
             render: (row) => {
               const detailHref =
                 row.parentCompanies && row.parentCompanies.length > 1 && row.resellerId?.trim()
@@ -243,10 +244,11 @@ export function CompaniesTableSection({
                 <Box
                   sx={{
                     display: "flex",
+                    flexDirection: "row",
                     alignItems: "center",
                     justifyContent: "flex-end",
-                    gap: 1,
-                    flexWrap: "wrap",
+                    gap: 0.75,
+                    flexWrap: "nowrap",
                   }}
                 >
                   {detailHref && canViewCompanyDetail ? (

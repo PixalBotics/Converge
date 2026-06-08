@@ -671,7 +671,7 @@ export default function ShiftsPage() {
 
   return (
     <Box sx={[pageWrapper, rolesPageWrapper] as SxProps<Theme>}>
-      <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 2, mb: 1.5 }}>
+      <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 2 }}>
         <Box>
           <Typography variant="regularLarge" fontWeight={700} color="white" sx={{ letterSpacing: "-0.03em" }}>
             Shifts

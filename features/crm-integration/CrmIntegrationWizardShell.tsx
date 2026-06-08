@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import CheckCircle from "@mui/icons-material/CheckCircle";
 import Box from "@mui/material/Box";
+import type { SxProps, Theme } from "@mui/material/styles";
 import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import { resolveSx } from "@/utils/resolveSx";
@@ -126,7 +127,7 @@ export function CrmIntegrationWizardShell({
       </Box>
 
       <DashboardCard sx={distributionWizardCardSx}>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 2 }}>
           <Box sx={distributionSetupSectionIconBox} aria-hidden>
             <Typography
               sx={{
@@ -146,7 +147,9 @@ export function CrmIntegrationWizardShell({
 
         {children}
 
-        {footer != null && footer !== false ? <Box sx={distributionWizardCardFooter}>{footer}</Box> : null}
+        {footer != null && footer !== false ? (
+          <Box sx={[distributionWizardCardFooter, { borderTop: "none" }] as SxProps<Theme>}>{footer}</Box>
+        ) : null}
       </DashboardCard>
     </Box>
   );

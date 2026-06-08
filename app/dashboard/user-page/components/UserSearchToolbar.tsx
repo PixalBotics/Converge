@@ -33,6 +33,7 @@ type Props = {
   setSelectedSuggestion: (v: UserSuggestion | undefined) => void;
   isSuggestionsLoading: boolean;
   onSearch: () => void;
+  searchSubmitDisabled?: boolean;
   listUserTypeFilter: UserListTypeFilter;
   onListUserTypeFilterChange: (v: UserListTypeFilter) => void;
   showInternalUserTypeOption: boolean;
@@ -58,6 +59,7 @@ export function UserSearchToolbar(props: Props) {
     setSelectedSuggestion,
     isSuggestionsLoading,
     onSearch,
+    searchSubmitDisabled = false,
     listUserTypeFilter,
     onListUserTypeFilterChange,
     showInternalUserTypeOption,
@@ -127,7 +129,7 @@ export function UserSearchToolbar(props: Props) {
       />
 
       <Box sx={{ display: "flex", alignItems: "center", gap: 1.25, flexWrap: "wrap", flexShrink: 0 }}>
-        <SearchSubmitButton onClick={onSearch} sx={{ minWidth: 120 }} />
+        <SearchSubmitButton disabled={searchSubmitDisabled} onClick={onSearch} sx={{ minWidth: 120 }} />
         <ToolbarFilterPopover open={filterOpen} onOpenChange={setFilterOpen} active={filterActive}>
           <ToolbarFilterPopoverPanel
             footer={

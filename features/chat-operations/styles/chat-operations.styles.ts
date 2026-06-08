@@ -1,6 +1,7 @@
 import { alpha } from "@mui/material/styles";
 import type { SxProps, Theme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
+import { hideScrollbarsSx } from "@/lib/ui/hideScrollbars";
 import { dashboardCardSurfaceProps } from "./chat-semantic";
 
 function dash(theme: Theme) {
@@ -117,6 +118,13 @@ export const chatOpsQueueStatChipSx = (variant: "active" | "waiting"): SxProps<T
   };
 };
 
+/** Compact inbox: ~8–9 queue rows before the list scrolls. */
+export const CHAT_OPS_QUEUE_VISIBLE_ROWS = 8.5;
+export const CHAT_OPS_QUEUE_ROW_HEIGHT_PX = 76;
+export const chatOpsQueueListMaxHeightPx = Math.round(
+  CHAT_OPS_QUEUE_VISIBLE_ROWS * CHAT_OPS_QUEUE_ROW_HEIGHT_PX,
+);
+
 export const chatOpsWorkspaceGrid: SxProps<Theme> = (theme) => {
   const d = dash(theme);
   const divider = alpha(d.cardBorder, 0.18);
@@ -127,13 +135,18 @@ export const chatOpsWorkspaceGrid: SxProps<Theme> = (theme) => {
       xs: "1fr",
       lg: "minmax(0, 300px) minmax(0, 1fr) minmax(0, 280px)",
     },
+    gridTemplateRows: "minmax(0, 1fr)",
     flex: 1,
     minHeight: 0,
+    height: "100%",
+    maxHeight: "100%",
     alignItems: "stretch",
     overflow: "hidden",
     "& > [data-chat-pane]": {
       minWidth: 0,
       minHeight: 0,
+      height: "100%",
+      maxHeight: "100%",
       display: "flex",
       flexDirection: "column",
       overflow: "hidden",
@@ -149,6 +162,10 @@ export const chatOpsWorkspaceGrid: SxProps<Theme> = (theme) => {
     "& > [data-chat-pane='details']": {
       background: paneBg,
       display: { xs: "none", lg: "flex" },
+      height: "100%",
+      maxHeight: "100%",
+      overflow: "hidden",
+      contain: "layout size",
     },
   };
 };
@@ -169,33 +186,45 @@ export const chatOpsInboxTabsRow: SxProps<Theme> = (theme) => {
   const d = dash(theme);
   return {
     display: "flex",
-    gap: 0.25,
-    p: 0.35,
-    borderRadius: 8,
-    bgcolor: alpha(d.overlayLight, 0.25),
+    gap: 0.35,
+    p: 0.4,
+    borderRadius: 10,
+    bgcolor: alpha(d.overlayLight, 0.22),
+    border: `1px solid ${alpha(d.cardBorder, 0.22)}`,
+    overflowX: "auto",
+    flexWrap: "nowrap",
+    WebkitOverflowScrolling: "touch",
+    ...hideScrollbarsSx,
   };
 };
 
 export const chatOpsInboxTabSx = (active: boolean): SxProps<Theme> => (theme) => {
   const d = dash(theme);
+  const accent = theme.palette.primary.main;
   return {
-    flex: 1,
+    flex: "1 0 auto",
     border: "none",
     borderRadius: 8,
-    py: 0.7,
-    px: 1,
+    py: 0.65,
+    px: 0.85,
     cursor: "pointer",
     fontFamily: "inherit",
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: active ? 700 : 500,
+    whiteSpace: "nowrap",
     color: active ? (theme as AppTheme).app.text.primary : d.textMuted,
     background: active
-      ? `linear-gradient(135deg, ${alpha(d.accentBlue, 0.35)} 0%, ${alpha(d.accentIndigo, 0.28)} 100%)`
+      ? `linear-gradient(135deg, ${alpha(accent, 0.34)} 0%, ${alpha(accent, 0.16)} 100%)`
       : "transparent",
-    boxShadow: active ? `inset 0 1px 0 ${alpha(theme.palette.common.white, 0.08)}` : "none",
-    transition: "background-color 0.15s ease, color 0.15s ease",
+    boxShadow: active
+      ? `inset 0 1px 0 ${alpha(theme.palette.common.white, 0.1)}`
+      : "none",
+    transition: "background 0.15s ease, color 0.15s ease",
     "&:hover": {
       color: (theme as AppTheme).app.text.primary,
+      background: active
+        ? `linear-gradient(135deg, ${alpha(accent, 0.34)} 0%, ${alpha(accent, 0.16)} 100%)`
+        : alpha(accent, 0.08),
     },
   };
 };

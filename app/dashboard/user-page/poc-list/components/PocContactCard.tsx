@@ -36,12 +36,9 @@ function DetailChip({ label }: { label: string }) {
         overflow: "hidden",
         textOverflow: "ellipsis",
         whiteSpace: "nowrap",
-        bgcolor:
-          theme.palette.mode === "light"
-            ? theme.app.dashboard.blueTintBg
-            : "rgba(59, 130, 246, 0.2)",
-        color: theme.palette.mode === "light" ? "#111827" : "#fff",
-        border: `1px solid ${theme.app.dashboard.cardBorder}`,
+        bgcolor: theme.app.dashboard.blueTintBg,
+        color: theme.app.text.primary,
+        border: `1px solid ${alpha(theme.app.dashboard.cardBorder, 0.55)}`,
       }}
       title={text}
     >
@@ -83,9 +80,9 @@ export function PocContactCard({ contact }: Props) {
           fontSize: 13,
           fontWeight: 700,
           flexShrink: 0,
-          bgcolor: theme.app.dashboard.buttonIndigo,
+          bgcolor: alpha(theme.app.dashboard.accentBlue, 0.22),
           color: theme.app.text.primary,
-          border: `1px solid ${theme.app.dashboard.cardBorder}`,
+          border: `1px solid ${alpha(theme.app.dashboard.accentBlue, 0.35)}`,
         }}
       >
         {pocInitials(contact.pocName)}
@@ -100,7 +97,7 @@ export function PocContactCard({ contact }: Props) {
             variant="caption"
             sx={{
               display: "block",
-              color: theme.app.dashboard.accentBlue,
+              color: theme.app.text.link,
               fontWeight: 500,
               textDecoration: "none",
               mt: 0.25,

@@ -15,6 +15,7 @@ import {
   chatOpsInboxTabsRow,
   chatOpsInboxToolbarSx,
   chatOpsPaneTitleSx,
+  chatOpsQueueListMaxHeightPx,
 } from "../styles/chat-operations.styles";
 import { ConnectionStatusBar } from "./ConnectionStatusBar";
 import { getConversationPreview } from "../utils/conversation-preview";
@@ -83,7 +84,7 @@ export function ChatQueueSidebar({
         : "No messages yet";
 
   return (
-    <PanelColumn sx={{ height: "100%" }}>
+    <PanelColumn sx={{ flex: 1, minHeight: 0, maxHeight: "100%" }}>
       <Box sx={chatOpsInboxToolbarSx}>
         <Box>
           <Typography sx={chatOpsPaneTitleSx}>Conversations</Typography>
@@ -139,7 +140,7 @@ export function ChatQueueSidebar({
         />
       </Box>
 
-      <ScrollRegion sx={{ flex: 1 }}>
+      <ScrollRegion sx={{ flex: 1, minHeight: 0, maxHeight: chatOpsQueueListMaxHeightPx }}>
         {filteredConversations.length === 0 ? (
           <EmptyState sx={{ py: 6 }}>
             <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted }}>

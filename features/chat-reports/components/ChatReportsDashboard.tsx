@@ -159,7 +159,7 @@ export function ChatReportsDashboard() {
                 Results capped at 8,000 conversations — narrow filters for full accuracy.
               </Typography>
             ) : null}
-            <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, display: "block", mb: 2 }}>
+            <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, display: "block" }}>
               Range {new Date(reports.overview.range.from).toLocaleDateString()} –{" "}
               {new Date(reports.overview.range.to).toLocaleDateString()}
             </Typography>
@@ -206,10 +206,10 @@ export function ChatReportsDashboard() {
               </Box>
             ) : null}
 
-            <Box sx={chatReportsSectionSx}>
+            <Box sx={{ ...chatReportsSectionSx, mb: 0 }}>
               <ReportBucketTable title="By department" rows={reports.overview.byDepartment} />
             </Box>
-            <Box sx={chatReportsSectionSx}>
+            <Box sx={{ ...chatReportsSectionSx, mb: 0 }}>
               <ReportBucketTable title="By topic / routing key" rows={reports.overview.byRoutingKey} />
             </Box>
             <Box sx={chatReportsSectionSx}>

@@ -28,13 +28,14 @@ export function Button({
   const muiVariant = resolvedVariant === "outlined" ? "outlined" : "contained";
   /** `contained` + `color="primary"` forces primary label colors — bad on `pillBg`. `danger` uses token fill via `dangerButtonStyles`. */
   const muiColor = colorProp ?? (resolvedVariant === "primary" ? "primary" : "inherit");
-  const mergedSx = {
-    ...baseButtonStyles,
-    ...(density === "compact" ? compactButtonMetrics : {}),
-    ...variantStyles[resolvedVariant](theme),
-    ...(fullWidth ? { minWidth: 0 } : {}),
-    ...resolveSx(sx, theme),
-  } as SxProps<Theme>;
+  const callerSx = sx == null ? [] : Array.isArray(sx) ? sx : [sx];
+  const mergedSx = [
+    baseButtonStyles,
+    ...(density === "compact" ? [compactButtonMetrics] : []),
+    variantStyles[resolvedVariant](theme),
+    ...(fullWidth ? [{ minWidth: 0 }] : []),
+    ...callerSx.map((item) => resolveSx(item, theme)),
+  ] as SxProps<Theme>;
   return (
     <MuiButton
       type={type}

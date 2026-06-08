@@ -8,6 +8,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import { InputField, Typography } from "@/components/common";
+import { hideScrollbarsSx } from "@/lib/ui/hideScrollbars";
 import { listQaDirectoryUsers } from "@/services/chat/qa-directory.api";
 
 export type QaDirectoryUserPickerProps = {
@@ -196,6 +197,7 @@ export function QaDirectoryUserPicker({
             border: `1px solid ${theme.app.dashboard.cardBorder}`,
             borderRadius: 1.5,
             p: 1,
+            ...hideScrollbarsSx,
           }}
         >
           {filtered.map((u) => (

@@ -7,7 +7,6 @@ export const poolShiftHeaderWrapSx: SxProps<Theme> = {
   justifyContent: "space-between",
   flexWrap: "wrap",
   gap: 2,
-  mb: 0.5,
 };
 
 export const poolShiftSubtextSx: SxProps<Theme> = (theme) => ({

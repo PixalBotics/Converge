@@ -398,7 +398,7 @@ export default function ChatWidgetPage() {
 
   return (
     <Box sx={[pageWrapper, rolesPageWrapper, integrationsPageWrapper] as SxProps<Theme>}>
-      <Box sx={integrationsPageHeader}>
+      <Box sx={[integrationsPageHeader, { mb: 0 }] as SxProps<Theme>}>
         <Box>
           <Typography variant="regularLarge" fontWeight={700} color="white" sx={{ mb: 0.5 }}>
             Widget Management

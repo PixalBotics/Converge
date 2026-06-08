@@ -36,6 +36,8 @@ export interface DataTableProps<T = Record<string, unknown>> {
   actionColumn?: {
     label: string;
     align?: "left" | "center" | "right";
+    /** Action column width (default 96). Use a larger value when multiple inline buttons are shown. */
+    width?: number | string;
     render: (row: T, index: number) => React.ReactNode;
   };
   /** Minimum table width (for horizontal scroll on small screens) */

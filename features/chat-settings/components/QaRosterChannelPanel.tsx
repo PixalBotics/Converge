@@ -5,7 +5,8 @@ import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
 import { alpha, useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
-import { SelectField, Typography } from "@/components/common";
+import { filterPanelDescriptionSx, SelectField, Typography } from "@/components/common";
+import { mergeSx } from "@/lib/mui/merge-sx";
 import { useQaChannelDepartmentsQuery } from "@/features/chat-qa/hooks/useQaChannelDepartmentsQuery";
 import { useQaInternalPoolsQuery } from "@/features/chat-qa/hooks/useQaInternalPoolsQuery";
 import { QaDirectoryUserPicker } from "@/features/chat-qa/components/QaDirectoryUserPicker";
@@ -153,8 +154,8 @@ export function QaRosterChannelPanel({
 
   return (
     <Box sx={rosterChannelPanelSx}>
-      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1.5 }}>
-        <Typography fontWeight={700} sx={{ fontSize: 15 }}>
+      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <Typography variant="mediumLarge" fontWeight={600} sx={{ color: theme.app.text.primary }}>
           {channel} QA reviewers
         </Typography>
         <Chip
@@ -169,13 +170,9 @@ export function QaRosterChannelPanel({
         />
       </Box>
 
-      <Typography
-        variant="caption"
-        sx={{ color: theme.app.dashboard.textMuted, display: "block", mb: 1.5, lineHeight: 1.5 }}
-      >
-        {isInternal
-          ? "Internal QA is pool-wise — pick a pool, then reviewers who handle closed internal chats for that pool."
-          : "External QA reviews external-channel chats. Users on the live chat roster for this website are hidden."}
+      <Typography variant="medium" sx={mergeSx(filterPanelDescriptionSx, { mb: 1.5 })}>
+        Dedicated QA staff only — users on the <strong>live chat roster</strong> for this website are
+        hidden. They handle chats; QA reviewers score closed conversations in the QA inbox.
       </Typography>
 
       {assigned.length > 0 ? (

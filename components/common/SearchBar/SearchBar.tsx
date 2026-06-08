@@ -7,6 +7,7 @@ import { useTheme } from "@mui/material/styles";
 import type { SxProps, Theme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import type { SearchBarProps } from "./SearchBar.types";
+import { searchToolbarFieldMetrics } from "./searchToolbarMetrics";
 import { SearchIcon } from "@/components/common/icons";
 import { resolveSx } from "@/utils/resolveSx";
 
@@ -24,11 +25,11 @@ export function SearchBar({ value, onChange, placeholder = "Search anything..", 
             alignItems: "center",
             gap: 1,
             px: 2,
-            py: 1,
             borderRadius: "9999px",
             bgcolor: app.dashboard.pillBg,
             border: `1px solid ${app.dashboard.cardBorder}`,
             minWidth: { xs: 200, md: 260 },
+            ...searchToolbarFieldMetrics,
           },
           resolveSx(sx, theme),
         ] as SxProps<Theme>
@@ -54,7 +55,13 @@ export function SearchBar({ value, onChange, placeholder = "Search anything..", 
         sx={{
           color: app.text.primary,
           fontSize: 14,
+          lineHeight: "20px",
           flex: 1,
+          m: 0,
+          p: 0,
+          minHeight: 0,
+          height: "100%",
+          "& input": { padding: 0, height: 20, lineHeight: "20px" },
           "& input::placeholder": { color: app.text.iconMuted, opacity: 1 },
         }}
       />
