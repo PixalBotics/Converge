@@ -11,7 +11,9 @@ import LinkOutlined from "@mui/icons-material/LinkOutlined";
 import { alpha, useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import { Button, InputField, Typography } from "@/components/common";
+import { dashboardCardStyles } from "@/components/common/DashboardCard/dashboard-card.styles";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
+import { dashboardSectionIconBadgeSx } from "@/lib/design-system";
 import {
   DEFAULT_CHAT_OPERATIONS,
   mergeChatOperationsJson,
@@ -159,8 +161,8 @@ export function ClosePolicyTab({
           gap: 1.5,
           p: 2,
           borderRadius: 2,
-          border: `1px solid ${alpha(theme.app.dashboard.accentBlue, 0.25)}`,
-          bgcolor: alpha(theme.app.dashboard.accentBlue, 0.06),
+          border: `1px solid ${alpha(theme.palette.primary.main, 0.25)}`,
+          bgcolor: alpha(theme.palette.primary.main, 0.06),
         }}
       >
         <Box>
@@ -190,7 +192,7 @@ export function ClosePolicyTab({
       </Box>
 
       <Section
-        icon={<TimerOutlined fontSize="small" />}
+        icon={<TimerOutlined sx={{ fontSize: 20, color: theme.app.dashboard.white95 }} />}
         title="Visitor inactivity"
         description="When the agent (or AI) sent the last message and the visitor stops replying."
         disabled={sectionDisabled}
@@ -253,7 +255,7 @@ export function ClosePolicyTab({
       </Section>
 
       <Section
-        icon={<PersonOffOutlined fontSize="small" />}
+        icon={<PersonOffOutlined sx={{ fontSize: 20, color: theme.app.dashboard.white95 }} />}
         title="Agent no response"
         description="When the visitor sent the last message and no agent has replied yet."
         disabled={sectionDisabled}
@@ -328,7 +330,7 @@ export function ClosePolicyTab({
       </Section>
 
       <Section
-        icon={<SupervisorAccountOutlined fontSize="small" />}
+        icon={<SupervisorAccountOutlined sx={{ fontSize: 20, color: theme.app.dashboard.white95 }} />}
         title="Supervisor close (monitor)"
         description="Pool heads and department heads can close chats from Chat monitor when enabled."
         disabled={sectionDisabled}
@@ -373,7 +375,7 @@ export function ClosePolicyTab({
       </Section>
 
       <Section
-        icon={<LinkOutlined fontSize="small" />}
+        icon={<LinkOutlined sx={{ fontSize: 20, color: theme.app.dashboard.white95 }} />}
         title="After close"
         disabled={sectionDisabled}
       >
@@ -420,30 +422,19 @@ function Section({
   const theme = useTheme() as AppTheme;
   return (
     <Box
-      sx={{
-        p: 2,
-        borderRadius: 2,
-        border: `1px solid ${theme.app.dashboard.cardBorder}`,
-        bgcolor: alpha(theme.app.dashboard.overlayLight, 0.2),
-        opacity: disabled ? 0.72 : 1,
-        transition: "opacity 0.15s ease",
-      }}
+      sx={[
+        dashboardCardStyles,
+        {
+          p: 2,
+          height: "auto",
+          opacity: disabled ? 0.72 : 1,
+          transition: "opacity 0.15s ease",
+        },
+      ]}
     >
       <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1.25, mb: 1.5 }}>
         {icon ? (
-          <Box
-            sx={{
-              mt: 0.25,
-              width: 32,
-              height: 32,
-              borderRadius: 1.5,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              color: theme.app.dashboard.accentBlue,
-              bgcolor: alpha(theme.app.dashboard.accentBlue, 0.12),
-            }}
-          >
+          <Box sx={dashboardSectionIconBadgeSx} aria-hidden>
             {icon}
           </Box>
         ) : null}

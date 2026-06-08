@@ -168,7 +168,6 @@ export function EmailAgentFeedbackPage() {
           gridTemplateColumns: { xs: "1fr", lg: "1fr 340px" },
           gap: 2,
           alignItems: "start",
-          mb: 3,
         }}
       >
         <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
