@@ -15,6 +15,7 @@ import { Button, Typography } from "@/components/common";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
 import { WidgetFlowShell } from "@/features/chat-widget";
 import { WidgetEmbedArchitectureHint } from "@/features/chat-widget/components/WidgetEmbedArchitectureHint";
+import { WidgetDeployStatusCard } from "@/features/chat-widget/components/WidgetDeployStatusCard";
 import { WidgetEmbedTestLink } from "@/features/chat-widget/components/WidgetEmbedTestLink";
 import { WidgetWizardSiteChromePreview } from "@/features/chat-widget/components/WidgetWizardSiteChromePreview";
 import {
@@ -131,7 +132,7 @@ export default function ChatWidgetScriptPage() {
           widgetKey,
           widgetKind: "chat",
           draft: draftForPublish,
-          publishNow: true,
+          publishNow: false,
           assetUrls,
           embedAllowAnyOrigin: false,
         });
@@ -139,7 +140,7 @@ export default function ChatWidgetScriptPage() {
 
         recordSave({
           stepKey: "install",
-          stepLabel: "Step 4 — Install (publish)",
+          stepLabel: "Step 4 — Install (save draft)",
           method: patchMeta.method,
           path: patchMeta.path,
           scope: patchMeta.scope,
@@ -213,11 +214,18 @@ export default function ChatWidgetScriptPage() {
 
   const appOrigin = resolveWidgetEmbedAppOrigin();
 
-  const chatScript =
+  const scriptWidgetKey =
     installUi.phase === "ready"
+      ? installUi.draft.remoteWidgetKey || installUi.draft.widgetId || "YOUR_WIDGET_KEY"
+      : draft.widgetId?.startsWith("wgt_")
+        ? draft.widgetId
+        : "YOUR_WIDGET_KEY";
+
+  const liveEmbedScript =
+    installUi.phase === "ready" && installUi.embedMarkup.trim()
       ? installUi.embedMarkup
       : buildApiWidgetEmbedScript({
-          widgetKey: draft.widgetId?.startsWith("wgt_") ? draft.widgetId : "YOUR_WIDGET_KEY",
+          widgetKey: scriptWidgetKey,
           appOrigin,
         });
 
@@ -228,7 +236,7 @@ export default function ChatWidgetScriptPage() {
     : 400;
 
   const handleCopy = async () => {
-    await navigator.clipboard.writeText(chatScript);
+    await navigator.clipboard.writeText(liveEmbedScript);
     setCopied(true);
     window.setTimeout(() => setCopied(false), 1500);
   };
@@ -236,8 +244,8 @@ export default function ChatWidgetScriptPage() {
   return (
     <WidgetFlowShell
       pageTitle="Widget Script"
-      subtitle="Publish to production, then paste the embed snippet on your site"
-      cardTitle="Install & publish"
+      subtitle="Install saves your widget — go live when ready; until then only the test link works"
+      cardTitle="Install & embed code"
       currentStep={3}
       footer={
         <>
@@ -246,11 +254,11 @@ export default function ChatWidgetScriptPage() {
             type="button"
             variant="primary"
             sx={gradientPrimaryButtonSx}
-            onClick={handleCopy}
+            onClick={() => void handleCopy()}
             disabled={installUi.phase === "loading" || waitingHydrate}
             startIcon={<ContentCopy sx={{ fontSize: 16 }} />}
           >
-            {copied ? "Copied" : "Copy Script"}
+            {copied ? "Copied" : "Copy live script"}
           </Button>
         </>
       }
@@ -271,7 +279,7 @@ export default function ChatWidgetScriptPage() {
 
       {installUi.phase === "loading" && !waitingHydrate ? (
         <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted }}>
-          Publishing widget (PATCH publishNow true → optional POST publish → embed snippet)…
+          Saving widget configuration…
         </Typography>
       ) : null}
 
@@ -282,8 +290,20 @@ export default function ChatWidgetScriptPage() {
       ) : null}
 
       <Box sx={{ minWidth: 0 }}>
-      <Typography variant="mediumLarge" sx={{ color: theme.app.text.primary, mb: -1.2 }}>Embed Code</Typography>
+      <Typography variant="mediumLarge" sx={{ color: theme.app.text.primary, mb: -1.2 }}>
+        Embed code
+      </Typography>
       <WidgetEmbedArchitectureHint />
+      {installUi.phase === "ready" && draft.remoteWidgetKey ? (
+        <Box sx={{ mt: 1, mb: 2 }}>
+          <WidgetDeployStatusCard widgetKey={draft.remoteWidgetKey} />
+        </Box>
+      ) : null}
+      <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, mt: 1, mb: 0.75 }}>
+        Embed script — paste before <code>&lt;/body&gt;</code> on your site after you click{" "}
+        <strong>Go live</strong>. While offline, real visitors will not see the widget (test link still
+        works).
+      </Typography>
       <Box
         sx={{
           border: `1px solid ${theme.app.dashboard.cardBorder}`,
@@ -293,7 +313,7 @@ export default function ChatWidgetScriptPage() {
         }}
       >
         <Typography component="pre" variant="body2" sx={{ color: theme.app.dashboard.textMuted, wordBreak: "break-word", whiteSpace: "pre-wrap", m: 0 }}>
-          {chatScript}
+          {liveEmbedScript}
         </Typography>
       </Box>
       {installUi.phase === "ready" && draft.remoteWidgetKey ? (

@@ -171,6 +171,12 @@ export function ChatQueueSidebar({
                 : undefined,
             );
             const preview = getConversationPreview(conversation, previewFallback);
+            const transferLabel =
+              queueTab === "active" &&
+              conversation.lastTransferFrom &&
+              typeof conversation.lastTransferFrom.label === "string"
+                ? conversation.lastTransferFrom.label.trim()
+                : "";
             const liveTyping = queueTab !== "closed"
               ? sidebarTypingMap.get(conversation.id.toLowerCase())
               : undefined;
@@ -257,6 +263,23 @@ export function ChatQueueSidebar({
                       }}
                     >
                       {subtitle}
+                    </Typography>
+                  ) : null}
+                  {transferLabel ? (
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        display: "block",
+                        fontSize: 10,
+                        fontWeight: 600,
+                        color: theme.app.dashboard.accentOrange,
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                        mb: 0.25,
+                      }}
+                    >
+                      From {transferLabel}
                     </Typography>
                   ) : null}
                   <Typography

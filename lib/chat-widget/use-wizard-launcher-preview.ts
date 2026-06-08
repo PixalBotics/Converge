@@ -58,6 +58,10 @@ export function useWizardLauncherChrome(
       proactiveSecondaryCtaLabel: d.proactiveSecondaryCtaLabel,
       proactiveSecondaryCtaHref: d.proactiveSecondaryCtaHref,
       proactiveSecondaryCtaKind: d.proactiveSecondaryCtaKind,
+      closedMessagePreviewEnabled: d.closedMessagePreviewEnabled,
+      launcherBadgeMode: d.launcherBadgeMode,
+      fallbackNotificationText: d.fallbackNotificationText,
+      launcherStyle: d.launcherStyle,
       themeDesignJsonAccent: d.themeDesignJsonAccent,
       themeDesignJsonDensity: d.themeDesignJsonDensity,
     });

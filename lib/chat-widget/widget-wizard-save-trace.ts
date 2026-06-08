@@ -185,7 +185,14 @@ export function launcherPreviewFromSaveTrace(
       String(colors.buttonHover ?? ui.buttonHoverColor ?? theme.buttonHoverColor ?? "").trim() ||
       "#1d4ed8",
     iconColor: String(colors.icon ?? theme.iconColor ?? "").trim() || "#ffffff",
-    iconDataUrl: String(ui.buttonIconUrl ?? launcher.iconUrl ?? "").trim(),
+    iconDataUrl: (() => {
+      const preset = normalizeLauncherIconPreset(
+        String(ui.launcherIconPreset ?? launcher.iconPreset ?? ""),
+      );
+      const url = String(ui.buttonIconUrl ?? launcher.iconUrl ?? "").trim();
+      if (preset && url && !url.startsWith("data:")) return "";
+      return url;
+    })(),
     launcherIconPreset: normalizeLauncherIconPreset(
       String(ui.launcherIconPreset ?? launcher.iconPreset ?? ""),
     ),

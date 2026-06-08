@@ -35,9 +35,15 @@ export {
   pickAssignedChatBundle,
   type ChatBundleCode,
 } from "./chat-bundles";
+export {
+  canAccessCompanyScopeFilters,
+  canViewWebsiteDirectory,
+} from "./company-scope-filter-access";
 export { useChatApiGates } from "./use-chat-api-gates";
 export {
   canAgentChatFromArrays,
+  canShowAgentInboxNav,
+  type AgentInboxEligibilityOptions,
   canMonitorFromArrays,
   canQaFromArrays,
   canChatReportsFromArrays,
@@ -57,6 +63,7 @@ export {
   canSupervisorCloseChat,
   canUseSupervisorTools,
   canViewChatReports,
+  canAccessQaTeamReports,
   canWhisper,
   needsChatScopeFilters,
   buildChatLiveNavItems,

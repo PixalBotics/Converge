@@ -709,6 +709,14 @@
 
     var widgetKey = (script.getAttribute("data-widget-key") || "").trim();
 
+    var embedEnv = (script.getAttribute("data-env") || "").trim().toLowerCase();
+
+    if (!embedEnv && script.getAttribute("data-staging") === "1") {
+
+      embedEnv = "staging";
+
+    }
+
     var appOrigin = normalizeOrigin(
 
       script.getAttribute("data-app-origin") ||
@@ -766,6 +774,12 @@
     params.set("parentHost", pageHost());
 
     params.set("parentPage", pageUrl());
+
+    if (embedEnv) {
+
+      params.set("env", embedEnv);
+
+    }
 
 
 

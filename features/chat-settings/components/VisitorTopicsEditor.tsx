@@ -35,6 +35,8 @@ export type VisitorTopicsEditorProps = {
   rowTitlePrefix?: string;
   addLabel?: string;
   minRows?: number;
+  /** Widget wizard: route visitors to external departments only. */
+  externalDeptOnly?: boolean;
 };
 
 function patchRow(
@@ -59,6 +61,7 @@ export function VisitorTopicsEditor({
   rowTitlePrefix = "Topic",
   addLabel = "Add topic",
   minRows = 1,
+  externalDeptOnly = false,
 }: VisitorTopicsEditorProps) {
   const theme = useTheme() as AppTheme;
   const disabled = !canEdit;
@@ -139,7 +142,9 @@ export function VisitorTopicsEditor({
               <Box
                 sx={{
                   display: "grid",
-                  gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
+                  gridTemplateColumns: externalDeptOnly
+                    ? "1fr"
+                    : { xs: "1fr", md: "1fr 1fr" },
                   gap: 1.25,
                   mt: 1.25,
                   p: 1.25,
@@ -147,27 +152,29 @@ export function VisitorTopicsEditor({
                   border: `1px dashed ${theme.app.dashboard.cardBorder}`,
                 }}
               >
+                {externalDeptOnly ? null : (
+                  <SelectField
+                    label="Internal department"
+                    value={topic.internalDepartmentId}
+                    onChange={(v) =>
+                      onChange(patchRow(topics, index, { internalDepartmentId: v }))
+                    }
+                    options={[
+                      { value: "", label: "Select internal department…" },
+                      ...internalDeptOptions.map((d) => ({ value: d.id, label: d.label })),
+                    ]}
+                    disabled={disabled}
+                    menuMaxRows={8}
+                  />
+                )}
                 <SelectField
-                  label="Internal department"
-                  value={topic.internalDepartmentId}
-                  onChange={(v) =>
-                    onChange(patchRow(topics, index, { internalDepartmentId: v }))
-                  }
-                  options={[
-                    { value: "", label: "Select internal department…" },
-                    ...internalDeptOptions.map((d) => ({ value: d.id, label: d.label })),
-                  ]}
-                  disabled={disabled}
-                  menuMaxRows={8}
-                />
-                <SelectField
-                  label="External department"
+                  label={externalDeptOnly ? "Department" : "External department"}
                   value={topic.externalDepartmentId}
                   onChange={(v) =>
                     onChange(patchRow(topics, index, { externalDepartmentId: v }))
                   }
                   options={[
-                    { value: "", label: "Select external department…" },
+                    { value: "", label: "Select department…" },
                     ...externalDeptOptions.map((d) => ({ value: d.id, label: d.label })),
                   ]}
                   disabled={disabled}

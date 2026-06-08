@@ -1,24 +1,27 @@
 "use client";
 
 import ChatRounded from "@mui/icons-material/ChatRounded";
+import Badge from "@mui/material/Badge";
 import Box from "@mui/material/Box";
+import Paper from "@mui/material/Paper";
 import Stack from "@mui/material/Stack";
 import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import { Typography } from "@/components/common";
 import { WidgetAccentDensityPreview } from "@/components/dashboard/chat-widget/WidgetAccentDensityPreview";
+import { EmbedAgentAvatar } from "@/components/embed/EmbedAgentAvatar";
 import { WidgetProactiveTeaserBubble } from "@/components/embed/WidgetProactiveTeaserBubble";
+import { truncateClosedMessagePreviewHalf } from "@/lib/widget-runtime/widget-notifications";
 import { LauncherPresetIcon } from "@/lib/chat-widget/launcherIcons";
 import { parseProactiveSecondaryCtaFromUi } from "@/lib/chat-widget/proactive-teaser-types";
+import {
+  normalizeLauncherStyle,
+  resolveLauncherFabSurfaceSx,
+  type WidgetLauncherStyleId,
+} from "@/lib/chat-widget/launcher-style";
 import type { LauncherIconPresetId } from "@/lib/chat-widget/widgetDraft";
 
 const LAUNCHER_PX = 52;
-
-function launcherShapeRadius(shape: "circle" | "rounded" | "square"): string {
-  if (shape === "circle") return "50%";
-  if (shape === "rounded") return "16px";
-  return "10px";
-}
 
 export function WidgetLauncherLivePreview({
   buttonShape,
@@ -34,8 +37,17 @@ export function WidgetLauncherLivePreview({
   proactiveTeaserActive = false,
   proactiveTeaserAvatarUrl = "",
   proactiveSecondaryCta,
+  closedMessagePreviewEnabled = true,
+  incomingPreviewSampleText = "Thanks for reaching out — an agent will reply shortly.",
+  incomingPreviewBg = "#E8EDF4",
+  incomingPreviewTextColor = "#0f172a",
+  incomingPreviewMutedColor = "#64748b",
+  incomingPreviewAgentUrl = "",
+  incomingPreviewAgentPreset = "phosphor-user-circle",
+  launcherBadgeMode = "count",
   accent,
   density,
+  launcherStyle = "solid",
 }: {
   buttonShape: "circle" | "rounded" | "square";
   buttonPosition: "left" | "center" | "right";
@@ -50,12 +62,27 @@ export function WidgetLauncherLivePreview({
   proactiveTeaserActive?: boolean;
   proactiveTeaserAvatarUrl?: string;
   proactiveSecondaryCta?: ReturnType<typeof parseProactiveSecondaryCtaFromUi>;
+  closedMessagePreviewEnabled?: boolean;
+  incomingPreviewSampleText?: string;
+  incomingPreviewBg?: string;
+  incomingPreviewTextColor?: string;
+  incomingPreviewMutedColor?: string;
+  incomingPreviewAgentUrl?: string;
+  incomingPreviewAgentPreset?: string;
+  launcherBadgeMode?: "count" | "dot" | "none";
   accent: string;
   density: string;
+  launcherStyle?: WidgetLauncherStyleId;
 }) {
   const theme = useTheme() as AppTheme;
   const fabColor = buttonColor || "#2563eb";
-  const siteMinHeight = Math.max(148, insetBottomPx + LAUNCHER_PX + 24);
+  const showIncomingPreviewDemo =
+    closedMessagePreviewEnabled && !proactiveTeaserActive && Boolean(incomingPreviewSampleText.trim());
+  const siteMinHeight = Math.max(
+    148,
+    insetBottomPx + LAUNCHER_PX + 24 + (proactiveTeaserActive || showIncomingPreviewDemo ? 72 : 0),
+  );
+  const badgeVisible = launcherBadgeMode !== "none";
 
   const fabPosition =
     buttonPosition === "left"
@@ -117,36 +144,96 @@ export function WidgetLauncherLivePreview({
                 text={proactiveTeaser}
                 avatarUrl={proactiveTeaserAvatarUrl}
                 secondaryCta={proactiveSecondaryCta}
+                motionEnabled={false}
               />
+            ) : showIncomingPreviewDemo ? (
+              <Paper
+                elevation={0}
+                sx={{
+                  maxWidth: 300,
+                  px: 1.5,
+                  py: 1.25,
+                  borderRadius: 2,
+                  bgcolor: incomingPreviewBg,
+                  color: incomingPreviewTextColor,
+                  border: `1px solid ${incomingPreviewBg}`,
+                  boxShadow: "0 2px 10px rgba(15, 23, 42, 0.1)",
+                }}
+              >
+                <Box sx={{ display: "flex", gap: 1, alignItems: "flex-start" }}>
+                  <EmbedAgentAvatar
+                    avatarUrl={incomingPreviewAgentUrl}
+                    preset={incomingPreviewAgentPreset}
+                    accentColor={fabColor}
+                    size={32}
+                    variant="agent"
+                  />
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        display: "block",
+                        fontWeight: 700,
+                        mb: 0.35,
+                        color: incomingPreviewMutedColor,
+                        fontSize: 11,
+                        letterSpacing: "0.02em",
+                        textTransform: "uppercase",
+                      }}
+                    >
+                      New message
+                    </Typography>
+                    <Typography
+                      variant="body2"
+                      sx={{ fontSize: 13, lineHeight: 1.45, fontWeight: 500, color: incomingPreviewTextColor }}
+                    >
+                      {truncateClosedMessagePreviewHalf(incomingPreviewSampleText)}
+                    </Typography>
+                  </Box>
+                </Box>
+              </Paper>
             ) : null}
-          <Box
+          <Badge
+            overlap="circular"
+            invisible={!badgeVisible}
+            badgeContent={launcherBadgeMode === "count" ? 1 : undefined}
+            variant={launcherBadgeMode === "dot" ? "dot" : "standard"}
             sx={{
-              width: LAUNCHER_PX,
-              height: LAUNCHER_PX,
-              flexShrink: 0,
-              borderRadius: launcherShapeRadius(buttonShape),
-              bgcolor: fabColor,
-              boxShadow: "none",
-              overflow: "hidden",
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              cursor: "pointer",
-              transition: "background-color 0.2s ease, transform 0.15s ease",
-              "&:hover": {
+              "& .MuiBadge-badge": {
                 bgcolor: hoverColor || fabColor,
-                transform: "scale(1.08)",
+                color: "#fff",
+                fontWeight: 700,
               },
             }}
           >
-            {iconDataUrl ? (
-              <Box component="img" src={iconDataUrl} alt="" sx={{ width: 26, height: 26, objectFit: "contain" }} />
-            ) : launcherIconPreset ? (
-              <LauncherPresetIcon presetId={launcherIconPreset} color={iconColor || "#FFFFFF"} fontSizePx={26} />
-            ) : (
-              <ChatRounded sx={{ color: iconColor || "#FFFFFF", fontSize: 26 }} />
-            )}
-          </Box>
+            <Box
+              sx={{
+                ...resolveLauncherFabSurfaceSx({
+                  style: normalizeLauncherStyle(launcherStyle),
+                  buttonColor: fabColor,
+                  buttonHoverColor: hoverColor || fabColor,
+                  iconColor: iconColor || "#FFFFFF",
+                  shape: buttonShape,
+                  sizePx: LAUNCHER_PX,
+                }),
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                cursor: "pointer",
+                "&:hover": {
+                  transform: "scale(1.06)",
+                },
+              }}
+            >
+              {iconDataUrl ? (
+                <Box component="img" src={iconDataUrl} alt="" sx={{ width: 26, height: 26, objectFit: "contain" }} />
+              ) : launcherIconPreset ? (
+                <LauncherPresetIcon presetId={launcherIconPreset} color={iconColor || "#FFFFFF"} fontSizePx={26} />
+              ) : (
+                <ChatRounded sx={{ color: iconColor || "#FFFFFF", fontSize: 26 }} />
+              )}
+            </Box>
+          </Badge>
           </Box>
         </Box>
       </Box>

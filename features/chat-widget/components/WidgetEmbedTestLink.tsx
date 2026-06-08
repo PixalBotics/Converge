@@ -1,17 +1,14 @@
 "use client";
 
-import OpenInNew from "@mui/icons-material/OpenInNew";
 import WarningAmberRounded from "@mui/icons-material/WarningAmberRounded";
 import Box from "@mui/material/Box";
-import Link from "@mui/material/Link";
 import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
-import { resolveWidgetEmbedAppOrigin } from "@/lib/chat-widget/widget-embed-api-origin";
 import { Typography } from "@/components/common";
+import { WidgetSandboxActionButton } from "./WidgetSandboxActionButton";
 
 export function WidgetEmbedTestLink({
   widgetKey,
-  websiteId,
   requiresPublishBeforeEmbed,
 }: {
   widgetKey: string;
@@ -23,47 +20,50 @@ export function WidgetEmbedTestLink({
   const key = widgetKey.trim();
   if (!key.startsWith("wgt_")) return null;
 
-  const origin = resolveWidgetEmbedAppOrigin({
-    browserOrigin:
-      typeof window !== "undefined" ? window.location.origin : undefined,
-  });
-  if (!origin) return null;
-
-  const params = new URLSearchParams({ widgetKey: key, sandbox: "1" });
-  if (websiteId?.trim()) params.set("websiteId", websiteId.trim());
-  const href = `${origin}/embed/widget?${params.toString()}`;
-
   const unpublished = requiresPublishBeforeEmbed === true;
 
   return (
-    <Box sx={{ mt: 1.5, p: 1.25, borderRadius: 2, border: `1px solid ${theme.app.dashboard.cardBorder}` }}>
+    <Box
+      sx={{
+        mt: 1.5,
+        p: 1.5,
+        borderRadius: 2,
+        border: `1px solid ${theme.app.dashboard.cardBorder}`,
+        bgcolor: theme.app.dashboard.overlayLight,
+      }}
+    >
       {unpublished ? (
         <Box
           sx={{
             display: "flex",
             alignItems: "flex-start",
             gap: 0.75,
-            mb: 1,
+            mb: 1.25,
             p: 1,
             borderRadius: 1.5,
             bgcolor: theme.app.dashboard.overlayLight,
             border: `1px solid ${theme.palette.warning.main}`,
           }}
         >
-          <WarningAmberRounded sx={{ fontSize: 18, mt: 0.15, flexShrink: 0, color: "warning.main" }} />
-          <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, lineHeight: 1.45 }}>
-            Unpublished draft — customer embed shows the last published snapshot only. Finish
-            Install (publish) so banner, icon, and greeting copy go live.
+          <WarningAmberRounded
+            sx={{ fontSize: 18, mt: 0.15, flexShrink: 0, color: "warning.main" }}
+          />
+          <Typography
+            variant="caption"
+            sx={{ color: theme.app.dashboard.textMuted, lineHeight: 1.45 }}
+          >
+            Widget is offline on real sites until you click Go live. This test link always shows your
+            latest saved draft.
           </Typography>
         </Box>
       ) : null}
-      <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, display: "block", mb: 0.75 }}>
-        Sandbox embed — same UI as customer sites, without analytics
+      <Typography
+        variant="caption"
+        sx={{ color: theme.app.dashboard.textMuted, display: "block", mb: 1 }}
+      >
+        Preview here or copy the test link — works even while the widget is offline on customer sites.
       </Typography>
-      <Link href={href} target="_blank" rel="noopener noreferrer" sx={{ display: "inline-flex", alignItems: "center", gap: 0.5, fontWeight: 600 }}>
-        Open widget sandbox
-        <OpenInNew sx={{ fontSize: 16 }} />
-      </Link>
+      <WidgetSandboxActionButton widgetKey={key} variant="button" size="small" />
     </Box>
   );
 }

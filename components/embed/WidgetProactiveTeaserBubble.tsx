@@ -67,6 +67,8 @@ export function WidgetProactiveTeaserBubble({
       }
       sx={{
         maxWidth: 300,
+        minWidth: 0,
+        width: "fit-content",
         px: 1.5,
         py: 1.25,
         cursor: cta ? "default" : onOpenChat ? "pointer" : "default",
@@ -103,7 +105,18 @@ export function WidgetProactiveTeaserBubble({
         ) : null}
         <Typography
           variant="body2"
-          sx={{ fontSize: 13, lineHeight: 1.45, fontWeight: 500, flex: 1, pt: avatarUrl.trim() ? 0.25 : 0 }}
+          component="p"
+          sx={{
+            color: textColor,
+            fontSize: 13,
+            lineHeight: 1.45,
+            fontWeight: 500,
+            flex: 1,
+            minWidth: 0,
+            m: 0,
+            wordBreak: "break-word",
+            pt: avatarUrl.trim() ? 0.25 : 0,
+          }}
         >
           {copy}
         </Typography>

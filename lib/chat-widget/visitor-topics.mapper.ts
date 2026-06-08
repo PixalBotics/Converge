@@ -7,21 +7,29 @@ import {
   type WidgetInquiryOption,
 } from "@/lib/chat-widget/widget-inquiry.types";
 
-/** Topics saved in service scheduling (both departments + labels). */
-export function isConfiguredSchedulingTopic(topic: ServiceSchedulingTopic): boolean {
+/** Widget inquire row is routable when label + external department are set. */
+export function isConfiguredWidgetInquiryTopic(topic: ServiceSchedulingTopic): boolean {
   if (topic.isActive === false) return false;
   return (
     Boolean(topic.routingKey?.trim()) &&
     Boolean(topic.clientLabel?.trim()) &&
-    Boolean(topic.internalDepartmentId?.trim()) &&
     Boolean(topic.externalDepartmentId?.trim())
   );
+}
+
+/** @deprecated Use isConfiguredWidgetInquiryTopic */
+export function isConfiguredSchedulingTopic(topic: ServiceSchedulingTopic): boolean {
+  return isConfiguredWidgetInquiryTopic(topic);
+}
+
+export function isWidgetInquiryOptionConfigured(row: WidgetInquiryOption): boolean {
+  return Boolean(row.label.trim() && row.externalDepartmentId?.trim());
 }
 
 export function widgetInquiryFromSchedulingBundle(
   topics: ServiceSchedulingTopic[],
 ): WidgetInquiryOption[] {
-  return topics.filter(isConfiguredSchedulingTopic).map(schedulingTopicToWidgetInquiry);
+  return topics.filter(isConfiguredWidgetInquiryTopic).map(schedulingTopicToWidgetInquiry);
 }
 
 export function schedulingTopicToWidgetInquiry(
@@ -75,9 +83,6 @@ export function validateVisitorTopicsForSave(
       return "Each topic needs a routing key or client label.";
     }
     if (!row.label.trim()) return "Each topic needs a client label.";
-    if (!row.internalDepartmentId?.trim()) {
-      return "Each topic needs an internal department.";
-    }
     if (!row.externalDepartmentId?.trim()) {
       return "Each topic needs an external department.";
     }

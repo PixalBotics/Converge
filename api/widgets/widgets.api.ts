@@ -59,6 +59,34 @@ export async function getWidgetSnapshot(
   return data;
 }
 
+/** Draft embed payload for dashboard sandbox (`env=preview`). Requires dashboard JWT. */
+export async function getWidgetDraftPreviewEmbedConfig(
+  widgetKey: string,
+): Promise<unknown> {
+  const { data } = await apiClient.get<ApiEnvelope<unknown>>(
+    `/widgets/${encodeURIComponent(widgetKey)}/preview-config`,
+  );
+  return unwrapData(data);
+}
+
+export type WidgetPreviewShareLink = {
+  widgetKey: string;
+  previewShareToken: string;
+  expiresAt: string;
+  publicTestUrl: string | null;
+  embedIframeUrl: string | null;
+};
+
+/** Signed public test URL — share with clients (no dashboard login). */
+export async function getWidgetPreviewShareLink(
+  widgetKey: string,
+): Promise<WidgetPreviewShareLink> {
+  const { data } = await apiClient.get<ApiEnvelope<WidgetPreviewShareLink>>(
+    `/widgets/${encodeURIComponent(widgetKey)}/preview-share-link`,
+  );
+  return unwrapData(data);
+}
+
 export async function getAdminWidget(
   widgetKey: string,
 ): Promise<ApiEnvelope<JsonRecord>> {
@@ -94,6 +122,16 @@ export async function publishWidget(
   return data;
 }
 
+/** Take widget offline on real customer sites (preview test links still work). */
+export async function unpublishWidget(
+  widgetKey: string,
+): Promise<ApiEnvelope<JsonRecord>> {
+  const { data } = await apiClient.post<ApiEnvelope<JsonRecord>>(
+    `/widgets/${encodeURIComponent(widgetKey)}/unpublish`,
+  );
+  return data;
+}
+
 export async function uploadWidgetAsset(params: {
   websiteId: string;
   assetType:
@@ -101,7 +139,10 @@ export async function uploadWidgetAsset(params: {
     | "teaser_avatar"
     | "banner_image"
     | "banner_video"
-    | "background_image";
+    | "background_image"
+    | "header_logo"
+    | "agent_avatar"
+    | "visitor_avatar";
   file: File;
 }): Promise<JsonRecord> {
   const form = new FormData();

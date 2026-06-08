@@ -1,5 +1,8 @@
 import { apiClient } from "@/api/http/axios-instance";
-import { getSharedAgentChatSocket } from "./sharedAgentChatSocket";
+import {
+  agentChatSocketAckOrRest,
+  agentChatSocketAckRequired,
+} from "./agent-socket-api.util";
 import { chatAuthHeaders, unwrapChatHttpData } from "./http";
 import type {
   QaQueueFilters,
@@ -8,6 +11,16 @@ import type {
   UpsertQaMessageAnnotationBody,
   UpsertQaSessionReviewBody,
 } from "./qa.types";
+
+function queueSocketPayload(filters: QaQueueFilters): Record<string, unknown> {
+  const payload: Record<string, unknown> = {};
+  if (filters.status) payload.status = filters.status;
+  if (filters.websiteId) payload.websiteId = filters.websiteId;
+  if (filters.departmentId) payload.departmentId = filters.departmentId;
+  if (filters.agentId) payload.agentId = filters.agentId;
+  if (filters.hasTakeover) payload.hasTakeover = true;
+  return payload;
+}
 
 function queueQueryParams(filters: QaQueueFilters): Record<string, string> {
   const params: Record<string, string> = {};
@@ -23,84 +36,76 @@ export async function fetchQaMyQueue(
   filters: QaQueueFilters = {},
   token?: string,
 ): Promise<QaQueueRow[]> {
-  const { data } = await apiClient.get<unknown>("/chat/qa/me/queue", {
-    params: queueQueryParams(filters),
-    headers: chatAuthHeaders(token),
-  });
-  const rows = unwrapChatHttpData<unknown>(data);
-  return Array.isArray(rows) ? (rows as QaQueueRow[]) : [];
+  return agentChatSocketAckOrRest(
+    (socket) => socket.sendFetchQaQueueWithAck(queueSocketPayload(filters)),
+    async () => {
+      const { data } = await apiClient.get<unknown>("/chat/qa/me/queue", {
+        params: queueQueryParams(filters),
+        headers: chatAuthHeaders(token),
+      });
+      const rows = unwrapChatHttpData<unknown>(data);
+      return Array.isArray(rows) ? (rows as QaQueueRow[]) : [];
+    },
+  );
 }
 
 export async function fetchQaReviewBundle(
   conversationId: string,
   token?: string,
 ): Promise<QaReviewBundle> {
-  const { data } = await apiClient.get<unknown>(
-    `/chat/qa/conversations/${encodeURIComponent(conversationId)}/review`,
-    { headers: chatAuthHeaders(token) },
+  return agentChatSocketAckOrRest(
+    (socket) => socket.sendFetchQaReviewBundleWithAck({ conversationId }),
+    async () => {
+      const { data } = await apiClient.get<unknown>(
+        `/chat/qa/conversations/${encodeURIComponent(conversationId)}/review`,
+        { headers: chatAuthHeaders(token) },
+      );
+      return unwrapChatHttpData<QaReviewBundle>(data);
+    },
   );
-  return unwrapChatHttpData<QaReviewBundle>(data);
 }
 
 export async function upsertQaSessionReview(
   conversationId: string,
   body: UpsertQaSessionReviewBody,
-  token?: string,
+  _token?: string,
 ): Promise<unknown> {
-  const socket = getSharedAgentChatSocket();
-  if (socket.isConnected()) {
-    try {
-      const ack = await socket.sendQaUpsertSessionReviewWithAck({
+  return agentChatSocketAckRequired<unknown>(
+    (socket) =>
+      socket.sendQaUpsertSessionReviewWithAck({
         conversationId,
         body: body as Record<string, unknown>,
-      });
-      if (ack !== undefined) return ack;
-    } catch {
-      /* REST fallback */
-    }
-  }
-  const { data } = await apiClient.put<unknown>(
-    `/chat/qa/conversations/${encodeURIComponent(conversationId)}/review`,
-    body,
-    { headers: chatAuthHeaders(token) },
+      }),
+    "save QA session review",
   );
-  return unwrapChatHttpData(data);
 }
 
 export async function upsertQaMessageAnnotation(
   messageId: string,
   body: UpsertQaMessageAnnotationBody,
-  token?: string,
+  _token?: string,
 ): Promise<unknown> {
-  const { data } = await apiClient.put<unknown>(
-    `/chat/qa/messages/${encodeURIComponent(messageId)}/annotation`,
-    body,
-    { headers: chatAuthHeaders(token) },
+  return agentChatSocketAckRequired<unknown>(
+    (socket) =>
+      socket.sendQaUpsertMessageAnnotationWithAck({
+        messageId,
+        body: body as Record<string, unknown>,
+      }),
+    "save QA message annotation",
   );
-  return unwrapChatHttpData(data);
 }
 
 export async function assignQaReview(
   conversationId: string,
   body?: { qaUserId?: string },
-  token?: string,
+  _token?: string,
 ): Promise<unknown> {
-  const socket = getSharedAgentChatSocket();
-  if (socket.isConnected()) {
-    try {
-      const ack = await socket.sendQaAssignReviewWithAck({
+  return agentChatSocketAckRequired<unknown>(
+    (socket) =>
+      socket.sendQaAssignReviewWithAck({
         conversationId,
         qaUserId: body?.qaUserId,
-      });
-      if (ack !== undefined) return ack;
-    } catch {
-      /* REST fallback */
-    }
-  }
-  const { data } = await apiClient.post<unknown>(
-    `/chat/qa/conversations/${encodeURIComponent(conversationId)}/assign`,
-    body ?? {},
-    { headers: chatAuthHeaders(token) },
+      }),
+    "assign QA review",
   );
-  return unwrapChatHttpData(data);
 }

@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useResellerListScope } from "@/lib/auth";
+import { useAuth, useResellerListScope } from "@/lib/auth";
+import { canAccessCompanyScopeFilters } from "@/lib/permissions";
 import {
   useCompaniesSetupResellersQuery,
   useScopedCompanyTreeQuery,
@@ -29,6 +30,8 @@ export type WebsiteAssignmentScopeFilterState = {
 };
 
 export function useWebsiteAssignmentScopeFilters(): WebsiteAssignmentScopeFilterState {
+  const { hasPage, hasOperational } = useAuth();
+  const canLoadScopeFilters = canAccessCompanyScopeFilters(hasPage, hasOperational);
   const { canFilterByResellerId, sessionResellerId } = useResellerListScope();
   const [filterResellerId, setFilterResellerId] = useState("");
   const [filterParentCompanyId, setFilterParentCompanyId] = useState("");
@@ -50,13 +53,17 @@ export function useWebsiteAssignmentScopeFilters(): WebsiteAssignmentScopeFilter
   }, [filterParentCompanyId]);
 
   const resellersQuery = useCompaniesSetupResellersQuery({
-    enabled: canFilterByResellerId,
+    enabled: canLoadScopeFilters && canFilterByResellerId,
   });
   const companiesTreeQuery = useScopedCompanyTreeQuery(
     filterResellerId,
     canFilterByResellerId,
     sessionResellerId,
-    { enabled: canFilterByResellerId ? filterResellerId.trim().length > 0 : true },
+    {
+      enabled:
+        canLoadScopeFilters &&
+        (canFilterByResellerId ? filterResellerId.trim().length > 0 : true),
+    },
   );
 
   const resellerFilterOptions = useMemo(() => {

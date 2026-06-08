@@ -42,7 +42,7 @@ export function AddDesignationModal({
   const theme = useTheme() as AppTheme;
   const { isPlatformAdmin, user: authUser } = useAuth();
   const mayPickInternalDeptType = useMemo(
-    () => sessionMayPickInternalUserScope(isPlatformAdmin, authUser?.userType),
+    () => sessionMayPickInternalUserScope(isPlatformAdmin, authUser),
     [isPlatformAdmin, authUser?.userType],
   );
 

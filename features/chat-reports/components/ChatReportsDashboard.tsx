@@ -215,6 +215,107 @@ export function ChatReportsDashboard() {
             <Box sx={chatReportsSectionSx}>
               <ReportBucketTable title="By agent" rows={reports.overview.byAgent} />
             </Box>
+
+            {reports.qaQuality ? (
+              <>
+                <Typography fontWeight={700} sx={{ fontSize: 16, mt: 2, mb: 1 }}>
+                  QA quality report
+                </Typography>
+                <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, display: "block", mb: 1.5 }}>
+                  From completed QA reviews — agent scores, slow replies (&gt;{" "}
+                  {reports.qaQuality.slowReplyThresholdSeconds}s), and checklist misses.
+                </Typography>
+                <Box sx={{ ...chatReportsKpiGridSx, gridTemplateColumns: { xs: "repeat(2, 1fr)", md: "repeat(4, 1fr)" }, mb: 2 }}>
+                  <KpiCard
+                    label="QA reviews completed"
+                    value={String(reports.qaQuality.summary.completedReviews)}
+                  />
+                  <KpiCard
+                    label="Avg QA score"
+                    value={formatScore(reports.qaQuality.summary.avgQaScore)}
+                  />
+                  <KpiCard
+                    label="Chats with slow replies"
+                    value={String(reports.qaQuality.summary.slowReplyChatCount)}
+                  />
+                  <KpiCard
+                    label="Timely response misses"
+                    value={String(reports.qaQuality.summary.checklistMisses.timelyResponse ?? 0)}
+                  />
+                </Box>
+
+                {reports.qaQuality.byAgent.length > 0 ? (
+                  <Box sx={chatReportsSectionSx}>
+                    <Typography fontWeight={700} sx={{ fontSize: 14, mb: 1 }}>
+                      Agent QA performance
+                    </Typography>
+                    <Box sx={{ overflow: "auto" }}>
+                      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                        <thead>
+                          <tr>
+                            {["Agent", "Reviews", "Avg score", "Low scores", "Slow reply chats", "Timely misses"].map(
+                              (h) => (
+                                <th key={h} style={{ textAlign: "left", padding: "8px 10px", borderBottom: `1px solid ${theme.app.dashboard.cardBorder}` }}>
+                                  {h}
+                                </th>
+                              ),
+                            )}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {reports.qaQuality.byAgent.map((row) => (
+                            <tr key={row.key}>
+                              <td style={{ padding: "8px 10px" }}>{row.label}</td>
+                              <td style={{ padding: "8px 10px" }}>{row.reviewCount}</td>
+                              <td style={{ padding: "8px 10px" }}>{formatScore(row.avgScore)}</td>
+                              <td style={{ padding: "8px 10px" }}>{row.lowScoreCount}</td>
+                              <td style={{ padding: "8px 10px" }}>{row.slowReplyChats}</td>
+                              <td style={{ padding: "8px 10px" }}>{row.timelyResponseMisses}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </Box>
+                  </Box>
+                ) : null}
+
+                {reports.qaQuality.recentIssues.length > 0 ? (
+                  <Box sx={chatReportsSectionSx}>
+                    <Typography fontWeight={700} sx={{ fontSize: 14, mb: 1 }}>
+                      Recent QA issues
+                    </Typography>
+                    <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                      {reports.qaQuality.recentIssues.map((issue) => (
+                        <Box
+                          key={issue.conversationId}
+                          sx={{
+                            p: 1.25,
+                            borderRadius: 1.5,
+                            border: `1px solid ${theme.app.dashboard.cardBorder}`,
+                          }}
+                        >
+                          <Typography sx={{ fontSize: 13, fontWeight: 600 }}>
+                            {issue.websiteLabel} · {issue.agentLabel}
+                            {issue.poolName ? ` · ${issue.poolName}` : ""}
+                          </Typography>
+                          <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted }}>
+                            Score {issue.overallScore ?? "—"}
+                            {issue.slowReplyCount > 0
+                              ? ` · ${issue.slowReplyCount} slow reply(s), max ${issue.maxReplySeconds ?? "—"}s`
+                              : ""}
+                            {issue.failureReason ? ` · ${issue.failureReason}` : ""}
+                          </Typography>
+                        </Box>
+                      ))}
+                    </Box>
+                  </Box>
+                ) : null}
+              </>
+            ) : reports.qaQualityLoading ? (
+              <Typography sx={{ color: theme.app.dashboard.textMuted, mt: 2 }}>
+                Loading QA quality report…
+              </Typography>
+            ) : null}
           </>
         ) : null}
     </ChatLivePageShell>

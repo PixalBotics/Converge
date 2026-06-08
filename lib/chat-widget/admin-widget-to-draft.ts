@@ -7,6 +7,12 @@ import {
   normalizeButtonPosition,
   normalizeButtonShape,
 } from "./widgetDraft";
+import { resolveLauncherIconDataUrlForDraft } from "./launcher-icon-draft.util";
+import {
+  normalizeAgentAvatarPreset,
+  normalizeVisitorAvatarPreset,
+} from "./chat-avatar-presets";
+import { normalizeLauncherStyle } from "./launcher-style";
 import { normalizeWidgetInquiryOptions } from "./widget-inquiry.types";
 import { mapApiChatColorsToDraft, widgetChatColorsDraftToPatch } from "./widget-colors-draft";
 import { parseAiTypeFromConfigRoot } from "./widget-ai-type";
@@ -14,6 +20,7 @@ import {
   normalizeLauncherBadgeMode,
   normalizeWidgetSoundId,
 } from "@/lib/widget-runtime/widget-notifications";
+import { normalizeLauncherIconPreset } from "./launcher-icon-presets";
 
 function pickStr(obj: unknown, keys: string[]): string {
   if (!isRecord(obj)) return "";
@@ -43,17 +50,8 @@ function pickBool(obj: unknown, keys: string[]): boolean | undefined {
   return undefined;
 }
 
-const LAUNCHER_PRESET_IDS = new Set<string>([
-  "",
-  "phosphor-chat-circle",
-  "phosphor-chats-circle",
-  "phosphor-chat-dots",
-  "phosphor-chat-teardrop",
-]);
-
 function normalizeLauncherIconPresetFromApi(value: string): WidgetDraft["launcherIconPreset"] {
-  if (LAUNCHER_PRESET_IDS.has(value)) return value as WidgetDraft["launcherIconPreset"];
-  return defaultWidgetDraft.launcherIconPreset;
+  return normalizeLauncherIconPreset(value, defaultWidgetDraft.launcherIconPreset);
 }
 
 function normalizeHeaderAlign(raw: string): "Center" | "Left" {
@@ -207,9 +205,10 @@ export function mapAdminWidgetResponseToWidgetDraft(
       pickNum(launcher ?? ui ?? {}, ["insetSidePx", "launcherInsetSidePx"]) ??
       defaultWidgetDraft.launcherInsetSidePx,
     buttonColor: pickStr(colors ?? {}, ["button"]) || pickStr(theme ?? {}, ["primaryColor"]) || defaultWidgetDraft.buttonColor,
-    iconDataUrl:
-      pickStr(ui ?? {}, ["buttonIconUrl", "button_icon_url"]) ||
-      defaultWidgetDraft.iconDataUrl,
+    iconDataUrl: resolveLauncherIconDataUrlForDraft({
+      buttonIconUrl: pickStr(ui ?? {}, ["buttonIconUrl", "button_icon_url"]),
+      launcherIconPreset: pickStr(ui ?? {}, ["launcherIconPreset", "iconPreset"]),
+    }),
     buttonHoverColor:
       pickStr(colors ?? {}, ["buttonHover", "button_hover"]) ||
       pickStr(ui ?? {}, ["buttonHoverColor", "button_hover_color"]) ||
@@ -219,11 +218,78 @@ export function mapAdminWidgetResponseToWidgetDraft(
     launcherIconPreset: normalizeLauncherIconPresetFromApi(
       pickStr(ui ?? {}, ["launcherIconPreset"]),
     ),
+    launcherStyle: normalizeLauncherStyle(
+      pickStr(launcher ?? ui ?? {}, ["style", "launcherStyle"]),
+    ),
     headerTitleAlign: normalizeHeaderAlign(headerAlignRaw),
     headerTitle:
       pickStr(chatBox ?? {}, ["headerTitle"]) ||
       pickStr(ui ?? {}, ["headerTitle"]) ||
-      defaultWidgetDraft.headerTitle,
+      "",
+    headerLogoDataUrl:
+      pickStr(chatBox ?? ui ?? {}, ["headerLogoUrl", "header_logo_url"]) ||
+      defaultWidgetDraft.headerLogoDataUrl ||
+      "",
+    panelSurfaceStyle: normalizeLauncherStyle(
+      pickStr(chatBox ?? ui ?? {}, ["panelSurfaceStyle"]) ||
+        pickStr(chat && isRecord(chat.panel) ? chat.panel : {}, ["surfaceStyle"]),
+    ),
+    bubbleSurfaceStyle: normalizeLauncherStyle(
+      pickStr(chatBox ?? ui ?? {}, ["bubbleSurfaceStyle"]) ||
+        pickStr(chat && isRecord(chat.bubbles) ? chat.bubbles : {}, ["surfaceStyle"]),
+    ),
+    agentAvatarEnabled:
+      pickBool(ui ?? {}, ["agentAvatarEnabled"]) ??
+      pickBool(
+        chat && isRecord(chat.avatars) && isRecord(chat.avatars.agent)
+          ? chat.avatars.agent
+          : {},
+        ["enabled"],
+      ) ??
+      defaultWidgetDraft.agentAvatarEnabled,
+    agentAvatarDataUrl:
+      pickStr(ui ?? {}, ["agentAvatarUrl"]) ||
+      pickStr(
+        chat && isRecord(chat.avatars) && isRecord(chat.avatars.agent)
+          ? chat.avatars.agent
+          : {},
+        ["url"],
+      ) ||
+      "",
+    agentAvatarPreset: normalizeAgentAvatarPreset(
+      pickStr(
+        chat && isRecord(chat.avatars) && isRecord(chat.avatars.agent)
+          ? chat.avatars.agent
+          : {},
+        ["preset"],
+      ) || pickStr(ui ?? {}, ["agentAvatarPreset"]),
+    ),
+    visitorAvatarEnabled:
+      pickBool(ui ?? {}, ["visitorAvatarEnabled"]) ??
+      pickBool(
+        chat && isRecord(chat.avatars) && isRecord(chat.avatars.visitor)
+          ? chat.avatars.visitor
+          : {},
+        ["enabled"],
+      ) ??
+      defaultWidgetDraft.visitorAvatarEnabled,
+    visitorAvatarDataUrl:
+      pickStr(ui ?? {}, ["visitorAvatarUrl"]) ||
+      pickStr(
+        chat && isRecord(chat.avatars) && isRecord(chat.avatars.visitor)
+          ? chat.avatars.visitor
+          : {},
+        ["url"],
+      ) ||
+      "",
+    visitorAvatarPreset: normalizeVisitorAvatarPreset(
+      pickStr(
+        chat && isRecord(chat.avatars) && isRecord(chat.avatars.visitor)
+          ? chat.avatars.visitor
+          : {},
+        ["preset"],
+      ) || pickStr(ui ?? {}, ["visitorAvatarPreset"]),
+    ),
     textColor:
       pickStr(colors ?? {}, ["headerText", "header_text"]) ||
       pickStr(djTheme ?? {}, ["textColor", "text_color"]) ||
@@ -243,9 +309,8 @@ export function mapAdminWidgetResponseToWidgetDraft(
       pickBool(chatBox ?? {}, ["bannerEnabled", "bannerOn"]) ??
       pickBool(ui ?? {}, ["bannerEnabled", "bannerOn"]) ??
       defaultWidgetDraft.bannerOn,
-    bannerTitle: pickStr(chatBox ?? ui ?? {}, ["bannerTitle"]) || defaultWidgetDraft.bannerTitle,
-    bannerDescription:
-      pickStr(chatBox ?? ui ?? {}, ["bannerDescription"]) || defaultWidgetDraft.bannerDescription,
+    bannerTitle: pickStr(chatBox ?? ui ?? {}, ["bannerTitle"]) || "",
+    bannerDescription: pickStr(chatBox ?? ui ?? {}, ["bannerDescription"]) || "",
     bannerMediaType:
       (pickStr(chatBox ?? ui ?? {}, ["bannerMediaType"]) as WidgetDraft["bannerMediaType"]) ||
       (pickStr(chatBox ?? ui ?? {}, ["bannerVideoUrl", "banner_video_url"])
@@ -282,6 +347,9 @@ export function mapAdminWidgetResponseToWidgetDraft(
     proactiveSecondaryCtaKind:
       (pickStr(ui ?? {}, ["proactiveSecondaryCtaKind"]) as WidgetDraft["proactiveSecondaryCtaKind"]) ||
       defaultWidgetDraft.proactiveSecondaryCtaKind,
+    closedMessagePreviewEnabled:
+      pickBool(ui ?? {}, ["closedMessagePreviewEnabled"]) ??
+      defaultWidgetDraft.closedMessagePreviewEnabled,
     motionEnabled: pickBool(behavior ?? {}, ["motionEnabled"]) ?? defaultWidgetDraft.motionEnabled,
     firstMessage: pickStr(ui ?? {}, ["firstMessage"]) || defaultWidgetDraft.firstMessage,
     messagePlaceholder: pickStr(ui ?? {}, ["messagePlaceholder"]) || defaultWidgetDraft.messagePlaceholder,

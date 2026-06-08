@@ -457,6 +457,7 @@ export function MonitorTranscriptPanel({
               <GuestLinkHeaderAction
                 conversationId={conversationId}
                 hasOperational={hasOperational}
+                serviceChannel={conversation?.serviceChannel ?? null}
               />
             ) : null}
             {canClose ? (
@@ -630,6 +631,9 @@ export function MonitorTranscriptPanel({
             agentDisplayName={agentLabel}
             showEmptyPlaceholder={!hasConversation}
             transcriptDisplay={transcriptDisplay}
+            profileCaptureEnabled={
+              hasConversation && !monitorReadOnly && layout !== "archive"
+            }
           />
         </Box>
       )}

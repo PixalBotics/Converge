@@ -14,9 +14,13 @@ import type { GuestLinkRow, GuestLinkSendTarget } from "@/services/chat/guest.ty
 export function useGuestLinkActions(
   conversationId: string | null,
   hasOperational: (p: string) => boolean,
+  serviceChannel?: string | null,
 ) {
   const token = getAccessToken() ?? "";
   const canSend = canSendGuestLink(hasOperational);
+  const isExternalChannel =
+    typeof serviceChannel === "string" &&
+    serviceChannel.trim().toLowerCase() === "external";
 
   const [links, setLinks] = useState<GuestLinkRow[]>([]);
   const [target, setTarget] = useState<GuestLinkSendTarget | null>(null);
@@ -87,7 +91,7 @@ export function useGuestLinkActions(
   }, [conversationId, refreshLinks, refreshTarget, sendDisabled, token]);
 
   return {
-    enabled: Boolean(conversationId && canSend),
+    enabled: Boolean(conversationId && canSend && !isExternalChannel),
     links,
     target,
     targetLoading,

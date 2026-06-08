@@ -246,7 +246,7 @@ export default function PoolHeadsPage() {
   const theme = useTheme() as AppTheme;
   const { hasOperational, isPlatformAdmin, user: authUser } = useAuth();
 
-  const mayPickInternalScope = sessionMayPickInternalUserScope(isPlatformAdmin, authUser?.userType);
+  const mayPickInternalScope = sessionMayPickInternalUserScope(isPlatformAdmin, authUser);
 
   const headsUserTypeSegmentOptions = useMemo(
     () =>

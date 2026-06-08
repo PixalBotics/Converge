@@ -19,6 +19,15 @@ import {
 
 export const CHAT_WIDGET_EDIT_QUERY_PARAM = "edit";
 
+/** Avoid re-fetching GET snapshot on every wizard step mount — keeps in-memory draft authoritative. */
+const hydratedEditWidgetKeys = new Set<string>();
+
+export function clearWizardEditHydration(widgetKey?: string): void {
+  const k = widgetKey?.trim() ?? "";
+  if (k) hydratedEditWidgetKeys.delete(k);
+  else hydratedEditWidgetKeys.clear();
+}
+
 export function readChatWizardDraft(editWidgetKey: string | undefined | null): WidgetDraft {
   const k = editWidgetKey?.trim() ?? "";
   return k ? readEditWizardDraft(k) : readCreateWizardDraft();
@@ -87,6 +96,12 @@ export function useChatWidgetWizardEdit(): {
       return;
     }
 
+    if (hydratedEditWidgetKeys.has(editWidgetKey)) {
+      setDraftReady(true);
+      setHydrateError(null);
+      return;
+    }
+
     let cancelled = false;
     setDraftReady(false);
     setHydrateError(null);
@@ -112,6 +127,7 @@ export function useChatWidgetWizardEdit(): {
             (typeof data.websiteId === "string" ? data.websiteId : undefined) ||
             (typeof data.website_id === "string" ? data.website_id : undefined),
         });
+        hydratedEditWidgetKeys.add(editWidgetKey);
       } catch (e) {
         if (!cancelled) {
           setHydrateError(extractApiErrorMessageForToast(e) ?? "Failed to load widget for editing.");
@@ -133,6 +149,7 @@ export function useChatWidgetWizardEdit(): {
     hydrateError,
     reloadFromServer: async () => {
       if (!editWidgetKey) return;
+      clearWizardEditHydration(editWidgetKey);
       setReloadToken((t) => t + 1);
     },
   };

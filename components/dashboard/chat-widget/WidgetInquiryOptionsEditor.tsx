@@ -27,6 +27,8 @@ import {
   type WidgetInquiryOption,
   type WidgetServiceChannel,
 } from "@/lib/chat-widget/widget-inquiry.types";
+import { syncInquiryToWidgetJson } from "@/lib/chat-widget/sync-inquiry-topics";
+import type { WidgetDraft } from "@/lib/chat-widget/widgetDraft";
 import { publishAppToast } from "@/lib/notify";
 import { extractApiErrorMessageForToast } from "@/lib/notify/extract-api-message";
 
@@ -75,6 +77,11 @@ export type WidgetInquiryOptionsEditorProps = {
   onSaved?: (rows: WidgetInquiryOption[]) => void;
   inquiryFallbackRoutingKey?: string;
   onFallbackRoutingKeyChange?: (routingKey: string) => void;
+  /** Widget embed routes to external departments only (default). */
+  externalDeptOnly?: boolean;
+  /** When set, inquiry rows are also PATCHed to widget JSON after visitor-topics save. */
+  widgetKey?: string;
+  getDraftForWidgetSync?: () => WidgetDraft;
 };
 
 export function WidgetInquiryOptionsEditor({
@@ -87,6 +94,9 @@ export function WidgetInquiryOptionsEditor({
   onSaved,
   inquiryFallbackRoutingKey = "",
   onFallbackRoutingKeyChange,
+  externalDeptOnly = true,
+  widgetKey,
+  getDraftForWidgetSync,
 }: WidgetInquiryOptionsEditorProps) {
   const theme = useTheme() as AppTheme;
   const wid = websiteId?.trim() ?? "";
@@ -147,11 +157,31 @@ export function WidgetInquiryOptionsEditor({
     saveMutation.mutate(
       { topics: value.map(widgetInquiryToTopicInput) },
       {
-        onSuccess: (bundle) => {
+        onSuccess: async (bundle) => {
           const saved = bundle.topics
             .filter((t) => t.isActive !== false)
             .map(schedulingTopicToWidgetInquiry);
           onChange(saved);
+          const rk = widgetKey?.trim();
+          if (rk && getDraftForWidgetSync) {
+            try {
+              await syncInquiryToWidgetJson({
+                widgetKey: rk,
+                draft: {
+                  ...getDraftForWidgetSync(),
+                  inquiryOn: true,
+                  inquiryOptions: saved,
+                },
+              });
+            } catch (e) {
+              publishAppToast({
+                variant: "warning",
+                message:
+                  extractApiErrorMessageForToast(e) ??
+                  "Topics saved to scheduling, but widget JSON sync failed.",
+              });
+            }
+          }
           onSaved?.(saved);
           publishAppToast({
             variant: "success",
@@ -210,7 +240,8 @@ export function WidgetInquiryOptionsEditor({
         </Typography>
       ) : (
         <Typography variant="body2" sx={{ color: muted, mb: 1.5 }}>
-          Required for routing and agent assignment. Save updates visitor-topics and widget JSON.
+          Each topic needs a client label and external department. Save updates visitor-topics and
+          widget JSON.
         </Typography>
       )}
       {fallbackTopicOptions.length > 0 ? (
@@ -237,6 +268,7 @@ export function WidgetInquiryOptionsEditor({
         rowTitlePrefix="Topic"
         addLabel="Add topic"
         minRows={1}
+        externalDeptOnly={externalDeptOnly}
       />
       <Box sx={{ mt: 2, display: "flex", justifyContent: "flex-end" }}>
         <Button

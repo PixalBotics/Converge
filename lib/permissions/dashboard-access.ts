@@ -14,6 +14,17 @@ import {
   ROUTE_RULES,
 } from "./dashboard-route-table";
 import { ALWAYS_VISIBLE_NAV_ITEMS, DASHBOARD_NAV_ITEMS } from "./dashboard-nav-tree";
+import { canShowAgentInboxNav } from "./chat-access";
+import { PAGE } from "./permission-constants";
+
+const AGENT_INBOX_NAV_HREF = "/dashboard/chat-operations";
+
+function isAgentInboxNavChild(item: DashboardNavItem): boolean {
+  return (
+    item.href === AGENT_INBOX_NAV_HREF ||
+    item.permission === PAGE.CHAT_INBOX
+  );
+}
 
 export function isNavPathSelected(
   pathname: string,
@@ -40,8 +51,17 @@ export function getVisibleDashboardNavItems(opts: {
   /** When true with RBAC on, show the full module tree (same as RBAC off) — aligned with `useAuth().hasPage` bypass. */
   isPlatformAdmin?: boolean;
   isInternalUser?: boolean;
+  isPoolHead?: boolean;
 }): DashboardNavItem[] {
   const rbacFiltersNav = opts.rbacEnabled && !opts.isPlatformAdmin;
+  const navPerms = {
+    page: [...opts.pagePermissionSet],
+    operational: [...(opts.operationalPermissionSet ?? [])],
+    isPlatformAdmin: opts.isPlatformAdmin,
+  };
+  const agentInboxNavVisible = canShowAgentInboxNav(navPerms, {
+    isPoolHead: opts.isPoolHead === true,
+  });
 
   const itemVisible = (item: DashboardNavItem): boolean => {
     if (!rbacFiltersNav) {
@@ -79,6 +99,7 @@ export function getVisibleDashboardNavItems(opts: {
   const withFilteredChildren = permissionDriven.map((item) => {
     if (!item.children?.length) return item;
     const children = item.children.filter((ch) => {
+      if (isAgentInboxNavChild(ch) && !agentInboxNavVisible) return false;
       if (!rbacFiltersNav) {
         if (ch.internalOnly && !opts.isInternalUser) return false;
         return true;

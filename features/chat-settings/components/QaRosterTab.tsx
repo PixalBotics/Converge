@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import FactCheckOutlined from "@mui/icons-material/FactCheckOutlined";
 import InfoOutlined from "@mui/icons-material/InfoOutlined";
 import Box from "@mui/material/Box";
+import FormControlLabel from "@mui/material/FormControlLabel";
+import Switch from "@mui/material/Switch";
 import { alpha, useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import {
@@ -45,13 +47,35 @@ export function QaRosterTab({
   const exclusionsQuery = useQaRosterExclusionsQuery(websiteId);
   const saveRoster = useSaveQaRosterMutation(websiteId);
 
-  const [internalSelected, setInternalSelected] = useState<string[]>([]);
+  const [internalByPool, setInternalByPool] = useState<Record<string, string[]>>({});
   const [externalSelected, setExternalSelected] = useState<string[]>([]);
+  const [externalEnabled, setExternalEnabled] = useState(false);
+
+  const internalAssignmentCount = useMemo(
+    () => Object.values(internalByPool).reduce((n, ids) => n + ids.length, 0),
+    [internalByPool],
+  );
+
+  const showExternalSection = useMemo(
+    () =>
+      canFilterByResellerId ||
+      Boolean(parentCompanyId.trim()) ||
+      Boolean(resellerId.trim()),
+    [canFilterByResellerId, parentCompanyId, resellerId],
+  );
 
   useEffect(() => {
     if (rosterQuery.data) {
-      setInternalSelected(rosterQuery.data.internal.map((r) => r.userId));
+      const byPool: Record<string, string[]> = {};
+      for (const row of rosterQuery.data.internal) {
+        const pool = row.poolId?.trim();
+        if (!pool) continue;
+        byPool[pool] = byPool[pool] ?? [];
+        byPool[pool].push(row.userId);
+      }
+      setInternalByPool(byPool);
       setExternalSelected(rosterQuery.data.external.map((r) => r.userId));
+      setExternalEnabled(rosterQuery.data.external.length > 0);
     }
   }, [rosterQuery.data]);
 
@@ -88,8 +112,8 @@ export function QaRosterTab({
                   variant="caption"
                   sx={{ color: theme.app.dashboard.textMuted, lineHeight: 1.5, display: "block" }}
                 >
-                  Internal QA reviews internal-channel chats; external QA reviews external-channel
-                  chats. Keep QA separate from live chat agents.
+                  Internal QA is pool-wise. External QA is optional — enable only when you need
+                  external-channel reviewers. Keep QA separate from live chat agents.
                 </Typography>
               </Box>
             </Box>
@@ -104,8 +128,12 @@ export function QaRosterTab({
                 onClick={() =>
                   saveRoster.mutate(
                     {
-                      internalUserIds: internalSelected,
-                      externalUserIds: externalSelected,
+                      internalAssignments: Object.entries(internalByPool).flatMap(
+                        ([poolId, userIds]) =>
+                          userIds.map((userId) => ({ userId, poolId })),
+                      ),
+                      externalUserIds:
+                        showExternalSection && externalEnabled ? externalSelected : [],
                     },
                     {
                       onSuccess: () =>
@@ -121,7 +149,7 @@ export function QaRosterTab({
               >
                 {saveRoster.isPending
                   ? "Saving…"
-                  : `Save QA roster (${internalSelected.length + externalSelected.length})`}
+                  : `Save QA roster (${internalAssignmentCount + (showExternalSection && externalEnabled ? externalSelected.length : 0)})`}
               </Button>
             ) : null
           }
@@ -142,8 +170,8 @@ export function QaRosterTab({
         <InfoOutlined sx={{ fontSize: 18, color: theme.app.dashboard.accentBlue, mt: 0.15 }} />
         <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, lineHeight: 1.55 }}>
           <strong>{chatAgentUserIds.length}</strong> user(s) on the live chat roster are hidden here.
-          After save, they review closed chats only from the{" "}
-          <strong>QA inbox</strong> — not from the agent inbox.
+          Turn on QA globally under <strong>Chat settings → QA policy</strong>, then save reviewers
+          here. Closed chats appear in the <strong>QA inbox</strong> for the assigned reviewer only.
         </Typography>
       </Box>
 
@@ -154,26 +182,54 @@ export function QaRosterTab({
         resellerId={resellerId}
         canFilterByResellerId={canFilterByResellerId}
         assigned={rosterQuery.data?.internal ?? []}
-        selectedIds={internalSelected}
-        onChangeSelectedIds={setInternalSelected}
+        internalByPool={internalByPool}
+        onInternalByPoolChange={setInternalByPool}
         chatAgentUserIds={chatAgentUserIds}
         canEdit={canEdit}
         disabled={saveRoster.isPending}
       />
 
-      <QaRosterChannelPanel
-        channel="External"
-        websiteId={websiteId}
-        parentCompanyId={parentCompanyId}
-        resellerId={resellerId}
-        canFilterByResellerId={canFilterByResellerId}
-        assigned={rosterQuery.data?.external ?? []}
-        selectedIds={externalSelected}
-        onChangeSelectedIds={setExternalSelected}
-        chatAgentUserIds={chatAgentUserIds}
-        canEdit={canEdit}
-        disabled={saveRoster.isPending}
-      />
+      {showExternalSection ? (
+        <DashboardCard sx={{ p: { xs: 2, md: 2.5 } }}>
+          <FormControlLabel
+            control={
+              <Switch
+                checked={externalEnabled}
+                onChange={(_, checked) => setExternalEnabled(checked)}
+                disabled={!canEdit || saveRoster.isPending}
+              />
+            }
+            label={
+              <Box>
+                <Typography fontWeight={600} sx={{ fontSize: 14 }}>
+                  Enable external QA reviewers
+                </Typography>
+                <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted }}>
+                  Off by default — only internal pool reviewers are assigned. Turn on to add external
+                  staff (reseller or company admin).
+                </Typography>
+              </Box>
+            }
+            sx={{ alignItems: "flex-start", m: 0 }}
+          />
+        </DashboardCard>
+      ) : null}
+
+      {showExternalSection && externalEnabled ? (
+        <QaRosterChannelPanel
+          channel="External"
+          websiteId={websiteId}
+          parentCompanyId={parentCompanyId}
+          resellerId={resellerId}
+          canFilterByResellerId={canFilterByResellerId}
+          assigned={rosterQuery.data?.external ?? []}
+          selectedIds={externalSelected}
+          onChangeSelectedIds={setExternalSelected}
+          chatAgentUserIds={chatAgentUserIds}
+          canEdit={canEdit}
+          disabled={saveRoster.isPending}
+        />
+      ) : null}
     </Box>
   );
 }

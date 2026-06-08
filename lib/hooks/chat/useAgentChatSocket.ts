@@ -38,6 +38,7 @@ export interface AgentChatSocketHandlers {
   onTakeoverRequested?: (payload: unknown) => void;
   onTakeoverUpdate?: (payload: unknown) => void;
   onChatTransferred?: (payload: unknown) => void;
+  onAgentAssignmentPopup?: (payload: unknown) => void;
   onSupervisorControl?: (payload: unknown) => void;
   onAgentWrapUpForm?: (payload: unknown) => void;
   onAgentWrapUpSubmitted?: (payload: unknown) => void;
@@ -280,6 +281,10 @@ export function useAgentChatSocket(
       applyInboxDelta("chat_transferred", p);
       getHandlers().onChatTransferred?.(p);
     });
+    const offAssignmentPopup = socketClient.onAgentAssignmentPopup((p) => {
+      applyInboxDelta("agent_assignment_popup", p);
+      getHandlers().onAgentAssignmentPopup?.(p);
+    });
     const offSupervisorControl = socketClient.onSupervisorControl((p) => {
       getHandlers().onSupervisorControl?.(p);
     });
@@ -324,6 +329,7 @@ export function useAgentChatSocket(
       offClosed();
       offCompleted();
       offTransferred();
+      offAssignmentPopup();
       offSupervisorControl();
       offWhisper();
       offTakeoverReq();
