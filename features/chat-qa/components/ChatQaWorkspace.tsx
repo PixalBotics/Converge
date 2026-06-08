@@ -179,7 +179,10 @@ export function ChatQaWorkspace({
             />
           </Box>
 
-          <Box data-qa-pane="review" sx={{ display: "flex", flexDirection: "column", overflow: "hidden" }}>
+          <Box
+            data-qa-pane="review"
+            sx={{ display: "flex", flexDirection: "column", overflow: "hidden", minHeight: 0, height: "100%" }}
+          >
             <QaSessionReviewPanel
               bundle={qa.bundle}
               canEdit={canReviewQaSession(hasOperational)}

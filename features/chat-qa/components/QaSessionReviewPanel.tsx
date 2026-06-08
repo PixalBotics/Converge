@@ -111,10 +111,22 @@ export function QaSessionReviewPanel({
     openReview();
   };
 
+  const accent = theme.palette.primary.main;
+
   return (
     <>
-      <ScrollRegion sx={{ flexShrink: 0, px: 2, py: 2, maxHeight: "38vh" }}>
-        <Typography fontWeight={700} sx={{ fontSize: 14, mb: 0.75 }}>
+      <ScrollRegion
+        sx={{
+          flex: "0 1 auto",
+          maxHeight: { lg: "50%" },
+          minHeight: 0,
+          px: 2,
+          pt: 2,
+          pb: 2.5,
+          overflowY: "auto",
+        }}
+      >
+        <Typography fontWeight={700} sx={{ fontSize: 14, mb: 1 }}>
           Session review
         </Typography>
 
@@ -175,13 +187,13 @@ export function QaSessionReviewPanel({
             sx={{
               mb: 1.5,
               p: 1.5,
-              borderRadius: 1.5,
-              border: `1px solid ${theme.app.dashboard.cardBorder}`,
-              bgcolor: alpha(theme.app.dashboard.accentBlue, 0.04),
+              borderRadius: 2,
+              border: `1px solid ${alpha(accent, 0.22)}`,
+              bgcolor: alpha(accent, 0.08),
             }}
           >
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
-              <AssignmentIndOutlined sx={{ fontSize: 20, color: theme.app.dashboard.accentBlue }} />
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1.25 }}>
+              <AssignmentIndOutlined sx={{ fontSize: 20, color: accent }} />
               <Typography fontWeight={700} sx={{ fontSize: 13 }}>
                 Assign reviewer
               </Typography>

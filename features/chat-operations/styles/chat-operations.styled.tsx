@@ -812,7 +812,9 @@ export const ProfileAccordion = styled(Box)({
   minHeight: 0,
   overflowY: "auto",
   overflowX: "hidden",
-  scrollbarWidth: "thin",
+  scrollbarWidth: "none",
+  msOverflowStyle: "none",
+  "&::-webkit-scrollbar": { display: "none" },
 });
 
 export const SubTabRow = styled(Box)(({ theme }) => ({

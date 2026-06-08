@@ -97,18 +97,29 @@ export function QaSessionContextPanel({ bundle }: QaSessionContextPanelProps) {
   const d = theme.app.dashboard;
   const hasSlow = (metrics?.slowReplyCount ?? 0) > 0;
 
+  const tableScrollSx = {
+    width: "100%",
+    overflowX: "auto",
+    overflowY: "hidden",
+    scrollbarWidth: "none",
+    msOverflowStyle: "none",
+    "&::-webkit-scrollbar": { display: "none" },
+  } as const;
+
   return (
     <>
       <ScrollRegion
         sx={{
-          flexShrink: 0,
-          maxHeight: "42vh",
+          flex: 1,
+          minHeight: 0,
           px: 2,
-          py: 1.5,
+          pt: 2,
+          pb: 2.5,
           borderTop: `1px solid ${alpha(d.cardBorder, 0.35)}`,
+          overflowY: "auto",
         }}
       >
-        <Typography fontWeight={700} sx={{ fontSize: 13, mb: 1 }}>
+        <Typography fontWeight={700} sx={{ fontSize: 13, mb: 1.25 }}>
           Session context
         </Typography>
 
@@ -179,18 +190,20 @@ export function QaSessionContextPanel({ bundle }: QaSessionContextPanelProps) {
             <Typography sx={{ fontSize: 12, fontWeight: 600, mb: 0.75 }}>
               Takeovers ({takeoverRows.length})
             </Typography>
-            <DataTable<TakeoverRow>
-              columns={[
-                { id: "status", label: "Status" },
-                { id: "requestedBy", label: "Requested by" },
-                { id: "targetAgent", label: "Target agent" },
-                { id: "approvedBy", label: "Approved / rejected by", cellVariant: "muted" },
-                { id: "requestedAt", label: "Requested", cellVariant: "muted" },
-              ]}
-              rows={takeoverRows}
-              size="small"
-              minWidth={640}
-            />
+            <Box sx={tableScrollSx}>
+              <DataTable<TakeoverRow>
+                columns={[
+                  { id: "status", label: "Status" },
+                  { id: "requestedBy", label: "Requested by" },
+                  { id: "targetAgent", label: "Target agent" },
+                  { id: "approvedBy", label: "Approved / rejected by", cellVariant: "muted" },
+                  { id: "requestedAt", label: "Requested", cellVariant: "muted" },
+                ]}
+                rows={takeoverRows}
+                size="small"
+                minWidth={520}
+              />
+            </Box>
           </Box>
         ) : null}
 
@@ -199,16 +212,18 @@ export function QaSessionContextPanel({ bundle }: QaSessionContextPanelProps) {
             <Typography sx={{ fontSize: 12, fontWeight: 600, mb: 0.75 }}>
               Transfers ({transferRows.length})
             </Typography>
-            <DataTable<TransferRow>
-              columns={[
-                { id: "fromAgent", label: "From" },
-                { id: "toAgent", label: "To" },
-                { id: "transferredAt", label: "When", cellVariant: "muted" },
-              ]}
-              rows={transferRows}
-              size="small"
-              minWidth={420}
-            />
+            <Box sx={tableScrollSx}>
+              <DataTable<TransferRow>
+                columns={[
+                  { id: "fromAgent", label: "From" },
+                  { id: "toAgent", label: "To" },
+                  { id: "transferredAt", label: "When", cellVariant: "muted" },
+                ]}
+                rows={transferRows}
+                size="small"
+                minWidth={360}
+              />
+            </Box>
           </Box>
         ) : null}
 
@@ -217,17 +232,19 @@ export function QaSessionContextPanel({ bundle }: QaSessionContextPanelProps) {
             <Typography sx={{ fontSize: 12, fontWeight: 600, mb: 0.75 }}>
               Agent assignments ({assignmentRows.length})
             </Typography>
-            <DataTable<AssignmentRow>
-              columns={[
-                { id: "agent", label: "Agent" },
-                { id: "rank", label: "Rank" },
-                { id: "status", label: "Status", cellVariant: "muted" },
-                { id: "assignedAt", label: "Assigned", cellVariant: "muted" },
-              ]}
-              rows={assignmentRows}
-              size="small"
-              minWidth={480}
-            />
+            <Box sx={tableScrollSx}>
+              <DataTable<AssignmentRow>
+                columns={[
+                  { id: "agent", label: "Agent" },
+                  { id: "rank", label: "Rank" },
+                  { id: "status", label: "Status", cellVariant: "muted" },
+                  { id: "assignedAt", label: "Assigned", cellVariant: "muted" },
+                ]}
+                rows={assignmentRows}
+                size="small"
+                minWidth={360}
+              />
+            </Box>
           </Box>
         ) : null}
 

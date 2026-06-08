@@ -18,6 +18,16 @@ import {
   readQaChecklist,
 } from "../utils/qa-session-review.shared";
 
+function sectionLabelSx(theme: AppTheme): object {
+  return {
+    fontWeight: 600,
+    fontSize: 13,
+    color: theme.app.text.primary,
+    display: "block",
+    mb: 0.75,
+  };
+}
+
 interface QaSessionReviewModalProps {
   open: boolean;
   onClose: () => void;
@@ -97,6 +107,7 @@ export function QaSessionReviewModal({
       : "in_progress";
   const readOnly = !canEdit || isCompleted;
   const d = theme.app.dashboard;
+  const accent = theme.palette.primary.main;
 
   const workflowChipColor =
     workflowStatus === "completed"
@@ -142,45 +153,72 @@ export function QaSessionReviewModal({
       cancelButtonLabel="Cancel"
       showCancelButton={!isCompleted}
       maxWidth={640}
-      fitContent
     >
       {review?.slaDueAt ? (
-        <Typography variant="caption" sx={{ color: d.textMuted, display: "block" }}>
+        <Typography
+          variant="caption"
+          sx={{
+            display: "block",
+            px: 1.25,
+            py: 0.75,
+            borderRadius: 1.5,
+            bgcolor: alpha(d.accentOrange, 0.1),
+            color: d.textMuted,
+            lineHeight: 1.5,
+          }}
+        >
           SLA due {new Date(review.slaDueAt).toLocaleString()}
           {review.reviewSlaHours ? ` (${review.reviewSlaHours}h window)` : ""}
         </Typography>
       ) : null}
 
-      <Box>
-        <Typography variant="caption" sx={{ fontWeight: 600, display: "block", mb: 0.5 }}>
-          Review status
-        </Typography>
+      <Box
+        sx={{
+          p: 1.5,
+          borderRadius: 2,
+          border: `1px solid ${alpha(workflowChipColor, 0.25)}`,
+          bgcolor: alpha(workflowChipColor, 0.08),
+        }}
+      >
+        <Typography sx={sectionLabelSx(theme)}>Review status</Typography>
         <Chip
           size="small"
           label={workflowStatus.replace("_", " ")}
           sx={{
             height: 24,
             fontSize: 12,
-            bgcolor: alpha(workflowChipColor, 0.12),
+            fontWeight: 600,
+            bgcolor: alpha(workflowChipColor, 0.16),
             color: workflowChipColor,
             textTransform: "capitalize",
           }}
         />
         {!isCompleted ? (
-          <Typography variant="caption" sx={{ color: d.textMuted, display: "block", mt: 0.75 }}>
+          <Typography variant="caption" sx={{ color: d.textMuted, display: "block", mt: 0.75, lineHeight: 1.5 }}>
             Stays in progress until you submit the QA report. Use Save progress to keep your draft.
           </Typography>
         ) : null}
       </Box>
 
       <Box>
-        <Typography variant="caption" sx={{ fontWeight: 600, display: "block", mb: 0.5 }}>
-          Session stars (1–5)
-        </Typography>
+        <Typography sx={sectionLabelSx(theme)}>Session stars (1–5)</Typography>
         <Rating
           value={starRating}
           onChange={(_, v) => setStarRating(v)}
+          max={5}
+          size="large"
           disabled={readOnly || saving}
+          sx={{
+            "& .MuiRating-iconEmpty": {
+              color: alpha(accent, 0.3),
+            },
+            "& .MuiRating-iconFilled": {
+              color: accent,
+            },
+            "& .MuiRating-iconHover": {
+              color: alpha(accent, 0.8),
+            },
+          }}
         />
       </Box>
 
@@ -190,11 +228,15 @@ export function QaSessionReviewModal({
         onChange={(e) => setFailureReason(e.target.value)}
         disabled={readOnly || saving}
         placeholder="e.g. Wrong policy, rude tone, missed SLA…"
+        dense
       />
 
       <Box>
-        <Typography variant="caption" sx={{ color: d.textMuted, display: "block", mb: 0.5 }}>
-          Overall score (1–100): {overallScore}
+        <Typography sx={sectionLabelSx(theme)}>
+          Overall score (1–100):{" "}
+          <Box component="span" sx={{ color: accent, fontWeight: 700 }}>
+            {overallScore}
+          </Box>
         </Typography>
         <Slider
           value={overallScore}
@@ -202,6 +244,25 @@ export function QaSessionReviewModal({
           max={100}
           disabled={readOnly || saving}
           onChange={(_, v) => setOverallScore(v as number)}
+          sx={{
+            color: accent,
+            height: 6,
+            px: 0.5,
+            "& .MuiSlider-thumb": {
+              width: 16,
+              height: 16,
+              bgcolor: accent,
+              border: `2px solid ${alpha(accent, 0.2)}`,
+            },
+            "& .MuiSlider-track": {
+              bgcolor: accent,
+              border: "none",
+            },
+            "& .MuiSlider-rail": {
+              bgcolor: alpha(accent, 0.18),
+              opacity: 1,
+            },
+          }}
         />
       </Box>
 
@@ -212,6 +273,7 @@ export function QaSessionReviewModal({
         disabled={readOnly || saving}
         multiline
         minRows={2}
+        dense
       />
 
       <InputField
@@ -221,19 +283,18 @@ export function QaSessionReviewModal({
         disabled={readOnly || saving}
         multiline
         minRows={2}
+        dense
       />
 
       <Box
         sx={{
           p: 1.5,
-          borderRadius: 1.5,
-          border: `1px solid ${alpha(d.cardBorder, 0.5)}`,
-          bgcolor: alpha(d.sidebarBg, 0.35),
+          borderRadius: 2,
+          border: `1px solid ${alpha(accent, 0.22)}`,
+          bgcolor: alpha(accent, 0.06),
         }}
       >
-        <Typography variant="caption" sx={{ fontWeight: 600, display: "block", mb: 0.75 }}>
-          Checklist
-        </Typography>
+        <Typography sx={sectionLabelSx(theme)}>Checklist</Typography>
         {QA_SESSION_CHECKLIST_KEYS.map((item) => (
           <FormControlLabel
             key={item.key}
@@ -271,10 +332,11 @@ export function QaSessionReviewModal({
           sx={{
             display: "block",
             p: 1.25,
-            borderRadius: 1.5,
-            bgcolor: alpha(d.accentBlue, 0.1),
-            color: d.accentBlue,
+            borderRadius: 2,
+            bgcolor: alpha(accent, 0.12),
+            color: accent,
             textAlign: "center",
+            fontWeight: 600,
           }}
         >
           Submitted {new Date(review.completedAt).toLocaleString()}
@@ -282,12 +344,20 @@ export function QaSessionReviewModal({
       ) : null}
 
       {!readOnly ? (
-        <Box sx={{ display: "flex", justifyContent: "flex-end", mt: -1 }}>
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "flex-start",
+            alignItems: "center",
+            pt: 1,
+            pb: 3,
+            flexShrink: 0,
+          }}
+        >
           <Button
             type="button"
             variant="outlined"
             disabled={saving}
-            sx={{ mr: "auto" }}
             onClick={() => void handleSaveProgress()}
           >
             {saving ? "Saving…" : "Save progress"}
