@@ -5,6 +5,7 @@ import type { SxProps, Theme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import { Button } from "@/components/common/Button";
 import type { ButtonProps } from "@/components/common/Button/Button.types";
+import { searchSubmitButtonToolbarMetrics } from "./searchToolbarMetrics";
 
 export type SearchSubmitButtonProps = Pick<ButtonProps, "disabled" | "onClick" | "sx" | "type">;
 
@@ -20,12 +21,12 @@ export const searchSubmitButtonIdleSx = (theme: Theme): SxProps<Theme> => {
   return {
     ...searchSubmitButtonLayoutSx,
     "&&": {
-      backgroundColor: app.dashboard.pillBg,
+      backgroundColor: "transparent",
       borderColor: app.dashboard.cardBorder,
       color: app.text.primary,
     },
     "&&:hover": {
-      backgroundColor: app.dashboard.pillBg,
+      backgroundColor: "transparent",
       borderColor: app.dashboard.cardBorder,
     },
   };
@@ -51,6 +52,7 @@ export function SearchSubmitButton({
       disabled={disabled}
       onClick={onClick}
       sx={[
+        searchSubmitButtonToolbarMetrics,
         disabled ? searchSubmitButtonIdleSx(theme) : searchSubmitButtonActiveSx(),
         ...extraSx,
       ]}
