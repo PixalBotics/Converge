@@ -31,6 +31,7 @@ import {
   websiteAssignmentTableIconBox,
   websiteAssignmentTableToolbar,
 } from "@/app/dashboard/website-assigning/website-assigning.styles";
+import { mergeSx } from "@/lib/mui/merge-sx";
 import { useAuth } from "@/lib/auth";
 import { PAGE } from "@/lib/permissions/permission-constants";
 import { OP } from "@/lib/permissions/operational-keys";
@@ -138,7 +139,7 @@ export function QaRosterWorkspace() {
         }
       />
 
-      <DashboardCard sx={websiteAssignmentFilterCard}>
+      <DashboardCard sx={mergeSx(websiteAssignmentFilterCard, { mb: 0 })}>
         <Box sx={websiteAssignmentFilterTitleRow}>
           <Box sx={websiteAssignmentFilterIconBox}>
             <FilterList sx={{ fontSize: 20 }} />

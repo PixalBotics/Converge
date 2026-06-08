@@ -39,7 +39,7 @@ export function AiTrainingPageShell({
 
   return (
     <Box sx={[pageWrapper, rolesPageWrapper, integrationsPageWrapper] as SxProps<Theme>}>
-      <Box sx={integrationsPageHeader}>
+      <Box sx={[integrationsPageHeader, { mb: 0 }] as SxProps<Theme>}>
         <Box sx={{ minWidth: 0 }}>
           {backHref ? (
             <Button

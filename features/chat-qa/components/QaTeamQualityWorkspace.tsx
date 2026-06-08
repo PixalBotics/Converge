@@ -288,7 +288,7 @@ export function QaTeamQualityWorkspace() {
             />
           </Box>
 
-          <DashboardCard sx={{ ...chatReportsSectionSx, p: { xs: 1.5, md: 2 } }}>
+          <DashboardCard sx={{ ...chatReportsSectionSx, mb: 0, p: { xs: 1.5, md: 2 } }}>
             <Typography fontWeight={700} sx={{ fontSize: 14, mb: 1 }}>
               Agent performance
               {highlightAgentId ? " (filtered)" : ""}
@@ -327,7 +327,7 @@ export function QaTeamQualityWorkspace() {
           </DashboardCard>
 
           {reviewLogRows.length > 0 ? (
-            <DashboardCard sx={{ ...chatReportsSectionSx, p: { xs: 1.5, md: 2 }, mt: 2 }}>
+            <DashboardCard sx={{ ...chatReportsSectionSx, p: { xs: 1.5, md: 2 } }}>
               <Typography fontWeight={700} sx={{ fontSize: 14, mb: 0.5 }}>
                 Completed QA reviews
               </Typography>
