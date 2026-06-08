@@ -17,8 +17,9 @@ import {
   Label,
 } from "@/components/common";
 import { resetAuthSessionTerminatedFlag, synchronizeAuthSession, getAccessToken, getRefreshToken } from "@/api";
-import { getAuthEmailRules, useAuth } from "@/lib/auth";
+import { clearClientAuthStorage, getAuthEmailRules, useAuth } from "@/lib/auth";
 import { retrySessionHydration } from "@/lib/auth/session-hydration-retry";
+import { sessionExpiredLoginHref } from "@/lib/auth/session-expired-login";
 import { parseSafeDashboardNextPath } from "@/lib/auth/safe-next-path";
 import { resolveDashboardLandingHref } from "@/lib/permissions";
 import { AuthNavigationLink } from "../_components/AuthNavigationLink";
@@ -63,6 +64,42 @@ export default function LoginPage() {
       resetAuthSessionTerminatedFlag();
     }
   }, []);
+
+  /**
+   * Stale cookies on the login page must not lock the form or leave zombie sessions.
+   * Valid cookies still redirect into the dashboard after hydration.
+   */
+  useEffect(() => {
+    const access = getAccessToken();
+    const refresh = getRefreshToken();
+    if (!access && !refresh) return;
+
+    let cancelled = false;
+    void (async () => {
+      const session = await synchronizeAuthSession();
+      if (cancelled) return;
+
+      if (session.status === "valid" || session.status === "refreshed") {
+        resetAuthSessionTerminatedFlag();
+        await retrySessionHydration();
+        return;
+      }
+
+      if (session.status === "invalid") {
+        clearClientAuthStorage();
+        resetAuthSessionTerminatedFlag();
+        setSessionExpiredNotice(true);
+        const params = new URLSearchParams(window.location.search);
+        if (params.get("session") !== "expired") {
+          router.replace(sessionExpiredLoginHref(parseSafeDashboardNextPath(params.get("next"))));
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [router]);
 
   /** Recover dashboard session when cookies survived a transient network logout. */
   useEffect(() => {

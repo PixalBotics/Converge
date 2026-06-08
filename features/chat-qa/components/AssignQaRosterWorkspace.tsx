@@ -192,7 +192,7 @@ export function AssignQaRosterWorkspace({ preset }: { preset?: QaAssignPreset | 
     <ChatLivePageShell>
       <ChatLivePageHeader
         title="Assign QA reviewers"
-        subtitle="Pick a website, then add internal and external QA staff (not live chat agents)."
+        subtitle="Pick a website and assign internal QA reviewers by pool. Enable QA globally under Chat settings → QA policy."
         navPreset="configure"
       />
 
@@ -219,7 +219,7 @@ export function AssignQaRosterWorkspace({ preset }: { preset?: QaAssignPreset | 
               Website scope
             </Typography>
             <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted }}>
-              Same org picker as website assignments—then choose departments and reviewers below.
+              Same org picker as website assignments—then pick internal pools and QA reviewers below.
             </Typography>
           </Box>
         </Box>
@@ -274,7 +274,7 @@ export function AssignQaRosterWorkspace({ preset }: { preset?: QaAssignPreset | 
             Select a website
           </Typography>
           <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted }}>
-            Choose org and website above to manage internal and external QA reviewers.
+            Choose org and website above to manage pool-wise internal QA reviewers.
           </Typography>
         </DashboardCard>
       )}

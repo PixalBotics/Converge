@@ -1,7 +1,10 @@
 "use client";
 
+import { useCallback, useRef } from "react";
 import DoneAll from "@mui/icons-material/DoneAll";
 import type { ChatMessage } from "@/services/chat/chat.types";
+import type { VisitorProfileCaptureAnchor } from "../utils/visitor-profile-capture";
+import { readVisitorTextSelection } from "../utils/visitor-profile-capture";
 import { Typography } from "@/components/common";
 import { ChatMessageContent } from "./ChatMessageContent";
 import { isInboxFormLinkMessage } from "../utils/inbox-transcript-messages";
@@ -33,6 +36,8 @@ interface ChatMessageBubbleProps {
   visitorDisplayName?: string;
   agentDisplayName?: string;
   groupPosition?: MessageGroupPosition;
+  profileCaptureEnabled?: boolean;
+  onProfileCaptureSelection?: (anchor: VisitorProfileCaptureAnchor) => void;
 }
 
 export function ChatMessageBubble({
@@ -41,10 +46,14 @@ export function ChatMessageBubble({
   visitorDisplayName = "Visitor",
   agentDisplayName = "You",
   groupPosition = "single",
+  profileCaptureEnabled = false,
+  onProfileCaptureSelection,
 }: ChatMessageBubbleProps) {
+  const bubbleRef = useRef<HTMLDivElement | null>(null);
   const isSystem = message.role === "system";
   const isAi = message.role === "ai";
   const isAgent = message.role === "agent";
+  const isVisitor = message.role === "visitor";
   const isFormLink = isInboxFormLinkMessage(message);
   const isSupervisor = isSupervisorSentMessage(message);
   const isOutgoing = (isAgent || isAi) && !isFormLink;
@@ -58,6 +67,19 @@ export function ChatMessageBubble({
     groupPosition === "middle" || groupPosition === "first"
       ? { mb: 0.25 }
       : { mb: 1.25 };
+
+  const handleVisitorMouseUp = useCallback(() => {
+    if (!profileCaptureEnabled || !isVisitor || !onProfileCaptureSelection) return;
+    const container = bubbleRef.current;
+    if (!container) return;
+    const anchor = readVisitorTextSelection(container, message.id);
+    if (anchor) onProfileCaptureSelection(anchor);
+  }, [
+    isVisitor,
+    message.id,
+    onProfileCaptureSelection,
+    profileCaptureEnabled,
+  ]);
 
   if (isFormLink || (isSystem && isInboxFormLinkMessage(message))) {
     return (
@@ -96,9 +118,16 @@ export function ChatMessageBubble({
 
       <MessageRow outgoing={isOutgoing}>
         <MessageBubble
+          ref={isVisitor && profileCaptureEnabled ? bubbleRef : undefined}
           outgoing={isOutgoing}
           ai={isAi}
           groupPosition={groupPosition}
+          onMouseUp={isVisitor && profileCaptureEnabled ? handleVisitorMouseUp : undefined}
+          sx={
+            isVisitor && profileCaptureEnabled
+              ? { userSelect: "text", cursor: "text" }
+              : undefined
+          }
         >
           <ChatMessageContent message={message} />
         </MessageBubble>

@@ -43,6 +43,14 @@ export function mapAdminWidgetToTableRow(item: JsonRecord): AdminWidgetTableRow 
 
   const websiteId = String(item.websiteId ?? "");
   const websiteObj = item.website as JsonRecord | undefined;
+  const childCompanyObj = websiteObj?.childCompany as JsonRecord | undefined;
+  const parentCompanyObj =
+    (item.parentCompany as JsonRecord | undefined) ??
+    (childCompanyObj?.parentCompany as JsonRecord | undefined);
+  const resellerObj =
+    (item.reseller as JsonRecord | undefined) ??
+    (parentCompanyObj?.reseller as JsonRecord | undefined);
+
   const websiteLabel =
     typeof websiteObj?.hostname === "string"
       ? websiteObj.hostname
@@ -70,9 +78,9 @@ export function mapAdminWidgetToTableRow(item: JsonRecord): AdminWidgetTableRow 
   const hasUnpublishedDraft =
     item.hasPendingDraft === true || item.hasUnpublishedDraft === true;
 
-  let statusLabel = "Draft";
+  let statusLabel = "Offline";
   if (isPublished && hasUnpublishedDraft) {
-    statusLabel = "Live · unpublished changes";
+    statusLabel = "Live · pending publish";
   } else if (isPublished) {
     statusLabel = "Live";
   }
@@ -83,13 +91,25 @@ export function mapAdminWidgetToTableRow(item: JsonRecord): AdminWidgetTableRow 
     websiteId,
     websiteLabel,
     parentCompany: String(
-      item.parentCompanyName ?? item.parentCompany ?? item.parentCompanyTitle ?? "—",
+      item.parentCompanyName ??
+        parentCompanyObj?.name ??
+        item.parentCompany ??
+        item.parentCompanyTitle ??
+        "—",
     ),
     childCompany: String(
-      item.childCompanyName ?? item.childCompany ?? item.childCompanyTitle ?? "—",
+      item.childCompanyName ??
+        childCompanyObj?.name ??
+        item.childCompany ??
+        item.childCompanyTitle ??
+        "—",
     ),
     resellerName: String(
-      item.resellerName ?? item.clientName ?? item.resellerTitle ?? "—",
+      item.resellerName ??
+        resellerObj?.name ??
+        item.clientName ??
+        item.resellerTitle ??
+        "—",
     ),
     widgetTypeLabel,
     publishedLabel: isPublished ? "Yes" : "—",

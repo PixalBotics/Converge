@@ -14,7 +14,7 @@ export type WidgetDraftStatusBarProps = {
 };
 
 const WIZARD_COPY =
-  "Working draft — each step saves with PATCH. Visitors see your design only after Publish on the Install step.";
+  "Working draft — each step saves with PATCH. Real sites show the widget only after you click Go live. Use the test link to preview anytime.";
 
 export function WidgetDraftStatusBar({
   variant = "wizard",
@@ -24,11 +24,12 @@ export function WidgetDraftStatusBar({
 
   let copy = WIZARD_COPY;
   if (variant === "detail") {
-    if (deployState === "live") copy = "Live on customer sites. Edit in the wizard saves a new draft until you publish again.";
+    if (deployState === "live")
+      copy = "Live on customer sites. Wizard edits save as draft until you publish changes or take offline.";
     else if (deployState === "live_with_pending_draft")
-      copy = "Live version is on sites. You have newer saved changes — publish to update the embed.";
+      copy = "Live version is on sites. You have newer saved changes — click Go live to update the embed.";
     else if (deployState === "draft_only")
-      copy = "Draft only — publish before the embed shows this widget on a website.";
+      copy = "Offline on real sites. Share the test link to preview. Click Go live when you want visitors to see it.";
     else copy = "Widget configuration.";
   }
 

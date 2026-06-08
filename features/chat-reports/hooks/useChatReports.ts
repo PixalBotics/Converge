@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getAccessToken } from "@/api";
-import { fetchChatReportOverview } from "@/services/chat/reports.api";
+import { fetchChatReportOverview, fetchQaQualityReport } from "@/services/chat/reports.api";
 import type { ChatReportQuery } from "@/services/chat/reports.types";
 import { defaultReportRange } from "../utils/format-metric";
 import { chatReportKeys } from "./keys";
@@ -28,6 +28,12 @@ export function useChatReports(options?: { apiEnabled?: boolean }) {
     enabled: apiEnabled && Boolean(token),
   });
 
+  const qaQualityQuery = useQuery({
+    queryKey: chatReportKeys.qaQuality(query),
+    queryFn: () => fetchQaQualityReport(query, token),
+    enabled: apiEnabled && Boolean(token),
+  });
+
   return {
     token,
     range,
@@ -37,8 +43,13 @@ export function useChatReports(options?: { apiEnabled?: boolean }) {
     departmentId,
     setDepartmentId,
     overview: overviewQuery.data ?? null,
+    qaQuality: qaQualityQuery.data ?? null,
     loading: overviewQuery.isLoading,
+    qaQualityLoading: qaQualityQuery.isLoading,
     error: overviewQuery.error,
-    refresh: () => void overviewQuery.refetch(),
+    refresh: () => {
+      void overviewQuery.refetch();
+      void qaQualityQuery.refetch();
+    },
   };
 }

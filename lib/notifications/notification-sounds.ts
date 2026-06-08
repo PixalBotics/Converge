@@ -4,6 +4,7 @@ const CHAT_TYPES = new Set([
   "chat.new_assignment",
   "chat.queue_waiting",
   "chat.takeover_requested",
+  "chat.transferred_to_pool_head",
 ]);
 
 const QA_TYPES = new Set(["qa.review_assigned"]);

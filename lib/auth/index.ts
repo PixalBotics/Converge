@@ -4,11 +4,15 @@ export {
   sessionCanFilterByResellerId,
   sessionIsNarrowClientRootScope,
   sessionMayPickInternalUserScope,
+  resolveSessionListFilterScope,
   sessionMayAssignWideResellerScope,
   sessionShowPocDeptDesignationPickFromList,
 } from "./session-scope";
+export type { SessionListFilterScope, SessionScopeUser } from "./session-scope";
 export { extractResellerIdFromMePayload } from "./extract-reseller-id";
 export { useResellerListScope } from "./use-reseller-list-scope";
+export { clearClientAuthStorage } from "./clear-client-auth-state";
+export { sessionExpiredLoginHref } from "./session-expired-login";
 export { AuthProvider, useAuth } from "./AuthContext";
 export type { AuthGateState } from "./AuthContext";
 export { validateCredentials, createSession, isSessionValid, MOCK_LOGIN_HINT } from "./mockAuth";

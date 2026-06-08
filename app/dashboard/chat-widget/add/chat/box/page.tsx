@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
 import CloudUploadOutlined from "@mui/icons-material/CloudUploadOutlined";
 import Box from "@mui/material/Box";
 import Switch from "@mui/material/Switch";
 import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
-import { Button, SelectField, Typography } from "@/components/common";
+import { Button, InputField, SelectField, Typography } from "@/components/common";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
 import { WidgetFlowShell } from "@/features/chat-widget";
 import { mergeWizardDraftForPublish } from "@/lib/chat-widget/merge-wizard-draft-for-publish";
@@ -41,8 +41,8 @@ import { WidgetWizardStepGuide } from "@/features/chat-widget/components/WidgetW
 import {
   WidgetNumericField,
   WidgetTextField,
+  WidgetUrlField,
 } from "@/features/chat-widget/components/WidgetFormFields";
-import { FIELD_MAX } from "@/lib/chat-widget/widget-field-validation";
 import { WidgetWizardToggleRow } from "@/features/chat-widget/components/WidgetWizardToggleRow";
 import { defaultWidgetDraft } from "@/lib/chat-widget/widgetDraft";
 import { useWizardLauncherChrome } from "@/lib/chat-widget/use-wizard-launcher-preview";
@@ -54,12 +54,40 @@ import {
   chatBoxSwitchRowSx,
 } from "./chat-box-design.styles";
 import { syncResponseCopyFromChatBox } from "@/lib/chat-widget/sync-response-copy-from-chat-box";
+import {
+  isWidgetInquiryOptionConfigured,
+} from "@/lib/chat-widget/visitor-topics.mapper";
+import { normalizeWidgetInquiryOptions } from "@/lib/chat-widget/widget-inquiry.types";
 import { WidgetWizardSiteChromePreview } from "@/features/chat-widget/components/WidgetWizardSiteChromePreview";
 import Stack from "@mui/material/Stack";
 import {
-  normalizeWidgetInquiryOptions,
-  type WidgetInquiryOption,
-} from "@/lib/chat-widget/widget-inquiry.types";
+  DESIGN_ACCENT_SELECT_OPTIONS,
+  DESIGN_DENSITY_SELECT_OPTIONS,
+} from "@/lib/chat-widget/design-accent-density";
+import {
+  FIELD_MAX,
+  validateVideoEmbedUrl,
+} from "@/lib/chat-widget/widget-field-validation";
+import { useWizardStepFlush } from "@/lib/chat-widget/widget-wizard-step-flush";
+import { WidgetSurfaceStylePicker } from "@/components/dashboard/chat-widget/WidgetSurfaceStylePicker";
+import { WidgetChatAvatarField } from "@/components/dashboard/chat-widget/WidgetChatAvatarField";
+import {
+  normalizeAgentAvatarPreset,
+  normalizeVisitorAvatarPreset,
+  type AgentAvatarPresetId,
+  type VisitorAvatarPresetId,
+} from "@/lib/chat-widget/chat-avatar-presets";
+import {
+  normalizeLauncherStyle,
+  type WidgetLauncherStyleId,
+} from "@/lib/chat-widget/launcher-style";
+
+function clampNum(raw: string, min: number, max: number, fallback: number): number {
+  const n = Number.parseInt(raw.trim(), 10);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.min(max, Math.max(min, n));
+}
+
 export default function ChatWidgetBoxDesignPage() {
   const { recordSave } = useWidgetWizardSaveTrace();
   const router = useRouter();
@@ -67,20 +95,60 @@ export default function ChatWidgetBoxDesignPage() {
   const { editWidgetKey, draftReady, hydrateError } = useChatWidgetWizardEdit();
   const [headerTitleAlign, setHeaderTitleAlign] = useState<"Center" | "Left">("Center");
   const [bannerOn, setBannerOn] = useState(true);
-  const [bannerTitle, setBannerTitle] = useState(defaultWidgetDraft.bannerTitle ?? "Special Offer");
+  const [bannerTitle, setBannerTitle] = useState(defaultWidgetDraft.bannerTitle ?? "");
   const [bannerDescription, setBannerDescription] = useState(
     defaultWidgetDraft.bannerDescription ?? "",
   );
-  const [headerBrandColor, setHeaderBrandColor] = useState("#1ed760");
+  const [headerBrandColor, setHeaderBrandColor] = useState(
+    defaultWidgetDraft.buttonColor ?? "#1E63D5",
+  );
   const [themeSecondaryColor, setThemeSecondaryColor] = useState(
     defaultWidgetDraft.themeSecondaryColor ?? "#64748b",
   );
-  const [textColor, setTextColor] = useState("#d62cad");
+  const [textColor, setTextColor] = useState(defaultWidgetDraft.textColor ?? "#FFFFFF");
+  const [videoWelcomeOn, setVideoWelcomeOn] = useState(false);
+  const [videoWelcomeUrl, setVideoWelcomeUrl] = useState("");
+  const [themeName, setThemeName] = useState(defaultWidgetDraft.themeName ?? "Brand Default");
+  const [themeFontFamily, setThemeFontFamily] = useState(
+    defaultWidgetDraft.themeFontFamily ?? "Inter, system-ui, sans-serif",
+  );
+  const [themeBubbleStyle, setThemeBubbleStyle] = useState(
+    defaultWidgetDraft.themeBubbleStyle ?? "rounded",
+  );
+  const [themeBorderRadiusPxStr, setThemeBorderRadiusPxStr] = useState(
+    String(defaultWidgetDraft.themeBorderRadiusPx ?? 12),
+  );
+  const [themeWelcomeFontStr, setThemeWelcomeFontStr] = useState(
+    String(defaultWidgetDraft.themeWelcomeFontSizePx ?? 18),
+  );
+  const [themeBodyFontStr, setThemeBodyFontStr] = useState(
+    String(defaultWidgetDraft.themeBodyFontSizePx ?? 14),
+  );
+  const [themeInputFontStr, setThemeInputFontStr] = useState(
+    String(defaultWidgetDraft.themeInputFontSizePx ?? 14),
+  );
+  const [themeCtaFontStr, setThemeCtaFontStr] = useState(
+    String(defaultWidgetDraft.themeCtaFontSizePx ?? 15),
+  );
+  const [themeConsentFontStr, setThemeConsentFontStr] = useState(
+    String(defaultWidgetDraft.themeConsentFontSizePx ?? 12),
+  );
+  const [themeLineHeightStr, setThemeLineHeightStr] = useState(
+    String(defaultWidgetDraft.themeLineHeightPx ?? 22),
+  );
+  const [themeDesignJsonAccent, setThemeDesignJsonAccent] = useState(
+    defaultWidgetDraft.themeDesignJsonAccent ?? "blue",
+  );
+  const [themeDesignJsonDensity, setThemeDesignJsonDensity] = useState(
+    defaultWidgetDraft.themeDesignJsonDensity ?? "comfortable",
+  );
   const [bannerFileName, setBannerFileName] = useState("");
   const [bannerDataUrl, setBannerDataUrl] = useState("");
+  const [headerLogoFileName, setHeaderLogoFileName] = useState("");
+  const [headerLogoDataUrl, setHeaderLogoDataUrl] = useState("");
   const [bannerMediaType, setBannerMediaType] = useState<"image" | "video">("image");
   const [panelHeaderTitle, setPanelHeaderTitle] = useState(
-    defaultWidgetDraft.headerTitle ?? "Live chat",
+    defaultWidgetDraft.headerTitle ?? "",
   );
   const [panelGreetingEnabled, setPanelGreetingEnabled] = useState(
     defaultWidgetDraft.panelGreetingEnabled ?? true,
@@ -88,8 +156,12 @@ export default function ChatWidgetBoxDesignPage() {
   const [chatWelcomeEnabled, setChatWelcomeEnabled] = useState(
     defaultWidgetDraft.chatWelcomeEnabled ?? true,
   );
-  const [greetingMessage, setGreetingMessage] = useState("Welcome to Florida Luxurious. Tell me your budget, location, and property type preference.");
-  const [sendPlaceholder, setSendPlaceholder] = useState("Ask about location, budget, or options...");
+  const [greetingMessage, setGreetingMessage] = useState(
+    defaultWidgetDraft.greetingMessage ?? "",
+  );
+  const [sendPlaceholder, setSendPlaceholder] = useState(
+    defaultWidgetDraft.sendPlaceholder ?? "",
+  );
   const [boxWidth, setBoxWidth] = useState("350");
   const [boxHeight, setBoxHeight] = useState("430");
   const [buttonLabel, setButtonLabel] = useState(defaultWidgetDraft.buttonLabel ?? "Chat with us");
@@ -98,16 +170,6 @@ export default function ChatWidgetBoxDesignPage() {
   );
   const [backgroundColor, setBackgroundColor] = useState(
     defaultWidgetDraft.backgroundColor ?? "#f8fafc",
-  );
-  const [inquiryOn, setInquiryOn] = useState(defaultWidgetDraft.inquiryOn ?? false);
-  const [inquiryOptions, setInquiryOptions] = useState<WidgetInquiryOption[]>(
-    defaultWidgetDraft.inquiryOptions ?? [],
-  );
-  const [inquiryFallbackRoutingKey, setInquiryFallbackRoutingKey] = useState(
-    defaultWidgetDraft.inquiryFallbackRoutingKey ?? "",
-  );
-  const [wizardWebsiteId, setWizardWebsiteId] = useState<string | undefined>(
-    defaultWidgetDraft.websiteId,
   );
   const [chatColors, setChatColors] = useState<WidgetChatColorsDraft>(() =>
     readWidgetChatColorsFromDraft(defaultWidgetDraft),
@@ -126,8 +188,32 @@ export default function ChatWidgetBoxDesignPage() {
       defaultWidgetDraft.responseTalkToAgentTriggerText ?? "Talk to agent",
     chatMode: defaultWidgetDraft.chatMode ?? "HYBRID",
   });
+  const [panelSurfaceStyle, setPanelSurfaceStyle] = useState<WidgetLauncherStyleId>(
+    defaultWidgetDraft.panelSurfaceStyle ?? "solid",
+  );
+  const [bubbleSurfaceStyle, setBubbleSurfaceStyle] = useState<WidgetLauncherStyleId>(
+    defaultWidgetDraft.bubbleSurfaceStyle ?? "solid",
+  );
+  const [agentAvatarEnabled, setAgentAvatarEnabled] = useState(
+    defaultWidgetDraft.agentAvatarEnabled ?? true,
+  );
+  const [visitorAvatarEnabled, setVisitorAvatarEnabled] = useState(
+    defaultWidgetDraft.visitorAvatarEnabled ?? true,
+  );
+  const [agentAvatarDataUrl, setAgentAvatarDataUrl] = useState("");
+  const [visitorAvatarDataUrl, setVisitorAvatarDataUrl] = useState("");
+  const [agentAvatarPreset, setAgentAvatarPreset] = useState<AgentAvatarPresetId>(
+    normalizeAgentAvatarPreset(defaultWidgetDraft.agentAvatarPreset),
+  );
+  const [visitorAvatarPreset, setVisitorAvatarPreset] = useState<VisitorAvatarPresetId>(
+    normalizeVisitorAvatarPreset(defaultWidgetDraft.visitorAvatarPreset),
+  );
+  const [agentAvatarFileName, setAgentAvatarFileName] = useState("");
+  const [visitorAvatarFileName, setVisitorAvatarFileName] = useState("");
   const bannerUploadRef = useRef<HTMLInputElement | null>(null);
-  const inquiryTopicsTouchedRef = useRef(false);
+  const headerLogoUploadRef = useRef<HTMLInputElement | null>(null);
+  const agentAvatarUploadRef = useRef<HTMLInputElement | null>(null);
+  const visitorAvatarUploadRef = useRef<HTMLInputElement | null>(null);
   const [saving, setSaving] = useState(false);
   const [checklistRefreshKey, setChecklistRefreshKey] = useState(0);
 
@@ -139,17 +225,13 @@ export default function ChatWidgetBoxDesignPage() {
   );
 
   useEffect(() => {
-    inquiryTopicsTouchedRef.current = false;
-  }, [editWidgetKey]);
-
-  useEffect(() => {
     if (!draftReady) return;
     const d = readChatWizardDraft(resolveEditWidgetKeyForNavigation(editWidgetKey) || undefined);
     const def = defaultWidgetDraft;
     setHeaderTitleAlign(d.headerTitleAlign === "Left" ? "Left" : "Center");
     setBannerOn(Boolean(d.bannerOn));
-    setBannerTitle(d.bannerTitle ?? defaultWidgetDraft.bannerTitle ?? "");
-    setBannerDescription(d.bannerDescription ?? defaultWidgetDraft.bannerDescription ?? "");
+    setBannerTitle(d.bannerTitle ?? "");
+    setBannerDescription(d.bannerDescription ?? "");
     setHeaderBrandColor(
       d.themePrimaryColor?.trim() || d.buttonColor?.trim() || "#1ed760",
     );
@@ -157,10 +239,10 @@ export default function ChatWidgetBoxDesignPage() {
     setTextColor(d.textColor || "#d62cad");
     setBannerDataUrl(d.bannerDataUrl || "");
     setBannerFileName(d.bannerDataUrl ? "Uploaded banner" : "");
+    setHeaderLogoDataUrl(d.headerLogoDataUrl || "");
+    setHeaderLogoFileName(d.headerLogoDataUrl ? "Uploaded logo" : "");
     setBannerMediaType(d.bannerMediaType === "video" ? "video" : "image");
-    setPanelHeaderTitle(
-      d.headerTitle ?? defaultWidgetDraft.headerTitle ?? "Live chat",
-    );
+    setPanelHeaderTitle(d.headerTitle ?? "");
     setPanelGreetingEnabled(d.panelGreetingEnabled !== false);
     setChatWelcomeEnabled(d.chatWelcomeEnabled !== false);
     setGreetingMessage(d.greetingMessage ?? defaultWidgetDraft.greetingMessage);
@@ -175,7 +257,30 @@ export default function ChatWidgetBoxDesignPage() {
     setFirstMessage(d.firstMessage ?? "Hi! How can we help today?");
     setBackgroundColor(d.backgroundColor ?? "#f8fafc");
     setChatColors(readWidgetChatColorsFromDraft(d));
-    setWizardWebsiteId(d.websiteId);
+    setVideoWelcomeOn(d.videoWelcomeOn ?? false);
+    setVideoWelcomeUrl(d.videoWelcomeUrl ?? "");
+    setThemeName(d.themeName ?? defaultWidgetDraft.themeName ?? "Brand Default");
+    setThemeFontFamily(d.themeFontFamily ?? defaultWidgetDraft.themeFontFamily ?? "");
+    setThemeBubbleStyle(d.themeBubbleStyle ?? defaultWidgetDraft.themeBubbleStyle ?? "rounded");
+    setThemeBorderRadiusPxStr(String(d.themeBorderRadiusPx ?? defaultWidgetDraft.themeBorderRadiusPx ?? 12));
+    setThemeWelcomeFontStr(String(d.themeWelcomeFontSizePx ?? defaultWidgetDraft.themeWelcomeFontSizePx ?? 18));
+    setThemeBodyFontStr(String(d.themeBodyFontSizePx ?? defaultWidgetDraft.themeBodyFontSizePx ?? 14));
+    setThemeInputFontStr(String(d.themeInputFontSizePx ?? defaultWidgetDraft.themeInputFontSizePx ?? 14));
+    setThemeCtaFontStr(String(d.themeCtaFontSizePx ?? defaultWidgetDraft.themeCtaFontSizePx ?? 15));
+    setThemeConsentFontStr(String(d.themeConsentFontSizePx ?? defaultWidgetDraft.themeConsentFontSizePx ?? 12));
+    setThemeLineHeightStr(String(d.themeLineHeightPx ?? defaultWidgetDraft.themeLineHeightPx ?? 22));
+    setThemeDesignJsonAccent(d.themeDesignJsonAccent ?? defaultWidgetDraft.themeDesignJsonAccent ?? "blue");
+    setThemeDesignJsonDensity(d.themeDesignJsonDensity ?? defaultWidgetDraft.themeDesignJsonDensity ?? "comfortable");
+    setPanelSurfaceStyle(normalizeLauncherStyle(d.panelSurfaceStyle));
+    setBubbleSurfaceStyle(normalizeLauncherStyle(d.bubbleSurfaceStyle));
+    setAgentAvatarEnabled(d.agentAvatarEnabled !== false);
+    setVisitorAvatarEnabled(d.visitorAvatarEnabled === true);
+    setAgentAvatarDataUrl(d.agentAvatarDataUrl || "");
+    setVisitorAvatarDataUrl(d.visitorAvatarDataUrl || "");
+    setAgentAvatarPreset(normalizeAgentAvatarPreset(d.agentAvatarPreset));
+    setVisitorAvatarPreset(normalizeVisitorAvatarPreset(d.visitorAvatarPreset));
+    setAgentAvatarFileName(d.agentAvatarDataUrl ? "Uploaded avatar" : "");
+    setVisitorAvatarFileName(d.visitorAvatarDataUrl ? "Uploaded avatar" : "");
     setPreviewForm({
       formEnabled: d.formEnabled ?? def.formEnabled ?? true,
       formTitle: d.formTitle ?? def.formTitle ?? "",
@@ -191,22 +296,179 @@ export default function ChatWidgetBoxDesignPage() {
     });
   }, [draftReady, editWidgetKey, checklistRefreshKey]);
 
-  useEffect(() => {
-    if (!draftReady) return;
-    const d = readChatWizardDraft(resolveEditWidgetKeyForNavigation(editWidgetKey) || undefined);
-    const def = defaultWidgetDraft;
-    if (inquiryTopicsTouchedRef.current) return;
+  const stepStateRef = useRef({
+    draftReady,
+    editWidgetKey,
+    headerTitleAlign,
+    bannerOn,
+    bannerTitle,
+    bannerDescription,
+    headerBrandColor,
+    themeSecondaryColor,
+    textColor,
+    videoWelcomeOn,
+    videoWelcomeUrl,
+    themeName,
+    themeFontFamily,
+    themeBubbleStyle,
+    themeBorderRadiusPxStr,
+    themeWelcomeFontStr,
+    themeBodyFontStr,
+    themeInputFontStr,
+    themeCtaFontStr,
+    themeConsentFontStr,
+    themeLineHeightStr,
+    themeDesignJsonAccent,
+    themeDesignJsonDensity,
+    bannerDataUrl,
+    bannerMediaType,
+    headerLogoDataUrl,
+    panelHeaderTitle,
+    panelGreetingEnabled,
+    chatWelcomeEnabled,
+    greetingMessage,
+    sendPlaceholder,
+    boxWidth,
+    boxHeight,
+    buttonLabel,
+    firstMessage,
+    backgroundColor,
+    chatColors,
+    previewForm,
+    panelSurfaceStyle,
+    bubbleSurfaceStyle,
+    agentAvatarEnabled,
+    visitorAvatarEnabled,
+    agentAvatarDataUrl,
+    visitorAvatarDataUrl,
+    agentAvatarPreset,
+    visitorAvatarPreset,
+  });
+  stepStateRef.current = {
+    draftReady,
+    editWidgetKey,
+    headerTitleAlign,
+    bannerOn,
+    bannerTitle,
+    bannerDescription,
+    headerBrandColor,
+    themeSecondaryColor,
+    textColor,
+    videoWelcomeOn,
+    videoWelcomeUrl,
+    themeName,
+    themeFontFamily,
+    themeBubbleStyle,
+    themeBorderRadiusPxStr,
+    themeWelcomeFontStr,
+    themeBodyFontStr,
+    themeInputFontStr,
+    themeCtaFontStr,
+    themeConsentFontStr,
+    themeLineHeightStr,
+    themeDesignJsonAccent,
+    themeDesignJsonDensity,
+    bannerDataUrl,
+    bannerMediaType,
+    headerLogoDataUrl,
+    panelHeaderTitle,
+    panelGreetingEnabled,
+    chatWelcomeEnabled,
+    greetingMessage,
+    sendPlaceholder,
+    boxWidth,
+    boxHeight,
+    buttonLabel,
+    firstMessage,
+    backgroundColor,
+    chatColors,
+    previewForm,
+    panelSurfaceStyle,
+    bubbleSurfaceStyle,
+    agentAvatarEnabled,
+    visitorAvatarEnabled,
+    agentAvatarDataUrl,
+    visitorAvatarDataUrl,
+    agentAvatarPreset,
+    visitorAvatarPreset,
+  };
 
-    const inquiryArr = normalizeWidgetInquiryOptions(d.inquiryOptions ?? def.inquiryOptions);
-    setInquiryOn(d.inquiryOn ?? inquiryArr.length > 0);
-    setInquiryOptions(inquiryArr);
-    setInquiryFallbackRoutingKey(
-      d.inquiryFallbackRoutingKey?.trim() ||
-        inquiryArr.find((o) => o.routingKey.trim())?.routingKey ||
-        def.inquiryFallbackRoutingKey ||
-        "",
-    );
-  }, [draftReady, editWidgetKey]);
+  const flushStepToDraft = useCallback(() => {
+    const s = stepStateRef.current;
+    if (!s.draftReady) return;
+    const editKey = resolveEditWidgetKeyForNavigation(s.editWidgetKey);
+    const prev = readChatWizardDraft(editKey || undefined);
+    const parsedWidth = Number.parseInt(s.boxWidth, 10);
+    const parsedHeight = Number.parseInt(s.boxHeight, 10);
+    const safeWidth = Number.isFinite(parsedWidth) ? Math.min(520, Math.max(280, parsedWidth)) : 350;
+    const safeHeight = Number.isFinite(parsedHeight) ? Math.min(640, Math.max(320, parsedHeight)) : 430;
+    saveChatWizardDraft(editKey || undefined, {
+      themeName: s.themeName.trim() || defaultWidgetDraft.themeName,
+      themeFontFamily: s.themeFontFamily.trim() || defaultWidgetDraft.themeFontFamily,
+      themeBubbleStyle: s.themeBubbleStyle.trim() || defaultWidgetDraft.themeBubbleStyle,
+      themeBorderRadiusPx: clampNum(s.themeBorderRadiusPxStr, 0, 48, 12),
+      themeWelcomeFontSizePx: clampNum(s.themeWelcomeFontStr, 10, 32, 18),
+      themeBodyFontSizePx: clampNum(s.themeBodyFontStr, 10, 28, 14),
+      themeInputFontSizePx: clampNum(s.themeInputFontStr, 10, 28, 14),
+      themeCtaFontSizePx: clampNum(s.themeCtaFontStr, 10, 28, 15),
+      themeConsentFontSizePx: clampNum(s.themeConsentFontStr, 8, 24, 12),
+      themeLineHeightPx: clampNum(s.themeLineHeightStr, 14, 40, 22),
+      themeDesignJsonAccent: s.themeDesignJsonAccent.trim() || "blue",
+      themeDesignJsonDensity: s.themeDesignJsonDensity.trim() || "comfortable",
+      themeSecondaryColor: s.themeSecondaryColor.trim() || defaultWidgetDraft.themeSecondaryColor,
+      videoWelcomeOn: s.videoWelcomeOn,
+      videoWelcomeUrl: s.videoWelcomeUrl.trim(),
+      headerTitleAlign: s.headerTitleAlign,
+      headerTitle: s.panelHeaderTitle.trim(),
+      headerLogoDataUrl: s.headerLogoDataUrl,
+      ...syncResponseCopyFromChatBox({
+        ...prev,
+        greetingMessage: s.greetingMessage,
+        firstMessage: s.firstMessage,
+        sendPlaceholder: s.sendPlaceholder,
+        messagePlaceholder: s.sendPlaceholder,
+      }),
+      themePrimaryColor: s.headerBrandColor.trim() || prev.themePrimaryColor || prev.buttonColor,
+      textColor: s.textColor || prev.textColor || "#FFFFFF",
+      panelGreetingEnabled: s.panelGreetingEnabled,
+      chatWelcomeEnabled: s.chatWelcomeEnabled,
+      greetingMessage: s.greetingMessage,
+      sendPlaceholder: s.sendPlaceholder,
+      messagePlaceholder: s.sendPlaceholder.trim(),
+      bannerOn: s.bannerOn,
+      bannerTitle: s.bannerTitle.trim(),
+      bannerDescription: s.bannerDescription.trim(),
+      bannerDataUrl: s.bannerDataUrl,
+      bannerMediaType: s.bannerMediaType,
+      boxWidth: safeWidth,
+      boxHeight: safeHeight,
+      buttonLabel: s.buttonLabel.trim() || prev.buttonLabel || "Chat with us",
+      firstMessage: s.firstMessage.trim(),
+      backgroundColor: s.backgroundColor.trim() || prev.backgroundColor || "#f8fafc",
+      formEnabled: s.previewForm.formEnabled,
+      formTitle: s.previewForm.formTitle,
+      formSubtitle: s.previewForm.formSubtitle,
+      formSubmitLabel: s.previewForm.formSubmitLabel,
+      prechatNameEnabled: s.previewForm.prechatNameEnabled,
+      prechatEmailEnabled: s.previewForm.prechatEmailEnabled,
+      prechatPhoneEnabled: s.previewForm.prechatPhoneEnabled,
+      prechatMessageEnabled: s.previewForm.prechatMessageEnabled,
+      responseTalkToAgentEnabled: s.previewForm.talkToAgentEnabled,
+      responseTalkToAgentTriggerText: s.previewForm.talkToAgentTriggerText,
+      chatMode: s.previewForm.chatMode,
+      panelSurfaceStyle: s.panelSurfaceStyle,
+      bubbleSurfaceStyle: s.bubbleSurfaceStyle,
+      agentAvatarEnabled: s.agentAvatarEnabled,
+      visitorAvatarEnabled: s.visitorAvatarEnabled,
+      agentAvatarDataUrl: s.agentAvatarDataUrl,
+      visitorAvatarDataUrl: s.visitorAvatarDataUrl,
+      agentAvatarPreset: s.agentAvatarPreset,
+      visitorAvatarPreset: s.visitorAvatarPreset,
+      ...widgetChatColorsDraftToPatch(s.chatColors),
+    });
+  }, []);
+
+  useWizardStepFlush(flushStepToDraft);
 
   const handleBannerUpload = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -215,6 +477,36 @@ export default function ChatWidgetBoxDesignPage() {
     setBannerMediaType(file.type.startsWith("video/") ? "video" : "image");
     const reader = new FileReader();
     reader.onload = () => setBannerDataUrl(typeof reader.result === "string" ? reader.result : "");
+    reader.readAsDataURL(file);
+  };
+
+  const handleHeaderLogoUpload = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setHeaderLogoFileName(file.name);
+    const reader = new FileReader();
+    reader.onload = () =>
+      setHeaderLogoDataUrl(typeof reader.result === "string" ? reader.result : "");
+    reader.readAsDataURL(file);
+  };
+
+  const handleAvatarUpload = (
+    event: ChangeEvent<HTMLInputElement>,
+    role: "agent" | "visitor",
+  ) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = typeof reader.result === "string" ? reader.result : "";
+      if (role === "agent") {
+        setAgentAvatarFileName(file.name);
+        setAgentAvatarDataUrl(dataUrl);
+      } else {
+        setVisitorAvatarFileName(file.name);
+        setVisitorAvatarDataUrl(dataUrl);
+      }
+    };
     reader.readAsDataURL(file);
   };
 
@@ -239,6 +531,14 @@ export default function ChatWidgetBoxDesignPage() {
       const safeWidth = Number.isFinite(parsedWidth) ? Math.min(520, Math.max(280, parsedWidth)) : 350;
       const safeHeight = Number.isFinite(parsedHeight) ? Math.min(640, Math.max(320, parsedHeight)) : 430;
 
+      if (videoWelcomeOn) {
+        const videoErr = validateVideoEmbedUrl(videoWelcomeUrl);
+        if (videoErr) {
+          publishAppToast({ variant: "error", message: videoErr });
+          return;
+        }
+      }
+
       setSaving(true);
       try {
         const launcherFromStep1 = resolveWizardLauncherPreview(prev);
@@ -261,21 +561,25 @@ export default function ChatWidgetBoxDesignPage() {
           proactiveSecondaryCtaLabel: prev.proactiveSecondaryCtaLabel,
           proactiveSecondaryCtaHref: prev.proactiveSecondaryCtaHref,
           proactiveSecondaryCtaKind: prev.proactiveSecondaryCtaKind,
-          themeName: prev.themeName,
-          themeFontFamily: prev.themeFontFamily,
-          themeBubbleStyle: prev.themeBubbleStyle,
-          themeBorderRadiusPx: prev.themeBorderRadiusPx,
-          themeWelcomeFontSizePx: prev.themeWelcomeFontSizePx,
-          themeBodyFontSizePx: prev.themeBodyFontSizePx,
-          themeInputFontSizePx: prev.themeInputFontSizePx,
-          themeCtaFontSizePx: prev.themeCtaFontSizePx,
-          themeConsentFontSizePx: prev.themeConsentFontSizePx,
-          themeLineHeightPx: prev.themeLineHeightPx,
-          themeDesignJsonAccent: prev.themeDesignJsonAccent,
-          themeDesignJsonDensity: prev.themeDesignJsonDensity,
-          themeSecondaryColor: prev.themeSecondaryColor ?? themeSecondaryColor,
+          closedMessagePreviewEnabled: prev.closedMessagePreviewEnabled,
+          themeName: themeName.trim() || defaultWidgetDraft.themeName,
+          themeFontFamily: themeFontFamily.trim() || defaultWidgetDraft.themeFontFamily,
+          themeBubbleStyle: themeBubbleStyle.trim() || defaultWidgetDraft.themeBubbleStyle,
+          themeBorderRadiusPx: clampNum(themeBorderRadiusPxStr, 0, 48, 12),
+          themeWelcomeFontSizePx: clampNum(themeWelcomeFontStr, 10, 32, 18),
+          themeBodyFontSizePx: clampNum(themeBodyFontStr, 10, 28, 14),
+          themeInputFontSizePx: clampNum(themeInputFontStr, 10, 28, 14),
+          themeCtaFontSizePx: clampNum(themeCtaFontStr, 10, 28, 15),
+          themeConsentFontSizePx: clampNum(themeConsentFontStr, 8, 24, 12),
+          themeLineHeightPx: clampNum(themeLineHeightStr, 14, 40, 22),
+          themeDesignJsonAccent: themeDesignJsonAccent.trim() || "blue",
+          themeDesignJsonDensity: themeDesignJsonDensity.trim() || "comfortable",
+          themeSecondaryColor: themeSecondaryColor.trim() || defaultWidgetDraft.themeSecondaryColor,
+          videoWelcomeOn,
+          videoWelcomeUrl: videoWelcomeUrl.trim(),
           headerTitleAlign,
-          headerTitle: panelHeaderTitle.trim() || defaultWidgetDraft.headerTitle,
+          headerTitle: panelHeaderTitle.trim(),
+          headerLogoDataUrl,
           ...syncResponseCopyFromChatBox({
             ...prev,
             greetingMessage,
@@ -302,11 +606,18 @@ export default function ChatWidgetBoxDesignPage() {
           firstMessage: firstMessage.trim(),
           backgroundColor: backgroundColor.trim() || prev.backgroundColor || "#f8fafc",
           inquiryOn: prev.inquiryOn ?? false,
-          inquiryOptions:
-            prev.inquiryOn && prev.inquiryOptions?.length
-              ? normalizeWidgetInquiryOptions(prev.inquiryOptions)
-              : [],
-          inquiryFallbackRoutingKey: prev.inquiryFallbackRoutingKey?.trim() || undefined,
+          inquiryOptions: prev.inquiryOptions ?? [],
+          inquiryRequired: prev.inquiryRequired,
+          inquirySkipLabel: prev.inquirySkipLabel,
+          inquiryFallbackRoutingKey: prev.inquiryFallbackRoutingKey,
+          panelSurfaceStyle,
+          bubbleSurfaceStyle,
+          agentAvatarEnabled,
+          visitorAvatarEnabled,
+          agentAvatarDataUrl,
+          visitorAvatarDataUrl,
+          agentAvatarPreset,
+          visitorAvatarPreset,
           ...widgetChatColorsDraftToPatch(chatColors),
         });
         const latest = readChatWizardDraft(editKey || undefined);
@@ -364,14 +675,16 @@ export default function ChatWidgetBoxDesignPage() {
   const parsedPreviewWidth = Number.parseInt(boxWidth, 10);
   const parsedPreviewHeight = Number.parseInt(boxHeight, 10);
 
-  const inquiryOptionsList = useMemo(
-    () => (inquiryOn ? inquiryOptions.map((o) => o.label).filter(Boolean) : []),
-    [inquiryOn, inquiryOptions],
-  );
-
-  const livePreviewModel = useMemo(
-    () => ({
-      headerTitle: panelHeaderTitle || defaultWidgetDraft.headerTitle,
+  const livePreviewModel = useMemo(() => {
+    const draft = draftReady
+      ? readChatWizardDraft(resolveEditWidgetKeyForNavigation(editWidgetKey) || undefined)
+      : defaultWidgetDraft;
+    const inquiryRows = normalizeWidgetInquiryOptions(draft.inquiryOptions ?? []);
+    const inquiryActive =
+      (draft.inquiryOn ?? false) && inquiryRows.some(isWidgetInquiryOptionConfigured);
+    return {
+      headerTitle: panelHeaderTitle.trim(),
+      headerLogoDataUrl,
       headerAlign: headerTitleAlign,
       buttonColor: headerBrandColor || "#1ed760",
       textColor: textColor || "#ffffff",
@@ -392,8 +705,8 @@ export default function ChatWidgetBoxDesignPage() {
         inquiryPillBg: backgroundColor.trim() || chatColors.inquiryPillBg,
         talkToAgentButtonBg: backgroundColor.trim() || chatColors.talkToAgentButtonBg,
       },
-      inquiryOn,
-      inquiryOptions: inquiryOptionsList,
+      inquiryOn: inquiryActive,
+      inquiryOptions: inquiryRows.map((o) => o.label).filter(Boolean),
       formEnabled: previewForm.formEnabled,
       formTitle: previewForm.formTitle,
       formSubtitle: previewForm.formSubtitle,
@@ -405,9 +718,21 @@ export default function ChatWidgetBoxDesignPage() {
       talkToAgentEnabled: previewForm.talkToAgentEnabled,
       talkToAgentTriggerText: previewForm.talkToAgentTriggerText,
       chatMode: previewForm.chatMode,
-    }),
-    [
+      panelSurfaceStyle,
+      bubbleSurfaceStyle,
+      agentAvatarEnabled,
+      visitorAvatarEnabled,
+      agentAvatarDataUrl,
+      visitorAvatarDataUrl,
+      agentAvatarPreset,
+      visitorAvatarPreset,
+    };
+  }, [
       panelHeaderTitle,
+      draftReady,
+      editWidgetKey,
+      checklistRefreshKey,
+      headerLogoDataUrl,
       headerTitleAlign,
       headerBrandColor,
       textColor,
@@ -425,17 +750,23 @@ export default function ChatWidgetBoxDesignPage() {
       parsedPreviewWidth,
       parsedPreviewHeight,
       chatColors,
-      inquiryOn,
-      inquiryOptionsList,
       previewForm,
+      panelSurfaceStyle,
+      bubbleSurfaceStyle,
+      agentAvatarEnabled,
+      visitorAvatarEnabled,
+      agentAvatarDataUrl,
+      visitorAvatarDataUrl,
+      agentAvatarPreset,
+      visitorAvatarPreset,
     ],
   );
 
   return (
     <WidgetFlowShell
       pageTitle="Widget Customization"
-      subtitle="Connect your workflow with industry-leading CRM platform minutes."
-      cardTitle="Chat Box Design"
+      subtitle="Open panel layout, messages, banner, and brand styling."
+      cardTitle="Chat panel design"
       currentStep={1}
       footer={
         <>
@@ -471,8 +802,8 @@ export default function ChatWidgetBoxDesignPage() {
       >
         <WidgetWizardStepGuide step="box" />
         <SchedulingSectionCard
-          title="Panel header & colors"
-          subtitle="Header alignment, brand colors, and optional banner."
+          title="Panel header & banner"
+          subtitle="Header alignment, brand colors, promo banner, and optional video welcome."
         >
       <Box sx={chatBoxFormStackSx}>
       <SelectField
@@ -499,14 +830,78 @@ export default function ChatWidgetBoxDesignPage() {
           fallback="#ffffff"
         />
       </Box>
+      <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, display: "block", mb: 1 }}>
+        Header text color applies to the top bar only. Panel body colors are in Chat colors below.
+      </Typography>
 
       <WidgetTextField
-        label="Header title"
+        label="Header title (optional)"
         name="header-title"
         value={panelHeaderTitle}
         onChange={setPanelHeaderTitle}
         maxLength={FIELD_MAX.title}
-        helperText="Top bar inside the open chat panel."
+        placeholder="Leave empty to show logo only"
+        helperText="Top bar inside the open chat panel. Empty = logo only (no title text)."
+      />
+
+      <Box>
+        <Typography variant="body2" sx={{ color: theme.app.text.primary, fontWeight: 600, mb: 0.75 }}>
+          Header logo (optional)
+        </Typography>
+        <Box
+          role="button"
+          tabIndex={0}
+          onClick={() => headerLogoUploadRef.current?.click()}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              headerLogoUploadRef.current?.click();
+            }
+          }}
+          sx={{
+            border: `1px dashed ${theme.app.dashboard.accentBlue}`,
+            borderRadius: 1.5,
+            py: 1.5,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            bgcolor: "rgba(6, 12, 54, 0.4)",
+            gap: 0.5,
+            cursor: "pointer",
+          }}
+        >
+          <CloudUploadOutlined sx={{ color: theme.app.dashboard.accentBlue, fontSize: 20 }} />
+          <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted }}>
+            Click to upload logo
+          </Typography>
+          <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted }}>
+            {headerLogoFileName || "PNG or SVG, max 10 MB"}
+          </Typography>
+        </Box>
+        {headerLogoDataUrl ? (
+          <Button
+            type="button"
+            variant="secondary"
+            size="small"
+            sx={{ mt: 1 }}
+            onClick={() => {
+              setHeaderLogoDataUrl("");
+              setHeaderLogoFileName("");
+              if (headerLogoUploadRef.current) headerLogoUploadRef.current.value = "";
+            }}
+          >
+            Remove logo
+          </Button>
+        ) : null}
+      </Box>
+      <Box
+        component="input"
+        ref={headerLogoUploadRef}
+        type="file"
+        accept=".png,.jpg,.jpeg,.webp,.svg"
+        onChange={handleHeaderLogoUpload}
+        sx={{ display: "none" }}
       />
 
       <Box sx={chatBoxSwitchRowSx}>
@@ -519,18 +914,20 @@ export default function ChatWidgetBoxDesignPage() {
       {bannerOn ? (
         <Box sx={chatBoxFieldGroupSx}>
           <WidgetTextField
-            label="Banner title"
+            label="Banner title (optional)"
             name="banner-title"
             value={bannerTitle}
             onChange={setBannerTitle}
             maxLength={FIELD_MAX.title}
+            placeholder="Shown only when you type a title"
           />
           <WidgetTextField
-            label="Banner description"
+            label="Banner description (optional)"
             name="banner-description"
             value={bannerDescription}
             onChange={setBannerDescription}
             maxLength={FIELD_MAX.message}
+            placeholder="Shown only when you type a description"
           />
           <Box
             role="button"
@@ -566,12 +963,93 @@ export default function ChatWidgetBoxDesignPage() {
         </Box>
       ) : null}
       <Box component="input" ref={bannerUploadRef} type="file" accept=".png,.jpg,.jpeg,.webp,.gif,.mp4,.webm,.ogg,.mov" onChange={handleBannerUpload} sx={{ display: "none" }} />
+
+      <WidgetWizardToggleRow
+        label="Video welcome"
+        description="YouTube or Vimeo embed shown with the banner area."
+        checked={videoWelcomeOn}
+        onChange={setVideoWelcomeOn}
+      />
+      {videoWelcomeOn ? (
+        <WidgetUrlField
+          label="Video URL (YouTube / Vimeo)"
+          name="video-welcome-url"
+          value={videoWelcomeUrl}
+          onChange={setVideoWelcomeUrl}
+          videoEmbed
+          helperText="Shown at the top of the panel before chat starts."
+        />
+      ) : null}
       </Box>
         </SchedulingSectionCard>
 
         <SchedulingSectionCard
-          title="Launcher & panel shell"
-          subtitle="Floating button label, intro bubble, composer placeholder, and panel background."
+          title="Panel & bubble style"
+          subtitle="Glass, gradient, glow, or solid — independent of the launcher button on step 1."
+        >
+          <Box sx={chatBoxFormStackSx}>
+            <WidgetSurfaceStylePicker
+              label="Panel style"
+              value={panelSurfaceStyle}
+              onChange={setPanelSurfaceStyle}
+            />
+            <WidgetSurfaceStylePicker
+              label="Message bubble style"
+              value={bubbleSurfaceStyle}
+              onChange={setBubbleSurfaceStyle}
+            />
+            <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 2 }}>
+              <WidgetChatAvatarField
+                title="Agent avatar"
+                subtitle="Shown beside agent / AI incoming messages."
+                variant="agent"
+                enabled={agentAvatarEnabled}
+                onEnabledChange={setAgentAvatarEnabled}
+                fileName={agentAvatarFileName}
+                dataUrl={agentAvatarDataUrl}
+                preset={agentAvatarPreset}
+                accentColor={headerBrandColor}
+                uploadRef={agentAvatarUploadRef}
+                onUpload={(e) => handleAvatarUpload(e, "agent")}
+                onSelectPreset={(id) => {
+                  setAgentAvatarPreset(id as AgentAvatarPresetId);
+                  setAgentAvatarDataUrl("");
+                  setAgentAvatarFileName("");
+                }}
+                onClear={() => {
+                  setAgentAvatarDataUrl("");
+                  setAgentAvatarFileName("");
+                }}
+              />
+              <WidgetChatAvatarField
+                title="Visitor avatar"
+                subtitle="Shown beside the visitor's outgoing messages."
+                variant="visitor"
+                enabled={visitorAvatarEnabled}
+                onEnabledChange={setVisitorAvatarEnabled}
+                fileName={visitorAvatarFileName}
+                dataUrl={visitorAvatarDataUrl}
+                preset={visitorAvatarPreset}
+                accentColor={headerBrandColor}
+                uploadRef={visitorAvatarUploadRef}
+                onUpload={(e) => handleAvatarUpload(e, "visitor")}
+                onSelectPreset={(id) => {
+                  setVisitorAvatarPreset(id as VisitorAvatarPresetId);
+                  setVisitorAvatarDataUrl("");
+                  setVisitorAvatarFileName("");
+                }}
+                onClear={() => {
+                  setVisitorAvatarDataUrl("");
+                  setVisitorAvatarFileName("");
+                }}
+              />
+            </Box>
+          </Box>
+        </SchedulingSectionCard>
+
+        <SchedulingSectionCard
+          title="Message flow"
+          subtitle="What visitors see after they open the widget — in order."
         >
       <Box sx={chatBoxFormStackSx}>
       <WidgetTextField
@@ -580,11 +1058,14 @@ export default function ChatWidgetBoxDesignPage() {
         value={buttonLabel}
         onChange={setButtonLabel}
         maxLength={FIELD_MAX.shortLabel}
-        helperText="Short label on the closed chat button (optional)."
+        helperText="Optional short label on the closed launcher (edit shape on Button step)."
       />
+      <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, display: "block", mb: -0.5 }}>
+        1 → Invitation bubble is on the Button step (while widget is closed).
+      </Typography>
       <WidgetWizardToggleRow
-        label="Panel greeting (Continue step)"
-        description="Intro screen with Continue before chat or form."
+        label="2 → Panel greeting (Continue screen)"
+        description="Full-screen intro inside the open panel before chat or the form."
         checked={panelGreetingEnabled}
         onChange={setPanelGreetingEnabled}
       />
@@ -595,12 +1076,12 @@ export default function ChatWidgetBoxDesignPage() {
           value={greetingMessage}
           onChange={setGreetingMessage}
           maxLength={FIELD_MAX.message}
-          helperText="Intro screen before Continue."
+          helperText="Shown on the Continue step."
         />
       ) : null}
       <WidgetWizardToggleRow
-        label="Chat welcome (first bubble)"
-        description="First agent line in the transcript after pre-chat."
+        label="3 → First chat bubble"
+        description="First agent/AI line in the transcript after pre-chat."
         checked={chatWelcomeEnabled}
         onChange={setChatWelcomeEnabled}
       />
@@ -611,7 +1092,7 @@ export default function ChatWidgetBoxDesignPage() {
           value={firstMessage}
           onChange={setFirstMessage}
           maxLength={FIELD_MAX.message}
-          helperText="First bubble after the visitor starts chatting."
+          helperText="First bubble once the visitor is in the conversation."
         />
       ) : null}
       <WidgetTextField
@@ -631,7 +1112,7 @@ export default function ChatWidgetBoxDesignPage() {
       </Box>
         </SchedulingSectionCard>
 
-        <SchedulingSectionCard title="Chat colors & typography" subtitle="Panel tokens and greeting copy.">
+        <SchedulingSectionCard title="Chat colors & typography" subtitle="Panel color tokens and size.">
       <Box sx={chatBoxFormStackSx}>
       <WidgetChatColorsSection
         colors={chatColors}
@@ -667,6 +1148,96 @@ export default function ChatWidgetBoxDesignPage() {
           max={640}
         />
       </Box>
+      </Box>
+        </SchedulingSectionCard>
+
+        <SchedulingSectionCard title="Brand theme" subtitle="Fonts, spacing, and density for the open panel.">
+      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 1.5 }}>
+        <InputField label="Theme name" name="theme-name" value={themeName} onChange={(e) => setThemeName(e.target.value)} />
+        <WidgetColorPickerField
+          label="Secondary color"
+          value={themeSecondaryColor}
+          onChange={setThemeSecondaryColor}
+          fallback="#64748b"
+        />
+        <InputField
+          label="Font family"
+          name="theme-font"
+          value={themeFontFamily}
+          onChange={(e) => setThemeFontFamily(e.target.value)}
+          sx={{ gridColumn: { sm: "1 / -1" } }}
+        />
+        <SelectField
+          label="Bubble style"
+          value={themeBubbleStyle}
+          onChange={setThemeBubbleStyle}
+          options={[
+            { label: "Rounded", value: "rounded" },
+            { label: "Square", value: "square" },
+            { label: "Pill", value: "pill" },
+          ]}
+        />
+        <InputField
+          label="Border radius (px)"
+          name="theme-radius"
+          value={themeBorderRadiusPxStr}
+          onChange={(e) => setThemeBorderRadiusPxStr(e.target.value)}
+          inputProps={{ inputMode: "numeric" }}
+        />
+        <InputField
+          label="Welcome font size (px)"
+          name="theme-welcome-font"
+          value={themeWelcomeFontStr}
+          onChange={(e) => setThemeWelcomeFontStr(e.target.value)}
+          inputProps={{ inputMode: "numeric" }}
+        />
+        <InputField
+          label="Body font size (px)"
+          name="theme-body-font"
+          value={themeBodyFontStr}
+          onChange={(e) => setThemeBodyFontStr(e.target.value)}
+          inputProps={{ inputMode: "numeric" }}
+        />
+        <InputField
+          label="Input font size (px)"
+          name="theme-input-font"
+          value={themeInputFontStr}
+          onChange={(e) => setThemeInputFontStr(e.target.value)}
+          inputProps={{ inputMode: "numeric" }}
+        />
+        <InputField
+          label="CTA font size (px)"
+          name="theme-cta-font"
+          value={themeCtaFontStr}
+          onChange={(e) => setThemeCtaFontStr(e.target.value)}
+          inputProps={{ inputMode: "numeric" }}
+        />
+        <InputField
+          label="Consent font size (px)"
+          name="theme-consent-font"
+          value={themeConsentFontStr}
+          onChange={(e) => setThemeConsentFontStr(e.target.value)}
+          inputProps={{ inputMode: "numeric" }}
+        />
+        <InputField
+          label="Line height (px)"
+          name="theme-line-height"
+          value={themeLineHeightStr}
+          onChange={(e) => setThemeLineHeightStr(e.target.value)}
+          inputProps={{ inputMode: "numeric" }}
+        />
+        <SelectField
+          label="Design accent"
+          value={themeDesignJsonAccent}
+          onChange={setThemeDesignJsonAccent}
+          options={DESIGN_ACCENT_SELECT_OPTIONS}
+        />
+        <SelectField
+          label="Design density"
+          value={themeDesignJsonDensity}
+          onChange={setThemeDesignJsonDensity}
+          options={DESIGN_DENSITY_SELECT_OPTIONS}
+        />
       </Box>
         </SchedulingSectionCard>
       </WidgetWizardPageLayout>

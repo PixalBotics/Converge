@@ -65,16 +65,16 @@ export function EmbedWidgetBanner({
           }}
         />
       ) : null}
-      {(banner.title || banner.description) && (
+      {(banner.title?.trim() || banner.description?.trim()) && (
         <Box sx={{ px: 1.25, py: 1 }}>
-          {banner.title ? (
+          {banner.title?.trim() ? (
             <Typography variant="subtitle2" sx={{ ...embedBodyTextSx(appearance), fontWeight: 700 }}>
-              {banner.title}
+              {banner.title.trim()}
             </Typography>
           ) : null}
-          {banner.description ? (
+          {banner.description?.trim() ? (
             <Typography variant="body2" sx={embedMutedTextSx(appearance)}>
-              {banner.description}
+              {banner.description.trim()}
             </Typography>
           ) : null}
         </Box>

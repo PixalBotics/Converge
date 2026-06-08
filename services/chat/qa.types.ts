@@ -8,6 +8,7 @@ export type QaUserLabel = {
   email?: string;
   firstName?: string | null;
   lastName?: string | null;
+  userType?: string | null;
 };
 
 export type QaQueueFilters = {
@@ -18,6 +19,25 @@ export type QaQueueFilters = {
   hasTakeover?: boolean;
 };
 
+export type QaPoolRef = { id: string; name: string };
+
+export type QaResponseMetrics = {
+  thresholdSeconds: number;
+  agentReplyCount: number;
+  slowReplyCount: number;
+  maxReplySeconds: number | null;
+  avgReplySeconds: number | null;
+  slowReplies: Array<{
+    visitorMessageId: string;
+    agentMessageId: string;
+    gapSeconds: number;
+    visitorAt: string;
+    agentAt: string;
+    visitorPreview?: string | null;
+    agentPreview?: string | null;
+  }>;
+};
+
 export type QaQueueRow = {
   id: string;
   conversationId: string;
@@ -25,6 +45,8 @@ export type QaQueueRow = {
   status: QaReviewStatus;
   assignSource?: string | null;
   overallScore?: number | null;
+  poolId?: string | null;
+  pool?: QaPoolRef | null;
   createdAt: string;
   completedAt?: string | null;
   conversation?: {
@@ -33,6 +55,8 @@ export type QaQueueRow = {
     startedAt?: string | null;
     endedAt?: string | null;
     routingKey?: string | null;
+    poolId?: string | null;
+    pool?: QaPoolRef | null;
     website?: {
       id: string;
       name?: string | null;
@@ -82,7 +106,23 @@ export type ChatTimelineSegment = {
   messageCount: number;
 };
 
+export type QaSessionSummary = {
+  conversationId: string;
+  status?: string | null;
+  routingKey?: string | null;
+  serviceChannel?: string | null;
+  startedAt?: string | null;
+  endedAt?: string | null;
+  website?: { id: string; label: string | null; url?: string | null } | null;
+  pool?: QaPoolRef | null;
+  department?: { id: string; name: string } | null;
+  primaryAgent?: QaUserLabel | null;
+};
+
 export type QaReviewBundle = {
+  readOnly?: boolean;
+  responseMetrics?: QaResponseMetrics | null;
+  sessionSummary?: QaSessionSummary | null;
   transcript: {
     conversationId: string;
     messages: ChatMessage[];

@@ -89,7 +89,7 @@ export function CompanySetupWizardModal({ open, draftId, onClose }: CompanySetup
     canCompaniesModuleAction(hasPage, hasOperational, "create") ||
     canCompaniesModuleAction(hasPage, hasOperational, "update");
   const canSubmitWizard = canCompaniesModuleAction(hasPage, hasOperational, "create");
-  const canCreateNewReseller = sessionMayPickInternalUserScope(isPlatformAdmin, authUser?.userType);
+  const canCreateNewReseller = sessionMayPickInternalUserScope(isPlatformAdmin, authUser);
   const isNarrowClientScope = sessionIsNarrowClientRootScope(isPlatformAdmin, authUser);
   const sessionParentCompanyId = resolveSessionParentCompanyId(authUser?.parentCompanyId);
   const sessionResellerId = resolveSessionResellerId(authUser?.resellerId);

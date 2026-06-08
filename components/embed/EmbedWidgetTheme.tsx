@@ -71,7 +71,6 @@ export function EmbedWidgetTheme({
         styleOverrides: {
           root: {
             boxShadow: "none !important",
-            backgroundImage: "none",
             filter: "none",
             "&:hover": { boxShadow: "none !important" },
             "&:active": { boxShadow: "none !important" },

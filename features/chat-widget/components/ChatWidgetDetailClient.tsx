@@ -479,8 +479,8 @@ export function ChatWidgetDetailClient({
                 ) : null}
               </Box>
               <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted }}>
-                Try the full visitor widget here — form, chat, and AI. Sandbox mode skips analytics
-                and lead counters.
+                Try the full visitor widget here — loads your saved draft (not the last published
+                snapshot). Click Refresh after wizard saves. Sandbox skips analytics and lead counters.
                 {sessionExpiresIn.trim()
                   ? ` Visitor sessions expire after ${sessionExpiresIn.trim()}.`
                   : null}
@@ -514,6 +514,7 @@ export function ChatWidgetDetailClient({
                   widgetKey={widgetKey}
                   refreshKey={iframeKey}
                   title="Visitor widget"
+                  onRefresh={() => setIframeKey((k) => k + 1)}
                 />
               ) : (
                 <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted }}>

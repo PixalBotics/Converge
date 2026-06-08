@@ -35,3 +35,19 @@ export async function agentChatSocketAckOrRest<T>(
   }
   return restCall();
 }
+
+/** Agent inbox live path — no REST fallback when the dashboard chat socket is up. */
+export async function agentChatSocketAckRequired<T>(
+  socketCall: (socket: ChatSocketClient) => Promise<unknown>,
+  operationLabel: string,
+): Promise<T> {
+  const socket = await ensureAgentChatSocketReady();
+  if (!socket) {
+    throw new Error(
+      `Chat socket is not connected (${operationLabel}). Wait for Live chat to connect and try again.`,
+    );
+  }
+  const ack = await socketCall(socket);
+  const body = unwrapSocketAckPayload(ack);
+  return unwrapChatHttpData<T>(body);
+}

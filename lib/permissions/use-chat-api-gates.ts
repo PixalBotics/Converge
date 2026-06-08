@@ -16,6 +16,7 @@ import {
  */
 export function useChatApiGates() {
   const {
+    user,
     pagePermissions,
     operationalPermissions,
     isPlatformAdmin,
@@ -36,7 +37,10 @@ export function useChatApiGates() {
 
   return useMemo(() => {
     const ready = rbacOff || !permissionsSyncing;
-    const agentInbox = ready && (rbacOff || canAgentChatFromArrays(perms));
+    const agentInbox =
+      ready &&
+      (rbacOff ||
+        canAgentChatFromArrays(perms, { isPoolHead: user?.isPoolHead === true }));
     const monitor = ready && (rbacOff || canMonitorFromArrays(perms));
     const qa = ready && (rbacOff || canQaFromArrays(perms));
     const reports = ready && (rbacOff || canChatReportsFromArrays(perms));
@@ -51,5 +55,5 @@ export function useChatApiGates() {
       widgetSettings,
       perms,
     };
-  }, [perms, permissionsSyncing, rbacOff]);
+  }, [perms, permissionsSyncing, rbacOff, user?.isPoolHead]);
 }

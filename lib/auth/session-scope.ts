@@ -1,5 +1,28 @@
 import type { AuthUserType } from "./types";
 
+export type SessionScopeUser = {
+  userType?: AuthUserType;
+  resellerId?: string | null;
+  wideResellerScope?: boolean;
+  parentCompanyId?: string | null;
+};
+
+export type UserListTypeFilter = "all" | "Internal" | "External";
+
+export type SessionListFilterScope = {
+  /** Platform internal or platform admin — may list/filter internal users. */
+  mayPickInternal: boolean;
+  /** Reseller / external portfolio sessions are external-only; platform may pick both. */
+  mayPickExternal: boolean;
+  /** Show reseller + parent-company scope controls in list filter panels. */
+  showTenantScopeFilters: boolean;
+  resellerPickerMode: "optional" | "locked" | "hidden";
+  lockedResellerId: string | null;
+  parentCompanyPickerMode: "optional" | "locked" | "hidden";
+  lockedParentCompanyId: string | null;
+  defaultUserTypeFilter: UserListTypeFilter;
+};
+
 /**
  * Explicit `resellerId` query filter — only platform admins (per Companies / Website Assignments APIs).
  * Reseller and tenant-scoped sessions use session scope via `GET /companies` or `GET /companies/by-reseller/{ownId}`.
@@ -16,18 +39,110 @@ export function resolveSessionResellerId(
   return userResellerId?.trim() || meResellerId?.trim() || "";
 }
 
-/** When false, pool/head flows should only offer External (non–platform-admin with External session user). */
-export function sessionMayPickInternalUserScope(
-  isPlatformAdmin: boolean,
-  sessionUserType: AuthUserType | undefined,
-): boolean {
-  return isPlatformAdmin || sessionUserType !== "External";
+function normalizeSessionScopeUser(
+  sessionUser: AuthUserType | SessionScopeUser | null | undefined,
+): SessionScopeUser | null {
+  if (sessionUser == null) return null;
+  if (typeof sessionUser === "string") {
+    return { userType: sessionUser };
+  }
+  return sessionUser;
 }
 
 /**
- * Company setup POC step: show "Pick from list" for department and designation.
- * Internal platform admins creating a **new** reseller should only create new dept/designation rows (no prior host lists).
+ * List/filter panels: who may target **internal** users or org rows.
+ * Internal reseller staff must not see Internal — backend rejects `userType=Internal` for reseller channel.
  */
+export function sessionMayPickInternalUserScope(
+  isPlatformAdmin: boolean,
+  sessionUser?: AuthUserType | SessionScopeUser | null,
+): boolean {
+  return resolveSessionListFilterScope(isPlatformAdmin, sessionUser).mayPickInternal;
+}
+
+/**
+ * Unified list-filter rules for Users, Departments, Shifts, HRMS pickers, etc.
+ * Platform admin + SaaS internal: full filters. Reseller / external sessions: tenant-scoped external filters.
+ */
+export function resolveSessionListFilterScope(
+  isPlatformAdmin: boolean,
+  sessionUser?: AuthUserType | SessionScopeUser | null,
+): SessionListFilterScope {
+  const user = normalizeSessionScopeUser(sessionUser);
+  const userType = user?.userType;
+  const resellerId = user?.resellerId?.trim() || null;
+  const parentCompanyId = user?.parentCompanyId?.trim() || null;
+  const wideResellerScope = user?.wideResellerScope === true;
+
+  const isInternalSaaS = userType === "Internal" && !resellerId;
+  const isInternalReseller = userType === "Internal" && !!resellerId;
+  const isExternalWide = userType === "External" && wideResellerScope && !!resellerId;
+  const isExternalTenant = userType === "External" && !!resellerId && !wideResellerScope;
+
+  if (isPlatformAdmin || isInternalSaaS) {
+    return {
+      mayPickInternal: true,
+      mayPickExternal: true,
+      showTenantScopeFilters: true,
+      resellerPickerMode: "optional",
+      lockedResellerId: null,
+      parentCompanyPickerMode: "optional",
+      lockedParentCompanyId: null,
+      defaultUserTypeFilter: "all",
+    };
+  }
+
+  if (isInternalReseller) {
+    return {
+      mayPickInternal: false,
+      mayPickExternal: true,
+      showTenantScopeFilters: true,
+      resellerPickerMode: "locked",
+      lockedResellerId: resellerId,
+      parentCompanyPickerMode: "locked",
+      lockedParentCompanyId: parentCompanyId,
+      defaultUserTypeFilter: "External",
+    };
+  }
+
+  if (isExternalWide) {
+    return {
+      mayPickInternal: false,
+      mayPickExternal: true,
+      showTenantScopeFilters: true,
+      resellerPickerMode: "locked",
+      lockedResellerId: resellerId,
+      parentCompanyPickerMode: "optional",
+      lockedParentCompanyId: null,
+      defaultUserTypeFilter: "External",
+    };
+  }
+
+  if (isExternalTenant) {
+    return {
+      mayPickInternal: false,
+      mayPickExternal: true,
+      showTenantScopeFilters: true,
+      resellerPickerMode: "locked",
+      lockedResellerId: resellerId,
+      parentCompanyPickerMode: "locked",
+      lockedParentCompanyId: parentCompanyId,
+      defaultUserTypeFilter: "External",
+    };
+  }
+
+  return {
+    mayPickInternal: false,
+    mayPickExternal: true,
+    showTenantScopeFilters: false,
+    resellerPickerMode: "hidden",
+    lockedResellerId: null,
+    parentCompanyPickerMode: "hidden",
+    lockedParentCompanyId: null,
+    defaultUserTypeFilter: "External",
+  };
+}
+
 /**
  * May assign `wideResellerScope` / "Reseller admin" when creating external users or POC invites.
  * Parent-company–scoped external users must not see or set portfolio-wide access.

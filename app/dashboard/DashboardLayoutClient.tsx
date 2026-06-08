@@ -5,7 +5,8 @@ import { usePathname, useRouter } from "next/navigation";
 import Box from "@mui/material/Box";
 import type { SxProps, Theme } from "@mui/material/styles";
 import { LoadingScreen, PermissionDeniedPanel } from "@/components/common";
-import { AUTH_PATHS, useAuth } from "@/lib/auth";
+import { useAuth } from "@/lib/auth";
+import { sessionExpiredLoginHref } from "@/lib/auth/session-expired-login";
 import { PERMISSION_BUCKET_PAGE, toPermissionSet } from "@/lib/auth/permissions-model";
 import { canAccessDashboardPath, getFirstAccessibleDashboardPath } from "@/lib/permissions";
 import { DashboardSidebar, DashboardHeader, OperationalViewGate, ImpersonationBanner } from "@/components/layout/dashboard";
@@ -47,8 +48,15 @@ export default function DashboardLayoutClient({
 
   useEffect(() => {
     if (isLoading) return;
-    if (!isAuthenticated) router.replace(AUTH_PATHS.login);
+    if (!isAuthenticated) {
+      router.replace(sessionExpiredLoginHref());
+    }
   }, [isAuthenticated, isLoading, router]);
+
+  useEffect(() => {
+    if (authGate !== "blocked") return;
+    router.replace(sessionExpiredLoginHref());
+  }, [authGate, router]);
 
   useEffect(() => {
     if (isLoading || !isAuthenticated || !rbacEnabled) {

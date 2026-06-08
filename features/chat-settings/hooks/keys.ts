@@ -23,6 +23,19 @@ export const chatSettingsKeys = {
     [...chatSettingsKeys.all, "qa-roster", websiteId] as const,
   qaRosterExclusions: (websiteId: string) =>
     [...chatSettingsKeys.all, "qa-roster-exclusions", websiteId] as const,
+  globalQaPolicy: (q: {
+    resellerId?: string;
+    parentCompanyId?: string;
+    childCompanyId?: string;
+  }) =>
+    [
+      ...chatSettingsKeys.all,
+      "qa-policy",
+      "global",
+      q.resellerId ?? "",
+      q.parentCompanyId ?? "",
+      q.childCompanyId ?? "",
+    ] as const,
   cannedList: (q: {
     resellerId?: string;
     parentCompanyId?: string;

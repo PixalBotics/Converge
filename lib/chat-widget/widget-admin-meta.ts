@@ -96,10 +96,10 @@ export function widgetSimpleStatusLabel(meta: WidgetAdminMeta): string {
     case "live":
       return "Live on customer sites";
     case "live_with_pending_draft":
-      return "Live — newer draft saved (publish to update embed)";
+      return "Live — newer draft saved (go live to update embed)";
     case "draft_only":
     default:
-      return "Draft only — publish on Install step";
+      return "Offline — use test link; go live when ready";
   }
 }
 

@@ -5,6 +5,7 @@ import type { JsonRecord } from "@/api/types/common.types";
 import {
   getAdminWidget,
   publishWidget,
+  unpublishWidget,
   widgetResponseData,
 } from "@/api/widgets/widgets.api";
 import {
@@ -51,17 +52,43 @@ export function useWidgetAdminLifecycle(widgetKey: string | undefined | null) {
     setBusy(true);
     try {
       await publishWidget(key);
-      publishAppToast({ variant: "success", message: "Widget published. Live embed updated." });
+      publishAppToast({
+        variant: "success",
+        message: "Widget is live on customer sites.",
+      });
       await refresh();
     } catch (e) {
       publishAppToast({
         variant: "error",
-        message: extractApiErrorMessageForToast(e) ?? "Publish failed.",
+        message: extractApiErrorMessageForToast(e) ?? "Go live failed.",
       });
     } finally {
       setBusy(false);
     }
   }, [key, refresh]);
+
+  const unpublishLatest = useCallback(async () => {
+    if (!key) return;
+    setBusy(true);
+    try {
+      await unpublishWidget(key);
+      publishAppToast({
+        variant: "success",
+        message: "Widget taken offline. Real sites will not show it until you go live again.",
+      });
+      await refresh();
+    } catch (e) {
+      publishAppToast({
+        variant: "error",
+        message: extractApiErrorMessageForToast(e) ?? "Take offline failed.",
+      });
+    } finally {
+      setBusy(false);
+    }
+  }, [key, refresh]);
+
+  const isLive =
+    meta?.deploy.state === "live" || meta?.deploy.state === "live_with_pending_draft";
 
   return {
     meta,
@@ -70,6 +97,8 @@ export function useWidgetAdminLifecycle(widgetKey: string | undefined | null) {
     busy,
     refresh,
     publishLatest,
+    unpublishLatest,
+    isLive,
     statusLabel: meta ? widgetLifecycleStatusLabel(meta) : null,
     deployState: meta?.deploy.state ?? null,
     unpublishedDraft: meta ? hasUnpublishedDraft(meta) : false,

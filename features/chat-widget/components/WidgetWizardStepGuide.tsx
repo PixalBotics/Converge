@@ -16,19 +16,19 @@ const COPY: Record<
   button: {
     title: "Launcher (closed widget on your site)",
     lines: [
-      "Invitation bubble — short text above the chat button before open.",
-      "Secondary button — one optional link (e.g. WhatsApp); must be a single https URL.",
-      "Colors & icon — how the floating button looks on the customer website.",
+      "Shape, colors, icon, and screen position for the floating chat button.",
+      "Invitation bubble — optional callout above the button while chat is closed.",
+      "WhatsApp button — optional second action inside the invitation bubble.",
+      "Live message preview — shows agent replies above the launcher when chat is closed.",
+      "Typography and panel theme are on Chat Box Design (step 2).",
     ],
   },
   box: {
     title: "Chat panel (after visitor opens the widget)",
     lines: [
-      "Header title — top bar text inside the open panel.",
-      "Panel greeting — intro screen with Continue (optional).",
-      "Chat welcome — first message bubble in the conversation.",
-      "Composer hint — gray placeholder in the message box (one field).",
-      "Inquiry topics — pills visitors pick before chat (saved on this step).",
+      "Message flow — panel greeting (Continue), then first chat bubble, then composer.",
+      "Banner & video welcome — promo image/video at the top of the panel.",
+      "Brand theme — fonts, spacing, and color tokens for the open panel.",
     ],
   },
   notifications: {
@@ -36,6 +36,7 @@ const COPY: Record<
     lines: [
       "Chat mode — AI only, agents only, or Hybrid (AI then Talk to agent).",
       "Allowed domains — where the embed may load (hostnames only, not full URLs).",
+      "Inquiry topic pills — optional routing on the pre-chat form.",
       "Pre-chat form — name/email before chat starts.",
       "Publish on Install — live sites use the last published version.",
     ],

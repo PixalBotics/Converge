@@ -122,46 +122,80 @@ function readBooleanFlag(val: unknown): boolean {
   return val === true || val === "true" || val === 1;
 }
 
-function extractIsPlatformAdminFromRecord(rec: Record<string, unknown>): boolean {
-  if (readBooleanFlag(rec.isPlatformAdmin)) return true;
+function readExplicitBooleanFlag(val: unknown): boolean | undefined {
+  if (readBooleanFlag(val)) return true;
+  if (val === false || val === "false" || val === 0) return false;
+  return undefined;
+}
+
+function extractExplicitIsPlatformAdminFromRecord(
+  rec: Record<string, unknown>,
+): boolean | undefined {
+  const direct = readExplicitBooleanFlag(rec.isPlatformAdmin);
+  if (direct !== undefined) return direct;
+
   const permSingular = rec.permission;
   if (permSingular && typeof permSingular === "object" && !Array.isArray(permSingular)) {
     const p = permSingular as Record<string, unknown>;
-    if (readBooleanFlag(p.isPlatformAdmin)) return true;
+    const fromPerm = readExplicitBooleanFlag(p.isPlatformAdmin);
+    if (fromPerm !== undefined) return fromPerm;
     const bd = p.breakdown;
     if (bd && typeof bd === "object" && !Array.isArray(bd)) {
-      if (readBooleanFlag((bd as Record<string, unknown>).isPlatformAdmin)) return true;
+      const fromBd = readExplicitBooleanFlag((bd as Record<string, unknown>).isPlatformAdmin);
+      if (fromBd !== undefined) return fromBd;
     }
   }
+
   const perms = rec.permissions;
   if (perms && typeof perms === "object" && !Array.isArray(perms)) {
     const p = perms as Record<string, unknown>;
-    if (readBooleanFlag(p.isPlatformAdmin)) return true;
+    const fromPerms = readExplicitBooleanFlag(p.isPlatformAdmin);
+    if (fromPerms !== undefined) return fromPerms;
     const bd = p.breakdown;
     if (bd && typeof bd === "object" && !Array.isArray(bd)) {
-      if (readBooleanFlag((bd as Record<string, unknown>).isPlatformAdmin)) return true;
+      const fromBd = readExplicitBooleanFlag((bd as Record<string, unknown>).isPlatformAdmin);
+      if (fromBd !== undefined) return fromBd;
     }
   }
-  return false;
+
+  return undefined;
 }
 
-/** True when API marks the user as platform admin (full page + operational bypass in AuthContext). */
-export function extractIsPlatformAdmin(payload: unknown): boolean {
-  if (!payload || typeof payload !== "object") return false;
+function extractExplicitIsPlatformAdmin(payload: unknown): boolean | undefined {
+  if (!payload || typeof payload !== "object") return undefined;
   const root = payload as Record<string, unknown>;
-  if (extractIsPlatformAdminFromRecord(root)) return true;
+
+  const fromRoot = extractExplicitIsPlatformAdminFromRecord(root);
+  if (fromRoot !== undefined) return fromRoot;
 
   const data = root.data;
   if (data && typeof data === "object" && !Array.isArray(data)) {
-    if (extractIsPlatformAdminFromRecord(data as Record<string, unknown>)) return true;
+    const fromData = extractExplicitIsPlatformAdminFromRecord(data as Record<string, unknown>);
+    if (fromData !== undefined) return fromData;
   }
 
   const user = root.user;
   if (user && typeof user === "object" && !Array.isArray(user)) {
-    if (extractIsPlatformAdminFromRecord(user as Record<string, unknown>)) return true;
+    const fromUser = extractExplicitIsPlatformAdminFromRecord(user as Record<string, unknown>);
+    if (fromUser !== undefined) return fromUser;
   }
 
-  return false;
+  return undefined;
+}
+
+/** True when API marks the user as platform admin (full page + operational bypass in AuthContext). */
+export function extractIsPlatformAdmin(payload: unknown): boolean {
+  return resolveIsPlatformAdmin(payload);
+}
+
+/** Prefer explicit API flag; optional JWT role-name fallback only when API omits the flag. */
+export function resolveIsPlatformAdmin(
+  payload: unknown,
+  jwtRoleFallback?: () => boolean,
+): boolean {
+  const explicit = extractExplicitIsPlatformAdmin(payload);
+  if (explicit !== undefined) return explicit;
+  return jwtRoleFallback?.() ?? false;
 }
 
 function readStringArray(raw: unknown): string[] {

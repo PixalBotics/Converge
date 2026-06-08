@@ -1,4 +1,5 @@
 import type { WidgetInstallationAssetUrls } from "./build-widget-install-body";
+import { draftUsesCustomLauncherIcon } from "./launcher-icon-draft.util";
 import type { WidgetDraft } from "./widgetDraft";
 import {
   uploadDraftWidgetAssets,
@@ -15,7 +16,9 @@ export function resolveExistingHttpAssetUrls(
   draft: WidgetDraft,
 ): WidgetInstallationAssetUrls {
   const out: WidgetInstallationAssetUrls = {};
-  if (isHttpUrl(draft.iconDataUrl)) out.buttonIconPublicUrl = draft.iconDataUrl.trim();
+  if (isHttpUrl(draft.iconDataUrl) && draftUsesCustomLauncherIcon(draft)) {
+    out.buttonIconPublicUrl = draft.iconDataUrl.trim();
+  }
   if (isHttpUrl(draft.proactiveTeaserAvatarDataUrl)) {
     out.teaserAvatarPublicUrl = draft.proactiveTeaserAvatarDataUrl.trim();
   }
@@ -25,6 +28,15 @@ export function resolveExistingHttpAssetUrls(
     } else {
       out.bannerImagePublicUrl = draft.bannerDataUrl.trim();
     }
+  }
+  if (isHttpUrl(draft.headerLogoDataUrl)) {
+    out.headerLogoPublicUrl = draft.headerLogoDataUrl.trim();
+  }
+  if (isHttpUrl(draft.agentAvatarDataUrl)) {
+    out.agentAvatarPublicUrl = draft.agentAvatarDataUrl.trim();
+  }
+  if (isHttpUrl(draft.visitorAvatarDataUrl)) {
+    out.visitorAvatarPublicUrl = draft.visitorAvatarDataUrl.trim();
   }
   return out;
 }
@@ -58,7 +70,11 @@ export function persistAssetUrlsOnDraft(
   urls: WidgetInstallationAssetUrls,
 ): Partial<WidgetDraft> {
   const out: Partial<WidgetDraft> = {};
-  if (urls.buttonIconPublicUrl) out.iconDataUrl = urls.buttonIconPublicUrl;
+  if (urls.buttonIconPublicUrl) {
+    out.iconDataUrl = urls.buttonIconPublicUrl;
+  } else if (draft.launcherIconPreset?.trim()) {
+    out.iconDataUrl = "";
+  }
   if (urls.teaserAvatarPublicUrl) {
     out.proactiveTeaserAvatarDataUrl = urls.teaserAvatarPublicUrl;
   }
@@ -69,5 +85,8 @@ export function persistAssetUrlsOnDraft(
     out.bannerDataUrl = urls.bannerVideoPublicUrl;
     out.bannerMediaType = "video";
   }
+  if (urls.headerLogoPublicUrl) out.headerLogoDataUrl = urls.headerLogoPublicUrl;
+  if (urls.agentAvatarPublicUrl) out.agentAvatarDataUrl = urls.agentAvatarPublicUrl;
+  if (urls.visitorAvatarPublicUrl) out.visitorAvatarDataUrl = urls.visitorAvatarPublicUrl;
   return out;
 }
