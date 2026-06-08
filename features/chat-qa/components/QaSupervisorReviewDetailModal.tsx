@@ -117,11 +117,12 @@ export function QaSupervisorReviewDetailModal({
 
   const transcriptRows = useMemo((): TranscriptRow[] => {
     const messages = (bundle?.transcript?.messages ?? []) as ChatMessage[];
-    return messages.map((m) => {
-      const gap = lateAgentMessageIds.get(m.id);
+    return messages.map((m, index) => {
+      const messageId = m.id ?? `msg-${index}`;
+      const gap = lateAgentMessageIds.get(messageId);
       return {
-        id: m.id,
-        sender: String(m.senderType ?? m.role ?? "—"),
+        id: messageId,
+        sender: String(m.role ?? "—"),
         content: String(m.content ?? "").slice(0, 320) || "—",
         at: formatTs(String(m.createdAt ?? "")),
         lateTag: gap != null ? `Late reply · ${gap}s` : "",
@@ -169,8 +170,8 @@ export function QaSupervisorReviewDetailModal({
           transferRows={transferRows}
           transcriptRows={transcriptRows}
           checklist={checklist}
-          review={review}
-          summary={summary}
+          review={review ?? null}
+          summary={summary ?? null}
         />
       ) : null}
     </FormModal>
@@ -193,8 +194,8 @@ function QaSupervisorReviewBody({
   transferRows: TransferRow[];
   transcriptRows: TranscriptRow[];
   checklist: Record<string, unknown>;
-  review: QaReviewBundle["review"];
-  summary: QaReviewBundle["sessionSummary"];
+  review: QaReviewBundle["review"] | null;
+  summary: QaReviewBundle["sessionSummary"] | null;
 }) {
   const theme = useTheme() as AppTheme;
   const d = theme.app.dashboard;

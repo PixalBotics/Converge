@@ -175,7 +175,7 @@ export function WidgetInquiryOptionsEditor({
               });
             } catch (e) {
               publishAppToast({
-                variant: "warning",
+                variant: "error",
                 message:
                   extractApiErrorMessageForToast(e) ??
                   "Topics saved to scheduling, but widget JSON sync failed.",

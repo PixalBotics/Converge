@@ -51,7 +51,7 @@ function mockAppearance(
     welcomeMessage: "",
     firstMessage: "",
     form: { enabled: false, fields: [] },
-  } as RuntimeChatAppearance;
+  } as unknown as RuntimeChatAppearance;
 }
 
 describe("computeEmbedHostFrameSize", () => {
