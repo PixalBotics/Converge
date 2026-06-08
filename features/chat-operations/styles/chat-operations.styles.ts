@@ -117,6 +117,13 @@ export const chatOpsQueueStatChipSx = (variant: "active" | "waiting"): SxProps<T
   };
 };
 
+/** Compact inbox: ~8–9 queue rows before the list scrolls. */
+export const CHAT_OPS_QUEUE_VISIBLE_ROWS = 8.5;
+export const CHAT_OPS_QUEUE_ROW_HEIGHT_PX = 76;
+export const chatOpsQueueListMaxHeightPx = Math.round(
+  CHAT_OPS_QUEUE_VISIBLE_ROWS * CHAT_OPS_QUEUE_ROW_HEIGHT_PX,
+);
+
 export const chatOpsWorkspaceGrid: SxProps<Theme> = (theme) => {
   const d = dash(theme);
   const divider = alpha(d.cardBorder, 0.18);
@@ -127,8 +134,11 @@ export const chatOpsWorkspaceGrid: SxProps<Theme> = (theme) => {
       xs: "1fr",
       lg: "minmax(0, 300px) minmax(0, 1fr) minmax(0, 280px)",
     },
+    gridTemplateRows: "minmax(0, 1fr)",
     flex: 1,
     minHeight: 0,
+    height: "100%",
+    maxHeight: "100%",
     alignItems: "stretch",
     overflow: "hidden",
     "& > [data-chat-pane]": {

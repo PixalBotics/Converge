@@ -54,6 +54,7 @@ import {
   ProfileAccordion,
   ProfileHeroCard,
   QueueAvatar,
+  ScrollRegion,
 } from "../styles/chat-operations.styled";
 
 interface VisitorInfoPanelProps {
@@ -223,7 +224,7 @@ export function VisitorInfoPanel({
     setExpanded(isExp ? key : false);
 
   return (
-    <PanelColumn sx={{ height: "100%" }}>
+    <PanelColumn sx={{ flex: 1, minHeight: 0, maxHeight: "100%" }}>
       {!conversationId ? (
         <EmptyState sx={{ flex: 1, py: 8 }}>
           <PersonOutline sx={{ fontSize: 36, opacity: 0.3, color: theme.palette.primary.main }} />
@@ -237,7 +238,8 @@ export function VisitorInfoPanel({
             <Typography sx={chatOpsPaneTitleSx}>Visitor profile</Typography>
           </PanelHeader>
 
-          <ProfileAccordion sx={{ px: 0 }}>
+          <ScrollRegion sx={{ flex: 1, minHeight: 0 }}>
+          <ProfileAccordion sx={{ px: 0, overflow: "visible", flex: "none", minHeight: "auto" }}>
             <ProfileHeroCard
               sx={{
                 display: "flex",
@@ -518,6 +520,7 @@ export function VisitorInfoPanel({
               </Box>
             ) : null}
           </ProfileAccordion>
+          </ScrollRegion>
         </>
       )}
     </PanelColumn>
