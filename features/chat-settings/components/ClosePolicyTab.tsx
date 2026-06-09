@@ -14,6 +14,7 @@ import { Button, InputField, Typography } from "@/components/common";
 import { dashboardCardStyles } from "@/components/common/DashboardCard/dashboard-card.styles";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
 import { dashboardSectionIconBadgeSx } from "@/lib/design-system";
+import { mergeSx } from "@/lib/mui/merge-sx";
 import {
   DEFAULT_CHAT_OPERATIONS,
   mergeChatOperationsJson,
@@ -422,15 +423,12 @@ function Section({
   const theme = useTheme() as AppTheme;
   return (
     <Box
-      sx={[
-        dashboardCardStyles,
-        {
-          p: 2,
-          height: "auto",
-          opacity: disabled ? 0.72 : 1,
-          transition: "opacity 0.15s ease",
-        },
-      ]}
+      sx={mergeSx(dashboardCardStyles, {
+        p: 2,
+        height: "auto",
+        opacity: disabled ? 0.72 : 1,
+        transition: "opacity 0.15s ease",
+      })}
     >
       <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1.25, mb: 1.5 }}>
         {icon ? (
