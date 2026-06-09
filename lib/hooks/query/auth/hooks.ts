@@ -11,6 +11,7 @@ import {
   beginAuthTransition,
   endAuthTransition,
 } from "@/lib/auth/auth-transition";
+import { resolveLoginAsDashboardHref } from "@/lib/auth/login-as-navigation";
 import { clearAppQueryCache } from "../core/app-query-cache";
 import { authKeys } from "./keys";
 
@@ -66,11 +67,12 @@ export function useLoginAsMutation(options?: { navigateTo?: string }) {
     onSuccess: async (data) => {
       try {
         applyLoginAsTokenPair(data);
+        const landingHref = options?.navigateTo ?? resolveLoginAsDashboardHref(data);
+        router.replace(landingHref);
         requestApplyLoginAsSession(data);
         clearAppQueryCache();
         queryClient.clear();
         await requestAfterTokenSessionSync();
-        router.replace(options?.navigateTo ?? "/dashboard");
         await queryClient.invalidateQueries({ queryKey: authKeys.all });
       } finally {
         endAuthTransition();
