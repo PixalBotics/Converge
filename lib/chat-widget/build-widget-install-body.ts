@@ -9,17 +9,26 @@ import type { TextUsFormFieldDraft, WidgetDraft } from "./widgetDraft";
 import { applyAiTypeToWidgetConfig } from "./widget-ai-type";
 import { accumulateWizardInstallConfigFromSaveTrace } from "./merge-wizard-draft-for-publish";
 import { mergeWidgetConfigForEdit } from "./merge-widget-config-for-edit";
+import { draftUsesCustomLauncherIcon } from "./launcher-icon-draft.util";
 import { buildInquiryBehaviorPatchFields } from "@/lib/widget-runtime/widget-experience";
 import {
   normalizeLauncherBadgeMode,
   normalizeWidgetSoundId,
 } from "@/lib/widget-runtime/widget-notifications";
+import {
+  normalizeAgentAvatarPreset,
+  normalizeVisitorAvatarPreset,
+} from "./chat-avatar-presets";
+import { normalizeLauncherStyle } from "./launcher-style";
 
 export interface WidgetInstallationAssetUrls {
   buttonIconPublicUrl?: string;
   teaserAvatarPublicUrl?: string;
   bannerImagePublicUrl?: string;
   bannerVideoPublicUrl?: string;
+  headerLogoPublicUrl?: string;
+  agentAvatarPublicUrl?: string;
+  visitorAvatarPublicUrl?: string;
 }
 
 const defaultTextUsFormFields = (): JsonRecord[] => [
@@ -52,8 +61,13 @@ function buildLauncherDesignJsonFromDraft(
     insetBottomPx: draft.launcherInsetBottomPx,
     insetSidePx: draft.launcherInsetSidePx,
     iconPreset: draft.launcherIconPreset || "phosphor-chat-dots",
+    style: draft.launcherStyle ?? "solid",
   };
-  if (urls.buttonIconPublicUrl) launcher.iconUrl = urls.buttonIconPublicUrl;
+  if (draftUsesCustomLauncherIcon(draft, urls)) {
+    launcher.iconUrl = urls.buttonIconPublicUrl;
+  } else {
+    launcher.iconUrl = "";
+  }
   return launcher;
 }
 
@@ -63,17 +77,18 @@ function buildChatBoxPayloadFromDraft(
 ): JsonRecord {
   const urls = mergeDraftAssetUrls(draft, assetUrls);
   const chatBox: JsonRecord = {
-    headerTitle: draft.headerTitle,
+    headerTitle: draft.headerTitle?.trim() ?? "",
     sendPlaceholder: draft.sendPlaceholder,
     boxWidth: draft.boxWidth,
     boxHeight: draft.boxHeight,
     bannerEnabled: draft.bannerOn,
-    bannerTitle: draft.bannerTitle,
-    bannerDescription: draft.bannerDescription,
+    bannerTitle: draft.bannerTitle?.trim() ?? "",
+    bannerDescription: draft.bannerDescription?.trim() ?? "",
   };
 
   if (urls.bannerImagePublicUrl) chatBox.bannerImageUrl = urls.bannerImagePublicUrl;
   if (urls.bannerVideoPublicUrl) chatBox.bannerVideoUrl = urls.bannerVideoPublicUrl;
+  if (urls.headerLogoPublicUrl) chatBox.headerLogoUrl = urls.headerLogoPublicUrl;
 
   return chatBox;
 }
@@ -93,7 +108,11 @@ function mergeDraftAssetUrls(
   assetUrls?: WidgetInstallationAssetUrls,
 ): WidgetInstallationAssetUrls {
   const merged: WidgetInstallationAssetUrls = { ...(assetUrls ?? {}) };
-  if (!merged.buttonIconPublicUrl && isHttpAssetUrl(draft.iconDataUrl)) {
+  if (
+    !merged.buttonIconPublicUrl &&
+    isHttpAssetUrl(draft.iconDataUrl) &&
+    draftUsesCustomLauncherIcon(draft)
+  ) {
     merged.buttonIconPublicUrl = draft.iconDataUrl.trim();
   }
   if (
@@ -101,6 +120,15 @@ function mergeDraftAssetUrls(
     isHttpAssetUrl(draft.proactiveTeaserAvatarDataUrl)
   ) {
     merged.teaserAvatarPublicUrl = draft.proactiveTeaserAvatarDataUrl.trim();
+  }
+  if (!merged.headerLogoPublicUrl && isHttpAssetUrl(draft.headerLogoDataUrl)) {
+    merged.headerLogoPublicUrl = draft.headerLogoDataUrl.trim();
+  }
+  if (!merged.agentAvatarPublicUrl && isHttpAssetUrl(draft.agentAvatarDataUrl)) {
+    merged.agentAvatarPublicUrl = draft.agentAvatarDataUrl.trim();
+  }
+  if (!merged.visitorAvatarPublicUrl && isHttpAssetUrl(draft.visitorAvatarDataUrl)) {
+    merged.visitorAvatarPublicUrl = draft.visitorAvatarDataUrl.trim();
   }
   if (isHttpAssetUrl(draft.bannerDataUrl)) {
     if (draft.bannerMediaType === "video") {
@@ -142,7 +170,26 @@ export function buildDesignJsonPatchFromDraft(
     launcher: buildLauncherDesignJsonFromDraft(draft, assetUrls),
   };
   if (scope === "chat_surface" || scope === "full") {
+    const urls = mergeDraftAssetUrls(draft, assetUrls);
     chat.chatBox = buildChatBoxPayloadFromDraft(draft, assetUrls);
+    chat.panel = {
+      surfaceStyle: normalizeLauncherStyle(draft.panelSurfaceStyle),
+    };
+    chat.bubbles = {
+      surfaceStyle: normalizeLauncherStyle(draft.bubbleSurfaceStyle),
+    };
+    chat.avatars = {
+      agent: {
+        enabled: draft.agentAvatarEnabled !== false,
+        url: urls.agentAvatarPublicUrl ?? "",
+        preset: normalizeAgentAvatarPreset(draft.agentAvatarPreset),
+      },
+      visitor: {
+        enabled: draft.visitorAvatarEnabled !== false,
+        url: urls.visitorAvatarPublicUrl ?? "",
+        preset: normalizeVisitorAvatarPreset(draft.visitorAvatarPreset),
+      },
+    };
   }
   const patch: JsonRecord = {
     chat,
@@ -203,6 +250,7 @@ export function buildLauncherUiFromDraft(
     launcherInsetBottomPx: draft.launcherInsetBottomPx,
     launcherInsetSidePx: draft.launcherInsetSidePx,
     launcherIconPreset: draft.launcherIconPreset || "phosphor-chat-dots",
+    launcherStyle: draft.launcherStyle ?? "solid",
     buttonHoverColor: draft.buttonHoverColor,
     proactiveTeaserEnabled: draft.proactiveTeaserEnabled !== false,
     proactiveTeaser: (draft.proactiveTeaser ?? def.proactiveTeaser).trim(),
@@ -211,9 +259,14 @@ export function buildLauncherUiFromDraft(
     proactiveSecondaryCtaLabel: draft.proactiveSecondaryCtaLabel?.trim() || undefined,
     proactiveSecondaryCtaHref: draft.proactiveSecondaryCtaHref?.trim() || undefined,
     proactiveSecondaryCtaKind: draft.proactiveSecondaryCtaKind?.trim() || undefined,
+    closedMessagePreviewEnabled: draft.closedMessagePreviewEnabled !== false,
     buttonLabel: draft.buttonLabel ?? def.buttonLabel,
   };
-  if (urls.buttonIconPublicUrl) ui.buttonIconUrl = urls.buttonIconPublicUrl;
+  if (draftUsesCustomLauncherIcon(draft, urls)) {
+    ui.buttonIconUrl = urls.buttonIconPublicUrl;
+  } else {
+    ui.buttonIconUrl = "";
+  }
   if (urls.teaserAvatarPublicUrl) {
     ui.proactiveTeaserAvatarUrl = urls.teaserAvatarPublicUrl;
   } else if (draft.proactiveTeaserAvatarDataUrl?.trim().startsWith("http")) {
@@ -230,22 +283,77 @@ export function buildChatBoxOnlyDesignJson(
   return { chatBox: buildChatBoxPayloadFromDraft(draft, assetUrls) };
 }
 
-/** `theme.designJson` for step 2 — merges chatBox + panel tokens only (preserves step 1 launcher/colors on server). */
+function resolveChatAvatarPublicUrls(
+  draft: WidgetDraft,
+  assetUrls?: WidgetInstallationAssetUrls,
+): { agent: string; visitor: string } {
+  const urls = mergeDraftAssetUrls(draft, assetUrls);
+  return {
+    agent: urls.agentAvatarPublicUrl?.trim() ?? "",
+    visitor: urls.visitorAvatarPublicUrl?.trim() ?? "",
+  };
+}
+
+/** Mirror avatar + surface fields onto `designJson.ui` (embed reads `djUi` as fallback). */
+function buildChatSurfaceDesignJsonUiFromDraft(
+  draft: WidgetDraft,
+  assetUrls?: WidgetInstallationAssetUrls,
+  backgroundColor?: string,
+): JsonRecord {
+  const avatarUrls = resolveChatAvatarPublicUrls(draft, assetUrls);
+  return {
+    backgroundColor: backgroundColor ?? resolvePanelBackground(draft),
+    panelSurfaceStyle: normalizeLauncherStyle(draft.panelSurfaceStyle),
+    bubbleSurfaceStyle: normalizeLauncherStyle(draft.bubbleSurfaceStyle),
+    agentAvatarEnabled: draft.agentAvatarEnabled !== false,
+    visitorAvatarEnabled: draft.visitorAvatarEnabled !== false,
+    agentAvatarPreset: normalizeAgentAvatarPreset(draft.agentAvatarPreset),
+    visitorAvatarPreset: normalizeVisitorAvatarPreset(draft.visitorAvatarPreset),
+    agentAvatarUrl: avatarUrls.agent,
+    visitorAvatarUrl: avatarUrls.visitor,
+  };
+}
+
+/** `theme.designJson` for step 2 — chat surface without launcher (step 1 owns FAB). */
 export function buildChatSurfaceDesignJsonPatchFromDraft(
   draft: WidgetDraft,
   assetUrls?: WidgetInstallationAssetUrls,
 ): JsonRecord {
-  const panel = resolvePanelBackground(draft);
-  const patch: JsonRecord = {
-    chat: buildChatBoxOnlyDesignJson(draft, assetUrls),
-    theme: buildDesignJsonThemeTokensFromDraft(draft),
-    ui: { backgroundColor: panel },
+  const patch = buildDesignJsonPatchFromDraft(draft, "chat_surface", assetUrls);
+  const avatarUrls = resolveChatAvatarPublicUrls(draft, assetUrls);
+  const chat =
+    patch.chat && typeof patch.chat === "object" && !Array.isArray(patch.chat)
+      ? ({ ...(patch.chat as JsonRecord) } as JsonRecord)
+      : ({} as JsonRecord);
+  delete chat.launcher;
+
+  const avatars = chat.avatars;
+  if (avatars && typeof avatars === "object" && !Array.isArray(avatars)) {
+    const av = avatars as JsonRecord;
+    const agent = av.agent;
+    const visitor = av.visitor;
+    chat.avatars = {
+      ...av,
+      ...(agent && typeof agent === "object" && !Array.isArray(agent)
+        ? { agent: { ...(agent as JsonRecord), url: avatarUrls.agent } }
+        : {}),
+      ...(visitor && typeof visitor === "object" && !Array.isArray(visitor)
+        ? { visitor: { ...(visitor as JsonRecord), url: avatarUrls.visitor } }
+        : {}),
+    };
+  }
+
+  const prevUi =
+    patch.ui && typeof patch.ui === "object" && !Array.isArray(patch.ui)
+      ? (patch.ui as JsonRecord)
+      : {};
+  const panel = typeof prevUi.backgroundColor === "string" ? prevUi.backgroundColor : undefined;
+
+  return {
+    ...patch,
+    chat,
+    ui: buildChatSurfaceDesignJsonUiFromDraft(draft, assetUrls, panel),
   };
-  const accent = draft.themeDesignJsonAccent?.trim();
-  const density = draft.themeDesignJsonDensity?.trim();
-  if (accent) patch.accent = accent;
-  if (density) patch.density = density;
-  return patch;
 }
 
 /** Step 2+ panel `config.ui` — chat shell only; do not re-send launcher (step 1 owns FAB). */
@@ -259,7 +367,7 @@ export function buildChatPanelUiFromDraft(
   const panel = resolvePanelBackground(draft);
   const ui: JsonRecord = {
     buttonLabel: draft.buttonLabel ?? def.buttonLabel,
-    headerTitle: draft.headerTitle,
+    headerTitle: draft.headerTitle?.trim() ?? "",
     headerTitleAlign: headerAlign,
     header: { align: headerAlign, companyName: draft.headerTitle },
     firstMessage: draft.firstMessage ?? def.firstMessage,
@@ -270,8 +378,8 @@ export function buildChatPanelUiFromDraft(
     messagePlaceholder: draft.messagePlaceholder ?? def.messagePlaceholder,
     bannerOn: draft.bannerOn,
     bannerEnabled: draft.bannerOn,
-    bannerTitle: draft.bannerTitle,
-    bannerDescription: draft.bannerDescription,
+    bannerTitle: draft.bannerTitle?.trim() ?? "",
+    bannerDescription: draft.bannerDescription?.trim() ?? "",
     bannerMediaType: draft.bannerMediaType,
     backgroundImageUrl: "",
     backgroundColor: panel,
@@ -283,6 +391,15 @@ export function buildChatPanelUiFromDraft(
   };
   if (urls.bannerImagePublicUrl) ui.bannerImageUrl = urls.bannerImagePublicUrl;
   if (urls.bannerVideoPublicUrl) ui.bannerVideoUrl = urls.bannerVideoPublicUrl;
+  if (urls.headerLogoPublicUrl) ui.headerLogoUrl = urls.headerLogoPublicUrl;
+  ui.panelSurfaceStyle = normalizeLauncherStyle(draft.panelSurfaceStyle);
+  ui.bubbleSurfaceStyle = normalizeLauncherStyle(draft.bubbleSurfaceStyle);
+  ui.agentAvatarEnabled = draft.agentAvatarEnabled !== false;
+  ui.visitorAvatarEnabled = draft.visitorAvatarEnabled !== false;
+  ui.agentAvatarPreset = normalizeAgentAvatarPreset(draft.agentAvatarPreset);
+  ui.visitorAvatarPreset = normalizeVisitorAvatarPreset(draft.visitorAvatarPreset);
+  ui.agentAvatarUrl = urls.agentAvatarPublicUrl?.trim() ?? "";
+  ui.visitorAvatarUrl = urls.visitorAvatarPublicUrl?.trim() ?? "";
   return ui;
 }
 
@@ -298,7 +415,7 @@ export function buildChatShellUiFromDraft(
   const ui: JsonRecord = {
     ...buildLauncherUiFromDraft(draft, assetUrls),
     buttonLabel: draft.buttonLabel ?? def.buttonLabel,
-    headerTitle: draft.headerTitle,
+    headerTitle: draft.headerTitle?.trim() ?? "",
     headerTitleAlign: headerAlign,
     header: { align: headerAlign, companyName: draft.headerTitle },
     firstMessage: draft.firstMessage ?? def.firstMessage,
@@ -309,8 +426,8 @@ export function buildChatShellUiFromDraft(
     messagePlaceholder: draft.messagePlaceholder ?? def.messagePlaceholder,
     bannerOn: draft.bannerOn,
     bannerEnabled: draft.bannerOn,
-    bannerTitle: draft.bannerTitle,
-    bannerDescription: draft.bannerDescription,
+    bannerTitle: draft.bannerTitle?.trim() ?? "",
+    bannerDescription: draft.bannerDescription?.trim() ?? "",
     bannerMediaType: draft.bannerMediaType,
     backgroundImageUrl: "",
     backgroundColor: panel,
@@ -322,6 +439,15 @@ export function buildChatShellUiFromDraft(
   };
   if (urls.bannerImagePublicUrl) ui.bannerImageUrl = urls.bannerImagePublicUrl;
   if (urls.bannerVideoPublicUrl) ui.bannerVideoUrl = urls.bannerVideoPublicUrl;
+  if (urls.headerLogoPublicUrl) ui.headerLogoUrl = urls.headerLogoPublicUrl;
+  ui.panelSurfaceStyle = normalizeLauncherStyle(draft.panelSurfaceStyle);
+  ui.bubbleSurfaceStyle = normalizeLauncherStyle(draft.bubbleSurfaceStyle);
+  ui.agentAvatarEnabled = draft.agentAvatarEnabled !== false;
+  ui.visitorAvatarEnabled = draft.visitorAvatarEnabled !== false;
+  ui.agentAvatarPreset = normalizeAgentAvatarPreset(draft.agentAvatarPreset);
+  ui.visitorAvatarPreset = normalizeVisitorAvatarPreset(draft.visitorAvatarPreset);
+  ui.agentAvatarUrl = urls.agentAvatarPublicUrl?.trim() ?? "";
+  ui.visitorAvatarUrl = urls.visitorAvatarPublicUrl?.trim() ?? "";
   return ui;
 }
 

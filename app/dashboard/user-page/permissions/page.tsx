@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Box from "@mui/material/Box";
 import { useTheme } from "@mui/material/styles";
 import type { SxProps, Theme } from "@mui/material/styles";
@@ -46,6 +46,14 @@ export default function UserPermissionsPage() {
       }))
       .sort((a, b) => a.displayName.localeCompare(b.displayName, undefined, { sensitivity: "base" }));
   }, [usersQuery.data]);
+
+  useEffect(() => {
+    // When the SearchBar cross button clears the input, reset applied search to show full data.
+    if (searchInput.trim().length > 0) return;
+    if (!appliedSearch.trim()) return;
+    setAppliedSearch("");
+    setPage(1);
+  }, [searchInput, appliedSearch]);
 
   const filteredRows = useMemo(() => {
     const q = appliedSearch.trim().toLowerCase();
@@ -126,7 +134,7 @@ export default function UserPermissionsPage() {
             <Box sx={{ display: "flex", alignItems: "center", gap: 1, width: { xs: "100%", md: 420 } }}>
               <SearchBar value={searchInput} onChange={setSearchInput} placeholder="Search by name or email…" />
               <SearchSubmitButton
-                disabled={usersQuery.isFetching}
+                disabled={searchInput.trim() === appliedSearch.trim()}
                 onClick={() => {
                   setAppliedSearch(searchInput);
                   setPage(1);

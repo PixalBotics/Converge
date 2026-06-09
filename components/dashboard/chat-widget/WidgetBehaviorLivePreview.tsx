@@ -157,7 +157,7 @@ function ChatWithTalkToAgentPreview({ model }: { model: BehaviorLivePreviewModel
     <Stack spacing={1} sx={{ p: 0, flex: 1, minHeight: 0 }}>
       <Box sx={{ px: 1.5, py: 1.1, bgcolor: model.buttonColor, color: model.textColor }}>
         <Typography variant="subtitle2" sx={{ color: "inherit", fontWeight: 700, fontSize: 14 }}>
-          {model.headerTitle || "Live chat"}
+          {model.headerTitle.trim() || null}
         </Typography>
         <Typography variant="caption" sx={{ color: "inherit", opacity: 0.85 }}>
           Online

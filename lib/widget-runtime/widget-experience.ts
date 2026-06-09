@@ -35,10 +35,13 @@ export type WidgetExperienceV1 = {
     proactiveSecondaryCtaLabel: string;
     proactiveSecondaryCtaHref: string;
     proactiveSecondaryCtaKind: string;
+    closedMessagePreviewEnabled?: boolean;
   };
   design: {
     launcher: Record<string, unknown>;
     panel: Record<string, unknown>;
+    bubbles?: Record<string, unknown>;
+    avatars?: Record<string, unknown>;
     banner: Record<string, unknown>;
     videoWelcome: { enabled: boolean; url: string };
     chatColors?: Record<string, unknown>;
@@ -273,9 +276,10 @@ export function applyExperienceToConfigRecord(
     inquiryOptionsFromTopics.length > 0
       ? inquiryOptionsFromTopics
       : inquiryOptionsFromBehavior;
-  const panel = experience.design.panel;
-  const launcher = experience.design.launcher;
-  const banner = experience.design.banner;
+  const design = experience.design;
+  const panel = design.panel;
+  const launcher = design.launcher;
+  const banner = design.banner;
 
   return {
     ...config,
@@ -317,6 +321,38 @@ export function applyExperienceToConfigRecord(
       buttonShape: launcher.shape,
       launcherInsetBottomPx: launcher.insetBottomPx,
       launcherInsetSidePx: launcher.insetSidePx,
+      launcherStyle: launcher.style,
+      headerLogoUrl: panel.headerLogoUrl,
+      headerTitleAlign: panel.headerAlign,
+      panelSurfaceStyle: String(panel.surfaceStyle ?? "solid"),
+      bubbleSurfaceStyle: String(
+        (isRecord(design.bubbles) ? design.bubbles.surfaceStyle : "") || "solid",
+      ),
+      agentAvatarEnabled:
+        isRecord(design.avatars) && isRecord(design.avatars.agent)
+          ? design.avatars.agent.enabled !== false
+          : true,
+      agentAvatarUrl:
+        isRecord(design.avatars) && isRecord(design.avatars.agent)
+          ? String(design.avatars.agent.url ?? "")
+          : "",
+      agentAvatarPreset:
+        isRecord(design.avatars) && isRecord(design.avatars.agent)
+          ? String(design.avatars.agent.preset ?? "phosphor-user-circle")
+          : "phosphor-user-circle",
+      visitorAvatarEnabled:
+        isRecord(design.avatars) && isRecord(design.avatars.visitor)
+          ? design.avatars.visitor.enabled !== false
+          : true,
+      visitorAvatarUrl:
+        isRecord(design.avatars) && isRecord(design.avatars.visitor)
+          ? String(design.avatars.visitor.url ?? "")
+          : "",
+      visitorAvatarPreset:
+        isRecord(design.avatars) && isRecord(design.avatars.visitor)
+          ? String(design.avatars.visitor.preset ?? "phosphor-user-circle")
+          : "phosphor-user-circle",
+      closedMessagePreviewEnabled: experience.content.closedMessagePreviewEnabled,
       backgroundColor: panel.backgroundColor,
       boxWidth: panel.width,
       boxHeight: panel.height,
@@ -324,7 +360,9 @@ export function applyExperienceToConfigRecord(
       bannerTitle: banner.title,
       bannerDescription: banner.description,
       bannerImageUrl: banner.imageUrl,
+      bannerVideoUrl: banner.videoUrl,
     },
+    headerLogoUrl: panel.headerLogoUrl,
     behavior: {
       ...(isRecord(config.behavior) ? config.behavior : {}),
       ...experience.behavior,
@@ -416,21 +454,74 @@ export function buildThemeDesignJsonFromExperience(
       boxWidth: panel.width,
       boxHeight: panel.height,
       proactiveTeaser: content.proactiveTeaser,
+      proactiveTeaserEnabled: content.proactiveTeaserEnabled,
       launcherIconPreset: launcher.iconPreset,
       buttonIconUrl: launcher.iconUrl,
       buttonPosition: launcher.position,
+      launcherInsetBottomPx: launcher.insetBottomPx,
+      launcherInsetSidePx: launcher.insetSidePx,
+      launcherStyle: launcher.style,
+      headerLogoUrl: panel.headerLogoUrl,
+      headerTitleAlign: panel.headerAlign,
+      panelSurfaceStyle: String(panel.surfaceStyle ?? "solid"),
+      bubbleSurfaceStyle: String(
+        (isRecord(design.bubbles) ? design.bubbles.surfaceStyle : "") || "solid",
+      ),
+      agentAvatarEnabled:
+        isRecord(design.avatars) && isRecord(design.avatars.agent)
+          ? design.avatars.agent.enabled !== false
+          : true,
+      agentAvatarUrl:
+        isRecord(design.avatars) && isRecord(design.avatars.agent)
+          ? String(design.avatars.agent.url ?? "")
+          : "",
+      agentAvatarPreset:
+        isRecord(design.avatars) && isRecord(design.avatars.agent)
+          ? String(design.avatars.agent.preset ?? "phosphor-user-circle")
+          : "phosphor-user-circle",
+      visitorAvatarEnabled:
+        isRecord(design.avatars) && isRecord(design.avatars.visitor)
+          ? design.avatars.visitor.enabled !== false
+          : true,
+      visitorAvatarUrl:
+        isRecord(design.avatars) && isRecord(design.avatars.visitor)
+          ? String(design.avatars.visitor.url ?? "")
+          : "",
+      visitorAvatarPreset:
+        isRecord(design.avatars) && isRecord(design.avatars.visitor)
+          ? String(design.avatars.visitor.preset ?? "phosphor-user-circle")
+          : "phosphor-user-circle",
+      closedMessagePreviewEnabled: content.closedMessagePreviewEnabled,
       bannerOn: banner.enabled,
       bannerTitle: banner.title,
       bannerDescription: banner.description,
       bannerImageUrl: banner.imageUrl,
+      bannerVideoUrl: banner.videoUrl,
     },
     chat: {
       colors,
       launcher: {
         position: launcher.position,
         shape: launcher.shape,
+        style: launcher.style,
         iconPreset: launcher.iconPreset,
+        insetBottomPx: launcher.insetBottomPx,
+        insetSidePx: launcher.insetSidePx,
       },
+      panel: {
+        surfaceStyle: String(panel.surfaceStyle ?? "solid"),
+      },
+      bubbles: {
+        surfaceStyle: String(
+          (isRecord(design.bubbles) ? design.bubbles.surfaceStyle : "") || "solid",
+        ),
+      },
+      avatars: isRecord(design.avatars)
+        ? design.avatars
+        : {
+            agent: { enabled: true, url: "", preset: "phosphor-user-circle" },
+            visitor: { enabled: true, url: "", preset: "phosphor-user-circle" },
+          },
       chatBox: {
         headerTitle: content.headerTitle,
         greetingMessage: content.greeting,
@@ -442,6 +533,11 @@ export function buildThemeDesignJsonFromExperience(
         bannerTitle: banner.title,
         bannerDescription: banner.description,
         bannerImageUrl: banner.imageUrl,
+        bannerVideoUrl: banner.videoUrl,
+        headerLogoUrl: panel.headerLogoUrl,
+        headerTitleAlign: panel.headerAlign,
+        headerAlign: panel.headerAlign,
+        bannerMediaType: banner.mediaType,
       },
     },
     behavior: {

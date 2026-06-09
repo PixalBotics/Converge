@@ -3,8 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   closeConversation,
-  getConversationHistory,
-  sendAgentMessage,
+  getAgentConversationHistorySocket,
 } from "@/services/chat/agent-inbox.api";
 import { sendSupervisorControlMessage } from "@/services/chat/supervisor.api";
 import { fetchAgentWrapUp } from "@/services/chat/wrap-up.api";
@@ -32,7 +31,10 @@ import {
 } from "./chat-socket-delivery";
 import { subscribeAgentChatMessageSync } from "./agent-chat-message-sync-bus";
 import { buildInboxPatchFromSocket } from "./agent-inbox-queue-patch";
-import { publishAgentInboxDelta } from "./agent-inbox-delta-bus";
+import {
+  publishAgentInboxDelta,
+  subscribeAgentInboxDelta,
+} from "./agent-inbox-delta-bus";
 import {
   clearVisitorTyping,
   type ConversationTypingEntry,
@@ -199,10 +201,19 @@ export function useAgentChat(params: UseAgentChatParams): UseAgentChatReturn {
     setMessages(sortMessagesChronologically(Array.from(messageMapRef.current.values())));
   }, []);
 
+  const loadConversationHistorySocket = useCallback(
+    async (conversationId: string) => {
+      if (!apiEnabled) return null;
+      return getAgentConversationHistorySocket(conversationId);
+    },
+    [apiEnabled],
+  );
+
   const reloadConversationHistory = useCallback(
     async (conversationId: string) => {
-      if (!apiEnabled || !params.token) return;
-      const history = await getConversationHistory(conversationId, params.token);
+      if (!apiEnabled) return;
+      const history = await loadConversationHistorySocket(conversationId);
+      if (!history) return;
       messageMapRef.current.clear();
       for (const msg of history.messages) {
         messageMapRef.current.set(stableMessageDedupeKey(msg), msg);
@@ -216,7 +227,55 @@ export function useAgentChat(params: UseAgentChatParams): UseAgentChatReturn {
         ),
       );
     },
-    [apiEnabled, params.token, syncMessagesFromMap],
+    [apiEnabled, loadConversationHistorySocket, syncMessagesFromMap],
+  );
+
+  const applyAssigneeFromSocketPayload = useCallback(
+    (payload: unknown) => {
+      const conversationId = conversationIdFromSocketPayload(payload);
+      if (!conversationId || !params.agentId) return;
+      const o =
+        payload && typeof payload === "object"
+          ? (payload as Record<string, unknown>)
+          : null;
+      const toAgentId = String(
+        o?.toAgentId ?? o?.agentId ?? o?.assignedAgentId ?? "",
+      ).trim();
+      const me = params.agentId.trim();
+      if (!toAgentId || toAgentId.toLowerCase() !== me.toLowerCase()) return;
+
+      const selected = selectedConversationIdRef.current?.toLowerCase() ?? "";
+      if (selected && selected !== conversationId.toLowerCase()) return;
+
+      setConversationAssigneeId(toAgentId);
+      setSelectedIsClosed(false);
+      selectedIsClosedRef.current = false;
+      setSupervisorControlUserId(null);
+      ensureConversationRoomJoin(
+        socketClient,
+        conversationId,
+        () =>
+          selectedConversationIdRef.current?.toLowerCase() ===
+            conversationId.toLowerCase() || !selectedConversationIdRef.current,
+      );
+      if (selected === conversationId.toLowerCase()) {
+        void loadConversationHistorySocket(conversationId).then((history) => {
+          if (
+            !history ||
+            selectedConversationIdRef.current?.toLowerCase() !==
+              conversationId.toLowerCase()
+          ) {
+            return;
+          }
+          messageMapRef.current.clear();
+          for (const msg of history.messages) {
+            messageMapRef.current.set(stableMessageDedupeKey(msg), msg);
+          }
+          syncMessagesFromMap();
+        });
+      }
+    },
+    [loadConversationHistorySocket, params.agentId, socketClient, syncMessagesFromMap],
   );
 
   const refreshQueuesRef = useRef(queues.refreshQueues);
@@ -247,9 +306,10 @@ export function useAgentChat(params: UseAgentChatParams): UseAgentChatReturn {
 
   const syncSelectedHistory = useCallback(async () => {
     const cid = selectedConversationIdRef.current;
-    if (!cid || !apiEnabled || !params.token || selectedIsClosedRef.current) return;
+    if (!cid || !apiEnabled || selectedIsClosedRef.current) return;
     try {
-      const history = await getConversationHistory(cid, params.token);
+      const history = await loadConversationHistorySocket(cid);
+      if (!history) return;
       if (selectedConversationIdRef.current !== cid) return;
       for (const msg of history.messages) {
         messageMapRef.current.set(stableMessageDedupeKey(msg), msg);
@@ -267,7 +327,7 @@ export function useAgentChat(params: UseAgentChatParams): UseAgentChatReturn {
     } catch {
       /* transient — next reconnect sync will retry */
     }
-  }, [apiEnabled, params.token, syncMessagesFromMap]);
+  }, [apiEnabled, loadConversationHistorySocket, syncMessagesFromMap]);
 
   const handleVisitorMessage = useCallback(
     (message: ChatMessage) => {
@@ -416,20 +476,49 @@ export function useAgentChat(params: UseAgentChatParams): UseAgentChatReturn {
       setSupervisorTick((n) => n + 1);
       if (typeof payload === "object" && payload !== null) {
         const p = payload as Record<string, unknown>;
-        if (typeof p.toAgentId === "string" && p.toAgentId.trim()) {
-          setConversationAssigneeId(p.toAgentId.trim());
+        const fromAgentId =
+          typeof p.fromAgentId === "string" ? p.fromAgentId.trim() : "";
+        if (
+          fromAgentId &&
+          params.agentId &&
+          fromAgentId.toLowerCase() === params.agentId.trim().toLowerCase()
+        ) {
+          clearSelection();
+          return;
         }
-        if (typeof p.supervisorControlUserId === "string") {
+        const eventConversationId = conversationIdFromSocketPayload(payload);
+        const selected = selectedConversationIdRef.current?.toLowerCase() ?? "";
+        const appliesToSelected =
+          !eventConversationId ||
+          !selected ||
+          eventConversationId.toLowerCase() === selected;
+        if (appliesToSelected) {
+          applyAssigneeFromSocketPayload(payload);
+        }
+        if (appliesToSelected && typeof p.supervisorControlUserId === "string") {
           setSupervisorControlUserId(p.supervisorControlUserId.trim() || null);
         }
-        if (p.released === true) {
+        if (appliesToSelected && p.released === true) {
           setSupervisorControlUserId(null);
         }
       }
-      const cid = selectedConversationIdRef.current;
-      if (cid) void selectConversationRef.current(cid, { readOnly: selectedIsClosedRef.current });
     },
-    [],
+    [applyAssigneeFromSocketPayload, clearSelection, params.agentId],
+  );
+
+  const handleAgentAssignmentPopup = useCallback(
+    (payload: unknown) => {
+      const patch = buildInboxPatchFromSocket(
+        "agent_assignment_popup",
+        payload,
+        params.agentId,
+      );
+      if (patch) {
+        publishAgentInboxDelta(patch);
+      }
+      applyAssigneeFromSocketPayload(payload);
+    },
+    [applyAssigneeFromSocketPayload, params.agentId],
   );
 
   const handleChatResumed = useCallback(
@@ -500,6 +589,7 @@ export function useAgentChat(params: UseAgentChatParams): UseAgentChatReturn {
       onVisitorProfileUpdated: handleVisitorProfileUpdated,
       onChatWhisper: handleChatWhisper,
       onChatTransferred: handleTakeoverActivity,
+      onAgentAssignmentPopup: handleAgentAssignmentPopup,
       onSupervisorControl: handleTakeoverActivity,
       onAgentWrapUpForm: handleAgentWrapUpForm,
       onAgentWrapUpSubmitted: (p) => {
@@ -619,8 +709,9 @@ export function useAgentChat(params: UseAgentChatParams): UseAgentChatReturn {
         );
       }
 
-      if (!apiEnabled || !params.token) return;
-      const history = await getConversationHistory(conversationId, params.token);
+      if (!apiEnabled) return;
+      const history = await loadConversationHistorySocket(conversationId);
+      if (!history) return;
       if (
         selectedConversationIdRef.current?.toLowerCase() !==
         conversationId.toLowerCase()
@@ -677,6 +768,14 @@ export function useAgentChat(params: UseAgentChatParams): UseAgentChatReturn {
         enrichFields.lastMessage = lastMsg.content.trim();
         if (lastMsg.createdAt) enrichFields.lastMessageAt = lastMsg.createdAt;
       }
+      const historyLastTransfer =
+        historyRecord.lastTransferFrom &&
+        typeof historyRecord.lastTransferFrom === "object"
+          ? (historyRecord.lastTransferFrom as ConversationSummary["lastTransferFrom"])
+          : null;
+      if (historyLastTransfer) {
+        enrichFields.lastTransferFrom = historyLastTransfer;
+      }
       if (Object.keys(enrichFields).length > 0) {
         publishAgentInboxDelta({
           kind: "row_enrich",
@@ -706,7 +805,7 @@ export function useAgentChat(params: UseAgentChatParams): UseAgentChatReturn {
       apiEnabled,
       applyDistributionPrompt,
       closedIdSet,
-      params.token,
+      loadConversationHistorySocket,
       queues.activeChats,
       queues.waitingChats,
       socketClient,
@@ -717,6 +816,78 @@ export function useAgentChat(params: UseAgentChatParams): UseAgentChatReturn {
   useEffect(() => {
     selectConversationRef.current = selectConversation;
   }, [selectConversation]);
+
+  useEffect(() => {
+    return subscribeAgentInboxDelta((patch) => {
+      const selected = selectedConversationIdRef.current?.toLowerCase() ?? "";
+      const patchId = patch.kind === "assigned_to_agent"
+        ? patch.conversationId
+        : "conversationId" in patch
+          ? patch.conversationId
+          : patch.kind === "conversation_resumed"
+            ? String(patch.summary.id ?? patch.summary.conversationId ?? "")
+            : "";
+      const patchIdLower = patchId.toLowerCase();
+
+      if (patch.kind === "conversation_reassigned_away") {
+        if (selected && selected === patchIdLower) {
+          clearSelection();
+        }
+        return;
+      }
+
+      if (!selected || !patchIdLower || selected !== patchIdLower) return;
+
+      if (patch.kind === "assigned_to_agent") {
+        const me = params.agentId?.trim().toLowerCase();
+        if (me && patch.agentId?.toLowerCase() === me) {
+          setConversationAssigneeId(patch.agentId);
+          setSelectedIsClosed(false);
+          selectedIsClosedRef.current = false;
+          setSupervisorControlUserId(null);
+        }
+        return;
+      }
+
+      if (patch.kind === "conversation_closed") {
+        setSelectedIsClosed(true);
+        selectedIsClosedRef.current = true;
+        return;
+      }
+
+      if (patch.kind === "conversation_resumed") {
+        setSelectedIsClosed(false);
+        selectedIsClosedRef.current = false;
+        const assignee =
+          patch.summary.assignedAgentId ??
+          (typeof patch.summary.agentId === "string" ? patch.summary.agentId : null);
+        if (assignee?.trim()) {
+          setConversationAssigneeId(assignee.trim());
+        }
+      }
+    });
+  }, [clearSelection, params.agentId]);
+
+  useEffect(() => {
+    const cid = selectedConversationId?.toLowerCase();
+    if (!cid || !params.agentId || selectedIsClosed) return;
+    const row = [...queues.activeChats, ...queues.waitingChats].find(
+      (c) => (c.id || c.conversationId || "").toLowerCase() === cid,
+    );
+    if (!row) return;
+    const assignee =
+      row.assignedAgentId ??
+      (typeof row.agentId === "string" ? row.agentId : null);
+    if (assignee?.trim()) {
+      setConversationAssigneeId(assignee.trim());
+    }
+  }, [
+    params.agentId,
+    queues.activeChats,
+    queues.waitingChats,
+    selectedConversationId,
+    selectedIsClosed,
+  ]);
 
   const sendMessage = useCallback(
     async (content: string, sendOpts?: { messageType?: string }) => {
@@ -752,32 +923,18 @@ export function useAgentChat(params: UseAgentChatParams): UseAgentChatReturn {
           supervisorControlUserId === params.agentId;
 
         let response: unknown;
-        if (!useSupervisorSend && params.agentId && params.token) {
+        if (useSupervisorSend) {
+          response = await sendSupervisorControlMessage(selectedConversationId, trimmed);
+        } else {
           await socketClient.waitUntilConnected(10_000);
-          if (socketClient.isConnected()) {
-            try {
-              response = await socketClient.sendAgentMessageWithAck({
-                conversationId: selectedConversationId,
-                message: trimmed,
-                agentId: params.agentId,
-              });
-            } catch {
-              response = undefined;
-            }
+          if (!socketClient.isConnected()) {
+            throw new Error("Chat socket is not connected. Wait for Live chat to connect.");
           }
-        }
-
-        if (response === undefined) {
-          response = useSupervisorSend
-            ? await sendSupervisorControlMessage(selectedConversationId, trimmed)
-            : await sendAgentMessage(
-                selectedConversationId,
-                {
-                  message: trimmed,
-                  ...(sendOpts?.messageType ? { messageType: sendOpts.messageType } : {}),
-                },
-                params.token,
-              );
+          response = await socketClient.sendAgentMessageWithAck({
+            conversationId: selectedConversationId,
+            message: trimmed,
+            agentId: params.agentId,
+          });
         }
 
         const envelope =
@@ -815,7 +972,6 @@ export function useAgentChat(params: UseAgentChatParams): UseAgentChatReturn {
     },
     [
       params.agentId,
-      params.token,
       selectedConversationId,
       selectedIsClosed,
       sendBlockedReason,

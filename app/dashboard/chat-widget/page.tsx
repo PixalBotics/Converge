@@ -51,6 +51,7 @@ import {
   widgetResponseData,
 } from "@/api/widgets/widgets.api";
 import { DeleteWidgetConfirmModal } from "@/features/chat-widget/components/DeleteWidgetConfirmModal";
+import { WidgetSandboxActionButton } from "@/features/chat-widget/components/WidgetSandboxActionButton";
 import { LauncherPresetIcon } from "@/lib/chat-widget/launcherIcons";
 import {
   mapAdminWidgetToTableRow,
@@ -328,7 +329,7 @@ export default function ChatWidgetPage() {
 
   const columns = useMemo<DataTableColumn<AdminWidgetTableRow>[]>(
     () => [
-      { id: "resellerName", label: "Client / reseller" },
+      { id: "resellerName", label: "Reseller" },
       { id: "parentCompany", label: "Parent Company", cellVariant: "muted" },
       { id: "childCompany", label: "Child Company", cellVariant: "muted" },
       { id: "websiteLabel", label: "Website", cellVariant: "muted" },
@@ -397,7 +398,7 @@ export default function ChatWidgetPage() {
 
   return (
     <Box sx={[pageWrapper, rolesPageWrapper, integrationsPageWrapper] as SxProps<Theme>}>
-      <Box sx={integrationsPageHeader}>
+      <Box sx={[integrationsPageHeader, { mb: 0 }] as SxProps<Theme>}>
         <Box>
           <Typography variant="regularLarge" fontWeight={700} color="white" sx={{ mb: 0.5 }}>
             Widget Management
@@ -479,9 +480,10 @@ export default function ChatWidgetPage() {
               const pathBase = `/dashboard/chat-widget/${encodeURIComponent(key)}`;
               return (
                 <Box
-                  sx={{ display: "flex", justifyContent: "flex-end", gap: 0.5, flexShrink: 0 }}
+                  sx={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 0.5, flexShrink: 0 }}
                   onClick={(e) => e.stopPropagation()}
                 >
+                  <WidgetSandboxActionButton widgetKey={key} variant="table" />
                   <IconButton
                     size="small"
                     sx={{ ...dataTableActionButton, color: theme.app.dashboard.white80 }}

@@ -74,7 +74,7 @@ export default function UserShiftPage() {
   const searchParams = useSearchParams();
   const { isPlatformAdmin, user: authUser } = useAuth();
   const mayPickInternalUserTypeFilter = useMemo(
-    () => sessionMayPickInternalUserScope(isPlatformAdmin, authUser?.userType),
+    () => sessionMayPickInternalUserScope(isPlatformAdmin, authUser),
     [isPlatformAdmin, authUser?.userType],
   );
   const [userId, setUserId] = useState("");

@@ -101,6 +101,14 @@ export function ChatMessageList({
     el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
   }, []);
 
+  const dismissCaptureMenu = useCallback(() => {
+    setCaptureMenu(null);
+  }, []);
+
+  useLayoutEffect(() => {
+    dismissCaptureMenu();
+  }, [conversationId, dismissCaptureMenu]);
+
   useLayoutEffect(() => {
     scrollThreadToBottom(true);
   }, [conversationId, scrollThreadToBottom]);
@@ -108,10 +116,6 @@ export function ChatMessageList({
   useLayoutEffect(() => {
     scrollThreadToBottom(true);
   }, [displayMessages.length, lastMessageKey, visitorTyping, typingPreviews?.length, scrollThreadToBottom]);
-
-  const dismissCaptureMenu = useCallback(() => {
-    setCaptureMenu(null);
-  }, []);
 
   const handleThreadMouseUp = useCallback(() => {
     if (!profileCaptureEnabled || !onCaptureField) {
@@ -175,10 +179,6 @@ export function ChatMessageList({
     };
   }, [dismissCaptureMenu, handleThreadMouseUp, profileCaptureEnabled]);
 
-  useEffect(() => {
-    dismissCaptureMenu();
-  }, [conversationId, dismissCaptureMenu]);
-
   const handleCaptureFieldSelect = useCallback(
     (field: VisitorProfileField) => {
       if (!captureMenu || !onCaptureField) return;
@@ -235,76 +235,76 @@ export function ChatMessageList({
 
   return (
     <>
-    <MessageThread
-      ref={threadRef}
-      sx={{
-        flex: "1 1 0",
-        minHeight: 0,
-        pl: { xs: 1.5, sm: 2 },
-        pr: "10px",
-        py: 2.5,
-        gap: 0,
-      }}
-    >
-      {groups.map((group) => (
-        <div key={group.dateKey}>
-          <ChatDateDivider label={group.label} />
-          {group.messages.map((message, idx) => (
-            <ChatMessageBubble
-              key={message.id ?? `${group.dateKey}-${idx}-${message.createdAt}`}
-              message={message}
-              visitorInitials={visitorInitials}
-              visitorDisplayName={visitorDisplayName}
-              agentDisplayName={agentDisplayName}
-              groupPosition={getMessageGroupPosition(idx, group.messages)}
-            />
-          ))}
-        </div>
-      ))}
+      <MessageThread
+        ref={threadRef}
+        sx={{
+          flex: "1 1 0",
+          minHeight: 0,
+          pl: { xs: 1.5, sm: 2 },
+          pr: "10px",
+          py: 2.5,
+          gap: 0,
+        }}
+      >
+        {groups.map((group) => (
+          <div key={group.dateKey}>
+            <ChatDateDivider label={group.label} />
+            {group.messages.map((message, idx) => (
+              <ChatMessageBubble
+                key={message.id ?? `${group.dateKey}-${idx}-${message.createdAt}`}
+                message={message}
+                visitorInitials={visitorInitials}
+                visitorDisplayName={visitorDisplayName}
+                agentDisplayName={agentDisplayName}
+                groupPosition={getMessageGroupPosition(idx, group.messages)}
+              />
+            ))}
+          </div>
+        ))}
 
-      {activeTypingPreviews.map((preview) => {
-        const hasDraft = preview.draft.length > 0;
-        if (hasDraft) {
+        {activeTypingPreviews.map((preview) => {
+          const hasDraft = preview.draft.length > 0;
+          if (hasDraft) {
+            return (
+              <ChatMessageBubble
+                key={preview.id}
+                message={{
+                  id: preview.id,
+                  conversationId: conversationId ?? "",
+                  content: preview.draft,
+                  role: preview.role,
+                  metadata: { typingPreview: true },
+                }}
+                visitorInitials={visitorInitials}
+                visitorDisplayName={preview.label}
+                agentDisplayName={preview.label}
+                groupPosition="single"
+              />
+            );
+          }
           return (
-            <ChatMessageBubble
-              key={preview.id}
-              message={{
-                id: preview.id,
-                conversationId: conversationId ?? "",
-                content: preview.draft,
-                role: preview.role,
-                metadata: { typingPreview: true },
-              }}
-              visitorInitials={visitorInitials}
-              visitorDisplayName={preview.label}
-              agentDisplayName={preview.label}
-              groupPosition="single"
-            />
+            <TypingIndicator key={preview.id}>
+              <Typography variant="caption" sx={{ fontWeight: 500 }}>
+                {preview.label} is typing
+              </Typography>
+              <TypingDots aria-hidden>
+                <span />
+                <span />
+                <span />
+              </TypingDots>
+            </TypingIndicator>
           );
-        }
-        return (
-          <TypingIndicator key={preview.id}>
-            <Typography variant="caption" sx={{ fontWeight: 500 }}>
-              {preview.label} is typing
-            </Typography>
-            <TypingDots aria-hidden>
-              <span />
-              <span />
-              <span />
-            </TypingDots>
-          </TypingIndicator>
-        );
-      })}
-    </MessageThread>
-    {captureMenu ? (
-      <VisitorTextCaptureToolbar
-        anchor={captureMenu.anchor}
-        selectedText={captureMenu.text}
-        busy={profileCaptureBusy}
-        onSelectField={handleCaptureFieldSelect}
-        onDismiss={dismissCaptureMenu}
-      />
-    ) : null}
+        })}
+      </MessageThread>
+      {captureMenu ? (
+        <VisitorTextCaptureToolbar
+          anchor={captureMenu.anchor}
+          selectedText={captureMenu.text}
+          busy={profileCaptureBusy}
+          onSelectField={handleCaptureFieldSelect}
+          onDismiss={dismissCaptureMenu}
+        />
+      ) : null}
     </>
   );
 }

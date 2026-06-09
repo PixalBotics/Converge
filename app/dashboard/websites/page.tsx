@@ -21,6 +21,7 @@ import { WebsiteAssignmentScopeFilterPanel } from "@/features/website-assignment
 import { useWebsiteAssignmentScopeFilters } from "@/features/website-assignments/hooks/useWebsiteAssignmentScopeFilters";
 import { WebsiteUrlDisplay } from "@/features/website-assignments/components/WebsiteUrlDisplay";
 import { useAuth } from "@/lib/auth";
+import { canViewWebsiteDirectory } from "@/lib/permissions";
 import { useWebsiteDirectoryQuery } from "@/lib/hooks";
 import type { WebsiteDirectoryItem } from "@/api/types/companies.types";
 import {
@@ -108,8 +109,8 @@ function PocCell({
 
 export default function WebsiteDirectoryPage() {
   const theme = useTheme() as AppTheme;
-  const { hasPage } = useAuth();
-  const canView = hasPage("page:clients");
+  const { hasPage, hasOperational } = useAuth();
+  const canView = canViewWebsiteDirectory(hasPage, hasOperational);
   const scope = useWebsiteAssignmentScopeFilters();
 
   const [searchInput, setSearchInput] = useState("");

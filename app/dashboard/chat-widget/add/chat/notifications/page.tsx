@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Box from "@mui/material/Box";
 import Stack from "@mui/material/Stack";
@@ -29,7 +29,6 @@ import {
 import { WidgetBehaviorLivePreview } from "@/components/dashboard/chat-widget/WidgetBehaviorLivePreview";
 import { WidgetWizardPageLayout } from "@/features/chat-widget/components/WidgetWizardPageLayout";
 import { WidgetWizardSiteChromePreview } from "@/features/chat-widget/components/WidgetWizardSiteChromePreview";
-import Link from "next/link";
 import { WidgetWizardToggleRow } from "@/features/chat-widget/components/WidgetWizardToggleRow";
 import { SchedulingSectionCard } from "@/features/website-assignments/components/ServiceSchedulingSections";
 import { readWidgetChatColorsFromDraft } from "@/lib/chat-widget/widget-colors-draft";
@@ -55,8 +54,6 @@ import {
   shouldShowWidgetAiType,
   type WidgetAiType,
 } from "@/lib/chat-widget/widget-ai-type";
-import { normalizeWidgetInquiryOptions } from "@/lib/chat-widget/widget-inquiry.types";
-import { useInquiryTopicsForWebsite } from "@/lib/chat-widget/use-inquiry-topics-for-website";
 import { mergeDraftAllowedDomains } from "@/lib/chat-widget/default-allowed-domains";
 import { WidgetWizardStepGuide } from "@/features/chat-widget/components/WidgetWizardStepGuide";
 import {
@@ -70,7 +67,6 @@ import {
   parseDomainListInput,
   validateDomainListInput,
   validateSingleHttpUrl,
-  validateVideoEmbedUrl,
 } from "@/lib/chat-widget/widget-field-validation";
 import {
   normalizeLauncherBadgeMode,
@@ -78,6 +74,17 @@ import {
 } from "@/lib/widget-runtime/widget-notifications";
 import { useWizardLauncherChrome } from "@/lib/chat-widget/use-wizard-launcher-preview";
 import { resolveWizardLauncherPreview } from "@/lib/chat-widget/widget-wizard-save-trace";
+import { useWizardStepFlush } from "@/lib/chat-widget/widget-wizard-step-flush";
+import { WidgetInquiryOptionsEditor } from "@/components/dashboard/chat-widget/WidgetInquiryOptionsEditor";
+import { useInquiryTopicsForWebsite } from "@/lib/chat-widget/use-inquiry-topics-for-website";
+import {
+  isWidgetInquiryOptionConfigured,
+  validateVisitorTopicsForSave,
+} from "@/lib/chat-widget/visitor-topics.mapper";
+import {
+  normalizeWidgetInquiryOptions,
+  type WidgetInquiryOption,
+} from "@/lib/chat-widget/widget-inquiry.types";
 
 export default function ChatWidgetNotificationsPage() {
   const router = useRouter();
@@ -90,8 +97,6 @@ export default function ChatWidgetNotificationsPage() {
   const [chatMode, setChatMode] = useState<WidgetInstallChatMode>("HYBRID");
   const [aiType, setAiType] = useState<WidgetAiType>("AI_CHATBOT");
   const [allowedDomainsInput, setAllowedDomainsInput] = useState("");
-  const [videoWelcomeOn, setVideoWelcomeOn] = useState(false);
-  const [videoWelcomeUrl, setVideoWelcomeUrl] = useState("");
   const [saving, setSaving] = useState(false);
   const [checklistRefreshKey, setChecklistRefreshKey] = useState(0);
   const { chromeDraft } = useWizardLauncherChrome(
@@ -104,10 +109,6 @@ export default function ChatWidgetNotificationsPage() {
   );
   const [motionEnabled, setMotionEnabled] = useState(d0.motionEnabled !== false);
   const [botEnabled, setBotEnabled] = useState(d0.botEnabled ?? true);
-  const [inquiryRequired, setInquiryRequired] = useState(d0.inquiryRequired ?? false);
-  const [inquirySkipLabel, setInquirySkipLabel] = useState(
-    d0.inquirySkipLabel ?? "General question",
-  );
   const [autoOpenEnabled, setAutoOpenEnabled] = useState(d0.autoOpenEnabled ?? false);
   const [autoOpenOnReturnVisit, setAutoOpenOnReturnVisit] = useState(
     d0.autoOpenOnReturnVisit ?? false,
@@ -138,27 +139,28 @@ export default function ChatWidgetNotificationsPage() {
   const [responseTalkToAgentTriggerText, setresponseTalkToAgentTriggerText] = useState(
     d0.responseTalkToAgentTriggerText ?? "Talk to agent",
   );
-  const [wizardWebsiteId, setWizardWebsiteId] = useState<string | undefined>(
-    defaultWidgetDraft.websiteId,
+  const [inquiryOn, setInquiryOn] = useState(d0.inquiryOn ?? false);
+  const [inquiryRequired, setInquiryRequired] = useState(d0.inquiryRequired ?? false);
+  const [inquirySkipLabel, setInquirySkipLabel] = useState(d0.inquirySkipLabel ?? "General question");
+  const [inquiryFallbackRoutingKey, setInquiryFallbackRoutingKey] = useState(
+    d0.inquiryFallbackRoutingKey ?? "",
+  );
+  const [inquiryOptions, setInquiryOptions] = useState<WidgetInquiryOption[]>(
+    normalizeWidgetInquiryOptions(d0.inquiryOptions ?? []),
   );
 
-  const { topicsFromScheduling, isLoading: inquiryTopicsLoading } = useInquiryTopicsForWebsite(
-    wizardWebsiteId,
-    draftReady,
-  );
+  const websiteId = useMemo(() => {
+    if (!draftReady) return "";
+    const d = readChatWizardDraft(resolveEditWidgetKeyForNavigation(editWidgetKey) || undefined);
+    return d.websiteId?.trim() ?? "";
+  }, [draftReady, editWidgetKey, checklistRefreshKey]);
 
-  const schedulingTopicsFingerprint = useMemo(
-    () =>
-      topicsFromScheduling
-        .map((t) => `${t.routingKey}:${t.label}:${t.internalDepartmentId}:${t.externalDepartmentId}`)
-        .join("|"),
-    [topicsFromScheduling],
-  );
+  const { topicsFromScheduling, isLoading: inquiryTopicsLoading, loadedFromScheduling } =
+    useInquiryTopicsForWebsite(websiteId, draftReady);
 
   useEffect(() => {
     if (!draftReady) return;
     const d = readChatWizardDraft(resolveEditWidgetKeyForNavigation(editWidgetKey) || undefined);
-    setWizardWebsiteId(d.websiteId);
     const def = defaultWidgetDraft;
     setChatMode(d.chatMode ?? "HYBRID");
     setAiType(normalizeWidgetAiType(d.aiType));
@@ -166,8 +168,6 @@ export default function ChatWidgetNotificationsPage() {
     setAllowedDomainsInput(adArr.join(", "));
     setBrowserNotification(d.browserNotification ?? def.browserNotification ?? true);
     setSoundNotification(d.soundNotification ?? def.soundNotification ?? false);
-    setVideoWelcomeOn(d.videoWelcomeOn ?? false);
-    setVideoWelcomeUrl(d.videoWelcomeUrl ?? "");
     setFallbackText(d.fallbackNotificationText ?? def.fallbackNotificationText ?? "");
     setBotEnabled(d.botEnabled ?? def.botEnabled ?? true);
     setAutoOpenEnabled(d.autoOpenEnabled ?? d.popupEnabled ?? false);
@@ -197,40 +197,147 @@ export default function ChatWidgetNotificationsPage() {
     setresponseTalkToAgentTriggerText(
       d.responseTalkToAgentTriggerText ?? def.responseTalkToAgentTriggerText ?? "Talk to agent",
     );
-    setInquiryRequired(d.inquiryRequired ?? def.inquiryRequired ?? false);
+    const fromDraft = normalizeWidgetInquiryOptions(d.inquiryOptions ?? []);
+    setInquiryOn(d.inquiryOn ?? false);
+    setInquiryRequired(d.inquiryRequired ?? false);
     setInquirySkipLabel(d.inquirySkipLabel ?? def.inquirySkipLabel ?? "General question");
-  }, [draftReady, editWidgetKey]);
-
-  useEffect(() => {
-    if (!draftReady || inquiryTopicsLoading) return;
-    const editKey = resolveEditWidgetKeyForNavigation(editWidgetKey) || undefined;
-    const def = defaultWidgetDraft;
-
-    if (topicsFromScheduling.length > 0) {
-      saveChatWizardDraft(editKey, {
-        inquiryOptions: normalizeWidgetInquiryOptions(topicsFromScheduling),
-        inquiryOn: true,
-      });
-      return;
+    setInquiryFallbackRoutingKey(d.inquiryFallbackRoutingKey ?? "");
+    if (fromDraft.length > 0) {
+      setInquiryOptions(fromDraft);
+    } else if (topicsFromScheduling.length > 0) {
+      setInquiryOptions(topicsFromScheduling);
+    } else {
+      setInquiryOptions([]);
     }
+  }, [draftReady, editWidgetKey, checklistRefreshKey, topicsFromScheduling]);
 
-    const d = readChatWizardDraft(editKey);
-    setInquiryRequired(d.inquiryRequired ?? def.inquiryRequired ?? false);
-    setInquirySkipLabel(d.inquirySkipLabel ?? def.inquirySkipLabel ?? "General question");
-  }, [draftReady, editWidgetKey, inquiryTopicsLoading, schedulingTopicsFingerprint, topicsFromScheduling]);
+  const stepStateRef = useRef({
+    draftReady,
+    editWidgetKey,
+    chatMode,
+    aiType,
+    allowedDomainsInput,
+    browserNotification,
+    soundNotification,
+    fallbackText,
+    motionEnabled,
+    botEnabled,
+    autoOpenEnabled,
+    autoOpenOnReturnVisit,
+    autoOpenDelayStr,
+    notificationSoundId,
+    launcherBadgeMode,
+    consentRequired,
+    consentText,
+    privacyPolicyUrl,
+    formEnabled,
+    formTitle,
+    formSubtitle,
+    formSubmitLabel,
+    prechatNameEnabled,
+    prechatEmailEnabled,
+    prechatPhoneEnabled,
+    prechatMessageEnabled,
+    prechatMessageRequired,
+    responseOfflineMessage,
+    responseTalkToAgentEnabled,
+    responseTalkToAgentTriggerText,
+    inquiryOn,
+    inquiryRequired,
+    inquirySkipLabel,
+    inquiryFallbackRoutingKey,
+    inquiryOptions,
+  });
+  stepStateRef.current = {
+    draftReady,
+    editWidgetKey,
+    chatMode,
+    aiType,
+    allowedDomainsInput,
+    browserNotification,
+    soundNotification,
+    fallbackText,
+    motionEnabled,
+    botEnabled,
+    autoOpenEnabled,
+    autoOpenOnReturnVisit,
+    autoOpenDelayStr,
+    notificationSoundId,
+    launcherBadgeMode,
+    consentRequired,
+    consentText,
+    privacyPolicyUrl,
+    formEnabled,
+    formTitle,
+    formSubtitle,
+    formSubmitLabel,
+    prechatNameEnabled,
+    prechatEmailEnabled,
+    prechatPhoneEnabled,
+    prechatMessageEnabled,
+    prechatMessageRequired,
+    responseOfflineMessage,
+    responseTalkToAgentEnabled,
+    responseTalkToAgentTriggerText,
+    inquiryOn,
+    inquiryRequired,
+    inquirySkipLabel,
+    inquiryFallbackRoutingKey,
+    inquiryOptions,
+  };
 
-  const inquiryOnFromDraft = useMemo(() => {
-    if (!draftReady) return false;
-    const d = readChatWizardDraft(resolveEditWidgetKeyForNavigation(editWidgetKey) || undefined);
-    const opts = normalizeWidgetInquiryOptions(d.inquiryOptions ?? []);
-    return d.inquiryOn === true || opts.length > 0;
-  }, [draftReady, editWidgetKey]);
+  const flushStepToDraft = useCallback(() => {
+    const s = stepStateRef.current;
+    if (!s.draftReady) return;
+    const editKey = resolveEditWidgetKeyForNavigation(s.editWidgetKey);
+    const prev = readChatWizardDraft(editKey || undefined);
+    const autoOpenDelay = Math.min(300, Math.max(0, Number.parseInt(s.autoOpenDelayStr, 10) || 10));
+    saveChatWizardDraft(editKey || undefined, {
+      chatMode: s.chatMode,
+      aiType: shouldShowWidgetAiType(s.chatMode) ? s.aiType : undefined,
+      allowedDomains: mergeDraftAllowedDomains(parseDomainListInput(s.allowedDomainsInput)),
+      browserNotification: s.browserNotification,
+      soundNotification: s.soundNotification,
+      notificationEnabled: s.browserNotification || s.soundNotification,
+      fallbackNotificationText: s.fallbackText.trim() || "New message from support",
+      botEnabled: s.chatMode === "AGENT_ONLY" ? false : s.botEnabled,
+      inquiryOn: s.inquiryOn,
+      inquiryRequired: s.inquiryOn ? s.inquiryRequired : false,
+      inquirySkipLabel: s.inquirySkipLabel.trim() || "General question",
+      inquiryFallbackRoutingKey:
+        s.inquiryOn && s.inquiryFallbackRoutingKey.trim()
+          ? s.inquiryFallbackRoutingKey.trim()
+          : undefined,
+      inquiryOptions: s.inquiryOn ? s.inquiryOptions : [],
+      autoOpenEnabled: s.autoOpenEnabled,
+      autoOpenOnReturnVisit: s.autoOpenOnReturnVisit,
+      autoOpenDelaySeconds: autoOpenDelay,
+      popupEnabled: s.autoOpenEnabled,
+      notificationSoundId: normalizeWidgetSoundId(
+        s.soundNotification ? s.notificationSoundId : "none",
+      ),
+      launcherBadgeMode: normalizeLauncherBadgeMode(s.launcherBadgeMode),
+      consentRequired: s.consentRequired,
+      consentText: s.consentText.trim(),
+      privacyPolicyUrl: s.privacyPolicyUrl.trim(),
+      formEnabled: s.formEnabled,
+      formTitle: s.formTitle.trim(),
+      formSubtitle: s.formSubtitle.trim(),
+      formSubmitLabel: s.formSubmitLabel.trim(),
+      prechatNameEnabled: s.prechatNameEnabled,
+      prechatEmailEnabled: s.prechatEmailEnabled,
+      prechatPhoneEnabled: s.prechatPhoneEnabled,
+      prechatMessageEnabled: s.prechatMessageEnabled,
+      prechatMessageRequired: s.prechatMessageRequired,
+      responseOfflineMessage: s.responseOfflineMessage.trim(),
+      responseTalkToAgentEnabled: s.responseTalkToAgentEnabled,
+      responseTalkToAgentTriggerText: s.responseTalkToAgentTriggerText.trim() || "Talk to agent",
+      motionEnabled: s.motionEnabled,
+      ...syncResponseCopyFromChatBox(prev),
+    });
+  }, []);
 
-  const inquiryOptionsList = useMemo(() => {
-    if (!inquiryOnFromDraft || !draftReady) return [];
-    const d = readChatWizardDraft(resolveEditWidgetKeyForNavigation(editWidgetKey) || undefined);
-    return normalizeWidgetInquiryOptions(d.inquiryOptions).map((o) => o.label);
-  }, [inquiryOnFromDraft, draftReady, editWidgetKey]);
+  useWizardStepFlush(flushStepToDraft);
 
   const behaviorPreviewModel = useMemo(() => {
     const draft = draftReady
@@ -253,8 +360,8 @@ export default function ChatWidgetNotificationsPage() {
       prechatMessageEnabled,
       consentRequired,
       consentText: consentText.trim(),
-      inquiryOn: inquiryOnFromDraft,
-      inquiryOptions: inquiryOptionsList,
+      inquiryOn: inquiryOn && inquiryOptions.some(isWidgetInquiryOptionConfigured),
+      inquiryOptions: inquiryOptions.map((o) => o.label).filter(Boolean),
       talkToAgentEnabled: responseTalkToAgentEnabled,
       talkToAgentTriggerText: responseTalkToAgentTriggerText.trim(),
       greetingMessage: (draft.greetingMessage ?? defaultWidgetDraft.greetingMessage) || "",
@@ -264,7 +371,7 @@ export default function ChatWidgetNotificationsPage() {
         draft.messagePlaceholder?.trim() ||
         defaultWidgetDraft.sendPlaceholder ||
         "",
-      headerTitle: draft.headerTitle ?? "Live chat",
+      headerTitle: draft.headerTitle ?? "",
       offlineMessage: responseOfflineMessage.trim(),
     };
   }, [
@@ -281,11 +388,11 @@ export default function ChatWidgetNotificationsPage() {
     prechatMessageEnabled,
     consentRequired,
     consentText,
-    inquiryOnFromDraft,
-    inquiryOptionsList,
     responseTalkToAgentEnabled,
     responseTalkToAgentTriggerText,
     responseOfflineMessage,
+    inquiryOn,
+    inquiryOptions,
   ]);
 
   const handleSaveAndNext = () => {
@@ -303,13 +410,6 @@ export default function ChatWidgetNotificationsPage() {
         return;
       }
 
-      if (videoWelcomeOn) {
-        const videoErr = validateVideoEmbedUrl(videoWelcomeUrl);
-        if (videoErr) {
-          publishAppToast({ variant: "error", message: videoErr });
-          return;
-        }
-      }
       if (consentRequired && privacyPolicyUrl.trim()) {
         const privacyErr = validateSingleHttpUrl(privacyPolicyUrl, {
           label: "Privacy policy URL",
@@ -324,12 +424,26 @@ export default function ChatWidgetNotificationsPage() {
         publishAppToast({ variant: "error", message: domainErr });
         return;
       }
+      if (inquiryOn) {
+        const configured = inquiryOptions.filter(isWidgetInquiryOptionConfigured);
+        if (configured.length === 0) {
+          publishAppToast({
+            variant: "error",
+            message: "Add at least one inquiry topic with a label and external department.",
+          });
+          return;
+        }
+        const topicErr = validateVisitorTopicsForSave(configured);
+        if (topicErr) {
+          publishAppToast({ variant: "error", message: topicErr });
+          return;
+        }
+      }
 
       setSaving(true);
       try {
         const autoOpenDelay = Math.min(300, Math.max(0, Number.parseInt(autoOpenDelayStr, 10) || 10));
         const draftBefore = readChatWizardDraft(editKey || undefined);
-        const inquiryOn = draftBefore.inquiryOn === true || normalizeWidgetInquiryOptions(draftBefore.inquiryOptions ?? []).length > 0;
         const launcherFromStep1 = resolveWizardLauncherPreview(prev);
         saveChatWizardDraft(editKey || undefined, {
           ...launcherFromStep1,
@@ -350,6 +464,7 @@ export default function ChatWidgetNotificationsPage() {
           proactiveSecondaryCtaLabel: prev.proactiveSecondaryCtaLabel,
           proactiveSecondaryCtaHref: prev.proactiveSecondaryCtaHref,
           proactiveSecondaryCtaKind: prev.proactiveSecondaryCtaKind,
+          closedMessagePreviewEnabled: prev.closedMessagePreviewEnabled,
           themeDesignJsonAccent: prev.themeDesignJsonAccent,
           themeDesignJsonDensity: prev.themeDesignJsonDensity,
           chatMode,
@@ -361,16 +476,17 @@ export default function ChatWidgetNotificationsPage() {
           soundNotification,
           notificationEnabled: browserNotification || soundNotification,
           fallbackNotificationText: fallbackText.trim() || "New message from support",
-          videoWelcomeOn,
-          videoWelcomeUrl: videoWelcomeUrl.trim(),
+          videoWelcomeOn: draftBefore.videoWelcomeOn ?? false,
+          videoWelcomeUrl: draftBefore.videoWelcomeUrl?.trim() ?? "",
           botEnabled: chatMode === "AGENT_ONLY" ? false : botEnabled,
           inquiryOn,
           inquiryRequired: inquiryOn ? inquiryRequired : false,
           inquirySkipLabel: inquirySkipLabel.trim() || "General question",
-          inquiryFallbackRoutingKey: draftBefore.inquiryFallbackRoutingKey?.trim() || undefined,
-          inquiryOptions: inquiryOn
-            ? normalizeWidgetInquiryOptions(draftBefore.inquiryOptions)
-            : [],
+          inquiryFallbackRoutingKey:
+            inquiryOn && inquiryFallbackRoutingKey.trim()
+              ? inquiryFallbackRoutingKey.trim()
+              : undefined,
+          inquiryOptions: inquiryOn ? inquiryOptions : [],
           autoOpenEnabled,
           autoOpenOnReturnVisit,
           autoOpenDelaySeconds: autoOpenDelay,
@@ -458,7 +574,7 @@ export default function ChatWidgetNotificationsPage() {
             disabled={saving || !draftReady}
             onClick={handleSaveAndNext}
           >
-            {saving ? "Saving…" : "Next: Install & publish"}
+            {saving ? "Saving…" : "Next: Install"}
           </Button>
         </>
       }
@@ -594,12 +710,82 @@ export default function ChatWidgetNotificationsPage() {
               onChange={setAllowedDomainsInput}
               helperText="Where the embed may load — hostnames only (not full page URLs)."
             />
+            <WidgetWizardToggleRow
+              label="Inquiry topic pills"
+              description="Optional pills on the pre-chat form so visitors pick a topic before chat."
+              checked={inquiryOn}
+              onChange={setInquiryOn}
+            />
+            {inquiryOn ? (
+              <Box sx={notificationsFieldGroupSx}>
+                <WidgetWizardToggleRow
+                  label="Require topic selection"
+                  description="When off, visitors can skip with a general routing option."
+                  checked={inquiryRequired}
+                  onChange={setInquiryRequired}
+                />
+                {!inquiryRequired ? (
+                  <WidgetTextField
+                    label="Skip button label"
+                    name="inquiry-skip-label"
+                    value={inquirySkipLabel}
+                    onChange={setInquirySkipLabel}
+                    maxLength={FIELD_MAX.shortLabel}
+                    placeholder="General question"
+                  />
+                ) : null}
+                <WidgetInquiryOptionsEditor
+                  websiteId={websiteId}
+                  value={inquiryOptions}
+                  onChange={setInquiryOptions}
+                  topicsLoading={inquiryTopicsLoading}
+                  loadedFromScheduling={loadedFromScheduling}
+                  inquiryFallbackRoutingKey={inquiryFallbackRoutingKey}
+                  onFallbackRoutingKeyChange={setInquiryFallbackRoutingKey}
+                  externalDeptOnly
+                  widgetKey={
+                    resolveRemoteWidgetKeyForChatWizard(
+                      resolveEditWidgetKeyForNavigation(editWidgetKey) || undefined,
+                      readChatWizardDraft(
+                        resolveEditWidgetKeyForNavigation(editWidgetKey) || undefined,
+                      ),
+                    ) ?? undefined
+                  }
+                  getDraftForWidgetSync={() => {
+                    const editKey = resolveEditWidgetKeyForNavigation(editWidgetKey);
+                    const base = readChatWizardDraft(editKey || undefined);
+                    return {
+                      ...base,
+                      inquiryOn,
+                      inquiryRequired,
+                      inquirySkipLabel,
+                      inquiryFallbackRoutingKey,
+                      inquiryOptions,
+                    };
+                  }}
+                  onSaved={(rows) => {
+                    setInquiryOptions(rows);
+                    saveChatWizardDraft(
+                      resolveEditWidgetKeyForNavigation(editWidgetKey) || undefined,
+                      {
+                        ...readChatWizardDraft(
+                          resolveEditWidgetKeyForNavigation(editWidgetKey) || undefined,
+                        ),
+                        inquiryOn: true,
+                        inquiryOptions: rows,
+                      },
+                    );
+                    setChecklistRefreshKey((k) => k + 1);
+                  }}
+                />
+              </Box>
+            ) : null}
           </Box>
         </SchedulingSectionCard>
 
         <SchedulingSectionCard
           title="Widget behavior"
-          subtitle="Bot, inquiry pills, and auto-open."
+          subtitle="Bot and auto-open."
         >
           <Box sx={notificationsFormStackSx}>
           {chatMode !== "AGENT_ONLY" ? (
@@ -614,42 +800,6 @@ export default function ChatWidgetNotificationsPage() {
               Agent-only mode — live agents reply; AI bot is off.
             </Typography>
           )}
-          <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted }}>
-            Inquiry topic pills:{" "}
-            <strong>{inquiryOnFromDraft ? "On" : "Off"}</strong>
-            {inquiryOnFromDraft
-              ? ` (${inquiryOptionsList.length} topic${inquiryOptionsList.length === 1 ? "" : "s"}${inquiryOptionsList.length ? `: ${inquiryOptionsList.join(", ")}` : ""})`
-              : ""}
-            . Edit topics and fallback on{" "}
-            <Box
-              component={Link}
-              href={withChatEditQuery(
-                "/dashboard/chat-widget/add/chat/box",
-                resolveEditWidgetKeyForNavigation(editWidgetKey),
-              )}
-              sx={{ color: theme.palette.primary.light, fontWeight: 600 }}
-            >
-              Chat Box Design
-            </Box>
-            .
-          </Typography>
-          {inquiryOnFromDraft ? (
-            <Box sx={notificationsFieldGroupSx}>
-              <WidgetWizardToggleRow
-                label="Require topic selection"
-                description="When off, visitors can use the general fallback topic (routes via fallback department)."
-                checked={inquiryRequired}
-                onChange={setInquiryRequired}
-              />
-              <WidgetTextField
-                label="Skip / general topic label"
-                name="inquiry-skip-label"
-                value={inquirySkipLabel}
-                onChange={setInquirySkipLabel}
-                maxLength={FIELD_MAX.shortLabel}
-              />
-            </Box>
-          ) : null}
           <WidgetWizardToggleRow label="Auto-open widget" checked={autoOpenEnabled} onChange={setAutoOpenEnabled} />
           <WidgetWizardToggleRow
             label="Auto-open on return visits"
@@ -671,29 +821,6 @@ export default function ChatWidgetNotificationsPage() {
             checked={motionEnabled}
             onChange={setMotionEnabled}
           />
-          </Box>
-        </SchedulingSectionCard>
-
-        <SchedulingSectionCard
-          title="Video welcome"
-          subtitle="Optional YouTube or Vimeo link before chat."
-        >
-          <Box sx={notificationsFormStackSx}>
-            <WidgetWizardToggleRow
-              label="Show video welcome"
-              checked={videoWelcomeOn}
-              onChange={setVideoWelcomeOn}
-            />
-            {videoWelcomeOn ? (
-              <WidgetUrlField
-                label="Video URL (YouTube / Vimeo)"
-                name="video-welcome-url"
-                value={videoWelcomeUrl}
-                onChange={setVideoWelcomeUrl}
-                videoEmbed
-                helperText="One embed link — shown before chat starts."
-              />
-            ) : null}
           </Box>
         </SchedulingSectionCard>
 

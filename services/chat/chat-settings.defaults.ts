@@ -61,6 +61,7 @@ export const DEFAULT_CHAT_OPERATIONS: ChatOperationsJson = {
     notifyAssignedQaOnTakeover: false,
     externalCanSeeWhispers: false,
     assignMode: "least_pending",
+    internalAssignScope: "website",
     reviewSlaHours: null,
   },
   sessionResume: {

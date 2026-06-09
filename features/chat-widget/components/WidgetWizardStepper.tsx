@@ -11,6 +11,7 @@ import {
   withChatEditQuery,
   resolveEditWidgetKeyForNavigation,
 } from "@/lib/chat-widget/chat-wizard-edit";
+import { flushActiveWizardStepToDraft } from "@/lib/chat-widget/widget-wizard-step-flush";
 import {
   distributionStepCardSx,
   distributionStepNumberSx,
@@ -68,6 +69,7 @@ export function WidgetWizardStepper({ currentStep }: WidgetWizardStepperProps) {
       if (target === safeStep || target > safeStep) return;
       const step = WIDGET_WIZARD_STEPS[target];
       if (!step) return;
+      flushActiveWizardStepToDraft();
       router.push(withChatEditQuery(step.path, editKey || undefined));
     },
     [editKey, router, safeStep],

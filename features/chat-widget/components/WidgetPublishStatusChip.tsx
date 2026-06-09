@@ -24,7 +24,7 @@ export function WidgetPublishStatusChip({ published }: { published?: boolean }) 
   return (
     <Chip
       size="small"
-      label="Draft — publish on Install to go live"
+      label="Offline — Go live when ready"
       sx={{
         mb: 1,
         bgcolor: "rgba(251,191,36,0.12)",

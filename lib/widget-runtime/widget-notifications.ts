@@ -114,6 +114,20 @@ export function truncateNotificationPreview(text: string, max = 72): string {
   return `${t.slice(0, max - 1)}…`;
 }
 
+/** ~Half of the last message for the closed-widget invitation preview bubble. */
+export function truncateClosedMessagePreviewHalf(text: string): string {
+  const t = text.replace(/\s+/g, " ").trim();
+  if (!t) return "";
+  if (t.length <= 28) return t;
+  const target = Math.max(28, Math.ceil(t.length / 2));
+  if (t.length <= target) return t;
+  const slice = t.slice(0, target);
+  const lastSpace = slice.lastIndexOf(" ");
+  const cut =
+    lastSpace > target * 0.5 ? slice.slice(0, lastSpace) : slice.trimEnd();
+  return `${cut.trim()}…`;
+}
+
 export function resolveNotificationTitle(
   appearance: Pick<RuntimeChatAppearance, "fallbackNotificationText">,
   preview: string,

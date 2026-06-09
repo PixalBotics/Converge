@@ -212,7 +212,12 @@ export function ChatSettingsWebsiteWorkspace({
             />
           ) : null}
 
-          {tab === "qa-team" ? <QaRosterTab websiteId={websiteId} /> : null}
+          {tab === "qa-team" ? (
+            <QaRosterTab
+              websiteId={websiteId}
+              parentCompanyId={parentCompanyId}
+            />
+          ) : null}
 
           {tab === "emails" ? (
             <DepartmentEmailsTab

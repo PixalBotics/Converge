@@ -25,6 +25,26 @@ describe("agent-inbox-queue-patch", () => {
     expect(next.waitingChats).toHaveLength(0);
   });
 
+  it("assigns transferred chat to pool head in active queue", () => {
+    const patch = buildInboxPatchFromSocket(
+      "chat_transferred",
+      {
+        conversationId: "c-transfer",
+        fromAgentId: "agent-a",
+        toAgentId: "head-b",
+        agentId: "head-b",
+        assignedAgentId: "head-b",
+        status: "assigned",
+      },
+      "head-b",
+    );
+    expect(patch?.kind).toBe("assigned_to_agent");
+    if (patch?.kind === "assigned_to_agent") {
+      expect(patch.agentId).toBe("head-b");
+      expect(patch.summary.assignedAgentId).toBe("head-b");
+    }
+  });
+
   it("removes closed conversation from active and waiting", () => {
     const next = applyInboxQueuePatch(
       {

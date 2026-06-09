@@ -3,6 +3,7 @@
 import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { EmbedWidgetClient } from "@/components/embed/EmbedWidgetClient";
+import { resolveWidgetEmbedEnv } from "@/lib/widget-runtime/widget-embed-env";
 
 function EmbedWidgetPageInner() {
   const sp = useSearchParams();
@@ -21,10 +22,12 @@ function EmbedWidgetPageInner() {
     }
   }
 
-  const sandboxMode =
-    sp.get("sandbox") === "1" ||
-    sp.get("sandbox") === "true" ||
-    sp.get("trainingTest") === "1";
+  const embedEnv = resolveWidgetEmbedEnv({
+    env: sp.get("env"),
+    sandbox: sp.get("sandbox"),
+    trainingTest: sp.get("trainingTest"),
+  });
+  const previewShareToken = sp.get("token") || sp.get("previewToken") || "";
 
   if (!widgetKey) {
     return (
@@ -48,7 +51,9 @@ function EmbedWidgetPageInner() {
         widgetKey={widgetKey}
         parentHost={parentHost}
         parentPageUrl={parentPageUrl}
-        sandboxMode={sandboxMode}
+        embedEnv={embedEnv}
+        sandboxMode={embedEnv === "dashboard_preview"}
+        previewShareToken={previewShareToken || undefined}
       />
     </main>
   );

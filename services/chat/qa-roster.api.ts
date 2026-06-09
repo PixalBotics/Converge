@@ -85,7 +85,16 @@ export async function listQaRosterInScope(
     .filter((r): r is QaRosterListRow => r !== null);
 }
 
-export type QaRosterUser = { userId: string; user?: { id: string; email?: string; firstName?: string | null; lastName?: string | null } };
+export type QaRosterPoolRef = { id: string; name: string };
+
+export type QaRosterUser = {
+  userId: string;
+  poolId?: string | null;
+  pool?: QaRosterPoolRef | null;
+  user?: { id: string; email?: string; firstName?: string | null; lastName?: string | null };
+};
+
+export type QaInternalRosterEntry = { userId: string; poolId: string };
 
 export type QaRosterResponse = {
   websiteId: string;
@@ -104,7 +113,12 @@ function mapRoster(raw: unknown, websiteId: string): QaRosterResponse {
         const r = row as Record<string, unknown>;
         const userId = String(r.userId ?? "").trim();
         if (!userId) return null;
-        return { userId, user: r.user as QaRosterUser["user"] };
+        return {
+          userId,
+          poolId: r.poolId != null ? String(r.poolId) : null,
+          pool: r.pool as QaRosterUser["pool"],
+          user: r.user as QaRosterUser["user"],
+        };
       })
       .filter((x) => x != null) as QaRosterUser[];
   };
@@ -151,7 +165,11 @@ export async function fetchQaWebsiteRoster(websiteId: string): Promise<QaRosterR
 
 export async function saveQaWebsiteRoster(
   websiteId: string,
-  body: { internalUserIds: string[]; externalUserIds: string[] },
+  body: {
+    internalAssignments?: QaInternalRosterEntry[];
+    internalUserIds?: string[];
+    externalUserIds: string[];
+  },
 ): Promise<QaRosterResponse> {
   const { data } = await apiClient.put<unknown>(
     `/chat/qa/websites/${encodeURIComponent(websiteId)}/roster`,

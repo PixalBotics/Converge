@@ -14,6 +14,7 @@ function uiRecord(draft: WidgetDraft): Record<string, unknown> {
     proactiveSecondaryCtaLabel: draft.proactiveSecondaryCtaLabel,
     proactiveSecondaryCtaHref: draft.proactiveSecondaryCtaHref,
     proactiveSecondaryCtaKind: draft.proactiveSecondaryCtaKind,
+    closedMessagePreviewEnabled: draft.closedMessagePreviewEnabled,
     panelGreetingEnabled: draft.panelGreetingEnabled,
     chatWelcomeEnabled: draft.chatWelcomeEnabled,
   };

@@ -1,16 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import FormatQuoteRounded from "@mui/icons-material/FormatQuoteRounded";
 import Box from "@mui/material/Box";
-import Dialog from "@mui/material/Dialog";
-import DialogActions from "@mui/material/DialogActions";
-import DialogContent from "@mui/material/DialogContent";
-import DialogTitle from "@mui/material/DialogTitle";
 import Rating from "@mui/material/Rating";
-import { useTheme } from "@mui/material/styles";
+import { alpha, useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
-import { Button, InputField, Typography } from "@/components/common";
-import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
+import { FormModal, InputField, Typography } from "@/components/common";
 import type { MessageQaAnnotation, UpsertQaMessageAnnotationBody } from "@/services/chat/qa.types";
 
 interface QaMessageAnnotationDialogProps {
@@ -22,6 +18,16 @@ interface QaMessageAnnotationDialogProps {
   saving?: boolean;
 }
 
+function sectionLabelSx(theme: AppTheme): object {
+  return {
+    fontWeight: 600,
+    fontSize: 13,
+    color: theme.app.text.primary,
+    display: "block",
+    mb: 0.75,
+  };
+}
+
 export function QaMessageAnnotationDialog({
   open,
   messagePreview,
@@ -31,6 +37,7 @@ export function QaMessageAnnotationDialog({
   saving = false,
 }: QaMessageAnnotationDialogProps) {
   const theme = useTheme() as AppTheme;
+  const accent = theme.palette.primary.main;
   const [rating, setRating] = useState<number | null>(null);
   const [tagsText, setTagsText] = useState("");
   const [comment, setComment] = useState("");
@@ -55,69 +62,105 @@ export function QaMessageAnnotationDialog({
     onClose();
   };
 
+  const previewText =
+    messagePreview.length > 400 ? `${messagePreview.slice(0, 400)}…` : messagePreview;
+
   return (
-    <Dialog
+    <FormModal
       open={open}
+      title="Message annotation"
+      description="Rate and comment on this message for the QA review."
       onClose={() => !saving && onClose()}
-      maxWidth="sm"
-      fullWidth
-      PaperProps={{
-        sx: {
-          bgcolor: theme.app.dashboard.cardBg,
-          border: `1px solid ${theme.app.dashboard.cardBorder}`,
-        },
-      }}
+      onSave={() => void handleSave()}
+      primaryButtonLabel={saving ? "Saving…" : "Save annotation"}
+      primaryButtonDisabled={saving}
+      cancelButtonLabel="Cancel"
+      maxWidth={480}
+      fitContent
     >
-      <DialogTitle sx={{ fontWeight: 700 }}>Message annotation</DialogTitle>
-      <DialogContent>
-        <Typography
-          variant="caption"
+      <Box>
+        <Typography sx={sectionLabelSx(theme)}>Message</Typography>
+        <Box
           sx={{
-            display: "block",
-            mb: 2,
-            color: theme.app.dashboard.textMuted,
-            maxHeight: 80,
-            overflow: "auto",
+            display: "flex",
+            alignItems: "flex-start",
+            gap: 1.25,
+            px: 1.5,
+            py: 1.25,
+            borderRadius: 2,
+            bgcolor: alpha(accent, 0.1),
+            border: `1px solid ${alpha(accent, 0.22)}`,
+            maxHeight: 120,
+            overflowY: "auto",
+            overflowX: "hidden",
+            scrollbarWidth: "none",
+            msOverflowStyle: "none",
+            "&::-webkit-scrollbar": { display: "none" },
           }}
         >
-          {messagePreview.slice(0, 400)}
-          {messagePreview.length > 400 ? "…" : ""}
-        </Typography>
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-          <Box>
-            <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted }}>
-              Rating (1–5)
-            </Typography>
-            <Rating value={rating} onChange={(_, v) => setRating(v)} max={5} sx={{ mt: 0.5 }} />
-          </Box>
-          <InputField
-            label="Tags (comma-separated)"
-            value={tagsText}
-            onChange={(e) => setTagsText(e.target.value)}
-            disabled={saving}
+          <FormatQuoteRounded
+            sx={{
+              fontSize: 18,
+              color: alpha(accent, 0.7),
+              flexShrink: 0,
+              mt: 0.2,
+            }}
           />
-          <InputField
-            label="Comment"
-            value={comment}
-            onChange={(e) => setComment(e.target.value)}
-            disabled={saving}
-          />
+          <Typography
+            sx={{
+              fontSize: 14,
+              lineHeight: 1.55,
+              color: theme.app.text.primary,
+              wordBreak: "break-word",
+              flex: 1,
+            }}
+          >
+            {previewText || "—"}
+          </Typography>
         </Box>
-      </DialogContent>
-      <DialogActions sx={{ px: 3, pb: 2 }}>
-        <Button type="button" variant="secondary" disabled={saving} onClick={onClose}>
-          Cancel
-        </Button>
-        <Button
-          type="button"
-          variant="primary"
-          sx={gradientPrimaryButtonSx}
+      </Box>
+
+      <Box>
+        <Typography sx={sectionLabelSx(theme)}>Rating (1–5)</Typography>
+        <Rating
+          value={rating}
+          onChange={(_, v) => setRating(v)}
+          max={5}
+          size="large"
           disabled={saving}
-          onClick={() => void handleSave()}
-        >
-          {saving ? "Saving…" : "Save annotation"}
-        </Button>
-      </DialogActions>
-    </Dialog>
+          sx={{
+            "& .MuiRating-iconEmpty": {
+              color: alpha(accent, 0.3),
+            },
+            "& .MuiRating-iconFilled": {
+              color: accent,
+            },
+            "& .MuiRating-iconHover": {
+              color: alpha(accent, 0.8),
+            },
+          }}
+        />
+      </Box>
+
+      <InputField
+        label="Tags (comma-separated)"
+        value={tagsText}
+        onChange={(e) => setTagsText(e.target.value)}
+        disabled={saving}
+        placeholder="e.g. tone, accuracy, policy"
+        dense
+      />
+
+      <InputField
+        label="Comment"
+        value={comment}
+        onChange={(e) => setComment(e.target.value)}
+        disabled={saving}
+        multiline
+        minRows={3}
+        placeholder="What should the agent improve on this message?"
+        dense
+      />
+    </FormModal>
   );
 }

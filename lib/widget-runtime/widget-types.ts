@@ -59,6 +59,8 @@ export interface WidgetSessionRequest {
   widgetKey: string;
   /** Optional — server may infer from Origin/Referer when omitted. */
   originHost?: string;
+  /** Public draft sandbox — signed token from preview-share-link. */
+  previewShareToken?: string;
 }
 
 export interface WidgetSessionResponse {

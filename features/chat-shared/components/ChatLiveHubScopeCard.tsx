@@ -65,7 +65,6 @@ export function ChatLiveHubScopeCard({
   return (
     <DashboardCard
       sx={mergeSx(websiteAssignmentFilterCard, {
-        mt: { xs: 1.25, md: 1.75 },
         flexShrink: 0,
       })}
     >

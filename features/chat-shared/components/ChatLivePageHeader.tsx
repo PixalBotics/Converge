@@ -7,6 +7,7 @@ import NextLink from "next/link";
 import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import { Typography } from "@/components/common";
+import { mergeSx } from "@/lib/mui/merge-sx";
 import {
   chatLiveHeaderCardSx,
   chatLiveNavLinkSx,
@@ -33,6 +34,7 @@ interface ChatLivePageHeaderProps {
   navPreset?: ChatLiveNavPreset;
   navItems?: ChatLiveNavItem[];
   trailing?: ReactNode;
+  hideBottomBorder?: boolean;
   /** Inbox/monitor view switch (underline tabs, no extra card). */
   viewSwitch?: {
     options: ChatLiveViewOption[];
@@ -58,6 +60,7 @@ export function ChatLivePageHeader({
   navPreset = "triage",
   navItems,
   trailing,
+  hideBottomBorder = false,
   viewSwitch,
 }: ChatLivePageHeaderProps) {
   const theme = useTheme() as AppTheme;
@@ -65,7 +68,12 @@ export function ChatLivePageHeader({
   const stripItems = resolveNavItems(navPreset, navItems);
 
   return (
-    <Box sx={chatLiveHeaderCardSx}>
+    <Box
+      sx={mergeSx(
+        chatLiveHeaderCardSx,
+        hideBottomBorder ? { borderBottom: "none", pb: 0, mb: 0 } : undefined,
+      )}
+    >
       <Box
         sx={{
           display: "flex",

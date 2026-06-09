@@ -8,11 +8,13 @@ import { useQuery } from "@tanstack/react-query";
 import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import { InputField, Typography } from "@/components/common";
+import { hideScrollbarsSx } from "@/lib/ui/hideScrollbars";
 import { listQaDirectoryUsers } from "@/services/chat/qa-directory.api";
 
 export type QaDirectoryUserPickerProps = {
   userType: "Internal" | "External";
-  departmentId: string;
+  departmentId?: string;
+  poolId?: string;
   websiteId: string;
   selectedIds: string[];
   onChangeSelectedIds: (ids: string[]) => void;
@@ -32,6 +34,7 @@ function userLabel(
 export function QaDirectoryUserPicker({
   userType,
   departmentId,
+  poolId,
   websiteId,
   selectedIds,
   onChangeSelectedIds,
@@ -41,18 +44,21 @@ export function QaDirectoryUserPicker({
 }: QaDirectoryUserPickerProps) {
   const theme = useTheme() as AppTheme;
   const [search, setSearch] = useState("");
-  const deptId = departmentId.trim();
+  const deptId = departmentId?.trim() ?? "";
+  const pool = poolId?.trim() ?? "";
   const siteId = websiteId.trim();
+  const scopeId = userType === "Internal" ? pool : deptId;
 
   const usersQuery = useQuery({
-    queryKey: ["qa-directory-users", userType, deptId, siteId] as const,
+    queryKey: ["qa-directory-users", userType, pool, deptId, siteId] as const,
     queryFn: () =>
       listQaDirectoryUsers({
         userType,
-        departmentId: deptId,
+        ...(pool ? { poolId: pool } : {}),
+        ...(deptId ? { departmentId: deptId } : {}),
         websiteId: siteId || undefined,
       }),
-    enabled: Boolean(deptId),
+    enabled: Boolean(scopeId),
     staleTime: 30_000,
   });
 
@@ -98,10 +104,10 @@ export function QaDirectoryUserPicker({
     onChangeSelectedIds(selectedIds.filter((id) => !visible.has(id)));
   };
 
-  if (!deptId) {
+  if (!scopeId) {
     return (
       <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, py: 1 }}>
-        Choose a department to list users.
+        {userType === "Internal" ? "Choose a pool to list users." : "Choose a department to list users."}
       </Typography>
     );
   }
@@ -117,7 +123,7 @@ export function QaDirectoryUserPicker({
   if (usersQuery.isError) {
     return (
       <Typography variant="body2" color="error" sx={{ py: 1 }}>
-        Could not load users for this department.
+        Could not load users for this {userType === "Internal" ? "pool" : "department"}.
       </Typography>
     );
   }
@@ -181,7 +187,7 @@ export function QaDirectoryUserPicker({
       {filtered.length === 0 ? (
         <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted }}>
           {emptyHint ??
-            "No eligible users in this department (live chat agents are excluded)."}
+            `No eligible users in this ${userType === "Internal" ? "pool" : "department"} (live chat agents are excluded).`}
         </Typography>
       ) : (
         <Box
@@ -191,6 +197,7 @@ export function QaDirectoryUserPicker({
             border: `1px solid ${theme.app.dashboard.cardBorder}`,
             borderRadius: 1.5,
             p: 1,
+            ...hideScrollbarsSx,
           }}
         >
           {filtered.map((u) => (

@@ -15,6 +15,7 @@ import {
   chatOpsInboxTabsRow,
   chatOpsInboxToolbarSx,
   chatOpsPaneTitleSx,
+  chatOpsQueueListMaxHeightPx,
 } from "../styles/chat-operations.styles";
 import { ConnectionStatusBar } from "./ConnectionStatusBar";
 import { getConversationPreview } from "../utils/conversation-preview";
@@ -83,7 +84,7 @@ export function ChatQueueSidebar({
         : "No messages yet";
 
   return (
-    <PanelColumn sx={{ height: "100%" }}>
+    <PanelColumn sx={{ flex: 1, minHeight: 0, maxHeight: "100%" }}>
       <Box sx={chatOpsInboxToolbarSx}>
         <Box>
           <Typography sx={chatOpsPaneTitleSx}>Conversations</Typography>
@@ -139,7 +140,7 @@ export function ChatQueueSidebar({
         />
       </Box>
 
-      <ScrollRegion sx={{ flex: 1 }}>
+      <ScrollRegion sx={{ flex: 1, minHeight: 0, maxHeight: chatOpsQueueListMaxHeightPx }}>
         {filteredConversations.length === 0 ? (
           <EmptyState sx={{ py: 6 }}>
             <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted }}>
@@ -171,6 +172,12 @@ export function ChatQueueSidebar({
                 : undefined,
             );
             const preview = getConversationPreview(conversation, previewFallback);
+            const transferLabel =
+              queueTab === "active" &&
+              conversation.lastTransferFrom &&
+              typeof conversation.lastTransferFrom.label === "string"
+                ? conversation.lastTransferFrom.label.trim()
+                : "";
             const liveTyping = queueTab !== "closed"
               ? sidebarTypingMap.get(conversation.id.toLowerCase())
               : undefined;
@@ -257,6 +264,23 @@ export function ChatQueueSidebar({
                       }}
                     >
                       {subtitle}
+                    </Typography>
+                  ) : null}
+                  {transferLabel ? (
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        display: "block",
+                        fontSize: 10,
+                        fontWeight: 600,
+                        color: theme.app.dashboard.accentOrange,
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                        mb: 0.25,
+                      }}
+                    >
+                      From {transferLabel}
                     </Typography>
                   ) : null}
                   <Typography

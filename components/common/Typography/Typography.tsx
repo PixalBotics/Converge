@@ -8,7 +8,6 @@ import type { TypographyProps } from "./Typography.types";
 import { typographyVariants, type TypographyVariantKey } from "./typography.styles";
 
 const customVariantKeys: TypographyVariantKey[] = ["medium", "mediumLarge", "small", "boldLarge", "regularLarge", "medium16"];
-const titleVariantKeys: TypographyVariantKey[] = ["mediumLarge", "boldLarge", "regularLarge"];
 
 export function Typography(props: TypographyProps) {
   const theme = useTheme() as AppTheme;
@@ -17,10 +16,6 @@ export function Typography(props: TypographyProps) {
   const variantSx = isCustomVariant
     ? typographyVariants[variant as TypographyVariantKey]
     : undefined;
-  const titleSpacingSx =
-    isCustomVariant && titleVariantKeys.includes(variant as TypographyVariantKey)
-      ? { pb: "5px" }
-      : undefined;
   const muiVariant: MuiTypographyComponentProps["variant"] | undefined =
     isCustomVariant ? undefined : (variant as MuiTypographyComponentProps["variant"]);
   const sxArray = sx === undefined || sx === null ? [] : Array.isArray(sx) ? sx : [sx];
@@ -31,7 +26,6 @@ export function Typography(props: TypographyProps) {
         variantSx ?? false,
         { color: theme.app.text.primary },
         ...sxArray,
-        titleSpacingSx ?? false,
       ]}
       {...rest}
     />

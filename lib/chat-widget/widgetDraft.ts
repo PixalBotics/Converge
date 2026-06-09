@@ -1,6 +1,7 @@
 "use client";
 
 import type { WidgetAiType } from "./widget-ai-type";
+import type { WidgetLauncherStyleId } from "./launcher-style";
 import { normalizeWidgetAiType } from "./widget-ai-type";
 import {
   normalizeWidgetInquiryOptions,
@@ -15,13 +16,16 @@ import { DEFAULT_TALK_TO_AGENT_BUTTON_LABEL } from "./talk-to-agent.constants";
 
 export type WidgetKind = "chat" | "text";
 
-/** Phosphor-style chat icons (`react-icons/pi` duotone), see https://phosphoricons.com/?q=chat */
-export type LauncherIconPresetId =
-  | ""
-  | "phosphor-chat-circle"
-  | "phosphor-chats-circle"
-  | "phosphor-chat-dots"
-  | "phosphor-chat-teardrop";
+import {
+  normalizeLauncherIconPreset,
+  type LauncherIconPresetId,
+} from "./launcher-icon-presets";
+
+export type {
+  LauncherIconPresetId,
+  LauncherIconPresetIdNonEmpty,
+} from "./launcher-icon-presets";
+export { normalizeLauncherIconPreset };
 
 export type WidgetInstallChatMode = "AI_ONLY" | "AGENT_ONLY" | "HYBRID";
 
@@ -66,7 +70,23 @@ export interface WidgetDraft {
   iconDataUrl: string;
   /** When set and `iconDataUrl` is empty, FAB uses preset Phosphor-style icon */
   launcherIconPreset: LauncherIconPresetId;
+  /** FAB visual preset — solid, gradient, glass, glow. */
+  launcherStyle?: WidgetLauncherStyleId;
   headerTitleAlign: "Center" | "Left";
+  /** Header bar logo (data URL until upload). */
+  headerLogoDataUrl?: string;
+  /** Chat panel shell style — independent of launcher FAB style. */
+  panelSurfaceStyle?: WidgetLauncherStyleId;
+  /** Message bubble surface style (solid, gradient, glass, glow). */
+  bubbleSurfaceStyle?: WidgetLauncherStyleId;
+  /** Agent / assistant avatar beside incoming bubbles. */
+  agentAvatarEnabled?: boolean;
+  agentAvatarDataUrl?: string;
+  agentAvatarPreset?: string;
+  /** Visitor avatar beside outgoing bubbles. */
+  visitorAvatarEnabled?: boolean;
+  visitorAvatarDataUrl?: string;
+  visitorAvatarPreset?: string;
   headerTitle: string;
   textColor: string;
   greetingMessage: string;
@@ -112,6 +132,8 @@ export interface WidgetDraft {
   proactiveSecondaryCtaLabel?: string;
   proactiveSecondaryCtaHref?: string;
   proactiveSecondaryCtaKind?: "whatsapp" | "link" | "";
+  /** When true, show agent reply snippet above launcher while widget is closed. */
+  closedMessagePreviewEnabled?: boolean;
   /** Subtle panel / teaser transitions on embed (default on). */
   motionEnabled?: boolean;
   /** Step 2 PATCH `config.ui` */
@@ -215,14 +237,24 @@ export const defaultWidgetDraft: WidgetDraft = {
   iconColor: "#FFFFFF",
   iconDataUrl: "",
   launcherIconPreset: "phosphor-chat-circle",
+  launcherStyle: "solid",
   headerTitleAlign: "Center",
-  headerTitle: "AI Sales Assistant",
+  headerLogoDataUrl: "",
+  panelSurfaceStyle: "solid",
+  bubbleSurfaceStyle: "solid",
+  agentAvatarEnabled: true,
+  agentAvatarDataUrl: "",
+  agentAvatarPreset: "phosphor-user-circle",
+  visitorAvatarEnabled: true,
+  visitorAvatarDataUrl: "",
+  visitorAvatarPreset: "phosphor-user-circle",
+  headerTitle: "",
   textColor: "#FFFFFF",
-  greetingMessage: "Welcome to Florida Luxurious. Tell me your budget, location, and property type preference.",
-  sendPlaceholder: "Ask about location, budget, or options...",
+  greetingMessage: "Hi there — tap Continue when you are ready to chat.",
+  sendPlaceholder: "Type your message…",
   bannerOn: true,
-  bannerTitle: "Special Offer",
-  bannerDescription: "Get 20% off all premium plans today.",
+  bannerTitle: "",
+  bannerDescription: "",
   bannerDataUrl: "",
   bannerMediaType: "image",
   boxWidth: 350,
@@ -255,6 +287,7 @@ export const defaultWidgetDraft: WidgetDraft = {
   proactiveSecondaryCtaLabel: "Contact us on WhatsApp",
   proactiveSecondaryCtaHref: "https://wa.me/",
   proactiveSecondaryCtaKind: "whatsapp",
+  closedMessagePreviewEnabled: true,
   motionEnabled: true,
   firstMessage: "Hi! How can we help today?",
   messagePlaceholder: "Write here…",
@@ -310,21 +343,6 @@ function canUseStorage() {
   return typeof window !== "undefined" && typeof window.localStorage !== "undefined";
 }
 
-const LAUNCHER_PRESET_IDS = new Set<string>([
-  "",
-  "phosphor-chat-circle",
-  "phosphor-chats-circle",
-  "phosphor-chat-dots",
-  "phosphor-chat-teardrop",
-]);
-
-export function normalizeLauncherIconPreset(value: unknown): LauncherIconPresetId {
-  if (value === "") return "";
-  if (typeof value === "string" && LAUNCHER_PRESET_IDS.has(value)) {
-    return value as LauncherIconPresetId;
-  }
-  return defaultWidgetDraft.launcherIconPreset;
-}
 
 function clampLauncherInsetPx(value: unknown, fallback: number): number {
   const n = typeof value === "number" ? value : typeof value === "string" ? Number.parseInt(value, 10) : Number.NaN;

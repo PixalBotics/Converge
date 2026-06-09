@@ -17,6 +17,7 @@ import { useChatApiGates } from "@/lib/permissions";
 import { publishAppToast } from "@/lib/notify";
 import { extractApiErrorMessageForToast } from "@/lib/notify/extract-api-message";
 import { ClosePolicyListTab } from "./ClosePolicyListTab";
+import { ChatSettingsSubnav } from "./ChatSettingsSubnav";
 
 export function ChatSettingsOperationsWorkspace() {
   const theme = useTheme() as AppTheme;
@@ -52,9 +53,11 @@ export function ChatSettingsOperationsWorkspace() {
     <ChatLivePageShell>
       <ChatLivePageHeader
         title="Chat settings"
-        subtitle="Manage per-website close policies — auto-close timers, visitor nudges, agent fallbacks, and supervisor rules."
+        subtitle="Close policies per website and global QA policy for all sites in your org scope."
         navPreset="configure"
       />
+
+      <ChatSettingsSubnav />
 
       <DashboardCard sx={{ flexShrink: 0, p: { xs: 1.5, md: 2 }, height: "auto", minHeight: 0 }}>
         <ChatScopeFiltersPanel

@@ -26,13 +26,21 @@ interface QaPolicyTabProps {
   settings: WebsiteChatSettingsRow;
   canEdit: boolean;
   saving: boolean;
+  /** When true, copy refers to global scope (chat settings QA policy tab). */
+  globalContext?: boolean;
   onSave: (body: {
     defaultDepartmentId: string | null;
     operationsJson: ChatOperationsJson;
   }) => void;
 }
 
-export function QaPolicyTab({ settings, canEdit, saving, onSave }: QaPolicyTabProps) {
+export function QaPolicyTab({
+  settings,
+  canEdit,
+  saving,
+  globalContext = false,
+  onSave,
+}: QaPolicyTabProps) {
   const theme = useTheme() as AppTheme;
   const [ops, setOps] = useState<ChatOperationsJson>(() =>
     mergeChatOperationsJson(
@@ -62,8 +70,9 @@ export function QaPolicyTab({ settings, canEdit, saving, onSave }: QaPolicyTabPr
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 2, maxWidth: 640 }}>
       <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted }}>
-        These toggles control auto-assign rules only. Assign QA reviewers on the{" "}
-        <strong>QA Team</strong> tab (roster API).
+        {globalContext
+          ? "These toggles apply to every website in your selected org scope. Assign reviewers per site on QA roster."
+          : "These toggles control auto-assign rules. Assign QA reviewers on the QA roster page."}
       </Typography>
       <FormControlLabel
         disabled={!canEdit}
@@ -95,6 +104,17 @@ export function QaPolicyTab({ settings, canEdit, saving, onSave }: QaPolicyTabPr
         }
         label="Auto-assign on approved takeover"
       />
+      <FormControl fullWidth size="small" disabled={!canEdit || !readBool(qa, "enabled")} sx={{ maxWidth: 420 }}>
+        <InputLabel>Internal assign scope</InputLabel>
+        <Select
+          label="Internal assign scope"
+          value={String(qa.internalAssignScope ?? "website")}
+          onChange={(e) => patchQa({ internalAssignScope: e.target.value })}
+        >
+          <MenuItem value="website">Any site QA reviewer (all internal pools)</MenuItem>
+          <MenuItem value="pool">Only reviewers for the chat pool</MenuItem>
+        </Select>
+      </FormControl>
       <FormControl fullWidth size="small" disabled={!canEdit || !readBool(qa, "enabled")} sx={{ maxWidth: 320 }}>
         <InputLabel>Assign mode</InputLabel>
         <Select
@@ -103,6 +123,7 @@ export function QaPolicyTab({ settings, canEdit, saving, onSave }: QaPolicyTabPr
           onChange={(e) => patchQa({ assignMode: e.target.value })}
         >
           <MenuItem value="least_pending">Least pending</MenuItem>
+          <MenuItem value="round_robin">Round robin</MenuItem>
         </Select>
       </FormControl>
       <FormControlLabel
@@ -128,7 +149,7 @@ export function QaPolicyTab({ settings, canEdit, saving, onSave }: QaPolicyTabPr
             })
           }
         >
-          {saving ? "Saving…" : "Save QA policy"}
+          {saving ? "Saving…" : globalContext ? "Save for all websites in scope" : "Save QA policy"}
         </Button>
       ) : null}
     </Box>

@@ -7,6 +7,15 @@ export type QaDirectoryDepartment = {
   departmentType: string;
 };
 
+export type QaDirectoryPool = {
+  id: string;
+  label: string;
+  poolName: string;
+  departmentId: string;
+  departmentName: string;
+  memberCount: number;
+};
+
 export type QaDirectoryUser = {
   id: string;
   email: string;
@@ -52,9 +61,39 @@ export async function listQaDirectoryDepartments(params: {
   });
 }
 
+export async function listQaDirectoryPools(params: {
+  resellerId?: string;
+  parentCompanyId?: string;
+}): Promise<QaDirectoryPool[]> {
+  const { data } = await apiClient.get<unknown>("/chat/qa/directory/pools", {
+    params: {
+      resellerId: params.resellerId?.trim() || undefined,
+      parentCompanyId: params.parentCompanyId?.trim() || undefined,
+    },
+  });
+  return extractItems(data, (raw) => {
+    if (!raw || typeof raw !== "object") return null;
+    const r = raw as Record<string, unknown>;
+    const id = String(r.id ?? "").trim();
+    if (!id) return null;
+    return {
+      id,
+      label: String(r.label ?? r.name ?? id),
+      poolName: String(r.poolName ?? r.name ?? ""),
+      departmentId: String(r.departmentId ?? ""),
+      departmentName: String(r.departmentName ?? ""),
+      memberCount:
+        typeof r.memberCount === "number" && Number.isFinite(r.memberCount)
+          ? r.memberCount
+          : 0,
+    };
+  });
+}
+
 export async function listQaDirectoryUsers(params: {
   userType: "Internal" | "External";
-  departmentId: string;
+  departmentId?: string;
+  poolId?: string;
   websiteId?: string;
   search?: string;
 }): Promise<QaDirectoryUser[]> {
@@ -62,7 +101,8 @@ export async function listQaDirectoryUsers(params: {
     params: {
       all: true,
       userType: params.userType,
-      departmentId: params.departmentId.trim(),
+      departmentId: params.departmentId?.trim() || undefined,
+      poolId: params.poolId?.trim() || undefined,
       websiteId: params.websiteId?.trim() || undefined,
       search: params.search?.trim() || undefined,
     },

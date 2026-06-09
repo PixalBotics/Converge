@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildInquiryBehaviorPatchFields,
+  configRecordFromEnvelope,
   hydrateExperienceInquiryFromBehavior,
   inquiryOptionsFromExperience,
   parseWidgetExperienceV1,
@@ -15,6 +16,69 @@ const billingOption = {
   internalPoolId: null,
   externalPoolId: null,
 };
+
+describe("configRecordFromEnvelope", () => {
+  it("maps header logo and launcher style from experience into ui and designJson", () => {
+    const experience = {
+      schemaVersion: 1,
+      mode: "HYBRID",
+      content: {
+        headerTitle: "Support",
+        greeting: "Hi",
+        chatWelcome: "Hello",
+        offline: "",
+        sendPlaceholder: "Type…",
+        buttonLabel: "Chat",
+        proactiveTeaserEnabled: true,
+        proactiveTeaser: "Need help?",
+        proactiveTeaserAvatarEnabled: false,
+        panelGreetingEnabled: true,
+        chatWelcomeEnabled: true,
+        proactiveTeaserAvatarUrl: "",
+        proactiveSecondaryCtaEnabled: false,
+        proactiveSecondaryCtaLabel: "",
+        proactiveSecondaryCtaHref: "",
+        proactiveSecondaryCtaKind: "",
+        closedMessagePreviewEnabled: true,
+      },
+      design: {
+        launcher: {
+          style: "glass",
+          position: "right",
+          shape: "circle",
+          insetBottomPx: 32,
+          insetSidePx: 24,
+        },
+        panel: {
+          headerLogoUrl: "https://cdn.example/logo.png",
+          headerAlign: "center",
+          backgroundColor: "#fff",
+          width: 360,
+          height: 480,
+        },
+        banner: { enabled: false, title: "", description: "" },
+        videoWelcome: { enabled: false, url: "" },
+        chatColors: {},
+      },
+      inquiry: { enabled: false, required: false, skipLabel: "General", topics: [], fallback: null },
+      behavior: {},
+      form: {},
+      session: {},
+    };
+    const cfg = configRecordFromEnvelope({ experience: experience as never });
+    const ui = cfg.ui as Record<string, unknown>;
+    const dj = (cfg.theme as Record<string, unknown>).designJson as Record<string, unknown>;
+    const chat = dj.chat as Record<string, unknown>;
+    const chatBox = chat.chatBox as Record<string, unknown>;
+    const djLauncher = chat.launcher as Record<string, unknown>;
+    expect(ui.headerLogoUrl).toBe("https://cdn.example/logo.png");
+    expect(ui.headerTitleAlign).toBe("center");
+    expect(ui.launcherStyle).toBe("glass");
+    expect(chatBox.headerLogoUrl).toBe("https://cdn.example/logo.png");
+    expect(chatBox.headerAlign).toBe("center");
+    expect(djLauncher.style).toBe("glass");
+  });
+});
 
 describe("widget-experience inquiry", () => {
   it("builds behavior inquiry fields for widget PATCH", () => {

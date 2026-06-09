@@ -349,6 +349,20 @@ export class ChatSocketClient {
     return this.connection.emitWithAck("agent_message", bodyFromAgentPayload(payload), timeoutMs);
   }
 
+  updateVisitorProfileWithAck(
+    payload: {
+      conversationId: string;
+      field: "name" | "email" | "phone";
+      value: string;
+      sourceMessageId?: string;
+      sourceText?: string;
+      confirmOverwrite?: boolean;
+    },
+    timeoutMs?: number,
+  ): Promise<unknown> {
+    return this.connection.emitWithAck("update_visitor_profile", payload, timeoutMs);
+  }
+
   sendAgentCloseChatWithAck(
     payload: { conversationId: string },
     timeoutMs?: number,
@@ -361,6 +375,13 @@ export class ChatSocketClient {
     timeoutMs?: number,
   ): Promise<unknown> {
     return this.connection.emitWithAck("agent_pick_waiting", payload, timeoutMs);
+  }
+
+  transferToPoolHeadWithAck(
+    payload: { conversationId: string },
+    timeoutMs?: number,
+  ): Promise<unknown> {
+    return this.connection.emitWithAck("transfer_to_pool_head", payload, timeoutMs);
   }
 
   sendSupervisorWhisperWithAck(
@@ -398,6 +419,26 @@ export class ChatSocketClient {
     return this.connection.emitWithAck("supervisor_message", payload, timeoutMs);
   }
 
+  sendFetchQaQueueWithAck(
+    payload: {
+      status?: string;
+      websiteId?: string;
+      departmentId?: string;
+      agentId?: string;
+      hasTakeover?: boolean;
+    } = {},
+    timeoutMs?: number,
+  ): Promise<unknown> {
+    return this.connection.emitWithAck("fetch_qa_queue", payload, timeoutMs);
+  }
+
+  sendFetchQaReviewBundleWithAck(
+    payload: { conversationId: string },
+    timeoutMs?: number,
+  ): Promise<unknown> {
+    return this.connection.emitWithAck("fetch_qa_review_bundle", payload, timeoutMs);
+  }
+
   sendQaAssignReviewWithAck(
     payload: { conversationId: string; qaUserId?: string },
     timeoutMs?: number,
@@ -410,6 +451,13 @@ export class ChatSocketClient {
     timeoutMs?: number,
   ): Promise<unknown> {
     return this.connection.emitWithAck("qa_upsert_session_review", payload, timeoutMs);
+  }
+
+  sendQaUpsertMessageAnnotationWithAck(
+    payload: { messageId: string; body: Record<string, unknown> },
+    timeoutMs?: number,
+  ): Promise<unknown> {
+    return this.connection.emitWithAck("qa_upsert_message_annotation", payload, timeoutMs);
   }
 
   emitTyping(payload: SocketTypingEmitPayload): void {

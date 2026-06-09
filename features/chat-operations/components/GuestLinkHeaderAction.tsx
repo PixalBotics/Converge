@@ -15,16 +15,22 @@ import { useGuestLinkActions } from "../hooks/useGuestLinkActions";
 interface GuestLinkHeaderActionProps {
   conversationId: string | null;
   hasOperational: (p: string) => boolean;
+  serviceChannel?: string | null;
   disabled?: boolean;
 }
 
 export function GuestLinkHeaderAction({
   conversationId,
   hasOperational,
+  serviceChannel = null,
   disabled = false,
 }: GuestLinkHeaderActionProps) {
   const theme = useTheme() as AppTheme;
-  const guest = useGuestLinkActions(conversationId, hasOperational);
+  const guest = useGuestLinkActions(
+    conversationId,
+    hasOperational,
+    serviceChannel,
+  );
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
 
   if (!guest.enabled) return null;

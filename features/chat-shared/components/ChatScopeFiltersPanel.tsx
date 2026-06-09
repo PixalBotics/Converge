@@ -25,6 +25,8 @@ interface ChatScopeFiltersPanelProps {
   hint?: string;
   /** Slim toolbar layout for settings pages (no caption hint). */
   compact?: boolean;
+  /** Hide website picker (e.g. global QA policy applies to all sites in org scope). */
+  hideWebsiteFilter?: boolean;
 }
 
 export function ChatScopeFiltersPanel({
@@ -45,6 +47,7 @@ export function ChatScopeFiltersPanel({
   statusOptions = [{ value: "", label: "All statuses" }],
   hint,
   compact = false,
+  hideWebsiteFilter = false,
 }: ChatScopeFiltersPanelProps) {
   return (
     <Box>
@@ -89,13 +92,15 @@ export function ChatScopeFiltersPanel({
           menuMaxRows={7}
           disabled={!filters.parentCompanyId.trim()}
         />
-        <SelectField
-          label="Website"
-          value={filters.websiteId}
-          onChange={(v) => onPatch({ websiteId: v })}
-          options={websiteOptions}
-          menuMaxRows={8}
-        />
+        {hideWebsiteFilter ? null : (
+          <SelectField
+            label="Website"
+            value={filters.websiteId}
+            onChange={(v) => onPatch({ websiteId: v })}
+            options={websiteOptions}
+            menuMaxRows={8}
+          />
+        )}
         {showDepartment ? (
           <SelectField
             label="Department"

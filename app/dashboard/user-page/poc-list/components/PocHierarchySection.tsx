@@ -40,6 +40,7 @@ import {
 } from "../utils/group-poc-directory";
 
 type ViewMode = "grouped" | "table";
+type ExpandCollapseAction = "expand-all" | "collapse-all" | "";
 
 const POC_LIST_PAGE_SIZE = 20;
 
@@ -52,6 +53,7 @@ function CountBadge({
   theme: AppTheme;
   accent?: boolean;
 }) {
+  const accentColor = theme.app.dashboard.accentBlue;
   return (
     <Box
       component="span"
@@ -70,12 +72,12 @@ function CountBadge({
         letterSpacing: "0.01em",
         whiteSpace: "nowrap",
         bgcolor: accent
-          ? alpha(theme.palette.primary.main, 0.2)
+          ? alpha(accentColor, 0.14)
           : alpha(theme.app.dashboard.white95, 0.06),
-        color: accent ? theme.palette.primary.light : theme.app.dashboard.textMuted,
+        color: accent ? accentColor : theme.app.dashboard.textMuted,
         border: `1px solid ${alpha(
-          accent ? theme.palette.primary.main : theme.app.dashboard.cardBorder,
-          accent ? 0.38 : 0.7,
+          accent ? accentColor : theme.app.dashboard.cardBorder,
+          accent ? 0.28 : 0.5,
         )}`,
       }}
     >
@@ -98,11 +100,11 @@ function pocViewToggleGroupSx(theme: AppTheme) {
       borderColor: theme.app.dashboard.cardBorder,
       "&.Mui-selected": {
         color: theme.app.text.primary,
-        bgcolor: alpha(theme.palette.primary.main, 0.18),
+        bgcolor: alpha(theme.app.dashboard.accentBlue, 0.18),
       },
       "&:hover": {
         color: theme.app.text.primary,
-        bgcolor: alpha(theme.palette.primary.main, 0.1),
+        bgcolor: alpha(theme.app.dashboard.accentBlue, 0.1),
       },
     },
   };
@@ -110,12 +112,12 @@ function pocViewToggleGroupSx(theme: AppTheme) {
 
 function accordionShellSx(theme: AppTheme, nested = false) {
   return {
-    bgcolor: nested ? alpha(theme.app.dashboard.white95, 0.03) : alpha(theme.app.dashboard.white95, 0.04),
-    border: `1px solid ${alpha(theme.app.dashboard.cardBorder, 0.9)}`,
-    borderRadius: nested ? "12px !important" : "16px !important",
+    bgcolor: theme.app.dashboard.pillBg,
+    border: `1px solid ${alpha(theme.app.dashboard.cardBorder, nested ? 0.4 : 0.55)}`,
+    borderRadius: nested ? "12px !important" : "14px !important",
     overflow: "hidden",
     "&:before": { display: "none" },
-    boxShadow: `inset 0 1px 0 ${alpha(theme.app.dashboard.white95, 0.05)}`,
+    boxShadow: "none",
     "&.Mui-expanded": { margin: 0 },
   };
 }
@@ -310,8 +312,8 @@ function ResellerAccordion({
             flexShrink: 0,
             display: "grid",
             placeItems: "center",
-            bgcolor: alpha(theme.palette.primary.main, 0.14),
-            color: theme.palette.primary.light,
+            bgcolor: alpha(theme.app.dashboard.accentBlue, 0.14),
+            color: theme.app.dashboard.accentBlue,
           }}
         >
           <StorefrontOutlinedIcon sx={{ fontSize: 24 }} />
@@ -422,6 +424,7 @@ export function PocHierarchySection({
   errorMessage,
 }: Props) {
   const [viewMode, setViewMode] = useState<ViewMode>("grouped");
+  const [expandCollapseAction, setExpandCollapseAction] = useState<ExpandCollapseAction>("");
   const [page, setPage] = useState(1);
   const tree = useMemo(() => buildPocDirectoryTree(rows), [rows]);
 
@@ -436,6 +439,7 @@ export function PocHierarchySection({
       setExpandedResellers(new Set(resellerIds));
       setExpandedParents(new Set(parentIds));
       setExpandedChildren(new Set(childIds));
+      setExpandCollapseAction("");
       return;
     }
     const first = tree.resellers[0];
@@ -443,12 +447,14 @@ export function PocHierarchySection({
       setExpandedResellers(new Set());
       setExpandedParents(new Set());
       setExpandedChildren(new Set());
+      setExpandCollapseAction("");
       return;
     }
     setExpandedResellers(new Set([first.id]));
     const firstParent = first.parents[0];
     setExpandedParents(firstParent ? new Set([`${first.id}::${firstParent.id}`]) : new Set());
     setExpandedChildren(new Set());
+    setExpandCollapseAction("");
   }, [tree, search]);
 
   const showEmpty = !isLoading && !errorMessage && allRowsCount === 0;
@@ -483,12 +489,14 @@ export function PocHierarchySection({
     setExpandedResellers(resellers);
     setExpandedParents(parents);
     setExpandedChildren(children);
+    setExpandCollapseAction("expand-all");
   };
 
   const collapseAll = () => {
     setExpandedResellers(new Set());
     setExpandedParents(new Set());
     setExpandedChildren(new Set());
+    setExpandCollapseAction("collapse-all");
   };
 
   return (
@@ -544,18 +552,18 @@ export function PocHierarchySection({
         </ToggleButtonGroup>
         {viewMode === "grouped" && tree.resellers.length > 0 ? (
           <ToggleButtonGroup
-            exclusive={false}
-            value={[]}
-            onChange={() => undefined}
+            exclusive
             size="small"
+            value={expandCollapseAction}
+            onChange={(_, v: ExpandCollapseAction | null) => {
+              if (!v) return;
+              if (v === "expand-all") expandAll();
+              else collapseAll();
+            }}
             sx={pocViewToggleGroupSx(theme)}
           >
-            <ToggleButton value="expand-all" onClick={expandAll}>
-              Expand all
-            </ToggleButton>
-            <ToggleButton value="collapse-all" onClick={collapseAll}>
-              Collapse all
-            </ToggleButton>
+            <ToggleButton value="expand-all">Expand all</ToggleButton>
+            <ToggleButton value="collapse-all">Collapse all</ToggleButton>
           </ToggleButtonGroup>
         ) : null}
       </Box>

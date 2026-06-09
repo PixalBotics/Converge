@@ -100,6 +100,7 @@ export default function DashboardSidebar({ open = false, onClose }: { open?: boo
     isDemoUser,
     isPlatformAdmin,
     isInternalUser: user?.userType === "Internal",
+    isPoolHead: user?.isPoolHead === true,
   });
   const footerItems = getVisibleDashboardNavItems({
     section: "footer",
@@ -109,6 +110,7 @@ export default function DashboardSidebar({ open = false, onClose }: { open?: boo
     isDemoUser,
     isPlatformAdmin,
     isInternalUser: user?.userType === "Internal",
+    isPoolHead: user?.isPoolHead === true,
   });
 
   useEffect(() => {

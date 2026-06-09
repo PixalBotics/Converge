@@ -19,9 +19,6 @@ import SmartphoneOutlined from "@mui/icons-material/SmartphoneOutlined";
 import SupportAgentOutlined from "@mui/icons-material/SupportAgentOutlined";
 import TagOutlined from "@mui/icons-material/TagOutlined";
 import TimerOutlined from "@mui/icons-material/TimerOutlined";
-import Accordion from "@mui/material/Accordion";
-import AccordionDetails from "@mui/material/AccordionDetails";
-import AccordionSummary from "@mui/material/AccordionSummary";
 import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
 import { alpha, useTheme } from "@mui/material/styles";
@@ -78,16 +75,73 @@ interface VisitorInfoPanelProps {
 }
 
 const iconSx = { fontSize: 18 };
+const PROFILE_SECTION_BODY_MAX_HEIGHT = 280;
 
-function accordionSx(theme: AppTheme): object {
-  const d = theme.app.dashboard;
+function profileSectionBodySx(extra?: object): object {
   return {
-    background: "transparent",
-    boxShadow: "none",
-    "&:before": { display: "none" },
-    borderBottom: `1px solid ${alpha(d.cardBorder, 0.35)}`,
-    "&.Mui-expanded": { margin: 0 },
+    maxHeight: PROFILE_SECTION_BODY_MAX_HEIGHT,
+    overflowY: "auto",
+    overflowX: "hidden",
+    scrollbarWidth: "none",
+    msOverflowStyle: "none",
+    "&::-webkit-scrollbar": { display: "none" },
+    ...extra,
   };
+}
+
+function VisitorProfileSection({
+  sectionId,
+  expanded,
+  onToggle,
+  icon,
+  label,
+  children,
+  bodySx,
+}: {
+  sectionId: string;
+  expanded: string | false;
+  onToggle: (key: string) => void;
+  icon: ReactNode;
+  label: string;
+  children: ReactNode;
+  bodySx?: object;
+}) {
+  const theme = useTheme() as AppTheme;
+  const open = expanded === sectionId;
+
+  return (
+    <Box sx={{ borderBottom: `1px solid ${alpha(theme.app.dashboard.cardBorder, 0.35)}` }}>
+      <Box
+        component="button"
+        type="button"
+        onClick={() => onToggle(sectionId)}
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          width: "100%",
+          px: 2,
+          py: 1.25,
+          border: "none",
+          bgcolor: "transparent",
+          cursor: "pointer",
+          font: "inherit",
+          color: "inherit",
+          textAlign: "left",
+        }}
+      >
+        <AccordionSectionTitle icon={icon} label={label} />
+        <ExpandMore
+          sx={{
+            color: theme.app.dashboard.iconMuted,
+            transform: open ? "rotate(180deg)" : "rotate(0deg)",
+            transition: "transform 0.15s ease",
+          }}
+        />
+      </Box>
+      {open ? <Box sx={profileSectionBodySx(bodySx)}>{children}</Box> : null}
+    </Box>
+  );
 }
 
 function AccordionSectionTitle({
@@ -219,11 +273,13 @@ export function VisitorInfoPanel({
         ? [{ url: parsed.currentPageUrl, at: undefined }]
         : [];
 
-  const toggle = (key: string) => (_: unknown, isExp: boolean) =>
-    setExpanded(isExp ? key : false);
+  const toggleSection = (key: string) =>
+    setExpanded((prev) => (prev === key ? false : key));
 
   return (
-    <PanelColumn sx={{ height: "100%" }}>
+    <PanelColumn
+      sx={{ flex: 1, minHeight: 0, maxHeight: "100%", height: "100%", overflow: "hidden" }}
+    >
       {!conversationId ? (
         <EmptyState sx={{ flex: 1, py: 8 }}>
           <PersonOutline sx={{ fontSize: 36, opacity: 0.3, color: theme.palette.primary.main }} />
@@ -233,11 +289,12 @@ export function VisitorInfoPanel({
         </EmptyState>
       ) : (
         <>
-          <PanelHeader sx={{ py: 1.25, px: 2 }}>
+          <PanelHeader sx={{ py: 1.25, px: 2, flexShrink: 0 }}>
             <Typography sx={chatOpsPaneTitleSx}>Visitor profile</Typography>
           </PanelHeader>
 
-          <ProfileAccordion sx={{ px: 0 }}>
+          <Box sx={{ flex: 1, minHeight: 0, overflow: "hidden" }}>
+          <ProfileAccordion sx={{ px: 0, height: "100%", maxHeight: "100%", overflowY: "auto" }}>
             <ProfileHeroCard
               sx={{
                 display: "flex",
@@ -325,174 +382,151 @@ export function VisitorInfoPanel({
               </ProfileMetaGridCell>
             </ProfileMetaGridSection>
 
-            <Accordion
-              expanded={expanded === "visitor"}
-              onChange={toggle("visitor")}
-              disableGutters
-              sx={accordionSx(theme)}
+            <VisitorProfileSection
+              sectionId="visitor"
+              expanded={expanded}
+              onToggle={toggleSection}
+              icon={<PersonOutline />}
+              label="Visitor info"
             >
-              <AccordionSummary expandIcon={<ExpandMore sx={{ color: theme.app.dashboard.iconMuted }} />}>
-                <AccordionSectionTitle icon={<PersonOutline />} label="Visitor info" />
-              </AccordionSummary>
-              <AccordionDetails sx={{ p: 0 }}>
-                <ProfileMetaGridSection>
-                  {locationLine ? (
-                    <ProfileMetaGridCell icon={<LocationOnOutlined sx={iconSx} />} label="Location">
-                      {locationLine}
-                    </ProfileMetaGridCell>
-                  ) : null}
-                  {originLine ? (
-                    <ProfileMetaGridCell icon={<PublicOutlined sx={iconSx} />} label="Origin">
-                      {originLine}
-                    </ProfileMetaGridCell>
-                  ) : null}
-                  {deviceLabel ? (
-                    <ProfileMetaGridCell
-                      icon={
-                        isMobile ? (
-                          <SmartphoneOutlined sx={iconSx} />
-                        ) : (
-                          <ComputerOutlined sx={iconSx} />
-                        )
-                      }
-                      label="Device"
-                      fullWidth={!locationLine && !originLine}
-                    >
-                      {deviceLabel}
-                    </ProfileMetaGridCell>
-                  ) : null}
-                </ProfileMetaGridSection>
-              </AccordionDetails>
-            </Accordion>
+              <ProfileMetaGridSection>
+                {locationLine ? (
+                  <ProfileMetaGridCell icon={<LocationOnOutlined sx={iconSx} />} label="Location">
+                    {locationLine}
+                  </ProfileMetaGridCell>
+                ) : null}
+                {originLine ? (
+                  <ProfileMetaGridCell icon={<PublicOutlined sx={iconSx} />} label="Origin">
+                    {originLine}
+                  </ProfileMetaGridCell>
+                ) : null}
+                {deviceLabel ? (
+                  <ProfileMetaGridCell
+                    icon={
+                      isMobile ? (
+                        <SmartphoneOutlined sx={iconSx} />
+                      ) : (
+                        <ComputerOutlined sx={iconSx} />
+                      )
+                    }
+                    label="Device"
+                    fullWidth={!locationLine && !originLine}
+                  >
+                    {deviceLabel}
+                  </ProfileMetaGridCell>
+                ) : null}
+              </ProfileMetaGridSection>
+            </VisitorProfileSection>
 
-            <Accordion
-              expanded={expanded === "session"}
-              onChange={toggle("session")}
-              disableGutters
-              sx={accordionSx(theme)}
+            <VisitorProfileSection
+              sectionId="session"
+              expanded={expanded}
+              onToggle={toggleSection}
+              icon={<ScheduleOutlined />}
+              label="Chat session"
             >
-              <AccordionSummary expandIcon={<ExpandMore sx={{ color: theme.app.dashboard.iconMuted }} />}>
-                <AccordionSectionTitle icon={<ScheduleOutlined />} label="Chat session" />
-              </AccordionSummary>
-              <AccordionDetails sx={{ p: 0 }}>
-                <ProfileMetaGridSection>
-                  {live ? (
-                    <ProfileMetaGridCell
-                      icon={<AccessTimeOutlined sx={{ ...iconSx, color: theme.palette.success.light }} />}
-                      label="Status"
-                      fullWidth
-                    >
-                      <Box component="span" sx={{ color: theme.palette.success.light, fontWeight: 600 }}>
-                        Live session
-                      </Box>
-                    </ProfileMetaGridCell>
-                  ) : null}
-                  {parsed.sessionFields.map((f) => (
-                    <ProfileMetaGridCell
-                      key={f.label}
-                      icon={sessionFieldIcon(f.label)}
-                      label={f.label}
-                      muted={f.value === "—"}
-                    >
-                      {f.value}
-                    </ProfileMetaGridCell>
-                  ))}
-                </ProfileMetaGridSection>
-              </AccordionDetails>
-            </Accordion>
+              <ProfileMetaGridSection>
+                {live ? (
+                  <ProfileMetaGridCell
+                    icon={<AccessTimeOutlined sx={{ ...iconSx, color: theme.palette.success.light }} />}
+                    label="Status"
+                    fullWidth
+                  >
+                    <Box component="span" sx={{ color: theme.palette.success.light, fontWeight: 600 }}>
+                      Live session
+                    </Box>
+                  </ProfileMetaGridCell>
+                ) : null}
+                {parsed.sessionFields.map((f) => (
+                  <ProfileMetaGridCell
+                    key={f.label}
+                    icon={sessionFieldIcon(f.label)}
+                    label={f.label}
+                    muted={f.value === "—"}
+                  >
+                    {f.value}
+                  </ProfileMetaGridCell>
+                ))}
+              </ProfileMetaGridSection>
+            </VisitorProfileSection>
 
-            <Accordion
-              expanded={expanded === "contact"}
-              onChange={toggle("contact")}
-              disableGutters
-              sx={accordionSx(theme)}
+            <VisitorProfileSection
+              sectionId="contact"
+              expanded={expanded}
+              onToggle={toggleSection}
+              icon={<EmailOutlined />}
+              label="Contact info"
             >
-              <AccordionSummary expandIcon={<ExpandMore sx={{ color: theme.app.dashboard.iconMuted }} />}>
-                <AccordionSectionTitle icon={<EmailOutlined />} label="Contact info" />
-              </AccordionSummary>
-              <AccordionDetails sx={{ p: 0 }}>
-                <ProfileMetaGridSection>
-                  {parsed.contactFields.map((f) => (
-                    <ProfileMetaGridCell
-                      key={f.label}
-                      icon={contactFieldIcon(f.label)}
-                      label={f.label}
-                      muted={f.value === "—"}
-                    >
-                      {f.value}
-                    </ProfileMetaGridCell>
-                  ))}
-                </ProfileMetaGridSection>
-              </AccordionDetails>
-            </Accordion>
+              <ProfileMetaGridSection>
+                {parsed.contactFields.map((f) => (
+                  <ProfileMetaGridCell
+                    key={f.label}
+                    icon={contactFieldIcon(f.label)}
+                    label={f.label}
+                    muted={f.value === "—"}
+                  >
+                    {f.value}
+                  </ProfileMetaGridCell>
+                ))}
+              </ProfileMetaGridSection>
+            </VisitorProfileSection>
 
             {parsed.location ? (
-              <Accordion
-                expanded={expanded === "location"}
-                onChange={toggle("location")}
-                disableGutters
-                sx={accordionSx(theme)}
+              <VisitorProfileSection
+                sectionId="location"
+                expanded={expanded}
+                onToggle={toggleSection}
+                icon={<LocationOnOutlined />}
+                label="Location map"
+                bodySx={{ px: 2, pb: 2, pt: 0 }}
               >
-                <AccordionSummary expandIcon={<ExpandMore sx={{ color: theme.app.dashboard.iconMuted }} />}>
-                  <AccordionSectionTitle icon={<LocationOnOutlined />} label="Location map" />
-                </AccordionSummary>
-                <AccordionDetails sx={{ px: 2, pb: 2, pt: 0 }}>
-                  <VisitorLocationMap location={parsed.location} />
-                </AccordionDetails>
-              </Accordion>
+                <VisitorLocationMap location={parsed.location} />
+              </VisitorProfileSection>
             ) : null}
 
             {parsed.currentPageUrl ? (
-              <Accordion
-                expanded={expanded === "page"}
-                onChange={toggle("page")}
-                disableGutters
-                sx={accordionSx(theme)}
+              <VisitorProfileSection
+                sectionId="page"
+                expanded={expanded}
+                onToggle={toggleSection}
+                icon={<LanguageOutlined />}
+                label="Current page"
               >
-                <AccordionSummary expandIcon={<ExpandMore sx={{ color: theme.app.dashboard.iconMuted }} />}>
-                  <AccordionSectionTitle icon={<LanguageOutlined />} label="Current page" />
-                </AccordionSummary>
-                <AccordionDetails sx={{ p: 0 }}>
-                  <ProfileMetaGridSection>
-                    <ProfileMetaGridCell
-                      icon={<LinkOutlined sx={iconSx} />}
-                      label="Page URL"
-                      href={parsed.currentPageUrl}
-                      fullWidth
-                    >
-                      {parsed.currentPageUrl}
-                    </ProfileMetaGridCell>
-                  </ProfileMetaGridSection>
-                </AccordionDetails>
-              </Accordion>
+                <ProfileMetaGridSection>
+                  <ProfileMetaGridCell
+                    icon={<LinkOutlined sx={iconSx} />}
+                    label="Page URL"
+                    href={parsed.currentPageUrl}
+                    fullWidth
+                  >
+                    {parsed.currentPageUrl}
+                  </ProfileMetaGridCell>
+                </ProfileMetaGridSection>
+              </VisitorProfileSection>
             ) : null}
 
             {journey.length > 0 ? (
-              <Accordion
-                expanded={expanded === "journey"}
-                onChange={toggle("journey")}
-                disableGutters
-                sx={accordionSx(theme)}
+              <VisitorProfileSection
+                sectionId="journey"
+                expanded={expanded}
+                onToggle={toggleSection}
+                icon={<RouteOutlined />}
+                label="Visitor journey"
               >
-                <AccordionSummary expandIcon={<ExpandMore sx={{ color: theme.app.dashboard.iconMuted }} />}>
-                  <AccordionSectionTitle icon={<RouteOutlined />} label="Visitor journey" />
-                </AccordionSummary>
-                <AccordionDetails sx={{ p: 0 }}>
-                  <ProfileMetaGridSection>
-                    {journey.map((step, i) => (
-                      <ProfileMetaGridCell
-                        key={`${step.url}-${i}`}
-                        icon={<RouteOutlined sx={iconSx} />}
-                        label={step.at ? `Visit · ${step.at}` : `Step ${i + 1}`}
-                        href={step.url}
-                        fullWidth={journey.length === 1}
-                      >
-                        {step.url}
-                      </ProfileMetaGridCell>
-                    ))}
-                  </ProfileMetaGridSection>
-                </AccordionDetails>
-              </Accordion>
+                <ProfileMetaGridSection>
+                  {journey.map((step, i) => (
+                    <ProfileMetaGridCell
+                      key={`${step.url}-${i}`}
+                      icon={<RouteOutlined sx={iconSx} />}
+                      label={step.at ? `Visit · ${step.at}` : `Step ${i + 1}`}
+                      href={step.url}
+                      fullWidth={journey.length === 1}
+                    >
+                      {step.url}
+                    </ProfileMetaGridCell>
+                  ))}
+                </ProfileMetaGridSection>
+              </VisitorProfileSection>
             ) : null}
 
             {supervisorEnabled && !hideSupervisorTools ? (
@@ -518,6 +552,7 @@ export function VisitorInfoPanel({
               </Box>
             ) : null}
           </ProfileAccordion>
+          </Box>
         </>
       )}
     </PanelColumn>

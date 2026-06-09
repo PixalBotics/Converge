@@ -5,7 +5,7 @@ import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Checkbox from "@mui/material/Checkbox";
-import { useTheme } from "@mui/material/styles";
+import { alpha, useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import { SearchBar, Typography } from "@/components/common";
 import type { QaQueueFilters, QaQueueRow } from "@/services/chat/qa.types";
@@ -34,26 +34,39 @@ const STATUS_TABS: Array<{ id: QaStatusTab; label: string }> = [
   { id: "all", label: "All" },
 ];
 
-function statusChipColor(
-  status: string,
-  theme: AppTheme,
-): { bgcolor: string; color: string } {
-  if (status === "completed") {
-    return {
-      bgcolor: `${theme.app.dashboard.accentBlue}22`,
-      color: theme.app.dashboard.accentBlue,
-    };
-  }
-  if (status === "in_progress") {
-    return {
-      bgcolor: `${theme.app.dashboard.accentViolet}22`,
-      color: theme.app.dashboard.accentViolet,
-    };
-  }
+function statusChipSx(status: string, theme: AppTheme): object {
+  const d = theme.app.dashboard;
+  const accent =
+    status === "completed"
+      ? d.accentBlue
+      : status === "in_progress"
+        ? d.accentViolet
+        : d.accentOrange;
   return {
-    bgcolor: `${theme.app.dashboard.accentOrange}22`,
-    color: theme.app.dashboard.accentOrange,
+    height: 22,
+    fontSize: 10,
+    fontWeight: 600,
+    textTransform: "capitalize",
+    bgcolor: alpha(accent, 0.2),
+    color: accent,
+    border: `1px solid ${alpha(accent, 0.38)}`,
   };
+}
+
+function metaChipSx(theme: AppTheme): object {
+  const accent = theme.palette.primary.main;
+  return {
+    height: 22,
+    fontSize: 10,
+    fontWeight: 500,
+    bgcolor: alpha(accent, 0.08),
+    color: theme.app.text.primary,
+    border: `1px solid ${alpha(accent, 0.22)}`,
+  };
+}
+
+function formatAssignSource(value: string): string {
+  return value.replace(/_/g, " ");
 }
 
 interface QaQueueSidebarProps {
@@ -165,40 +178,82 @@ export function QaQueueSidebar({
         ) : (
           filtered.map((row) => {
             const selected = row.conversationId === selectedConversationId;
-            const chip = statusChipColor(row.status, theme);
+            const poolName = row.pool?.name ?? row.conversation?.pool?.name;
             return (
               <QueueItemRow
                 key={row.id}
                 active={selected}
                 onClick={() => onSelectConversation(row.conversationId)}
+                sx={{ alignItems: "flex-start", py: 1.5 }}
               >
                 <Box sx={{ minWidth: 0, flex: 1 }}>
-                  <Typography fontWeight={600} sx={{ fontSize: 13, lineHeight: 1.3 }}>
-                    {queueRowTitle(row)}
-                  </Typography>
-                  <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted }}>
+                  <Box
+                    sx={{
+                      display: "flex",
+                      alignItems: "flex-start",
+                      justifyContent: "space-between",
+                      gap: 1,
+                      mb: 0.4,
+                    }}
+                  >
+                    <Typography
+                      fontWeight={600}
+                      sx={{
+                        fontSize: 13,
+                        lineHeight: 1.35,
+                        minWidth: 0,
+                        flex: 1,
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {queueRowTitle(row)}
+                    </Typography>
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        color: theme.app.dashboard.textMuted,
+                        flexShrink: 0,
+                        fontSize: 10,
+                        lineHeight: 1.35,
+                        pt: 0.15,
+                      }}
+                    >
+                      {formatRelativeQueueTime(row.createdAt)}
+                    </Typography>
+                  </Box>
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      color: theme.app.dashboard.textMuted,
+                      fontSize: 11,
+                      display: "block",
+                      mb: 0.75,
+                      textTransform: "capitalize",
+                    }}
+                  >
                     {row.conversation?.status ?? "—"}
-                    {row.overallScore != null ? ` · score ${row.overallScore}` : ""}
+                    {row.overallScore != null ? ` · Score ${row.overallScore}` : ""}
                   </Typography>
-                  <Box sx={{ display: "flex", gap: 0.5, mt: 0.5, flexWrap: "wrap" }}>
+                  <Box sx={{ display: "flex", gap: 0.5, flexWrap: "wrap" }}>
                     <Chip
                       label={row.status.replace("_", " ")}
                       size="small"
-                      sx={{ height: 20, fontSize: 10, ...chip }}
+                      sx={statusChipSx(row.status, theme)}
                     />
+                    {poolName ? (
+                      <Chip label={poolName} size="small" sx={metaChipSx(theme)} />
+                    ) : null}
                     {row.assignSource ? (
                       <Chip
-                        label={row.assignSource}
+                        label={formatAssignSource(row.assignSource)}
                         size="small"
-                        variant="outlined"
-                        sx={{ height: 20, fontSize: 10 }}
+                        sx={metaChipSx(theme)}
                       />
                     ) : null}
                   </Box>
                 </Box>
-                <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, flexShrink: 0 }}>
-                  {formatRelativeQueueTime(row.createdAt)}
-                </Typography>
               </QueueItemRow>
             );
           })
