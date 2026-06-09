@@ -11,6 +11,14 @@ export async function listPermissionsCatalog(params?: JsonRecord): Promise<unkno
   return data;
 }
 
+/** Preview runtime expansion for role editor (bundles, legacy page gates). */
+export async function expandPermissionNames(body: {
+  permissionNames: string[];
+}): Promise<unknown> {
+  const { data } = await apiClient.post("/access/permissions/expand", body);
+  return data;
+}
+
 export async function getPermissionApplicability(
   permissionName: string,
 ): Promise<unknown> {
