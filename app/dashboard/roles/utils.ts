@@ -1,4 +1,11 @@
 import { asRecord, pickArray } from "../user-page/utils";
+import { extractRoleExpandedPermissionNames } from "@/lib/permissions/role-permission-payload";
+
+export {
+  extractRoleExpandedPermissionNames,
+  extractRoleStoredPermissionNames,
+  flattenPermissionNamesByType,
+} from "@/lib/permissions/role-permission-payload";
 
 export type RoleRow = {
   id: string;
@@ -178,32 +185,9 @@ export function extractPermissionsCatalogFlat(payload: unknown): PermissionOptio
   return mapped.sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: "base" }));
 }
 
+/** @deprecated Prefer {@link extractRoleExpandedPermissionNames} for display. */
 export function extractRoleAssignedPermissionNames(payload: unknown): string[] {
-  const root = asRecord(payload);
-  const data = asRecord(root?.data);
-  const dataRec = (data ?? null) as Record<string, unknown> | null;
-  const rootRec = (root ?? null) as Record<string, unknown> | null;
-  const candidates: unknown[] = [
-    dataRec?.permissionNames,
-    dataRec?.permissions,
-    dataRec?.assignedPermissionNames,
-    dataRec?.assigned,
-    rootRec?.permissionNames,
-    rootRec?.permissions,
-    rootRec?.assignedPermissionNames,
-    rootRec?.assigned,
-  ];
-  for (const c of candidates) {
-    if (!Array.isArray(c)) continue;
-    const out = (c as unknown[])
-      .map((v) => {
-        const vr = asRecord(v) as Record<string, unknown> | null;
-        return pickString((vr ? vr.name ?? vr.code : undefined) ?? v);
-      })
-      .filter((s) => s.length > 0);
-    if (out.length > 0) return Array.from(new Set(out)).sort();
-  }
-  return [];
+  return extractRoleExpandedPermissionNames(payload);
 }
 
 export function extractRoleNameFromDetail(payload: unknown): string {

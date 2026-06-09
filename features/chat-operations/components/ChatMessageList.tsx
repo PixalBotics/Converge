@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import ForumOutlined from "@mui/icons-material/ForumOutlined";
 import InboxOutlined from "@mui/icons-material/InboxOutlined";
 import { useTheme } from "@mui/material/styles";
@@ -8,6 +8,7 @@ import type { AppTheme } from "@/theme/theme";
 import { Typography } from "@/components/common";
 import type { TypingPreviewBubble } from "@/lib/hooks/chat/typing-preview-display";
 import type { ChatMessage } from "@/services/chat/chat.types";
+import type { VisitorProfileField } from "@/services/chat/visitor-profile.types";
 import { getMessageGroupPosition } from "../utils/message-grouping";
 import {
   prepareInboxTranscriptMessages,
@@ -18,8 +19,6 @@ import {
   ChatMessageBubble,
   groupMessagesByDate,
 } from "./ChatMessageBubble";
-import { VisitorProfileCaptureMenu } from "./VisitorProfileCaptureMenu";
-import type { VisitorProfileCaptureAnchor } from "../utils/visitor-profile-capture";
 import {
   EmptyState,
   EmptyStateIconRing,
@@ -27,6 +26,15 @@ import {
   TypingDots,
   TypingIndicator,
 } from "../styles/chat-operations.styled";
+import {
+  VisitorTextCaptureToolbar,
+  type VisitorTextCaptureAnchor,
+} from "./VisitorTextCaptureToolbar";
+
+export interface VisitorProfileCaptureSelection {
+  text: string;
+  messageId: string;
+}
 
 interface ChatMessageListProps {
   messages: ChatMessage[];
@@ -41,8 +49,12 @@ interface ChatMessageListProps {
   /** Full-pane empty when no conversation is selected. */
   showEmptyPlaceholder?: boolean;
   transcriptDisplay?: InboxTranscriptDisplayOptions;
-  /** Allow selecting visitor message text to set name/email/phone. */
   profileCaptureEnabled?: boolean;
+  onCaptureField?: (
+    field: VisitorProfileField,
+    selection: VisitorProfileCaptureSelection,
+  ) => void | Promise<void>;
+  profileCaptureBusy?: boolean;
 }
 
 export function ChatMessageList({
@@ -57,19 +69,16 @@ export function ChatMessageList({
   showEmptyPlaceholder = false,
   transcriptDisplay,
   profileCaptureEnabled = false,
+  onCaptureField,
+  profileCaptureBusy = false,
 }: ChatMessageListProps) {
   const theme = useTheme() as AppTheme;
   const threadRef = useRef<HTMLDivElement | null>(null);
-  const [captureAnchor, setCaptureAnchor] =
-    useState<VisitorProfileCaptureAnchor | null>(null);
-  const captureEnabled = profileCaptureEnabled && Boolean(conversationId);
-
-  const handleProfileCaptureSelection = useCallback(
-    (anchor: VisitorProfileCaptureAnchor) => {
-      setCaptureAnchor(anchor);
-    },
-    [],
-  );
+  const [captureMenu, setCaptureMenu] = useState<{
+    anchor: VisitorTextCaptureAnchor;
+    text: string;
+    messageId: string;
+  } | null>(null);
   const displayMessages = useMemo(
     () => prepareInboxTranscriptMessages(messages, transcriptDisplay),
     [messages, transcriptDisplay],
@@ -92,9 +101,13 @@ export function ChatMessageList({
     el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
   }, []);
 
+  const dismissCaptureMenu = useCallback(() => {
+    setCaptureMenu(null);
+  }, []);
+
   useLayoutEffect(() => {
-    setCaptureAnchor(null);
-  }, [conversationId]);
+    dismissCaptureMenu();
+  }, [conversationId, dismissCaptureMenu]);
 
   useLayoutEffect(() => {
     scrollThreadToBottom(true);
@@ -103,6 +116,81 @@ export function ChatMessageList({
   useLayoutEffect(() => {
     scrollThreadToBottom(true);
   }, [displayMessages.length, lastMessageKey, visitorTyping, typingPreviews?.length, scrollThreadToBottom]);
+
+  const handleThreadMouseUp = useCallback(() => {
+    if (!profileCaptureEnabled || !onCaptureField) {
+      dismissCaptureMenu();
+      return;
+    }
+    const selection = window.getSelection();
+    if (!selection || selection.isCollapsed || selection.rangeCount === 0) {
+      dismissCaptureMenu();
+      return;
+    }
+    const text = selection.toString().trim();
+    if (!text || text.length > 240) {
+      dismissCaptureMenu();
+      return;
+    }
+    const anchorNode = selection.anchorNode;
+    const element =
+      anchorNode instanceof Element ? anchorNode : anchorNode?.parentElement ?? null;
+    const bubble = element?.closest("[data-chat-message-id]");
+    if (!bubble) {
+      dismissCaptureMenu();
+      return;
+    }
+    if (bubble.getAttribute("data-chat-message-role") !== "visitor") {
+      dismissCaptureMenu();
+      return;
+    }
+    const messageId = bubble.getAttribute("data-chat-message-id")?.trim();
+    if (!messageId) {
+      dismissCaptureMenu();
+      return;
+    }
+    const rect = selection.getRangeAt(0).getBoundingClientRect();
+    if (!rect.width && !rect.height) {
+      dismissCaptureMenu();
+      return;
+    }
+    setCaptureMenu({
+      text,
+      messageId,
+      anchor: {
+        x: rect.left + rect.width / 2,
+        y: rect.top,
+      },
+    });
+  }, [dismissCaptureMenu, onCaptureField, profileCaptureEnabled]);
+
+  useEffect(() => {
+    if (!profileCaptureEnabled) {
+      dismissCaptureMenu();
+      return;
+    }
+    const thread = threadRef.current;
+    if (!thread) return;
+    thread.addEventListener("mouseup", handleThreadMouseUp);
+    thread.addEventListener("scroll", dismissCaptureMenu, { passive: true });
+    return () => {
+      thread.removeEventListener("mouseup", handleThreadMouseUp);
+      thread.removeEventListener("scroll", dismissCaptureMenu);
+    };
+  }, [dismissCaptureMenu, handleThreadMouseUp, profileCaptureEnabled]);
+
+  const handleCaptureFieldSelect = useCallback(
+    (field: VisitorProfileField) => {
+      if (!captureMenu || !onCaptureField) return;
+      void onCaptureField(field, {
+        text: captureMenu.text,
+        messageId: captureMenu.messageId,
+      });
+      window.getSelection()?.removeAllRanges();
+      dismissCaptureMenu();
+    },
+    [captureMenu, dismissCaptureMenu, onCaptureField],
+  );
 
   const activeTypingPreviews =
     typingPreviews && typingPreviews.length > 0
@@ -146,78 +234,77 @@ export function ChatMessageList({
   }
 
   return (
-    <MessageThread
-      ref={threadRef}
-      sx={{
-        flex: "1 1 0",
-        minHeight: 0,
-        pl: { xs: 1.5, sm: 2 },
-        pr: "10px",
-        py: 2.5,
-        gap: 0,
-      }}
-    >
-      {groups.map((group) => (
-        <div key={group.dateKey}>
-          <ChatDateDivider label={group.label} />
-          {group.messages.map((message, idx) => (
-            <ChatMessageBubble
-              key={message.id ?? `${group.dateKey}-${idx}-${message.createdAt}`}
-              message={message}
-              visitorInitials={visitorInitials}
-              visitorDisplayName={visitorDisplayName}
-              agentDisplayName={agentDisplayName}
-              groupPosition={getMessageGroupPosition(idx, group.messages)}
-              profileCaptureEnabled={captureEnabled}
-              onProfileCaptureSelection={
-                captureEnabled ? handleProfileCaptureSelection : undefined
-              }
-            />
-          ))}
-        </div>
-      ))}
+    <>
+      <MessageThread
+        ref={threadRef}
+        sx={{
+          flex: "1 1 0",
+          minHeight: 0,
+          pl: { xs: 1.5, sm: 2 },
+          pr: "10px",
+          py: 2.5,
+          gap: 0,
+        }}
+      >
+        {groups.map((group) => (
+          <div key={group.dateKey}>
+            <ChatDateDivider label={group.label} />
+            {group.messages.map((message, idx) => (
+              <ChatMessageBubble
+                key={message.id ?? `${group.dateKey}-${idx}-${message.createdAt}`}
+                message={message}
+                visitorInitials={visitorInitials}
+                visitorDisplayName={visitorDisplayName}
+                agentDisplayName={agentDisplayName}
+                groupPosition={getMessageGroupPosition(idx, group.messages)}
+              />
+            ))}
+          </div>
+        ))}
 
-      {activeTypingPreviews.map((preview) => {
-        const hasDraft = preview.draft.length > 0;
-        if (hasDraft) {
+        {activeTypingPreviews.map((preview) => {
+          const hasDraft = preview.draft.length > 0;
+          if (hasDraft) {
+            return (
+              <ChatMessageBubble
+                key={preview.id}
+                message={{
+                  id: preview.id,
+                  conversationId: conversationId ?? "",
+                  content: preview.draft,
+                  role: preview.role,
+                  metadata: { typingPreview: true },
+                }}
+                visitorInitials={visitorInitials}
+                visitorDisplayName={preview.label}
+                agentDisplayName={preview.label}
+                groupPosition="single"
+              />
+            );
+          }
           return (
-            <ChatMessageBubble
-              key={preview.id}
-              message={{
-                id: preview.id,
-                conversationId: conversationId ?? "",
-                content: preview.draft,
-                role: preview.role,
-                metadata: { typingPreview: true },
-              }}
-              visitorInitials={visitorInitials}
-              visitorDisplayName={preview.label}
-              agentDisplayName={preview.label}
-              groupPosition="single"
-            />
+            <TypingIndicator key={preview.id}>
+              <Typography variant="caption" sx={{ fontWeight: 500 }}>
+                {preview.label} is typing
+              </Typography>
+              <TypingDots aria-hidden>
+                <span />
+                <span />
+                <span />
+              </TypingDots>
+            </TypingIndicator>
           );
-        }
-        return (
-          <TypingIndicator key={preview.id}>
-            <Typography variant="caption" sx={{ fontWeight: 500 }}>
-              {preview.label} is typing
-            </Typography>
-            <TypingDots aria-hidden>
-              <span />
-              <span />
-              <span />
-            </TypingDots>
-          </TypingIndicator>
-        );
-      })}
-
-      {captureEnabled && conversationId ? (
-        <VisitorProfileCaptureMenu
-          conversationId={conversationId}
-          anchor={captureAnchor}
-          onClose={() => setCaptureAnchor(null)}
+        })}
+      </MessageThread>
+      {captureMenu ? (
+        <VisitorTextCaptureToolbar
+          anchor={captureMenu.anchor}
+          selectedText={captureMenu.text}
+          busy={profileCaptureBusy}
+          onSelectField={handleCaptureFieldSelect}
+          onDismiss={dismissCaptureMenu}
         />
       ) : null}
-    </MessageThread>
+    </>
   );
 }

@@ -13,6 +13,8 @@ import {
   useUsersListQuery,
 } from "@/lib/hooks";
 import { useAuth, resolveSessionListFilterScope } from "@/lib/auth";
+import { isAuthTransitionActive } from "@/lib/auth/auth-transition";
+import { PAGE } from "@/lib/permissions";
 import { UserStatsCards } from "./components/UserStatsCards";
 import { UsersTableSection } from "./components/UsersTableSection";
 import { AddUserModal } from "./components/AddUserModal";
@@ -38,7 +40,8 @@ import {
 
 export default function UserPage() {
   const theme = useTheme() as AppTheme;
-  const { hasOperational, isPlatformAdmin, user: authUser } = useAuth();
+  const { hasOperational, hasPage, isPlatformAdmin, user: authUser } = useAuth();
+  const canAccessUsersPage = hasPage(PAGE.USERS);
   const listFilterScope = useMemo(
     () => resolveSessionListFilterScope(isPlatformAdmin, authUser),
     [isPlatformAdmin, authUser],
@@ -136,20 +139,25 @@ export default function UserPage() {
       ? listScopeResellerId.trim()
       : undefined;
 
-  const usersQuery = useUsersListQuery({
-    page,
-    limit: 20,
-    search: appliedSearch.trim() || undefined,
-    userType: effectiveListUserType,
-    parentCompanyId:
-      tenantScopeActive && listScopeParentCompanyId.trim()
-        ? listScopeParentCompanyId.trim()
-        : appliedFilterIds.parentCompanyId,
-    userId: appliedFilterIds.userId,
-    companyId: externalResellerOnlyCompanyId ?? appliedFilterIds.companyId,
-    departmentId: appliedFilterIds.departmentId,
-    designationId: appliedFilterIds.designationId,
-  });
+  const usersQuery = useUsersListQuery(
+    {
+      page,
+      limit: 20,
+      search: appliedSearch.trim() || undefined,
+      userType: effectiveListUserType,
+      parentCompanyId:
+        listUserTypeFilter === "External" && listScopeParentCompanyId.trim()
+          ? listScopeParentCompanyId.trim()
+          : appliedFilterIds.parentCompanyId,
+      userId: appliedFilterIds.userId,
+      companyId: externalResellerOnlyCompanyId ?? appliedFilterIds.companyId,
+      departmentId: appliedFilterIds.departmentId,
+      designationId: appliedFilterIds.designationId,
+    },
+    {
+      enabled: canAccessUsersPage && !isAuthTransitionActive(),
+    },
+  );
 
   const userTypeaheadQuery = useUserFilterSuggestionsQuery(
     {

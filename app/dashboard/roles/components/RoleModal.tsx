@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Box from "@mui/material/Box";
 import CircularProgress from "@mui/material/CircularProgress";
-import { useTheme } from "@mui/material/styles";
+import { alpha, useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
-import { Checkbox, Divider, FormModal, InputField, Typography } from "@/components/common";
+import { Checkbox, Divider, FormModal, HoverTooltip, InputField, Typography } from "@/components/common";
 import {
   CHAT_BUNDLE_OPTIONS,
   isChatBundleCode,
@@ -14,6 +14,14 @@ import {
   type ChatBundleCode,
 } from "@/lib/permissions/chat-bundles";
 import { extractApiErrorMessageForToast, publishAppToast } from "@/lib/notify";
+import {
+  fetchPermissionExpandPreview,
+  PermissionExpansionUnavailableError,
+  type PermissionExpandPreview,
+} from "@/lib/permissions/expand-permission-names";
+import {
+  parsePermissionExpandPreview,
+} from "@/lib/permissions/role-permission-payload";
 import {
   useCreateRoleMutation,
   usePermissionsCatalogQuery,
@@ -25,27 +33,11 @@ import {
 import {
   extractPermissionsCatalogGroups,
   extractRoleNameFromDetail,
-  extractRoleAssignedPermissionNames,
+  extractRoleStoredPermissionNames,
+  type PermissionOption,
   type PermissionGroup,
   type RoleRow,
 } from "../utils";
-import { isRecord, unwrapApiData } from "@/lib/utils/core";
-
-function extractAssignedFromRoleDetail(payload: unknown): string[] {
-  const data = unwrapApiData(payload);
-  const inner = isRecord(data) ? data : null;
-  const byTypeRaw = inner && "permissionNamesByType" in inner ? inner.permissionNamesByType : null;
-  const byType = isRecord(byTypeRaw) ? (byTypeRaw as Record<string, unknown>) : null;
-  if (!byType) return [];
-  const out: string[] = [];
-  for (const v of Object.values(byType)) {
-    if (!Array.isArray(v)) continue;
-    for (const item of v) {
-      if (typeof item === "string" && item.trim()) out.push(item.trim());
-    }
-  }
-  return Array.from(new Set(out)).sort();
-}
 
 export type RoleModalProps = {
   open: boolean;
@@ -54,10 +46,72 @@ export type RoleModalProps = {
   editRole?: RoleRow | null;
 };
 
-function buildPermissionsMap(selected: string[]): Record<string, boolean> {
-  const next: Record<string, boolean> = {};
-  for (const code of selected) next[code] = true;
-  return next;
+function normalizeGroupTitle(title: string): "operational" | "page" | "other" {
+  const t = title.trim().toUpperCase();
+  if (t.includes("PAGE")) return "page";
+  if (t.includes("OPERATIONAL")) return "operational";
+  return "other";
+}
+
+function PermissionCatalogRow({
+  perm,
+  checked,
+  locked,
+  disabled,
+  hint,
+  onToggle,
+}: {
+  perm: PermissionOption;
+  checked: boolean;
+  locked: boolean;
+  disabled: boolean;
+  hint?: string;
+  onToggle: (checked: boolean) => void;
+}) {
+  const theme = useTheme() as AppTheme;
+  const row = (
+    <Box
+      sx={{
+        display: "flex",
+        alignItems: "flex-start",
+        gap: 1,
+        py: 0.25,
+        minWidth: 0,
+        opacity: locked ? 0.88 : 1,
+      }}
+    >
+      <Checkbox
+        checked={checked}
+        disabled={disabled || locked}
+        onChange={(_, next) => onToggle(next)}
+      />
+      <Box sx={{ minWidth: 0 }}>
+        <Typography variant="body2" sx={{ color: theme.app.text.primary, fontSize: 13 }} noWrap>
+          {perm.label}
+        </Typography>
+        <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, fontSize: 12 }} noWrap>
+          {perm.code}
+        </Typography>
+        {locked && hint ? (
+          <Typography
+            variant="caption"
+            sx={{ display: "block", color: theme.app.dashboard.accentCyan, fontSize: 11, mt: 0.15 }}
+          >
+            {hint}
+          </Typography>
+        ) : null}
+      </Box>
+    </Box>
+  );
+
+  if (locked && hint) {
+    return (
+      <HoverTooltip label={hint} fullWidth={false}>
+        <Box sx={{ width: "100%" }}>{row}</Box>
+      </HoverTooltip>
+    );
+  }
+  return row;
 }
 
 export function RoleModal({ open, onClose, onSaved, editRole = null }: RoleModalProps) {
@@ -67,19 +121,22 @@ export function RoleModal({ open, onClose, onSaved, editRole = null }: RoleModal
 
   const [roleName, setRoleName] = useState("");
   const [permissionSearch, setPermissionSearch] = useState("");
-  const [permissions, setPermissions] = useState<Record<string, boolean>>({});
+  const [storedGrants, setStoredGrants] = useState<string[]>([]);
+  const [checkedOperational, setCheckedOperational] = useState<Set<string>>(new Set());
+  const [checkedPages, setCheckedPages] = useState<Set<string>>(new Set());
+  const [impliedGrants, setImpliedGrants] = useState<Set<string>>(new Set());
+  const [equivalentGrants, setEquivalentGrants] = useState<Set<string>>(new Set());
   const [chatBundle, setChatBundle] = useState<ChatBundleCode | null>(null);
-  const [showAdvancedChat, setShowAdvancedChat] = useState(false);
+  const [previewLoading, setPreviewLoading] = useState(false);
 
   const hydratedKeyRef = useRef<string | null>(null);
   const hydratedPermsForRoleIdRef = useRef<string | null>(null);
+  const previewRequestIdRef = useRef(0);
+  const expansionWarningShownRef = useRef(false);
 
   const permissionsCatalogQuery = usePermissionsCatalogQuery(
     { groupByType: true },
-    {
-      enabled: open,
-      scope: "role-modal",
-    },
+    { enabled: open, scope: "role-modal" },
   );
 
   const rolePermissionsQuery = useRolePermissionsQuery(editId, {
@@ -96,7 +153,6 @@ export function RoleModal({ open, onClose, onSaved, editRole = null }: RoleModal
 
   useEffect(() => {
     if (!open || !isEdit) return;
-    // Ensure we actually hit GET /roles/:id and /roles/:id/permissions when editing.
     void roleDetailQuery.refetch();
     void rolePermissionsQuery.refetch();
   }, [open, isEdit, editId]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -112,50 +168,137 @@ export function RoleModal({ open, onClose, onSaved, editRole = null }: RoleModal
     [permissionsCatalogQuery.data],
   );
 
-  const { standardPermissionGroups, advancedChatPermissions } = useMemo(() => {
-    const standard: PermissionGroup[] = [];
-    const advanced: PermissionGroup["permissions"] = [];
-    for (const g of permissionGroups) {
-      const stdPerms = g.permissions.filter(
-        (p) => !isGranularChatPermissionCode(p.code) && !isChatBundleCode(p.code),
-      );
-      const advPerms = g.permissions.filter((p) => isGranularChatPermissionCode(p.code));
-      if (stdPerms.length > 0) standard.push({ title: g.title, permissions: stdPerms });
-      advanced.push(...advPerms);
+  const { catalogOperational, catalogPage } = useMemo(() => {
+    const operational: PermissionOption[] = [];
+    const page: PermissionOption[] = [];
+    const seen = new Set<string>();
+
+    for (const group of permissionGroups) {
+      const bucket = normalizeGroupTitle(group.title);
+      for (const perm of group.permissions) {
+        if (isChatBundleCode(perm.code) || seen.has(perm.code)) continue;
+        seen.add(perm.code);
+        const isPageCode = perm.code.startsWith("page:") || bucket === "page";
+        if (isPageCode) page.push(perm);
+        else operational.push(perm);
+      }
     }
-    return { standardPermissionGroups: standard, advancedChatPermissions: advanced };
+
+    operational.sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: "base" }));
+    page.sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: "base" }));
+    return { catalogOperational: operational, catalogPage: page };
   }, [permissionGroups]);
 
-  const filteredPermissionGroups: PermissionGroup[] = useMemo(() => {
-    const q = permissionSearch.trim().toLowerCase();
-    const base = standardPermissionGroups;
-    if (!q) return base;
-    return base
-      .map((g) => ({
-        ...g,
-        permissions: g.permissions.filter(
-          (p) =>
-            p.code.toLowerCase().includes(q) || p.label.toLowerCase().includes(q),
-        ),
-      }))
-      .filter((g) => g.permissions.length > 0);
-  }, [standardPermissionGroups, permissionSearch]);
+  const mapPermissionCodesToCatalog = useCallback(
+    (codes: string[]) => {
+      const lookup = new Map<string, string>();
+      for (const perm of [...catalogOperational, ...catalogPage]) {
+        lookup.set(perm.code.toLowerCase(), perm.code);
+        lookup.set(perm.label.toLowerCase(), perm.code);
+      }
+      return codes
+        .map((code) => lookup.get(code.toLowerCase()) ?? code)
+        .filter((code) => code.length > 0);
+    },
+    [catalogOperational, catalogPage],
+  );
 
-  const filteredAdvancedChat = useMemo(() => {
-    const q = permissionSearch.trim().toLowerCase();
-    if (!q) return advancedChatPermissions;
-    return advancedChatPermissions.filter(
-      (p) => p.code.toLowerCase().includes(q) || p.label.toLowerCase().includes(q),
-    );
-  }, [advancedChatPermissions, permissionSearch]);
+  const filterCatalog = useCallback(
+    (items: PermissionOption[]) => {
+      const q = permissionSearch.trim().toLowerCase();
+      if (!q) return items;
+      return items.filter(
+        (perm) =>
+          perm.code.toLowerCase().includes(q) || perm.label.toLowerCase().includes(q),
+      );
+    },
+    [permissionSearch],
+  );
 
-  const allCodes = useMemo(() => {
-    const set = new Set<string>();
-    for (const g of permissionGroups) for (const p of g.permissions) set.add(p.code);
-    return Array.from(set);
-  }, [permissionGroups]);
+  const filteredOperational = useMemo(
+    () => filterCatalog(catalogOperational),
+    [catalogOperational, filterCatalog],
+  );
+  const filteredPage = useMemo(
+    () => filterCatalog(catalogPage),
+    [catalogPage, filterCatalog],
+  );
 
-  const allSelected = useMemo(() => allCodes.length > 0 && allCodes.every((c) => permissions[c]), [allCodes, permissions]);
+  const storedSet = useMemo(() => new Set(storedGrants), [storedGrants]);
+
+  const getAutoGrantHint = useCallback(
+    (code: string): string => {
+      if (equivalentGrants.has(code)) {
+        return "Already covered by another grant on this role";
+      }
+      if (chatBundle && (isGranularChatPermissionCode(code) || code.startsWith("qa:chat:"))) {
+        return `Auto-granted by ${chatBundle}`;
+      }
+      const pageGate = storedGrants.find((grant) => grant.startsWith("page:"));
+      if (impliedGrants.has(code) && pageGate) {
+        return `Auto-granted by ${pageGate}`;
+      }
+      return "Auto-granted by a bundle or page gate on this role";
+    },
+    [chatBundle, equivalentGrants, impliedGrants, storedGrants],
+  );
+
+  const applyExpandPreview = useCallback(
+    (preview: PermissionExpandPreview, nextStored: string[]) => {
+      setCheckedOperational(new Set(mapPermissionCodesToCatalog(preview.operational)));
+      setCheckedPages(new Set(mapPermissionCodesToCatalog(preview.page)));
+      setImpliedGrants(new Set(mapPermissionCodesToCatalog(preview.impliedPermissionNames)));
+      setEquivalentGrants(new Set(mapPermissionCodesToCatalog(preview.equivalentPermissionNames)));
+      setChatBundle(pickAssignedChatBundle(nextStored));
+    },
+    [mapPermissionCodesToCatalog],
+  );
+
+  const refreshExpandPreview = useCallback(
+    async (nextStored: string[]) => {
+      const reqId = ++previewRequestIdRef.current;
+      setPreviewLoading(true);
+      try {
+        const preview = await fetchPermissionExpandPreview(nextStored);
+        if (reqId !== previewRequestIdRef.current) return;
+        applyExpandPreview(preview, nextStored);
+      } catch (err) {
+        if (reqId !== previewRequestIdRef.current) return;
+        if (err instanceof PermissionExpansionUnavailableError) {
+          const mappedStored = mapPermissionCodesToCatalog(nextStored);
+          applyExpandPreview(
+            {
+              operational: mappedStored.filter((code) => !code.startsWith("page:")),
+              page: mappedStored.filter((code) => code.startsWith("page:")),
+              impliedPermissionNames: [],
+              equivalentPermissionNames: [],
+            },
+            nextStored,
+          );
+          if (!expansionWarningShownRef.current) {
+            expansionWarningShownRef.current = true;
+            publishAppToast({
+              variant: "error",
+              message:
+                "Live permission preview needs POST /access/permissions/expand on the backend. Save the role to refresh implied permissions.",
+            });
+          }
+          return;
+        }
+        publishAppToast({
+          variant: "error",
+          message:
+            extractApiErrorMessageForToast(err) ??
+            "Could not preview expanded permissions.",
+        });
+      } finally {
+        if (reqId === previewRequestIdRef.current) {
+          setPreviewLoading(false);
+        }
+      }
+    },
+    [applyExpandPreview, mapPermissionCodesToCatalog],
+  );
 
   useEffect(() => {
     if (!open) {
@@ -170,59 +313,32 @@ export function RoleModal({ open, onClose, onSaved, editRole = null }: RoleModal
 
     setRoleName(isEdit ? (editRole?.name ?? "") : "");
     setPermissionSearch("");
-    setPermissions({});
+    setStoredGrants([]);
+    setCheckedOperational(new Set());
+    setCheckedPages(new Set());
+    setImpliedGrants(new Set());
+    setEquivalentGrants(new Set());
     setChatBundle(null);
-    setShowAdvancedChat(false);
     hydratedPermsForRoleIdRef.current = null;
+    expansionWarningShownRef.current = false;
   }, [open, isEdit, editId, editRole]);
 
-  const handleSelectChatBundle = (code: ChatBundleCode) => {
-    setChatBundle(code);
-    setPermissions((prev) => {
-      const next = { ...prev };
-      for (const opt of CHAT_BUNDLE_OPTIONS) next[opt.code] = opt.code === code;
-      return next;
-    });
-  };
-
   useEffect(() => {
-    if (!open) return;
-    if (!permissionGroups.length) return;
-    // Ensure all permission codes exist in the map (unchecked by default).
-    setPermissions((prev) => {
-      const next = { ...prev };
-      for (const code of allCodes) if (next[code] == null) next[code] = false;
-      return next;
-    });
-  }, [open, permissionGroups, allCodes]);
-
-  useEffect(() => {
-    if (!open || !isEdit || !rolePermissionsQuery.isSuccess) return;
-    if (!allCodes.length) return;
+    if (!open || !isEdit) return;
     if (hydratedPermsForRoleIdRef.current === editId) return;
-    const fromPermsEndpoint = extractRoleAssignedPermissionNames(rolePermissionsQuery.data);
-    const assigned = fromPermsEndpoint;
-    if (assigned.length === 0) return;
+    if (!catalogOperational.length && !catalogPage.length) return;
 
-    // Map assigned values to catalog codes (case-insensitive).
-    // Backend may return either permission codes or human labels.
-    const lookup = new Map<string, string>();
-    for (const g of permissionGroups) {
-      for (const p of g.permissions) {
-        lookup.set(p.code.toLowerCase(), p.code);
-        lookup.set(p.label.toLowerCase(), p.code);
-      }
-    }
-    for (const code of allCodes) {
-      const k = code.toLowerCase();
-      if (!lookup.has(k)) lookup.set(k, code);
-    }
-    const mapped = assigned
-      .map((c) => lookup.get(c.toLowerCase()) ?? c)
-      .filter((c) => c.length > 0);
+    const sourcePayload = rolePermissionsQuery.isSuccess
+      ? rolePermissionsQuery.data
+      : roleDetailQuery.isSuccess
+        ? roleDetailQuery.data
+        : null;
+    if (!sourcePayload) return;
 
-    setPermissions((prev) => ({ ...prev, ...buildPermissionsMap(mapped) }));
-    setChatBundle(pickAssignedChatBundle(mapped));
+    const stored = mapPermissionCodesToCatalog(extractRoleStoredPermissionNames(sourcePayload));
+    const preview = parsePermissionExpandPreview(sourcePayload);
+    setStoredGrants(stored);
+    applyExpandPreview(preview, stored);
     hydratedPermsForRoleIdRef.current = editId;
   }, [
     open,
@@ -230,36 +346,13 @@ export function RoleModal({ open, onClose, onSaved, editRole = null }: RoleModal
     editId,
     rolePermissionsQuery.isSuccess,
     rolePermissionsQuery.data,
-    allCodes,
-    permissionGroups,
+    roleDetailQuery.isSuccess,
+    roleDetailQuery.data,
+    catalogOperational.length,
+    catalogPage.length,
+    mapPermissionCodesToCatalog,
+    applyExpandPreview,
   ]);
-
-  useEffect(() => {
-    if (!open || !isEdit || !roleDetailQuery.isSuccess) return;
-    if (!allCodes.length) return;
-    if (hydratedPermsForRoleIdRef.current === editId) return;
-    const assigned = extractAssignedFromRoleDetail(roleDetailQuery.data);
-    if (assigned.length === 0) return;
-
-    const lookup = new Map<string, string>();
-    for (const g of permissionGroups) {
-      for (const p of g.permissions) {
-        lookup.set(p.code.toLowerCase(), p.code);
-        lookup.set(p.label.toLowerCase(), p.code);
-      }
-    }
-    for (const code of allCodes) {
-      const k = code.toLowerCase();
-      if (!lookup.has(k)) lookup.set(k, code);
-    }
-    const mapped = assigned
-      .map((c) => lookup.get(c.toLowerCase()) ?? c)
-      .filter((c) => c.length > 0);
-
-    setPermissions((prev) => ({ ...prev, ...buildPermissionsMap(mapped) }));
-    setChatBundle(pickAssignedChatBundle(mapped));
-    hydratedPermsForRoleIdRef.current = editId;
-  }, [open, isEdit, editId, roleDetailQuery.isSuccess, roleDetailQuery.data, allCodes, permissionGroups]);
 
   useEffect(() => {
     if (!open || !isEdit || !roleDetailQuery.isSuccess) return;
@@ -268,40 +361,45 @@ export function RoleModal({ open, onClose, onSaved, editRole = null }: RoleModal
     setRoleName(serverName);
   }, [open, isEdit, roleDetailQuery.isSuccess, roleDetailQuery.data]);
 
-  const handleToggleAll = () => {
-    const next = !allSelected;
-    setPermissions((prev) => {
-      const updated = { ...prev };
-      for (const code of allCodes) updated[code] = next;
-      return updated;
-    });
+  const handleSelectChatBundle = (code: ChatBundleCode) => {
+    const nextStored = [...storedGrants.filter((grant) => !isChatBundleCode(grant)), code];
+    setStoredGrants(nextStored);
+    void refreshExpandPreview(nextStored);
   };
 
-  const selectedPermissionNames = useMemo(
-    () => allCodes.filter((c) => permissions[c]),
-    [allCodes, permissions],
-  );
+  const handleStoredPermissionToggle = (code: string, checked: boolean) => {
+    if (impliedGrants.has(code) || equivalentGrants.has(code) || isChatBundleCode(code)) {
+      return;
+    }
+    const nextStored = checked
+      ? [...storedGrants.filter((grant) => grant !== code), code]
+      : storedGrants.filter((grant) => grant !== code);
+    setStoredGrants(nextStored);
+    void refreshExpandPreview(nextStored);
+  };
 
   const detailError =
     (permissionsCatalogQuery.isError
-      ? extractApiErrorMessageForToast(permissionsCatalogQuery.error) ?? "Could not load permissions catalog."
-      : null)
-    ?? (roleDetailQuery.isError
+      ? extractApiErrorMessageForToast(permissionsCatalogQuery.error) ??
+        "Could not load permissions catalog."
+      : null) ??
+    (roleDetailQuery.isError
       ? extractApiErrorMessageForToast(roleDetailQuery.error) ?? "Could not load role details."
-      : null)
-    ?? (rolePermissionsQuery.isError
-      ? extractApiErrorMessageForToast(rolePermissionsQuery.error) ?? "Could not load role permissions."
+      : null) ??
+    (rolePermissionsQuery.isError
+      ? extractApiErrorMessageForToast(rolePermissionsQuery.error) ??
+        "Could not load role permissions."
       : null);
 
   const isLoading =
     permissionsCatalogQuery.isLoading ||
     permissionsCatalogQuery.isFetching ||
-    (isEdit && (
-      roleDetailQuery.isLoading ||
-      roleDetailQuery.isFetching ||
-      rolePermissionsQuery.isLoading ||
-      rolePermissionsQuery.isFetching
-    ));
+    previewLoading ||
+    (isEdit &&
+      (roleDetailQuery.isLoading ||
+        roleDetailQuery.isFetching ||
+        rolePermissionsQuery.isLoading ||
+        rolePermissionsQuery.isFetching));
 
   const handleSave = async () => {
     const name = roleName.trim();
@@ -309,7 +407,7 @@ export function RoleModal({ open, onClose, onSaved, editRole = null }: RoleModal
       publishAppToast({ variant: "error", message: "Please enter a role name." });
       return;
     }
-    if (selectedPermissionNames.length === 0) {
+    if (storedGrants.length === 0) {
       publishAppToast({ variant: "error", message: "Please select at least one permission." });
       return;
     }
@@ -321,25 +419,71 @@ export function RoleModal({ open, onClose, onSaved, editRole = null }: RoleModal
 
     if (!isEdit) {
       createRoleMutation.mutate(
-        { name, permissionNames: selectedPermissionNames },
+        { name, permissionNames: storedGrants },
         { onSuccess: closeOnSuccess },
       );
       return;
     }
 
-    // Update name first, then replace permissions.
     updateRoleMutation.mutate(
       { id: editId, body: { name } },
       {
         onSuccess: () => {
           replacePermsMutation.mutate(
-            { id: editId, body: { permissionNames: selectedPermissionNames } },
+            { id: editId, body: { permissionNames: storedGrants } },
             { onSuccess: closeOnSuccess },
           );
         },
       },
     );
   };
+
+  const renderSection = (
+    title: string,
+    items: PermissionOption[],
+    checkedSet: Set<string>,
+  ) => (
+    <Box
+      sx={{
+        p: 1.5,
+        borderRadius: 1.5,
+        background: theme.app.dashboard.glassGradient,
+        backdropFilter: "blur(10px)",
+        WebkitBackdropFilter: "blur(10px)",
+        boxShadow: theme.app.dashboard.glassShadow,
+        border: `1px solid ${theme.app.dashboard.cardBorder}`,
+      }}
+    >
+      <Typography variant="body2" fontWeight={800} sx={{ color: theme.app.text.primary, mb: 1, fontSize: 13 }}>
+        {title}
+      </Typography>
+      {items.length === 0 ? (
+        <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted }}>
+          No permissions match your search.
+        </Typography>
+      ) : (
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
+          {items.map((perm) => {
+            const checked = checkedSet.has(perm.code);
+            const locked = impliedGrants.has(perm.code) || equivalentGrants.has(perm.code);
+            const stored = storedSet.has(perm.code);
+            const hint = locked ? getAutoGrantHint(perm.code) : stored ? "Saved on this role" : undefined;
+            return (
+              <PermissionCatalogRow
+                key={perm.code}
+                perm={perm}
+                checked={checked}
+                locked={locked}
+                disabled={previewLoading || isSaving}
+                hint={hint}
+                onToggle={(next) => handleStoredPermissionToggle(perm.code, next)}
+              />
+            );
+          })}
+        </Box>
+      )}
+    </Box>
+  );
 
   return (
     <FormModal
@@ -377,38 +521,9 @@ export function RoleModal({ open, onClose, onSaved, editRole = null }: RoleModal
           />
 
           <Box sx={{ mt: 0.5 }}>
-            <Box
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                mb: 1.25,
-                gap: 2,
-              }}
-            >
-              <Typography variant="medium" fontWeight={700} sx={{ color: theme.app.text.primary }}>
-                Permissions
-              </Typography>
-              <Box
-                component="button"
-                type="button"
-                onClick={handleToggleAll}
-                disabled={allCodes.length === 0}
-                sx={{
-                  color: theme.app.dashboard.textMuted95,
-                  cursor: allCodes.length === 0 ? "default" : "pointer",
-                  background: "none",
-                  border: "none",
-                  textDecoration: "underline",
-                  fontSize: 14,
-                  fontFamily: "inherit",
-                  opacity: allCodes.length === 0 ? 0.4 : 1,
-                  "&:hover": { color: theme.app.text.primary },
-                }}
-              >
-                {allSelected ? "Unselect all" : "Select all"}
-              </Box>
-            </Box>
+            <Typography variant="medium" fontWeight={700} sx={{ color: theme.app.text.primary, mb: 1.25 }}>
+              Permissions
+            </Typography>
             <Divider />
 
             <Box
@@ -424,12 +539,20 @@ export function RoleModal({ open, onClose, onSaved, editRole = null }: RoleModal
                 Chat access (pick one bundle)
               </Typography>
               <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, display: "block", mb: 1.25 }}>
-                Backend expands bundles on <code>/auth/me</code>. Add <code>page:hrms</code> or org pages separately
-                below — do not assign granular chat codes unless needed.
+                Sends the full stored grant list to <code>POST /access/permissions/expand</code> so operational and
+                page permissions update instantly. Only stored grants are saved to the role.
               </Typography>
+              {previewLoading ? (
+                <Typography
+                  variant="caption"
+                  sx={{ color: theme.app.dashboard.accentCyan, display: "block", mb: 1 }}
+                >
+                  Updating implied permissions…
+                </Typography>
+              ) : null}
               <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
                 {CHAT_BUNDLE_OPTIONS.map((opt) => {
-                  const selected = chatBundle === opt.code || Boolean(permissions[opt.code]);
+                  const selected = chatBundle === opt.code;
                   return (
                     <Box
                       key={opt.code}
@@ -440,9 +563,9 @@ export function RoleModal({ open, onClose, onSaved, editRole = null }: RoleModal
                         gap: 1,
                         p: 1,
                         borderRadius: 1,
-                        cursor: "pointer",
+                        cursor: previewLoading || isSaving ? "default" : "pointer",
                         border: `1px solid ${selected ? theme.app.dashboard.accentBlue : theme.app.dashboard.cardBorder}`,
-                        bgcolor: selected ? "rgba(96,165,250,0.08)" : "transparent",
+                        bgcolor: selected ? alpha(theme.app.dashboard.accentBlue, 0.08) : "transparent",
                       }}
                     >
                       <input
@@ -450,6 +573,7 @@ export function RoleModal({ open, onClose, onSaved, editRole = null }: RoleModal
                         name="chat-bundle"
                         checked={selected}
                         onChange={() => handleSelectChatBundle(opt.code)}
+                        disabled={previewLoading || isSaving}
                         style={{ marginTop: 4 }}
                       />
                       <Box sx={{ minWidth: 0 }}>
@@ -472,7 +596,7 @@ export function RoleModal({ open, onClose, onSaved, editRole = null }: RoleModal
             <Box sx={{ mt: 1.5 }}>
               <InputField
                 label="Search permissions"
-                placeholder="Type to search (e.g. page:roles, user:create)"
+                placeholder="Type to search (e.g. page:roles, chat:access)"
                 value={permissionSearch}
                 onChange={(e) => setPermissionSearch((e.target as HTMLInputElement).value)}
                 disabled={isSaving}
@@ -487,117 +611,12 @@ export function RoleModal({ open, onClose, onSaved, editRole = null }: RoleModal
                 gap: 1.5,
               }}
             >
-              {filteredPermissionGroups.map((group, idx) => (
-                <Box
-                  key={`${group.title}-${idx}`}
-                  sx={{
-                    p: 1.5,
-                    borderRadius: 1.5,
-                    background: theme.app.dashboard.glassGradient,
-                    backdropFilter: "blur(10px)",
-                    WebkitBackdropFilter: "blur(10px)",
-                    boxShadow: theme.app.dashboard.glassShadow,
-                    border: `1px solid ${theme.app.dashboard.cardBorder}`,
-                  }}
-                >
-                  <Typography
-                    variant="body2"
-                    fontWeight={800}
-                    sx={{ color: theme.app.text.primary, mb: 1, fontSize: 13 }}
-                  >
-                    {group.title}
-                  </Typography>
-                  <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
-                    {group.permissions.map((perm) => (
-                      <Box
-                        key={perm.code}
-                        sx={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 1,
-                          py: 0.25,
-                          minWidth: 0,
-                        }}
-                      >
-                        <Checkbox
-                          checked={Boolean(permissions[perm.code])}
-                          onChange={(_, checked) => setPermissions((p) => ({ ...p, [perm.code]: checked }))}
-                        />
-                        <Box sx={{ minWidth: 0 }}>
-                          <Typography variant="body2" sx={{ color: theme.app.text.primary, fontSize: 13 }} noWrap>
-                            {perm.label}
-                          </Typography>
-                          <Typography
-                            variant="caption"
-                            sx={{ color: theme.app.dashboard.textMuted, fontSize: 12 }}
-                            noWrap
-                          >
-                            {perm.code}
-                          </Typography>
-                        </Box>
-                      </Box>
-                    ))}
-                  </Box>
-                </Box>
-              ))}
+              {renderSection("Operational permissions", filteredOperational, checkedOperational)}
+              {renderSection("Page permissions", filteredPage, checkedPages)}
             </Box>
-
-            {filteredAdvancedChat.length > 0 ? (
-              <Box sx={{ mt: 1.5 }}>
-                <Box
-                  component="button"
-                  type="button"
-                  onClick={() => setShowAdvancedChat((v) => !v)}
-                  sx={{
-                    color: theme.app.dashboard.textMuted95,
-                    cursor: "pointer",
-                    background: "none",
-                    border: "none",
-                    textDecoration: "underline",
-                    fontSize: 14,
-                    fontFamily: "inherit",
-                    mb: showAdvancedChat ? 1 : 0,
-                  }}
-                >
-                  {showAdvancedChat ? "Hide" : "Show"} advanced chat permissions ({filteredAdvancedChat.length})
-                </Box>
-                {showAdvancedChat ? (
-                  <Box
-                    sx={{
-                      p: 1.5,
-                      borderRadius: 1.5,
-                      border: `1px dashed ${theme.app.dashboard.cardBorder}`,
-                    }}
-                  >
-                    <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, display: "block", mb: 1 }}>
-                      Prefer bundles above. Granular codes are expanded by the server — use only for exceptions.
-                    </Typography>
-                    <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
-                      {filteredAdvancedChat.map((perm) => (
-                        <Box key={perm.code} sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                          <Checkbox
-                            checked={Boolean(permissions[perm.code])}
-                            onChange={(_, checked) =>
-                              setPermissions((p) => ({ ...p, [perm.code]: checked }))
-                            }
-                          />
-                          <Typography variant="body2" sx={{ fontSize: 12 }}>
-                            {perm.label}{" "}
-                            <Typography component="span" variant="caption" sx={{ fontFamily: "monospace" }}>
-                              {perm.code}
-                            </Typography>
-                          </Typography>
-                        </Box>
-                      ))}
-                    </Box>
-                  </Box>
-                ) : null}
-              </Box>
-            ) : null}
           </Box>
         </>
       )}
     </FormModal>
   );
 }
-
