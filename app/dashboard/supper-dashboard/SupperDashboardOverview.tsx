@@ -196,7 +196,7 @@ export default function SupperDashboardOverview() {
     <Box sx={pageWrapper}>
       <Box sx={overviewHeader}>
         <Typography variant="regularLarge" fontWeight={700} color="white">
-          Supper Dashboard
+          Dashboard
         </Typography>
         <Box sx={overviewHeaderDropdownWrap}>
           <Dropdown
