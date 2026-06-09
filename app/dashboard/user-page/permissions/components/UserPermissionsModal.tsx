@@ -544,6 +544,7 @@ export function UserPermissionsModal({ open, onClose, initialUserId, onSaved }: 
                       p: 1.5,
                       background: "rgba(255,255,255,0.035)",
                       minHeight: 260,
+                      minWidth: 0,
                       display: "flex",
                       flexDirection: "column",
                       overflow: "hidden",
@@ -578,7 +579,7 @@ export function UserPermissionsModal({ open, onClose, initialUserId, onSaved }: 
                             sx={{
                               display: "grid",
                               gridTemplateColumns: "24px 1fr",
-                              alignItems: "center",
+                              alignItems: "flex-start",
                               gap: 1,
                               px: 1,
                               py: 0.75,
@@ -601,11 +602,17 @@ export function UserPermissionsModal({ open, onClose, initialUserId, onSaved }: 
                               onChange={() => toggleAllowed(p.code)}
                               sx={{ p: 0 }}
                             />
-                            <Box sx={{ minWidth: 0 }}>
-                              <Typography variant="body2" sx={{ color: "white", fontWeight: 650 }} noWrap>
+                            <Box sx={{ minWidth: 0, flex: 1 }}>
+                              <Typography
+                                variant="body2"
+                                sx={{ color: "white", fontWeight: 650, wordBreak: "break-word" }}
+                              >
                                 {p.label}
                               </Typography>
-                              <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted }} noWrap>
+                              <Typography
+                                variant="caption"
+                                sx={{ color: theme.app.dashboard.textMuted, wordBreak: "break-all" }}
+                              >
                                 {p.code}
                               </Typography>
                             </Box>
