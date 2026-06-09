@@ -179,11 +179,11 @@ export function ResellerOwnMailPage() {
             }}
           >
             <Box sx={{ minWidth: 0 }}>
-              <Typography variant="mediumLarge" color="white" fontWeight={600}>
+              <Typography variant="regularLarge" fontWeight={700} color="white">
                 Own mail (SMTP / API)
               </Typography>
               <Typography
-                variant="small"
+                variant="medium"
                 sx={{ color: theme.app.dashboard.textMuted, mt: 0.25, display: "block", maxWidth: 640 }}
               >
                 Per-reseller SMTP or API credentials, separate from platform mail.

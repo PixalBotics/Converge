@@ -85,11 +85,17 @@ function PermissionCatalogRow({
         disabled={disabled || locked}
         onChange={(_, next) => onToggle(next)}
       />
-      <Box sx={{ minWidth: 0 }}>
-        <Typography variant="body2" sx={{ color: theme.app.text.primary, fontSize: 13 }} noWrap>
+      <Box sx={{ minWidth: 0, flex: 1 }}>
+        <Typography
+          variant="body2"
+          sx={{ color: theme.app.text.primary, fontSize: 13, wordBreak: "break-word" }}
+        >
           {perm.label}
         </Typography>
-        <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, fontSize: 12 }} noWrap>
+        <Typography
+          variant="caption"
+          sx={{ color: theme.app.dashboard.textMuted, fontSize: 12, wordBreak: "break-all" }}
+        >
           {perm.code}
         </Typography>
         {locked && hint ? (
@@ -127,7 +133,6 @@ export function RoleModal({ open, onClose, onSaved, editRole = null }: RoleModal
   const [impliedGrants, setImpliedGrants] = useState<Set<string>>(new Set());
   const [equivalentGrants, setEquivalentGrants] = useState<Set<string>>(new Set());
   const [chatBundle, setChatBundle] = useState<ChatBundleCode | null>(null);
-  const [previewLoading, setPreviewLoading] = useState(false);
 
   const hydratedKeyRef = useRef<string | null>(null);
   const hydratedPermsForRoleIdRef = useRef<string | null>(null);
@@ -254,10 +259,19 @@ export function RoleModal({ open, onClose, onSaved, editRole = null }: RoleModal
     [mapPermissionCodesToCatalog],
   );
 
+  const syncCheckedFromStored = useCallback(
+    (nextStored: string[]) => {
+      const mapped = mapPermissionCodesToCatalog(nextStored);
+      setCheckedOperational(new Set(mapped.filter((code) => !code.startsWith("page:"))));
+      setCheckedPages(new Set(mapped.filter((code) => code.startsWith("page:"))));
+      setChatBundle(pickAssignedChatBundle(nextStored));
+    },
+    [mapPermissionCodesToCatalog],
+  );
+
   const refreshExpandPreview = useCallback(
     async (nextStored: string[]) => {
       const reqId = ++previewRequestIdRef.current;
-      setPreviewLoading(true);
       try {
         const preview = await fetchPermissionExpandPreview(nextStored);
         if (reqId !== previewRequestIdRef.current) return;
@@ -291,10 +305,6 @@ export function RoleModal({ open, onClose, onSaved, editRole = null }: RoleModal
             extractApiErrorMessageForToast(err) ??
             "Could not preview expanded permissions.",
         });
-      } finally {
-        if (reqId === previewRequestIdRef.current) {
-          setPreviewLoading(false);
-        }
       }
     },
     [applyExpandPreview, mapPermissionCodesToCatalog],
@@ -364,6 +374,7 @@ export function RoleModal({ open, onClose, onSaved, editRole = null }: RoleModal
   const handleSelectChatBundle = (code: ChatBundleCode) => {
     const nextStored = [...storedGrants.filter((grant) => !isChatBundleCode(grant)), code];
     setStoredGrants(nextStored);
+    syncCheckedFromStored(nextStored);
     void refreshExpandPreview(nextStored);
   };
 
@@ -375,6 +386,29 @@ export function RoleModal({ open, onClose, onSaved, editRole = null }: RoleModal
       ? [...storedGrants.filter((grant) => grant !== code), code]
       : storedGrants.filter((grant) => grant !== code);
     setStoredGrants(nextStored);
+    syncCheckedFromStored(nextStored);
+    void refreshExpandPreview(nextStored);
+  };
+
+  const handleSectionSelectAll = (items: PermissionOption[], selectAll: boolean) => {
+    const toggleableCodes = items
+      .filter(
+        (perm) =>
+          !impliedGrants.has(perm.code) &&
+          !equivalentGrants.has(perm.code) &&
+          !isChatBundleCode(perm.code),
+      )
+      .map((perm) => perm.code);
+
+    if (toggleableCodes.length === 0) return;
+
+    const toggleableSet = new Set(toggleableCodes);
+    const nextStored = selectAll
+      ? [...new Set([...storedGrants, ...toggleableCodes])]
+      : storedGrants.filter((grant) => !toggleableSet.has(grant));
+
+    setStoredGrants(nextStored);
+    syncCheckedFromStored(nextStored);
     void refreshExpandPreview(nextStored);
   };
 
@@ -394,7 +428,6 @@ export function RoleModal({ open, onClose, onSaved, editRole = null }: RoleModal
   const isLoading =
     permissionsCatalogQuery.isLoading ||
     permissionsCatalogQuery.isFetching ||
-    previewLoading ||
     (isEdit &&
       (roleDetailQuery.isLoading ||
         roleDetailQuery.isFetching ||
@@ -442,11 +475,23 @@ export function RoleModal({ open, onClose, onSaved, editRole = null }: RoleModal
     title: string,
     items: PermissionOption[],
     checkedSet: Set<string>,
-  ) => (
+  ) => {
+    const toggleableItems = items.filter(
+      (perm) =>
+        !impliedGrants.has(perm.code) &&
+        !equivalentGrants.has(perm.code) &&
+        !isChatBundleCode(perm.code),
+    );
+    const allSelected =
+      toggleableItems.length > 0 && toggleableItems.every((perm) => storedSet.has(perm.code));
+    const someSelected = toggleableItems.some((perm) => storedSet.has(perm.code));
+
+    return (
     <Box
       sx={{
         p: 1.5,
         borderRadius: 1.5,
+        minWidth: 0,
         background: theme.app.dashboard.glassGradient,
         backdropFilter: "blur(10px)",
         WebkitBackdropFilter: "blur(10px)",
@@ -463,6 +508,28 @@ export function RoleModal({ open, onClose, onSaved, editRole = null }: RoleModal
         </Typography>
       ) : (
         <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
+          {toggleableItems.length > 0 ? (
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                gap: 1,
+                pb: 0.75,
+                mb: 0.25,
+                borderBottom: `1px solid ${alpha(theme.app.dashboard.cardBorder, 0.75)}`,
+              }}
+            >
+              <Checkbox
+                checked={allSelected}
+                indeterminate={someSelected && !allSelected}
+                disabled={isSaving}
+                onChange={(_, checked) => handleSectionSelectAll(items, checked)}
+              />
+              <Typography variant="body2" sx={{ color: theme.app.text.primary, fontSize: 13, fontWeight: 600 }}>
+                Select all
+              </Typography>
+            </Box>
+          ) : null}
           {items.map((perm) => {
             const checked = checkedSet.has(perm.code);
             const locked = impliedGrants.has(perm.code) || equivalentGrants.has(perm.code);
@@ -474,7 +541,7 @@ export function RoleModal({ open, onClose, onSaved, editRole = null }: RoleModal
                 perm={perm}
                 checked={checked}
                 locked={locked}
-                disabled={previewLoading || isSaving}
+                disabled={isSaving}
                 hint={hint}
                 onToggle={(next) => handleStoredPermissionToggle(perm.code, next)}
               />
@@ -483,7 +550,8 @@ export function RoleModal({ open, onClose, onSaved, editRole = null }: RoleModal
         </Box>
       )}
     </Box>
-  );
+    );
+  };
 
   return (
     <FormModal
@@ -542,14 +610,6 @@ export function RoleModal({ open, onClose, onSaved, editRole = null }: RoleModal
                 Sends the full stored grant list to <code>POST /access/permissions/expand</code> so operational and
                 page permissions update instantly. Only stored grants are saved to the role.
               </Typography>
-              {previewLoading ? (
-                <Typography
-                  variant="caption"
-                  sx={{ color: theme.app.dashboard.accentCyan, display: "block", mb: 1 }}
-                >
-                  Updating implied permissions…
-                </Typography>
-              ) : null}
               <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
                 {CHAT_BUNDLE_OPTIONS.map((opt) => {
                   const selected = chatBundle === opt.code;
@@ -563,7 +623,7 @@ export function RoleModal({ open, onClose, onSaved, editRole = null }: RoleModal
                         gap: 1,
                         p: 1,
                         borderRadius: 1,
-                        cursor: previewLoading || isSaving ? "default" : "pointer",
+                        cursor: isSaving ? "default" : "pointer",
                         border: `1px solid ${selected ? theme.app.dashboard.accentBlue : theme.app.dashboard.cardBorder}`,
                         bgcolor: selected ? alpha(theme.app.dashboard.accentBlue, 0.08) : "transparent",
                       }}
@@ -573,7 +633,7 @@ export function RoleModal({ open, onClose, onSaved, editRole = null }: RoleModal
                         name="chat-bundle"
                         checked={selected}
                         onChange={() => handleSelectChatBundle(opt.code)}
-                        disabled={previewLoading || isSaving}
+                        disabled={isSaving}
                         style={{ marginTop: 4 }}
                       />
                       <Box sx={{ minWidth: 0 }}>
