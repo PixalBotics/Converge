@@ -855,7 +855,6 @@ export function useVisitorChat(
     },
     [
       applyVisitorSendAck,
-      clearBotStream,
       conversationId,
       resolvePageUrl,
       socketClient,

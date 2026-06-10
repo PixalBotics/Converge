@@ -90,7 +90,7 @@ export default function DepartmentsPage() {
   const { hasOperational, isPlatformAdmin, user } = useAuth();
   const mayPickInternalTypeFilter = useMemo(
     () => sessionMayPickInternalUserScope(isPlatformAdmin, user),
-    [isPlatformAdmin, user?.userType],
+    [isPlatformAdmin, user],
   );
   const canCreateDept = canDepartmentAction(hasOperational, "create");
   const canUpdateDept = canDepartmentAction(hasOperational, "update");

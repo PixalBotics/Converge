@@ -12,13 +12,10 @@ import {
   KeyboardArrowDown as KeyboardArrowDownIcon,
 } from "@mui/icons-material";
 import { useAuth } from "@/lib/auth";
-import { SearchIcon } from "@/components/common/icons";
 import type { SxProps, Theme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import { createDashboardHeaderShellSx } from "./styles/shell.styles";
 import { dashboardFirstWord, dashboardRoleLabel, dashboardUserInitials } from "./dashboard-header.labels";
-import { DashboardHeaderSearchBar } from "./DashboardHeaderSearchBar";
-import { DashboardHeaderMobileSearchTray } from "./DashboardHeaderMobileSearchTray";
 import { NotificationsBellDrawer } from "@/components/notifications/NotificationsBellDrawer";
 
 export default function DashboardHeader({ onMenuClick }: { onMenuClick?: () => void }) {
@@ -31,9 +28,8 @@ export default function DashboardHeader({ onMenuClick }: { onMenuClick?: () => v
   );
 
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
-  const { user, logout, isImpersonating, revertImpersonation } = useAuth();
+  const { user, isImpersonating, revertImpersonation } = useAuth();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const open = Boolean(anchorEl);
 
   const displayName = user?.displayName ?? "User";
@@ -43,10 +39,6 @@ export default function DashboardHeader({ onMenuClick }: { onMenuClick?: () => v
 
   const handleClick = (event: React.MouseEvent<HTMLElement>) => setAnchorEl(event.currentTarget);
   const handleClose = () => setAnchorEl(null);
-  const handleLogout = () => {
-    handleClose();
-    logout();
-  };
   const handleLoginAsAdmin = () => {
     handleClose();
     void revertImpersonation();
@@ -88,23 +80,6 @@ export default function DashboardHeader({ onMenuClick }: { onMenuClick?: () => v
             justifyContent: "flex-end",
           }}
         >
-          {!isMobile && (
-            <Box sx={{ width: { md: 230, lg: 400 }, flexShrink: 0 }}>
-              <Box sx={{ width: "100%" }}>
-                <DashboardHeaderSearchBar theme={theme} />
-              </Box>
-            </Box>
-          )}
-          {isMobile && (
-            <IconButton
-              onClick={() => setMobileSearchOpen(true)}
-              sx={{ color: app.dashboard.white90 }}
-              size="small"
-              aria-label="Open search"
-            >
-              <SearchIcon sx={{ fontSize: 22 }} />
-            </IconButton>
-          )}
           <NotificationsBellDrawer />
           <Box sx={{ display: "flex", alignItems: "center", gap: { xs: 0.5, sm: 1.5 }, ml: { xs: 0, sm: 1 } }}>
             <Avatar
@@ -151,20 +126,11 @@ export default function DashboardHeader({ onMenuClick }: { onMenuClick?: () => v
         </Box>
       </Box>
 
-      {isMobile && (
-        <DashboardHeaderMobileSearchTray
-          theme={theme}
-          open={mobileSearchOpen}
-          onClose={() => setMobileSearchOpen(false)}
-        />
-      )}
-
       <AccountMenu
         anchorEl={anchorEl}
         open={open}
         onClose={handleClose}
         isImpersonating={isImpersonating}
-        onLogout={handleLogout}
         onLoginAsAdmin={handleLoginAsAdmin}
       />
     </>

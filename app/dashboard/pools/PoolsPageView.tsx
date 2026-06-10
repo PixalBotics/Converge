@@ -83,7 +83,7 @@ export function PoolsPageView({ mode }: PoolsPageViewProps) {
   const { hasOperational, hasPage, user, isPlatformAdmin } = useAuth();
   const mayPickInternalDeptType = useMemo(
     () => sessionMayPickInternalUserScope(isPlatformAdmin, user),
-    [isPlatformAdmin, user?.userType],
+    [isPlatformAdmin, user],
   );
   const canCreatePool = canPoolAction(hasOperational, "create");
   const canUpdatePool = canPoolAction(hasOperational, "update");

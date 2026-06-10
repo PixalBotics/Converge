@@ -90,7 +90,7 @@ export default function DesignationsPage() {
   const { hasOperational, isPlatformAdmin, user } = useAuth();
   const mayPickInternalTypeFilter = useMemo(
     () => sessionMayPickInternalUserScope(isPlatformAdmin, user),
-    [isPlatformAdmin, user?.userType],
+    [isPlatformAdmin, user],
   );
   const canCreateDes = canDesignationAction(hasOperational, "create");
   const canUpdateDes = canDesignationAction(hasOperational, "update");

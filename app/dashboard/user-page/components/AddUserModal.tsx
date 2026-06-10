@@ -17,6 +17,7 @@ import {
   useUpdateUserMutation,
   useUserQuery,
 } from "@/lib/hooks";
+import { isSelectableDepartmentId } from "@/lib/hrms/department-ids";
 import {
   extractParentCompaniesFromByResellerTree,
   extractUserRecordFromDetailPayload,
@@ -68,7 +69,7 @@ export function AddUserModal({
   const { isPlatformAdmin, user: authUser } = useAuth();
   const mayPickInternalSessionScope = useMemo(
     () => sessionMayPickInternalUserScope(isPlatformAdmin, authUser),
-    [isPlatformAdmin, authUser?.userType],
+    [isPlatformAdmin, authUser],
   );
   const mayAssignWideResellerScope = useMemo(
     () =>
@@ -208,7 +209,7 @@ export function AddUserModal({
 
   const designationQueryParams = useMemo(() => {
     const departmentId = departmentValue.trim();
-    if (!departmentId) return undefined;
+    if (!departmentId || !isSelectableDepartmentId(departmentId)) return undefined;
     if (userType === "External" && resellerId.trim()) {
       return {
         departmentId,
@@ -224,6 +225,7 @@ export function AddUserModal({
       enabled:
         open &&
         !!designationQueryParams?.departmentId &&
+        isSelectableDepartmentId(designationQueryParams.departmentId) &&
         (mode === "create" || editFormHydrated),
       scope: "add-user-modal",
     },
@@ -249,10 +251,12 @@ export function AddUserModal({
   const departmentOptions = useMemo(() => {
     const base = pickItemsArray(departmentsQuery.data)
       .map(toIdNameOption)
-      .filter((o): o is { value: string; label: string } => !!o);
+      .filter((o): o is { value: string; label: string } => !!o)
+      .filter((o) => isSelectableDepartmentId(o.value));
     if (
       mode === "edit" &&
       departmentValue.trim() &&
+      isSelectableDepartmentId(departmentValue) &&
       !base.some((o) => o.value === departmentValue.trim())
     ) {
       const label = departmentLabelHint.trim() || departmentValue.trim();
@@ -487,17 +491,24 @@ export function AddUserModal({
 
   useEffect(() => {
     if (mode === "edit" && !editFormHydrated) return;
-    if (!departmentOptions.length) return;
+    if (departmentValue && !isSelectableDepartmentId(departmentValue)) {
+      setDepartmentValue("");
+      setDesignationValue("");
+      setDesignationLabelHint("");
+      return;
+    }
+    if (!departmentValue || !departmentOptions.length) return;
     const inList = departmentOptions.some((o) => o.value === departmentValue);
-    if (!departmentValue) {
-      setDepartmentValue(departmentOptions[0].value);
-    } else if (!inList && mode === "create") {
-      setDepartmentValue(departmentOptions[0].value);
+    if (!inList && mode === "create") {
+      setDepartmentValue("");
+      setDesignationValue("");
+      setDesignationLabelHint("");
     }
   }, [departmentOptions, departmentValue, mode, editFormHydrated]);
 
   useEffect(() => {
     if (mode === "edit" && !editFormHydrated) return;
+    if (!isSelectableDepartmentId(departmentValue)) return;
     if (!designationOptions.length) return;
     const inList = designationOptions.some((o) => o.value === designationValue);
     if (!designationValue) {
@@ -505,7 +516,7 @@ export function AddUserModal({
     } else if (!inList && mode === "create") {
       setDesignationValue(designationOptions[0].value);
     }
-  }, [designationOptions, designationValue, mode, editFormHydrated]);
+  }, [designationOptions, designationValue, departmentValue, mode, editFormHydrated]);
 
   const emptySelect = [{ label: "—", value: "" }];
 
@@ -523,7 +534,11 @@ export function AddUserModal({
       });
       return;
     }
-    if (!roleValue.trim() || !departmentValue.trim() || !designationValue.trim()) {
+    if (
+      !roleValue.trim() ||
+      !isSelectableDepartmentId(departmentValue) ||
+      !designationValue.trim()
+    ) {
       publishAppToast({
         variant: "error",
         message: "Please select role, department, and designation.",
@@ -829,7 +844,11 @@ export function AddUserModal({
             setDesignationValue("");
             setDesignationLabelHint("");
           }}
-          options={departmentOptions.length ? departmentOptions : emptySelect}
+          options={
+            departmentOptions.length
+              ? [{ label: "— Select department —", value: "" }, ...departmentOptions]
+              : emptySelect
+          }
           menuMaxRows={3}
           disabled={
             userType === "External" &&
@@ -843,9 +862,13 @@ export function AddUserModal({
           label="Designation"
           value={designationValue}
           onChange={setDesignationValue}
-          options={designationOptions.length ? designationOptions : emptySelect}
+          options={
+            designationOptions.length
+              ? [{ label: "— Select designation —", value: "" }, ...designationOptions]
+              : emptySelect
+          }
           menuMaxRows={3}
-          disabled={!departmentValue.trim()}
+          disabled={!isSelectableDepartmentId(departmentValue)}
         />
       </Box>
     </FormModal>

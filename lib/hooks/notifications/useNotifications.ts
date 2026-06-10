@@ -441,9 +441,10 @@ export function useNotifications(enabled: boolean) {
     const reconcileTimer = setInterval(reconcile, RECONCILE_INTERVAL_MS);
     document.addEventListener("visibilitychange", reconcile);
 
+    const fetchSeq = fetchSeqRef;
     return () => {
       cancelled = true;
-      ++fetchSeqRef.current;
+      ++fetchSeq.current;
       offNotification();
       offConnect();
       offDisconnect();

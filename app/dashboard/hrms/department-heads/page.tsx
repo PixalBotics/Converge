@@ -63,7 +63,6 @@ import { extractUsersRows } from "@/app/dashboard/user-page/utils";
 import { useAuth, sessionMayPickInternalUserScope } from "@/lib/auth";
 import { canManageDepartmentHeads, canRemoveDepartmentHead } from "@/lib/permissions";
 import { resolveUserKind, type UserKind } from "@/lib/hrms/user-kind";
-import { SearchIcon } from "@/components/common/icons";
 import {
   departmentsCardHeader,
   departmentsSearchFieldWrapper,
@@ -180,7 +179,7 @@ export default function DepartmentHeadsPage() {
             { value: "External", label: "External" },
           ]
         : [{ value: "External", label: "External" }],
-    [isPlatformAdmin, authUser?.userType],
+    [isPlatformAdmin, authUser],
   );
   const mayPickInternalScope = sessionMayPickInternalUserScope(isPlatformAdmin, authUser);
   const canAssignDeptHead = canManageDepartmentHeads(hasOperational);
@@ -816,7 +815,7 @@ export default function DepartmentHeadsPage() {
   useEffect(() => {
     if (!assignOpen || sessionMayPickInternalUserScope(isPlatformAdmin, authUser)) return;
     setAssignUserTypeFilter("External");
-  }, [assignOpen, isPlatformAdmin, authUser?.userType]);
+  }, [assignOpen, isPlatformAdmin, authUser]);
 
   useEffect(() => {
     if (sessionMayPickInternalUserScope(isPlatformAdmin, authUser) || headsUserTypeFilter !== "Internal")
@@ -825,7 +824,7 @@ export default function DepartmentHeadsPage() {
     setHeadsResellerId("");
     setHeadsParentCompanyId("");
     setHeadsDepartmentId("");
-  }, [isPlatformAdmin, authUser?.userType, headsUserTypeFilter]);
+  }, [isPlatformAdmin, authUser, headsUserTypeFilter]);
 
   const applyHeadsFilters = useCallback(() => {
     setAppliedHeadsUserTypeFilter(headsUserTypeFilter);
@@ -850,7 +849,7 @@ export default function DepartmentHeadsPage() {
     setAppliedHeadsDepartmentId("");
     setHeadsFiltersApplied(false);
     setFilterPanelOpen(false);
-  }, [authUser?.userType, isPlatformAdmin]);
+  }, [authUser, isPlatformAdmin]);
 
   const applyHeadsSearch = () => {
     setAppliedHeadsSearch(headsSearch.trim());

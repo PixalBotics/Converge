@@ -15,7 +15,6 @@ import Paper from "@mui/material/Paper";
 import Stack from "@mui/material/Stack";
 import type { SxProps, Theme } from "@mui/material/styles";
 import {
-  type MutableRefObject,
   type ReactNode,
   useCallback,
   useEffect,
@@ -477,7 +476,7 @@ function FloatingChatEmbed({
     } else {
       setPanelHeaderStatus(null);
     }
-  }, [launcherOpen, websiteId, siteKey, parentPageUrl, sessionToken, skipAnalytics]);
+  }, [launcherOpen, websiteId, siteKey, parentPageUrl, sessionToken, skipAnalytics, widgetKey]);
 
   useEffect(() => {
     if (!greetingAck) {
@@ -875,7 +874,6 @@ function FloatingChatEmbed({
                       sessionToken={sessionToken}
                       configRecord={configRecord}
                       appearance={appearance}
-                      launcherOpenRef={launcherOpenRef}
                       embedEnv={embedEnv}
                       onIncomingWhileClosed={handleIncomingAlert}
                       onSyncClosedMessagePreview={storeClosedMessagePreview}
@@ -1231,7 +1229,6 @@ function WidgetChatPanel({
   sessionToken,
   configRecord,
   appearance,
-  launcherOpenRef,
   embedEnv = "production",
   onIncomingWhileClosed,
   onSyncClosedMessagePreview,
@@ -1247,7 +1244,6 @@ function WidgetChatPanel({
   sessionToken: string;
   configRecord: Record<string, unknown>;
   appearance?: RuntimeChatAppearance;
-  launcherOpenRef?: MutableRefObject<boolean>;
   embedEnv?: WidgetEmbedEnv;
   onIncomingWhileClosed?: (preview: string) => void;
   /** Hydrate closed FAB preview from transcript without notification side-effects. */
@@ -1452,6 +1448,7 @@ function WidgetChatPanel({
     chat.conversationId,
     mode,
     needsPrechatGate,
+    persistenceKey,
     resumeConversation,
     loadTranscript,
     sessionToken,
@@ -1724,14 +1721,14 @@ function WidgetChatPanel({
     [
       appearance?.firstMessage,
       chat,
+      embedEnv,
       fields,
       mode,
       parentPageUrl,
+      persistenceKey,
       selectedInquiry,
       inquiryRequired,
       inquiryFallback,
-      sessionToken,
-      siteKey,
       visitorSessionId,
       websiteId,
     ],

@@ -3,6 +3,5 @@ export type AccountMenuProps = {
   open: boolean;
   onClose: () => void;
   isImpersonating: boolean;
-  onLogout: () => void;
   onLoginAsAdmin: () => void;
 };

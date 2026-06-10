@@ -19,21 +19,22 @@ import {
   PermissionExpansionUnavailableError,
   type PermissionExpandPreview,
 } from "@/lib/permissions/expand-permission-names";
+import { useQueryClient } from "@tanstack/react-query";
+import { createRole, replaceRolePermissions, updateRole } from "@/api";
 import {
-  parsePermissionExpandPreview,
-} from "@/lib/permissions/role-permission-payload";
-import {
-  useCreateRoleMutation,
   usePermissionsCatalogQuery,
-  useReplaceRolePermissionsMutation,
   useRoleQuery,
   useRolePermissionsQuery,
-  useUpdateRoleMutation,
 } from "@/lib/hooks";
+import { rolesKeys } from "@/lib/hooks/query/roles/keys";
 import {
+  buildSelectedPermissionSets,
   extractPermissionsCatalogGroups,
   extractRoleNameFromDetail,
+  extractRoleDeniedPermissionNames,
+  extractRoleEffectiveByType,
   extractRoleStoredPermissionNames,
+  extractEquivalentPermissionNames,
   type PermissionOption,
   type PermissionGroup,
   type RoleRow,
@@ -51,6 +52,51 @@ function normalizeGroupTitle(title: string): "operational" | "page" | "other" {
   if (t.includes("PAGE")) return "page";
   if (t.includes("OPERATIONAL")) return "operational";
   return "other";
+}
+
+/** Build PUT /roles/:id/permissions body from current editor state. */
+function buildRolePermissionsSaveBody(params: {
+  storedGrants: readonly string[];
+  deniedGrants: readonly string[];
+  checkedOperational: ReadonlySet<string>;
+  checkedPages: ReadonlySet<string>;
+  impliedGrants: ReadonlySet<string>;
+}): { permissionNames: string[]; deniedPermissionNames: string[] } {
+  const deniedSet = new Set(params.deniedGrants);
+  const allowSet = new Set<string>();
+
+  const isChecked = (code: string) =>
+    code.startsWith("page:") ? params.checkedPages.has(code) : params.checkedOperational.has(code);
+
+  const isPureImplied = (code: string) =>
+    params.impliedGrants.has(code) && !params.storedGrants.includes(code);
+
+  for (const code of params.storedGrants) {
+    if (isChatBundleCode(code)) allowSet.add(code);
+  }
+
+  for (const code of [...params.checkedOperational, ...params.checkedPages]) {
+    if (isPureImplied(code)) {
+      deniedSet.delete(code);
+      continue;
+    }
+    allowSet.add(code);
+  }
+
+  for (const code of params.storedGrants) {
+    if (isChatBundleCode(code) || isPureImplied(code)) continue;
+    if (isChecked(code)) allowSet.add(code);
+  }
+
+  for (const code of params.impliedGrants) {
+    if (!isChecked(code)) deniedSet.add(code);
+    else deniedSet.delete(code);
+  }
+
+  return {
+    permissionNames: Array.from(allowSet).sort(),
+    deniedPermissionNames: Array.from(deniedSet).sort(),
+  };
 }
 
 function PermissionCatalogRow({
@@ -98,10 +144,15 @@ function PermissionCatalogRow({
         >
           {perm.code}
         </Typography>
-        {locked && hint ? (
+        {hint ? (
           <Typography
             variant="caption"
-            sx={{ display: "block", color: theme.app.dashboard.accentCyan, fontSize: 11, mt: 0.15 }}
+            sx={{
+              display: "block",
+              color: locked ? theme.app.dashboard.accentCyan : theme.app.dashboard.textMuted,
+              fontSize: 11,
+              mt: 0.15,
+            }}
           >
             {hint}
           </Typography>
@@ -128,11 +179,14 @@ export function RoleModal({ open, onClose, onSaved, editRole = null }: RoleModal
   const [roleName, setRoleName] = useState("");
   const [permissionSearch, setPermissionSearch] = useState("");
   const [storedGrants, setStoredGrants] = useState<string[]>([]);
+  const [deniedGrants, setDeniedGrants] = useState<string[]>([]);
   const [checkedOperational, setCheckedOperational] = useState<Set<string>>(new Set());
   const [checkedPages, setCheckedPages] = useState<Set<string>>(new Set());
   const [impliedGrants, setImpliedGrants] = useState<Set<string>>(new Set());
   const [equivalentGrants, setEquivalentGrants] = useState<Set<string>>(new Set());
   const [chatBundle, setChatBundle] = useState<ChatBundleCode | null>(null);
+  /** DB snapshot on load — only used for "Saved on this role" hint, not draft edits. */
+  const [persistedStoredGrants, setPersistedStoredGrants] = useState<string[]>([]);
 
   const hydratedKeyRef = useRef<string | null>(null);
   const hydratedPermsForRoleIdRef = useRef<string | null>(null);
@@ -162,11 +216,9 @@ export function RoleModal({ open, onClose, onSaved, editRole = null }: RoleModal
     void rolePermissionsQuery.refetch();
   }, [open, isEdit, editId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const createRoleMutation = useCreateRoleMutation();
-  const updateRoleMutation = useUpdateRoleMutation();
-  const replacePermsMutation = useReplaceRolePermissionsMutation();
-  const isSaving =
-    createRoleMutation.isPending || updateRoleMutation.isPending || replacePermsMutation.isPending;
+  const queryClient = useQueryClient();
+  const [isSavingRole, setIsSavingRole] = useState(false);
+  const isSaving = isSavingRole;
 
   const permissionGroups: PermissionGroup[] = useMemo(
     () => extractPermissionsCatalogGroups(permissionsCatalogQuery.data),
@@ -229,7 +281,18 @@ export function RoleModal({ open, onClose, onSaved, editRole = null }: RoleModal
     [catalogPage, filterCatalog],
   );
 
-  const storedSet = useMemo(() => new Set(storedGrants), [storedGrants]);
+  const draftAllowSet = useMemo(() => new Set(storedGrants), [storedGrants]);
+  const deniedSet = useMemo(() => new Set(deniedGrants), [deniedGrants]);
+  const persistedAllowSet = useMemo(
+    () => new Set(persistedStoredGrants),
+    [persistedStoredGrants],
+  );
+
+  const getSelectedPermissionNames = useCallback(
+    (operational: Set<string>, pages: Set<string>) =>
+      [...operational, ...pages].sort(),
+    [],
+  );
 
   const getAutoGrantHint = useCallback(
     (code: string): string => {
@@ -248,47 +311,72 @@ export function RoleModal({ open, onClose, onSaved, editRole = null }: RoleModal
     [chatBundle, equivalentGrants, impliedGrants, storedGrants],
   );
 
-  const applyExpandPreview = useCallback(
-    (preview: PermissionExpandPreview, nextStored: string[]) => {
-      setCheckedOperational(new Set(mapPermissionCodesToCatalog(preview.operational)));
-      setCheckedPages(new Set(mapPermissionCodesToCatalog(preview.page)));
-      setImpliedGrants(new Set(mapPermissionCodesToCatalog(preview.impliedPermissionNames)));
-      setEquivalentGrants(new Set(mapPermissionCodesToCatalog(preview.equivalentPermissionNames)));
-      setChatBundle(pickAssignedChatBundle(nextStored));
+  type SelectionSets = { operational: Set<string>; pages: Set<string> };
+
+  const resolveSelectionSets = useCallback(
+    (
+      preview: PermissionExpandPreview,
+      nextStored: string[],
+      preserveSelection?: SelectionSets,
+    ): SelectionSets => {
+      if (preserveSelection) return preserveSelection;
+      const mappedDenied = mapPermissionCodesToCatalog(preview.deniedPermissionNames);
+      const mappedEquivalent = mapPermissionCodesToCatalog(preview.equivalentPermissionNames);
+      const built = buildSelectedPermissionSets({
+        stored: nextStored,
+        denied: mappedDenied,
+        effectiveOperational: mapPermissionCodesToCatalog(preview.operational),
+        effectivePage: mapPermissionCodesToCatalog(preview.page),
+        equivalent: mappedEquivalent,
+      });
+      return {
+        operational: new Set(built.operational),
+        pages: new Set(built.page),
+      };
     },
     [mapPermissionCodesToCatalog],
   );
 
-  const syncCheckedFromStored = useCallback(
-    (nextStored: string[]) => {
-      const mapped = mapPermissionCodesToCatalog(nextStored);
-      setCheckedOperational(new Set(mapped.filter((code) => !code.startsWith("page:"))));
-      setCheckedPages(new Set(mapped.filter((code) => code.startsWith("page:"))));
+  const applyExpandMetadata = useCallback(
+    (
+      preview: PermissionExpandPreview,
+      nextStored: string[],
+      selection: SelectionSets,
+    ) => {
+      setCheckedOperational(new Set(selection.operational));
+      setCheckedPages(new Set(selection.pages));
+      setImpliedGrants(new Set(mapPermissionCodesToCatalog(preview.impliedPermissionNames)));
+      setEquivalentGrants(new Set(mapPermissionCodesToCatalog(preview.equivalentPermissionNames)));
+      setDeniedGrants(mapPermissionCodesToCatalog(preview.deniedPermissionNames));
       setChatBundle(pickAssignedChatBundle(nextStored));
     },
     [mapPermissionCodesToCatalog],
   );
 
   const refreshExpandPreview = useCallback(
-    async (nextStored: string[]) => {
+    async (nextStored: string[], preserveSelection?: SelectionSets) => {
+      const nextSelected = preserveSelection
+        ? getSelectedPermissionNames(preserveSelection.operational, preserveSelection.pages)
+        : undefined;
       const reqId = ++previewRequestIdRef.current;
       try {
-        const preview = await fetchPermissionExpandPreview(nextStored);
+        const preview = await fetchPermissionExpandPreview(nextStored, nextSelected);
         if (reqId !== previewRequestIdRef.current) return;
-        applyExpandPreview(preview, nextStored);
+        const selection = resolveSelectionSets(preview, nextStored, preserveSelection);
+        applyExpandMetadata(preview, nextStored, selection);
       } catch (err) {
         if (reqId !== previewRequestIdRef.current) return;
         if (err instanceof PermissionExpansionUnavailableError) {
-          const mappedStored = mapPermissionCodesToCatalog(nextStored);
-          applyExpandPreview(
-            {
-              operational: mappedStored.filter((code) => !code.startsWith("page:")),
-              page: mappedStored.filter((code) => code.startsWith("page:")),
-              impliedPermissionNames: [],
-              equivalentPermissionNames: [],
-            },
-            nextStored,
-          );
+          const fallbackPreview: PermissionExpandPreview = {
+            operational: [],
+            page: [],
+            impliedPermissionNames: [],
+            equivalentPermissionNames: [],
+            deniedPermissionNames: [],
+            storedPermissionNames: [],
+          };
+          const selection = resolveSelectionSets(fallbackPreview, nextStored, preserveSelection);
+          applyExpandMetadata(fallbackPreview, nextStored, selection);
           if (!expansionWarningShownRef.current) {
             expansionWarningShownRef.current = true;
             publishAppToast({
@@ -307,7 +395,7 @@ export function RoleModal({ open, onClose, onSaved, editRole = null }: RoleModal
         });
       }
     },
-    [applyExpandPreview, mapPermissionCodesToCatalog],
+    [applyExpandMetadata, getSelectedPermissionNames, resolveSelectionSets],
   );
 
   useEffect(() => {
@@ -324,6 +412,7 @@ export function RoleModal({ open, onClose, onSaved, editRole = null }: RoleModal
     setRoleName(isEdit ? (editRole?.name ?? "") : "");
     setPermissionSearch("");
     setStoredGrants([]);
+    setDeniedGrants([]);
     setCheckedOperational(new Set());
     setCheckedPages(new Set());
     setImpliedGrants(new Set());
@@ -331,6 +420,7 @@ export function RoleModal({ open, onClose, onSaved, editRole = null }: RoleModal
     setChatBundle(null);
     hydratedPermsForRoleIdRef.current = null;
     expansionWarningShownRef.current = false;
+    setPersistedStoredGrants([]);
   }, [open, isEdit, editId, editRole]);
 
   useEffect(() => {
@@ -346,10 +436,34 @@ export function RoleModal({ open, onClose, onSaved, editRole = null }: RoleModal
     if (!sourcePayload) return;
 
     const stored = mapPermissionCodesToCatalog(extractRoleStoredPermissionNames(sourcePayload));
-    const preview = parsePermissionExpandPreview(sourcePayload);
+    const denied = mapPermissionCodesToCatalog(extractRoleDeniedPermissionNames(sourcePayload));
+    const effective = extractRoleEffectiveByType(sourcePayload);
+    const equivalent = mapPermissionCodesToCatalog(
+      extractEquivalentPermissionNames(sourcePayload),
+    );
+    const selection = buildSelectedPermissionSets({
+      stored,
+      denied,
+      effectiveOperational: mapPermissionCodesToCatalog(effective.operational),
+      effectivePage: mapPermissionCodesToCatalog(effective.page),
+      equivalent,
+    });
+
+    setPersistedStoredGrants(stored);
     setStoredGrants(stored);
-    applyExpandPreview(preview, stored);
+    setDeniedGrants(denied);
+    setEquivalentGrants(new Set(equivalent));
+    setChatBundle(pickAssignedChatBundle(stored));
+
+    const selectionSets: SelectionSets = {
+      operational: new Set(selection.operational),
+      pages: new Set(selection.page),
+    };
+    setCheckedOperational(selectionSets.operational);
+    setCheckedPages(selectionSets.pages);
     hydratedPermsForRoleIdRef.current = editId;
+
+    void refreshExpandPreview(stored, selectionSets);
   }, [
     open,
     isEdit,
@@ -361,7 +475,7 @@ export function RoleModal({ open, onClose, onSaved, editRole = null }: RoleModal
     catalogOperational.length,
     catalogPage.length,
     mapPermissionCodesToCatalog,
-    applyExpandPreview,
+    refreshExpandPreview,
   ]);
 
   useEffect(() => {
@@ -374,42 +488,95 @@ export function RoleModal({ open, onClose, onSaved, editRole = null }: RoleModal
   const handleSelectChatBundle = (code: ChatBundleCode) => {
     const nextStored = [...storedGrants.filter((grant) => !isChatBundleCode(grant)), code];
     setStoredGrants(nextStored);
-    syncCheckedFromStored(nextStored);
     void refreshExpandPreview(nextStored);
   };
 
-  const handleStoredPermissionToggle = (code: string, checked: boolean) => {
-    if (impliedGrants.has(code) || equivalentGrants.has(code) || isChatBundleCode(code)) {
+  const isPureImpliedGrant = useCallback(
+    (code: string) => impliedGrants.has(code) && !draftAllowSet.has(code),
+    [impliedGrants, draftAllowSet],
+  );
+
+  const handlePermissionToggle = (code: string, checked: boolean) => {
+    if (equivalentGrants.has(code) || isChatBundleCode(code)) {
       return;
     }
-    const nextStored = checked
-      ? [...storedGrants.filter((grant) => grant !== code), code]
-      : storedGrants.filter((grant) => grant !== code);
-    setStoredGrants(nextStored);
-    syncCheckedFromStored(nextStored);
-    void refreshExpandPreview(nextStored);
+
+    const isPage = code.startsWith("page:");
+    const nextOperational = new Set(checkedOperational);
+    const nextPages = new Set(checkedPages);
+    let nextStored = [...storedGrants];
+    const nextDenied = deniedGrants.filter((grant) => grant !== code);
+    const pureImplied = isPureImpliedGrant(code);
+
+    if (checked) {
+      if (isPage) nextPages.add(code);
+      else nextOperational.add(code);
+      if (!pureImplied && !nextStored.includes(code)) {
+        nextStored.push(code);
+      }
+    } else {
+      if (isPage) nextPages.delete(code);
+      else nextOperational.delete(code);
+      if (pureImplied) {
+        nextDenied.push(code);
+      } else {
+        nextStored = nextStored.filter((grant) => grant !== code);
+      }
+    }
+
+    const selectionSets: SelectionSets = {
+      operational: nextOperational,
+      pages: nextPages,
+    };
+    setCheckedOperational(nextOperational);
+    setCheckedPages(nextPages);
+    setStoredGrants(Array.from(new Set(nextStored)).sort());
+    setDeniedGrants(Array.from(new Set(nextDenied)).sort());
+    void refreshExpandPreview(Array.from(new Set(nextStored)).sort(), selectionSets);
   };
 
   const handleSectionSelectAll = (items: PermissionOption[], selectAll: boolean) => {
     const toggleableCodes = items
-      .filter(
-        (perm) =>
-          !impliedGrants.has(perm.code) &&
-          !equivalentGrants.has(perm.code) &&
-          !isChatBundleCode(perm.code),
-      )
+      .filter((perm) => !equivalentGrants.has(perm.code) && !isChatBundleCode(perm.code))
       .map((perm) => perm.code);
 
     if (toggleableCodes.length === 0) return;
 
     const toggleableSet = new Set(toggleableCodes);
-    const nextStored = selectAll
-      ? [...new Set([...storedGrants, ...toggleableCodes])]
-      : storedGrants.filter((grant) => !toggleableSet.has(grant));
+    const nextOperational = new Set(checkedOperational);
+    const nextPages = new Set(checkedPages);
+    let nextStored = [...storedGrants];
+    const nextDenied = deniedGrants.filter((grant) => !toggleableSet.has(grant));
 
-    setStoredGrants(nextStored);
-    syncCheckedFromStored(nextStored);
-    void refreshExpandPreview(nextStored);
+    for (const code of toggleableCodes) {
+      const isPage = code.startsWith("page:");
+      const pureImplied = isPureImpliedGrant(code);
+      if (selectAll) {
+        if (isPage) nextPages.add(code);
+        else nextOperational.add(code);
+        if (!pureImplied && !nextStored.includes(code)) {
+          nextStored.push(code);
+        }
+      } else {
+        if (isPage) nextPages.delete(code);
+        else nextOperational.delete(code);
+        if (pureImplied) {
+          nextDenied.push(code);
+        } else {
+          nextStored = nextStored.filter((grant) => grant !== code);
+        }
+      }
+    }
+
+    const selectionSets: SelectionSets = {
+      operational: nextOperational,
+      pages: nextPages,
+    };
+    setCheckedOperational(nextOperational);
+    setCheckedPages(nextPages);
+    setStoredGrants(Array.from(new Set(nextStored)).sort());
+    setDeniedGrants(Array.from(new Set(nextDenied)).sort());
+    void refreshExpandPreview(Array.from(new Set(nextStored)).sort(), selectionSets);
   };
 
   const detailError =
@@ -440,35 +607,46 @@ export function RoleModal({ open, onClose, onSaved, editRole = null }: RoleModal
       publishAppToast({ variant: "error", message: "Please enter a role name." });
       return;
     }
-    if (storedGrants.length === 0) {
+
+    const permissionsBody = buildRolePermissionsSaveBody({
+      storedGrants,
+      deniedGrants,
+      checkedOperational,
+      checkedPages,
+      impliedGrants,
+    });
+
+    if (permissionsBody.permissionNames.length === 0) {
       publishAppToast({ variant: "error", message: "Please select at least one permission." });
       return;
     }
 
-    const closeOnSuccess = () => {
+    setIsSavingRole(true);
+    try {
+      if (!isEdit) {
+        await createRole({ name, ...permissionsBody });
+      } else {
+        await replaceRolePermissions(editId, permissionsBody);
+        const serverName =
+          extractRoleNameFromDetail(roleDetailQuery.data) ?? editRole?.name ?? "";
+        if (serverName.trim() !== name) {
+          await updateRole(editId, { name });
+        }
+      }
+      await queryClient.invalidateQueries({ queryKey: rolesKeys.all });
+      if (isEdit) {
+        await queryClient.invalidateQueries({ queryKey: rolesKeys.permissions(editId) });
+      }
       onSaved?.();
       onClose();
-    };
-
-    if (!isEdit) {
-      createRoleMutation.mutate(
-        { name, permissionNames: storedGrants },
-        { onSuccess: closeOnSuccess },
-      );
-      return;
+    } catch (err) {
+      publishAppToast({
+        variant: "error",
+        message: extractApiErrorMessageForToast(err) ?? "Could not save role.",
+      });
+    } finally {
+      setIsSavingRole(false);
     }
-
-    updateRoleMutation.mutate(
-      { id: editId, body: { name } },
-      {
-        onSuccess: () => {
-          replacePermsMutation.mutate(
-            { id: editId, body: { permissionNames: storedGrants } },
-            { onSuccess: closeOnSuccess },
-          );
-        },
-      },
-    );
   };
 
   const renderSection = (
@@ -477,14 +655,11 @@ export function RoleModal({ open, onClose, onSaved, editRole = null }: RoleModal
     checkedSet: Set<string>,
   ) => {
     const toggleableItems = items.filter(
-      (perm) =>
-        !impliedGrants.has(perm.code) &&
-        !equivalentGrants.has(perm.code) &&
-        !isChatBundleCode(perm.code),
+      (perm) => !equivalentGrants.has(perm.code) && !isChatBundleCode(perm.code),
     );
     const allSelected =
-      toggleableItems.length > 0 && toggleableItems.every((perm) => storedSet.has(perm.code));
-    const someSelected = toggleableItems.some((perm) => storedSet.has(perm.code));
+      toggleableItems.length > 0 && toggleableItems.every((perm) => checkedSet.has(perm.code));
+    const someSelected = toggleableItems.some((perm) => checkedSet.has(perm.code));
 
     return (
     <Box
@@ -532,9 +707,19 @@ export function RoleModal({ open, onClose, onSaved, editRole = null }: RoleModal
           ) : null}
           {items.map((perm) => {
             const checked = checkedSet.has(perm.code);
-            const locked = impliedGrants.has(perm.code) || equivalentGrants.has(perm.code);
-            const stored = storedSet.has(perm.code);
-            const hint = locked ? getAutoGrantHint(perm.code) : stored ? "Saved on this role" : undefined;
+            const locked = equivalentGrants.has(perm.code);
+            const implied = impliedGrants.has(perm.code);
+            const denied = deniedSet.has(perm.code);
+            const savedInDb = persistedAllowSet.has(perm.code);
+            const hint = locked
+              ? getAutoGrantHint(perm.code)
+              : implied && checked
+                ? getAutoGrantHint(perm.code)
+                : implied && denied
+                  ? "Denied for this role (bundle or page gate stays assigned)"
+                  : savedInDb
+                    ? "Saved on this role"
+                    : undefined;
             return (
               <PermissionCatalogRow
                 key={perm.code}
@@ -543,7 +728,7 @@ export function RoleModal({ open, onClose, onSaved, editRole = null }: RoleModal
                 locked={locked}
                 disabled={isSaving}
                 hint={hint}
-                onToggle={(next) => handleStoredPermissionToggle(perm.code, next)}
+                onToggle={(next) => handlePermissionToggle(perm.code, next)}
               />
             );
           })}
@@ -563,7 +748,7 @@ export function RoleModal({ open, onClose, onSaved, editRole = null }: RoleModal
           : "Create a role and assign permissions."
       }
       onClose={onClose}
-      onSave={handleSave}
+      onSave={() => void handleSave()}
       primaryButtonLabel={isEdit ? "Save changes" : "Create role"}
       primaryButtonDisabled={isSaving || isLoading || Boolean(detailError)}
       cancelButtonLabel="Cancel"
@@ -607,8 +792,8 @@ export function RoleModal({ open, onClose, onSaved, editRole = null }: RoleModal
                 Chat access (pick one bundle)
               </Typography>
               <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, display: "block", mb: 1.25 }}>
-                Sends the full stored grant list to <code>POST /access/permissions/expand</code> so operational and
-                page permissions update instantly. Only stored grants are saved to the role.
+                Bundles stay in <code>permissionNames</code>. Unchecking auto-granted permissions adds them to{" "}
+                <code>deniedPermissionNames</code> without removing the bundle.
               </Typography>
               <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
                 {CHAT_BUNDLE_OPTIONS.map((opt) => {

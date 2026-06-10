@@ -17,10 +17,12 @@ function normalizeStoredNames(storedNames: readonly string[]): string[] {
 
 /**
  * Preview runtime expansion for the role editor.
- * Sends the full current stored grant list — never a bundle-only subset.
+ * Sends stored ALLOW grants plus the current checkbox selection so the server
+ * can derive implied DENY entries (unchecked auto-granted permissions).
  */
 export async function fetchPermissionExpandPreview(
   storedNames: readonly string[],
+  selectedNames?: readonly string[],
 ): Promise<PermissionExpandPreview> {
   const permissionNames = normalizeStoredNames(storedNames);
   if (permissionNames.length === 0) {
@@ -29,11 +31,19 @@ export async function fetchPermissionExpandPreview(
       page: [],
       impliedPermissionNames: [],
       equivalentPermissionNames: [],
+      deniedPermissionNames: [],
+      storedPermissionNames: [],
     };
   }
 
+  const selectedPermissionNames =
+    selectedNames !== undefined ? normalizeStoredNames(selectedNames) : undefined;
+
   try {
-    const payload = await expandPermissionNames({ permissionNames });
+    const payload = await expandPermissionNames({
+      permissionNames,
+      ...(selectedPermissionNames !== undefined ? { selectedPermissionNames } : {}),
+    });
     return parsePermissionExpandPreview(payload);
   } catch (err) {
     if (isAxiosError(err) && (err.response?.status === 404 || err.response?.status === 501)) {

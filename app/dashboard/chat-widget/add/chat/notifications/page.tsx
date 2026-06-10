@@ -35,15 +35,8 @@ import { readWidgetChatColorsFromDraft } from "@/lib/chat-widget/widget-colors-d
 import { WidgetAiTypeField } from "@/components/dashboard/chat-widget/WidgetAiTypeField";
 import { syncResponseCopyFromChatBox } from "@/lib/chat-widget/sync-response-copy-from-chat-box";
 import {
-  notificationsCheckboxItemSx,
-  notificationsCheckboxRowSx,
   notificationsFieldGroupSx,
   notificationsFormStackSx,
-  notificationsInlineTogglesSx,
-  notificationsSectionHintSx,
-  notificationsSectionTitleSx,
-  notificationsSwitchLabelSx,
-  notificationsSwitchRowSx,
 } from "./notifications-advanced.styles";
 import {
   defaultWidgetDraft,
@@ -150,6 +143,7 @@ export default function ChatWidgetNotificationsPage() {
   );
 
   const websiteId = useMemo(() => {
+    void checklistRefreshKey;
     if (!draftReady) return "";
     const d = readChatWizardDraft(resolveEditWidgetKeyForNavigation(editWidgetKey) || undefined);
     return d.websiteId?.trim() ?? "";

@@ -236,6 +236,7 @@ export default function ChatWidgetButtonDesignPage() {
   useWizardStepFlush(flushStepToDraft);
 
   const themePreview = useMemo(() => {
+    void checklistRefreshKey;
     if (!draftReady) {
       return {
         accent: defaultWidgetDraft.themeDesignJsonAccent ?? "blue",
@@ -271,6 +272,7 @@ export default function ChatWidgetButtonDesignPage() {
   const previewSidePx = parseInsetPxString(launcherInsetSide, 28);
 
   const incomingPreviewColors = useMemo(() => {
+    void checklistRefreshKey;
     const base = draftReady
       ? readChatWizardDraft(resolveEditWidgetKeyForNavigation(editWidgetKey) || undefined)
       : defaultWidgetDraft;

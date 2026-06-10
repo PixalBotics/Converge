@@ -8,7 +8,6 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import {
-  Button,
   DashboardCard,
   DataTable,
   dataTableActionButton,

@@ -2,8 +2,12 @@ import { asRecord, pickArray } from "../user-page/utils";
 import { extractRoleExpandedPermissionNames } from "@/lib/permissions/role-permission-payload";
 
 export {
+  buildSelectedPermissionSets,
+  extractRoleDeniedPermissionNames,
+  extractRoleEffectiveByType,
   extractRoleExpandedPermissionNames,
   extractRoleStoredPermissionNames,
+  extractEquivalentPermissionNames,
   flattenPermissionNamesByType,
 } from "@/lib/permissions/role-permission-payload";
 
