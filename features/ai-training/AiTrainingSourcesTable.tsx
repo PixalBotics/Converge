@@ -11,6 +11,7 @@ import type { DataTableColumn } from "@/components/common";
 import {
   formatSourceRefForDisplay,
   formatScrapeProgressLabel,
+  isBasicTrainingReady,
   isWebSourceType,
   sourceTypeHumanLabel,
   type AiTrainingKbVariant,
@@ -146,13 +147,17 @@ export function AiTrainingSourcesTable({
             row.status === "processing" && isWebSourceType(row.sourceType)
               ? formatScrapeProgressLabel(row.scrapeProgress)
               : null;
+          const basicReady =
+            row.status === "processing" && isBasicTrainingReady(row.scrapeProgress, row.trainingTier);
           const label =
             row.status === "processing"
-              ? progressLabel
-                ? `Scraping ${progressLabel.split(" · ")[0]}`
-                : "Scraping…"
+              ? basicReady
+                ? "Basic ready · full training…"
+                : progressLabel
+                  ? `Scraping ${progressLabel.split(" · ")[0]}`
+                  : "Scraping…"
               : row.status === "indexed"
-                ? "Indexed"
+                ? "Fully trained"
                 : row.status;
           return (
             <Chip
@@ -216,7 +221,10 @@ export function AiTrainingSourcesTable({
               disabled={
                 busy ||
                 (row.status !== "indexed" &&
-                  !(row.status === "processing" && (row.chunkCount ?? 0) > 0))
+                  !(
+                    (row.status === "processing" && (row.chunkCount ?? 0) > 0) ||
+                    isBasicTrainingReady(row.scrapeProgress, row.trainingTier)
+                  ))
               }
               onClick={() =>
                 onPreviewSource(previewSourceId === row.id ? null : row.id)

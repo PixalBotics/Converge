@@ -31,7 +31,7 @@ import { AiTrainingFloatingTestChat } from "./AiTrainingFloatingTestChat";
 import { aiTrainingTestStudioHref } from "./ai-training-routes";
 import { AiTrainingStudioHeaderTabs } from "./AiTrainingStudioHeaderTabs";
 import { AiTrainingScrapeProgressDetail } from "./AiTrainingScrapeProgressDetail";
-import { hostFromWebsiteUrl, type AiTrainingKbVariant } from "./ai-training-kb.utils";
+import { hostFromWebsiteUrl, formatTrainingTierBanner, isBasicTrainingReady, type AiTrainingKbVariant } from "./ai-training-kb.utils";
 import { buildAiTrainingSessionScope } from "./ai-training-scope.util";
 import type { AiPipelineStep, FlowExecutionStep } from "@/api/ai-training/ai-training.api";
 import { extractApiErrorMessageForToast, publishAppToast } from "@/lib/notify";
@@ -182,8 +182,17 @@ export function AiTrainingAutomationStudioPage({
   const scrapingSource = liveSources.find(
     (s) => s.status === "processing" && s.scrapeProgress,
   );
+  const tierBanner = scrapingSource
+    ? formatTrainingTierBanner(
+        scrapingSource.scrapeProgress,
+        scrapingSource.trainingTier ?? scrapingSource.scrapeProgress?.trainingTier,
+      )
+    : null;
   const partialChunksReady = liveSources.some(
-    (s) => s.status === "processing" && (s.chunkCount ?? 0) > 0,
+    (s) =>
+      s.status === "processing" &&
+      ((s.chunkCount ?? 0) > 0 ||
+        isBasicTrainingReady(s.scrapeProgress, s.trainingTier)),
   );
 
   const botLabel = isChatbot ? websiteName : `${websiteName} copilot`;
@@ -256,7 +265,7 @@ export function AiTrainingAutomationStudioPage({
           id: `b-${Date.now()}`,
           role: "bot",
           text: answer || "(No reply text)",
-          replyHint: formatTestReplyHint(result),
+          replyHint: formatTestReplyHint(result, { partialTraining: partialChunksReady }),
         },
       ]);
     } catch (e) {
@@ -352,16 +361,22 @@ export function AiTrainingAutomationStudioPage({
   return (
     <Box sx={aiTrainingStudioPageWrapper}>
       {scrapingSource?.scrapeProgress ? (
-        <Alert severity="info" sx={{ mb: 1.5, borderRadius: 1 }}>
+        <Alert severity={tierBanner?.severity ?? "info"} sx={{ mb: 1.5, borderRadius: 1 }}>
+          {tierBanner ? (
+            <>
+              <Typography variant="body2" fontWeight={700} sx={{ mb: 0.5 }}>
+                {tierBanner.title}
+              </Typography>
+              <Typography variant="caption" sx={{ display: "block", mb: 1 }}>
+                {tierBanner.body}
+              </Typography>
+            </>
+          ) : null}
           <AiTrainingScrapeProgressDetail
             progress={scrapingSource.scrapeProgress}
             sourceRef={scrapingSource.sourceRef}
+            compact
           />
-          {partialChunksReady ? (
-            <Typography variant="caption" sx={{ display: "block", mt: 1 }}>
-              Test chat below uses indexed pieces so far while scraping continues.
-            </Typography>
-          ) : null}
         </Alert>
       ) : null}
       <AiTrainingFlowBuilderCanvas

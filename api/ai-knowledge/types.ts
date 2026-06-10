@@ -6,6 +6,10 @@ export type KnowledgeScrapeProgress = {
   chunksIndexed: number;
   recentPages: Array<{ url: string; title: string; chunks: number }>;
   phase: "starting" | "discovering" | "scraping" | "done";
+  trainingTier: "basic" | "basic_ready" | "full" | "complete";
+  basicPagesTotal: number;
+  basicPagesDone: number;
+  basicReadyAt: string | null;
   currentPage: {
     url: string;
     title: string;
@@ -20,6 +24,12 @@ export type KnowledgeScrapeProgress = {
   updatedAt: string;
   completedAt?: string;
 };
+
+export type KnowledgeTrainingTier =
+  | "basic"
+  | "basic_ready"
+  | "full"
+  | "complete";
 
 export type ChatbotSourceType = "URL" | "WEB_CRAWL" | "SITEMAP" | "FAQ";
 
@@ -54,6 +64,7 @@ export type KnowledgeSourceListItem = {
   createdAt: string;
   chunkCount?: number;
   scrapeProgress?: KnowledgeScrapeProgress | null;
+  trainingTier?: KnowledgeTrainingTier | null;
 };
 
 export type KnowledgeChunkPreviewItem = {

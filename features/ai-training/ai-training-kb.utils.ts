@@ -1,4 +1,9 @@
-import type { AssistantSourceType, ChatbotSourceType, KnowledgeScrapeProgress } from "@/api/ai-knowledge/types";
+import type {
+  AssistantSourceType,
+  ChatbotSourceType,
+  KnowledgeScrapeProgress,
+  KnowledgeTrainingTier,
+} from "@/api/ai-knowledge/types";
 import type { CreateKnowledgeSourceResult } from "@/api/ai-knowledge/types";
 
 export type AiTrainingKbVariant = "assistant" | "chatbot";
@@ -33,7 +38,51 @@ export const KB_WEB_MAX_PAGES_HINT = 25;
 export const KB_TRAINING_SOURCES_POLL_MS = 4_000;
 
 export const KB_BACKGROUND_TRAINING_STARTED_MESSAGE =
-  "Live scrape timer, ETA, and current page update every few seconds. Open Automation studio to test the AI on content indexed so far.";
+  "We train in two steps: basic pages first (test in a few minutes), then the rest of your site in the background until fully trained.";
+
+export function isBasicTrainingReady(
+  progress: KnowledgeScrapeProgress | null | undefined,
+  tier: KnowledgeTrainingTier | null | undefined,
+): boolean {
+  if (tier === "basic_ready" || tier === "full") return true;
+  return progress?.trainingTier === "basic_ready" || progress?.trainingTier === "full";
+}
+
+export function formatTrainingTierBanner(
+  progress: KnowledgeScrapeProgress | null | undefined,
+  tier: KnowledgeTrainingTier | null | undefined,
+): { severity: "success" | "info"; title: string; body: string } | null {
+  const t = tier ?? progress?.trainingTier;
+  if (t === "basic_ready") {
+    return {
+      severity: "success",
+      title: "Basic training ready — test now",
+      body:
+        "Main pages are indexed. Open Automation studio and test chat — answers use basic pages for now. The rest of your site is still scraping in the background.",
+    };
+  }
+  if (t === "full") {
+    const done = progress?.pagesDone ?? 0;
+    const total = progress?.pagesTotal;
+    const tail =
+      total != null && total > 0
+        ? ` (${Math.min(done, total)}/${total} pages indexed so far).`
+        : ".";
+    return {
+      severity: "info",
+      title: "Full training in progress",
+      body: `Background scrape continues${tail} You'll be fully trained soon — test chat already works on indexed content.`,
+    };
+  }
+  if (t === "basic" && progress) {
+    return {
+      severity: "info",
+      title: "Basic training starting",
+      body: `Indexing priority pages first (${Math.min(progress.basicPagesDone, progress.basicPagesTotal)}/${progress.basicPagesTotal || "…"}). You can test shortly after basic training completes.`,
+    };
+  }
+  return null;
+}
 
 export const ASSISTANT_SOURCE_TYPE_OPTIONS: { label: string; value: AssistantSourceType }[] = [
   { label: "Website URL (auto scrape)", value: "URL" },
@@ -66,9 +115,20 @@ export function formatScrapeProgressLabel(
   progress: KnowledgeScrapeProgress | null | undefined,
 ): string | null {
   if (!progress) return null;
+  if (
+    progress.trainingTier === "basic" &&
+    progress.basicPagesTotal > 0
+  ) {
+    const done = Math.min(progress.basicPagesDone, progress.basicPagesTotal);
+    return `Basic ${done}/${progress.basicPagesTotal} · ${progress.chunksIndexed} pieces`;
+  }
   if (progress.pagesTotal != null && progress.pagesTotal > 0) {
     const done = Math.min(progress.pagesDone, progress.pagesTotal);
-    return `${done}/${progress.pagesTotal} pages · ${progress.chunksIndexed} pieces`;
+    const prefix =
+      progress.trainingTier === "full" || progress.trainingTier === "basic_ready"
+        ? "Full "
+        : "";
+    return `${prefix}${done}/${progress.pagesTotal} pages · ${progress.chunksIndexed} pieces`;
   }
   if (progress.pagesDone > 0) {
     return `${progress.pagesDone} page${progress.pagesDone === 1 ? "" : "s"} · ${progress.chunksIndexed} pieces`;
@@ -80,6 +140,22 @@ export function formatScrapePhaseLabel(
   progress: KnowledgeScrapeProgress | null | undefined,
 ): string {
   if (!progress) return "Preparing scrape…";
+  if (progress.trainingTier === "basic") {
+    return progress.currentPage ? "Basic training · scraping page" : "Basic training · priority pages";
+  }
+  if (progress.trainingTier === "basic_ready") {
+    return "Basic ready · starting full site scrape";
+  }
+  if (progress.trainingTier === "full") {
+    switch (progress.phase) {
+      case "discovering":
+        return "Full training · finding remaining pages";
+      case "scraping":
+        return progress.currentPage ? "Full training · scraping page" : "Full training · background scrape";
+      default:
+        return "Full training in progress";
+    }
+  }
   switch (progress.phase) {
     case "discovering":
       return "Finding sitemap & page list";
