@@ -38,6 +38,11 @@ export function resolveLauncherFabSurfaceSx(params: {
   const base = params.buttonColor || "#1E63D5";
   const hover = params.buttonHoverColor || base;
   const icon = params.iconColor || "#ffffff";
+  const hoverDistinct = hover.trim().toLowerCase() !== base.trim().toLowerCase();
+  const hoverLift = {
+    transform: "translateY(-2px) scale(1.05)",
+    ...(hoverDistinct ? {} : { filter: "brightness(1.08)" }),
+  };
 
   const sizeBlock = {
     width: params.sizePx,
@@ -63,6 +68,7 @@ export function resolveLauncherFabSurfaceSx(params: {
         background: `linear-gradient(135deg, ${hover} 0%, ${base} 100%) !important`,
         color: `${icon} !important`,
         boxShadow: "0 6px 18px rgba(15, 23, 42, 0.22)",
+        ...hoverLift,
       },
     };
   }
@@ -80,6 +86,7 @@ export function resolveLauncherFabSurfaceSx(params: {
         background: `linear-gradient(145deg, rgba(255,255,255,0.5) 0%, rgba(255,255,255,0.12) 100%), ${hover} !important`,
         color: `${icon} !important`,
         boxShadow: "0 10px 28px rgba(15, 23, 42, 0.2)",
+        ...hoverLift,
       },
     };
   }
@@ -94,6 +101,7 @@ export function resolveLauncherFabSurfaceSx(params: {
         bgcolor: `${hover} !important`,
         color: `${icon} !important`,
         boxShadow: `0 0 0 1px rgba(255,255,255,0.28), 0 0 28px ${hover}aa, 0 10px 24px rgba(15, 23, 42, 0.24)`,
+        ...hoverLift,
       },
     };
   }
@@ -107,6 +115,7 @@ export function resolveLauncherFabSurfaceSx(params: {
       bgcolor: `${hover} !important`,
       color: `${icon} !important`,
       boxShadow: "0 6px 16px rgba(15, 23, 42, 0.18)",
+      ...hoverLift,
     },
     "&:active": { boxShadow: "0 2px 8px rgba(15, 23, 42, 0.12)" },
     "&:focus": { boxShadow: "0 4px 12px rgba(15, 23, 42, 0.14)" },

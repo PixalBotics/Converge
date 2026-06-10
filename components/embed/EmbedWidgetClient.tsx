@@ -267,11 +267,14 @@ export function EmbedWidgetClient({
       ? Math.max(5_000, expMs - Date.now() - skewMs)
       : fallbackMs;
 
+    const shareToken = previewShareToken?.trim();
+
     const id = window.setTimeout(() => {
       void (async () => {
         const sess = await postWidgetSession({
           widgetKey,
           ...(originHost ? { originHost } : {}),
+          ...(shareToken ? { previewShareToken: shareToken } : {}),
         });
         if (cancelled || !sess.ok) return;
         const next =
@@ -288,7 +291,7 @@ export function EmbedWidgetClient({
       cancelled = true;
       window.clearTimeout(id);
     };
-  }, [boot, parentHost, widgetKey]);
+  }, [boot, parentHost, previewShareToken, widgetKey]);
 
   if (boot.phase === "loading") {
     return <EmbedLoadingLauncher />;
@@ -1269,8 +1272,9 @@ function WidgetChatPanel({
 
   const formEnabled = appearance?.formEnabled ?? true;
   const inquiryOptions: RuntimeInquiryOption[] = appearance?.inquiryOptions ?? [];
+  const inquiryEnabled = appearance?.inquiryEnabled ?? inquiryOptions.length > 0;
   const hasInquiryStep =
-    mode !== "AI_ONLY" && inquiryOptions.length > 0;
+    mode !== "AI_ONLY" && inquiryEnabled && inquiryOptions.length > 0;
   const inquiryRequired = appearance?.inquiryRequired ?? false;
   const inquiryFallback = appearance?.inquiryFallback ?? null;
   const inquirySkipLabel = appearance?.inquirySkipLabel ?? "General question";
@@ -1539,21 +1543,38 @@ function WidgetChatPanel({
   const needsAgentSocket =
     mode === "AGENT_ONLY" || (mode === "HYBRID" && escalated);
   const hasActiveConversation = Boolean(chat.conversationId);
+
+  /** Avoid flashing "Offline" on brief socket reconnects — only after sustained disconnect. */
+  const SOCKET_OFFLINE_UI_DELAY_MS = 4500;
+  const [socketUiLive, setSocketUiLive] = useState(chat.isConnected);
+  useEffect(() => {
+    if (chat.isConnected) {
+      setSocketUiLive(true);
+      return;
+    }
+    const id = window.setTimeout(() => setSocketUiLive(false), SOCKET_OFFLINE_UI_DELAY_MS);
+    return () => window.clearTimeout(id);
+  }, [chat.isConnected]);
+
   const showOfflineBanner =
     needsAgentSocket &&
-    !chat.isConnected &&
+    !socketUiLive &&
     Boolean(appearance?.offlineMessage?.trim());
-  const statusLabel = assistantHandlesChat && hasActiveConversation
-    ? aiPending
-      ? "Assistant"
-      : "Live"
-    : !chat.isConnected && appearance?.offlineMessage?.trim()
-      ? "Offline"
-      : chat.isConnected
-        ? "Live"
-        : hasActiveConversation
-          ? "Live"
-          : "Connecting…";
+  const statusLabel = (() => {
+    if (assistantHandlesChat) {
+      if (!hasActiveConversation) {
+        return chat.isConnected ? "Live" : "Connecting…";
+      }
+      return aiPending ? "Assistant" : "Live";
+    }
+    if (needsAgentSocket && !socketUiLive && appearance?.offlineMessage?.trim()) {
+      return "Offline";
+    }
+    if (!socketUiLive) {
+      return hasActiveConversation ? "Connecting…" : "Connecting…";
+    }
+    return "Live";
+  })();
 
   const headerStatus = useMemo(() => {
     if (!appearance) return null;

@@ -90,7 +90,24 @@ describe("widget-experience inquiry", () => {
     expect(fields).not.toHaveProperty("inquiry");
   });
 
-  it("hydrates empty experience.inquiry from behavior.inquiryOptions", () => {
+  it("hydrates empty experience.inquiry from behavior.inquiryOptions when enabled", () => {
+    const raw = {
+      schemaVersion: 1,
+      mode: "HYBRID",
+      content: {},
+      design: { launcher: {}, panel: {}, banner: {}, videoWelcome: { enabled: false, url: "" } },
+      inquiry: { enabled: true, required: false, skipLabel: "General question", topics: [] },
+      behavior: { inquiryOptions: [billingOption] },
+      form: {},
+      session: {},
+    };
+    const parsed = parseWidgetExperienceV1(raw);
+    expect(parsed?.inquiry.enabled).toBe(true);
+    expect(parsed?.inquiry.topics).toHaveLength(1);
+    expect(inquiryOptionsFromExperience(parsed)).toHaveLength(1);
+  });
+
+  it("does not hydrate inquiry from behavior when inquiry is disabled", () => {
     const raw = {
       schemaVersion: 1,
       mode: "HYBRID",
@@ -102,9 +119,8 @@ describe("widget-experience inquiry", () => {
       session: {},
     };
     const parsed = parseWidgetExperienceV1(raw);
-    expect(parsed?.inquiry.enabled).toBe(true);
-    expect(parsed?.inquiry.topics).toHaveLength(1);
-    expect(inquiryOptionsFromExperience(parsed)).toHaveLength(1);
+    expect(parsed?.inquiry.enabled).toBe(false);
+    expect(inquiryOptionsFromExperience(parsed)).toHaveLength(0);
   });
 
   it("leaves populated inquiry topics unchanged", () => {

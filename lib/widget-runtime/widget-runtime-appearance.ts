@@ -167,6 +167,7 @@ export interface RuntimeChatAppearance {
   banner: RuntimeBannerAppearance;
   videoWelcome: RuntimeVideoWelcomeAppearance;
   inquiryOptions: RuntimeInquiryOption[];
+  inquiryEnabled: boolean;
   inquiryRequired: boolean;
   inquirySkipLabel: string;
   inquiryFallback: RuntimeInquiryOption | null;
@@ -363,10 +364,17 @@ export function extractRuntimeChatAppearance(
     ui,
   });
 
+  const expChatColors =
+    experience && isObj(experience.design.chatColors)
+      ? experience.design.chatColors
+      : null;
+
   const buttonColor = resolvedColors.primary;
   const buttonHover = strFirst(
     colors?.buttonHover,
     colors?.button_hover,
+    expChatColors?.buttonHover,
+    expChatColors?.button_hover,
     ui?.buttonHoverColor,
     theme?.buttonHoverColor,
     buttonColor,
@@ -521,16 +529,37 @@ export function extractRuntimeChatAppearance(
     designDensity,
     accentPalette,
     densityTokens,
+    inquiryEnabled: (() => {
+      const chatMode = String(configRecord.mode ?? configRecord.chatMode ?? "").toUpperCase();
+      if (chatMode === "AI_ONLY") return false;
+      const exp = parseWidgetExperienceV1(configRecord._experience);
+      if (exp) return exp.inquiry.enabled === true;
+      if (
+        behavior?.inquiryOptions !== undefined &&
+        Array.isArray(behavior.inquiryOptions) &&
+        behavior.inquiryOptions.length === 0
+      ) {
+        return false;
+      }
+      return parseInquiryOptions(behavior).length > 0;
+    })(),
     inquiryOptions: (() => {
       const chatMode = String(configRecord.mode ?? configRecord.chatMode ?? "").toUpperCase();
       if (chatMode === "AI_ONLY") return [];
-      const fromBehavior = parseInquiryOptions(behavior);
       const exp = parseWidgetExperienceV1(configRecord._experience);
       if (exp) {
+        if (!exp.inquiry.enabled) return [];
         const fromExp = inquiryOptionsFromExperience(exp);
         if (fromExp.length > 0) return fromExp;
       }
-      return fromBehavior;
+      if (
+        behavior?.inquiryOptions !== undefined &&
+        Array.isArray(behavior.inquiryOptions) &&
+        behavior.inquiryOptions.length === 0
+      ) {
+        return [];
+      }
+      return parseInquiryOptions(behavior);
     })(),
     inquiryRequired: (() => {
       const exp = parseWidgetExperienceV1(configRecord._experience);
