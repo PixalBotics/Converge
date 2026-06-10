@@ -38,6 +38,16 @@ describe("resolveWidgetEmbedAppOrigin", () => {
     ).toBe("https://theconverge.netlify.app");
   });
 
+  it("prefers explicit browser origin over stale embed env on preview pages", () => {
+    vi.stubEnv("NEXT_PUBLIC_API_BASE_URL", "https://convergit-saas.onrender.com");
+    vi.stubEnv("NEXT_PUBLIC_WIDGET_EMBED_ORIGIN", "https://old-app.netlify.app");
+    expect(
+      resolveWidgetEmbedAppOrigin({
+        browserOrigin: "https://theconverge.netlify.app",
+      }),
+    ).toBe("https://theconverge.netlify.app");
+  });
+
   it("prefers server embed hint from embed-snippet API", () => {
     vi.stubEnv("NEXT_PUBLIC_API_BASE_URL", "https://api.example.com");
     vi.stubEnv("NEXT_PUBLIC_WIDGET_EMBED_ORIGIN", "https://api.example.com");

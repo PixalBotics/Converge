@@ -1,4 +1,4 @@
-import type { AssistantSourceType, ChatbotSourceType } from "@/api/ai-knowledge/types";
+import type { AssistantSourceType, ChatbotSourceType, KnowledgeScrapeProgress } from "@/api/ai-knowledge/types";
 import type { CreateKnowledgeSourceResult } from "@/api/ai-knowledge/types";
 
 export type AiTrainingKbVariant = "assistant" | "chatbot";
@@ -29,11 +29,11 @@ Route to Billing L2 via the #billing-escalations channel.`;
 /** Shown in UI; backend default is higher (see KB_WEB_MAX_PAGES). */
 export const KB_WEB_MAX_PAGES_HINT = 25;
 
-/** Poll interval while sources are indexing — keeps server load lower than 5s. */
-export const KB_TRAINING_SOURCES_POLL_MS = 15_000;
+/** Poll while sources are indexing — live scrape progress updates. */
+export const KB_TRAINING_SOURCES_POLL_MS = 4_000;
 
 export const KB_BACKGROUND_TRAINING_STARTED_MESSAGE =
-  "Training runs on the server while you keep working. This page refreshes every ~15 seconds. When status is Indexed, open Automation studio to test on real data.";
+  "Live scrape timer, ETA, and current page update every few seconds. Open Automation studio to test the AI on content indexed so far.";
 
 export const ASSISTANT_SOURCE_TYPE_OPTIONS: { label: string; value: AssistantSourceType }[] = [
   { label: "Website URL (auto scrape)", value: "URL" },
@@ -60,6 +60,72 @@ export function assistantFileUploadButtonLabel(sourceType: string): string {
   if (sourceType === "DOCX") return "Choose DOCX file";
   if (sourceType === "EXCEL") return "Choose Excel file";
   return "Choose PDF file";
+}
+
+export function formatScrapeProgressLabel(
+  progress: KnowledgeScrapeProgress | null | undefined,
+): string | null {
+  if (!progress) return null;
+  if (progress.pagesTotal != null && progress.pagesTotal > 0) {
+    const done = Math.min(progress.pagesDone, progress.pagesTotal);
+    return `${done}/${progress.pagesTotal} pages · ${progress.chunksIndexed} pieces`;
+  }
+  if (progress.pagesDone > 0) {
+    return `${progress.pagesDone} page${progress.pagesDone === 1 ? "" : "s"} · ${progress.chunksIndexed} pieces`;
+  }
+  return "Starting scrape…";
+}
+
+export function formatScrapePhaseLabel(
+  progress: KnowledgeScrapeProgress | null | undefined,
+): string {
+  if (!progress) return "Preparing scrape…";
+  switch (progress.phase) {
+    case "discovering":
+      return "Finding sitemap & page list";
+    case "scraping":
+      return progress.currentPage ? "Scraping page" : "Scraping site";
+    case "done":
+      return "Scrape complete";
+    default:
+      return progress.pagesDone > 0 ? "Scraping site" : "Starting scrape…";
+  }
+}
+
+export function formatDurationSeconds(totalSeconds: number): string {
+  const s = Math.max(0, Math.floor(totalSeconds));
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  if (h > 0) {
+    return `${h}:${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")}`;
+  }
+  return `${m}:${String(sec).padStart(2, "0")}`;
+}
+
+export function computeScrapeTiming(
+  progress: KnowledgeScrapeProgress,
+  nowMs = Date.now(),
+): { elapsedSec: number; etaSec: number | null } {
+  const startedMs = Date.parse(progress.startedAt);
+  const elapsedSec = Number.isFinite(startedMs)
+    ? Math.max(0, Math.floor((nowMs - startedMs) / 1000))
+    : 0;
+  let etaSec: number | null = null;
+  if (
+    progress.pagesTotal != null &&
+    progress.pagesTotal > 0 &&
+    progress.pagesDone > 0 &&
+    progress.pagesDone < progress.pagesTotal &&
+    Number.isFinite(startedMs)
+  ) {
+    const avgMs = (nowMs - startedMs) / progress.pagesDone;
+    etaSec = Math.max(
+      0,
+      Math.ceil((avgMs * (progress.pagesTotal - progress.pagesDone)) / 1000),
+    );
+  }
+  return { elapsedSec, etaSec };
 }
 
 export function hostFromWebsiteUrl(url: string): string | null {
