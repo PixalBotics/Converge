@@ -30,6 +30,7 @@ import {
 import { AiTrainingPageShell } from "./AiTrainingPageShell";
 import { AiTrainingStudioHeaderTabs } from "./AiTrainingStudioHeaderTabs";
 import { AiTrainingSourcePreview } from "./AiTrainingSourcePreview";
+import { AiTrainingScrapeProgressDetail } from "./AiTrainingScrapeProgressDetail";
 import { AiTrainingSourcesTable } from "./AiTrainingSourcesTable";
 import {
   aiTrainingAddHref,
@@ -41,7 +42,9 @@ import {
   isReindexBulkResult,
   KB_BACKGROUND_TRAINING_STARTED_MESSAGE,
   KB_TRAINING_SOURCES_POLL_MS,
+  isWebSourceType,
   toastMessageForCreateResult,
+  formatSourceRefForDisplay,
   type AiTrainingKbVariant,
 } from "./ai-training-kb.utils";
 import { useAiTrainingHierarchy } from "./use-ai-training-hierarchy";
@@ -149,6 +152,16 @@ export function AiTrainingWebsiteManagePage({ variant }: { variant: AiTrainingKb
   ).length;
   const listTotal = sourcesQuery.data?.total ?? 0;
   const reindexBusy = reindexChatbot.isPending || reindexAssistant.isPending;
+
+  const processingWebSources = useMemo(
+    () =>
+      listItems.filter(
+        (i) =>
+          (i.status === "processing" || i.status === "pending") &&
+          isWebSourceType(i.sourceType),
+      ),
+    [listItems],
+  );
 
   const previewSource = useMemo(
     () => listItems.find((item) => item.id === previewSourceId) ?? null,
@@ -265,6 +278,24 @@ export function AiTrainingWebsiteManagePage({ variant }: { variant: AiTrainingKb
         <Alert severity="info" sx={{ borderRadius: 1 }}>
           {KB_BACKGROUND_TRAINING_STARTED_MESSAGE}
           {processingCount > 0 ? ` (${processingCount} item(s) in progress)` : ""}
+          {processingWebSources
+            .filter((s) => s.scrapeProgress)
+            .map((source) => (
+              <Box key={source.id} sx={{ mt: 1.5 }}>
+                <Typography variant="caption" fontWeight={700} sx={{ display: "block", mb: 0.75 }}>
+                  {formatSourceRefForDisplay(source)}
+                </Typography>
+                <AiTrainingScrapeProgressDetail
+                  progress={source.scrapeProgress!}
+                  sourceRef={source.sourceRef}
+                />
+              </Box>
+            ))}
+          {processingWebSources.some((s) => s.scrapeProgress && (s.chunkCount ?? 0) > 0) ? (
+            <Typography variant="caption" sx={{ display: "block", mt: 1.5, opacity: 0.95 }}>
+              Test chat can already use indexed pieces — open Automation studio while scraping continues.
+            </Typography>
+          ) : null}
         </Alert>
       ) : null}
 

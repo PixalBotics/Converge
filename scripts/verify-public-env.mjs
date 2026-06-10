@@ -57,6 +57,10 @@ const REQUIRED = [
 
 const RECOMMENDED = [
   {
+    key: "NEXT_PUBLIC_WIDGET_EMBED_ORIGIN",
+    hint: "This Netlify site URL (NOT Render) — used for embed snippets; preview pages use the live browser host",
+  },
+  {
     key: "NEXT_PUBLIC_CHAT_SOCKET_BASE_URL",
     hint: "Socket.IO origin (defaults to NEXT_PUBLIC_API_BASE_URL)",
   },
