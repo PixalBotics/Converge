@@ -35,10 +35,16 @@ export function AiTrainingScrapeProgressDetail({
   const timing = useMemo(() => computeScrapeTiming(progress, nowMs), [progress, nowMs]);
   const progressLabel = formatScrapeProgressLabel(progress);
   const phaseLabel = formatScrapePhaseLabel(progress);
+  const tier = progress.trainingTier;
   const percent =
-    progress.pagesTotal != null && progress.pagesTotal > 0
-      ? Math.min(100, Math.round((progress.pagesDone / progress.pagesTotal) * 100))
-      : null;
+    tier === "basic" && progress.basicPagesTotal > 0
+      ? Math.min(
+          100,
+          Math.round((progress.basicPagesDone / progress.basicPagesTotal) * 100),
+        )
+      : progress.pagesTotal != null && progress.pagesTotal > 0
+        ? Math.min(100, Math.round((progress.pagesDone / progress.pagesTotal) * 100))
+        : null;
 
   const currentTitle =
     progress.currentPage?.title?.trim() ||

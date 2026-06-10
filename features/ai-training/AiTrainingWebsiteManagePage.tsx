@@ -45,6 +45,7 @@ import {
   isWebSourceType,
   toastMessageForCreateResult,
   formatSourceRefForDisplay,
+  formatTrainingTierBanner,
   type AiTrainingKbVariant,
 } from "./ai-training-kb.utils";
 import { useAiTrainingHierarchy } from "./use-ai-training-hierarchy";
@@ -275,28 +276,51 @@ export function AiTrainingWebsiteManagePage({ variant }: { variant: AiTrainingKb
       ) : null}
 
       {hasBackgroundTraining ? (
-        <Alert severity="info" sx={{ borderRadius: 1 }}>
-          {KB_BACKGROUND_TRAINING_STARTED_MESSAGE}
-          {processingCount > 0 ? ` (${processingCount} item(s) in progress)` : ""}
-          {processingWebSources
-            .filter((s) => s.scrapeProgress)
-            .map((source) => (
-              <Box key={source.id} sx={{ mt: 1.5 }}>
-                <Typography variant="caption" fontWeight={700} sx={{ display: "block", mb: 0.75 }}>
-                  {formatSourceRefForDisplay(source)}
-                </Typography>
-                <AiTrainingScrapeProgressDetail
-                  progress={source.scrapeProgress!}
-                  sourceRef={source.sourceRef}
-                />
-              </Box>
-            ))}
-          {processingWebSources.some((s) => s.scrapeProgress && (s.chunkCount ?? 0) > 0) ? (
-            <Typography variant="caption" sx={{ display: "block", mt: 1.5, opacity: 0.95 }}>
-              Test chat can already use indexed pieces — open Automation studio while scraping continues.
-            </Typography>
+        <>
+          {processingWebSources.map((source) => {
+            const tierBanner = formatTrainingTierBanner(
+              source.scrapeProgress,
+              source.trainingTier ?? source.scrapeProgress?.trainingTier,
+            );
+            if (!tierBanner && !source.scrapeProgress) return null;
+            return (
+              <Alert
+                key={source.id}
+                severity={tierBanner?.severity ?? "info"}
+                sx={{ borderRadius: 1, mb: 1.5 }}
+              >
+                {tierBanner ? (
+                  <>
+                    <Typography variant="body2" fontWeight={700} sx={{ mb: 0.5 }}>
+                      {tierBanner.title}
+                    </Typography>
+                    <Typography variant="caption" sx={{ display: "block" }}>
+                      {tierBanner.body}
+                    </Typography>
+                  </>
+                ) : null}
+                {source.scrapeProgress ? (
+                  <Box sx={{ mt: tierBanner ? 1.5 : 0 }}>
+                    <Typography variant="caption" fontWeight={700} sx={{ display: "block", mb: 0.75 }}>
+                      {formatSourceRefForDisplay(source)}
+                    </Typography>
+                    <AiTrainingScrapeProgressDetail
+                      progress={source.scrapeProgress}
+                      sourceRef={source.sourceRef}
+                      compact={Boolean(tierBanner)}
+                    />
+                  </Box>
+                ) : null}
+              </Alert>
+            );
+          })}
+          {!processingWebSources.some((s) => s.scrapeProgress) ? (
+            <Alert severity="info" sx={{ borderRadius: 1, mb: 1.5 }}>
+              {KB_BACKGROUND_TRAINING_STARTED_MESSAGE}
+              {processingCount > 0 ? ` (${processingCount} item(s) in progress)` : ""}
+            </Alert>
           ) : null}
-        </Alert>
+        </>
       ) : null}
 
       <Stack spacing={2}>
