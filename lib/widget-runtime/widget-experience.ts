@@ -65,6 +65,13 @@ function isRecord(v: unknown): v is Record<string, unknown> {
   return Boolean(v) && typeof v === "object" && !Array.isArray(v);
 }
 
+function strFirst(...values: unknown[]): string {
+  for (const v of values) {
+    if (typeof v === "string" && v.trim()) return v.trim();
+  }
+  return "";
+}
+
 /** Map widget draft rows to compiled `experience.inquiry.topics` (public embed shape). */
 export function widgetInquiryToExperienceTopic(
   option: WidgetInquiryOption,
@@ -83,6 +90,7 @@ export function widgetInquiryToExperienceTopic(
 export function hydrateExperienceInquiryFromBehavior(
   experience: WidgetExperienceV1,
 ): WidgetExperienceV1 {
+  if (experience.inquiry.enabled === false) return experience;
   if (experience.inquiry.topics.length > 0) return experience;
 
   const behavior = isRecord(experience.behavior) ? experience.behavior : {};
@@ -226,7 +234,10 @@ export function parseWidgetExperienceV1(raw: unknown): WidgetExperienceV1 | null
       chatColors: isRecord(design.chatColors) ? design.chatColors : {},
     },
     inquiry: {
-      enabled: inquiry.enabled === true || parsedTopics.length > 0,
+      enabled:
+        inquiry.enabled === false
+          ? false
+          : inquiry.enabled === true || parsedTopics.length > 0,
       required: inquiry.required === true && parsedTopics.length > 0,
       skipLabel: String(inquiry.skipLabel ?? "General question"),
       fallbackRoutingKey:
@@ -280,6 +291,12 @@ export function applyExperienceToConfigRecord(
   const panel = design.panel;
   const launcher = design.launcher;
   const banner = design.banner;
+  const expColors = isRecord(design.chatColors) ? design.chatColors : {};
+  const buttonHoverColor = strFirst(
+    expColors.buttonHover,
+    expColors.button_hover,
+    launcher.primaryColor,
+  );
 
   return {
     ...config,
@@ -297,9 +314,11 @@ export function applyExperienceToConfigRecord(
       fontFamily: launcher.fontFamily,
       position: launcher.position,
       buttonShape: launcher.shape,
+      ...(buttonHoverColor ? { buttonHoverColor } : {}),
     },
     ui: {
       ...(isRecord(config.ui) ? config.ui : {}),
+      ...(buttonHoverColor ? { buttonHoverColor } : {}),
       headerTitle: experience.content.headerTitle,
       greetingMessage: experience.content.greeting,
       firstMessage: experience.content.chatWelcome,
@@ -398,7 +417,7 @@ export function inquiryOptionsFromExperience(
 ): ReturnType<typeof toRuntimeInquiryOptions> {
   if (!experience) return [];
   const hydrated = hydrateExperienceInquiryFromBehavior(experience);
-  if (!hydrated.inquiry.enabled && hydrated.inquiry.topics.length === 0) return [];
+  if (!hydrated.inquiry.enabled) return [];
   return toRuntimeInquiryOptions(
     hydrated.inquiry.topics.map(experienceTopicToWidgetInquiry),
   );
@@ -409,7 +428,7 @@ export function inquiryFallbackFromExperience(
 ): ReturnType<typeof toRuntimeInquiryOptions>[number] | null {
   if (!experience) return null;
   const hydrated = hydrateExperienceInquiryFromBehavior(experience);
-  if (!hydrated.inquiry.enabled && hydrated.inquiry.topics.length === 0) return null;
+  if (!hydrated.inquiry.enabled) return null;
   const key = hydrated.inquiry.fallbackRoutingKey?.trim();
   if (key) {
     const match = hydrated.inquiry.topics.find((t) => t.routingKey === key);
@@ -492,6 +511,11 @@ export function buildThemeDesignJsonFromExperience(
           ? String(design.avatars.visitor.preset ?? "phosphor-user-circle")
           : "phosphor-user-circle",
       closedMessagePreviewEnabled: content.closedMessagePreviewEnabled,
+      ...(typeof colors.buttonHover === "string" && colors.buttonHover.trim()
+        ? { buttonHoverColor: colors.buttonHover.trim() }
+        : typeof colors.button_hover === "string" && colors.button_hover.trim()
+          ? { buttonHoverColor: colors.button_hover.trim() }
+          : {}),
       bannerOn: banner.enabled,
       bannerTitle: banner.title,
       bannerDescription: banner.description,
