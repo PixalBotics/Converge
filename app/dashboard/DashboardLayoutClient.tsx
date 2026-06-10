@@ -182,7 +182,7 @@ export default function DashboardLayoutClient({
                     overflow: "auto",
                     boxSizing: "border-box",
                   },
-              { mt: "10px" },
+              { mt: aiTrainingStudio ? 0 : "10px" },
               dashboardMainTextSx,
               dashboardMainGlassSx,
             ] as SxProps<Theme>

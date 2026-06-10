@@ -3,16 +3,57 @@ import type { SxProps, Theme } from "@mui/material/styles";
 import type { SystemStyleObject } from "@mui/system";
 import type { AppTheme } from "@/theme/theme";
 import { dashboardCardSurfaceProps, dashboardSolidSurface } from "@/features/chat-operations/styles/chat-semantic";
+import { studioColors } from "./ai-training-studio.tokens";
 
 function dash(theme: Theme) {
   return (theme as AppTheme).app.dashboard;
 }
 
+/** Shared pill toggle chrome for studio header tabs. */
+export const aiTrainingStudioToggleGroupSx: SxProps<Theme> = (theme) => {
+  const d = dash(theme);
+  const c = studioColors(theme as AppTheme);
+  const isLight = theme.palette.mode === "light";
+  return {
+    bgcolor: alpha(d.menuSurfaceBg ?? d.pillBg, isLight ? 0.5 : 0.38),
+    borderRadius: 2,
+    border: `1px solid ${alpha(d.cardBorder, isLight ? 0.45 : 0.38)}`,
+    flexShrink: 0,
+    "& .MuiToggleButton-root": {
+      border: "none",
+      px: 1.5,
+      py: 0.65,
+      textTransform: "none",
+      fontSize: 12,
+      fontWeight: 600,
+      color: c.textSecondary,
+      gap: 0.5,
+      lineHeight: 1.2,
+      "&.Mui-selected": {
+        bgcolor: isLight
+          ? alpha(theme.app.text.primary, 0.08)
+          : alpha(d.overlayLight ?? "#ffffff", 0.14),
+        color: c.text,
+        boxShadow: isLight ? "none" : `inset 0 0 0 1px ${alpha(d.cardBorder, 0.35)}`,
+        "&:hover": {
+          bgcolor: isLight
+            ? alpha(theme.app.text.primary, 0.11)
+            : alpha(d.overlayLight ?? "#ffffff", 0.18),
+        },
+      },
+      "&:hover": {
+        bgcolor: alpha(d.overlayLight ?? "#ffffff", isLight ? 0.06 : 0.08),
+      },
+    },
+  };
+};
+
 /** Fills dashboard main column — no negative bleed, no page scroll. */
 export const aiTrainingStudioPageWrapper: SxProps<Theme> = {
   width: "100%",
   maxWidth: "100%",
-  mx: 0,
+  m: 0,
+  p: 0,
   boxSizing: "border-box",
   display: "flex",
   flexDirection: "column",
@@ -108,15 +149,24 @@ export const aiTrainingFlowBlocksPanelPaper: SxProps<Theme> = (theme) => {
 
 export const aiTrainingStudioToolCluster: SxProps<Theme> = (theme) => {
   const d = dash(theme);
+  const isLight = theme.palette.mode === "light";
   return {
     display: "flex",
-    gap: 0.25,
+    gap: 0.15,
     alignItems: "center",
-    px: 0.5,
-    py: 0.25,
+    px: 0.35,
+    py: 0.2,
     borderRadius: 2,
-    border: `1px solid ${alpha(d.cardBorder, 0.35)}`,
-    bgcolor: alpha(d.pillBg, 0.65),
+    border: `1px solid ${alpha(d.cardBorder, isLight ? 0.4 : 0.32)}`,
+    bgcolor: alpha(d.menuSurfaceBg ?? d.pillBg, isLight ? 0.45 : 0.32),
+    flexShrink: 0,
+    "& .MuiIconButton-root": {
+      borderRadius: 1.25,
+      p: 0.65,
+      "&:hover": {
+        bgcolor: alpha(d.overlayLight ?? "#ffffff", isLight ? 0.08 : 0.1),
+      },
+    },
   };
 };
 

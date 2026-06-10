@@ -55,6 +55,8 @@ import {
   aiTrainingStudioShell,
   aiTrainingStudioToolbarRow,
   aiTrainingStudioToolCluster,
+  aiTrainingSettingsDrawerBody,
+  aiTrainingSettingsDrawerHeader,
   aiTrainingSettingsDrawerPaper,
 } from "./ai-training-studio.styles";
 import { AiTrainingFlowNodeInspector } from "./AiTrainingFlowNodeInspector";
@@ -126,6 +128,7 @@ export function AiTrainingFlowBuilderCanvas({
   isRunning,
   selectedNodeId,
   onSelectNode,
+  navTabs,
   topBar,
   testChat,
   settingsPanel,
@@ -143,6 +146,7 @@ export function AiTrainingFlowBuilderCanvas({
   isRunning?: boolean;
   selectedNodeId: string | null;
   onSelectNode: (id: string | null) => void;
+  navTabs?: ReactNode;
   topBar?: ReactNode;
   testChat?: ReactNode;
   settingsPanel?: ReactNode;
@@ -529,9 +533,35 @@ export function AiTrainingFlowBuilderCanvas({
   return (
     <Box sx={aiTrainingStudioShell}>
       <Box sx={aiTrainingStudioToolbarRow}>
-        <Box sx={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
+        <Box
+          sx={{
+            flex: 1,
+            minWidth: 0,
+            display: "flex",
+            alignItems: "center",
+            gap: 1.25,
+            flexWrap: "nowrap",
+            overflow: "hidden",
+          }}
+        >
+          <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, flexShrink: 0 }}>
+            {navTabs}
+            {viewToggle}
+          </Box>
+          {topBar ? (
+            <Box
+              sx={{
+                width: "1px",
+                alignSelf: "stretch",
+                minHeight: 24,
+                bgcolor: alpha(c.border, 0.75),
+                flexShrink: 0,
+                display: { xs: "none", md: "block" },
+                mx: 0.25,
+              }}
+            />
+          ) : null}
           {topBar}
-          {viewToggle}
           {isAdvanced && flowEditing ? (
             <AiTrainingFlowStudioSubTabs
               value={flowSubTab}
@@ -1284,27 +1314,24 @@ export function AiTrainingFlowBuilderCanvas({
           (() => {
             const node = graph.nodes.find((n) => n.id === inspectorNodeId);
             if (!node) return null;
-            const meta = catalogMeta(node.type);
             return (
               <Box sx={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
-                <Box
-                  sx={{
-                    flexShrink: 0,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    gap: 1,
-                    px: 2,
-                    py: 1.5,
-                    borderBottom: `1px solid ${alpha(c.border, 0.6)}`,
-                    bgcolor: alpha(meta.color, 0.08),
-                  }}
-                >
-                  <Box sx={{ minWidth: 0 }}>
-                    <Typography variant="caption" sx={{ color: c.textSecondary, display: "block", fontSize: 10 }}>
+                <Box sx={aiTrainingSettingsDrawerHeader}>
+                  <Box sx={{ minWidth: 0, flex: 1 }}>
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        color: c.textSecondary,
+                        display: "block",
+                        fontSize: 10,
+                        textTransform: "uppercase",
+                        letterSpacing: "0.04em",
+                        mb: 0.25,
+                      }}
+                    >
                       Block details
                     </Typography>
-                    <Typography variant="body2" fontWeight={700} sx={{ color: c.text }} noWrap>
+                    <Typography variant="body1" fontWeight={700} sx={{ color: c.text }} noWrap>
                       {node.label}
                     </Typography>
                   </Box>
@@ -1315,12 +1342,21 @@ export function AiTrainingFlowBuilderCanvas({
                       setInspectorNodeId(null);
                       onSelectNode(null);
                     }}
-                    sx={{ color: c.textSecondary }}
+                    sx={{ color: c.textSecondary, mt: 0.25 }}
                   >
                     <CloseRounded fontSize="small" />
                   </IconButton>
                 </Box>
-                <Box sx={{ flex: 1, minHeight: 0, overflow: "auto", px: 2.25, py: 2 }}>
+                <Box
+                  sx={[
+                    aiTrainingSettingsDrawerBody,
+                    {
+                      scrollbarWidth: "none",
+                      msOverflowStyle: "none",
+                      "&::-webkit-scrollbar": { display: "none" },
+                    },
+                  ]}
+                >
                   <AiTrainingFlowNodeInspector
                     key={node.id}
                     websiteId={websiteId}
