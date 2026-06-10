@@ -17,7 +17,7 @@
   #   NEXT_PUBLIC_CHAT_SOCKET_BASE_URL=https://convergit-saas.onrender.com
   #   NEXT_PUBLIC_CHAT_SOCKET_NAMESPACE=/chat
   #   NEXT_PUBLIC_WIDGET_EMBED_ORIGIN=https://YOUR-SITE.netlify.app  (this app, NOT Render)
-  # Backend Blueprint: repo root render.yaml — see Convergit_saas/docs/render-deploy.md
+  # Backend Blueprint: Convergit_saas/render.yaml — see Convergit_saas/docs/render-deploy.md
 
 [[plugins]]
   package = "@netlify/plugin-nextjs"

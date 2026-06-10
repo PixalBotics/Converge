@@ -32,6 +32,8 @@ import { formatHm12Label } from "../utils/schedule-time.utils";
 import { ROSTER_TIERS } from "../utils/roster-draft.utils";
 import type { SlotDraft } from "./RosterSlotPicker";
 
+type RosterUserTypeFilter = "all" | "Internal" | "External";
+
 type RosterUsersPickerTableProps = {
   websiteId: string;
   channel: ServiceChannel;
@@ -71,17 +73,26 @@ export function RosterUsersPickerTable({
 }: RosterUsersPickerTableProps) {
   const theme = useTheme() as AppTheme;
   const [userSearch, setUserSearch] = useState("");
+  const [userTypeFilter, setUserTypeFilter] = useState<RosterUserTypeFilter>("all");
+  const showDualUserTypes = channel === "Internal";
 
-  const poolId = topicPoolId?.trim() ?? "";
+  const internalUsersQuery = useUsersListQuery(
+    { all: true, userType: "Internal" },
+    { enabled: !disabled && showDualUserTypes },
+  );
 
-  const usersQuery = useUsersListQuery(
+  const externalUsersQuery = useUsersListQuery(
+    { all: true, userType: "External" },
+    { enabled: !disabled && showDualUserTypes },
+  );
+
+  const channelUsersQuery = useUsersListQuery(
     {
       all: true,
       userType: channel,
-      departmentId,
-      ...(poolId ? { poolId } : {}),
+      ...(departmentId.trim() ? { departmentId } : {}),
     },
-    { enabled: !disabled && departmentId.trim().length > 0 },
+    { enabled: !disabled && !showDualUserTypes && departmentId.trim().length > 0 },
   );
 
   const qaExclusionsQuery = useQaRosterExclusionsQuery(
@@ -89,10 +100,28 @@ export function RosterUsersPickerTable({
     Boolean(websiteId.trim()) && !disabled,
   );
 
+  const usersLoading =
+    showDualUserTypes
+      ? internalUsersQuery.isLoading || externalUsersQuery.isLoading
+      : channelUsersQuery.isLoading;
+
   const userOptions = useMemo(() => {
-    const base = buildRosterUserOptions(usersQuery.data, departmentId, channel);
+    const deptKey = departmentId.trim();
+    const raw =
+      showDualUserTypes
+        ? [
+            ...buildRosterUserOptions(internalUsersQuery.data, deptKey, "Internal"),
+            ...buildRosterUserOptions(externalUsersQuery.data, deptKey, "External"),
+          ]
+        : buildRosterUserOptions(channelUsersQuery.data, deptKey, channel);
+
+    const merged = new Map<string, (typeof raw)[number]>();
+    for (const u of raw) {
+      if (!merged.has(u.id)) merged.set(u.id, u);
+    }
+
     const qaIds = new Set(qaExclusionsQuery.data?.qaReviewerUserIds ?? []);
-    return base.map((u) =>
+    return [...merged.values()].map((u) =>
       qaIds.has(u.id)
         ? {
             ...u,
@@ -101,7 +130,15 @@ export function RosterUsersPickerTable({
           }
         : u,
     );
-  }, [usersQuery.data, departmentId, channel, qaExclusionsQuery.data?.qaReviewerUserIds]);
+  }, [
+    showDualUserTypes,
+    internalUsersQuery.data,
+    externalUsersQuery.data,
+    channelUsersQuery.data,
+    departmentId,
+    channel,
+    qaExclusionsQuery.data?.qaReviewerUserIds,
+  ]);
 
   const eligibleCount = useMemo(
     () => userOptions.filter((u) => !u.disabled).length,
@@ -152,6 +189,9 @@ export function RosterUsersPickerTable({
     return userOptions.filter((u) => {
       const blockedReason = blockedInOtherBlocks?.get(u.id);
       if (blockedReason && !selectedIds.has(u.id)) return false;
+      if (showDualUserTypes && userTypeFilter !== "all" && u.userType !== userTypeFilter) {
+        return false;
+      }
       if (!q) return true;
       const haystack = [u.name, u.email, u.department, u.pool, u.userType, u.label]
         .filter(Boolean)
@@ -159,7 +199,7 @@ export function RosterUsersPickerTable({
         .toLowerCase();
       return haystack.includes(q);
     });
-  }, [userOptions, userSearch, blockedInOtherBlocks, draft]);
+  }, [userOptions, userSearch, blockedInOtherBlocks, draft, showDualUserTypes, userTypeFilter]);
 
   const hiddenByBlockCount = useMemo(() => {
     if (!blockedInOtherBlocks?.size) return 0;
@@ -258,10 +298,10 @@ export function RosterUsersPickerTable({
           {departmentName ? (
             <Chip label={`Dept: ${departmentName}`} size="small" variant="outlined" />
           ) : null}
-          {poolId ? (
-            <Chip label="Pool-restricted list" size="small" variant="outlined" />
+          {showDualUserTypes ? (
+            <Chip label="Internal + External list" size="small" variant="outlined" />
           ) : null}
-          {!usersQuery.isLoading ? (
+          {!usersLoading ? (
             <Chip
               label={`${eligibleCount} eligible user${eligibleCount === 1 ? "" : "s"}`}
               size="small"
@@ -270,17 +310,53 @@ export function RosterUsersPickerTable({
           ) : null}
         </Box>
         <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, lineHeight: 1.5 }}>
-          Select one agent per column in the table below (click the same radio again to clear). Only{" "}
-          <strong>{channel.toLowerCase()}</strong> users
-          {departmentName ? (
+          {showDualUserTypes ? (
             <>
-              {" "}
-              for <strong>{departmentName}</strong>
+              Pick <strong>Primary</strong> and <strong>Secondary</strong> from internal agents (online in
+              chat inbox). <strong>Backup</strong> may be internal or external. Filter the list below by user
+              type.
             </>
-          ) : null}
-          {poolId ? " in the linked pool" : " in this department"} are shown.
+          ) : (
+            <>
+              Select one agent per column (click the same radio again to clear). Only{" "}
+              <strong>{channel.toLowerCase()}</strong> users
+              {departmentName ? (
+                <>
+                  {" "}
+                  for <strong>{departmentName}</strong>
+                </>
+              ) : null}{" "}
+              are shown.
+            </>
+          )}
         </Typography>
       </Box>
+
+      {showDualUserTypes ? (
+        <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75, mb: 1.5, alignItems: "center" }}>
+          <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, mr: 0.5 }}>
+            Show:
+          </Typography>
+          {(
+            [
+              { value: "all" as const, label: "All users" },
+              { value: "Internal" as const, label: "Internal" },
+              { value: "External" as const, label: "External" },
+            ] as const
+          ).map(({ value, label }) => (
+            <Chip
+              key={value}
+              label={label}
+              size="small"
+              clickable
+              onClick={() => setUserTypeFilter(value)}
+              variant={userTypeFilter === value ? "filled" : "outlined"}
+              color={userTypeFilter === value ? "primary" : "default"}
+              sx={{ fontWeight: userTypeFilter === value ? 700 : 500 }}
+            />
+          ))}
+        </Box>
+      ) : null}
 
       {showHoursBanner ? (
         <Box
@@ -391,21 +467,21 @@ export function RosterUsersPickerTable({
         sx={{ mb: 1.5, maxWidth: 360 }}
       />
 
-      {usersQuery.isLoading ? (
+      {usersLoading ? (
         <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, py: 2 }}>
-          Loading {channel.toLowerCase()} users…
+          Loading users…
         </Typography>
       ) : null}
 
-      {!usersQuery.isLoading && userOptions.length === 0 ? (
+      {!usersLoading && userOptions.length === 0 ? (
         <Typography variant="body2" sx={{ color: theme.palette.warning.light, py: 1 }}>
-          No {channel.toLowerCase()} users
-          {poolId ? " in the linked pool" : " in this department"}. Add users under User management
-          first{poolId ? ", or update the topic pool in service scheduling" : ""}.
+          {showDualUserTypes
+            ? "No internal or external users found. Add users under User management first."
+            : `No ${channel.toLowerCase()} users in this department. Add users under User management first.`}
         </Typography>
       ) : null}
 
-      {!usersQuery.isLoading && userOptions.length > 0 ? (
+      {!usersLoading && userOptions.length > 0 ? (
         <TableContainer
           sx={{
             maxHeight: 360,
@@ -567,8 +643,16 @@ export function RosterUsersPickerTable({
                       {ROSTER_TIERS.map((tier) => {
                         const checked = draft[tier] === user.id;
                         const takenElsewhere = tierTakenByOther(tier, user.id);
+                        const externalBackupOnly =
+                          showDualUserTypes &&
+                          user.userType === "External" &&
+                          tier !== "Backup";
                         const radioDisabled =
-                          !canEdit || disabled || blocked || (takenElsewhere && !checked);
+                          !canEdit ||
+                          disabled ||
+                          blocked ||
+                          externalBackupOnly ||
+                          (takenElsewhere && !checked);
                         return (
                           <TableCell key={tier} align="center" padding="checkbox">
                             <Radio

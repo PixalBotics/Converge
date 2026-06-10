@@ -244,7 +244,6 @@ export function AssignWebsiteWorkspace({ preset }: { preset?: AssignWebsitePrese
       (t) =>
         t.isActive !== false &&
         t.routingKey.trim() &&
-        t.internalDepartmentId.trim() &&
         t.externalDepartmentId.trim(),
     );
     return active[0]?.routingKey.trim() ?? schedulingTopics[0]?.routingKey.trim() ?? "";
@@ -464,7 +463,7 @@ export function AssignWebsiteWorkspace({ preset }: { preset?: AssignWebsitePrese
                 <Box sx={emptyStatePanelSx}>
                   <Typography variant="body2" sx={{ mb: 1.5 }}>
                     Scheduling is saved but no departments are linked yet. Add at least one complete topic
-                    (internal + external department) in service scheduling.
+                    with a department in service scheduling.
                   </Typography>
                   {schedulingHref ? (
                     <Button

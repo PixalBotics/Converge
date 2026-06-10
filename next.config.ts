@@ -122,10 +122,17 @@ const nextConfig: NextConfig = {
     /**
      * Large apps on Windows can exhaust the default Node heap when webpack persists
      * pack caches (PackFileCacheStrategy / Array buffer allocation failed).
+     * Filesystem cache keeps compile times reasonable without holding the full graph in RAM.
      * @see https://nextjs.org/docs/app/guides/memory-usage
      */
     if (dev) {
-      config.cache = false;
+      config.cache = {
+        type: "filesystem",
+        compression: false,
+        buildDependencies: {
+          config: [__filename],
+        },
+      };
     } else if (config.cache) {
       config.cache = Object.freeze({ type: "memory" });
     }

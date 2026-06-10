@@ -132,8 +132,7 @@ export function TopicAgentRosterPanel({
   if (topicContexts.length === 0) {
     return (
       <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted }}>
-        Add at least one active visitor topic in service scheduling (with internal and external
-        departments) before assigning agents.
+        Add at least one active visitor topic in service scheduling before assigning agents.
       </Typography>
     );
   }
@@ -155,9 +154,9 @@ export function TopicAgentRosterPanel({
         <InfoOutlined sx={{ color: theme.palette.info.light, fontSize: 22, mt: 0.25 }} />
         <Typography variant="body2" sx={{ lineHeight: 1.6, color: theme.app.dashboard.textMuted }}>
           <strong>Step 3 — Assign agents:</strong> Choose <strong>same team all day</strong> or{" "}
-          <strong>duty periods</strong> (morning / afternoon teams). Routing uses Primary → Secondary →
-          Backup for the active period. With HRMS, internal agents only get chats when chat hours, duty
-          period, and HRMS shift overlap.
+          <strong>duty periods</strong> (morning / afternoon teams). Chats route to the assigned{" "}
+          <strong>Primary</strong> when they are online in the chat inbox, then <strong>Secondary</strong>, then{" "}
+          <strong>Backup</strong> (Backup may be an external agent on internal channel).
         </Typography>
       </Box>
 

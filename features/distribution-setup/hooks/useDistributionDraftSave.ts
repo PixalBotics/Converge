@@ -45,7 +45,6 @@ export function useDistributionDraftSave(initialSetupId: string | null) {
     async (id: string) => {
       await qc.invalidateQueries({ queryKey: distributionSetupKeys.all });
       await qc.invalidateQueries({ queryKey: distributionSetupKeys.detail(id) });
-      await qc.refetchQueries({ queryKey: distributionSetupKeys.all, type: "active" });
     },
     [qc],
   );

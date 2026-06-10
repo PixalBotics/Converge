@@ -54,10 +54,7 @@ import { ChatFormattedMessage } from "@/lib/safe-markdown/ChatFormattedMessage";
 import { EmbedProductRichCard, isRichCardMessage, readMessageRichCard } from "@/components/embed/EmbedProductRichCard";
 import { normalizeChatMessageText } from "@/lib/safe-markdown/text";
 import { useVisitorChat } from "@/lib/hooks/chat/useVisitorChat";
-import {
-  isHiddenFromVisitorWidget,
-  isVisitorPolicyNoticeMessage,
-} from "@/lib/hooks/chat/visitor-widget-messages";
+import { isHiddenFromVisitorWidget } from "@/lib/hooks/chat/visitor-widget-messages";
 import { LauncherPresetIcon } from "@/lib/chat-widget/launcherIcons";
 import {
   resolveInquiryRoutingTargets,
@@ -1352,7 +1349,6 @@ function WidgetChatPanel({
       if (mode === "HYBRID") {
         setEscalated(true);
         escalatedRef.current = true;
-        setLocalAiMessages([]);
       }
       setTalkToAgentStatus("An agent has joined your chat.");
     },
@@ -1372,7 +1368,6 @@ function WidgetChatPanel({
     if (stored && chat.conversationId && stored === chat.conversationId) {
       setEscalated(true);
       escalatedRef.current = true;
-      setLocalAiMessages([]);
     }
   }, [chat.conversationId, persistenceKey]);
 
@@ -1413,7 +1408,6 @@ function WidgetChatPanel({
       if (data.talkToAgentRequested || data.handoverRequested) {
         setEscalated(true);
         escalatedRef.current = true;
-        setLocalAiMessages([]);
       }
       const hasVisitorTurn = data.messages.some(
         (m) => (m.senderType || "").toLowerCase() === "visitor",
@@ -1500,9 +1494,6 @@ function WidgetChatPanel({
       if (awaitingFirstUserQuestion && (m.role === "system" || m.role === "ai")) {
         continue;
       }
-      if (escalated && (m.role === "system" || m.role === "ai") && !isVisitorPolicyNoticeMessage(m)) {
-        continue;
-      }
       if (
         (m.role === "system" || m.role === "ai" || m.role === "agent") &&
         m.content &&
@@ -1526,7 +1517,7 @@ function WidgetChatPanel({
     return [...map.values()].sort((a, b) =>
       String(a.createdAt).localeCompare(String(b.createdAt)),
     );
-  }, [awaitingFirstUserQuestion, chat.messages, chat.conversationId, escalated, localAiMessages, prechatTranscriptBubble]);
+  }, [awaitingFirstUserQuestion, chat.messages, chat.conversationId, localAiMessages, prechatTranscriptBubble]);
 
   useEffect(() => {
     if (!onSyncClosedMessagePreview) return;
@@ -1667,7 +1658,6 @@ function WidgetChatPanel({
           if (created.talkToAgentRequested || created.handoverRequested) {
             setEscalated(true);
             escalatedRef.current = true;
-            setLocalAiMessages([]);
           }
           const tr = await chat.loadTranscript(created.conversationId);
           if (tr.ok) {
@@ -1860,7 +1850,6 @@ function WidgetChatPanel({
     setTalkToAgentBusy(true);
     setEscalated(true);
     escalatedRef.current = true;
-    setLocalAiMessages([]);
     if (chat.conversationId) {
       persistHybridEscalated(siteKey, chat.conversationId);
     }

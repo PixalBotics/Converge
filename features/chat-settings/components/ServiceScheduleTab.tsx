@@ -549,7 +549,7 @@ export function ServiceScheduleTab({
       <SchedulingSectionCard
         step={3}
         title="Visitor topics"
-        subtitle="Saved per website (same rows as Chat Box Design → Inquiry topics). Each topic needs internal and external departments."
+        subtitle="Saved per website (same rows as Chat Box Design → Inquiry topics). Each topic needs a department for routing."
       >
         <VisitorTopicsEditor
           topics={draft.topics.map((t) => ({
@@ -583,16 +583,9 @@ export function ServiceScheduleTab({
           showActive
           departments={departments}
           departmentsLoading={departmentsLoading}
-          internalDeptOptions={internalDeptOptions}
+          internalDeptOptions={[]}
           externalDeptOptions={externalDeptOptions}
-          internalDeptWarning={
-            internalDeptOptions.length === 0 && !departmentsLoading ? (
-              <>
-                No internal departments found. Create an <strong>Internal</strong> department under
-                HRMS → Departments (reseller scope), then refresh this page.
-              </>
-            ) : null
-          }
+          externalDeptOnly
           minRows={1}
         />
         {canEdit ? (
