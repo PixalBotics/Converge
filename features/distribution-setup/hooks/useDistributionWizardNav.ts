@@ -12,6 +12,7 @@ import {
   previousWizardStep,
 } from "../utils/distribution-wizard-nav";
 import { flushWizardStep } from "../utils/flush-wizard-step";
+import { shouldSyncDraftToServer } from "../utils/wizard-server-draft-payload";
 import {
   readWizardMethod,
   readWizardSetupId,
@@ -64,10 +65,18 @@ export function useDistributionWizardNav({
 
   const navigateTo = useCallback(
     async (step: DistributionWizardStep) => {
-      const id = await flushSave();
-      router.push(distributionWizardStepHref(step, id ?? readWizardSetupId()));
+      const currentSetupId = setupId ?? readWizardSetupId();
+
+      if (!shouldSyncDraftToServer(currentStep)) {
+        const id = await flushSave();
+        router.push(distributionWizardStepHref(step, id ?? currentSetupId));
+        return;
+      }
+
+      router.push(distributionWizardStepHref(step, currentSetupId));
+      void flushSave();
     },
-    [flushSave, router],
+    [currentStep, flushSave, router, setupId],
   );
 
   const goToList = useCallback(() => {

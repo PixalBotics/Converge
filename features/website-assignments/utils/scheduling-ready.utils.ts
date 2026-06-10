@@ -20,7 +20,6 @@ export function isServiceSchedulingReady(
       t.isActive !== false &&
       t.routingKey.trim() &&
       t.clientLabel.trim() &&
-      t.internalDepartmentId.trim() &&
       t.externalDepartmentId.trim(),
   );
   return activeTopics.length > 0;

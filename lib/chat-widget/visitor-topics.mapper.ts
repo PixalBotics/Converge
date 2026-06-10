@@ -60,10 +60,11 @@ export function widgetInquiryToTopicInput(
   const label = row.label.trim();
   const routingKey =
     row.routingKey.trim() || (label ? slugRoutingKeyFromLabel(label) : "");
+  const internalDepartmentId = row.internalDepartmentId?.trim() ?? "";
   return {
     routingKey,
     clientLabel: label,
-    internalDepartmentId: row.internalDepartmentId?.trim() ?? "",
+    ...(internalDepartmentId ? { internalDepartmentId } : {}),
     externalDepartmentId: row.externalDepartmentId?.trim() ?? "",
     internalPoolId: null,
     externalPoolId: null,

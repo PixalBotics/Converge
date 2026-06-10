@@ -67,7 +67,10 @@ import {
 } from "./permissions-model";
 import { dismissAppBoundary, publishAuthErrorBoundary } from "@/lib/app-boundaries";
 import { classifyApiError, isTransientNetworkError } from "@/lib/app-boundaries/classify-api-error";
-import { isAccessTokenExpiringSoon } from "./access-token";
+import {
+  isAccessTokenExpiringSoon,
+  isDashboardAccessToken,
+} from "./access-token";
 import {
   initTokenCrossTabSync,
   registerCrossTabTokenListener,
@@ -558,31 +561,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     | { type: "replace" }
     | { type: "merge"; login: PermissionsByType | undefined };
 
+  type PullRemoteAuthSessionOptions = {
+    mode: PullRemotePermissionMode;
+    /** Skip GET /auth/verify when access tokens were just issued (e.g. login). */
+    skipSessionVerify?: boolean;
+  };
+
   /**
-   * Pulls `/auth/me` with permission breakdown after tokens change.
+   * Pulls `/auth/me` after tokens change.
    * Used on sign-in (merge with login payload) and after login-as (replace).
    * Returns the merged permission snapshot for immediate routing (React state is not readable synchronously after `await`).
    */
   const pullRemoteAuthSession = useCallback(
-    async (permissionMode: PullRemotePermissionMode): Promise<ResolvedAuthSessionSnapshot> => {
+    async (options: PullRemoteAuthSessionOptions): Promise<ResolvedAuthSessionSnapshot> => {
+      const { mode: permissionMode, skipSessionVerify = false } = options;
       setPermissionsSyncing(true);
       const jwtAdminFallback = isJwtPlatformAdmin(decodeJwtPayload(getAccessToken() ?? ""));
       try {
-        const session = await synchronizeAuthSession();
-        if (session.status === "invalid") {
-          return {
-            permissionsByType: undefined,
-            isPlatformAdmin: jwtAdminFallback,
-          };
+        if (!skipSessionVerify) {
+          const session = await synchronizeAuthSession();
+          if (session.status === "invalid") {
+            return {
+              permissionsByType: undefined,
+              isPlatformAdmin: jwtAdminFallback,
+            };
+          }
+          if (session.status === "unreachable" || session.status === "error") {
+            handleTransientSessionSyncFailure(session.error);
+            return {
+              permissionsByType: undefined,
+              isPlatformAdmin: jwtAdminFallback,
+            };
+          }
         }
-        if (session.status === "unreachable" || session.status === "error") {
-          handleTransientSessionSyncFailure(session.error);
-          return {
-            permissionsByType: undefined,
-            isPlatformAdmin: jwtAdminFallback,
-          };
-        }
-        const mePayload = await getMe({ permissionsBreakdown: true });
+        const mePayload = await getMe({ permissionsBreakdown: false });
         const meUser = extractUserFromMePayload(mePayload);
         let mappedMeUser = meUser ? mapApiUserToUser(meUser) : null;
         const meResellerId = extractResellerIdFromMePayload(mePayload);
@@ -667,7 +679,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     registerAfterTokenSessionSync(async () => {
-      await pullRemoteAuthSession({ type: "replace" });
+      await pullRemoteAuthSession({ mode: { type: "replace" } });
     });
     return () => registerAfterTokenSessionSync(null);
   }, [pullRemoteAuthSession]);
@@ -685,7 +697,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           refreshExpiresIn: payload.refreshExpiresIn,
         },
       );
-      void pullRemoteAuthSession({ type: "merge", login: undefined });
+      void pullRemoteAuthSession({ mode: { type: "merge", login: undefined } });
     });
     return initTokenCrossTabSync();
   }, [pullRemoteAuthSession]);
@@ -721,7 +733,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (suppressPostAuthNavPullRef.current) {
           suppressPostAuthNavPullRef.current = false;
         } else {
-          void pullRemoteAuthSession({ type: "merge", login: undefined });
+          void pullRemoteAuthSession({ mode: { type: "merge", login: undefined } });
         }
       }
     }
@@ -736,7 +748,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     applyLocalAuthFromCookies();
     beginAuthTransition("impersonation-hydrate");
     try {
-      const mePayload = await getMe({ permissionsBreakdown: true });
+      const mePayload = await getMe({ permissionsBreakdown: false });
       const meUser = extractUserFromMePayload(mePayload);
       const mappedMeUser = meUser ? mapApiUserToUser(meUser) : null;
       const fromMe = extractPermissionsByType(mePayload);
@@ -773,6 +785,68 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsLoading(true);
 
     try {
+      const access = getAccessToken();
+      const refresh = getRefreshToken();
+
+      if (!access && !refresh) {
+        setUser(null);
+        setPermissionsByType(undefined);
+        setIsPlatformAdmin(false);
+        setIsImpersonating(false);
+        setAuthGate("ready");
+        return;
+      }
+
+      if (
+        access &&
+        isDashboardAccessToken(access) &&
+        !isAccessTokenExpiringSoon(access)
+      ) {
+        try {
+          const mePayload = await getMe({ permissionsBreakdown: false });
+          if (isSkipHydrationPath()) {
+            preparePublicAuthRoute();
+            return;
+          }
+          const meUser = extractUserFromMePayload(mePayload);
+          const mappedMeUser = meUser ? mapApiUserToUser(meUser) : null;
+          const impersonating = isImpersonatingSessionActive();
+          const incoming = extractPermissionsByType(mePayload);
+          setPermissionsByType((prev) => {
+            if (!incoming) return prev;
+            return impersonating ? incoming : mergePermissionsByType(prev, incoming);
+          });
+          setUser(
+            mappedMeUser ?? (impersonating ? resolveUserForImpersonation() : getUserFromAccessToken()),
+          );
+          setIsImpersonating(impersonating);
+          setIsPlatformAdmin(
+            resolvePlatformAdminFromAuthPayload(mePayload, { impersonating }),
+          );
+          syncAccountThemeFromMePayload(mePayload);
+          allowAuthSession();
+          return;
+        } catch (fastErr: unknown) {
+          if (isSkipHydrationPath()) {
+            preparePublicAuthRoute();
+            return;
+          }
+          const unauthorized =
+            isAxiosError(fastErr) && fastErr.response?.status === 401;
+          if (!unauthorized) {
+            if (isTransientNetworkError(fastErr)) {
+              handleTransientSessionSyncFailure(fastErr);
+              return;
+            }
+            if (await recoverImpersonationSession()) {
+              return;
+            }
+            blockAuthSession(fastErr);
+            return;
+          }
+        }
+      }
+
       const session = await synchronizeAuthSession();
       if (isSkipHydrationPath()) {
         preparePublicAuthRoute();
@@ -801,7 +875,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      const mePayload = await getMe({ permissionsBreakdown: true });
+      const mePayload = await getMe({ permissionsBreakdown: false });
       const meUser = extractUserFromMePayload(mePayload);
       const mappedMeUser = meUser ? mapApiUserToUser(meUser) : null;
       const impersonating = isImpersonatingSessionActive();
@@ -891,7 +965,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           handleTransientSessionSyncFailure(session.error);
           return;
         }
-        const mePayload = await getMe({ permissionsBreakdown: true });
+        const mePayload = await getMe({ permissionsBreakdown: false });
         const meUser = extractUserFromMePayload(mePayload);
         let mappedMeUser = meUser ? mapApiUserToUser(meUser) : null;
         const meResellerId = extractResellerIdFromMePayload(mePayload);
@@ -1007,35 +1081,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           };
         }
         const loginPerms = extractPermissionsByType(response);
+        const platformAdmin = resolvePlatformAdminFromAuthPayload(response);
         applyAccountTheme(response.user.theme?.backgroundColor ?? null);
         accountThemeFromMeAppliedRef.current = true;
         resetAuthSessionTerminatedFlag();
         /**
          * Commit login payload (PAGE + OPERATIONAL) synchronously so the first dashboard paint
-         * already has RBAC state; then merge with `/auth/me` for a single source of truth.
+         * already has RBAC state; `/auth/me` merges in the background for full profile fields.
          */
         flushSync(() => {
           setUser(mappedUser);
           if (loginPerms) {
             setPermissionsByType(loginPerms);
           }
-          setIsPlatformAdmin(resolvePlatformAdminFromAuthPayload(response));
+          setIsPlatformAdmin(platformAdmin);
+          setAuthGate("ready");
+          setIsLoading(false);
         });
-        /**
-         * Initial `/auth` mount skips `/auth/me`, and client navigation to the dashboard
-         * does not re-run that hydrate effect — load permissions here so sidebar + RBAC
-         * match without a manual refresh.
-         */
-        const session = await pullRemoteAuthSession({ type: "merge", login: loginPerms });
         suppressPostAuthNavPullRef.current = true;
+        allowAuthSession();
         const isDemoUser = mappedUser.email.trim().toLowerCase() === "demo@gmail.com";
         const landing = resolveDashboardLandingHref({
-          permissionsByType: session.permissionsByType,
-          isPlatformAdmin: session.isPlatformAdmin,
+          permissionsByType: loginPerms,
+          isPlatformAdmin: platformAdmin,
           isDemoUser,
         });
-        queueMicrotask(() => {
-          router.replace(landing);
+        router.replace(landing);
+        void pullRemoteAuthSession({
+          mode: { type: "merge", login: loginPerms },
+          skipSessionVerify: true,
         });
         return { success: true };
       } catch (err: unknown) {
@@ -1075,7 +1149,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         };
       }
     },
-    [applyAccountTheme, loginMutation, pullRemoteAuthSession, router],
+    [applyAccountTheme, allowAuthSession, loginMutation, pullRemoteAuthSession, router],
   );
 
   const logout = useCallback(async () => {
@@ -1106,7 +1180,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       clearAppQueryCache();
       setTokenPair(session.originalTokenPair);
-      const mePayload = await getMe({ permissionsBreakdown: true });
+      const mePayload = await getMe({ permissionsBreakdown: false });
       const meUser = extractUserFromMePayload(mePayload);
       const mappedMeUser = meUser ? mapApiUserToUser(meUser) : null;
       const incoming = extractPermissionsByType(mePayload);

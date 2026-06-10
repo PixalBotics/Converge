@@ -45,7 +45,7 @@ export type VisitorTopicsBundle = {
 export type ServiceSchedulingTopicInput = {
   routingKey: string;
   clientLabel: string;
-  internalDepartmentId: string;
+  internalDepartmentId?: string;
   externalDepartmentId: string;
   internalPoolId?: string | null;
   externalPoolId?: string | null;

@@ -132,16 +132,19 @@ export function windowsForSave(
 }
 
 export function topicsForSave(topics: ServiceSchedulingTopic[]): ServiceSchedulingTopicInput[] {
-  return topics.map((t, index) => ({
-    routingKey: t.routingKey.trim(),
-    clientLabel: t.clientLabel.trim(),
-    internalDepartmentId: t.internalDepartmentId.trim(),
-    externalDepartmentId: t.externalDepartmentId.trim(),
-    internalPoolId: t.internalPoolId?.trim() || null,
-    externalPoolId: t.externalPoolId?.trim() || null,
-    displayOrder: t.displayOrder ?? index,
-    isActive: t.isActive !== false,
-  }));
+  return topics.map((t, index) => {
+    const internalDepartmentId = t.internalDepartmentId.trim();
+    return {
+      routingKey: t.routingKey.trim(),
+      clientLabel: t.clientLabel.trim(),
+      ...(internalDepartmentId ? { internalDepartmentId } : {}),
+      externalDepartmentId: t.externalDepartmentId.trim(),
+      internalPoolId: t.internalPoolId?.trim() || null,
+      externalPoolId: t.externalPoolId?.trim() || null,
+      displayOrder: t.displayOrder ?? index,
+      isActive: t.isActive !== false,
+    };
+  });
 }
 
 export function buildScheduleSaveBody(
@@ -207,8 +210,7 @@ export function validateVisitorTopicsDraft(topics: ServiceSchedulingTopic[]): st
   for (const t of topics) {
     if (!t.routingKey.trim()) return "Each topic needs a routing key.";
     if (!t.clientLabel.trim()) return "Each topic needs a client label.";
-    if (!t.internalDepartmentId.trim()) return "Each topic needs an internal department.";
-    if (!t.externalDepartmentId.trim()) return "Each topic needs an external department.";
+    if (!t.externalDepartmentId.trim()) return "Each topic needs a department.";
   }
   return null;
 }
