@@ -9,17 +9,26 @@ import {
   updateDesignation,
 } from "@/api";
 import type { JsonRecord } from "@/api";
+import { isSelectableDepartmentId } from "@/lib/hrms/department-ids";
 import { hrmsDesignationsKeys } from "./keys";
+
+function hasValidDesignationDepartmentFilter(params?: JsonRecord): boolean {
+  if (!params) return true;
+  const departmentId = params.departmentId;
+  if (departmentId == null || String(departmentId).trim().length === 0) return true;
+  return isSelectableDepartmentId(String(departmentId));
+}
 
 export function useDesignationsListQuery(
   params?: JsonRecord,
   options?: { enabled?: boolean; scope?: string },
 ) {
   const scope = options?.scope ?? "default";
+  const departmentFilterOk = hasValidDesignationDepartmentFilter(params);
   return useQuery({
     queryKey: [...hrmsDesignationsKeys.list(params), scope] as const,
     queryFn: () => listDesignations(params),
-    enabled: options?.enabled ?? true,
+    enabled: (options?.enabled ?? true) && departmentFilterOk,
     placeholderData: keepPreviousData,
   });
 }

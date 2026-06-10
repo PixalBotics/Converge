@@ -20,5 +20,5 @@ export function useEmbedHostResize(
       0,
     );
     return () => window.clearTimeout(id);
-  }, [open, appearance, closedChrome?.hasInvitationBubble]);
+  }, [open, appearance, closedChrome]);
 }

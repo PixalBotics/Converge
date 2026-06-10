@@ -43,7 +43,7 @@ export function AddDesignationModal({
   const { isPlatformAdmin, user: authUser } = useAuth();
   const mayPickInternalDeptType = useMemo(
     () => sessionMayPickInternalUserScope(isPlatformAdmin, authUser),
-    [isPlatformAdmin, authUser?.userType],
+    [isPlatformAdmin, authUser],
   );
 
   const [name, setName] = useState("");

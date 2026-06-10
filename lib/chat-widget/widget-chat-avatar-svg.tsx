@@ -7,8 +7,6 @@ import {
   findChatAvatarPreset,
   normalizeAgentAvatarPreset,
   normalizeVisitorAvatarPreset,
-  type AgentAvatarPresetId,
-  type VisitorAvatarPresetId,
 } from "./chat-avatar-presets";
 
 export type WidgetChatAvatarVariant = "agent" | "visitor";

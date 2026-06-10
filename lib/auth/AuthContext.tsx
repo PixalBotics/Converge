@@ -54,7 +54,6 @@ import {
 } from "./impersonation-user";
 import { createPermissionCan } from "@/lib/permissions/access-helpers";
 import {
-  extractIsPlatformAdmin,
   resolveIsPlatformAdmin,
   extractPermissionsByType,
   hasOperationalPermission,

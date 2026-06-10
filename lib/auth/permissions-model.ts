@@ -95,6 +95,37 @@ function normalizePermissionsRaw(raw: unknown): PermissionsByType | undefined {
 }
 
 /**
+ * Login payloads may list stored role grants under `breakdown.fromRole` while the top-level
+ * `page` / `operational` arrays only contain bundle-expanded runtime codes. Merge effective
+ * grants (sources minus deny overrides) so explicit page gates like `page:hrms` hydrate RBAC.
+ */
+function normalizeRoleGrantBreakdown(bd: Record<string, unknown>): PermissionsByType | undefined {
+  const grants = [
+    ...readStringArray(bd.fromRole),
+    ...readStringArray(bd.fromDepartment),
+    ...readStringArray(bd.fromDesignation),
+    ...readStringArray(bd.fromUserAllowOverride),
+  ];
+  if (grants.length === 0) return undefined;
+
+  const denies = new Set([
+    ...readStringArray(bd.fromRoleDenyOverride),
+    ...readStringArray(bd.fromUserDenyOverride),
+    ...readStringArray(bd.applicabilityFilteredOut),
+  ]);
+
+  const effective = [...new Set(grants.filter((code) => !denies.has(code)))];
+  const operational = effective.filter((code) => !code.startsWith("page:"));
+  const page = effective.filter((code) => code.startsWith("page:"));
+  if (operational.length === 0 && page.length === 0) return undefined;
+
+  return applyPageSlugAliases({
+    [PERMISSION_BUCKET_OPERATIONAL]: operational,
+    [PERMISSION_BUCKET_PAGE]: page,
+  });
+}
+
+/**
  * Merges top-level `page` / `operational` arrays with `breakdown.{page,operational}`.
  * Some APIs send `page` only at the parent and duplicate (or extend) operational under
  * `breakdown`; returning `breakdown` alone used to drop `PAGE` and left RBAC with an empty
@@ -102,12 +133,19 @@ function normalizePermissionsRaw(raw: unknown): PermissionsByType | undefined {
  */
 function mergeBreakdownIntoPermissionBuckets(rec: Record<string, unknown>): PermissionsByType | undefined {
   const bd = rec.breakdown;
+  const fromRoleGrants =
+    bd && typeof bd === "object" && !Array.isArray(bd)
+      ? normalizeRoleGrantBreakdown(bd as Record<string, unknown>)
+      : undefined;
   const fromBreakdown =
     bd && typeof bd === "object" && !Array.isArray(bd)
       ? normalizePermissionsRaw(bd as Record<string, unknown>)
       : undefined;
   const fromSiblings = normalizePermissionsRaw(rec);
-  return mergePermissionsByType(fromSiblings, fromBreakdown);
+  return mergePermissionsByType(
+    mergePermissionsByType(fromSiblings, fromBreakdown),
+    fromRoleGrants,
+  );
 }
 
 /**

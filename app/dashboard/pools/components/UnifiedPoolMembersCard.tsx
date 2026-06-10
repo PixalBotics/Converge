@@ -9,7 +9,6 @@ import { Groups as GroupsIcon } from "@mui/icons-material";
 import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import {
-  Button,
   ConfirmActionModal,
   DashboardCard,
   DataTable,

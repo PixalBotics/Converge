@@ -10,7 +10,6 @@ import { alpha, useTheme } from "@mui/material/styles";
 import type { SxProps, Theme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import {
-  Button,
   DashboardCard,
   DataTable,
   dataTableActionButton,

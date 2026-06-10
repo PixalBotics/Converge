@@ -25,7 +25,6 @@ import { sidebarNavLabel } from "./dashboard-sidebar.labels";
 import { NavItemBadge } from "./NavItemBadge";
 import { SidebarNavTooltip } from "./SidebarNavTooltip";
 import { mergeSx } from "@/lib/mui/merge-sx";
-import { shouldCollapseSidebarForNavHref } from "./sidebar-collapse-on-nav";
 
 type NavTextProps = typeof navTypographyBase;
 

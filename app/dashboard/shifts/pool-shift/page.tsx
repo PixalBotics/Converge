@@ -97,7 +97,7 @@ export default function PoolShiftPage() {
   const { isPlatformAdmin, user: authUser } = useAuth();
   const mayPickInternal = useMemo(
     () => sessionMayPickInternalUserScope(isPlatformAdmin, authUser),
-    [isPlatformAdmin, authUser?.userType],
+    [isPlatformAdmin, authUser],
   );
 
   const [filterDeptKind, setFilterDeptKind] = useState<"Internal" | "External">("Internal");
@@ -672,7 +672,6 @@ export default function PoolShiftPage() {
       </ToolbarFilterPopoverPanel>
     );
   }, [
-    theme,
     mayPickInternal,
     filterDeptKind,
     effectiveFilterKind,

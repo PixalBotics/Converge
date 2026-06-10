@@ -66,7 +66,7 @@ export default function ShiftsPage() {
   const { hasOperational, isPlatformAdmin, user: authUser } = useAuth();
   const mayPickInternal = useMemo(
     () => sessionMayPickInternalUserScope(isPlatformAdmin, authUser),
-    [isPlatformAdmin, authUser?.userType],
+    [isPlatformAdmin, authUser],
   );
   const canCreateShift = canShiftAction(hasOperational, "create");
   const canUpdateShift = canShiftAction(hasOperational, "update");
@@ -570,7 +570,6 @@ export default function ShiftsPage() {
     );
   }, [
     mayPickInternal,
-    theme,
     listCatalogFilter,
     narrowResellerId,
     narrowParentCompanyId,

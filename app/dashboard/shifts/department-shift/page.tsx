@@ -113,7 +113,7 @@ export default function DepartmentShiftPage() {
   const { isPlatformAdmin, user: authUser } = useAuth();
   const mayPickInternal = useMemo(
     () => sessionMayPickInternalUserScope(isPlatformAdmin, authUser),
-    [isPlatformAdmin, authUser?.userType],
+    [isPlatformAdmin, authUser],
   );
 
   const [filterDeptKind, setFilterDeptKind] = useState<"Internal" | "External">("Internal");

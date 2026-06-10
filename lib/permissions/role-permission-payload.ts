@@ -20,7 +20,11 @@ function unwrapData(payload: unknown): Record<string, unknown> | null {
 
 function extractPermissionNamesByTypeField(
   payload: unknown,
-  fieldName: "permissionNamesByType" | "storedPermissionNamesByType",
+  fieldName:
+    | "permissionNamesByType"
+    | "storedPermissionNamesByType"
+    | "deniedPermissionNamesByType"
+    | "effectivePermissionNamesByType",
 ): Record<string, unknown> | null {
   const source = unwrapData(payload);
   if (!source) return null;
@@ -97,6 +101,29 @@ export function extractRoleStoredPermissionNames(payload: unknown): string[] {
   return extractRolePermissionNamesLegacy(payload);
 }
 
+export function extractRoleDeniedPermissionNames(payload: unknown): string[] {
+  const deniedByType = extractPermissionNamesByTypeField(
+    payload,
+    "deniedPermissionNamesByType",
+  );
+  if (deniedByType) return flattenPermissionNamesByType(deniedByType);
+  const source = unwrapData(payload);
+  if (!source) return [];
+  return Array.from(new Set(asStringArray(source.deniedPermissionNames))).sort();
+}
+
+export function extractRoleEffectiveByType(payload: unknown): {
+  operational: string[];
+  page: string[];
+} {
+  const effectiveByType = extractPermissionNamesByTypeField(
+    payload,
+    "effectivePermissionNamesByType",
+  );
+  if (effectiveByType) return splitPermissionNamesByType(effectiveByType);
+  return extractRoleExpandedByType(payload);
+}
+
 export function extractImpliedPermissionNames(payload: unknown): string[] {
   const source = unwrapData(payload);
   if (!source) return [];
@@ -114,14 +141,49 @@ export type PermissionExpandPreview = {
   page: string[];
   impliedPermissionNames: string[];
   equivalentPermissionNames: string[];
+  deniedPermissionNames: string[];
+  storedPermissionNames: string[];
 };
 
+/** Checkbox selection on load: stored ALLOW grants + effective runtime grants, minus DENY. */
+export function buildSelectedPermissionSets(params: {
+  stored: readonly string[];
+  denied: readonly string[];
+  effectiveOperational: readonly string[];
+  effectivePage: readonly string[];
+  equivalent?: readonly string[];
+}): { operational: string[]; page: string[] } {
+  const deniedSet = new Set(params.denied);
+  const equivalentSet = new Set(params.equivalent ?? []);
+  const selected = new Set<string>();
+
+  for (const code of params.stored) {
+    if (!deniedSet.has(code)) selected.add(code);
+  }
+  for (const code of [...params.effectiveOperational, ...params.effectivePage]) {
+    if (!deniedSet.has(code) && !equivalentSet.has(code)) selected.add(code);
+  }
+
+  const operational: string[] = [];
+  const page: string[] = [];
+  for (const code of selected) {
+    if (code.startsWith("page:")) page.push(code);
+    else operational.push(code);
+  }
+  return {
+    operational: operational.sort(),
+    page: page.sort(),
+  };
+}
+
 export function parsePermissionExpandPreview(payload: unknown): PermissionExpandPreview {
-  const expanded = extractRoleExpandedByType(payload);
+  const expanded = extractRoleEffectiveByType(payload);
   return {
     operational: expanded.operational,
     page: expanded.page,
     impliedPermissionNames: extractImpliedPermissionNames(payload),
     equivalentPermissionNames: extractEquivalentPermissionNames(payload),
+    deniedPermissionNames: extractRoleDeniedPermissionNames(payload),
+    storedPermissionNames: extractRoleStoredPermissionNames(payload),
   };
 }

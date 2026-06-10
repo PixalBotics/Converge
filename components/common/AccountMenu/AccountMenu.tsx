@@ -6,7 +6,6 @@ import MenuItem from "@mui/material/MenuItem";
 import Divider from "@mui/material/Divider";
 import { alpha, useTheme } from "@mui/material/styles";
 import {
-  Logout as LogoutIcon,
   Login as LoginIcon,
   LoginOutlined as LoginOutlinedIcon,
   LogoutOutlined as LogoutOutlinedIcon,
@@ -51,7 +50,6 @@ export function AccountMenu({
   open,
   onClose,
   isImpersonating,
-  onLogout,
   onLoginAsAdmin,
 }: AccountMenuProps) {
   const theme = useTheme() as AppTheme;
@@ -244,23 +242,27 @@ export function AccountMenu({
           </Typography>
         </MenuItem>
       ) : null}
-      {(showCheckRow || showBreakRow) && !isImpersonating ? (
-        <Divider sx={{ my: 0.75, borderColor: app.dashboard.shellBorder, opacity: 0.85 }} />
+      {isImpersonating ? (
+        <>
+          {(showCheckRow || showBreakRow) ? (
+            <Divider sx={{ my: 0.75, borderColor: app.dashboard.shellBorder, opacity: 0.85 }} />
+          ) : null}
+          <MenuItem onClick={onLoginAsAdmin} disableRipple sx={signOutRowSx}>
+            <AccountMenuIconWrap
+              sx={{
+                borderColor: alpha(app.dashboard.accentRed, 0.45),
+                color: app.dashboard.accentRedLight,
+                bgcolor: alpha(app.dashboard.accentRed, theme.palette.mode === "dark" ? 0.12 : 0.08),
+              }}
+            >
+              <LoginIcon sx={{ fontSize: 20 }} />
+            </AccountMenuIconWrap>
+            <Typography variant="body2" fontWeight={600} sx={{ color: "inherit" }}>
+              Login As Admin
+            </Typography>
+          </MenuItem>
+        </>
       ) : null}
-      <MenuItem onClick={isImpersonating ? onLoginAsAdmin : onLogout} disableRipple sx={signOutRowSx}>
-        <AccountMenuIconWrap
-          sx={{
-            borderColor: alpha(app.dashboard.accentRed, 0.45),
-            color: app.dashboard.accentRedLight,
-            bgcolor: alpha(app.dashboard.accentRed, theme.palette.mode === "dark" ? 0.12 : 0.08),
-          }}
-        >
-          {isImpersonating ? <LoginIcon sx={{ fontSize: 20 }} /> : <LogoutIcon sx={{ fontSize: 20 }} />}
-        </AccountMenuIconWrap>
-        <Typography variant="body2" fontWeight={600} sx={{ color: "inherit" }}>
-          {isImpersonating ? "Login As Admin" : "Sign Out"}
-        </Typography>
-      </MenuItem>
     </Menu>
   );
 }

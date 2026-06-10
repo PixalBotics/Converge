@@ -676,6 +676,7 @@ export default function ChatWidgetBoxDesignPage() {
   const parsedPreviewHeight = Number.parseInt(boxHeight, 10);
 
   const livePreviewModel = useMemo(() => {
+    void checklistRefreshKey;
     const draft = draftReady
       ? readChatWizardDraft(resolveEditWidgetKeyForNavigation(editWidgetKey) || undefined)
       : defaultWidgetDraft;

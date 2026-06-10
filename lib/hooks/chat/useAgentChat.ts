@@ -806,6 +806,8 @@ export function useAgentChat(params: UseAgentChatParams): UseAgentChatReturn {
       applyDistributionPrompt,
       closedIdSet,
       loadConversationHistorySocket,
+      params.agentId,
+      params.token,
       queues.activeChats,
       queues.waitingChats,
       socketClient,
@@ -890,7 +892,7 @@ export function useAgentChat(params: UseAgentChatParams): UseAgentChatReturn {
   ]);
 
   const sendMessage = useCallback(
-    async (content: string, sendOpts?: { messageType?: string }) => {
+    async (content: string) => {
       const trimmed = content.trim();
       if (!selectedConversationId || selectedIsClosed) {
         throw new Error("Select an active conversation before sending a message.");
