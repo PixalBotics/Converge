@@ -390,9 +390,10 @@ export function embedTalkToAgentButtonSx(appearance: RuntimeChatAppearance): SxP
     textTransform: "none",
     boxShadow: "none",
     "&:hover": {
-      bgcolor: c.talkToAgentBackground,
-      borderColor: c.primary,
-      color: `${c.talkToAgentText} !important`,
+      bgcolor: `${appearance.launcher.buttonHoverColor} !important`,
+      borderColor: `${c.primary} !important`,
+      color: `${c.outgoingBubbleText} !important`,
+      boxShadow: "none",
     },
   };
 }
@@ -647,6 +648,9 @@ export function embedComposerInputSx(appearance: RuntimeChatAppearance): SxProps
 /** Composer send control — `chat.colors.button` + `outgoingMessageText`. */
 export function embedSendButtonSx(appearance: RuntimeChatAppearance): SxProps<Theme> {
   const c = appearance.colors;
+  const hover = appearance.launcher.buttonHoverColor || c.primary;
+  const hoverDistinct =
+    hover.trim().toLowerCase() !== c.primary.trim().toLowerCase();
   return {
     bgcolor: c.primary,
     color: c.outgoingBubbleText,
@@ -654,9 +658,12 @@ export function embedSendButtonSx(appearance: RuntimeChatAppearance): SxProps<Th
     width: 42,
     height: 42,
     flexShrink: 0,
+    transition: "transform 0.2s ease, filter 0.2s ease, background-color 0.2s ease",
     "&:hover": {
-      bgcolor: appearance.launcher.buttonHoverColor,
-      color: c.outgoingBubbleText,
+      bgcolor: `${hover} !important`,
+      color: `${c.outgoingBubbleText} !important`,
+      transform: "translateY(-1px)",
+      ...(hoverDistinct ? { filter: "none" } : { filter: "brightness(1.08)" }),
     },
   };
 }

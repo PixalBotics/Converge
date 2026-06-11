@@ -36,7 +36,7 @@ export function resolveWidgetApiOrigin(): string {
 }
 
 export type ResolveWidgetEmbedAppOriginOptions = {
-  /** Live browser origin (dashboard) — wins when env points at the API by mistake. */
+  /** Live browser origin — wins over stale NEXT_PUBLIC_WIDGET_EMBED_ORIGIN on preview/test pages. */
   browserOrigin?: string;
   /** Server-provided embed host from GET embed-snippet (when not the API). */
   apiEmbedAppOrigin?: string;
@@ -56,6 +56,14 @@ export function resolveWidgetEmbedAppOrigin(
     return normalizeOrigin(apiHint);
   }
 
+  const explicitBrowser = options?.browserOrigin?.trim() ?? "";
+  if (explicitBrowser) {
+    const loc = normalizeOrigin(explicitBrowser);
+    if (loc && !originsMatch(loc, apiOrigin)) {
+      return loc;
+    }
+  }
+
   const envCandidates = [
     process.env.NEXT_PUBLIC_WIDGET_EMBED_ORIGIN?.trim(),
     process.env.NEXT_PUBLIC_APP_URL?.trim(),
@@ -68,11 +76,8 @@ export function resolveWidgetEmbedAppOrigin(
     }
   }
 
-  const browser =
-    options?.browserOrigin?.trim() ||
-    (typeof window !== "undefined" ? window.location.origin : "");
-  if (browser) {
-    const loc = normalizeOrigin(browser);
+  if (typeof window !== "undefined" && window.location?.origin) {
+    const loc = normalizeOrigin(window.location.origin);
     if (loc && !originsMatch(loc, apiOrigin)) {
       return loc;
     }

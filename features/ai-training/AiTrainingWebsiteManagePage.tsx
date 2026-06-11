@@ -30,6 +30,7 @@ import {
 import { AiTrainingPageShell } from "./AiTrainingPageShell";
 import { AiTrainingStudioHeaderTabs } from "./AiTrainingStudioHeaderTabs";
 import { AiTrainingSourcePreview } from "./AiTrainingSourcePreview";
+import { AiTrainingScrapeProgressDetail } from "./AiTrainingScrapeProgressDetail";
 import { AiTrainingSourcesTable } from "./AiTrainingSourcesTable";
 import {
   aiTrainingAddHref,
@@ -41,7 +42,10 @@ import {
   isReindexBulkResult,
   KB_BACKGROUND_TRAINING_STARTED_MESSAGE,
   KB_TRAINING_SOURCES_POLL_MS,
+  isWebSourceType,
   toastMessageForCreateResult,
+  formatSourceRefForDisplay,
+  formatTrainingTierBanner,
   type AiTrainingKbVariant,
 } from "./ai-training-kb.utils";
 import { useAiTrainingHierarchy } from "./use-ai-training-hierarchy";
@@ -149,6 +153,16 @@ export function AiTrainingWebsiteManagePage({ variant }: { variant: AiTrainingKb
   ).length;
   const listTotal = sourcesQuery.data?.total ?? 0;
   const reindexBusy = reindexChatbot.isPending || reindexAssistant.isPending;
+
+  const processingWebSources = useMemo(
+    () =>
+      listItems.filter(
+        (i) =>
+          (i.status === "processing" || i.status === "pending") &&
+          isWebSourceType(i.sourceType),
+      ),
+    [listItems],
+  );
 
   const previewSource = useMemo(
     () => listItems.find((item) => item.id === previewSourceId) ?? null,
@@ -262,10 +276,51 @@ export function AiTrainingWebsiteManagePage({ variant }: { variant: AiTrainingKb
       ) : null}
 
       {hasBackgroundTraining ? (
-        <Alert severity="info" sx={{ borderRadius: 1 }}>
-          {KB_BACKGROUND_TRAINING_STARTED_MESSAGE}
-          {processingCount > 0 ? ` (${processingCount} item(s) in progress)` : ""}
-        </Alert>
+        <>
+          {processingWebSources.map((source) => {
+            const tierBanner = formatTrainingTierBanner(
+              source.scrapeProgress,
+              source.trainingTier ?? source.scrapeProgress?.trainingTier,
+            );
+            if (!tierBanner && !source.scrapeProgress) return null;
+            return (
+              <Alert
+                key={source.id}
+                severity={tierBanner?.severity ?? "info"}
+                sx={{ borderRadius: 1, mb: 1.5 }}
+              >
+                {tierBanner ? (
+                  <>
+                    <Typography variant="body2" fontWeight={700} sx={{ mb: 0.5 }}>
+                      {tierBanner.title}
+                    </Typography>
+                    <Typography variant="caption" sx={{ display: "block" }}>
+                      {tierBanner.body}
+                    </Typography>
+                  </>
+                ) : null}
+                {source.scrapeProgress ? (
+                  <Box sx={{ mt: tierBanner ? 1.5 : 0 }}>
+                    <Typography variant="caption" fontWeight={700} sx={{ display: "block", mb: 0.75 }}>
+                      {formatSourceRefForDisplay(source)}
+                    </Typography>
+                    <AiTrainingScrapeProgressDetail
+                      progress={source.scrapeProgress}
+                      sourceRef={source.sourceRef}
+                      compact={Boolean(tierBanner)}
+                    />
+                  </Box>
+                ) : null}
+              </Alert>
+            );
+          })}
+          {!processingWebSources.some((s) => s.scrapeProgress) ? (
+            <Alert severity="info" sx={{ borderRadius: 1, mb: 1.5 }}>
+              {KB_BACKGROUND_TRAINING_STARTED_MESSAGE}
+              {processingCount > 0 ? ` (${processingCount} item(s) in progress)` : ""}
+            </Alert>
+          ) : null}
+        </>
       ) : null}
 
       <Stack spacing={2}>

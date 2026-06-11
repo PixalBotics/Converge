@@ -1,4 +1,9 @@
-import type { AssistantSourceType, ChatbotSourceType } from "@/api/ai-knowledge/types";
+import type {
+  AssistantSourceType,
+  ChatbotSourceType,
+  KnowledgeScrapeProgress,
+  KnowledgeTrainingTier,
+} from "@/api/ai-knowledge/types";
 import type { CreateKnowledgeSourceResult } from "@/api/ai-knowledge/types";
 
 export type AiTrainingKbVariant = "assistant" | "chatbot";
@@ -29,11 +34,55 @@ Route to Billing L2 via the #billing-escalations channel.`;
 /** Shown in UI; backend default is higher (see KB_WEB_MAX_PAGES). */
 export const KB_WEB_MAX_PAGES_HINT = 25;
 
-/** Poll interval while sources are indexing — keeps server load lower than 5s. */
-export const KB_TRAINING_SOURCES_POLL_MS = 15_000;
+/** Poll while sources are indexing — live scrape progress updates. */
+export const KB_TRAINING_SOURCES_POLL_MS = 4_000;
 
 export const KB_BACKGROUND_TRAINING_STARTED_MESSAGE =
-  "Training runs on the server while you keep working. This page refreshes every ~15 seconds. When status is Indexed, open Automation studio to test on real data.";
+  "We train in two steps: basic pages first (test in a few minutes), then the rest of your site in the background until fully trained.";
+
+export function isBasicTrainingReady(
+  progress: KnowledgeScrapeProgress | null | undefined,
+  tier: KnowledgeTrainingTier | null | undefined,
+): boolean {
+  if (tier === "basic_ready" || tier === "full") return true;
+  return progress?.trainingTier === "basic_ready" || progress?.trainingTier === "full";
+}
+
+export function formatTrainingTierBanner(
+  progress: KnowledgeScrapeProgress | null | undefined,
+  tier: KnowledgeTrainingTier | null | undefined,
+): { severity: "success" | "info"; title: string; body: string } | null {
+  const t = tier ?? progress?.trainingTier;
+  if (t === "basic_ready") {
+    return {
+      severity: "success",
+      title: "Basic training ready — test now",
+      body:
+        "Main pages are indexed. Open Automation studio and test chat — answers use basic pages for now. The rest of your site is still scraping in the background.",
+    };
+  }
+  if (t === "full") {
+    const done = progress?.pagesDone ?? 0;
+    const total = progress?.pagesTotal;
+    const tail =
+      total != null && total > 0
+        ? ` (${Math.min(done, total)}/${total} pages indexed so far).`
+        : ".";
+    return {
+      severity: "info",
+      title: "Full training in progress",
+      body: `Background scrape continues${tail} You'll be fully trained soon — test chat already works on indexed content.`,
+    };
+  }
+  if (t === "basic" && progress) {
+    return {
+      severity: "info",
+      title: "Basic training starting",
+      body: `Indexing priority pages first (${Math.min(progress.basicPagesDone, progress.basicPagesTotal)}/${progress.basicPagesTotal || "…"}). You can test shortly after basic training completes.`,
+    };
+  }
+  return null;
+}
 
 export const ASSISTANT_SOURCE_TYPE_OPTIONS: { label: string; value: AssistantSourceType }[] = [
   { label: "Website URL (auto scrape)", value: "URL" },
@@ -60,6 +109,103 @@ export function assistantFileUploadButtonLabel(sourceType: string): string {
   if (sourceType === "DOCX") return "Choose DOCX file";
   if (sourceType === "EXCEL") return "Choose Excel file";
   return "Choose PDF file";
+}
+
+export function formatScrapeProgressLabel(
+  progress: KnowledgeScrapeProgress | null | undefined,
+): string | null {
+  if (!progress) return null;
+  if (
+    progress.trainingTier === "basic" &&
+    progress.basicPagesTotal > 0
+  ) {
+    const done = Math.min(progress.basicPagesDone, progress.basicPagesTotal);
+    const tail =
+      done >= progress.basicPagesTotal && progress.chunksIndexed === 0
+        ? " · batch embedding…"
+        : "";
+    return `Basic ${done}/${progress.basicPagesTotal} · ${progress.chunksIndexed} pieces${tail}`;
+  }
+  if (progress.pagesTotal != null && progress.pagesTotal > 0) {
+    const done = Math.min(progress.pagesDone, progress.pagesTotal);
+    const prefix =
+      progress.trainingTier === "full" || progress.trainingTier === "basic_ready"
+        ? "Full "
+        : "";
+    return `${prefix}${done}/${progress.pagesTotal} pages · ${progress.chunksIndexed} pieces`;
+  }
+  if (progress.pagesDone > 0) {
+    return `${progress.pagesDone} page${progress.pagesDone === 1 ? "" : "s"} · ${progress.chunksIndexed} pieces`;
+  }
+  return "Starting scrape…";
+}
+
+export function formatScrapePhaseLabel(
+  progress: KnowledgeScrapeProgress | null | undefined,
+): string {
+  if (!progress) return "Preparing scrape…";
+  if (progress.trainingTier === "basic") {
+    return progress.currentPage ? "Basic training · scraping page" : "Basic training · priority pages";
+  }
+  if (progress.trainingTier === "basic_ready") {
+    return "Basic ready · starting full site scrape";
+  }
+  if (progress.trainingTier === "full") {
+    switch (progress.phase) {
+      case "discovering":
+        return "Full training · finding remaining pages";
+      case "scraping":
+        return progress.currentPage ? "Full training · scraping page" : "Full training · background scrape";
+      default:
+        return "Full training in progress";
+    }
+  }
+  switch (progress.phase) {
+    case "discovering":
+      return "Finding sitemap & page list";
+    case "scraping":
+      return progress.currentPage ? "Scraping page" : "Scraping site";
+    case "done":
+      return "Scrape complete";
+    default:
+      return progress.pagesDone > 0 ? "Scraping site" : "Starting scrape…";
+  }
+}
+
+export function formatDurationSeconds(totalSeconds: number): string {
+  const s = Math.max(0, Math.floor(totalSeconds));
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  if (h > 0) {
+    return `${h}:${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")}`;
+  }
+  return `${m}:${String(sec).padStart(2, "0")}`;
+}
+
+export function computeScrapeTiming(
+  progress: KnowledgeScrapeProgress,
+  nowMs = Date.now(),
+): { elapsedSec: number; etaSec: number | null } {
+  const startedMs = Date.parse(progress.startedAt);
+  const elapsedSec = Number.isFinite(startedMs)
+    ? Math.max(0, Math.floor((nowMs - startedMs) / 1000))
+    : 0;
+  let etaSec: number | null = null;
+  if (
+    progress.pagesTotal != null &&
+    progress.pagesTotal > 0 &&
+    progress.pagesDone > 0 &&
+    progress.pagesDone < progress.pagesTotal &&
+    Number.isFinite(startedMs)
+  ) {
+    const avgMs = (nowMs - startedMs) / progress.pagesDone;
+    etaSec = Math.max(
+      0,
+      Math.ceil((avgMs * (progress.pagesTotal - progress.pagesDone)) / 1000),
+    );
+  }
+  return { elapsedSec, etaSec };
 }
 
 export function hostFromWebsiteUrl(url: string): string | null {

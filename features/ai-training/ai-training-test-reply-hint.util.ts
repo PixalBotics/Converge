@@ -1,9 +1,13 @@
 import type { AiTrainingTestRespondResult } from "@/api/ai-training/ai-training.api";
 
 /** Short label shown under bot bubbles in the test chat template. */
-export function formatTestReplyHint(result: AiTrainingTestRespondResult): string | undefined {
+export function formatTestReplyHint(
+  result: AiTrainingTestRespondResult,
+  options?: { partialTraining?: boolean },
+): string | undefined {
   const scopeLabel =
     result.variant === "assistant" ? "Assistant KB" : "Chatbot";
+  const partialNote = options?.partialTraining ? " · partial training" : "";
 
   const replyStep = result.pipeline?.find((s) => s.id === "reply");
   const detail = replyStep?.detail?.toLowerCase() ?? "";
@@ -11,8 +15,8 @@ export function formatTestReplyHint(result: AiTrainingTestRespondResult): string
   if (result.replySource === "llm") {
     const kbCount = result.knowledgeMatches?.length ?? 0;
     return kbCount > 0
-      ? `AI answer · ${scopeLabel} · ${kbCount} match${kbCount === 1 ? "" : "es"}`
-      : `AI answer · ${scopeLabel}`;
+      ? `AI answer · ${scopeLabel} · ${kbCount} match${kbCount === 1 ? "" : "es"}${partialNote}`
+      : `AI answer · ${scopeLabel}${partialNote}`;
   }
 
   if (result.replySource === "template") {

@@ -1,5 +1,36 @@
 export type KnowledgeSourceStatus = "pending" | "processing" | "indexed" | "failed";
 
+export type KnowledgeScrapeProgress = {
+  pagesDone: number;
+  pagesTotal: number | null;
+  chunksIndexed: number;
+  recentPages: Array<{ url: string; title: string; chunks: number }>;
+  phase: "starting" | "discovering" | "scraping" | "done";
+  trainingTier: "basic" | "basic_ready" | "full" | "complete";
+  basicPagesTotal: number;
+  basicPagesDone: number;
+  basicReadyAt: string | null;
+  currentPage: {
+    url: string;
+    title: string;
+    startedAt: string;
+  } | null;
+  activePages: Array<{
+    url: string;
+    title: string;
+    startedAt: string;
+  }>;
+  startedAt: string;
+  updatedAt: string;
+  completedAt?: string;
+};
+
+export type KnowledgeTrainingTier =
+  | "basic"
+  | "basic_ready"
+  | "full"
+  | "complete";
+
 export type ChatbotSourceType = "URL" | "WEB_CRAWL" | "SITEMAP" | "FAQ";
 
 export type AssistantSourceType =
@@ -32,6 +63,8 @@ export type KnowledgeSourceListItem = {
   errorMessage: string | null;
   createdAt: string;
   chunkCount?: number;
+  scrapeProgress?: KnowledgeScrapeProgress | null;
+  trainingTier?: KnowledgeTrainingTier | null;
 };
 
 export type KnowledgeChunkPreviewItem = {

@@ -31,7 +31,8 @@ import { formatTestReplyHint } from "./ai-training-test-reply-hint.util";
 import { AiTrainingFloatingTestChat } from "./AiTrainingFloatingTestChat";
 import { aiTrainingListHref, aiTrainingTestStudioHref } from "./ai-training-routes";
 import { AiTrainingStudioHeaderTabs } from "./AiTrainingStudioHeaderTabs";
-import { hostFromWebsiteUrl, type AiTrainingKbVariant } from "./ai-training-kb.utils";
+import { AiTrainingScrapeLiveBar } from "./AiTrainingScrapeLiveBar";
+import { hostFromWebsiteUrl, isBasicTrainingReady, type AiTrainingKbVariant } from "./ai-training-kb.utils";
 import { buildAiTrainingSessionScope } from "./ai-training-scope.util";
 import type { AiPipelineStep, FlowExecutionStep } from "@/api/ai-training/ai-training.api";
 import { extractApiErrorMessageForToast, publishAppToast } from "@/lib/notify";
@@ -99,19 +100,29 @@ export function AiTrainingAutomationStudioPage({
 
 
   const chatbotSources = useAiChatbotSourcesQuery(
-
-    { websiteId, limit: 1, offset: 0 },
-
-    { enabled: isChatbot && Boolean(websiteId) },
-
+    { websiteId, limit: 50, offset: 0 },
+    {
+      enabled: isChatbot && Boolean(websiteId),
+      refetchInterval: (query) => {
+        const items = query.state.data?.items ?? [];
+        return items.some((i) => i.status === "processing" || i.status === "pending")
+          ? 4_000
+          : false;
+      },
+    },
   );
 
   const assistantSources = useAiAssistantKbSourcesQuery(
-
-    { websiteId, limit: 1, offset: 0 },
-
-    { enabled: !isChatbot && Boolean(websiteId) },
-
+    { websiteId, limit: 50, offset: 0 },
+    {
+      enabled: !isChatbot && Boolean(websiteId),
+      refetchInterval: (query) => {
+        const items = query.state.data?.items ?? [];
+        return items.some((i) => i.status === "processing" || i.status === "pending")
+          ? 4_000
+          : false;
+      },
+    },
   );
 
   const sourcesQuery = isChatbot ? chatbotSources : assistantSources;
@@ -168,6 +179,16 @@ export function AiTrainingAutomationStudioPage({
   const websiteHost = hostFromWebsiteUrl(websiteUrl);
 
   const indexedCount = siteRow?.indexedSourceCount ?? sourcesQuery.data?.total ?? 0;
+  const liveSources = sourcesQuery.data?.items ?? [];
+  const scrapingSource = liveSources.find(
+    (s) => s.status === "processing" && s.scrapeProgress,
+  );
+  const partialChunksReady = liveSources.some(
+    (s) =>
+      s.status === "processing" &&
+      ((s.chunkCount ?? 0) > 0 ||
+        isBasicTrainingReady(s.scrapeProgress, s.trainingTier)),
+  );
 
   const botLabel = isChatbot ? websiteName : `${websiteName} copilot`;
 
@@ -239,7 +260,7 @@ export function AiTrainingAutomationStudioPage({
           id: `b-${Date.now()}`,
           role: "bot",
           text: answer || "(No reply text)",
-          replyHint: formatTestReplyHint(result),
+          replyHint: formatTestReplyHint(result, { partialTraining: partialChunksReady }),
         },
       ]);
     } catch (e) {
@@ -249,8 +270,6 @@ export function AiTrainingAutomationStudioPage({
       });
     }
   };
-
-
 
   const backButton = (
     <Button
@@ -361,6 +380,16 @@ export function AiTrainingAutomationStudioPage({
         selectedNodeId={selectedNodeId}
         onSelectNode={setSelectedNodeId}
         studioView={studioView}
+        scrapeBar={
+          scrapingSource?.scrapeProgress ? (
+            <AiTrainingScrapeLiveBar
+              progress={scrapingSource.scrapeProgress}
+              trainingTier={
+                scrapingSource.trainingTier ?? scrapingSource.scrapeProgress.trainingTier
+              }
+            />
+          ) : null
+        }
         viewToggle={
           <AiTrainingStudioViewToggle value={studioView} onChange={setStudioView} />
         }

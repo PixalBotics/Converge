@@ -33,15 +33,20 @@ export function WidgetSandboxPanel({
   const embedOrigin = resolveWidgetEmbedAppOrigin({
     browserOrigin: typeof window !== "undefined" ? window.location.origin : undefined,
   });
-  const { previewShareToken } = useWidgetPreviewShareLink(widgetKey);
+  const { previewShareToken, loading: shareLinkLoading } =
+    useWidgetPreviewShareLink(widgetKey);
   const parentPage = websiteUrl?.trim() || embedOrigin;
-  const src = buildWidgetEmbedIframeUrl({
-    widgetKey,
-    mode: "draft",
-    previewShareToken: previewShareToken || undefined,
-    parentPage,
-    appOrigin: embedOrigin,
-  });
+  const shareToken = previewShareToken?.trim();
+  const src =
+    embedOrigin && (!shareLinkLoading || shareToken)
+      ? buildWidgetEmbedIframeUrl({
+          widgetKey,
+          mode: "draft",
+          previewShareToken: shareToken || undefined,
+          parentPage,
+          appOrigin: embedOrigin,
+        })
+      : "";
 
   return (
     <Stack spacing={1.5}>
@@ -114,7 +119,7 @@ export function WidgetSandboxPanel({
         {src ? (
           <Box
             component="iframe"
-            key={`${refreshKey}-${previewShareToken}`}
+            key={`${refreshKey}-${shareToken ?? "auth"}`}
             title="Widget sandbox"
             src={src}
             sx={{
@@ -138,7 +143,11 @@ export function WidgetSandboxPanel({
               textAlign: "center",
             }}
           >
-            Set NEXT_PUBLIC_WIDGET_EMBED_ORIGIN to preview the widget.
+            {!embedOrigin
+              ? "Set NEXT_PUBLIC_WIDGET_EMBED_ORIGIN to preview the widget."
+              : shareLinkLoading
+                ? "Loading draft preview…"
+                : "Preview unavailable — refresh or open the public test link."}
           </Box>
         )}
       </Box>

@@ -8,7 +8,15 @@ import type { AppTheme } from "@/theme/theme";
 import type { KnowledgeSourceListItem, KnowledgeSourceStatus } from "@/api/ai-knowledge/types";
 import { Button, DataTable, SelectField, Typography } from "@/components/common";
 import type { DataTableColumn } from "@/components/common";
-import { formatSourceRefForDisplay, sourceTypeHumanLabel, type AiTrainingKbVariant } from "./ai-training-kb.utils";
+import {
+  formatSourceRefForDisplay,
+  formatScrapeProgressLabel,
+  isBasicTrainingReady,
+  isWebSourceType,
+  sourceTypeHumanLabel,
+  type AiTrainingKbVariant,
+} from "./ai-training-kb.utils";
+import { AiTrainingScrapeLiveSummary } from "./AiTrainingScrapeLiveSummary";
 
 const STATUS_FILTER_OPTIONS = [
   { value: "", label: "All statuses" },
@@ -96,35 +104,83 @@ export function AiTrainingSourcesTable({
       {
         id: "chunkCount",
         label: "Pieces",
-        render: (_, row) => (
-          <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted }}>
-            {row.status === "indexed" && row.chunkCount != null
-              ? row.chunkCount
-              : row.status === "processing"
-                ? "…"
-                : "—"}
-          </Typography>
-        ),
+        render: (_, row) => {
+          const progressLabel =
+            row.status === "processing" ? formatScrapeProgressLabel(row.scrapeProgress) : null;
+          if (row.status === "indexed" && row.chunkCount != null) {
+            return (
+              <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted }}>
+                {row.chunkCount}
+              </Typography>
+            );
+          }
+          if (row.status === "processing") {
+            return (
+              <Box sx={{ minWidth: 0 }}>
+                <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, display: "block" }}>
+                  {row.chunkCount != null && row.chunkCount > 0 ? row.chunkCount : "0"}
+                </Typography>
+                {progressLabel ? (
+                  <Typography
+                    variant="caption"
+                    sx={{ color: theme.palette.info.light, display: "block", lineHeight: 1.35 }}
+                  >
+                    {progressLabel}
+                  </Typography>
+                ) : null}
+              </Box>
+            );
+          }
+          return (
+            <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted }}>
+              —
+            </Typography>
+          );
+        },
       },
       {
         id: "status",
         label: "Status",
         render: (_, row) => {
           const colors = statusChipColor(row.status, theme);
+          const progressLabel =
+            row.status === "processing" && isWebSourceType(row.sourceType)
+              ? formatScrapeProgressLabel(row.scrapeProgress)
+              : null;
+          const basicReady =
+            row.status === "processing" && isBasicTrainingReady(row.scrapeProgress, row.trainingTier);
           const label =
             row.status === "processing"
-              ? "Training…"
+              ? basicReady
+                ? "Basic ready · full training…"
+                : progressLabel
+                  ? `Scraping ${progressLabel.split(" · ")[0]}`
+                  : "Scraping…"
               : row.status === "indexed"
-                ? "Indexed"
+                ? "Fully trained"
                 : row.status;
           return (
             <Chip
               label={label}
               size="small"
-              sx={{ ...colors, fontWeight: 600, textTransform: "capitalize" }}
+              sx={{ ...colors, fontWeight: 600, textTransform: "capitalize", maxWidth: 220 }}
             />
           );
         },
+      },
+      {
+        id: "scrapeLive",
+        label: "Scrape timer",
+        render: (_, row) =>
+          row.status === "processing" &&
+          isWebSourceType(row.sourceType) &&
+          row.scrapeProgress ? (
+            <AiTrainingScrapeLiveSummary progress={row.scrapeProgress} />
+          ) : (
+            <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted }}>
+              —
+            </Typography>
+          ),
       },
       {
         id: "lastIndexedAt",
@@ -162,7 +218,14 @@ export function AiTrainingSourcesTable({
               type="button"
               variant="secondary"
               size="small"
-              disabled={busy || row.status !== "indexed"}
+              disabled={
+                busy ||
+                (row.status !== "indexed" &&
+                  !(
+                    (row.status === "processing" && (row.chunkCount ?? 0) > 0) ||
+                    isBasicTrainingReady(row.scrapeProgress, row.trainingTier)
+                  ))
+              }
               onClick={() =>
                 onPreviewSource(previewSourceId === row.id ? null : row.id)
               }

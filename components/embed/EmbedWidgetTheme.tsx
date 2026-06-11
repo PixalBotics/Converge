@@ -72,7 +72,11 @@ export function EmbedWidgetTheme({
           root: {
             boxShadow: "none !important",
             filter: "none",
-            "&:hover": { boxShadow: "none !important" },
+            "&:hover": {
+              boxShadow: "none !important",
+              // Let launcher/send sx own hover colors — avoid MUI grey wash overlay.
+              backgroundColor: "transparent",
+            },
             "&:active": { boxShadow: "none !important" },
             "&:focus": { boxShadow: "none !important" },
             "&:focus-visible": { boxShadow: "none !important" },

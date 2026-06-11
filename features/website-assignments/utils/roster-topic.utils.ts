@@ -38,7 +38,6 @@ export function buildVisitorTopicContexts(
       (t) =>
         t.isActive !== false &&
         t.routingKey.trim() &&
-        t.internalDepartmentId.trim() &&
         t.externalDepartmentId.trim(),
     )
     .map((t) => {
@@ -64,9 +63,10 @@ export function departmentIdForTopicChannel(
   topic: VisitorTopicRosterContext,
   channel: ServiceChannel,
 ): string {
-  return channel === "Internal"
-    ? topic.internalDepartmentId
-    : topic.externalDepartmentId;
+  if (channel === "Internal") {
+    return topic.internalDepartmentId.trim() || topic.externalDepartmentId;
+  }
+  return topic.externalDepartmentId;
 }
 
 export function departmentLabelForTopicChannel(
