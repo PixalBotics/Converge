@@ -127,6 +127,7 @@ export function AiTrainingFlowBuilderCanvas({
   selectedNodeId,
   onSelectNode,
   topBar,
+  scrapeBar,
   testChat,
   settingsPanel,
   studioView = "advanced",
@@ -144,6 +145,7 @@ export function AiTrainingFlowBuilderCanvas({
   selectedNodeId: string | null;
   onSelectNode: (id: string | null) => void;
   topBar?: ReactNode;
+  scrapeBar?: ReactNode;
   testChat?: ReactNode;
   settingsPanel?: ReactNode;
   studioView?: "simple" | "advanced";
@@ -675,6 +677,8 @@ export function AiTrainingFlowBuilderCanvas({
           ) : null}
         </Box>
       </Box>
+
+      {scrapeBar}
 
       <Box sx={aiTrainingStudioCanvasArea}>
         {!isAdvanced && simpleContent ? (

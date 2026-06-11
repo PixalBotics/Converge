@@ -120,7 +120,11 @@ export function formatScrapeProgressLabel(
     progress.basicPagesTotal > 0
   ) {
     const done = Math.min(progress.basicPagesDone, progress.basicPagesTotal);
-    return `Basic ${done}/${progress.basicPagesTotal} · ${progress.chunksIndexed} pieces`;
+    const tail =
+      done >= progress.basicPagesTotal && progress.chunksIndexed === 0
+        ? " · batch embedding…"
+        : "";
+    return `Basic ${done}/${progress.basicPagesTotal} · ${progress.chunksIndexed} pieces${tail}`;
   }
   if (progress.pagesTotal != null && progress.pagesTotal > 0) {
     const done = Math.min(progress.pagesDone, progress.pagesTotal);
