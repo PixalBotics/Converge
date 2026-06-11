@@ -30,7 +30,7 @@ import {
 import { AiTrainingPageShell } from "./AiTrainingPageShell";
 import { AiTrainingStudioHeaderTabs } from "./AiTrainingStudioHeaderTabs";
 import { AiTrainingSourcePreview } from "./AiTrainingSourcePreview";
-import { AiTrainingScrapeProgressDetail } from "./AiTrainingScrapeProgressDetail";
+import { AiTrainingScrapeLiveBar } from "./AiTrainingScrapeLiveBar";
 import { AiTrainingSourcesTable } from "./AiTrainingSourcesTable";
 import {
   aiTrainingAddHref,
@@ -45,9 +45,9 @@ import {
   isWebSourceType,
   toastMessageForCreateResult,
   formatSourceRefForDisplay,
-  formatTrainingTierBanner,
   type AiTrainingKbVariant,
 } from "./ai-training-kb.utils";
+import { aiTrainingScrapeStatusCardSx } from "./ai-training-ui.styles";
 import { useAiTrainingHierarchy } from "./use-ai-training-hierarchy";
 import { buildAiTrainingSessionScope } from "./ai-training-scope.util";
 import { useAuth } from "@/lib/auth";
@@ -276,51 +276,39 @@ export function AiTrainingWebsiteManagePage({ variant }: { variant: AiTrainingKb
       ) : null}
 
       {hasBackgroundTraining ? (
-        <>
-          {processingWebSources.map((source) => {
-            const tierBanner = formatTrainingTierBanner(
-              source.scrapeProgress,
-              source.trainingTier ?? source.scrapeProgress?.trainingTier,
-            );
-            if (!tierBanner && !source.scrapeProgress) return null;
-            return (
-              <Alert
-                key={source.id}
-                severity={tierBanner?.severity ?? "info"}
-                sx={{ borderRadius: 1, mb: 1.5 }}
-              >
-                {tierBanner ? (
-                  <>
-                    <Typography variant="body2" fontWeight={700} sx={{ mb: 0.5 }}>
-                      {tierBanner.title}
-                    </Typography>
-                    <Typography variant="caption" sx={{ display: "block" }}>
-                      {tierBanner.body}
-                    </Typography>
-                  </>
-                ) : null}
-                {source.scrapeProgress ? (
-                  <Box sx={{ mt: tierBanner ? 1.5 : 0 }}>
-                    <Typography variant="caption" fontWeight={700} sx={{ display: "block", mb: 0.75 }}>
-                      {formatSourceRefForDisplay(source)}
-                    </Typography>
-                    <AiTrainingScrapeProgressDetail
-                      progress={source.scrapeProgress}
-                      sourceRef={source.sourceRef}
-                      compact={Boolean(tierBanner)}
-                    />
-                  </Box>
-                ) : null}
-              </Alert>
-            );
-          })}
+        <Stack spacing={1} sx={{ mb: 0.5 }}>
+          {processingWebSources.map((source) =>
+            source.scrapeProgress ? (
+              <Box key={source.id} sx={aiTrainingScrapeStatusCardSx}>
+                <Box sx={{ px: { xs: 1.25, sm: 2 }, pt: 0.75, pb: 0 }}>
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      color: theme.app.dashboard.textMuted,
+                      fontWeight: 600,
+                      display: "block",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {formatSourceRefForDisplay(source)}
+                  </Typography>
+                </Box>
+                <AiTrainingScrapeLiveBar
+                  progress={source.scrapeProgress}
+                  trainingTier={source.trainingTier ?? source.scrapeProgress.trainingTier}
+                />
+              </Box>
+            ) : null,
+          )}
           {!processingWebSources.some((s) => s.scrapeProgress) ? (
-            <Alert severity="info" sx={{ borderRadius: 1, mb: 1.5 }}>
+            <Alert severity="info" sx={{ borderRadius: 1 }}>
               {KB_BACKGROUND_TRAINING_STARTED_MESSAGE}
               {processingCount > 0 ? ` (${processingCount} item(s) in progress)` : ""}
             </Alert>
           ) : null}
-        </>
+        </Stack>
       ) : null}
 
       <Stack spacing={2}>

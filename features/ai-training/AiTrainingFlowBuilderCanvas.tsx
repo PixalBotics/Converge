@@ -54,6 +54,7 @@ import {
   aiTrainingStudioCanvasArea,
   aiTrainingStudioGridBg,
   aiTrainingStudioShell,
+  aiTrainingStudioToolbarLeadingSx,
   aiTrainingStudioToolbarRow,
   aiTrainingStudioToolCluster,
   aiTrainingSettingsDrawerBody,
@@ -129,6 +130,7 @@ export function AiTrainingFlowBuilderCanvas({
   isRunning,
   selectedNodeId,
   onSelectNode,
+  toolbarLeading,
   navTabs,
   topBar,
   scrapeBar,
@@ -148,6 +150,7 @@ export function AiTrainingFlowBuilderCanvas({
   isRunning?: boolean;
   selectedNodeId: string | null;
   onSelectNode: (id: string | null) => void;
+  toolbarLeading?: ReactNode;
   navTabs?: ReactNode;
   topBar?: ReactNode;
   scrapeBar?: ReactNode;
@@ -547,7 +550,20 @@ export function AiTrainingFlowBuilderCanvas({
             overflow: "hidden",
           }}
         >
-          <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, flexShrink: 0 }}>
+          <Box sx={aiTrainingStudioToolbarLeadingSx}>
+            {toolbarLeading}
+            {toolbarLeading && (navTabs || viewToggle) ? (
+              <Box
+                sx={{
+                  width: "1px",
+                  alignSelf: "stretch",
+                  minHeight: 26,
+                  bgcolor: alpha(c.border, 0.75),
+                  flexShrink: 0,
+                  display: { xs: "none", sm: "block" },
+                }}
+              />
+            ) : null}
             {navTabs}
             {viewToggle}
           </Box>

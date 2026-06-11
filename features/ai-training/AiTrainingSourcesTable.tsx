@@ -269,7 +269,7 @@ export function AiTrainingSourcesTable({
           display: "flex",
           flexWrap: "wrap",
           gap: 1.5,
-          alignItems: "flex-end",
+          alignItems: { xs: "stretch", sm: "center" },
           justifyContent: "space-between",
           mb: 2,
         }}

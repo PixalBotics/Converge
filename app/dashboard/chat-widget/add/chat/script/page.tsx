@@ -134,7 +134,7 @@ export default function ChatWidgetScriptPage() {
           draft: draftForPublish,
           publishNow: false,
           assetUrls,
-          embedAllowAnyOrigin: false,
+          embedAllowAnyOrigin: draftForPublish.embedAllowAnyOrigin ?? false,
         });
         if (cancelled) return;
 

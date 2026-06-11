@@ -144,16 +144,20 @@ function mergeCreateLauncherWhenApiHasThemeDefaults(
   }
   const apiLauncher = resolveLauncherPreviewFromDraft(fromApi);
   const createLauncher = resolveLauncherPreviewFromDraft(create);
-  const apiLauncherIsThemeDefault =
+  const apiLauncherIsFullyDefault =
     apiLauncher.buttonShape === defaultWidgetDraft.buttonShape &&
-    apiLauncher.buttonPosition === defaultWidgetDraft.buttonPosition;
+    apiLauncher.buttonPosition === defaultWidgetDraft.buttonPosition &&
+    apiLauncher.buttonColor === defaultWidgetDraft.buttonColor &&
+    apiLauncher.buttonHoverColor === defaultWidgetDraft.buttonHoverColor &&
+    !fromApi.iconDataUrl?.trim();
   const createHasCustomLauncher =
     createLauncher.buttonShape !== defaultWidgetDraft.buttonShape ||
     createLauncher.buttonPosition !== defaultWidgetDraft.buttonPosition ||
     Boolean(create.iconDataUrl?.trim()) ||
-    createLauncher.buttonColor !== defaultWidgetDraft.buttonColor;
+    createLauncher.buttonColor !== defaultWidgetDraft.buttonColor ||
+    createLauncher.buttonHoverColor !== defaultWidgetDraft.buttonHoverColor;
 
-  if (!apiLauncherIsThemeDefault || !createHasCustomLauncher) {
+  if (!apiLauncherIsFullyDefault || !createHasCustomLauncher) {
     return mergePartialWidgetDraft({ ...create, ...fromApi });
   }
 
