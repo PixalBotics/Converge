@@ -27,6 +27,10 @@ import {
   useDeleteAiAssistantKbSourceMutation,
   useDeleteAiChatbotSourceMutation,
 } from "@/lib/hooks/query/ai-knowledge";
+import {
+  useAiTrainingBehaviorQuery,
+  useUpdateAiTrainingBehaviorMutation,
+} from "@/lib/hooks/query/ai-training/hooks";
 import { AiTrainingPageShell } from "./AiTrainingPageShell";
 import { AiTrainingStudioHeaderTabs } from "./AiTrainingStudioHeaderTabs";
 import { AiTrainingSourcePreview } from "./AiTrainingSourcePreview";
@@ -90,6 +94,8 @@ export function AiTrainingWebsiteManagePage({ variant }: { variant: AiTrainingKb
   const reindexAssistant = useAiAssistantKbReindexMutation();
 
   const websiteId = hierarchy.websiteId.trim() || websiteIdParam;
+  const behaviorQuery = useAiTrainingBehaviorQuery(websiteId || undefined);
+  const updateBehavior = useUpdateAiTrainingBehaviorMutation();
   const registeredUrl = hierarchy.selectedWebsite?.url ?? "";
   const registeredHost = hostFromWebsiteUrl(registeredUrl);
 
@@ -376,6 +382,54 @@ export function AiTrainingWebsiteManagePage({ variant }: { variant: AiTrainingKb
             onClose={() => setPreviewSourceId(null)}
           />
         ) : null}
+      </DashboardCard>
+
+      <DashboardCard sx={{ p: 2.5 }}>
+        <Typography variant="mediumLarge" color="white" fontWeight={600} sx={{ mb: 0.5 }}>
+          Scrape speed
+        </Typography>
+        <Typography variant="small" sx={{ color: theme.app.dashboard.textMuted, mb: 2 }}>
+          Default is one page at a time so you can see exactly what is being scraped. Enable parallel
+          only if you want faster total scrape time.
+        </Typography>
+        <FormControlLabel
+          control={
+            <Checkbox
+              checked={behaviorQuery.data?.parallelScrapePages ?? false}
+              disabled={!websiteId || updateBehavior.isPending || behaviorQuery.isLoading}
+              onChange={(e) => {
+                if (!websiteId) return;
+                void updateBehavior
+                  .mutateAsync({
+                    websiteId,
+                    body: { parallelScrapePages: e.target.checked },
+                  })
+                  .then(() => {
+                    publishAppToast({
+                      variant: "success",
+                      message: e.target.checked
+                        ? "Parallel scrape on — applies on the next training run."
+                        : "Parallel scrape off — one page at a time.",
+                    });
+                  })
+                  .catch((err) => {
+                    publishAppToast({
+                      variant: "error",
+                      message:
+                        extractApiErrorMessageForToast(err) ?? "Could not save scrape setting.",
+                    });
+                  });
+              }}
+              size="small"
+              sx={{ color: theme.app.dashboard.textMuted }}
+            />
+          }
+          label={
+            <Typography variant="medium" sx={{ color: theme.app.dashboard.white95 }}>
+              Faster parallel scrape (optional)
+            </Typography>
+          }
+        />
       </DashboardCard>
 
       <DashboardCard sx={{ p: 2.5 }}>

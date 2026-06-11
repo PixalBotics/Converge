@@ -7,8 +7,10 @@ import type { AppTheme } from "@/theme/theme";
 import type { KnowledgeScrapeProgress } from "@/api/ai-knowledge/types";
 import { Typography } from "@/components/common";
 import {
+  computeCurrentPageElapsedSec,
   computeScrapeTiming,
   formatDurationSeconds,
+  formatScrapePageDisplay,
   formatScrapePhaseLabel,
 } from "./ai-training-kb.utils";
 
@@ -27,11 +29,12 @@ export function AiTrainingScrapeLiveSummary({
   }, []);
 
   const timing = useMemo(() => computeScrapeTiming(progress, nowMs), [progress, nowMs]);
-  const currentTitle =
-    progress.currentPage?.title?.trim() ||
-    progress.currentPage?.url ||
-    progress.activePages?.[0]?.title ||
-    null;
+  const pageElapsedSec = useMemo(
+    () => computeCurrentPageElapsedSec(progress, nowMs),
+    [progress, nowMs],
+  );
+  const currentPage = progress.currentPage ?? progress.activePages?.[0] ?? null;
+  const currentDisplay = formatScrapePageDisplay(currentPage?.url, currentPage?.title);
 
   return (
     <Box sx={{ minWidth: 0, maxWidth: 260 }}>
@@ -42,7 +45,7 @@ export function AiTrainingScrapeLiveSummary({
       <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, display: "block" }}>
         {formatScrapePhaseLabel(progress)}
       </Typography>
-      {currentTitle ? (
+      {currentDisplay ? (
         <Typography
           variant="caption"
           sx={{
@@ -53,7 +56,8 @@ export function AiTrainingScrapeLiveSummary({
             whiteSpace: "nowrap",
           }}
         >
-          {currentTitle}
+          {currentDisplay}
+          {pageElapsedSec != null ? ` · ${formatDurationSeconds(pageElapsedSec)}` : ""}
         </Typography>
       ) : null}
     </Box>

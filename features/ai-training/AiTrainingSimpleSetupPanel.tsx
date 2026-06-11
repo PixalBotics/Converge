@@ -191,6 +191,27 @@ export function AiTrainingSimpleSetupPanel({
     }
   };
 
+  const saveParallelScrape = async (enabled: boolean) => {
+    try {
+      await updateBehavior.mutateAsync({
+        websiteId,
+        body: { parallelScrapePages: enabled },
+      });
+      setDraft((p) => (p ? { ...p, parallelScrapePages: enabled } : p));
+      publishAppToast({
+        variant: "success",
+        message: enabled
+          ? "Parallel scrape enabled — next training run will fetch multiple pages at once."
+          : "Parallel scrape off — pages scrape one at a time (clearer progress).",
+      });
+    } catch (e) {
+      publishAppToast({
+        variant: "error",
+        message: extractApiErrorMessageForToast(e) ?? "Could not save setting.",
+      });
+    }
+  };
+
   if (!draft || behaviorQuery.isLoading) {
     return (
       <Box sx={{ p: 3 }}>
@@ -277,7 +298,7 @@ export function AiTrainingSimpleSetupPanel({
               }}
             >
               <FormControlLabel
-                sx={{ alignItems: "flex-start", m: 0 }}
+                sx={{ alignItems: "flex-start", m: 0, mb: 1.5 }}
                 control={
                   <Checkbox
                     checked={draft.autoLearnFromVisitorPages}
@@ -299,6 +320,33 @@ export function AiTrainingSimpleSetupPanel({
                     <Typography variant="caption" sx={{ color: d.textMuted, lineHeight: 1.45, display: "block" }}>
                       When enabled, new pages visitors view on your site are added to training in the
                       background (rate-limited, same domain only). Manual training is unchanged.
+                    </Typography>
+                  </Box>
+                }
+              />
+              <FormControlLabel
+                sx={{ alignItems: "flex-start", m: 0 }}
+                control={
+                  <Checkbox
+                    checked={draft.parallelScrapePages}
+                    disabled={updateBehavior.isPending}
+                    onChange={(e) => void saveParallelScrape(e.target.checked)}
+                    size="small"
+                    sx={{
+                      color: d.textMuted,
+                      "&.Mui-checked": { color: theme.palette.primary.main },
+                      mt: 0.1,
+                    }}
+                  />
+                }
+                label={
+                  <Box>
+                    <Typography variant="body2" fontWeight={700} sx={{ color: c.text }}>
+                      Faster parallel scrape (optional)
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: d.textMuted, lineHeight: 1.45, display: "block" }}>
+                      Off by default — one page at a time with clear progress. Turn on to scrape several
+                      pages at once (faster total time; applies on the next training run).
                     </Typography>
                   </Box>
                 }

@@ -762,6 +762,8 @@ export function AiTrainingFlowBuilderCanvas({
               overflow: "hidden",
               cursor: panRef.current ? "grabbing" : connectFrom ? "crosshair" : "default",
               position: "relative",
+              pb: { xs: 7, sm: 0 },
+              pr: { xs: 0, sm: testChat ? 2 : 0 },
               ...aiTrainingStudioGridBg(t, zoom, pan),
             })}
             onDragOver={

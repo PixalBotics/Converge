@@ -377,10 +377,8 @@ export function AiTrainingAutomationStudioPage({
       siteHint={websiteHost || "indexed training"}
       turnCount={turns.length}
       defaultOpen={false}
-      anchor={studioView === "advanced" ? "right" : "left"}
     >
       <AiTrainingDummyChatWidget
-        compact
         turns={turns}
         input={input}
         onInputChange={setInput}

@@ -9,9 +9,12 @@ import type { AppTheme } from "@/theme/theme";
 import type { KnowledgeScrapeProgress } from "@/api/ai-knowledge/types";
 import { Typography } from "@/components/common";
 import {
+  computeAvgSecPerPage,
+  computeCurrentPageElapsedSec,
   computeScrapeTiming,
   formatDurationSeconds,
   formatScrapeEtaHint,
+  formatScrapePageDisplay,
   formatScrapePhaseLabel,
   formatScrapeProgressLabel,
   resolveFullScrapeUiPhase,
@@ -35,6 +38,14 @@ export function AiTrainingScrapeProgressDetail({
   }, []);
 
   const timing = useMemo(() => computeScrapeTiming(progress, nowMs), [progress, nowMs]);
+  const pageElapsedSec = useMemo(
+    () => computeCurrentPageElapsedSec(progress, nowMs),
+    [progress, nowMs],
+  );
+  const avgSecPerPage = useMemo(
+    () => computeAvgSecPerPage(progress, nowMs),
+    [progress, nowMs],
+  );
   const progressLabel = formatScrapeProgressLabel(progress);
   const phaseLabel = formatScrapePhaseLabel(progress);
   const etaHint = formatScrapeEtaHint(progress, timing);
@@ -50,12 +61,8 @@ export function AiTrainingScrapeProgressDetail({
         ? Math.min(100, Math.round((progress.pagesDone / progress.pagesTotal) * 100))
         : null;
 
-  const currentTitle =
-    progress.currentPage?.title?.trim() ||
-    progress.currentPage?.url ||
-    progress.activePages?.[0]?.title ||
-    progress.activePages?.[0]?.url ||
-    null;
+  const currentPage = progress.currentPage ?? progress.activePages?.[0] ?? null;
+  const currentDisplay = formatScrapePageDisplay(currentPage?.url, currentPage?.title);
 
   return (
     <Stack spacing={compact ? 0.75 : 1.25} sx={{ minWidth: 0 }}>
@@ -68,8 +75,13 @@ export function AiTrainingScrapeProgressDetail({
         }}
       >
         <Typography variant="caption" sx={{ color: theme.palette.info.light, fontWeight: 700 }}>
-          Elapsed {formatDurationSeconds(timing.elapsedSec)}
+          Total {formatDurationSeconds(timing.elapsedSec)}
         </Typography>
+        {avgSecPerPage != null ? (
+          <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted }}>
+            ~{avgSecPerPage}s/page
+          </Typography>
+        ) : null}
         {timing.etaSec != null ? (
           <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted }}>
             ~{formatDurationSeconds(timing.etaSec)} left
@@ -106,29 +118,21 @@ export function AiTrainingScrapeProgressDetail({
 
       <Typography variant="caption" sx={{ color: theme.app.text.primary }}>
         {phaseLabel}
-        {currentTitle ? (
-          <>
-            {" — "}
-            <Box component="span" sx={{ color: theme.app.dashboard.accentBlue, fontWeight: 600 }}>
-              {currentTitle}
-            </Box>
-          </>
-        ) : null}
       </Typography>
 
-      {postScrapePhase === "finishing_pages" &&
-      progress.activePages &&
-      progress.activePages.length > 1 ? (
-        <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted }}>
-          +{progress.activePages.length - 1} more page
-          {progress.activePages.length - 1 === 1 ? "" : "s"} finishing in parallel
+      {currentDisplay ? (
+        <Typography variant="caption" sx={{ color: theme.app.dashboard.accentBlue, fontWeight: 600 }}>
+          Scraping: {currentDisplay}
+          {pageElapsedSec != null
+            ? ` · ${formatDurationSeconds(pageElapsedSec)} on this page`
+            : ""}
         </Typography>
-      ) : postScrapePhase === "scraping" &&
-        progress.activePages &&
-        progress.activePages.length > 1 ? (
+      ) : null}
+
+      {(progress.activePages?.length ?? 0) > 1 ? (
         <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted }}>
-          +{progress.activePages.length - 1} more page
-          {progress.activePages.length - 1 === 1 ? "" : "s"} in parallel
+          +{(progress.activePages?.length ?? 0) - 1} more page
+          {(progress.activePages?.length ?? 0) - 1 === 1 ? "" : "s"} in parallel
         </Typography>
       ) : null}
 

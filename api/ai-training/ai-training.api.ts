@@ -5,6 +5,7 @@ export type WebsiteAiBehavior = {
   confidenceThreshold: number | null;
   strictKbOnly: boolean;
   autoLearnFromVisitorPages: boolean;
+  parallelScrapePages: boolean;
   greetingMessage: string | null;
   noMatchMessage: string | null;
   lowConfidenceMessage: string | null;
