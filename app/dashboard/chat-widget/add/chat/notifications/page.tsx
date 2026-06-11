@@ -513,7 +513,7 @@ export default function ChatWidgetNotificationsPage() {
           widgetKind: "chat",
           draft: latest,
           publishNow: false,
-          embedAllowAnyOrigin: false,
+          embedAllowAnyOrigin: latest.embedAllowAnyOrigin ?? false,
           chatWizardPatchScope: "notifications_only",
         });
         recordSave({

@@ -85,11 +85,22 @@ export function editorStateFromApis(
 
   const root = resolveSnapshotConfigRoot(snapshot);
 
-  const allowed =
-    root.allowedDomains ?? root.allowed_domains ?? ([] as unknown);
-  const allowedDomainsText = Array.isArray(allowed)
-    ? allowed.map((x) => String(x).trim()).filter(Boolean).join("\n")
-    : "";
+  const allowed = (() => {
+    for (const raw of [
+      snapshot?.allowedDomains,
+      snapshot?.allowed_domains,
+      admin?.allowedDomains,
+      admin?.allowed_domains,
+      root.allowedDomains,
+      root.allowed_domains,
+    ]) {
+      if (!Array.isArray(raw)) continue;
+      const list = raw.map((x) => String(x).trim()).filter(Boolean);
+      if (list.length) return list;
+    }
+    return [] as string[];
+  })();
+  const allowedDomainsText = allowed.join("\n");
 
   let formSeed = root.form;
   const formShape = root.form as JsonRecord | undefined;

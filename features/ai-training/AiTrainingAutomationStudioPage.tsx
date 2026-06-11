@@ -32,7 +32,12 @@ import { AiTrainingFloatingTestChat } from "./AiTrainingFloatingTestChat";
 import { aiTrainingListHref, aiTrainingTestStudioHref } from "./ai-training-routes";
 import { AiTrainingStudioHeaderTabs } from "./AiTrainingStudioHeaderTabs";
 import { AiTrainingScrapeLiveBar } from "./AiTrainingScrapeLiveBar";
-import { hostFromWebsiteUrl, isBasicTrainingReady, type AiTrainingKbVariant } from "./ai-training-kb.utils";
+import {
+  formatScrapeProgressLabel,
+  hostFromWebsiteUrl,
+  isBasicTrainingReady,
+  type AiTrainingKbVariant,
+} from "./ai-training-kb.utils";
 import { buildAiTrainingSessionScope } from "./ai-training-scope.util";
 import type { AiPipelineStep, FlowExecutionStep } from "@/api/ai-training/ai-training.api";
 import { extractApiErrorMessageForToast, publishAppToast } from "@/lib/notify";
@@ -288,8 +293,21 @@ export function AiTrainingAutomationStudioPage({
     <AiTrainingStudioHeaderTabs variant={variant} websiteId={websiteId} active="test" />
   );
 
+  const scrapeProgressLabel = scrapingSource?.scrapeProgress
+    ? formatScrapeProgressLabel(scrapingSource.scrapeProgress)
+    : null;
+
   const topBar = (
-    <Box sx={{ display: "flex", alignItems: "center", gap: 1, minWidth: 0, flex: 1, overflow: "hidden" }}>
+    <Box
+      sx={{
+        display: "flex",
+        alignItems: "center",
+        gap: 1,
+        minWidth: 0,
+        flex: 1,
+        overflow: "hidden",
+      }}
+    >
       <Typography
         variant="caption"
         noWrap
@@ -303,6 +321,21 @@ export function AiTrainingAutomationStudioPage({
         </Box>
         {copy.subtitle}
       </Typography>
+      {scrapeProgressLabel ? (
+        <Chip
+          size="small"
+          label={scrapeProgressLabel}
+          sx={{
+            flexShrink: 0,
+            height: 24,
+            bgcolor: alpha(theme.palette.info.main, c.isLight ? 0.12 : 0.2),
+            color: theme.palette.info.light,
+            fontWeight: 700,
+            fontSize: 11,
+            border: `1px solid ${alpha(theme.palette.info.main, 0.35)}`,
+          }}
+        />
+      ) : null}
       <Chip
         size="small"
         icon={isChatbot ? <SmartToyOutlined sx={{ fontSize: 14 }} /> : <AutoStories sx={{ fontSize: 14 }} />}
@@ -366,11 +399,8 @@ export function AiTrainingAutomationStudioPage({
 
   return (
     <Box sx={aiTrainingStudioPageWrapper}>
-      <Box sx={{ flexShrink: 0, p: 0, m: 0, mb: 1 }}>
-        {backButton}
-      </Box>
-      <Box sx={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
       <AiTrainingFlowBuilderCanvas
+        toolbarLeading={backButton}
         websiteId={websiteId}
         variant={variant}
         pipelineSteps={pipeline}
@@ -409,7 +439,6 @@ export function AiTrainingAutomationStudioPage({
         settingsPanel={<AiTrainingStudioSettingsRail websiteId={websiteId} />}
         testChat={testChat}
       />
-      </Box>
     </Box>
   );
 

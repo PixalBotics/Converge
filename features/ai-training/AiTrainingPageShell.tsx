@@ -8,13 +8,13 @@ import type { SxProps, Theme } from "@mui/material/styles";
 import { useRouter } from "next/navigation";
 import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
-import {
-  integrationsHeaderActions,
-  integrationsPageHeader,
-  integrationsPageWrapper,
-} from "@/app/dashboard/integrations/integrations.styles";
+import { integrationsPageWrapper } from "@/app/dashboard/integrations/integrations.styles";
 import { pageWrapper } from "@/app/dashboard/companies/overview.styles";
 import { rolesPageWrapper } from "@/app/dashboard/roles/roles.styles";
+import {
+  aiTrainingPageHeaderActionsSx,
+  aiTrainingPageHeaderSx,
+} from "./ai-training-ui.styles";
 import { Button, Typography } from "@/components/common";
 
 export function AiTrainingPageShell({
@@ -39,8 +39,8 @@ export function AiTrainingPageShell({
 
   return (
     <Box sx={[pageWrapper, rolesPageWrapper, integrationsPageWrapper] as SxProps<Theme>}>
-      <Box sx={[integrationsPageHeader, { mb: 0 }] as SxProps<Theme>}>
-        <Box sx={{ minWidth: 0 }}>
+      <Box sx={aiTrainingPageHeaderSx}>
+        <Box sx={{ minWidth: 0, flex: 1 }}>
           {backHref ? (
             <Button
               type="button"
@@ -53,9 +53,11 @@ export function AiTrainingPageShell({
               {backLabel}
             </Button>
           ) : null}
-          <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 0.5 }}>
-            {icon}
-            <Typography variant="regularLarge" fontWeight={700} color="white">
+          <Stack direction="row" alignItems="center" spacing={1.25} sx={{ mb: 0.5 }}>
+            <Box sx={{ display: "flex", alignItems: "center", flexShrink: 0, lineHeight: 0 }}>
+              {icon}
+            </Box>
+            <Typography variant="regularLarge" fontWeight={700} color="white" sx={{ lineHeight: 1.25 }}>
               {title}
             </Typography>
           </Stack>
@@ -63,7 +65,7 @@ export function AiTrainingPageShell({
             {subtitle}
           </Typography>
         </Box>
-        {actions ? <Box sx={integrationsHeaderActions}>{actions}</Box> : null}
+        {actions ? <Box sx={aiTrainingPageHeaderActionsSx}>{actions}</Box> : null}
       </Box>
       <Stack spacing={2.5} sx={{ maxWidth: 1200, mx: "auto", width: "100%" }}>
         {children}

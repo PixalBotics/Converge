@@ -89,13 +89,22 @@ export const aiTrainingStudioToolbarRow: SxProps<Theme> = (theme) => {
     display: "flex",
     alignItems: "center",
     justifyContent: "space-between",
-    gap: 1,
+    gap: { xs: 0.75, sm: 1 },
     flexWrap: "wrap",
+    rowGap: 0.75,
     px: { xs: 1.25, sm: 2 },
-    py: 1.25,
+    py: { xs: 1, sm: 1.25 },
     borderBottom: `1px solid ${alpha(d.cardBorder, 0.35)}`,
     bgcolor: alpha(d.menuSurfaceBg ?? d.pillBg, theme.palette.mode === "light" ? 0.5 : 0.35),
   };
+};
+
+export const aiTrainingStudioToolbarLeadingSx: SxProps<Theme> = {
+  display: "flex",
+  alignItems: "center",
+  gap: 0.75,
+  flexShrink: 0,
+  minWidth: 0,
 };
 
 export const aiTrainingStudioCanvasArea: SxProps<Theme> = (theme) => {

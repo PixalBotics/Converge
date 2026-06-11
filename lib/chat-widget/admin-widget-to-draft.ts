@@ -82,6 +82,31 @@ function firstRecord(...values: Array<JsonRecord | null | undefined>): JsonRecor
   return null;
 }
 
+function normalizeAllowedDomainsList(raw: unknown): string[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  const list = raw
+    .filter((x): x is string => typeof x === "string" && x.trim().length > 0)
+    .map((s) => s.trim());
+  return list.length ? list : undefined;
+}
+
+/** DB stores domains on widget row; config may carry an empty array — prefer non-empty sources. */
+function resolveAllowedDomainsList(
+  config: JsonRecord | null,
+  root: JsonRecord,
+): string[] | undefined {
+  for (const raw of [
+    root.allowedDomains,
+    root.allowed_domains,
+    config?.allowedDomains,
+    config?.allowed_domains,
+  ]) {
+    const list = normalizeAllowedDomainsList(raw);
+    if (list) return list;
+  }
+  return undefined;
+}
+
 /**
  * Maps `GET /widgets/:widgetKey` (admin) payload into `WidgetDraft` fields used by the 3-step CHAT wizard + PATCH builders.
  */
@@ -131,10 +156,7 @@ export function mapAdminWidgetResponseToWidgetDraft(
   const chatModeRaw =
     pickStr(config ?? {}, ["chatMode", "chat_mode", "mode"]) ||
     pickStr(root, ["chatMode", "chat_mode", "mode"]);
-  const allowedDomainsRaw = config?.allowedDomains ?? root.allowedDomains;
-  const allowedDomains = Array.isArray(allowedDomainsRaw)
-    ? allowedDomainsRaw.filter((x): x is string => typeof x === "string" && x.trim().length > 0).map((s) => s.trim())
-    : undefined;
+  const allowedDomains = resolveAllowedDomainsList(config, root);
 
   const inquiryRaw = behavior?.inquiryOptions;
   const inquiryOptions = normalizeWidgetInquiryOptions(
@@ -158,6 +180,9 @@ export function mapAdminWidgetResponseToWidgetDraft(
       ...(root as Record<string, unknown>),
     }),
     allowedDomains: allowedDomains?.length ? allowedDomains : undefined,
+    embedAllowAnyOrigin:
+      pickBool(root, ["embedAllowAnyOrigin", "embed_allow_any_origin"]) ??
+      defaultWidgetDraft.embedAllowAnyOrigin,
     themeName: pickStr(theme ?? {}, ["name"]) || defaultWidgetDraft.themeName,
     themePrimaryColor:
       pickStr(theme ?? {}, ["primaryColor", "primary_color"]) ||
@@ -409,7 +434,9 @@ export function mapAdminWidgetResponseToWidgetDraft(
       defaultWidgetDraft.privacyPolicyUrl,
     privacyNotice: pickStr(behavior ?? {}, ["privacyNotice"]) || defaultWidgetDraft.privacyNotice,
     allowedDomainsText:
-      pickStr(behavior ?? {}, ["allowedDomainsText"]) || defaultWidgetDraft.allowedDomainsText,
+      (allowedDomains?.length ? allowedDomains.join(", ") : "") ||
+      pickStr(behavior ?? {}, ["allowedDomainsText"]) ||
+      defaultWidgetDraft.allowedDomainsText,
     inquiryOn: inquiryOptions != null ? inquiryOptions.length > 0 : defaultWidgetDraft.inquiryOn,
     inquiryRequired: pickBool(behavior ?? {}, ["inquiryRequired"]) ?? false,
     inquirySkipLabel:

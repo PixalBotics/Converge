@@ -38,7 +38,7 @@ function StatCard({
   const theme = useTheme() as AppTheme;
   return (
     <Box sx={aiTrainingStatCardSx(accent)}>
-      <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 1 }}>
+      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1 }}>
         <Box>
           <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, display: "block" }}>
             {label}
@@ -116,7 +116,7 @@ export function AiTrainingWebsitesOverview({
 
   return (
     <Box sx={aiTrainingOverviewCardSx}>
-      <Box sx={{ display: "flex", flexWrap: "wrap", alignItems: "flex-start", justifyContent: "space-between", gap: 1.5, mb: 2 }}>
+      <Box sx={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 1.5, mb: 2 }}>
         <Box>
           <Typography variant="mediumLarge" color="white" fontWeight={700}>
             Trained websites

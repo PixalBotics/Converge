@@ -1,3 +1,4 @@
+import { alpha } from "@mui/material/styles";
 import type { SxProps, Theme } from "@mui/material/styles";
 
 /** Full-width add-training forms (dashboard card). */
@@ -43,6 +44,33 @@ export const aiTrainingSectionDividerSx: SxProps<Theme> = (theme) => ({
   mt: 2.5,
   pt: 2.5,
   borderTop: `1px solid ${theme.app.dashboard.cardBorder}`,
+});
+
+/** AI training list / manage pages — title row + actions vertically centered. */
+export const aiTrainingPageHeaderSx: SxProps<Theme> = {
+  display: "flex",
+  flexDirection: { xs: "column", md: "row" },
+  alignItems: { xs: "stretch", md: "center" },
+  justifyContent: "space-between",
+  gap: 2,
+  mb: 2.5,
+};
+
+export const aiTrainingPageHeaderActionsSx: SxProps<Theme> = {
+  display: "flex",
+  flexWrap: "wrap",
+  alignItems: "center",
+  gap: 1,
+  justifyContent: { xs: "flex-start", md: "flex-end" },
+  flexShrink: 0,
+};
+
+/** Compact scrape status on manage page — aligns with studio live bar. */
+export const aiTrainingScrapeStatusCardSx: SxProps<Theme> = (theme) => ({
+  borderRadius: 2,
+  overflow: "hidden",
+  border: `1px solid ${theme.app.dashboard.cardBorder}`,
+  bgcolor: alpha(theme.app.dashboard.menuSurfaceBg ?? theme.app.dashboard.pillBg, 0.35),
 });
 
 export const aiTrainingOverviewCardSx: SxProps<Theme> = (theme) => ({

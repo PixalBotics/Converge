@@ -56,6 +56,8 @@ export interface WidgetDraft {
   aiType?: WidgetAiType;
   /** Allowed embedding domains (hostname strings). */
   allowedDomains?: string[];
+  /** When true, widget may embed on any origin (`chat_widget_config.embedAllowAnyOrigin`). */
+  embedAllowAnyOrigin?: boolean;
   widgetId: string;
   completed: boolean;
   buttonShape: "circle" | "rounded" | "square";
@@ -226,6 +228,7 @@ export const defaultWidgetDraft: WidgetDraft = {
   chatMode: "HYBRID",
   aiType: "AI_CHATBOT",
   allowedDomains: undefined,
+  embedAllowAnyOrigin: false,
   widgetId: "12345",
   completed: false,
   buttonShape: "circle",

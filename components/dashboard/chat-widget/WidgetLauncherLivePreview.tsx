@@ -200,30 +200,42 @@ export function WidgetLauncherLivePreview({
             variant={launcherBadgeMode === "dot" ? "dot" : "standard"}
             sx={{
               "& .MuiBadge-badge": {
-                bgcolor: hoverColor || fabColor,
+                bgcolor: fabColor,
                 color: "#fff",
                 fontWeight: 700,
               },
             }}
           >
             <Box
-              sx={{
-                ...resolveLauncherFabSurfaceSx({
+              sx={(() => {
+                const fabSurface = resolveLauncherFabSurfaceSx({
                   style: normalizeLauncherStyle(launcherStyle),
                   buttonColor: fabColor,
                   buttonHoverColor: hoverColor || fabColor,
                   iconColor: iconColor || "#FFFFFF",
                   shape: buttonShape,
                   sizePx: LAUNCHER_PX,
-                }),
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                cursor: "pointer",
-                "&:hover": {
-                  transform: "scale(1.06)",
-                },
-              }}
+                });
+                const surfaceHover =
+                  typeof fabSurface === "object" &&
+                  fabSurface !== null &&
+                  "&:hover" in fabSurface
+                    ? (fabSurface as Record<string, unknown>)["&:hover"]
+                    : undefined;
+                return {
+                  ...fabSurface,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  cursor: "pointer",
+                  "&:hover": {
+                    ...(typeof surfaceHover === "object" && surfaceHover !== null
+                      ? surfaceHover
+                      : {}),
+                    transform: "scale(1.06)",
+                  },
+                };
+              })()}
             >
               {iconDataUrl ? (
                 <Box component="img" src={iconDataUrl} alt="" sx={{ width: 26, height: 26, objectFit: "contain" }} />
