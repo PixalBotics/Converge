@@ -104,6 +104,13 @@ export function ChatComposer({
               placeholder="Reply to visitor…"
               value={value}
               disabled={disabled}
+              autoComplete="off"
+              inputProps={{
+                autoComplete: "off",
+                "aria-label": "Reply to visitor",
+                "data-1p-ignore": "true",
+                "data-lpignore": "true",
+              }}
               onChange={(e) => {
                 const next = e.target.value;
                 onChange(next);

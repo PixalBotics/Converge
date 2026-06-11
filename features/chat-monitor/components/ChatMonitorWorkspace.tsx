@@ -6,6 +6,7 @@ import { useTheme } from "@mui/material/styles";
 import { useRouter } from "next/navigation";
 import type { AppTheme } from "@/theme/theme";
 import { useAuth } from "@/lib/auth";
+import { setAgentChatFocusedConversation } from "@/lib/hooks/chat/agent-chat-focus-bus";
 import { PermissionDeniedPanel } from "@/components/common";
 import {
   needsChatScopeFilters,
@@ -228,6 +229,11 @@ export function ChatMonitorWorkspace({
     if (!window.location.pathname.includes("/dashboard/chat-monitor/")) return;
     router.replace("/dashboard/chat-monitor", { scroll: false });
   }, [initialConversationId, monitor.selectedConversationId, router]);
+
+  useEffect(() => {
+    setAgentChatFocusedConversation(monitor.selectedConversationId);
+    return () => setAgentChatFocusedConversation(null);
+  }, [monitor.selectedConversationId]);
 
   const handleViewModeChange = (mode: MonitorViewMode) => {
     setViewMode(mode);

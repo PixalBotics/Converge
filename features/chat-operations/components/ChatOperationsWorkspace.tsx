@@ -17,6 +17,7 @@ import {
 import { OP } from "@/lib/permissions/operational-keys";
 import { PAGE } from "@/lib/permissions/permission-constants";
 import { useAgentChat } from "@/lib/hooks/chat/useAgentChat";
+import { setAgentChatFocusedConversation } from "@/lib/hooks/chat/agent-chat-focus-bus";
 import { mergeSx } from "@/lib/mui/merge-sx";
 import { extractApiErrorMessageForToast, publishAppToast } from "@/lib/notify";
 import {
@@ -221,6 +222,11 @@ export function ChatOperationsWorkspace() {
     supervisedActive,
     supervisedWaiting,
   ]);
+
+  useEffect(() => {
+    setAgentChatFocusedConversation(agentChat.selectedConversationId);
+    return () => setAgentChatFocusedConversation(null);
+  }, [agentChat.selectedConversationId]);
 
   const composer = getConversationDraft(
     draftsByConversation,

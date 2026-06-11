@@ -12,6 +12,9 @@ import {
 } from "@/lib/chat-widget/chat-avatar-presets";
 import type { RuntimeChatAppearance } from "./widget-runtime-appearance";
 
+export const EMBED_HEADER_LOGO_HEIGHT_PX = 28;
+export const EMBED_HEADER_LOGO_MAX_WIDTH_PX = 96;
+
 export const EMBED_CHAT_AVATAR_SIZE_PX = 32;
 export const EMBED_CHAT_AVATAR_GAP_PX = 8;
 export const EMBED_CHAT_AVATAR_COLUMN_PX =
