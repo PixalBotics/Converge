@@ -12,6 +12,7 @@ import {
   formatDurationSeconds,
   formatScrapeProgressLabel,
   formatTrainingTierBanner,
+  resolveFullScrapeUiPhase,
 } from "./ai-training-kb.utils";
 
 export function AiTrainingScrapeLiveBar({
@@ -33,6 +34,7 @@ export function AiTrainingScrapeLiveBar({
   const timing = useMemo(() => computeScrapeTiming(progress, nowMs), [progress, nowMs]);
   const tierBanner = formatTrainingTierBanner(progress, trainingTier ?? progress.trainingTier);
   const progressLabel = formatScrapeProgressLabel(progress);
+  const postScrapePhase = resolveFullScrapeUiPhase(progress);
   const tier = progress.trainingTier;
   const percent =
     tier === "basic" && progress.basicPagesTotal > 0
@@ -108,7 +110,17 @@ export function AiTrainingScrapeLiveBar({
           </Typography>
         ) : null}
       </Box>
-      {percent != null ? (
+      {postScrapePhase === "finishing_pages" || postScrapePhase === "embedding" ? (
+        <LinearProgress
+          sx={{
+            mt: 0.75,
+            borderRadius: 999,
+            height: 4,
+            bgcolor: alpha(d.cardBorder, 0.35),
+            "& .MuiLinearProgress-bar": { bgcolor: accent },
+          }}
+        />
+      ) : percent != null ? (
         <LinearProgress
           variant="determinate"
           value={percent}
