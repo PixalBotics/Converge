@@ -14,8 +14,8 @@ function normalizeToastErrorMessage(message: string): string {
   if (/could not fetch url|failed to fetch url/i.test(stripped)) {
     return "We could not reach this website. It may block bots or be temporarily offline.";
   }
-  if (/no indexable|no readable content|could not index/i.test(stripped)) {
-    return "No usable content found. Check the URL is public and matches your domain.";
+  if (/no indexable|no readable content|could not index|could not extract text/i.test(stripped)) {
+    return "We could not extract enough text from this page. Try reindexing or use the KB worker with Playwright.";
   }
   return stripped;
 }

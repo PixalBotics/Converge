@@ -9,6 +9,7 @@ export type SimpleSetupDraft = {
   confidenceThreshold: number;
   strictKbOnly: boolean;
   autoLearnFromVisitorPages: boolean;
+  parallelScrapePages: boolean;
 };
 
 function nodeDetail(graph: FlowBuilderGraph | null | undefined, type: string): string {
@@ -43,6 +44,7 @@ export function readSimpleSetupDraft(
     confidenceThreshold: behavior.confidenceThreshold ?? 0.26,
     strictKbOnly: behavior.strictKbOnly ?? false,
     autoLearnFromVisitorPages: behavior.autoLearnFromVisitorPages ?? false,
+    parallelScrapePages: behavior.parallelScrapePages ?? false,
   };
 }
 
@@ -75,6 +77,7 @@ export function simpleSetupToBehaviorBody(
     confidenceThreshold: draft.confidenceThreshold,
     strictKbOnly: draft.strictKbOnly,
     autoLearnFromVisitorPages: draft.autoLearnFromVisitorPages,
+    parallelScrapePages: draft.parallelScrapePages,
     greetingMessage: draft.greetingMessage.trim() || null,
     lowConfidenceMessage: draft.notSureMessage.trim() || null,
     noMatchMessage: draft.notSureMessage.trim() || null,
