@@ -30,8 +30,8 @@ import { formatTestReplyHint } from "./ai-training-test-reply-hint.util";
 import { AiTrainingFloatingTestChat } from "./AiTrainingFloatingTestChat";
 import { aiTrainingTestStudioHref } from "./ai-training-routes";
 import { AiTrainingStudioHeaderTabs } from "./AiTrainingStudioHeaderTabs";
-import { AiTrainingScrapeProgressDetail } from "./AiTrainingScrapeProgressDetail";
-import { hostFromWebsiteUrl, formatTrainingTierBanner, isBasicTrainingReady, type AiTrainingKbVariant } from "./ai-training-kb.utils";
+import { AiTrainingScrapeLiveBar } from "./AiTrainingScrapeLiveBar";
+import { hostFromWebsiteUrl, isBasicTrainingReady, type AiTrainingKbVariant } from "./ai-training-kb.utils";
 import { buildAiTrainingSessionScope } from "./ai-training-scope.util";
 import type { AiPipelineStep, FlowExecutionStep } from "@/api/ai-training/ai-training.api";
 import { extractApiErrorMessageForToast, publishAppToast } from "@/lib/notify";
@@ -182,12 +182,6 @@ export function AiTrainingAutomationStudioPage({
   const scrapingSource = liveSources.find(
     (s) => s.status === "processing" && s.scrapeProgress,
   );
-  const tierBanner = scrapingSource
-    ? formatTrainingTierBanner(
-        scrapingSource.scrapeProgress,
-        scrapingSource.trainingTier ?? scrapingSource.scrapeProgress?.trainingTier,
-      )
-    : null;
   const partialChunksReady = liveSources.some(
     (s) =>
       s.status === "processing" &&
@@ -279,40 +273,55 @@ export function AiTrainingAutomationStudioPage({
 
 
   const topBar = (
-
-    <Box sx={{ display: "flex", alignItems: "center", gap: 1.25, minWidth: 0, flexWrap: "wrap" }}>
-
+    <Box
+      sx={{
+        display: "flex",
+        alignItems: "center",
+        gap: 1,
+        minWidth: 0,
+        flex: 1,
+        flexWrap: { xs: "wrap", lg: "nowrap" },
+      }}
+    >
       <AiTrainingStudioHeaderTabs variant={variant} websiteId={websiteId} active="test" />
-
-      <Box sx={{ minWidth: 0 }}>
-
-        <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, display: "block" }}>
-
+      <Box sx={{ minWidth: 0, flex: 1, display: { xs: "none", md: "block" } }}>
+        <Typography
+          variant="caption"
+          sx={{
+            color: theme.app.dashboard.textMuted,
+            display: "block",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
           {websiteHost || websiteName} · {copy.subtitle}
-
         </Typography>
-
       </Box>
-
       <Chip
-
         size="small"
-
-        icon={isChatbot ? <SmartToyOutlined sx={{ fontSize: 14 }} /> : <AutoStories sx={{ fontSize: 14 }} />}
-
-        label={`${indexedCount} indexed`}
-
+        icon={
+          isChatbot ? (
+            <SmartToyOutlined sx={{ fontSize: 14 }} />
+          ) : (
+            <AutoStories sx={{ fontSize: 14 }} />
+          )
+        }
+        label={
+          scrapingSource?.scrapeProgress
+            ? `${scrapingSource.scrapeProgress.chunksIndexed} pieces · training…`
+            : `${indexedCount} indexed`
+        }
         sx={{
           bgcolor: c.surfaceMuted,
           color: c.text,
           fontWeight: 600,
           border: `1px solid ${c.border}`,
+          flexShrink: 0,
+          ml: { lg: "auto" },
         }}
-
       />
-
     </Box>
-
   );
 
 
@@ -360,25 +369,6 @@ export function AiTrainingAutomationStudioPage({
 
   return (
     <Box sx={aiTrainingStudioPageWrapper}>
-      {scrapingSource?.scrapeProgress ? (
-        <Alert severity={tierBanner?.severity ?? "info"} sx={{ mb: 1.5, borderRadius: 1 }}>
-          {tierBanner ? (
-            <>
-              <Typography variant="body2" fontWeight={700} sx={{ mb: 0.5 }}>
-                {tierBanner.title}
-              </Typography>
-              <Typography variant="caption" sx={{ display: "block", mb: 1 }}>
-                {tierBanner.body}
-              </Typography>
-            </>
-          ) : null}
-          <AiTrainingScrapeProgressDetail
-            progress={scrapingSource.scrapeProgress}
-            sourceRef={scrapingSource.sourceRef}
-            compact
-          />
-        </Alert>
-      ) : null}
       <AiTrainingFlowBuilderCanvas
         websiteId={websiteId}
         variant={variant}
@@ -389,6 +379,16 @@ export function AiTrainingAutomationStudioPage({
         selectedNodeId={selectedNodeId}
         onSelectNode={setSelectedNodeId}
         studioView={studioView}
+        scrapeBar={
+          scrapingSource?.scrapeProgress ? (
+            <AiTrainingScrapeLiveBar
+              progress={scrapingSource.scrapeProgress}
+              trainingTier={
+                scrapingSource.trainingTier ?? scrapingSource.scrapeProgress.trainingTier
+              }
+            />
+          ) : null
+        }
         viewToggle={
           <AiTrainingStudioViewToggle value={studioView} onChange={setStudioView} />
         }
