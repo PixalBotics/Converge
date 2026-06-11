@@ -73,6 +73,7 @@ import {
   poolShiftFilterPopoverStackSx,
   poolShiftHeaderWrapSx,
   poolShiftIconSx,
+  poolShiftCardHintSx,
   poolShiftSubtextSx,
 } from "./pool-shift.styles";
 
@@ -789,18 +790,13 @@ export default function PoolShiftPage() {
         }}
       >
         <Box sx={[departmentsCardHeader, { pb: 1.25 }] as SxProps<Theme>}>
-          <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1.5, minWidth: 0 }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, minWidth: 0 }}>
             <Box sx={rolesIconBox}>
               <AttachMoneyIcon sx={poolShiftIconSx} />
             </Box>
-            <Box sx={{ minWidth: 0 }}>
-              <Typography variant="mediumLarge" fontWeight={600} color="white">
-                Assigned shifts
-              </Typography>
-              <Typography variant="body2" sx={poolShiftSubtextSx}>
-                Use Filter to narrow by department or pool. Search applies to the current page after you press Search.
-              </Typography>
-            </Box>
+            <Typography variant="mediumLarge" fontWeight={600} color="white">
+              Assigned shifts
+            </Typography>
           </Box>
           <Box sx={departmentsSearchRow}>
             <Box sx={departmentsSearchFieldWrapper}>
@@ -819,6 +815,10 @@ export default function PoolShiftPage() {
             </ToolbarFilterPopover>
           </Box>
         </Box>
+
+        <Typography variant="body2" sx={poolShiftCardHintSx}>
+          Use Filter to narrow by department or pool. Search applies to the current page after you press Search.
+        </Typography>
 
         <DataTable<AssignmentRow>
           columns={columns}

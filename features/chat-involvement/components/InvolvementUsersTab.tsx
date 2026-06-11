@@ -1,14 +1,14 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import DeleteOutline from "@mui/icons-material/DeleteOutline";
+import DeleteIcon from "@mui/icons-material/Delete";
 import GroupsOutlined from "@mui/icons-material/GroupsOutlined";
 import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
 import IconButton from "@mui/material/IconButton";
 import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
-import { DataTable, Typography } from "@/components/common";
+import { DataTable, Typography, dataTableActionButton } from "@/components/common";
 import type { DataTableColumn } from "@/components/common";
 import { publishAppToast } from "@/lib/notify";
 import { extractApiErrorMessageForToast } from "@/lib/notify/extract-api-message";
@@ -139,6 +139,10 @@ export function InvolvementUsersTab({
               render: (_: unknown, row: InvolvementListRow) => (
                 <IconButton
                   size="small"
+                  sx={{
+                    ...dataTableActionButton,
+                    color: theme.app.dashboard.accentRedLight,
+                  }}
                   aria-label="Remove involvement user"
                   disabled={saveMutation.isPending}
                   onClick={(e) => {
@@ -146,14 +150,14 @@ export function InvolvementUsersTab({
                     void removeRow(row);
                   }}
                 >
-                  <DeleteOutline fontSize="small" />
+                  <DeleteIcon fontSize="small" />
                 </IconButton>
               ),
             },
           ]
         : []),
     ],
-    [canEdit, saveMutation.isPending, theme.app.dashboard.textMuted],
+    [canEdit, saveMutation.isPending, theme.app.dashboard.accentRedLight, theme.app.dashboard.textMuted],
   );
 
   return (
@@ -165,7 +169,6 @@ export function InvolvementUsersTab({
         description="Rows respect scope filters above. Add opens one modal (reseller → website → external department → users)."
         searchValue={tableSearch}
         onSearchChange={setTableSearch}
-        searchLabel="Search this table"
         searchPlaceholder="Website, department, user, or email…"
         addLabel="Add involvement users"
         onAdd={() => setAddOpen(true)}

@@ -26,7 +26,6 @@ type InvolvementTabToolbarCardProps = {
   searchValue: string;
   onSearchChange: (value: string) => void;
   searchPlaceholder: string;
-  /** Shown above the table search field (distinct from the header global search). */
   searchLabel?: string;
   addLabel?: string;
   onAdd?: () => void;
@@ -44,7 +43,7 @@ export function InvolvementTabToolbarCard({
   searchValue,
   onSearchChange,
   searchPlaceholder,
-  searchLabel = "Search this table",
+  searchLabel,
   addLabel,
   onAdd,
   canAdd = false,
@@ -75,10 +74,18 @@ export function InvolvementTabToolbarCard({
         <Box sx={{ display: "flex", alignItems: "center", gap: 1.25, minWidth: 0 }}>
           <Box sx={{ color: iconColor, display: "flex", fontSize: 22 }}>{icon}</Box>
           <Box>
-            <Typography variant="mediumLarge" color="white" fontWeight={600}>
+            <Typography
+              variant="mediumLarge"
+              color="white"
+              fontWeight={600}
+              sx={{ fontSize: 22, lineHeight: "22px" }}
+            >
               {title}
             </Typography>
-            <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted }}>
+            <Typography
+              variant="caption"
+              sx={{ color: theme.app.dashboard.textMuted, fontSize: 14, lineHeight: "20px" }}
+            >
               {description}
             </Typography>
           </Box>
@@ -104,14 +111,16 @@ export function InvolvementTabToolbarCard({
           alignItems: "stretch",
         }}
       >
-        <Typography
-          component="label"
-          variant="caption"
-          fontWeight={600}
-          sx={{ color: theme.app.dashboard.textMuted, mb: 0.5, display: "block" }}
-        >
-          {searchLabel}
-        </Typography>
+        {searchLabel ? (
+          <Typography
+            component="label"
+            variant="caption"
+            fontWeight={600}
+            sx={{ color: theme.app.dashboard.textMuted, mb: 0.5, display: "block" }}
+          >
+            {searchLabel}
+          </Typography>
+        ) : null}
         <Box sx={websiteAssignmentSearchFieldWrapper}>
           <SearchBar
             value={searchValue}

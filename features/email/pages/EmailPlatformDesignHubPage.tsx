@@ -130,12 +130,18 @@ export function EmailPlatformDesignHubPage() {
           }}
         >
           <Box sx={{ minWidth: 0 }}>
-            <Typography variant="mediumLarge" color="white" fontWeight={600}>
+            <Typography variant="regularLarge" fontWeight={400} color="white">
               Platform email design
             </Typography>
             <Typography
-              variant="small"
-              sx={{ color: theme.app.dashboard.textMuted, mt: 0.25, display: "block", maxWidth: 640 }}
+              variant="medium"
+              sx={{
+                color: theme.app.dashboard.textMuted,
+                mt: 0.25,
+                display: "block",
+                maxWidth: 640,
+                lineHeight: "24px",
+              }}
             >
               Default transcript email for all resellers unless they publish a custom design.
             </Typography>

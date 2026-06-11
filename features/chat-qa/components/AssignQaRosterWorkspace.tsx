@@ -210,7 +210,7 @@ export function AssignQaRosterWorkspace({ preset }: { preset?: QaAssignPreset | 
         </Button>
       </Box>
 
-      <Box sx={websiteAssignmentHeroSx}>
+      <Box sx={mergeSx(websiteAssignmentHeroSx, { mb: 0 })}>
         <Box sx={{ display: "flex", alignItems: "flex-start", gap: 2, flexWrap: "wrap" }}>
           <Box sx={websiteAssignmentSectionIconSx} aria-hidden>
             <FactCheckOutlined sx={{ fontSize: 22 }} />

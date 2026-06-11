@@ -8,8 +8,8 @@ import IconButton from "@mui/material/IconButton";
 import { alpha, useTheme } from "@mui/material/styles";
 import BusinessOutlined from "@mui/icons-material/BusinessOutlined";
 import ChevronRight from "@mui/icons-material/ChevronRight";
-import DeleteOutline from "@mui/icons-material/DeleteOutline";
-import EditOutlined from "@mui/icons-material/EditOutlined";
+import DeleteIcon from "@mui/icons-material/Delete";
+import EditIcon from "@mui/icons-material/Edit";
 import ExpandMore from "@mui/icons-material/ExpandMore";
 import LanguageOutlined from "@mui/icons-material/LanguageOutlined";
 import StorefrontOutlined from "@mui/icons-material/StorefrontOutlined";
@@ -95,19 +95,22 @@ function WebsiteFormRow({
         <IconButton
           size="small"
           aria-label={`Edit form for ${item.website}`}
-          sx={{ ...dataTableActionButton, color: theme.app.dashboard.white80 }}
+          sx={dataTableActionButton}
           onClick={() => onEdit(item)}
         >
-          <EditOutlined fontSize="small" />
+          <EditIcon fontSize="small" />
         </IconButton>
         <IconButton
           size="small"
           aria-label={`Delete form for ${item.website}`}
           disabled={deleting}
-          sx={{ ...dataTableActionButton, color: theme.app.dashboard.accentRedLight }}
+          sx={{
+            ...dataTableActionButton,
+            color: theme.app.dashboard.accentRedLight,
+          }}
           onClick={() => onDelete(item)}
         >
-          <DeleteOutline fontSize="small" />
+          <DeleteIcon fontSize="small" />
         </IconButton>
       </Box>
     </Box>

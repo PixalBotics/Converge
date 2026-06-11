@@ -92,6 +92,16 @@ export function WebsiteServiceSchedulingWorkspace({ websiteId }: { websiteId: st
     <Box sx={websiteAssignmentPageWrapper}>
       <Box sx={websiteAssignmentPageHeader}>
         <Box>
+          <Button
+            type="button"
+            variant="outlined"
+            component={NextLink}
+            href="/dashboard/website-assigning/service-schedules"
+            startIcon={<ArrowBack sx={{ fontSize: 18 }} />}
+            sx={{ mb: 1 }}
+          >
+            All schedules
+          </Button>
           <Typography
             variant="regularLarge"
             fontWeight={700}
@@ -99,20 +109,11 @@ export function WebsiteServiceSchedulingWorkspace({ websiteId }: { websiteId: st
           >
             Service scheduling
           </Typography>
-          <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted, maxWidth: 560 }}>
+          <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted, maxWidth: 560, lineHeight: "20px" }}>
             Configure when this website accepts chats and which visitor topics route to departments.
           </Typography>
         </Box>
         <Box sx={websiteAssignmentHeaderActions}>
-          <Button
-            type="button"
-            variant="outlined"
-            component={NextLink}
-            href="/dashboard/website-assigning/service-schedules"
-            startIcon={<ArrowBack sx={{ fontSize: 18 }} />}
-          >
-            All schedules
-          </Button>
           {assignGates.assign && gates.canEditApi ? (
             <Button
               type="button"

@@ -1,15 +1,15 @@
 "use client";
 
-import { useCallback, useMemo } from "react";
-import DeleteOutline from "@mui/icons-material/DeleteOutline";
-import EditOutlined from "@mui/icons-material/EditOutlined";
+import { useCallback, useMemo, useState } from "react";
+import DeleteIcon from "@mui/icons-material/Delete";
+import EditIcon from "@mui/icons-material/Edit";
 import Chip from "@mui/material/Chip";
 import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
 import Box from "@mui/material/Box";
 import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
-import { DataTable, dataTableActionButton } from "@/components/common";
+import { ConfirmActionModal, DataTable, dataTableActionButton } from "@/components/common";
 import type { DataTableColumn } from "@/components/common";
 import { publishAppToast } from "@/lib/notify";
 import { extractApiErrorMessageForToast } from "@/lib/notify/extract-api-message";
@@ -47,8 +47,9 @@ export function QaRosterListTable({
 }: QaRosterListTableProps) {
   const theme = useTheme() as AppTheme;
   const saveMutation = useSaveQaRosterWebsiteMutation();
+  const [deleteTarget, setDeleteTarget] = useState<QaRosterListRow | null>(null);
 
-  const removeRow = useCallback(async (row: QaRosterListRow) => {
+  const removeRow = useCallback(async (row: QaRosterListRow): Promise<boolean> => {
     try {
       const roster = await fetchQaWebsiteRoster(row.websiteId);
       const internal = roster.internal.map((r) => r.userId);
@@ -62,11 +63,13 @@ export function QaRosterListTable({
           channel === "external" ? external.filter((id) => id !== row.userId) : external,
       });
       publishAppToast({ message: "QA reviewer removed.", variant: "success" });
+      return true;
     } catch (err) {
       publishAppToast({
         message: extractApiErrorMessageForToast(err, "Could not remove reviewer."),
         variant: "error",
       });
+      return false;
     }
   }, [saveMutation]);
 
@@ -159,7 +162,7 @@ export function QaRosterListTable({
                         onEditRow(row);
                       }}
                     >
-                      <EditOutlined fontSize="small" />
+                      <EditIcon fontSize="small" />
                     </IconButton>
                   </Tooltip>
                   <Tooltip title="Remove this reviewer">
@@ -173,10 +176,10 @@ export function QaRosterListTable({
                       disabled={saveMutation.isPending}
                       onClick={(e) => {
                         e.stopPropagation();
-                        void removeRow(row);
+                        setDeleteTarget(row);
                       }}
                     >
-                      <DeleteOutline fontSize="small" />
+                      <DeleteIcon fontSize="small" />
                     </IconButton>
                   </Tooltip>
                 </Box>
@@ -188,7 +191,36 @@ export function QaRosterListTable({
     [canEdit, onEditRow, removeRow, saveMutation.isPending, theme],
   );
 
+  const deleteWebsiteLabel =
+    deleteTarget?.website.websiteName ||
+    deleteTarget?.website.websiteUrl ||
+    deleteTarget?.websiteId.slice(0, 8) ||
+    "this website";
+
   return (
+    <>
+    <ConfirmActionModal
+      open={deleteTarget != null}
+      title="Remove QA reviewer?"
+      description={
+        deleteTarget
+          ? `Remove ${userLabel(deleteTarget)} from ${deleteWebsiteLabel}? They will no longer review chats for this website.`
+          : ""
+      }
+      confirmLabel="Remove"
+      cancelLabel="Cancel"
+      confirmButtonVariant="danger"
+      isLoading={saveMutation.isPending}
+      onDismiss={() => {
+        if (!saveMutation.isPending) setDeleteTarget(null);
+      }}
+      onConfirm={() => {
+        if (!deleteTarget) return;
+        void removeRow(deleteTarget).then((ok) => {
+          if (ok) setDeleteTarget(null);
+        });
+      }}
+    />
     <DataTable<QaRosterListRow>
       columns={columns}
       rows={rows}
@@ -203,5 +235,6 @@ export function QaRosterListTable({
             : "Click Assign QA reviewers to pick a website and add internal or external QA staff.",
       }}
     />
+    </>
   );
 }

@@ -185,12 +185,18 @@ export function PlatformMailAssignmentsTable({
           }}
         >
           <Box sx={{ minWidth: 0 }}>
-            <Typography variant="mediumLarge" color="white" fontWeight={600}>
+            <Typography variant="regularLarge" fontWeight={400} color="white">
               Resellers on platform mail
             </Typography>
             <Typography
-              variant="small"
-              sx={{ color: theme.app.dashboard.textMuted, mt: 0.25, display: "block", maxWidth: 640 }}
+              variant="medium"
+              sx={{
+                color: theme.app.dashboard.textMuted,
+                mt: 0.25,
+                display: "block",
+                maxWidth: 640,
+                lineHeight: "24px",
+              }}
             >
               These resellers send using the global platform configuration.
             </Typography>

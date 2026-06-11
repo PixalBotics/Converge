@@ -3,8 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Add from "@mui/icons-material/Add";
-import DeleteOutline from "@mui/icons-material/DeleteOutline";
-import EditOutlined from "@mui/icons-material/EditOutlined";
+import DeleteIcon from "@mui/icons-material/Delete";
+import EditIcon from "@mui/icons-material/Edit";
 import Box from "@mui/material/Box";
 import IconButton from "@mui/material/IconButton";
 import { useTheme } from "@mui/material/styles";
@@ -13,6 +13,7 @@ import {
   Button,
   DashboardCard,
   DataTable,
+  dataTableActionButton,
   FormModal,
   SearchBar,
   TablePagination,
@@ -171,23 +172,32 @@ export function DistributionListPage() {
       render: (row: Row) => (
         <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 0.5 }}>
           {canUpdate ? (
-            <IconButton size="small" aria-label="Edit distribution" onClick={() => handleEdit(row)}>
-              <EditOutlined fontSize="small" />
+            <IconButton
+              size="small"
+              sx={dataTableActionButton}
+              aria-label="Edit distribution"
+              onClick={() => handleEdit(row)}
+            >
+              <EditIcon fontSize="small" />
             </IconButton>
           ) : null}
           {canDelete ? (
             <IconButton
               size="small"
+              sx={{
+                ...dataTableActionButton,
+                color: theme.app.dashboard.accentRedLight,
+              }}
               aria-label="Delete distribution"
               onClick={() => setDeleteTarget(row)}
             >
-              <DeleteOutline fontSize="small" />
+              <DeleteIcon fontSize="small" />
             </IconButton>
           ) : null}
         </Box>
       ),
     }),
-    [canUpdate, canDelete],
+    [canUpdate, canDelete, theme.app.dashboard.accentRedLight],
   );
 
   return (

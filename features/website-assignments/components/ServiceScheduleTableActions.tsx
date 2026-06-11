@@ -1,7 +1,7 @@
 "use client";
 
-import DeleteOutline from "@mui/icons-material/DeleteOutline";
-import EditOutlined from "@mui/icons-material/EditOutlined";
+import DeleteIcon from "@mui/icons-material/Delete";
+import EditIcon from "@mui/icons-material/Edit";
 import Box from "@mui/material/Box";
 import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
@@ -37,7 +37,7 @@ export function ServiceScheduleTableActions({
           aria-label={`Edit schedule for ${row.websiteName}`}
           onClick={() => onEdit(row)}
         >
-          <EditOutlined fontSize="small" />
+          <EditIcon fontSize="small" />
         </IconButton>
       </Tooltip>
       {canEdit ? (
@@ -51,7 +51,7 @@ export function ServiceScheduleTableActions({
             aria-label={`Delete schedule for ${row.websiteName}`}
             onClick={() => onDelete(row)}
           >
-            <DeleteOutline fontSize="small" />
+            <DeleteIcon fontSize="small" />
           </IconButton>
         </Tooltip>
       ) : null}

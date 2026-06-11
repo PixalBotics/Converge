@@ -12,7 +12,12 @@ export const poolShiftHeaderWrapSx: SxProps<Theme> = {
 export const poolShiftSubtextSx: SxProps<Theme> = (theme) => ({
   mt: 0.75,
   color: (theme as AppTheme).app.dashboard.textMuted,
-  maxWidth: 720,
+});
+
+export const poolShiftCardHintSx: SxProps<Theme> = (theme) => ({
+  mt: 0,
+  mb: 0,
+  color: (theme as AppTheme).app.dashboard.textMuted,
 });
 
 export const poolShiftCardHeaderSx: SxProps<Theme> = {

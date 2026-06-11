@@ -108,12 +108,18 @@ export function ChatInvolvementWorkspace() {
 
       {tab === "links" ? (
         <DashboardCard sx={{ p: 2 }}>
-          <Typography fontWeight={700} sx={{ fontSize: 14, mb: 1 }}>
+          <Typography fontWeight={400} sx={{ fontSize: 22, lineHeight: "22px", mb: 1 }}>
             Recent involvement links
           </Typography>
           <Typography
             variant="caption"
-            sx={{ color: theme.app.dashboard.textMuted, display: "block", mb: 2 }}
+            sx={{
+              color: theme.app.dashboard.textMuted,
+              display: "block",
+              mb: 2,
+              fontSize: 14,
+              lineHeight: "20px",
+            }}
           >
             Use table Filters → Website to view links for one site. One shared URL per send.
           </Typography>

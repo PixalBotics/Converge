@@ -1,10 +1,14 @@
 "use client";
 
+import { useLayoutEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import Box from "@mui/material/Box";
 import type { SxProps, Theme } from "@mui/material/styles";
 import { useTheme } from "@mui/material/styles";
 import WarningAmber from "@mui/icons-material/WarningAmber";
 import { useBodyScrollLock } from "@/lib/ui/useBodyScrollLock";
+import { FORM_MODAL_PORTAL_Z_INDEX } from "@/lib/ui/dialogStacking";
+import { mergeSx } from "@/lib/mui/merge-sx";
 import type { AppTheme } from "@/theme/theme";
 import { Button, Typography } from "@/components/common";
 import { ModalGlassShell } from "@/components/common/FormModal/ModalGlassShell";
@@ -41,17 +45,23 @@ export function ConfirmActionModal({
   confirmButtonVariant = "primary",
 }: ConfirmActionModalProps) {
   const theme = useTheme() as AppTheme;
+  const [mounted, setMounted] = useState(false);
   useBodyScrollLock(open);
+
+  useLayoutEffect(() => {
+    setMounted(true);
+  }, []);
 
   if (!open) return null;
 
-  return (
+  const layer = (
     <Box
-      sx={sendLicenseConfirmBackdropSx}
+      role="dialog"
+      aria-modal="true"
+      sx={mergeSx(sendLicenseConfirmBackdropSx, { zIndex: FORM_MODAL_PORTAL_Z_INDEX })}
       onClick={(e) => {
         if (e.target === e.currentTarget) onDismiss();
       }}
-      role="presentation"
     >
       <ModalGlassShell
         sx={
@@ -122,5 +132,11 @@ export function ConfirmActionModal({
       </ModalGlassShell>
     </Box>
   );
+
+  if (typeof document === "undefined" || !mounted) {
+    return null;
+  }
+
+  return createPortal(layer, document.body);
 }
 

@@ -87,12 +87,18 @@ export function EmailFormsListPage() {
           }}
         >
           <Box sx={{ minWidth: 0 }}>
-            <Typography variant="mediumLarge" color="white" fontWeight={600}>
+            <Typography variant="regularLarge" fontWeight={400} color="white">
               Email forms
             </Typography>
             <Typography
-              variant="small"
-              sx={{ color: theme.app.dashboard.textMuted, mt: 0.25, display: "block", maxWidth: 640 }}
+              variant="medium"
+              sx={{
+                color: theme.app.dashboard.textMuted,
+                mt: 0.25,
+                display: "block",
+                maxWidth: 640,
+                lineHeight: "24px",
+              }}
             >
               Wrap-up forms grouped by reseller and child company — each website shows its form type and
               field count without repeating org columns.

@@ -32,6 +32,7 @@ import Tooltip from "@mui/material/Tooltip";
 import { useTheme, alpha } from "@mui/material/styles";
 import type { SxProps, Theme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
+import { mergeSx } from "@/lib/mui/merge-sx";
 import { Typography } from "@/components/common";
 import type { AiPipelineStep, FlowExecutionStep } from "@/api/ai-training/ai-training.api";
 import {
@@ -1348,14 +1349,11 @@ export function AiTrainingFlowBuilderCanvas({
                   </IconButton>
                 </Box>
                 <Box
-                  sx={[
-                    aiTrainingSettingsDrawerBody,
-                    {
-                      scrollbarWidth: "none",
-                      msOverflowStyle: "none",
-                      "&::-webkit-scrollbar": { display: "none" },
-                    },
-                  ]}
+                  sx={mergeSx(aiTrainingSettingsDrawerBody, {
+                    scrollbarWidth: "none",
+                    msOverflowStyle: "none",
+                    "&::-webkit-scrollbar": { display: "none" },
+                  })}
                 >
                   <AiTrainingFlowNodeInspector
                     key={node.id}
