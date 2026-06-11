@@ -11,8 +11,10 @@ import { Typography } from "@/components/common";
 import {
   computeScrapeTiming,
   formatDurationSeconds,
+  formatScrapeEtaHint,
   formatScrapePhaseLabel,
   formatScrapeProgressLabel,
+  resolveFullScrapeUiPhase,
 } from "./ai-training-kb.utils";
 
 export function AiTrainingScrapeProgressDetail({
@@ -35,6 +37,8 @@ export function AiTrainingScrapeProgressDetail({
   const timing = useMemo(() => computeScrapeTiming(progress, nowMs), [progress, nowMs]);
   const progressLabel = formatScrapeProgressLabel(progress);
   const phaseLabel = formatScrapePhaseLabel(progress);
+  const etaHint = formatScrapeEtaHint(progress, timing);
+  const postScrapePhase = resolveFullScrapeUiPhase(progress);
   const tier = progress.trainingTier;
   const percent =
     tier === "basic" && progress.basicPagesTotal > 0
@@ -70,9 +74,9 @@ export function AiTrainingScrapeProgressDetail({
           <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted }}>
             ~{formatDurationSeconds(timing.etaSec)} left
           </Typography>
-        ) : progress.pagesDone > 0 ? (
+        ) : etaHint ? (
           <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted }}>
-            Estimating time…
+            {etaHint}
           </Typography>
         ) : null}
         {progressLabel ? (
@@ -82,7 +86,9 @@ export function AiTrainingScrapeProgressDetail({
         ) : null}
       </Box>
 
-      {percent != null ? (
+      {postScrapePhase === "finishing_pages" || postScrapePhase === "embedding" ? (
+        <LinearProgress sx={{ borderRadius: 1, height: compact ? 4 : 6 }} />
+      ) : percent != null ? (
         <LinearProgress
           variant="determinate"
           value={percent}
@@ -110,7 +116,16 @@ export function AiTrainingScrapeProgressDetail({
         ) : null}
       </Typography>
 
-      {progress.activePages && progress.activePages.length > 1 ? (
+      {postScrapePhase === "finishing_pages" &&
+      progress.activePages &&
+      progress.activePages.length > 1 ? (
+        <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted }}>
+          +{progress.activePages.length - 1} more page
+          {progress.activePages.length - 1 === 1 ? "" : "s"} finishing in parallel
+        </Typography>
+      ) : postScrapePhase === "scraping" &&
+        progress.activePages &&
+        progress.activePages.length > 1 ? (
         <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted }}>
           +{progress.activePages.length - 1} more page
           {progress.activePages.length - 1 === 1 ? "" : "s"} in parallel

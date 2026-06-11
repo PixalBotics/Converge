@@ -1,3 +1,11 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+if git diff --cached --quiet; then
+  echo "No staged changes — skipping pre-commit checks."
+  exit 0
+fi
+
 echo "Running pre-commit checks (imports, typecheck, lint, tests)..."
 echo "Full production build runs in GitHub CI — local: npm run validate:full"
 npm run validate:commit

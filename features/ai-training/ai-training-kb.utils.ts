@@ -64,14 +64,33 @@ export function formatTrainingTierBanner(
   if (t === "full") {
     const done = progress?.pagesDone ?? 0;
     const total = progress?.pagesTotal;
-    const tail =
+    const pieces = progress?.chunksIndexed ?? 0;
+    const uiPhase = resolveFullScrapeUiPhase(progress);
+    const countTail =
       total != null && total > 0
-        ? ` (${Math.min(done, total)}/${total} pages indexed so far).`
+        ? ` (${Math.min(done, total)}/${total} pages).`
         : ".";
+    let body: string;
+    if (uiPhase === "finishing_pages") {
+      body =
+        `All planned pages are queued${countTail} Finishing slow pages in parallel — ` +
+        `${pieces} piece${pieces === 1 ? "" : "s"} indexed so far. Test chat already works on indexed content.`;
+    } else if (uiPhase === "embedding") {
+      body =
+        `All pages scraped${countTail} Batch embedding ${pieces} piece${pieces === 1 ? "" : "s"} into the search index — almost done.`;
+    } else {
+      body =
+        `Background scrape continues${countTail} You'll be fully trained soon — test chat already works on indexed content.`;
+    }
     return {
       severity: "info",
-      title: "Full training in progress",
-      body: `Background scrape continues${tail} You'll be fully trained soon — test chat already works on indexed content.`,
+      title:
+        uiPhase === "embedding"
+          ? "Full training · embedding"
+          : uiPhase === "finishing_pages"
+            ? "Full training · finishing pages"
+            : "Full training in progress",
+      body,
     };
   }
   if (t === "basic" && progress) {
@@ -111,6 +130,21 @@ export function assistantFileUploadButtonLabel(sourceType: string): string {
   return "Choose PDF file";
 }
 
+/** After page counter hits total: parallel fetches still running vs Gemini embed. */
+export type FullScrapeUiPhase = "scraping" | "finishing_pages" | "embedding";
+
+export function resolveFullScrapeUiPhase(
+  progress: KnowledgeScrapeProgress | null | undefined,
+): FullScrapeUiPhase | null {
+  if (!progress) return null;
+  if (progress.trainingTier !== "full") return null;
+  if (progress.pagesTotal == null || progress.pagesTotal <= 0) return "scraping";
+  const done = Math.min(progress.pagesDone, progress.pagesTotal);
+  if (done < progress.pagesTotal) return "scraping";
+  if ((progress.activePages?.length ?? 0) > 0) return "finishing_pages";
+  return "embedding";
+}
+
 export function formatScrapeProgressLabel(
   progress: KnowledgeScrapeProgress | null | undefined,
 ): string | null {
@@ -132,13 +166,14 @@ export function formatScrapeProgressLabel(
       progress.trainingTier === "full" || progress.trainingTier === "basic_ready"
         ? "Full "
         : "";
-    const batchTail =
-      progress.trainingTier === "full" &&
-      done >= progress.pagesTotal &&
-      progress.activePages.length === 0
-        ? " · batch embedding…"
-        : "";
-    return `${prefix}${done}/${progress.pagesTotal} pages · ${progress.chunksIndexed} pieces${batchTail}`;
+    const uiPhase = resolveFullScrapeUiPhase(progress);
+    const phaseTail =
+      uiPhase === "finishing_pages"
+        ? " · finishing last pages…"
+        : uiPhase === "embedding"
+          ? " · batch embedding…"
+          : "";
+    return `${prefix}${done}/${progress.pagesTotal} pages · ${progress.chunksIndexed} pieces${phaseTail}`;
   }
   if (progress.pagesDone > 0) {
     return `${progress.pagesDone} page${progress.pagesDone === 1 ? "" : "s"} · ${progress.chunksIndexed} pieces`;
@@ -157,6 +192,15 @@ export function formatScrapePhaseLabel(
     return "Basic ready · starting full site scrape";
   }
   if (progress.trainingTier === "full") {
+    const uiPhase = resolveFullScrapeUiPhase(progress);
+    if (uiPhase === "finishing_pages") {
+      return progress.currentPage
+        ? "Full training · finishing last pages"
+        : "Full training · finishing last pages";
+    }
+    if (uiPhase === "embedding") {
+      return "Full training · batch embedding";
+    }
     switch (progress.phase) {
       case "discovering":
         return "Full training · finding remaining pages";
@@ -210,8 +254,28 @@ export function computeScrapeTiming(
       0,
       Math.ceil((avgMs * (progress.pagesTotal - progress.pagesDone)) / 1000),
     );
+  } else {
+    const uiPhase = resolveFullScrapeUiPhase(progress);
+    if (uiPhase === "finishing_pages") {
+      etaSec = 180;
+    } else if (uiPhase === "embedding") {
+      etaSec = 120;
+    }
   }
   return { elapsedSec, etaSec };
+}
+
+/** Shown when computeScrapeTiming has no ETA (legacy fallback). */
+export function formatScrapeEtaHint(
+  progress: KnowledgeScrapeProgress,
+  timing: { etaSec: number | null },
+): string | null {
+  if (timing.etaSec != null) return null;
+  const uiPhase = resolveFullScrapeUiPhase(progress);
+  if (uiPhase === "finishing_pages") return "Finishing last pages…";
+  if (uiPhase === "embedding") return "Embedding chunks…";
+  if (progress.pagesDone > 0) return "Estimating time…";
+  return null;
 }
 
 export function hostFromWebsiteUrl(url: string): string | null {
