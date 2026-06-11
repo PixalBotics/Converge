@@ -405,6 +405,9 @@ function parseWidgetTalkToAgentPayload(raw: unknown): WidgetTalkToAgentResult | 
   };
 }
 
+const TALK_TO_AGENT_SOCKET_READY_MS = 2_500;
+const TALK_TO_AGENT_SOCKET_ACK_MS = 10_000;
+
 async function requestTalkToAgentViaSocket(
   conversationId: string,
   websiteId: string,
@@ -413,12 +416,12 @@ async function requestTalkToAgentViaSocket(
 ): Promise<WidgetTalkToAgentResult | null> {
   const trySocket = async (socket: WidgetTranscriptSocketClient): Promise<WidgetTalkToAgentResult | null> => {
     socket.connect({ authToken: widgetBearerToken });
-    const ready = await socket.waitUntilSocketReady(12_000);
+    const ready = await socket.waitUntilSocketReady(TALK_TO_AGENT_SOCKET_READY_MS);
     if (!ready || !socket.isConnected()) return null;
     try {
       const ack = await socket.requestTalkToAgentWithAck(
         { conversationId, websiteId },
-        15_000,
+        TALK_TO_AGENT_SOCKET_ACK_MS,
       );
       return parseWidgetTalkToAgentPayload(ack);
     } catch {
@@ -436,27 +439,13 @@ async function requestTalkToAgentViaSocket(
   return trySocket(shared);
 }
 
-export async function postWidgetTalkToAgent(
+async function postWidgetTalkToAgentViaRest(
   conversationId: string,
   websiteId: string,
   widgetBearerToken?: string,
-  socketClient?: WidgetTranscriptSocketClient,
 ): Promise<
   { ok: true; data: WidgetTalkToAgentResult } | { ok: false; message: string }
 > {
-  const token = widgetBearerToken?.trim();
-  if (token) {
-    const socketData = await requestTalkToAgentViaSocket(
-      conversationId,
-      websiteId,
-      token,
-      socketClient,
-    );
-    if (socketData) {
-      return { ok: true, data: socketData };
-    }
-  }
-
   const base = getResolvedPublicApiBaseUrl();
   const url =
     `${base}/chat/widget/conversations/${encodeURIComponent(conversationId)}` +
@@ -500,6 +489,39 @@ export async function postWidgetTalkToAgent(
       message: e instanceof Error ? e.message : "Network error",
     };
   }
+}
+
+export async function postWidgetTalkToAgent(
+  conversationId: string,
+  websiteId: string,
+  widgetBearerToken?: string,
+  socketClient?: WidgetTranscriptSocketClient,
+): Promise<
+  { ok: true; data: WidgetTalkToAgentResult } | { ok: false; message: string }
+> {
+  const token = widgetBearerToken?.trim();
+  const rest = await postWidgetTalkToAgentViaRest(
+    conversationId,
+    websiteId,
+    token,
+  );
+  if (rest.ok) {
+    return rest;
+  }
+
+  if (token) {
+    const socketData = await requestTalkToAgentViaSocket(
+      conversationId,
+      websiteId,
+      token,
+      socketClient,
+    );
+    if (socketData) {
+      return { ok: true, data: socketData };
+    }
+  }
+
+  return rest;
 }
 
 /** @deprecated Use {@link postWidgetTalkToAgent}. */

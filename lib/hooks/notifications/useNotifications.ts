@@ -33,6 +33,7 @@ import {
   type AgentChatNotificationSyncReason,
 } from "@/lib/hooks/chat/agent-chat-notification-sync-bus";
 import { conversationIdFromNotificationPayload } from "@/lib/hooks/chat/chat-socket-delivery";
+import { getAgentChatFocusedConversation } from "@/lib/hooks/chat/agent-chat-focus-bus";
 import type { NotificationBadgeGroup } from "@/services/notifications/notifications.types";
 import {
   EMPTY_BADGES,
@@ -121,6 +122,16 @@ export function useNotifications(enabled: boolean) {
         conversationIdFromNotificationPayload(notification) ||
         null;
       if (shouldSkipChatAlert(cid)) return;
+
+      const focusedId = getAgentChatFocusedConversation();
+      if (
+        cid &&
+        focusedId === cid &&
+        typeof document !== "undefined" &&
+        document.visibilityState === "visible"
+      ) {
+        return;
+      }
 
       publishNotificationToast(notification);
       recordChatAlert(cid);

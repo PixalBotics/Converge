@@ -620,6 +620,23 @@ export function isReindexBulkResult(
   return typeof (payload as { count?: number }).count === "number";
 }
 
+/** Training table / toast — hide `form:` API prefix and raw URLs. */
+export function formatKbErrorForDisplay(message: string | null | undefined): string {
+  const raw = (message ?? "").trim().replace(/^(form:\s*)+/i, "");
+  if (!raw) return "Training could not finish. Try reindexing this source.";
+
+  if (/could not fetch url|failed to fetch url/i.test(raw)) {
+    return "We could not reach this website. It may block bots or be temporarily offline.";
+  }
+  if (/no indexable|no readable content|could not index/i.test(raw)) {
+    return "No usable content found. Check the URL is public and matches your domain.";
+  }
+  if (/https?:\/\//i.test(raw) && raw.length > 80) {
+    return "We could not load this website. Verify the URL is public.";
+  }
+  return raw.length > 220 ? `${raw.slice(0, 217)}…` : raw;
+}
+
 export function toastMessageForCreateResult(result: CreateKnowledgeSourceResult): {
   variant: "success" | "error";
   message: string;
@@ -627,7 +644,9 @@ export function toastMessageForCreateResult(result: CreateKnowledgeSourceResult)
   if (result.status === "failed") {
     return {
       variant: "error",
-      message: result.errorMessage?.trim() || "Indexing failed. Check the source list for details.",
+      message:
+        formatKbErrorForDisplay(result.errorMessage) ||
+        "Indexing failed. Check the source list for details.",
     };
   }
   if (result.status === "processing") {

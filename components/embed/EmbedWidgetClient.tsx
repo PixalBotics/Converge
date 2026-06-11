@@ -32,6 +32,7 @@ import { EmbedActionButton } from "@/components/embed/EmbedActionButton";
 import { WidgetClosedIncomingPreviewBubble } from "@/components/embed/WidgetClosedIncomingPreviewBubble";
 import { WidgetProactiveTeaserBubble } from "@/components/embed/WidgetProactiveTeaserBubble";
 import { EmbedChatBubble } from "@/components/embed/EmbedChatBubble";
+import { EmbedTypingDots } from "@/components/embed/EmbedTypingDots";
 import {
   EmbedChatHeaderStatusChip,
   EmbedChatPanelHeaderRow,
@@ -85,6 +86,7 @@ import {
 import {
   notifyWidgetIncoming,
   requestWidgetNotificationPermission,
+  shouldPlayWidgetIncomingSound,
   truncateClosedMessagePreviewHalf,
   truncateNotificationPreview,
   unlockWidgetAudio,
@@ -98,6 +100,8 @@ import {
   embedComposerInputSx,
   embedComposerRowSx,
   EMBED_CHAT_AVATAR_SIZE_PX,
+  EMBED_HEADER_LOGO_HEIGHT_PX,
+  EMBED_HEADER_LOGO_MAX_WIDTH_PX,
   embedChatAvatarSpacerSx,
   embedChatBubbleRowSx,
   embedChatBubbleShellSx,
@@ -604,8 +608,6 @@ function FloatingChatEmbed({
 
       const panelOpen = launcherOpenRef.current;
       const tabHidden = typeof document !== "undefined" && document.hidden;
-      if (panelOpen && !tabHidden) return;
-
       const text = truncateNotificationPreview(preview);
       if (!text) return;
 
@@ -613,9 +615,11 @@ function FloatingChatEmbed({
         setUnreadCount((c) => Math.min(99, c + 1));
       }
 
+      if (panelOpen && !tabHidden) return;
+
       notifyWidgetIncoming(appearance, text, {
         launcherOpen: panelOpen,
-        playSound: true,
+        playSound: shouldPlayWidgetIncomingSound({ panelOpen, tabHidden }),
       });
     },
     [appearance, storeClosedMessagePreview],
@@ -770,9 +774,9 @@ function FloatingChatEmbed({
                     src={chatBox.headerLogoUrl}
                     alt=""
                     sx={{
-                      height: 34,
+                      height: EMBED_HEADER_LOGO_HEIGHT_PX,
                       width: "auto",
-                      maxWidth: 110,
+                      maxWidth: EMBED_HEADER_LOGO_MAX_WIDTH_PX,
                       objectFit: "contain",
                       flexShrink: 0,
                       pointerEvents: "auto",
@@ -1343,8 +1347,11 @@ function WidgetChatPanel({
         setAwaitingFirstUserQuestion(false);
       }
       if (!onIncomingWhileClosed) return;
-      /** AI socket payloads normalize to `system`; agent stays `agent`. */
-      if (role !== "agent" && role !== "system") return;
+      if (role === "system") {
+        if (chat.assigned || escalatedRef.current) return;
+      } else if (role !== "agent") {
+        return;
+      }
       const text = message.content?.trim();
       if (text) onIncomingWhileClosed(text);
     },
@@ -1788,6 +1795,17 @@ function WidgetChatPanel({
   const messageListRef = useRef<HTMLDivElement | null>(null);
   const visitorTypingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  useEffect(() => {
+    setDraft("");
+    if (visitorTypingTimerRef.current) {
+      clearTimeout(visitorTypingTimerRef.current);
+      visitorTypingTimerRef.current = null;
+    }
+    if (chat.conversationId) {
+      chat.emitStopTyping();
+    }
+  }, [chat.conversationId]);
+
   const scrollTranscriptToBottom = useCallback((instant = true) => {
     const el = messageListRef.current;
     if (!el) return;
@@ -2210,9 +2228,9 @@ function WidgetChatPanel({
             {chat.botStreamingText.trim() || "…"}
           </EmbedChatBubble>
         ) : null}
-        {chat.agentTypingSeen && chat.agentTypingDraft && appearance ? (
+        {chat.agentTypingSeen && appearance ? (
           <EmbedChatBubble appearance={appearance} role="assistant">
-            {chat.agentTypingDraft}
+            <EmbedTypingDots color={appearance.colors.incomingBubbleText} />
           </EmbedChatBubble>
         ) : null}
       </Stack>
@@ -2242,13 +2260,19 @@ function WidgetChatPanel({
             }}
           >
             <TextField
-              name="composer"
               value={draft}
               onChange={(e) => onDraftChange(e.target.value)}
               placeholder={sendPlaceholder}
               fullWidth
               variant="outlined"
               size="small"
+              autoComplete="off"
+              inputProps={{
+                autoComplete: "off",
+                "aria-label": "Message",
+                "data-1p-ignore": "true",
+                "data-lpignore": "true",
+              }}
               sx={
                 appearance
                   ? {
