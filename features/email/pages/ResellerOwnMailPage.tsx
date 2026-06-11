@@ -184,7 +184,13 @@ export function ResellerOwnMailPage() {
               </Typography>
               <Typography
                 variant="medium"
-                sx={{ color: theme.app.dashboard.textMuted, mt: 0.25, display: "block", maxWidth: 640 }}
+                sx={{
+                  color: theme.app.dashboard.textMuted,
+                  mt: 0.25,
+                  display: "block",
+                  maxWidth: 640,
+                  lineHeight: "24px",
+                }}
               >
                 Per-reseller SMTP or API credentials, separate from platform mail.
               </Typography>

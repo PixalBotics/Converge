@@ -821,7 +821,6 @@ export function PoolsPageView({ mode }: PoolsPageViewProps) {
       ) : null}
 
       {isMembersHub && canListPoolMembers ? (
-        <Box sx={{ mt: 2 }}>
           <UnifiedPoolMembersCard
             departmentId={departmentId}
             sessionPoolId={user?.poolId}
@@ -855,7 +854,6 @@ export function PoolsPageView({ mode }: PoolsPageViewProps) {
               </ToolbarFilterPopover>
             }
           />
-        </Box>
       ) : (
         poolsTableEl
       )}

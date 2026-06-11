@@ -127,12 +127,18 @@ export function PlatformMailConfigSummaryTable({
         }}
       >
         <Box sx={{ minWidth: 0 }}>
-          <Typography variant="mediumLarge" color="white" fontWeight={600}>
+          <Typography variant="regularLarge" fontWeight={400} color="white">
             Platform configuration
           </Typography>
           <Typography
-            variant="small"
-            sx={{ color: theme.app.dashboard.textMuted, mt: 0.25, display: "block", maxWidth: 640 }}
+            variant="medium"
+            sx={{
+              color: theme.app.dashboard.textMuted,
+              mt: 0.25,
+              display: "block",
+              maxWidth: 640,
+              lineHeight: "24px",
+            }}
           >
             One global SMTP or API sender for the platform. Resellers on platform mail inherit this configuration.
           </Typography>

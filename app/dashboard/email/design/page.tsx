@@ -2,9 +2,9 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { LoadingScreen } from "@/components/common";
 import { EMAIL_ROUTES } from "@/features/email/email.constants";
 import { readEmailResellerFromStorage } from "@/features/email/email-reseller-storage";
+import { EmailDesignHubPage } from "@/features/email/pages/EmailDesignHubPage";
 import { useAuth } from "@/lib/auth";
 
 export default function EmailDesignIndexPage() {
@@ -16,10 +16,8 @@ export default function EmailDesignIndexPage() {
     const scopedId = user?.resellerId?.trim() || stored;
     if (scopedId && user?.userType !== "Internal") {
       router.replace(EMAIL_ROUTES.designResellerEdit(scopedId));
-      return;
     }
-    router.replace(EMAIL_ROUTES.designReseller);
   }, [router, user?.resellerId, user?.userType]);
 
-  return <LoadingScreen message="Loading email design…" />;
+  return <EmailDesignHubPage />;
 }

@@ -77,6 +77,16 @@ export default function WebsiteAssignmentDetailPage() {
     <Box sx={websiteAssignmentPageWrapper}>
       <Box sx={websiteAssignmentPageHeader}>
         <Box>
+          <Button
+            type="button"
+            variant="outlined"
+            component={NextLink}
+            href="/dashboard/website-assigning"
+            startIcon={<ArrowBack sx={{ fontSize: 18 }} />}
+            sx={{ mb: 1 }}
+          >
+            All websites
+          </Button>
           <Typography
             variant="regularLarge"
             fontWeight={700}
@@ -89,15 +99,6 @@ export default function WebsiteAssignmentDetailPage() {
           </Typography>
         </Box>
         <Box sx={websiteAssignmentHeaderActions}>
-          <Button
-            type="button"
-            variant="outlined"
-            component={NextLink}
-            href="/dashboard/website-assigning"
-            startIcon={<ArrowBack sx={{ fontSize: 18 }} />}
-          >
-            All websites
-          </Button>
           {schedulingHref ? (
             <Button
               type="button"

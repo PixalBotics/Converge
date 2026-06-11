@@ -161,6 +161,7 @@ export function EmailAgentFeedbackPage() {
     <EmailSectionLayout
       title="Feedback"
       description="Configure like/dislike labels in distribution wrap-up emails and the public form recipients see when they click Poor."
+      descriptionSx={{ lineHeight: "24px" }}
     >
       <Box
         sx={{

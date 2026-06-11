@@ -2,14 +2,15 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import ArrowBack from "@mui/icons-material/ArrowBack";
 import AutoStories from "@mui/icons-material/AutoStories";
 import SmartToyOutlined from "@mui/icons-material/SmartToyOutlined";
 import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
 import Alert from "@mui/material/Alert";
-import { useTheme } from "@mui/material/styles";
+import { alpha, useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
-import { Typography } from "@/components/common";
+import { Button, Typography } from "@/components/common";
 import {
   useAiAssistantKbSourcesQuery,
   useAiAssistantKbTrainingWebsitesQuery,
@@ -28,7 +29,7 @@ import {
 } from "./AiTrainingDummyChatWidget";
 import { formatTestReplyHint } from "./ai-training-test-reply-hint.util";
 import { AiTrainingFloatingTestChat } from "./AiTrainingFloatingTestChat";
-import { aiTrainingTestStudioHref } from "./ai-training-routes";
+import { aiTrainingListHref, aiTrainingTestStudioHref } from "./ai-training-routes";
 import { AiTrainingStudioHeaderTabs } from "./AiTrainingStudioHeaderTabs";
 import { AiTrainingScrapeLiveBar } from "./AiTrainingScrapeLiveBar";
 import { hostFromWebsiteUrl, isBasicTrainingReady, type AiTrainingKbVariant } from "./ai-training-kb.utils";
@@ -270,55 +271,51 @@ export function AiTrainingAutomationStudioPage({
     }
   };
 
+  const backButton = (
+    <Button
+      type="button"
+      variant="secondary"
+      size="small"
+      startIcon={<ArrowBack sx={{ fontSize: 18 }} />}
+      onClick={() => router.push(aiTrainingListHref(variant))}
+      sx={{ flexShrink: 0, m: 0 }}
+    >
+      All trained websites
+    </Button>
+  );
 
+  const navTabs = (
+    <AiTrainingStudioHeaderTabs variant={variant} websiteId={websiteId} active="test" />
+  );
 
   const topBar = (
-    <Box
-      sx={{
-        display: "flex",
-        alignItems: "center",
-        gap: 1,
-        minWidth: 0,
-        flex: 1,
-        flexWrap: { xs: "wrap", lg: "nowrap" },
-      }}
-    >
-      <AiTrainingStudioHeaderTabs variant={variant} websiteId={websiteId} active="test" />
-      <Box sx={{ minWidth: 0, flex: 1, display: { xs: "none", md: "block" } }}>
-        <Typography
-          variant="caption"
-          sx={{
-            color: theme.app.dashboard.textMuted,
-            display: "block",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-          }}
-        >
-          {websiteHost || websiteName} · {copy.subtitle}
-        </Typography>
-      </Box>
+    <Box sx={{ display: "flex", alignItems: "center", gap: 1, minWidth: 0, flex: 1, overflow: "hidden" }}>
+      <Typography
+        variant="caption"
+        noWrap
+        sx={{ color: c.textSecondary, minWidth: 0, flex: 1 }}
+      >
+        <Box component="span" sx={{ color: c.text, fontWeight: 600 }}>
+          {websiteHost || websiteName}
+        </Box>
+        <Box component="span" sx={{ mx: 0.5, opacity: 0.45 }}>
+          ·
+        </Box>
+        {copy.subtitle}
+      </Typography>
       <Chip
         size="small"
-        icon={
-          isChatbot ? (
-            <SmartToyOutlined sx={{ fontSize: 14 }} />
-          ) : (
-            <AutoStories sx={{ fontSize: 14 }} />
-          )
-        }
-        label={
-          scrapingSource?.scrapeProgress
-            ? `${scrapingSource.scrapeProgress.chunksIndexed} pieces · training…`
-            : `${indexedCount} indexed`
-        }
+        icon={isChatbot ? <SmartToyOutlined sx={{ fontSize: 14 }} /> : <AutoStories sx={{ fontSize: 14 }} />}
+        label={`${indexedCount} indexed`}
         sx={{
-          bgcolor: c.surfaceMuted,
-          color: c.text,
-          fontWeight: 600,
-          border: `1px solid ${c.border}`,
           flexShrink: 0,
-          ml: { lg: "auto" },
+          height: 24,
+          bgcolor: alpha(theme.app.dashboard.menuSurfaceBg ?? theme.app.dashboard.pillBg, c.isLight ? 0.5 : 0.35),
+          color: c.textSoft,
+          fontWeight: 600,
+          fontSize: 11,
+          border: `1px solid ${c.border}`,
+          "& .MuiChip-icon": { color: c.textSecondary },
         }}
       />
     </Box>
@@ -369,6 +366,10 @@ export function AiTrainingAutomationStudioPage({
 
   return (
     <Box sx={aiTrainingStudioPageWrapper}>
+      <Box sx={{ flexShrink: 0, p: 0, m: 0, mb: 1 }}>
+        {backButton}
+      </Box>
+      <Box sx={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
       <AiTrainingFlowBuilderCanvas
         websiteId={websiteId}
         variant={variant}
@@ -403,10 +404,12 @@ export function AiTrainingAutomationStudioPage({
         }
         flowExecution={flowExecution}
         flowExecutionErrors={flowExecutionErrors}
+        navTabs={navTabs}
         topBar={topBar}
         settingsPanel={<AiTrainingStudioSettingsRail websiteId={websiteId} />}
         testChat={testChat}
       />
+      </Box>
     </Box>
   );
 

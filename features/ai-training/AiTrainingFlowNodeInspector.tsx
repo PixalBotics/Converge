@@ -69,17 +69,22 @@ export function AiTrainingFlowNodeInspector({
     }
   }, [behaviorQuery.data?.confidenceThreshold]);
 
+  const d = theme.app.dashboard;
   const inputSx = {
     width: "100%",
-    px: 1.1,
-    py: 0.7,
-    borderRadius: 1.5,
-    border: `1px solid ${c.border}`,
-    bgcolor: c.surfaceMuted,
+    px: 1.25,
+    py: 0.85,
+    borderRadius: "10px",
+    border: `1px solid ${alpha(d.cardBorder, c.isLight ? 0.55 : 0.45)}`,
+    bgcolor: c.isLight ? theme.palette.background.paper : alpha(d.pillBg, 0.75),
     color: c.text,
     fontSize: 13,
     outline: "none",
-    "&:focus": { borderColor: meta.color },
+    transition: "border-color 0.15s ease, box-shadow 0.15s ease",
+    "&:focus": {
+      borderColor: meta.color,
+      boxShadow: `0 0 0 2px ${alpha(meta.color, 0.22)}`,
+    },
   };
 
   const saveThreshold = async (value: number) => {
@@ -150,25 +155,25 @@ export function AiTrainingFlowNodeInspector({
 
       <Box
         sx={{
-          p: 1.25,
+          p: 1.5,
           borderRadius: 2,
-          bgcolor: c.surfaceMuted,
+          bgcolor: alpha(d.menuSurfaceBg ?? d.pillBg, c.isLight ? 0.45 : 0.32),
           border: `1px solid ${c.border}`,
         }}
       >
-        <Typography variant="caption" sx={{ color: c.text, fontWeight: 600, display: "block", mb: 0.5 }}>
+        <Typography variant="caption" sx={{ color: c.text, fontWeight: 700, display: "block", mb: 0.5 }}>
           What this block does
         </Typography>
-        <Typography variant="caption" sx={{ color: c.textSecondary, lineHeight: 1.5, display: "block" }}>
+        <Typography variant="caption" sx={{ color: c.textSoft, lineHeight: 1.55, display: "block" }}>
           {config.whatItDoes}
         </Typography>
       </Box>
 
       <Box>
-        <Typography variant="caption" sx={{ color: c.textSecondary, fontWeight: 600 }}>
+        <Typography variant="caption" sx={{ color: c.text, fontWeight: 600, display: "block" }}>
           Block title (diagram only)
         </Typography>
-        <Typography variant="caption" sx={{ color: c.textSecondary, display: "block", mb: 0.4, fontSize: 11 }}>
+        <Typography variant="caption" sx={{ color: c.textSecondary, display: "block", mb: 0.6, fontSize: 11, lineHeight: 1.45 }}>
           Renaming does not change bot logic — for your reference only.
         </Typography>
         <Box
@@ -181,10 +186,10 @@ export function AiTrainingFlowNodeInspector({
 
       {config.runtimeImpact === "message" ? (
         <Box>
-          <Typography variant="caption" sx={{ color: c.textSecondary, fontWeight: 600 }}>
+          <Typography variant="caption" sx={{ color: c.text, fontWeight: 600, display: "block" }}>
             {config.messageLabel}
           </Typography>
-          <Typography variant="caption" sx={{ color: c.textSecondary, display: "block", mb: 0.5, lineHeight: 1.45 }}>
+          <Typography variant="caption" sx={{ color: c.textSecondary, display: "block", mb: 0.6, lineHeight: 1.45 }}>
             {config.messageHelper}
           </Typography>
           <Box
@@ -255,34 +260,34 @@ export function AiTrainingFlowNodeInspector({
       {config.runtimeImpact === "none" ? (
         <Box
           sx={{
-            p: 1.1,
-            borderRadius: 1.75,
-            bgcolor: alpha(theme.app.dashboard.overlayLight, 0.35),
-            border: `1px dashed ${alpha(theme.app.dashboard.cardBorder, 0.45)}`,
+            p: 1.35,
+            borderRadius: 2,
+            bgcolor: alpha(d.pillBg, c.isLight ? 0.35 : 0.22),
+            border: `1px dashed ${alpha(d.cardBorder, c.isLight ? 0.5 : 0.42)}`,
             display: "flex",
-            gap: 0.85,
+            gap: 1,
             alignItems: "flex-start",
           }}
         >
-          <InfoOutlined sx={{ fontSize: 16, color: theme.app.dashboard.textMuted, mt: 0.15 }} />
-          <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, lineHeight: 1.45 }}>
+          <InfoOutlined sx={{ fontSize: 16, color: c.textSecondary, mt: 0.1, flexShrink: 0 }} />
+          <Typography variant="caption" sx={{ color: c.textSoft, lineHeight: 1.5 }}>
             {config.editHint}
           </Typography>
         </Box>
       ) : (
         <Box
           sx={{
-            p: 1.1,
-            borderRadius: 1.75,
+            p: 1.35,
+            borderRadius: 2,
             bgcolor: alpha(theme.palette.success.main, 0.08),
             border: `1px solid ${alpha(theme.palette.success.main, 0.22)}`,
             display: "flex",
-            gap: 0.85,
+            gap: 1,
             alignItems: "flex-start",
           }}
         >
-          <CheckCircleOutlineRounded sx={{ fontSize: 16, color: theme.palette.success.light, mt: 0.15 }} />
-          <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, lineHeight: 1.45 }}>
+          <CheckCircleOutlineRounded sx={{ fontSize: 16, color: theme.palette.success.light, mt: 0.1, flexShrink: 0 }} />
+          <Typography variant="caption" sx={{ color: c.textSoft, lineHeight: 1.5 }}>
             {config.editHint} Flow auto-saves ~1 second after edits.
           </Typography>
         </Box>

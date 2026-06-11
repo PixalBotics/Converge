@@ -12,7 +12,12 @@ export const departmentShiftHeaderWrapSx: SxProps<Theme> = {
 export const departmentShiftSubtextSx: SxProps<Theme> = (theme) => ({
   mt: 0.75,
   color: (theme as AppTheme).app.dashboard.textMuted,
-  maxWidth: 720,
+});
+
+export const departmentShiftCardHintSx: SxProps<Theme> = (theme) => ({
+  mt: 0,
+  mb: 0,
+  color: (theme as AppTheme).app.dashboard.textMuted,
 });
 
 export const departmentShiftCardHeaderSx: SxProps<Theme> = {

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Add from "@mui/icons-material/Add";
-import EditOutlined from "@mui/icons-material/EditOutlined";
+import EditIcon from "@mui/icons-material/Edit";
 import SettingsOutlined from "@mui/icons-material/SettingsOutlined";
 import Box from "@mui/material/Box";
 import IconButton from "@mui/material/IconButton";
@@ -12,6 +12,7 @@ import type { AppTheme } from "@/theme/theme";
 import {
   Button,
   DataTable,
+  dataTableActionButton,
   InputField,
   SelectField,
   Typography,
@@ -177,13 +178,14 @@ export function ClosePolicyListTab({
               render: (_: unknown, row: ClosePolicyListRow) => (
                 <IconButton
                   size="small"
+                  sx={dataTableActionButton}
                   aria-label="Edit close policy"
                   onClick={(e) => {
                     e.stopPropagation();
                     openEdit(row.websiteId);
                   }}
                 >
-                  <EditOutlined fontSize="small" />
+                  <EditIcon fontSize="small" />
                 </IconButton>
               ),
             },

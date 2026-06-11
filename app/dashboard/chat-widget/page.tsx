@@ -8,8 +8,8 @@ import TextsmsRounded from "@mui/icons-material/TextsmsRounded";
 import SendRounded from "@mui/icons-material/SendRounded";
 import CloseRounded from "@mui/icons-material/CloseRounded";
 import VisibilityOutlined from "@mui/icons-material/VisibilityOutlined";
-import EditOutlined from "@mui/icons-material/EditOutlined";
-import DeleteOutline from "@mui/icons-material/DeleteOutline";
+import EditIcon from "@mui/icons-material/Edit";
+import DeleteIcon from "@mui/icons-material/Delete";
 import Box from "@mui/material/Box";
 import type { SxProps, Theme } from "@mui/material/styles";
 import IconButton from "@mui/material/IconButton";
@@ -494,20 +494,23 @@ export default function ChatWidgetPage() {
                   </IconButton>
                   <IconButton
                     size="small"
-                    sx={{ ...dataTableActionButton, color: theme.app.dashboard.white80 }}
+                    sx={dataTableActionButton}
                     aria-label={`Edit widget ${key}`}
                     onClick={() => router.push(`${pathBase}/edit`)}
                   >
-                    <EditOutlined fontSize="small" />
+                    <EditIcon fontSize="small" />
                   </IconButton>
                   <IconButton
                     size="small"
                     aria-label={`Delete widget ${key}`}
                     disabled={deleteBusy}
                     onClick={() => setDeleteDialogKey(key)}
-                    sx={{ ...dataTableActionButton, color: theme.app.dashboard.accentRedLight }}
+                    sx={{
+                      ...dataTableActionButton,
+                      color: theme.app.dashboard.accentRedLight,
+                    }}
                   >
-                    <DeleteOutline fontSize="small" />
+                    <DeleteIcon fontSize="small" />
                   </IconButton>
                 </Box>
               );

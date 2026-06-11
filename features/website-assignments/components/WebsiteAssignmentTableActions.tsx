@@ -1,7 +1,7 @@
 "use client";
 
-import EditOutlined from "@mui/icons-material/EditOutlined";
-import DeleteOutline from "@mui/icons-material/DeleteOutline";
+import EditIcon from "@mui/icons-material/Edit";
+import DeleteIcon from "@mui/icons-material/Delete";
 import Schedule from "@mui/icons-material/Schedule";
 import Box from "@mui/material/Box";
 import IconButton from "@mui/material/IconButton";
@@ -53,7 +53,7 @@ export function WebsiteAssignmentTableActions({
               aria-label={`Edit assignments for ${row.websiteName}`}
               onClick={() => onEdit(row)}
             >
-              <EditOutlined fontSize="small" />
+              <EditIcon fontSize="small" />
             </IconButton>
           </Tooltip>
           <Tooltip title="Clear all agent slots">
@@ -66,7 +66,7 @@ export function WebsiteAssignmentTableActions({
               aria-label={`Clear agents for ${row.websiteName}`}
               onClick={() => onClearAgents(row)}
             >
-              <DeleteOutline fontSize="small" />
+              <DeleteIcon fontSize="small" />
             </IconButton>
           </Tooltip>
         </>

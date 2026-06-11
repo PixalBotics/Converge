@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Box from "@mui/material/Box";
+import IconButton from "@mui/material/IconButton";
+import { Edit as EditIcon } from "@mui/icons-material";
 import { useTheme } from "@mui/material/styles";
 import type { SxProps, Theme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
@@ -10,6 +12,7 @@ import {
   Button,
   DashboardCard,
   DataTable,
+  dataTableActionButton,
   SearchBar,
   SearchSubmitButton,
   TablePagination,
@@ -154,17 +157,18 @@ export default function UserPermissionsPage() {
               actionColumn={{
                 label: "Action",
                 render: (row) => (
-                  <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 1 }}>
-                    <Button
-                      variant="primary"
-                      sx={gradientPrimaryButtonSx}
+                  <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 0.5 }}>
+                    <IconButton
+                      size="small"
+                      aria-label="Edit user permissions"
+                      sx={dataTableActionButton}
                       onClick={() => {
                         setEditingUserId(row.id);
                         setOpen(true);
                       }}
                     >
-                      Edit
-                    </Button>
+                      <EditIcon fontSize="small" />
+                    </IconButton>
                   </Box>
                 ),
               }}

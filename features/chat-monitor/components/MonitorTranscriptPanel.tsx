@@ -3,10 +3,6 @@
 import { useCallback, useMemo, useState } from "react";
 import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
-import Dialog from "@mui/material/Dialog";
-import DialogActions from "@mui/material/DialogActions";
-import DialogContent from "@mui/material/DialogContent";
-import DialogTitle from "@mui/material/DialogTitle";
 import { alpha, useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import {
@@ -16,8 +12,7 @@ import {
 } from "@/api";
 import type { AgentAiAction } from "@/api/ai/agent-suggest.api";
 import { buildAgentCopilotInput, agentAiActionNeedsWebsite } from "@/lib/ai/agent-copilot-input";
-import { Button, InputField, Typography } from "@/components/common";
-import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
+import { Button, FormModal, InputField, Typography } from "@/components/common";
 import { ChatComposer } from "@/features/chat-operations/components/ChatComposer";
 import { GuestLinkHeaderAction } from "@/features/chat-operations/components/GuestLinkHeaderAction";
 import { ChatMessageList } from "@/features/chat-operations/components/ChatMessageList";
@@ -523,63 +518,32 @@ export function MonitorTranscriptPanel({
       ) : null}
 
       {!isArchive && (
-      <Dialog
+      <FormModal
         open={closeDialogOpen}
-        onClose={() => !closeBusy && setCloseDialogOpen(false)}
-        PaperProps={{
-          sx: {
-            borderRadius: 2,
-            bgcolor: theme.app.dashboard.cardBg,
-            border: `1px solid ${theme.app.dashboard.cardBorder}`,
-            minWidth: { xs: "92vw", sm: 400 },
-          },
+        title="Close this chat?"
+        description={`End the live session with ${title}. A close reason is required.`}
+        onClose={() => {
+          if (closeBusy) return;
+          setCloseDialogOpen(false);
+          setCloseReason("");
         }}
+        onSave={() => void confirmClose()}
+        primaryButtonLabel={closeBusy ? "Closing…" : "Confirm close"}
+        primaryButtonDisabled={closeBusy || !closeReason.trim()}
+        cancelButtonLabel="Cancel"
+        maxWidth={480}
+        fitContent
       >
-        <DialogTitle sx={{ color: theme.app.text.primary, fontWeight: 700, pb: 0.5 }}>
-          Close this chat?
-        </DialogTitle>
-        <DialogContent>
-          <Typography variant="small" sx={{ color: theme.app.dashboard.textMuted, lineHeight: 1.5 }}>
-            End the live session with{" "}
-            <Box component="span" sx={{ color: theme.app.text.primary, fontWeight: 600 }}>
-              {title}
-            </Box>
-            . A close reason is required.
-          </Typography>
-          <InputField
-            label="Close reason"
-            value={closeReason}
-            onChange={(e) => setCloseReason(e.target.value)}
-            disabled={closeBusy}
-            multiline
-            minRows={3}
-            placeholder="Why is this chat being closed?"
-            sx={{ mt: 2 }}
-          />
-        </DialogContent>
-        <DialogActions sx={{ px: 2.5, pb: 2 }}>
-          <Button
-            type="button"
-            variant="secondary"
-            disabled={closeBusy}
-            onClick={() => {
-              setCloseDialogOpen(false);
-              setCloseReason("");
-            }}
-          >
-            Cancel
-          </Button>
-          <Button
-            type="button"
-            variant="primary"
-            disabled={closeBusy || !closeReason.trim()}
-            sx={gradientPrimaryButtonSx}
-            onClick={() => void confirmClose()}
-          >
-            {closeBusy ? "Closing…" : "Confirm close"}
-          </Button>
-        </DialogActions>
-      </Dialog>
+        <InputField
+          label="Close reason"
+          value={closeReason}
+          onChange={(e) => setCloseReason(e.target.value)}
+          disabled={closeBusy}
+          multiline
+          minRows={3}
+          placeholder="Why is this chat being closed?"
+        />
+      </FormModal>
       )}
 
       {!isArchive && isControlling ? (

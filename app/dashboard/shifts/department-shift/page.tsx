@@ -77,6 +77,7 @@ import {
   departmentShiftFilterPopoverStackSx,
   departmentShiftHeaderWrapSx,
   departmentShiftIconSx,
+  departmentShiftCardHintSx,
   departmentShiftSubtextSx,
 } from "./department-shift.styles";
 
@@ -769,18 +770,13 @@ export default function DepartmentShiftPage() {
         }}
       >
         <Box sx={[departmentsCardHeader, { pb: 1.25 }] as SxProps<Theme>}>
-          <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1.5, minWidth: 0 }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, minWidth: 0 }}>
             <Box sx={rolesIconBox}>
               <AccessTimeIcon sx={departmentShiftIconSx} />
             </Box>
-            <Box sx={{ minWidth: 0 }}>
-              <Typography variant="mediumLarge" fontWeight={600} color="white">
-                Assigned shifts
-              </Typography>
-              <Typography variant="body2" sx={departmentShiftSubtextSx}>
-                Search and filter department shift assignments. Use Assign shift to add new assignments.
-              </Typography>
-            </Box>
+            <Typography variant="mediumLarge" fontWeight={600} color="white">
+              Assigned shifts
+            </Typography>
           </Box>
           <Box sx={departmentsSearchRow}>
             <Box sx={departmentsSearchFieldWrapper}>
@@ -803,6 +799,10 @@ export default function DepartmentShiftPage() {
             </ToolbarFilterPopover>
           </Box>
         </Box>
+
+        <Typography variant="body2" sx={departmentShiftCardHintSx}>
+          Search and filter department shift assignments. Use Assign shift to add new assignments.
+        </Typography>
 
         {deptShiftsList403 ? (
           <Alert severity="error" sx={{ mb: 1.5 }}>
