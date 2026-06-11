@@ -132,7 +132,13 @@ export function formatScrapeProgressLabel(
       progress.trainingTier === "full" || progress.trainingTier === "basic_ready"
         ? "Full "
         : "";
-    return `${prefix}${done}/${progress.pagesTotal} pages · ${progress.chunksIndexed} pieces`;
+    const batchTail =
+      progress.trainingTier === "full" &&
+      done >= progress.pagesTotal &&
+      progress.activePages.length === 0
+        ? " · batch embedding…"
+        : "";
+    return `${prefix}${done}/${progress.pagesTotal} pages · ${progress.chunksIndexed} pieces${batchTail}`;
   }
   if (progress.pagesDone > 0) {
     return `${progress.pagesDone} page${progress.pagesDone === 1 ? "" : "s"} · ${progress.chunksIndexed} pieces`;
