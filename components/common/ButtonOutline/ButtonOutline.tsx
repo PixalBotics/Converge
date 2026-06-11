@@ -1,7 +1,9 @@
 "use client";
 
 import Box from "@mui/material/Box";
+import { useTheme } from "@mui/material/styles";
 import type { SxProps, Theme } from "@mui/material/styles";
+import type { AppTheme } from "@/theme/theme";
 import { Typography } from "../Typography";
 
 export interface ButtonOutlineProps {
@@ -11,6 +13,9 @@ export interface ButtonOutlineProps {
 }
 
 export function ButtonOutline({ text, dotColor, sx }: ButtonOutlineProps) {
+  const theme = useTheme() as AppTheme;
+  const isLight = theme.palette.mode === "light";
+
   return (
     <Box
       sx={[
@@ -21,13 +26,13 @@ export function ButtonOutline({ text, dotColor, sx }: ButtonOutlineProps) {
           display: "inline-flex",
           alignItems: "center",
           gap: 1,
-          background: "rgba(255, 255, 255, 0.08)",
+          background: isLight ? "rgba(15, 23, 42, 0.08)" : "rgba(255, 255, 255, 0.08)",
           backdropFilter: "blur(6px)",
           WebkitBackdropFilter: "blur(6px)",
-          border: "1px solid rgba(255, 255, 255, 0.18)",
+          border: isLight ? "1px solid rgba(15, 23, 42, 0.22)" : "1px solid rgba(255, 255, 255, 0.18)",
           boxShadow: `
-            inset 0 0 6px rgba(255,255,255,0.1),
-            0 4px 20px rgba(0,0,0,0.2)
+            inset 0 0 6px ${isLight ? "rgba(15,23,42,0.05)" : "rgba(255,255,255,0.1)"},
+            0 4px 20px ${isLight ? "rgba(15,23,42,0.14)" : "rgba(0,0,0,0.2)"}
           `,
         },
         ...(sx ? (Array.isArray(sx) ? sx : [sx]) : []),
@@ -45,7 +50,7 @@ export function ButtonOutline({ text, dotColor, sx }: ButtonOutlineProps) {
       )}
       <Typography
         sx={{
-          color: "#fff",
+          color: isLight ? theme.app.text.primary : "#fff",
           fontSize: "14px",
           fontWeight: 500,
           lineHeight: 1.2,

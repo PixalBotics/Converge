@@ -1,13 +1,17 @@
 "use client";
 
+import type { MouseEventHandler } from "react";
 import Box from "@mui/material/Box";
-import { Button } from "@/components/common/Button";
-import type { SxProps, Theme } from "@mui/material/styles";
+import { alpha, useTheme, type SxProps, type Theme } from "@mui/material/styles";
+import type { AppTheme } from "@/theme/theme";
 import { Typography } from "@/components/common";
+import { Button } from "@/components/common/Button";
+import { resolveSx } from "@/utils/resolveSx";
+import { filterChromeButtonSx } from "./filter-button.styles";
 
 function FilterIcon({ sx }: { sx?: SxProps<Theme> }) {
   return (
-    <Box component="span" sx={{ display: "inline-flex", lineHeight: 0, ...sx }}>
+    <Box component="span" sx={{ display: "inline-flex", lineHeight: 0, color: "inherit", ...sx }}>
       <svg
         width="20"
         height="20"
@@ -29,28 +33,36 @@ function FilterIcon({ sx }: { sx?: SxProps<Theme> }) {
 
 interface FilterButtonProps {
   sx?: SxProps<Theme>;
+  onClick?: MouseEventHandler<HTMLElement>;
+  /** Visually emphasize when filters are active. */
+  active?: boolean;
+  "aria-expanded"?: boolean;
+  "aria-controls"?: string;
 }
 
-export function FilterButton({ sx }: FilterButtonProps) {
+export function FilterButton({ sx, onClick, active, "aria-expanded": ariaExpanded, "aria-controls": ariaControls }: FilterButtonProps) {
+  const theme = useTheme() as AppTheme;
+
   return (
     <Button
+      type="button"
       variant="outlined"
-      sx={{
-        borderRadius: "9999px",
-        px: 2.5,
-        py: 1.5,
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 1,
-        borderColor: "#FFFFFF0F",
-        color: "#E5E7EB",
-        backgroundColor: "#16123F",
-        "&:hover": {
-          backgroundColor: "#16123F",
-          borderColor: "#FFFFFF33",
-        },
-        ...((sx as object) ?? {}),
-      }}
+      onClick={onClick}
+      aria-expanded={ariaExpanded}
+      aria-controls={ariaControls}
+      sx={
+        {
+          ...(resolveSx(filterChromeButtonSx, theme) as Record<string, unknown>),
+          ...(resolveSx(sx, theme) as Record<string, unknown>),
+          ...(active
+            ? {
+                borderColor: `${theme.palette.primary.main} !important`,
+                bgcolor: theme.app.dashboard.navActiveBg,
+                boxShadow: `0 0 0 1px ${alpha(theme.palette.primary.main, 0.35)}`,
+              }
+            : {}),
+        } as SxProps<Theme>
+      }
     >
       <FilterIcon sx={{ "& svg": { width: 18, height: 18 } }} />
       <Typography component="span" variant="medium" color="inherit">
@@ -59,4 +71,3 @@ export function FilterButton({ sx }: FilterButtonProps) {
     </Button>
   );
 }
-

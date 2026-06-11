@@ -1,11 +1,39 @@
 import type { SxProps, Theme } from "@mui/material/styles";
+import type { AppTheme } from "@/theme/theme";
 
-export const dashboardText: SxProps<Theme> = {
-  color: "#FFFFFF80",
+/** Main dashboard content text defaults; use with `sx={[layout..., dashboardMainTextSx]}`. */
+export const dashboardMainTextSx: SxProps<Theme> = (theme) => ({
+  color: (theme as AppTheme).app.dashboard.textSubtleMuted,
   fontFamily: '"Manrope", sans-serif',
   fontWeight: 400,
   fontStyle: "normal",
   fontSize: 14,
+});
+
+/**
+ * Agent inbox / monitor — start directly under dashboard header; no page scroll (panes scroll inside).
+ */
+export const dashboardChatWorkstationMainSx: SxProps<Theme> = {
+  flex: 1,
+  minHeight: 0,
+  height: "100%",
+  display: "flex",
+  flexDirection: "column",
+  overflow: "hidden",
+  // py: 0,
+  // px: { xs: 0, sm: 0.5, md: 1 },
+};
+
+/** Frosted main column when `mainBackdropBlur` is set on the theme. */
+export const dashboardMainGlassSx: SxProps<Theme> = (theme) => {
+  const app = (theme as AppTheme).app;
+  const b = app.dashboard.mainBackdropBlur;
+  if (!b || b === "none") return {};
+  return {
+    background: app.dashboard.contentBg,
+    backdropFilter: b,
+    WebkitBackdropFilter: b,
+  };
 };
 
 export const pageWrapper: SxProps<Theme> = {
@@ -22,36 +50,37 @@ export const overviewHeader: SxProps<Theme> = {
   mb: 3,
 };
 
-/** Last 30 Days pill button — screenshot match: blended bg, inset shadows, pill shape */
-export const last30DaysButton: SxProps<Theme> = {
-  position: "relative",
-  overflow: "hidden",
-  textTransform: "none",
-  color: "#FFFFFF",
-  fontWeight: 500,
-  borderRadius: "9999px",
-  padding: "8px 20px",
-  border: "1px solid rgba(255,255,255,0.12)",
-  background: "#9999994D, #33333373, #000000",
-  backgroundBlendMode: "darken, luminosity, normal",
-  boxShadow:
-    "0px 0px 16px 0px #F2F2F2 inset, 0px 0px 3px 0px #FFFFFF80 inset, -1px -1px 0.5px -1px #FFFFFF inset, 1px 1px 0.5px -1px #FFFFFF inset, -1px -1px 0px -0.5px #262626 inset, 1px 1px 0px -0.5px #333333 inset",
-  "&::before": {
-    content: '""',
-    position: "absolute",
-    inset: 0,
+/** Date-range dropdown trigger — pill matches theme (contrast-safe in light + dark). */
+export const last30DaysButton: SxProps<Theme> = (theme) => {
+  const app = (theme as AppTheme).app;
+  return {
+    position: "relative",
+    overflow: "hidden",
+    textTransform: "none",
+    color: app.text.primary,
+    fontWeight: 500,
     borderRadius: "9999px",
-    background: "#FFFFFF14",
-    pointerEvents: "none",
-  },
-  "& > span": { position: "relative", zIndex: 1 },
-  "&:hover": {
-    background: "#9999994D, #33333373, #000000",
-    backgroundBlendMode: "darken, luminosity, normal",
-    borderColor: "rgba(255,255,255,0.18)",
-    boxShadow:
-      "0px 0px 16px 0px #F2F2F2 inset, 0px 0px 3px 0px #FFFFFF80 inset, -1px -1px 0.5px -1px #FFFFFF inset, 1px 1px 0.5px -1px #FFFFFF inset, -1px -1px 0px -0.5px #262626 inset, 1px 1px 0px -0.5px #333333 inset",
-  },
+    padding: "8px 20px",
+    border: `1px solid ${app.dashboard.cardBorder}`,
+    background: app.dashboard.pillBg,
+    backgroundBlendMode: "normal",
+    boxShadow: "none",
+    "&::before": {
+      content: '""',
+      position: "absolute",
+      inset: 0,
+      borderRadius: "9999px",
+      background: app.dashboard.overlayLight,
+      pointerEvents: "none",
+    },
+    "& > span": { position: "relative", zIndex: 1 },
+    "&:hover": {
+      background: app.dashboard.pillActive,
+      backgroundBlendMode: "normal",
+      borderColor: app.dashboard.overlayBorder,
+      boxShadow: "none",
+    },
+  };
 };
 
 export const grid3: SxProps<Theme> = {
@@ -79,6 +108,7 @@ export const grid2Lg: SxProps<Theme> = {
   gridTemplateColumns: { xs: "1fr", md: "1.2fr 1fr", lg: "1.2fr 1fr" },
   gap: { xs: 1.5, sm: 2 },
   mb: 2,
+  alignItems: "stretch",
   "& > *": { minWidth: 0 },
 };
 
@@ -125,7 +155,7 @@ export const revenueIconBox: SxProps<Theme> = {
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
-  boxShadow: "0 8px 24px rgba(15, 23, 42, 0.65)",
+  boxShadow: "none",
 };
 
 export const revenueToggleGroup: SxProps<Theme> = {
@@ -149,7 +179,7 @@ export const revenueToggleGroup: SxProps<Theme> = {
       bgcolor: "#0048B70A",
       color: "#FFFFFF",
       border: "0.51px solid #D9D9D90F",
-      boxShadow: "0 6px 18px rgba(15, 23, 42, 0.8)",
+      boxShadow: "none",
       "&:hover": {
         bgcolor: "#0048B70A",
       },
@@ -238,7 +268,8 @@ export const chatAnalyticsToggleGroup: SxProps<Theme> = {
 };
 
 export const chartBox220: SxProps<Theme> = {
-  height: "100%",
+  flex: 1,
+  minHeight: 220,
   borderRadius: 2,
   overflow: "hidden",
   outline: "none",
@@ -250,7 +281,7 @@ export const chartBox220: SxProps<Theme> = {
 };
 
 export const chartBox260: SxProps<Theme> = {
-  height: "100%",
+  flex: 1,
   minHeight: 260,
   outline: "none",
   "&:focus": { outline: "none", boxShadow: "none" },
@@ -264,10 +295,12 @@ export const chartBox260: SxProps<Theme> = {
 export const chartBoxDepartmentPerformance: SxProps<Theme> = {
   ...chartBox260,
   minHeight: 320,
+  flex: 1,
 };
 
 export const chartBox280: SxProps<Theme> = {
-  height: "100%",
+  flex: 1,
+  minHeight: 260,
   outline: "none",
   "&:focus": { outline: "none", boxShadow: "none" },
   "&:focus-visible": { outline: "none", boxShadow: "none" },
@@ -299,28 +332,28 @@ export const licenseExpiredText: SxProps<Theme> = {
   display: "block",
 };
 
-export const tableRoot: SxProps<Theme> = {
+export const tableRoot: SxProps<Theme> = (theme) => ({
   "& .MuiTableCell-root": {
-    borderColor: "rgba(255,255,255,0.08)",
+    borderColor: (theme as AppTheme).app.dashboard.cardBorder,
   },
-};
+});
 
-export const tableHeaderCell: SxProps<Theme> = {
-  color: "rgba(255,255,255,0.8)",
+export const tableHeaderCell: SxProps<Theme> = (theme) => ({
+  color: (theme as AppTheme).app.dashboard.white80,
   fontWeight: 600,
-};
+});
 
-export const tableCellWhite: SxProps<Theme> = {
-  color: "white",
-};
+export const tableCellWhite: SxProps<Theme> = (theme) => ({
+  color: (theme as AppTheme).app.text.primary,
+});
 
-export const tableCellMuted: SxProps<Theme> = {
-  color: "rgba(255,255,255,0.7)",
-};
+export const tableCellMuted: SxProps<Theme> = (theme) => ({
+  color: (theme as AppTheme).app.dashboard.white7,
+});
 
-export const tableActionButton: SxProps<Theme> = {
-  color: "rgba(255,255,255,0.6)",
-};
+export const tableActionButton: SxProps<Theme> = (theme) => ({
+  color: (theme as AppTheme).app.dashboard.white60,
+});
 
 export const iconSize22: SxProps<Theme> = {
   fontSize: 22,
@@ -366,8 +399,21 @@ export const liveOverviewHeaderIconBox: SxProps<Theme> = {
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
+  flexShrink: 0,
+  lineHeight: 0,
   color: "#E9D5FF",
-  boxShadow: "0 6px 20px rgba(91, 33, 182, 0.4)",
+  boxShadow: "none",
+  "& > *": {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  "& .MuiSvgIcon-root": {
+    display: "block",
+    lineHeight: 0,
+    margin: 0,
+  },
+  "& svg": { display: "block", verticalAlign: "middle" },
 };
 
 export const liveOverviewWaitingCard: SxProps<Theme> = {
@@ -383,12 +429,12 @@ export const liveOverviewWaitingCard: SxProps<Theme> = {
   height: "auto",
 };
 
-export const liveOverviewSectionTitle: SxProps<Theme> = {
+export const liveOverviewSectionTitle: SxProps<Theme> = (theme) => ({
   fontWeight: 700,
   fontSize: "1rem",
-  color: "rgba(255,255,255,0.95)",
+  color: (theme as AppTheme).app.dashboard.white95,
   mb: 1.5,
-};
+});
 
 export const liveOverviewChatRow: SxProps<Theme> = {
   display: "flex",
@@ -435,22 +481,29 @@ export const tableAvatar: SxProps<Theme> = {
   height: 32,
   bgcolor: "#3B82F6",
   color: "white",
-  "& .MuiSvgIcon-root": { fontSize: 18 },
+  "& .MuiSvgIcon-root": {
+    fontSize: 18,
+    display: "block",
+    lineHeight: 0,
+  },
 };
 
 export const tableAvatarIcon: SxProps<Theme> = {
   fontSize: 18,
 };
 
-export const activeChatsPill: SxProps<Theme> = {
+export const activeChatsPill: SxProps<Theme> = (theme) => ({
   px: 1.25,
   py: 0.25,
   borderRadius: "9999px",
-  bgcolor: "rgba(59, 130, 246, 0.2)",
-  color: "#93C5FD",
+  bgcolor:
+    theme.palette.mode === "light"
+      ? "rgba(59, 130, 246, 0.18)"
+      : "rgba(59, 130, 246, 0.2)",
+  color: theme.palette.mode === "light" ? "#1D4ED8" : "#FFFFFF",
   fontSize: "0.75rem",
   fontWeight: 500,
-};
+});
 
 export const avgRatingBox: SxProps<Theme> = {
   display: "inline-flex",
@@ -466,6 +519,24 @@ export const starIconYellow: SxProps<Theme> = {
 export const chatVolumeSummaryWrapper: SxProps<Theme> = {
   ...cardPadding,
   pt: 0,
+  flexShrink: 0,
+};
+
+/** Stretch chart area under card header so paired grid columns share one row height. */
+export const chartFlexFill: SxProps<Theme> = {
+  flex: 1,
+  minHeight: 0,
+  display: "flex",
+  flexDirection: "column",
+};
+
+/** Two-column chart row: same width ratio as `grid2Lg`, equal card height in the row. */
+export const dashboardChartRowCard: SxProps<Theme> = {
+  ...cardPadding,
+  display: "flex",
+  flexDirection: "column",
+  height: "100%",
+  minHeight: 0,
 };
 
 export const chatVolumeSummaryLabel: SxProps<Theme> = {
@@ -476,20 +547,34 @@ export const chatVolumeResolvedColor: SxProps<Theme> = {
   color: "#5A67D8",
 };
 
+/** Same column template as `grid2Lg` so upper/lower card gutters line up vertically. */
 export const gridAgentLiveOverview: SxProps<Theme> = {
   ...grid2Lg,
-  gridTemplateColumns: { xs: "1fr", md: "1.5fr 1fr" },
 };
 
 export const cardAgentPerformance: SxProps<Theme> = {
-  ...cardPaddingAutoHeight,
+  ...cardPadding,
   minWidth: 0,
   overflow: "hidden",
+  display: "flex",
+  flexDirection: "column",
+  height: "100%",
+  minHeight: 0,
+};
+
+export const agentPerformanceTableWrap: SxProps<Theme> = {
+  flex: 1,
+  minHeight: 0,
+  overflow: "auto",
 };
 
 export const cardLiveOverview: SxProps<Theme> = {
   ...cardPadding,
   minWidth: 0,
+  display: "flex",
+  flexDirection: "column",
+  height: "100%",
+  minHeight: 0,
 };
 
 export const liveOverviewIconSize: SxProps<Theme> = {
@@ -520,6 +605,9 @@ export const liveOverviewChatList: SxProps<Theme> = {
   display: "flex",
   flexDirection: "column",
   minWidth: 0,
+  flex: 1,
+  minHeight: 0,
+  overflow: "auto",
 };
 
 export const liveOverviewAvatar: SxProps<Theme> = {

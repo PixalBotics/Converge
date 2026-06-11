@@ -1,14 +1,21 @@
 "use client";
 
 import { useState } from "react";
+import type { MouseEvent } from "react";
 import Box from "@mui/material/Box";
 import TextField from "@mui/material/TextField";
 import IconButton from "@mui/material/IconButton";
 import InputAdornment from "@mui/material/InputAdornment";
 import { useTheme } from "@mui/material/styles";
 import { Label } from "@/components/common/Label";
+import {
+  applyOutlineFieldCursorPosition,
+  resetOutlineFieldCursorPosition,
+} from "./outlineFieldCursor";
 import { textFieldStyles } from "./InputField.styles";
+import type { SxProps, Theme } from "@mui/material/styles";
 import type { InputFieldProps } from "./InputField.types";
+import { resolveSx } from "@/utils/resolveSx";
 import { eyeSvg, hideEyeSvg } from "@/assets";
 
 export function InputField({
@@ -21,6 +28,9 @@ export function InputField({
   helperText,
   fullWidth = true,
   inputProps,
+  sx,
+  scrollAnchorPath,
+  dense = false,
   ...rest
 }: InputFieldProps) {
   const theme = useTheme();
@@ -28,27 +38,85 @@ export function InputField({
   const isPasswordField = type === "password";
   const [showPassword, setShowPassword] = useState(false);
   const inputType = isPasswordField && showPassword ? "text" : type;
+  const { onMouseMove, onMouseLeave, ...textFieldRest } = rest;
+
+  const handleMouseMove = (event: MouseEvent<HTMLDivElement>) => {
+    applyOutlineFieldCursorPosition(event);
+    onMouseMove?.(event as unknown as MouseEvent<HTMLInputElement>);
+  };
+
+  const handleMouseLeave = (event: MouseEvent<HTMLDivElement>) => {
+    resetOutlineFieldCursorPosition(event);
+    onMouseLeave?.(event as unknown as MouseEvent<HTMLInputElement>);
+  };
+
+  /** One-line helper slot so validation text does not shift the field layout. */
+  const hasHelperMessage = Boolean(helperText?.trim());
+  const helperSlot = hasHelperMessage ? helperText : "\u00a0";
+  const hideEmptyHelper = !hasHelperMessage && !error;
+  const showLabel = Boolean(label.trim());
 
   return (
-    <Box sx={{ width: fullWidth ? "100%" : "auto" }}>
-      <Label htmlFor={fieldId} variant="mediumLarge" sx={{ mb: 0.75 }}>
-        {label}
-      </Label>
+    <Box
+      sx={{ width: fullWidth ? "100%" : "auto" }}
+      {...(scrollAnchorPath ? { "data-setup-scroll-anchor": scrollAnchorPath } : {})}
+    >
+      {showLabel ? (
+        <Label
+          htmlFor={fieldId}
+          variant={dense ? "mediumSmall" : "mediumLarge"}
+          sx={{
+            mb: dense ? 0.5 : 0.75,
+            ...(error ? { color: theme.palette.error.main } : {}),
+          }}
+        >
+          {label}
+        </Label>
+      ) : null}
       <TextField
         id={fieldId}
         name={name}
         placeholder={placeholder}
         inputProps={{
-          "aria-label": label,
-          maxLength: 40,
+          "aria-label": showLabel ? label : name ?? fieldId,
           ...inputProps,
         }}
         type={inputType}
         error={error}
-        helperText={helperText}
+        helperText={helperSlot}
+        FormHelperTextProps={{
+          sx: (t) => ({
+            minHeight: "1.25rem",
+            lineHeight: 1.43,
+            display: "block",
+            marginTop: t.spacing(0.75),
+            ...(error && hasHelperMessage ? { color: t.palette.error.main } : {}),
+            ...(hideEmptyHelper
+              ? { color: "transparent", userSelect: "none", pointerEvents: "none" as const }
+              : {}),
+          }),
+          ...(hideEmptyHelper ? { "aria-hidden": true } : {}),
+        }}
         fullWidth={fullWidth}
         variant="outlined"
-        sx={textFieldStyles(theme)}
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
+        sx={
+          [
+            textFieldStyles(theme),
+            error
+              ? {
+                  "& .MuiOutlinedInput-root.Mui-error": {
+                    "&::before": {
+                      backgroundColor: `${theme.palette.error.main} !important`,
+                      height: "3px",
+                    },
+                  },
+                }
+              : {},
+            ...(sx ? [resolveSx(sx, theme)] : []),
+          ] as SxProps<Theme>
+        }
         InputProps={
           isPasswordField
             ? {
@@ -73,7 +141,7 @@ export function InputField({
               }
             : undefined
         }
-        {...rest}
+        {...textFieldRest}
       />
     </Box>
   );

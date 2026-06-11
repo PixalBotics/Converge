@@ -9,11 +9,15 @@ import type { AppCardProps } from "./AppCard.types";
 export function AppCard({
   children,
   maxWidth = 440,
+  elevation,
   sx = {},
 }: AppCardProps) {
   const theme = useTheme();
   return (
-    <Card sx={{ ...cardStyles(theme), maxWidth, ...sx }}>
+    <Card
+      {...(elevation !== undefined ? { elevation } : {})}
+      sx={{ ...cardStyles(theme), maxWidth, ...sx }}
+    >
       <CardContent sx={cardContentStyles}>{children}</CardContent>
     </Card>
   );

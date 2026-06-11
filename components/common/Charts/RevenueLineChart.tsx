@@ -13,19 +13,8 @@ import {
   Tooltip,
 } from "recharts";
 import type { RevenueLineChartProps } from "./RevenueLineChart.types";
-import {
-  revenueLineChartRoot,
-  revenueLineChartGrid,
-  revenueLineChartXAxis,
-  revenueLineChartYAxis,
-  revenueLineChartTooltipContent,
-  revenueLineChartTooltipLabel,
-  revenueLineChartTooltipItem,
-  revenueLineChartCursor,
-  revenueLineChartGradientStops,
-  revenueLineChartLine1,
-  revenueLineChartLine2,
-} from "./RevenueLineChart.styles";
+import { revenueLineChartRoot } from "./RevenueLineChart.styles";
+import { useAppChartStyles } from "./useAppChartStyles";
 
 const DEFAULT_HEIGHT = 280;
 const MARGIN_DESKTOP = { top: 10, right: 10, left: 0, bottom: 0 };
@@ -43,6 +32,7 @@ export function RevenueLineChart({
   tooltipLabelFormatter = (day) => `${Number(day)} April, 2026`,
 }: RevenueLineChartProps) {
   const theme = useTheme();
+  const chart = useAppChartStyles().revenue;
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const gradientId = "revenueGlow";
   const margin = isMobile ? MARGIN_MOBILE : MARGIN_DESKTOP;
@@ -56,7 +46,7 @@ export function RevenueLineChart({
         <LineChart data={data} margin={margin}>
           <defs>
             <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-              {revenueLineChartGradientStops.map((stop, i) => (
+              {chart.gradientStops.map((stop, i) => (
                 <stop
                   key={i}
                   offset={stop.offset}
@@ -66,28 +56,28 @@ export function RevenueLineChart({
               ))}
             </linearGradient>
           </defs>
-          <CartesianGrid stroke={revenueLineChartGrid.stroke} vertical={false} />
+          <CartesianGrid stroke={chart.gridStroke} vertical={false} />
           <XAxis
             dataKey="day"
-            stroke={revenueLineChartXAxis.stroke}
-            tick={{ ...revenueLineChartXAxis.tick, fontSize: tickFontSize }}
-            tickLine={revenueLineChartXAxis.tickLine}
-            axisLine={revenueLineChartXAxis.axisLine}
+            stroke={chart.xAxis.stroke}
+            tick={{ ...chart.xAxis.tick, fontSize: tickFontSize }}
+            tickLine={chart.xAxis.tickLine}
+            axisLine={chart.xAxis.axisLine}
             ticks={xTicks}
           />
           <YAxis
-            stroke={revenueLineChartYAxis.stroke}
-            tick={{ ...revenueLineChartYAxis.tick, fontSize: tickFontSize }}
-            tickLine={revenueLineChartYAxis.tickLine}
-            axisLine={revenueLineChartYAxis.axisLine}
+            stroke={chart.yAxis.stroke}
+            tick={{ ...chart.yAxis.tick, fontSize: tickFontSize }}
+            tickLine={chart.yAxis.tickLine}
+            axisLine={chart.yAxis.axisLine}
             domain={yDomain}
             tickFormatter={yTickFormatter}
             width={isMobile ? 32 : 40}
           />
           <Tooltip
-            contentStyle={revenueLineChartTooltipContent}
-            labelStyle={revenueLineChartTooltipLabel}
-            itemStyle={revenueLineChartTooltipItem}
+            contentStyle={chart.tooltipContent}
+            labelStyle={chart.tooltipLabel}
+            itemStyle={chart.tooltipItem}
             formatter={(value: unknown) => [tooltipFormatter(Number(value)), "Revenue"]}
             labelFormatter={(label) => {
               const safeLabel =
@@ -98,24 +88,24 @@ export function RevenueLineChart({
                   : "";
               return tooltipLabelFormatter(safeLabel);
             }}
-            cursor={revenueLineChartCursor}
+            cursor={chart.cursor}
           />
           <Area type="monotone" dataKey="value" fill={`url(#${gradientId})`} stroke="none" />
           <Line
             type="monotone"
             dataKey="value"
-            stroke={revenueLineChartLine1.stroke}
-            strokeWidth={revenueLineChartLine1.strokeWidth}
-            dot={revenueLineChartLine1.dot}
-            activeDot={{ ...revenueLineChartLine1.activeDot, r: activeDotR }}
+            stroke={chart.line1.stroke}
+            strokeWidth={chart.line1.strokeWidth}
+            dot={chart.line1.dot}
+            activeDot={{ ...chart.line1.activeDot, r: activeDotR }}
           />
           <Line
             type="monotone"
             dataKey="value2"
-            stroke={revenueLineChartLine2.stroke}
-            strokeWidth={revenueLineChartLine2.strokeWidth}
-            dot={revenueLineChartLine2.dot}
-            activeDot={{ ...revenueLineChartLine2.activeDot, r: activeDotR }}
+            stroke={chart.line2.stroke}
+            strokeWidth={chart.line2.strokeWidth}
+            dot={chart.line2.dot}
+            activeDot={{ ...chart.line2.activeDot, r: activeDotR }}
           />
         </LineChart>
       </ResponsiveContainer>

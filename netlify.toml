@@ -1,0 +1,23 @@
+# Next.js on Netlify must use the OpenNext adapter (this plugin), not “static file” hosting.
+# If Site settings → Build & deploy → Publish directory is set to the repo root, deep links
+# and refreshes return 404. This file overrides that: publish points at the Next build output
+# and the plugin provisions Functions/Edge so App Router routes are served correctly.
+
+[build]
+  # Netlify: no clean:next (fresh clone + cache); duplicate-import + env checks before build.
+  command = "npm run build:netlify"
+  publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "22"
+  NETLIFY = "true"
+  NODE_OPTIONS = "--max-old-space-size=8192"
+  # Netlify UI → Site configuration → Environment variables (Production):
+  #   NEXT_PUBLIC_API_BASE_URL=https://convergit-saas.onrender.com
+  #   NEXT_PUBLIC_CHAT_SOCKET_BASE_URL=https://convergit-saas.onrender.com
+  #   NEXT_PUBLIC_CHAT_SOCKET_NAMESPACE=/chat
+  #   NEXT_PUBLIC_WIDGET_EMBED_ORIGIN=https://YOUR-SITE.netlify.app  (this app, NOT Render)
+  # Backend Blueprint: Convergit_saas/render.yaml — see Convergit_saas/docs/render-deploy.md
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"

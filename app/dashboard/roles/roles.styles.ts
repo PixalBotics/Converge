@@ -1,4 +1,5 @@
 import type { SxProps, Theme } from "@mui/material/styles";
+import type { AppTheme } from "@/theme/theme";
 
 export const rolesPageWrapper: SxProps<Theme> = {
   maxWidth: 1600,
@@ -21,18 +22,26 @@ export const rolesAddButtonWrapper: SxProps<Theme> = {
   width: { xs: "100%", sm: "auto" },
 };
 
-export const rolesAddButton: SxProps<Theme> = {
-  borderRadius: "9999px",
-  px: 3,
-  py: 1.25,
-  display: "inline-flex",
-  alignItems: "center",
-  gap: 1,
-  width: { xs: "100%", sm: "auto" },
-  justifyContent: "center",
-  background: "linear-gradient(135deg, #1F2937 0%, #020617 100%)",
-  boxShadow: "0 10px 25px rgba(15,23,42,0.7)",
-  border: "1px solid rgba(148,163,184,0.5)",
+export const rolesAddButton: SxProps<Theme> = (theme) => {
+  const app = (theme as AppTheme).app;
+  return {
+    borderRadius: "9999px",
+    px: 3,
+    py: 1.25,
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 1,
+    width: { xs: "100%", sm: "auto" },
+    justifyContent: "center",
+    background: app.dashboard.gradientButton,
+    color: app.dashboard.gradientButtonText,
+    boxShadow: "none",
+    border: `1px solid ${app.dashboard.overlayBorder}`,
+    "&:hover": {
+      background: app.dashboard.gradientButton,
+      color: app.dashboard.gradientButtonText,
+    },
+  };
 };
 
 export const rolesCard: SxProps<Theme> = {
@@ -58,13 +67,26 @@ export const rolesIconBox: SxProps<Theme> = {
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
-  boxShadow: "0 10px 30px rgba(15,23,42,0.85)",
+  flexShrink: 0,
+  lineHeight: 0,
+  boxShadow: "none",
+  "& > *": {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  "& .MuiSvgIcon-root": {
+    display: "block",
+    lineHeight: 0,
+    margin: 0,
+  },
+  "& svg": { display: "block", verticalAlign: "middle" },
 };
 
 export const rolesSearchRow: SxProps<Theme> = {
   display: "flex",
-  flexDirection: "row",
-  alignItems: "center",
+  flexDirection: { xs: "column", sm: "row" },
+  alignItems: { xs: "stretch", sm: "center" },
   gap: 1,
   width: { xs: "100%", md: "auto" },
 };
@@ -73,16 +95,16 @@ export const rolesSearchFieldWrapper: SxProps<Theme> = {
   flex: 1,
 };
 
-export const rolesFooterRow: SxProps<Theme> = {
+export const rolesFooterRow: SxProps<Theme> = (theme) => ({
   mt: 1,
   display: "flex",
   flexDirection: { xs: "column", sm: "row" },
   alignItems: { xs: "flex-start", sm: "center" },
   justifyContent: "space-between",
   gap: 1.5,
-  color: "rgba(148,163,184,0.9)",
+  color: (theme as AppTheme).app.dashboard.textMuted,
   fontSize: 13,
-};
+});
 
 export const rolesPaginationWrapper: SxProps<Theme> = {
   width: { xs: "100%", sm: "auto" },

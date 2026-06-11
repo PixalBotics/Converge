@@ -1,4 +1,57 @@
+import { alpha } from "@mui/material/styles";
 import type { Theme } from "@mui/material/styles";
+import type { MenuProps } from "@mui/material/Menu";
+import type { AppTheme } from "@/theme/theme";
+import { FORM_MODAL_MUI_OVERLAY_Z_INDEX } from "@/lib/ui/dialogStacking";
+import { hideScrollbarsSx } from "@/lib/ui/hideScrollbars";
+
+export { hideScrollbarsSx };
+
+/** Shared `MenuProps` for MUI `TextField select` / toolbar filter dropdowns. */
+export function selectMenuProps(theme: Theme, extra?: Partial<MenuProps>): Partial<MenuProps> {
+  return {
+    sx: { zIndex: FORM_MODAL_MUI_OVERLAY_Z_INDEX },
+    MenuListProps: { sx: hideScrollbarsSx },
+    PaperProps: { sx: selectMenuPaperSx(theme) },
+    ...extra,
+  };
+}
+
+/** MUI Select menu panel — matches header/surface theme (not fixed navy). */
+export function selectMenuPaperSx(theme: Theme) {
+  const app = (theme as AppTheme).app;
+  return {
+    ...hideScrollbarsSx,
+    "& .MuiMenu-list": hideScrollbarsSx,
+    zIndex: FORM_MODAL_MUI_OVERLAY_Z_INDEX,
+    // Higher opacity so the table behind doesn't "bleed" through.
+    bgcolor: app.dashboard.menuSurfaceBg,
+    backdropFilter: "blur(6px)",
+    WebkitBackdropFilter: "blur(6px)",
+    borderRadius: 2,
+    mt: 1,
+    border: `1px solid ${app.dashboard.cardBorder}`,
+    boxShadow: "none",
+  };
+}
+
+/** MUI Select menu rows — text + accent-tinted selection. */
+export function selectMenuItemSx(theme: Theme) {
+  const app = (theme as AppTheme).app;
+  const accent = app.dashboard.accentBlue;
+  return {
+    fontFamily: "Manrope",
+    fontSize: 14,
+    color: app.text.primary,
+    cursor: "pointer",
+    "&.Mui-selected": {
+      bgcolor: alpha(accent, 0.32),
+    },
+    "&.Mui-selected:hover": {
+      bgcolor: alpha(accent, 0.42),
+    },
+  };
+}
 
 export const selectFieldStyles = (theme: Theme) =>
   [
@@ -6,7 +59,10 @@ export const selectFieldStyles = (theme: Theme) =>
     // and extend with select-specific tweaks
     {
       "& .MuiOutlinedInput-root": {
-        borderRadius: "53px",
+        borderRadius: "12px",
+        "&::after": {
+          borderRadius: "12px",
+        },
       },
       "& .MuiSelect-select": {
         color: theme.app.text.placeholder,

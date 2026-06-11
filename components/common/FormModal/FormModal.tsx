@@ -1,12 +1,23 @@
 "use client";
 
+import type { ReactNode, RefObject } from "react";
+import { useLayoutEffect, useState } from "react";
+import { createPortal } from "react-dom";
+import { useBodyScrollLock } from "@/lib/ui/useBodyScrollLock";
+import { dialogBackdropBackground } from "@/lib/ui/dialogBackdrop";
+import { FORM_MODAL_PORTAL_Z_INDEX } from "@/lib/ui/dialogStacking";
+import Close from "@mui/icons-material/Close";
 import Box from "@mui/material/Box";
 import IconButton from "@mui/material/IconButton";
 import { useTheme } from "@mui/material/styles";
 import type { SxProps, Theme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
-import { DashboardCard, Typography, Button } from "@/components/common";
-import { CloseCircleIcon } from "@/components/dashboard/icons/CloseCircleIcon";
+import { Typography, Button } from "@/components/common";
+import { ModalGlassShell } from "./ModalGlassShell";
+import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
+import { iconGlyphSx, modalCloseIconButtonFilledSx, modalCloseIconButtonSx } from "@/lib/design-system";
+import { CloseCircleIcon } from "@/components/common/icons";
+import { IconSlot } from "@/components/common/IconSlot";
 
 export interface FormModalFieldConfig {
   id: string;
@@ -22,7 +33,26 @@ export interface FormModalProps {
   onClose: () => void;
   onSave: () => void;
   primaryButtonLabel?: string;
+  /** When true, the primary action button is non-interactive (e.g. while a mutation runs). */
+  primaryButtonDisabled?: boolean;
   cancelButtonLabel?: string;
+  /** When false, hides the cancel button entirely. Default: true */
+  showCancelButton?: boolean;
+  /** `danger` — red destructive submit (e.g. delete user). Default `primary` uses gradient CTA styles. */
+  primaryButtonVariant?: "primary" | "danger";
+  /** Primary action icon (e.g. sparkle) — uses shared gradient primary button. */
+  primaryStartIcon?: ReactNode;
+  /** Modal card max width (default 540). */
+  maxWidth?: number | string;
+  /** Close control: outline ring (default) or solid red circle with white ✕ (e.g. Edit IP Block). */
+  closeButtonVariant?: "outline" | "filled";
+  /**
+   * When true, body height follows content (no flex stretch); scrolls only if content exceeds viewport.
+   * Use for tall dynamic forms (e.g. Add Social Media) so the card does not leave empty vertical space.
+   */
+  fitContent?: boolean;
+  /** Attach to the scrollable fields region (for `scrollIntoView` targeting). */
+  fieldsScrollRef?: RefObject<HTMLDivElement | null>;
   children?: React.ReactNode;
   sx?: SxProps<Theme>;
 }
@@ -34,40 +64,53 @@ export function FormModal({
   onClose,
   onSave,
   primaryButtonLabel = "Save",
+  primaryButtonDisabled = false,
   cancelButtonLabel = "Cancel",
+  showCancelButton = true,
+  primaryButtonVariant = "primary",
+  primaryStartIcon,
+  maxWidth = 540,
+  fitContent = false,
+  closeButtonVariant = "outline",
+  fieldsScrollRef,
   children,
   sx,
 }: FormModalProps) {
   const theme = useTheme() as AppTheme;
+  const [mounted, setMounted] = useState(false);
+  useBodyScrollLock(open);
+
+  useLayoutEffect(() => {
+    setMounted(true);
+  }, []);
 
   if (!open) return null;
 
-  return (
+  const layer = (
     <Box
+      role="dialog"
+      aria-modal="true"
       sx={{
         position: "fixed",
         inset: 0,
-        zIndex: 1400,
+        zIndex: FORM_MODAL_PORTAL_Z_INDEX,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        bgcolor: theme.app.dashboard.backdropDark,
+        /** Tint only here — blur on the same layer weakens inner `ModalGlassShell` backdrop-filter. */
+        background: dialogBackdropBackground(theme),
         p: 2,
       }}
     >
-      <DashboardCard
+      <ModalGlassShell
         sx={{
-          position: "relative",
           width: "100%",
-          maxWidth: 540,
+          maxWidth,
           maxHeight: "90vh",
           height: "auto",
           display: "flex",
           flexDirection: "column",
-          overflow: "hidden",
           p: 3,
-          background: theme.appBackground,
-          borderRadius: 3,
           ...((sx as object) ?? {}),
         }}
       >
@@ -91,7 +134,14 @@ export function FormModal({
             {description && (
               <Typography
                 variant="body2"
-                sx={{ mt: 0.5, color: theme.app.dashboard.textMuted, fontSize: 14 }}
+                sx={{
+                  mt: 0.5,
+                  color:
+                    theme.palette.mode === "light"
+                      ? theme.app.text.secondary
+                      : theme.app.dashboard.white80,
+                  fontSize: 14,
+                }}
               >
                 {description}
               </Typography>
@@ -100,26 +150,42 @@ export function FormModal({
           <IconButton
             onClick={onClose}
             size="small"
-            sx={{
-              width: 35,
-              height: 35,
-              p: 0,
-            }}
+            aria-label="Close dialog"
+            sx={
+              closeButtonVariant === "filled"
+                ? modalCloseIconButtonFilledSx(theme)
+                : modalCloseIconButtonSx(theme)
+            }
           >
-            <CloseCircleIcon width={43} height={43} />
+            <IconSlot slot={36} glyph="md">
+              {closeButtonVariant === "filled" ? (
+                <Close sx={iconGlyphSx("md")} />
+              ) : (
+                <CloseCircleIcon />
+              )}
+            </IconSlot>
           </IconButton>
         </Box>
 
         <Box
+          ref={fieldsScrollRef}
           sx={{
-            flex: 1,
-            minHeight: 0,
-            overflowY: "auto",
-            overflowX: "hidden",
             display: "flex",
             flexDirection: "column",
             gap: 2.5,
             mb: 3,
+            overflowX: "hidden",
+            ...(fitContent
+              ? {
+                  flex: "none",
+                  maxHeight: "calc(90vh - 220px)",
+                  overflowY: "auto",
+                }
+              : {
+                  flex: 1,
+                  minHeight: 0,
+                  overflowY: "auto",
+                }),
             scrollbarWidth: "none",
             msOverflowStyle: "none",
             "&::-webkit-scrollbar": { display: "none" },
@@ -136,32 +202,29 @@ export function FormModal({
             gap: 1.5,
           }}
         >
+          {showCancelButton && (
+            <Button variant="secondary" onClick={onClose}>
+              {cancelButtonLabel}
+            </Button>
+          )}
           <Button
-            variant="outlined"
-            onClick={onClose}
-            sx={{
-              minWidth: 120,
-              borderRadius: "9999px",
-              px: 3,
-              bgcolor: theme.app.dashboard.surfaceDark,
-            }}
-          >
-            {cancelButtonLabel}
-          </Button>
-          <Button
-            variant="primary"
+            variant={primaryButtonVariant === "danger" ? "danger" : "primary"}
             onClick={onSave}
-            sx={{
-              minWidth: 140,
-              borderRadius: "9999px",
-              px: 3.25,
-            }}
+            disabled={primaryButtonDisabled}
+            sx={primaryButtonVariant === "danger" ? undefined : gradientPrimaryButtonSx}
+            startIcon={primaryStartIcon}
           >
             {primaryButtonLabel}
           </Button>
         </Box>
-      </DashboardCard>
+      </ModalGlassShell>
     </Box>
   );
+
+  if (typeof document === "undefined" || !mounted) {
+    return null;
+  }
+
+  return createPortal(layer, document.body);
 }
 

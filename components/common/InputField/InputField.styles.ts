@@ -13,24 +13,50 @@ export const labelStyles = (theme: Theme) =>
 export const textFieldStyles = (theme: Theme) =>
   ({
     "& .MuiOutlinedInput-root": {
-      borderRadius: "53px",
+      borderRadius: "12px",
+      position: "relative",
+      overflow: "hidden",
       "& fieldset": {
-        borderRadius: "53px",
-        borderColor: theme.app.border.input,
-        transition: "border-color 0.2s ease, box-shadow 0.25s ease",
+        border: "none",
       },
-      "&:hover fieldset": {
-        borderColor: theme.app.border.input,
+      "&::before": {
+        content: '""',
+        position: "absolute",
+        left: 0,
+        right: 0,
+        bottom: 0,
+        height: "2px",
+        backgroundColor: theme.app.border.input,
+        pointerEvents: "none",
       },
-      "&.Mui-focused fieldset": {
-        borderColor: theme.app.border.inputFocus,
-        borderWidth: "2px",
-        boxShadow: `0 0 14px ${theme.app.shadow.inputFocus}`,
-        // boxShadow: "none",
+      "&::after": {
+        content: '""',
+        position: "absolute",
+        inset: 0,
+        padding: "1.5px",
+        borderRadius: "12px",
+        opacity: 0,
+        transition: "opacity 0.1s ease",
+        background: `radial-gradient(180px at var(--input-cursor-x, 50%) var(--input-cursor-y, 50%), ${theme.app.dashboard.accentBlue} 0%, ${theme.app.dashboard.accentBlue} 28%, transparent 82%)`,
+        WebkitMask:
+          "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
+        WebkitMaskComposite: "xor",
+        maskComposite: "exclude",
+        filter: `drop-shadow(0 0 6px ${theme.app.dashboard.accentBlue})`,
+        pointerEvents: "none",
+      },
+      "&:hover::after, &.Mui-focused::after": {
+        opacity: 1,
+      },
+      "&.Mui-error::before": {
+        backgroundColor: theme.palette.error.main,
+      },
+      "&.Mui-error::after": {
+        background: `radial-gradient(180px at var(--input-cursor-x, 50%) var(--input-cursor-y, 50%), ${theme.palette.error.main} 0%, ${theme.palette.error.main} 28%, transparent 82%)`,
+        filter: `drop-shadow(0 0 6px ${theme.palette.error.main})`,
       },
       backgroundColor: "transparent",
-      // boxShadow: "none",
-      boxShadow: `0px 0px 3px 0px ${theme.app.grey.inputShadowLight} inset, 0px 0px 3px 0px ${theme.app.grey.inputShadowWhite80} inset, -1px -1px 0.5px -1px ${theme.app.grey.inputShadowWhite} inset, 1px 1px 0.5px -1px ${theme.app.grey.inputShadowWhite} inset, -1px -1px 0px -0.5px ${theme.app.grey.inputShadowDark} inset, 1px 1px 0px -0.5px ${theme.app.grey.inputShadowDarker} inset`,
+      boxShadow: "none",
       "& input::placeholder": {
         color: theme.app.text.placeholder,
         opacity: 1,

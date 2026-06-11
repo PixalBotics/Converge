@@ -1,0 +1,27 @@
+import { Meta } from "@storybook/blocks";
+
+<Meta title="Introduction/Welcome" />
+
+# Converge Storybook
+
+This workspace documents shared UI: **Design System** (buttons, filters, modals, etc.) and selected **Dashboard** layouts.
+
+## Run it locally
+
+From the project root:
+
+```bash
+npm run storybook
+```
+
+Then open **http://localhost:6006** in your browser.
+
+`NEXT_PUBLIC_*` values are read from `.env` / `.env.local` when Storybook starts (see `.storybook/main.ts`). If the API base URL is missing, a safe default is used for the preview bundle only.
+
+Copy `.env.example` to `.env.local` in the repo root and set `NEXT_PUBLIC_*` values. Storybook reads the same files when you run `npm run storybook` (see `.storybook/main.ts`).
+
+If stories show **`React is not defined`**, restart Storybook after pulling the latest `.storybook/main.ts` (Vite is set to **automatic JSX** so you do not need `import React` in every story).
+
+## Troubleshooting
+
+If Storybook does not load in the browser, run `npm run storybook` in the project root first, then open the URL shown in the terminal (default **http://localhost:6006**). If you started Storybook on another port (for example `-p 6007`), use that port instead.

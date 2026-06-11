@@ -1,41 +1,75 @@
 import type { SxProps, Theme } from "@mui/material/styles";
+import type { AppTheme } from "@/theme/theme";
 
 /** TableContainer: scroll enabled, scrollbar hidden (webkit + Firefox/IE) */
 export const dataTableContainer: SxProps<Theme> = {
   overflowX: "auto",
   overflowY: "auto",
+  boxShadow: "none",
   WebkitOverflowScrolling: "touch",
   scrollbarWidth: "none",
   msOverflowStyle: "none",
   "&::-webkit-scrollbar": { display: "none" },
 };
 
-export const dataTableRoot: SxProps<Theme> = {
-  width: "100%",
-  borderCollapse: "collapse",
-  "& th, & td": {
-    borderColor: "rgba(255,255,255,0.08)",
-    borderBottom: "1px solid rgba(255,255,255,0.08)",
-    textAlign: "left",
-    padding: "10px 16px",
-    whiteSpace: "nowrap",
-  },
+/** No vertical scroll region — parent (e.g. `FormModal` with `fitContent`) scrolls; wide tables still pan horizontally. */
+export const dataTableContainerHorizontalOnly: SxProps<Theme> = {
+  overflowX: "auto",
+  overflowY: "visible",
+  boxShadow: "none",
+  WebkitOverflowScrolling: "touch",
+  scrollbarWidth: "none",
+  msOverflowStyle: "none",
+  "&::-webkit-scrollbar": { display: "none" },
 };
 
-export const dataTableHeaderCell: SxProps<Theme> = {
-  color: "rgba(255,255,255,0.8)",
+export const dataTableRoot: SxProps<Theme> = (theme) => {
+  const app = (theme as AppTheme).app;
+  const b = app.dashboard.cardBorder;
+  return {
+    width: "100%",
+    borderCollapse: "collapse",
+    boxShadow: "none",
+    "& th, & td": {
+      borderColor: b,
+      borderBottom: `1px solid ${b}`,
+      textAlign: "left",
+      verticalAlign: "middle",
+      padding: "10px 16px",
+      whiteSpace: "nowrap",
+    },
+  };
+};
+
+export const dataTableHeaderCell: SxProps<Theme> = (theme) => ({
+  color:
+    theme.palette.mode === "light"
+      ? (theme as AppTheme).app.text.primary
+      : (theme as AppTheme).app.dashboard.white80,
   fontWeight: 600,
   fontSize: 18,
+});
+
+export const dataTableCellDefault: SxProps<Theme> = (theme) => ({
+  color: (theme as AppTheme).app.text.primary,
+});
+
+export const dataTableCellMuted: SxProps<Theme> = (theme) => ({
+  color:
+    theme.palette.mode === "light"
+      ? (theme as AppTheme).app.text.primary
+      : (theme as AppTheme).app.text.primary,
+});
+
+/** Empty-state row cell — no horizontal inset from default `th, td` padding. */
+export const dataTableEmptyStateCell: SxProps<Theme> = {
+  borderBottom: "none",
+  padding: "0 !important",
 };
 
-export const dataTableCellDefault: SxProps<Theme> = {
-  color: "white",
-};
-
-export const dataTableCellMuted: SxProps<Theme> = {
-  color: "rgba(255,255,255,0.7)",
-};
-
-export const dataTableActionButton: SxProps<Theme> = {
-  color: "rgba(255,255,255,0.6)",
-};
+export const dataTableActionButton: SxProps<Theme> = (theme) => ({
+  color:
+    theme.palette.mode === "light"
+      ? (theme as AppTheme).app.text.primary
+      : (theme as AppTheme).app.dashboard.white60,
+});

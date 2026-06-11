@@ -1,0 +1,1 @@
+export { DataNotFoundPlaceholder } from "./DataNotFoundPlaceholder";

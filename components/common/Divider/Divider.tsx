@@ -12,7 +12,7 @@ export function Divider({ sx }: DividerProps) {
     <Box
       sx={{
         borderBottom: "0.5px solid #838080",
-        my: 3,
+        my: 1.5,
         width: "100%",
         ...((sx as object) ?? {}),
       }}

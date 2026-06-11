@@ -1,0 +1,204 @@
+import { apiClient } from "../http/axios-instance";
+import {
+  clearTokens,
+  getRefreshToken,
+  getTokenPair,
+  setTokenPair,
+} from "../storage/auth-cookies";
+import type {
+  ApiEnvelope,
+  AuthMeResponse,
+  AuthTokenPair,
+  HealthResponse,
+  LoginAsRequestBody,
+  LoginRequestBody,
+  LoginResponseEnvelope,
+  LoginSuccessData,
+  LogoutRequestBody,
+  PasswordResetConfirmBody,
+  PasswordResetMessageResponse,
+  PasswordResetRequestBody,
+  PasswordResetVerifyBody,
+  PasswordResetVerifyResponse,
+  RefreshRequestBody,
+  VerifyAccessBodyRequest,
+} from "../types/auth.types";
+import {
+  clearImpersonationSession,
+  getImpersonationSession,
+  isImpersonatingSessionActive,
+  setImpersonationSession,
+} from "@/lib/auth/impersonation-session";
+import { snapshotFromAuthApiUser } from "@/lib/auth/impersonation-user";
+
+export async function getHealth(): Promise<HealthResponse> {
+  const { data } = await apiClient.get<HealthResponse>("/health");
+  return data;
+}
+
+export async function login(body: LoginRequestBody): Promise<LoginSuccessData> {
+  const { data } = await apiClient.post<LoginResponseEnvelope>("/auth/login", body);
+  setTokenPair(
+    {
+      accessToken: data.data.accessToken,
+      refreshToken: data.data.refreshToken,
+    },
+    {
+      accessExpiresIn: data.data.expiresIn,
+      refreshExpiresIn: data.data.refreshExpiresIn,
+    },
+  );
+  return data.data;
+}
+
+function actorSnapshotFromAccessToken(accessToken: string | null | undefined) {
+  if (!accessToken?.trim()) return undefined;
+  try {
+    const segments = accessToken.trim().split(".");
+    if (segments.length < 2) return undefined;
+    const payload = JSON.parse(atob(segments[1]!.replace(/-/g, "+").replace(/_/g, "/"))) as {
+      userId?: string;
+      email?: string;
+    };
+    const id = payload.userId?.trim();
+    const email = payload.email?.trim();
+    if (!id || !email) return undefined;
+    return { id, email, displayName: email };
+  } catch {
+    return undefined;
+  }
+}
+
+export function applyLoginAsTokenPair(data: LoginSuccessData): void {
+  setTokenPair(
+    {
+      accessToken: data.accessToken,
+      refreshToken: data.refreshToken,
+    },
+    {
+      accessExpiresIn: data.expiresIn,
+      refreshExpiresIn: data.refreshExpiresIn,
+    },
+  );
+}
+
+export async function loginAs(body: LoginAsRequestBody): Promise<LoginSuccessData> {
+  const originalTokenPair = getTokenPair();
+  const actorUser = actorSnapshotFromAccessToken(originalTokenPair?.accessToken);
+  const { data } = await apiClient.post<LoginResponseEnvelope>("/auth/login-as", body);
+  const loginData = data.data;
+  const impersonatedUser = snapshotFromAuthApiUser(loginData.user);
+
+  if (originalTokenPair && !isImpersonatingSessionActive()) {
+    setImpersonationSession({
+      originalTokenPair,
+      impersonatedUserId: body.targetUserId,
+      impersonatedLicenseKey: body.licenseKey ?? "",
+      startedAt: new Date().toISOString(),
+      impersonatedUser: impersonatedUser ?? undefined,
+      actorUser,
+    });
+  } else if (isImpersonatingSessionActive()) {
+    const existing = getImpersonationSession();
+    if (existing) {
+      setImpersonationSession({
+        ...existing,
+        impersonatedUserId: body.targetUserId,
+        impersonatedLicenseKey: body.licenseKey ?? existing.impersonatedLicenseKey,
+        impersonatedUser: impersonatedUser ?? existing.impersonatedUser,
+      });
+    }
+  }
+
+  applyLoginAsTokenPair(loginData);
+  return loginData;
+}
+
+export async function verifyBearer(): Promise<void> {
+  await apiClient.get("/auth/verify");
+}
+
+export async function verifyAccessBody(
+  body: VerifyAccessBodyRequest,
+): Promise<void> {
+  await apiClient.post("/auth/verify-access", body);
+}
+
+export async function getMe(options?: {
+  permissionsBreakdown?: boolean;
+}): Promise<AuthMeResponse> {
+  const { data } = await apiClient.get<AuthMeResponse>("/auth/me", {
+    params:
+      options?.permissionsBreakdown === true
+        ? { permissionsBreakdown: "1" }
+        : undefined,
+  });
+  return data;
+}
+
+export async function refresh(
+  body: RefreshRequestBody,
+): Promise<AuthTokenPair> {
+  const { data } = await apiClient.post<
+    AuthTokenPair | ApiEnvelope<AuthTokenPair | LoginSuccessData>
+  >("/auth/refresh", body);
+  const root =
+    typeof data === "object" && data !== null && "data" in data
+      ? (data as ApiEnvelope<AuthTokenPair | LoginSuccessData>).data
+      : (data as AuthTokenPair | LoginSuccessData);
+  const tokenPair: AuthTokenPair = {
+    accessToken: String(root.accessToken ?? "").trim(),
+    refreshToken: String(root.refreshToken ?? "").trim(),
+  };
+  const loginMeta = root && typeof root === "object" ? (root as LoginSuccessData) : null;
+  setTokenPair(tokenPair, {
+    accessExpiresIn: loginMeta?.expiresIn,
+    refreshExpiresIn: loginMeta?.refreshExpiresIn,
+  });
+  return tokenPair;
+}
+
+export async function logoutRemote(body: LogoutRequestBody): Promise<void> {
+  await apiClient.post("/auth/logout", body);
+}
+
+export async function logout(): Promise<void> {
+  const refreshToken = getRefreshToken();
+  try {
+    if (refreshToken) {
+      await logoutRemote({ refreshToken });
+    }
+  } finally {
+    clearImpersonationSession();
+    clearTokens();
+  }
+}
+
+export async function requestPasswordReset(
+  body: PasswordResetRequestBody,
+): Promise<string> {
+  const { data } = await apiClient.post<PasswordResetMessageResponse>(
+    "/auth/password-reset/request",
+    body,
+  );
+  return data.data.message;
+}
+
+export async function verifyPasswordResetOtp(
+  body: PasswordResetVerifyBody,
+): Promise<void> {
+  await apiClient.post<PasswordResetVerifyResponse>(
+    "/auth/password-reset/verify",
+    body,
+  );
+}
+
+export async function confirmPasswordReset(
+  body: PasswordResetConfirmBody,
+): Promise<string> {
+  const { data } = await apiClient.post<PasswordResetMessageResponse>(
+    "/auth/password-reset/confirm",
+    body,
+  );
+  return data.data.message;
+}

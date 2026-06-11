@@ -5,10 +5,9 @@ import type { SxProps, Theme } from "@mui/material/styles";
 import type { DashboardCardProps } from "./DashboardCard.types";
 import { dashboardCardStyles } from "./dashboard-card.styles";
 
-export function DashboardCard({ children, sx = {}, ...rest }: DashboardCardProps) {
-  const mergedSx = { ...dashboardCardStyles, ...sx } as SxProps<Theme>;
+export function DashboardCard({ children, sx, ...rest }: DashboardCardProps) {
   return (
-    <Box sx={mergedSx} {...rest}>
+    <Box sx={[dashboardCardStyles, ...(sx ? (Array.isArray(sx) ? sx : [sx]) : [])] as SxProps<Theme>} {...rest}>
       {children}
     </Box>
   );

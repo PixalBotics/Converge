@@ -1,5 +1,5 @@
-import { redirect } from "next/navigation";
+import { redirectRootToLogin } from "@/lib/routing";
 
 export default function Home() {
-  redirect("/login");
+  redirectRootToLogin();
 }

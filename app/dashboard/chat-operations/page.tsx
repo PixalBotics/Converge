@@ -1,7 +1,7 @@
 "use client";
 
-import { DataNotFoundPlaceholder } from "@/components/dashboard";
+import { ChatOperationsWorkspace } from "@/features/chat-operations";
 
 export default function ChatOperationsPage() {
-  return <DataNotFoundPlaceholder />;
+  return <ChatOperationsWorkspace />;
 }

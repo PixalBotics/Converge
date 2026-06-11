@@ -1,7 +1,7 @@
 "use client";
 
-import { DataNotFoundPlaceholder } from "@/components/dashboard";
+import { SettingsHub } from "@/features/settings/components/SettingsHub";
 
 export default function SettingsPage() {
-  return <DataNotFoundPlaceholder />;
+  return <SettingsHub />;
 }

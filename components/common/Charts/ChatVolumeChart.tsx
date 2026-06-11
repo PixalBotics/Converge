@@ -13,18 +13,8 @@ import {
   Tooltip,
 } from "recharts";
 import type { ChatVolumeChartProps } from "./ChatVolumeChart.types";
-import {
-  chatVolumeChartRoot,
-  chatVolumeChartGrid,
-  chatVolumeChartXAxis,
-  chatVolumeChartYAxis,
-  chatVolumeChartTooltipContent,
-  chatVolumeChartTooltipLabel,
-  chatVolumeChartTooltipItem,
-  chatVolumeChartCursor,
-  chatVolumeChartGradientStops,
-  chatVolumeChartLine,
-} from "./ChatVolumeChart.styles";
+import { chatVolumeChartRoot } from "./ChatVolumeChart.styles";
+import { useAppChartStyles } from "./useAppChartStyles";
 
 const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const DEFAULT_HEIGHT = 220;
@@ -41,6 +31,7 @@ export function ChatVolumeChart({
   tooltipLabelFormatter = (day) => DAY_LABELS[Number(day) - 1] ?? String(day),
 }: ChatVolumeChartProps) {
   const theme = useTheme();
+  const chart = useAppChartStyles().chatVolume;
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const margin = isMobile ? MARGIN_MOBILE : MARGIN_DESKTOP;
   const tickFontSize = isMobile ? 10 : 12;
@@ -52,7 +43,7 @@ export function ChatVolumeChart({
         <LineChart data={data} margin={margin}>
           <defs>
             <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-              {chatVolumeChartGradientStops.map((stop, i) => (
+              {chart.gradientStops.map((stop, i) => (
                 <stop
                   key={i}
                   offset={stop.offset}
@@ -63,17 +54,17 @@ export function ChatVolumeChart({
             </linearGradient>
           </defs>
           <CartesianGrid
-            stroke={chatVolumeChartGrid.stroke}
-            strokeOpacity={chatVolumeChartGrid.strokeOpacity}
+            stroke={chart.grid.stroke}
+            strokeOpacity={chart.grid.strokeOpacity}
             strokeDasharray="0"
-            vertical={chatVolumeChartGrid.vertical}
+            vertical={chart.grid.vertical}
           />
           <XAxis
             dataKey="day"
-            axisLine={chatVolumeChartXAxis.axisLine}
-            tickLine={chatVolumeChartXAxis.tickLine}
+            axisLine={chart.xAxis.axisLine}
+            tickLine={chart.xAxis.tickLine}
             tick={{
-              ...chatVolumeChartXAxis.tick,
+              ...chart.xAxis.tick,
               fontSize: tickFontSize,
             }}
             ticks={X_TICKS}
@@ -81,19 +72,19 @@ export function ChatVolumeChart({
           />
           <YAxis
             domain={yDomain}
-            axisLine={chatVolumeChartYAxis.axisLine}
-            tickLine={chatVolumeChartYAxis.tickLine}
+            axisLine={chart.yAxis.axisLine}
+            tickLine={chart.yAxis.tickLine}
             tick={{
-              ...chatVolumeChartYAxis.tick,
+              ...chart.yAxis.tick,
               fontSize: tickFontSize,
             }}
             tickFormatter={yTickFormatter}
             width={isMobile ? 28 : 36}
           />
           <Tooltip
-            contentStyle={chatVolumeChartTooltipContent}
-            labelStyle={chatVolumeChartTooltipLabel}
-            itemStyle={chatVolumeChartTooltipItem}
+            contentStyle={chart.tooltipContent}
+            labelStyle={chart.tooltipLabel}
+            itemStyle={chart.tooltipItem}
             formatter={(value: unknown) => [tooltipFormatter(Number(value)), "Chats"]}
             labelFormatter={(label) => {
               const safe =
@@ -104,7 +95,7 @@ export function ChatVolumeChart({
                   : "";
               return tooltipLabelFormatter(safe);
             }}
-            cursor={chatVolumeChartCursor}
+            cursor={chart.cursor}
           />
           <Area
             type="monotone"
@@ -115,10 +106,10 @@ export function ChatVolumeChart({
           <Line
             type="monotone"
             dataKey="value"
-            stroke={chatVolumeChartLine.stroke}
-            strokeWidth={chatVolumeChartLine.strokeWidth}
-            dot={chatVolumeChartLine.dot}
-            activeDot={chatVolumeChartLine.activeDot}
+            stroke={chart.line.stroke}
+            strokeWidth={chart.line.strokeWidth}
+            dot={chart.line.dot}
+            activeDot={chart.line.activeDot}
           />
         </LineChart>
       </ResponsiveContainer>

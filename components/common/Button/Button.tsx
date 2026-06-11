@@ -4,7 +4,7 @@ import MuiButton from "@mui/material/Button";
 import { useTheme } from "@mui/material/styles";
 import type { SxProps, Theme } from "@mui/material/styles";
 import type { ButtonProps } from "./Button.types";
-import { baseButtonStyles, variantStyles } from "./Button.styles";
+import { baseButtonStyles, compactButtonMetrics, resolveButtonVariant, variantStyles } from "./Button.styles";
 import { resolveSx } from "@/utils/resolveSx";
 
 /**
@@ -14,23 +14,33 @@ import { resolveSx } from "@/utils/resolveSx";
 export function Button({
   children,
   variant = "primary",
+  size = "default",
   fullWidth = false,
   type = "button",
   disabled = false,
   sx,
+  color: colorProp,
   ...rest
 }: ButtonProps) {
+  const density = size === "compact" || size === "small" ? "compact" : "default";
   const theme = useTheme();
-  const muiVariant = variant === "outlined" ? "outlined" : "contained";
-  const mergedSx = {
-    ...baseButtonStyles,
-    ...variantStyles[variant](theme),
-    ...resolveSx(sx, theme),
-  } as SxProps<Theme>;
+  const resolvedVariant = resolveButtonVariant(variant);
+  const muiVariant = resolvedVariant === "outlined" ? "outlined" : "contained";
+  /** `contained` + `color="primary"` forces primary label colors — bad on `pillBg`. `danger` uses token fill via `dangerButtonStyles`. */
+  const muiColor = colorProp ?? (resolvedVariant === "primary" ? "primary" : "inherit");
+  const callerSx = sx == null ? [] : Array.isArray(sx) ? sx : [sx];
+  const mergedSx = [
+    baseButtonStyles,
+    ...(density === "compact" ? [compactButtonMetrics] : []),
+    variantStyles[resolvedVariant](theme),
+    ...(fullWidth ? [{ minWidth: 0 }] : []),
+    ...callerSx.map((item) => resolveSx(item, theme)),
+  ] as SxProps<Theme>;
   return (
     <MuiButton
       type={type}
       variant={muiVariant}
+      color={muiColor}
       disableElevation
       fullWidth={fullWidth}
       disabled={disabled}

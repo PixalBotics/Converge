@@ -1,61 +1,62 @@
 import type { SxProps, Theme } from "@mui/material/styles";
+import type { AppTheme } from "@/theme/theme";
 
-const baseGroup: SxProps<Theme> = {
-  display: "inline-flex",
-  alignItems: "center",
-  borderRadius: "53.51px",
-  p: 0.5,
-  background: "#16123F",
-  border: "0.51px solid #FFFFFF0F",
-  "& .MuiToggleButtonGroup-grouped": {
-    border: "none",
-    borderRadius: "53.51px",
-    textTransform: "none",
-    padding: "6px 18px",
-    fontSize: 13,
-    "&:not(:first-of-type)": {
-      marginLeft: 2,
-    },
-  },
-};
+type App = AppTheme["app"];
 
-/** Default variant: blue selected (Revenue Overview style) */
-export const segmentedControlDefaultSx: SxProps<Theme> = {
-  ...baseGroup,
-  "& .MuiToggleButtonGroup-grouped": {
-    border: "none",
+/** Pill toggle — container + inactive use muted text; selected uses accent-aware `navActiveBg`. */
+export function getSegmentedControlDefaultSx(app: App): SxProps<Theme> {
+  return {
+    display: "inline-flex",
+    alignItems: "center",
     borderRadius: "53.51px",
-    textTransform: "none",
-    padding: "6px 18px",
-    fontSize: 13,
-    color: "rgba(148, 163, 184, 0.85)",
-    "&:not(:first-of-type)": { marginLeft: 2 },
-    "&.Mui-selected": {
-      bgcolor: "#0048B70A",
-      color: "#FFFFFF",
-      border: "0.51px solid #D9D9D90F",
-      boxShadow: "0 6px 18px rgba(15, 23, 42, 0.8)",
-      "&:hover": { bgcolor: "#0048B70A" },
+    p: 0.5,
+    background: app.dashboard.pillBg,
+    border: `0.51px solid ${app.dashboard.cardBorder}`,
+    "& .MuiToggleButtonGroup-grouped": {
+      border: "none",
+      borderRadius: "53.51px",
+      textTransform: "none",
+      padding: "6px 18px",
+      fontSize: 13,
+      color: app.dashboard.textMuted,
+      "&:not(:first-of-type)": { marginLeft: 2 },
+      "&.Mui-selected": {
+        bgcolor: app.dashboard.navActiveBg,
+        color: app.text.primary,
+        fontWeight: 600,
+        border: `0.51px solid ${app.dashboard.overlayBorder}`,
+        boxShadow: `0 6px 20px rgba(0, 0, 0, 0.28)`,
+        "&:hover": { bgcolor: app.dashboard.navActiveBg },
+      },
     },
-  },
-};
+  };
+}
 
-/** Secondary variant: purple selected (Chat Analytics style) */
-export const segmentedControlSecondarySx: SxProps<Theme> = {
-  ...baseGroup,
-  "& .MuiToggleButtonGroup-grouped": {
-    border: "none",
+/** Secondary: selected pill uses `pillActive` (e.g. Chat Analytics). */
+export function getSegmentedControlSecondarySx(app: App): SxProps<Theme> {
+  return {
+    display: "inline-flex",
+    alignItems: "center",
     borderRadius: "53.51px",
-    textTransform: "none",
-    padding: "6px 18px",
-    fontSize: 13,
-    color: "rgba(255, 255, 255, 0.5)",
-    "&:not(:first-of-type)": { marginLeft: 2 },
-    "&.Mui-selected": {
-      bgcolor: "#2B254D",
-      color: "#FFFFFF",
-      border: "0.51px solid #D9D9D90F",
-      "&:hover": { bgcolor: "#2B254D" },
+    p: 0.5,
+    background: app.dashboard.pillBg,
+    border: `0.51px solid ${app.dashboard.cardBorder}`,
+    "& .MuiToggleButtonGroup-grouped": {
+      border: "none",
+      borderRadius: "53.51px",
+      textTransform: "none",
+      padding: "6px 18px",
+      fontSize: 13,
+      color: app.dashboard.textMuted,
+      "&:not(:first-of-type)": { marginLeft: 2 },
+      "&.Mui-selected": {
+        bgcolor: app.dashboard.pillActive,
+        color: app.text.primary,
+        fontWeight: 600,
+        border: `0.51px solid ${app.dashboard.overlayBorder}`,
+        boxShadow: `0 6px 18px rgba(0, 0, 0, 0.22)`,
+        "&:hover": { bgcolor: app.dashboard.pillActive },
+      },
     },
-  },
-};
+  };
+}
