@@ -639,7 +639,9 @@ export function useVisitorChat(
       const token = widgetTokenRef.current;
       if (token) {
         socketClient.connect({ authToken: token });
-        await socketClient.waitUntilSocketReady(12_000);
+        await socketClient.waitUntilSocketReady(
+          socketClient.isConnected() ? 3_000 : 12_000,
+        );
       }
 
       let created: VisitorCreateConversationResponse | null = null;
@@ -822,11 +824,16 @@ export function useVisitorChat(
         ...(sendOpts?.messageType ? { messageType: sendOpts.messageType } : {}),
       };
 
-      await socketClient.waitUntilConnected(10_000);
+      await socketClient.waitUntilConnected(
+        socketClient.isConnected() ? 2_000 : 10_000,
+      );
 
       if (socketClient.isConnected()) {
         try {
-          const ack = await socketClient.sendVisitorMessageWithAck(socketPayload);
+          const ack = await socketClient.sendVisitorMessageWithAck(
+            socketPayload,
+            15_000,
+          );
           applyVisitorSendAck(ack, optimisticKey);
           return;
         } catch {

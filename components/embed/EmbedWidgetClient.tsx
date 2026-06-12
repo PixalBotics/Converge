@@ -138,6 +138,7 @@ import {
   ensureVisitorSessionId,
   generateClientSessionId,
   persistConversationId,
+  clearHybridEscalated,
   persistHybridEscalated,
   persistVisitorSessionId,
   readConversationId,
@@ -420,7 +421,9 @@ function FloatingChatEmbed({
   const siteKey = `${widgetKey}:${websiteId}`;
   const formEnabledForGate = appearance.formEnabled ?? true;
   const inquiryAllowedForMode =
-    mode !== "AI_ONLY" && (appearance.inquiryOptions?.length ?? 0) > 0;
+    mode !== "AI_ONLY" &&
+    (appearance.inquiryEnabled ?? (appearance.inquiryOptions?.length ?? 0) > 0) &&
+    (appearance.inquiryOptions?.length ?? 0) > 0;
   const needsPrechatGate = formEnabledForGate || inquiryAllowedForMode;
   const greetingMessage = useMemo(
     () => resolveEmbedGreetingMessage(appearance, welcomeText),
@@ -870,7 +873,9 @@ function FloatingChatEmbed({
                   >
                     <WidgetChatPanel
                       embedded
-                      greetingAlreadyShown={needsPrechatGate}
+                      greetingAlreadyShown={
+                        needsPrechatGate || (hasGreetingStep && greetingAck)
+                      }
                       widgetKey={widgetKey}
                       websiteId={websiteId}
                       parentPageUrl={parentPageUrl}
@@ -1282,7 +1287,8 @@ function WidgetChatPanel({
   const inquiryRequired = appearance?.inquiryRequired ?? false;
   const inquiryFallback = appearance?.inquiryFallback ?? null;
   const inquirySkipLabel = appearance?.inquirySkipLabel ?? "General question";
-  const needsPrechatGate = formEnabled || hasInquiryStep;
+  const needsPrechatGate =
+    formEnabled || hasInquiryStep || Boolean(appearance?.consentRequired);
   const [prechatDone, setPrechatDone] = useState(!needsPrechatGate);
   const [consentAccepted, setConsentAccepted] = useState(false);
   const [submitBusy, setSubmitBusy] = useState(false);
@@ -1628,6 +1634,9 @@ function WidgetChatPanel({
     ]);
   };
 
+  const consentBlocksStart =
+    Boolean(appearance?.consentRequired) && !consentAccepted;
+
   const beginConversation = useCallback(
     async (values: Record<string, unknown>) => {
       if (chat.conversationId) {
@@ -1636,6 +1645,10 @@ function WidgetChatPanel({
       }
       if (!websiteId.trim()) {
         setSubmitError("This widget is not linked to a website yet.");
+        return;
+      }
+      if (consentBlocksStart) {
+        setFormValidationHint("Please accept the terms to continue.");
         return;
       }
       setSubmitError(null);
@@ -1749,6 +1762,7 @@ function WidgetChatPanel({
       inquiryFallback,
       visitorSessionId,
       websiteId,
+      consentBlocksStart,
     ],
   );
 
@@ -1757,16 +1771,11 @@ function WidgetChatPanel({
   };
 
   useEffect(() => {
-    if (
-      !resumeChecked ||
-      needsPrechatGate ||
-      prechatDone ||
-      chat.conversationId
-    ) {
+    if (!resumeChecked || needsPrechatGate || chat.conversationId) {
       return;
     }
     void startConversationRef.current?.();
-  }, [resumeChecked, needsPrechatGate, prechatDone, chat.conversationId]);
+  }, [resumeChecked, needsPrechatGate, chat.conversationId]);
 
   const onPrechatSubmit = form.handleSubmit(
     async (values) => {
@@ -1784,6 +1793,10 @@ function WidgetChatPanel({
 
   const proceedWithInquirySkip = () => {
     if (!inquiryFallback) return;
+    if (consentBlocksStart) {
+      setFormValidationHint("Please accept the terms to continue.");
+      return;
+    }
     setSelectedInquiry(inquiryFallback);
     setInquiryPickError(false);
     if (!formEnabled) {
@@ -1857,9 +1870,11 @@ function WidgetChatPanel({
     [chat],
   );
 
+  const composerDisabled = submitBusy || !chat.conversationId;
+
   const sendDraft = async () => {
     const text = normalizeChatMessageText(draft);
-    if (!text || !chat.conversationId) return;
+    if (!text || composerDisabled) return;
 
     if (awaitingFirstUserQuestion) {
       awaitingFirstUserQuestionRef.current = false;
@@ -1876,11 +1891,21 @@ function WidgetChatPanel({
       setAiPending(true);
       aiPendingSinceRef.current = Date.now();
     }
-    await chat.sendMessage(text);
-    scrollTranscriptToBottom(true);
-    if (!shouldUseAiBridge) {
+    try {
+      await chat.sendMessage(text);
+      setSubmitError(null);
+      scrollTranscriptToBottom(true);
+    } catch (err) {
+      setSubmitError(
+        err instanceof Error ? err.message : "Could not send your message. Please try again.",
+      );
       setAiPending(false);
       aiPendingSinceRef.current = null;
+    } finally {
+      if (!shouldUseAiBridge) {
+        setAiPending(false);
+        aiPendingSinceRef.current = null;
+      }
     }
   };
 
@@ -1890,7 +1915,7 @@ function WidgetChatPanel({
     setEscalated(true);
     escalatedRef.current = true;
     if (chat.conversationId) {
-      persistHybridEscalated(siteKey, chat.conversationId);
+      persistHybridEscalated(persistenceKey, chat.conversationId);
     }
     setTalkToAgentStatus(null);
     const res = await chat.requestTalkToAgent();
@@ -1901,12 +1926,13 @@ function WidgetChatPanel({
         setEscalated(true);
         escalatedRef.current = true;
         if (chat.conversationId) {
-          persistHybridEscalated(siteKey, chat.conversationId);
+          persistHybridEscalated(persistenceKey, chat.conversationId);
         }
       }
     } else {
       setEscalated(false);
       escalatedRef.current = false;
+      clearHybridEscalated(persistenceKey);
       setTalkToAgentStatus(res.message || "Could not reach a teammate right now.");
     }
   };
@@ -2033,6 +2059,10 @@ function WidgetChatPanel({
                           setSelectedInquiry(opt);
                           setInquiryPickError(false);
                           if (!formEnabled) {
+                            if (consentBlocksStart) {
+                              setFormValidationHint("Please accept the terms to continue.");
+                              return;
+                            }
                             void beginConversation(
                               buildDefaultFormValues(fields) as Record<string, unknown>,
                             );
@@ -2131,15 +2161,30 @@ function WidgetChatPanel({
                   type="submit"
                   appearance={appearance}
                   fullWidth
-                  disabled={
-                    submitBusy ||
-                    (appearance.consentRequired ? !consentAccepted : false)
-                  }
+                  disabled={submitBusy || consentBlocksStart}
                   sx={{ mt: 0.5 }}
                 >
                   {submitBusy
                     ? "Starting…"
                     : appearance.form.submitLabel ?? "Start chat"}
+                </EmbedActionButton>
+              ) : null}
+              {!showPrechatForm &&
+              !hasInquiryStep &&
+              appearance?.consentRequired ? (
+                <EmbedActionButton
+                  type="button"
+                  appearance={appearance}
+                  fullWidth
+                  disabled={submitBusy || consentBlocksStart}
+                  sx={{ mt: 0.5 }}
+                  onClick={() =>
+                    void beginConversation(
+                      buildDefaultFormValues(fields) as Record<string, unknown>,
+                    )
+                  }
+                >
+                  {submitBusy ? "Starting…" : "Start chat"}
                 </EmbedActionButton>
               ) : null}
             </Stack>
@@ -2208,7 +2253,9 @@ function WidgetChatPanel({
             {appearance.chatBox.greetingMessage}
           </EmbedChatBubble>
         ) : null}
-        {!mergeDisplayMessages.length && appearance?.firstMessage?.trim() ? (
+        {!mergeDisplayMessages.length &&
+        appearance?.firstMessage?.trim() &&
+        !greetingAlreadyShown ? (
           <EmbedChatBubble appearance={appearance} role="assistant">
             {appearance.firstMessage}
           </EmbedChatBubble>
@@ -2242,31 +2289,50 @@ function WidgetChatPanel({
             : { flexShrink: 0, width: "100%", mt: "auto" }
         }
       >
+        {submitBusy && !chat.conversationId ? (
+          <Typography
+            variant="caption"
+            sx={
+              appearance
+                ? { ...embedMutedTextSx(appearance), display: "block", mb: 0.5 }
+                : { display: "block", mb: 0.5, opacity: 0.75 }
+            }
+          >
+            Starting chat…
+          </Typography>
+        ) : null}
+        {submitError ? (
+          <Typography variant="caption" color="error" sx={{ display: "block", mb: 0.5 }}>
+            {submitError}
+          </Typography>
+        ) : null}
         <Stack
           direction="row"
           sx={
             appearance
               ? (embedComposerRowSx(appearance) as object)
-              : { display: "flex", alignItems: "center", gap: 1, width: "100%" }
+              : { display: "flex", alignItems: "flex-end", gap: 1, width: "100%" }
           }
         >
-          <Box
-            sx={{ flex: 1, minWidth: 0 }}
-            onKeyDown={(ev) => {
-              if (ev.key === "Enter" && !ev.shiftKey) {
-                ev.preventDefault();
-                void sendDraft();
-              }
-            }}
-          >
+          <Box sx={{ flex: 1, minWidth: 0 }}>
             <TextField
               value={draft}
               onChange={(e) => onDraftChange(e.target.value)}
               placeholder={sendPlaceholder}
               fullWidth
+              multiline
+              minRows={1}
+              maxRows={4}
               variant="outlined"
               size="small"
+              disabled={composerDisabled}
               autoComplete="off"
+              onKeyDown={(ev) => {
+                if (ev.key === "Enter" && !ev.shiftKey) {
+                  ev.preventDefault();
+                  void sendDraft();
+                }
+              }}
               inputProps={{
                 autoComplete: "off",
                 "aria-label": "Message",
@@ -2287,6 +2353,7 @@ function WidgetChatPanel({
             onClick={() => void sendDraft()}
             aria-label="Send"
             size="small"
+            disabled={composerDisabled || !normalizeChatMessageText(draft)}
             sx={
               appearance
                 ? embedSendButtonSx(appearance)
