@@ -403,7 +403,7 @@ function PrechatPreview({ model }: { model: ChatBoxLivePreviewModel }) {
 
           <Typography variant="body2" sx={{ color: c.chatMutedText }}>
 
-            Pre-chat form disabled — enable it on the Notifications & Advanced step.
+            Pre-chat form disabled — chat opens directly after the launcher.
 
           </Typography>
 

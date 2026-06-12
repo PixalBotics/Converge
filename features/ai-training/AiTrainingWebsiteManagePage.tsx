@@ -7,7 +7,6 @@ import SmartToyOutlined from "@mui/icons-material/SmartToyOutlined";
 import Box from "@mui/material/Box";
 import Checkbox from "@mui/material/Checkbox";
 import FormControlLabel from "@mui/material/FormControlLabel";
-import Alert from "@mui/material/Alert";
 import LinearProgress from "@mui/material/LinearProgress";
 import Stack from "@mui/material/Stack";
 import { useTheme } from "@mui/material/styles";
@@ -34,7 +33,9 @@ import {
 import { AiTrainingPageShell } from "./AiTrainingPageShell";
 import { AiTrainingStudioHeaderTabs } from "./AiTrainingStudioHeaderTabs";
 import { AiTrainingSourcePreview } from "./AiTrainingSourcePreview";
-import { AiTrainingScrapeLiveBar } from "./AiTrainingScrapeLiveBar";
+import { AiTrainingNonWebProcessingCard } from "./AiTrainingNonWebProcessingCard";
+import { AiTrainingParallelScrapeToggle } from "./AiTrainingParallelScrapeToggle";
+import { AiTrainingScrapeStatusCard } from "./AiTrainingScrapeStatusCard";
 import { AiTrainingSourcesTable } from "./AiTrainingSourcesTable";
 import {
   aiTrainingAddHref,
@@ -44,14 +45,11 @@ import {
 import {
   hostFromWebsiteUrl,
   isReindexBulkResult,
-  KB_BACKGROUND_TRAINING_STARTED_MESSAGE,
   KB_TRAINING_SOURCES_POLL_MS,
   isWebSourceType,
   toastMessageForCreateResult,
-  formatSourceRefForDisplay,
   type AiTrainingKbVariant,
 } from "./ai-training-kb.utils";
-import { aiTrainingScrapeStatusCardSx } from "./ai-training-ui.styles";
 import { useAiTrainingHierarchy } from "./use-ai-training-hierarchy";
 import { buildAiTrainingSessionScope } from "./ai-training-scope.util";
 import { useAuth } from "@/lib/auth";
@@ -154,20 +152,20 @@ export function AiTrainingWebsiteManagePage({ variant }: { variant: AiTrainingKb
   const hasBackgroundTraining = listItems.some(
     (i) => i.status === "processing" || i.status === "pending",
   );
-  const processingCount = listItems.filter(
-    (i) => i.status === "processing" || i.status === "pending",
-  ).length;
   const listTotal = sourcesQuery.data?.total ?? 0;
   const reindexBusy = reindexChatbot.isPending || reindexAssistant.isPending;
 
-  const processingWebSources = useMemo(
-    () =>
-      listItems.filter(
-        (i) =>
-          (i.status === "processing" || i.status === "pending") &&
-          isWebSourceType(i.sourceType),
-      ),
+  const processingSources = useMemo(
+    () => listItems.filter((i) => i.status === "processing" || i.status === "pending"),
     [listItems],
+  );
+  const processingWebSources = useMemo(
+    () => processingSources.filter((i) => isWebSourceType(i.sourceType)),
+    [processingSources],
+  );
+  const processingNonWebSources = useMemo(
+    () => processingSources.filter((i) => !isWebSourceType(i.sourceType)),
+    [processingSources],
   );
 
   const previewSource = useMemo(
@@ -283,37 +281,12 @@ export function AiTrainingWebsiteManagePage({ variant }: { variant: AiTrainingKb
 
       {hasBackgroundTraining ? (
         <Stack spacing={1} sx={{ mb: 0.5 }}>
-          {processingWebSources.map((source) =>
-            source.scrapeProgress ? (
-              <Box key={source.id} sx={aiTrainingScrapeStatusCardSx}>
-                <Box sx={{ px: { xs: 1.25, sm: 2 }, pt: 0.75, pb: 0 }}>
-                  <Typography
-                    variant="caption"
-                    sx={{
-                      color: theme.app.dashboard.textMuted,
-                      fontWeight: 600,
-                      display: "block",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    {formatSourceRefForDisplay(source)}
-                  </Typography>
-                </Box>
-                <AiTrainingScrapeLiveBar
-                  progress={source.scrapeProgress}
-                  trainingTier={source.trainingTier ?? source.scrapeProgress.trainingTier}
-                />
-              </Box>
-            ) : null,
-          )}
-          {!processingWebSources.some((s) => s.scrapeProgress) ? (
-            <Alert severity="info" sx={{ borderRadius: 1 }}>
-              {KB_BACKGROUND_TRAINING_STARTED_MESSAGE}
-              {processingCount > 0 ? ` (${processingCount} item(s) in progress)` : ""}
-            </Alert>
-          ) : null}
+          {processingWebSources.map((source) => (
+            <AiTrainingScrapeStatusCard key={source.id} source={source} />
+          ))}
+          {processingNonWebSources.map((source) => (
+            <AiTrainingNonWebProcessingCard key={source.id} source={source} />
+          ))}
         </Stack>
       ) : null}
 
@@ -392,43 +365,22 @@ export function AiTrainingWebsiteManagePage({ variant }: { variant: AiTrainingKb
           Default is one page at a time so you can see exactly what is being scraped. Enable parallel
           only if you want faster total scrape time.
         </Typography>
-        <FormControlLabel
-          control={
-            <Checkbox
-              checked={behaviorQuery.data?.parallelScrapePages ?? false}
-              disabled={!websiteId || updateBehavior.isPending || behaviorQuery.isLoading}
-              onChange={(e) => {
-                if (!websiteId) return;
-                void updateBehavior
-                  .mutateAsync({
-                    websiteId,
-                    body: { parallelScrapePages: e.target.checked },
-                  })
-                  .then(() => {
-                    publishAppToast({
-                      variant: "success",
-                      message: e.target.checked
-                        ? "Parallel scrape on — applies on the next training run."
-                        : "Parallel scrape off — one page at a time.",
-                    });
-                  })
-                  .catch((err) => {
-                    publishAppToast({
-                      variant: "error",
-                      message:
-                        extractApiErrorMessageForToast(err) ?? "Could not save scrape setting.",
-                    });
-                  });
-              }}
-              size="small"
-              sx={{ color: theme.app.dashboard.textMuted }}
-            />
-          }
-          label={
-            <Typography variant="medium" sx={{ color: theme.app.dashboard.white95 }}>
-              Faster parallel scrape (optional)
-            </Typography>
-          }
+        <AiTrainingParallelScrapeToggle
+          checked={behaviorQuery.data?.parallelScrapePages ?? false}
+          disabled={!websiteId || updateBehavior.isPending || behaviorQuery.isLoading}
+          onSave={async (enabled) => {
+            if (!websiteId) return;
+            await updateBehavior.mutateAsync({
+              websiteId,
+              body: { parallelScrapePages: enabled },
+            });
+            publishAppToast({
+              variant: "success",
+              message: enabled
+                ? "Parallel scrape on — applies on the next training run."
+                : "Parallel scrape off — one page at a time.",
+            });
+          }}
         />
       </DashboardCard>
 

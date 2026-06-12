@@ -22,9 +22,12 @@ import {
 export function AiTrainingScrapeLiveBar({
   progress,
   trainingTier,
+  showPageList = false,
 }: {
   progress: KnowledgeScrapeProgress;
   trainingTier?: KnowledgeTrainingTier | null;
+  /** Show recent + in-flight pages (training page). */
+  showPageList?: boolean;
 }) {
   const theme = useTheme() as AppTheme;
   const d = theme.app.dashboard;
@@ -167,7 +170,7 @@ export function AiTrainingScrapeLiveBar({
         </Typography>
       ) : null}
 
-      {lastDoneDisplay && postScrapePhase !== "embedding" ? (
+      {!showPageList && lastDoneDisplay && postScrapePhase !== "embedding" ? (
         <Typography
           variant="caption"
           sx={{
@@ -182,6 +185,63 @@ export function AiTrainingScrapeLiveBar({
           Last done: {lastDoneDisplay}
           {lastDone && lastDone.chunks > 0 ? ` (${lastDone.chunks} pieces)` : ""}
         </Typography>
+      ) : null}
+
+      {showPageList ? (
+        <Box sx={{ mt: 0.75, minWidth: 0 }}>
+          {progress.currentPage || (progress.activePages?.length ?? 0) > 0 ? (
+            <Typography
+              variant="caption"
+              sx={{ color: d.textMuted, fontWeight: 700, display: "block", mb: 0.35 }}
+            >
+              In progress
+            </Typography>
+          ) : null}
+          <Box component="ul" sx={{ m: 0, pl: 2.25, mb: 0.5 }}>
+            {(progress.activePages ?? []).map((page) => (
+              <Box component="li" key={`active-${page.url}`} sx={{ mb: 0.2 }}>
+                <Typography variant="caption" sx={{ color: accent, fontWeight: 600 }}>
+                  {formatScrapePageDisplay(page.url, page.title) ?? page.url}
+                </Typography>
+              </Box>
+            ))}
+            {progress.currentPage &&
+            !(progress.activePages ?? []).some((p) => p.url === progress.currentPage?.url) ? (
+              <Box component="li" sx={{ mb: 0.2 }}>
+                <Typography variant="caption" sx={{ color: accent, fontWeight: 600 }}>
+                  {formatScrapePageDisplay(
+                    progress.currentPage.url,
+                    progress.currentPage.title,
+                  ) ?? progress.currentPage.url}
+                </Typography>
+              </Box>
+            ) : null}
+          </Box>
+          {progress.recentPages.length > 0 ? (
+            <>
+              <Typography
+                variant="caption"
+                sx={{ color: d.textMuted, fontWeight: 700, display: "block", mb: 0.35 }}
+              >
+                Completed pages
+              </Typography>
+              <Box component="ul" sx={{ m: 0, pl: 2.25 }}>
+                {progress.recentPages.slice(0, 6).map((page) => (
+                  <Box component="li" key={page.url} sx={{ mb: 0.2 }}>
+                    <Typography variant="caption" sx={{ color: d.textMuted }}>
+                      {formatScrapePageDisplay(page.url, page.title) ?? page.url}
+                      {page.chunks > 0 ? ` · ${page.chunks} pieces` : ""}
+                    </Typography>
+                  </Box>
+                ))}
+              </Box>
+            </>
+          ) : progress.pagesDone === 0 && progress.phase === "discovering" ? (
+            <Typography variant="caption" sx={{ color: d.textMuted, display: "block" }}>
+              {formatScrapePhaseLabel(progress)} — page list will appear here shortly.
+            </Typography>
+          ) : null}
+        </Box>
       ) : null}
 
       {postScrapePhase === "finishing_pages" || postScrapePhase === "embedding" ? (

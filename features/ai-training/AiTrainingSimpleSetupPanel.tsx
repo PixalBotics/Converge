@@ -34,6 +34,7 @@ import {
   type SimpleSetupDraft,
 } from "./ai-flow-sync.util";
 import type { AiTrainingKbVariant } from "./ai-training-kb.utils";
+import { AiTrainingParallelScrapeToggle } from "./AiTrainingParallelScrapeToggle";
 import { aiTrainingManageHref } from "./ai-training-routes";
 import {
   aiTrainingSettingsFieldSx,
@@ -191,27 +192,6 @@ export function AiTrainingSimpleSetupPanel({
     }
   };
 
-  const saveParallelScrape = async (enabled: boolean) => {
-    try {
-      await updateBehavior.mutateAsync({
-        websiteId,
-        body: { parallelScrapePages: enabled },
-      });
-      setDraft((p) => (p ? { ...p, parallelScrapePages: enabled } : p));
-      publishAppToast({
-        variant: "success",
-        message: enabled
-          ? "Parallel scrape enabled — next training run will fetch multiple pages at once."
-          : "Parallel scrape off — pages scrape one at a time (clearer progress).",
-      });
-    } catch (e) {
-      publishAppToast({
-        variant: "error",
-        message: extractApiErrorMessageForToast(e) ?? "Could not save setting.",
-      });
-    }
-  };
-
   if (!draft || behaviorQuery.isLoading) {
     return (
       <Box sx={{ p: 3 }}>
@@ -324,32 +304,30 @@ export function AiTrainingSimpleSetupPanel({
                   </Box>
                 }
               />
-              <FormControlLabel
-                sx={{ alignItems: "flex-start", m: 0 }}
-                control={
-                  <Checkbox
-                    checked={draft.parallelScrapePages}
-                    disabled={updateBehavior.isPending}
-                    onChange={(e) => void saveParallelScrape(e.target.checked)}
-                    size="small"
-                    sx={{
-                      color: d.textMuted,
-                      "&.Mui-checked": { color: theme.palette.primary.main },
-                      mt: 0.1,
-                    }}
-                  />
-                }
-                label={
-                  <Box>
-                    <Typography variant="body2" fontWeight={700} sx={{ color: c.text }}>
-                      Faster parallel scrape (optional)
-                    </Typography>
-                    <Typography variant="caption" sx={{ color: d.textMuted, lineHeight: 1.45, display: "block" }}>
-                      Off by default — one page at a time with clear progress. Turn on to scrape several
-                      pages at once (faster total time; applies on the next training run).
-                    </Typography>
-                  </Box>
-                }
+              <AiTrainingParallelScrapeToggle
+                checked={draft.parallelScrapePages}
+                disabled={updateBehavior.isPending}
+                onSave={async (enabled) => {
+                  try {
+                    await updateBehavior.mutateAsync({
+                      websiteId,
+                      body: { parallelScrapePages: enabled },
+                    });
+                    setDraft((p) => (p ? { ...p, parallelScrapePages: enabled } : p));
+                    publishAppToast({
+                      variant: "success",
+                      message: enabled
+                        ? "Parallel scrape enabled — next training run will fetch multiple pages at once."
+                        : "Parallel scrape off — pages scrape one at a time (clearer progress).",
+                    });
+                  } catch (e) {
+                    publishAppToast({
+                      variant: "error",
+                      message: extractApiErrorMessageForToast(e) ?? "Could not save setting.",
+                    });
+                    throw e;
+                  }
+                }}
               />
             </Box>
             <Box sx={{ display: "flex", gap: 1.5, flexWrap: "wrap" }}>
