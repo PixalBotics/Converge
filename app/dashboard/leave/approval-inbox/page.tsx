@@ -58,11 +58,18 @@ import {
 
 } from "../_approval-leave/components";
 
-import { resolveApprovalInboxAccess } from "../_approval-leave/utils/approval-inbox-scope";
+import {
+  isParentCompanyAdminApprover,
+  resolveApprovalInboxAccess,
+} from "../_approval-leave/utils/approval-inbox-scope";
+
+import { userIsListedHead } from "@/app/dashboard/attendance/_team-attendance/utils/attendance-roster";
 
 import { useAuth } from "@/lib/auth";
 
 import { HRMS, hasAnyOperational } from "@/lib/permissions";
+
+import { useDepartmentHeadsListQuery } from "@/lib/hooks/query";
 
 
 
@@ -86,9 +93,50 @@ export default function ApprovalLeavePage() {
 
   const { hasOperational: h, user, isPlatformAdmin } = useAuth();
 
-  const inboxAccess = useMemo(
-    () => resolveApprovalInboxAccess({ hasOperational: h, isPlatformAdmin, user }),
+  const skipDeptHeadRoster = user?.isPoolHead === true;
+
+  const deptHeadsRosterQuery = useDepartmentHeadsListQuery(
+
+    {
+
+      all: true,
+
+      ...(user?.parentCompanyId?.trim() ? { parentCompanyId: user.parentCompanyId.trim() } : {}),
+
+    },
+
+    { enabled: !skipDeptHeadRoster, scope: "approval-inbox-role-detect" },
+
+  );
+
+  const isParentCompanyAdmin = useMemo(
+
+    () => isParentCompanyAdminApprover({ hasOperational: h, isPlatformAdmin, user }),
+
     [h, isPlatformAdmin, user],
+
+  );
+
+  const isDepartmentHead = useMemo(() => {
+
+    if (user?.isPoolHead || isParentCompanyAdmin) return false;
+
+    if (userIsListedHead(deptHeadsRosterQuery.data, user?.id)) return true;
+
+    return h(HRMS.LEAVE_APPROVE_DEPT);
+
+  }, [deptHeadsRosterQuery.data, user?.id, user?.isPoolHead, isParentCompanyAdmin, h]);
+
+  const needsRosterDetect = !skipDeptHeadRoster && !isParentCompanyAdmin;
+
+  const roleDetectLoading = needsRosterDetect && deptHeadsRosterQuery.isLoading;
+
+  const inboxAccess = useMemo(
+
+    () => resolveApprovalInboxAccess({ hasOperational: h, isPlatformAdmin, isDepartmentHead, user }),
+
+    [h, isPlatformAdmin, isDepartmentHead, user],
+
   );
 
 
@@ -115,7 +163,7 @@ export default function ApprovalLeavePage() {
 
   const [decision, setDecision] = useState<LeaveDecision>(null);
 
-  const queriesEnabled = Boolean(inboxAccess.queue);
+  const queriesEnabled = !roleDetectLoading && Boolean(inboxAccess.queue);
 
 
 
@@ -346,6 +394,32 @@ export default function ApprovalLeavePage() {
     [queue],
 
   );
+
+
+
+  if (roleDetectLoading) {
+
+    return (
+
+      <Box sx={[pageWrapper, rolesPageWrapper] as SxProps<Theme>}>
+
+        <Typography variant="regularLarge" fontWeight={700} color="white">
+
+          Approval Inbox
+
+        </Typography>
+
+        <Typography variant="body2" sx={approvalLeaveSubtextSx}>
+
+          Loading your approval scope…
+
+        </Typography>
+
+      </Box>
+
+    );
+
+  }
 
 
 
