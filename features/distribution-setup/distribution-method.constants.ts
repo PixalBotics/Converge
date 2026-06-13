@@ -18,9 +18,14 @@ export const DISTRIBUTION_METHOD_OPTIONS: DistributionMethodOption[] = [
   {
     id: "crm",
     label: "CRM",
-    description: "Push chat data and transcript into your connected CRM (HubSpot, Zoho, etc.).",
-    available: false,
-    comingSoonLabel: "Coming soon",
+    description: "Push chat wrap-up data into your connected CRM (HubSpot, Salesforce, Zoho).",
+    available: true,
+  },
+  {
+    id: "both",
+    label: "Both",
+    description: "Send email to To/CC/BCC recipients and push the same data to your CRM.",
+    available: true,
   },
 ];
 
@@ -28,5 +33,6 @@ export function methodFromApiValue(raw: string | undefined | null): Distribution
   const m = raw?.trim().toLowerCase();
   if (m === "email") return "email";
   if (m === "crm") return "crm";
+  if (m === "both") return "both";
   return null;
 }

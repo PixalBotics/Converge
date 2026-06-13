@@ -1,101 +1,126 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import Phone from "@mui/icons-material/Phone";
 import Box from "@mui/material/Box";
-import Switch from "@mui/material/Switch";
-import { useTheme } from "@mui/material/styles";
-import type { AppTheme } from "@/theme/theme";
-import { Button, InputField, Typography } from "@/components/common";
+import { Button, InputField } from "@/components/common";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
-import { AddIpBlockWizardShell } from "@/features/ip-block";
+import { assignWebsiteFormGridSx } from "@/components/common/AssignWebsiteModal/assign-website-modal.styles";
+import { DistributionWizardFooter } from "@/features/distribution-setup/components/DistributionWizardFooter";
+import { SchedulingSectionCard } from "@/features/website-assignments/components/ServiceSchedulingSections";
+import { IpBlockRuleToggleCard } from "@/features/ip-block/components/IpBlockRuleToggleCard";
+import { IpBlockWizardShell } from "@/features/ip-block/IpBlockWizardShell";
+import { useCreateIpBlocksMutation } from "@/features/ip-block/hooks/useIpBlockMutations";
+import { IP_BLOCK_ROUTES } from "@/features/ip-block/ip-block.constants";
+import {
+  readIpBlockWizardDraft,
+  writeIpBlockWizardDraft,
+  type IpBlockWizardDraft,
+} from "@/features/ip-block/wizard-storage";
+import { publishAppToast } from "@/lib/notify";
+import { extractApiErrorMessageForToast } from "@/lib/notify/extract-api-message";
 
 export default function AddIpBlockConfigurePage() {
   const router = useRouter();
-  const theme = useTheme() as AppTheme;
-  const [ipAddress, setIpAddress] = useState("122.2432.342");
-  const [reason, setReason] = useState("");
-  const [ruleOn, setRuleOn] = useState(true);
+  const [draft, setDraft] = useState<IpBlockWizardDraft | null>(null);
+  const createMutation = useCreateIpBlocksMutation();
+
+  useEffect(() => {
+    const loaded = readIpBlockWizardDraft();
+    if (!loaded.websiteIds.length) {
+      router.replace(IP_BLOCK_ROUTES.addOrg);
+      return;
+    }
+    setDraft(loaded);
+  }, [router]);
+
+  const patchDraft = useCallback((patch: Partial<IpBlockWizardDraft>) => {
+    setDraft((prev) => {
+      if (!prev) return prev;
+      const next = { ...prev, ...patch };
+      writeIpBlockWizardDraft(next);
+      return next;
+    });
+  }, []);
+
+  const handleBlock = async () => {
+    if (!draft) return;
+    if (!draft.ipAddress.trim()) {
+      publishAppToast({ message: "Enter an IP address.", variant: "error" });
+      return;
+    }
+    try {
+      const result = await createMutation.mutateAsync({
+        websiteIds: draft.websiteIds,
+        ipAddress: draft.ipAddress.trim(),
+        reason: draft.reason.trim() || undefined,
+        status: draft.status,
+        isActive: draft.isActive,
+      });
+      writeIpBlockWizardDraft({
+        ...draft,
+        ipAddress: result.items[0]?.ipAddress ?? draft.ipAddress,
+      });
+      router.push(IP_BLOCK_ROUTES.addDetails);
+    } catch (err) {
+      publishAppToast({
+        message: extractApiErrorMessageForToast(err, "Could not create IP block."),
+        variant: "error",
+      });
+    }
+  };
+
+  if (!draft) return null;
 
   return (
-    <AddIpBlockWizardShell
+    <IpBlockWizardShell
       step={2}
-      cardTitle="IP Block Configuration"
+      cardTitle="IP block configuration"
+      subtitle="Enter the visitor IP to block and whether the rule should take effect immediately."
       footer={
-        <>
-          <Button type="button" variant="secondary" onClick={() => router.push("/dashboard/ip-block-list/add")}>
-            Cancel
-          </Button>
+        <DistributionWizardFooter
+          onBack={() => router.push(IP_BLOCK_ROUTES.addOrg)}
+          backLabel="Back"
+        >
           <Button
             type="button"
             variant="primary"
             sx={gradientPrimaryButtonSx}
-            onClick={() => router.push("/dashboard/ip-block-list/add/details")}
+            onClick={() => void handleBlock()}
+            disabled={createMutation.isPending}
           >
-            Block IP
+            {createMutation.isPending ? "Blocking…" : "Block IP"}
           </Button>
-        </>
+        </DistributionWizardFooter>
       }
     >
-      <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-        <InputField
-          label="IP Address"
-          name="ipAddress"
-          value={ipAddress}
-          onChange={(e) => setIpAddress(e.target.value)}
-        />
-        <InputField
-          label="Reason (Optional)"
-          name="reason"
-          placeholder="E.g. Spam message detected , suspicious login....."
-          value={reason}
-          onChange={(e) => setReason(e.target.value)}
-        />
-      </Box>
-
-      <Box
-        sx={{
-          display: "flex",
-          alignItems: "center",
-          gap: 2,
-          p: 2,
-          borderRadius: 2,
-          border: `1px solid ${theme.app.dashboard.cardBorder}`,
-          bgcolor: theme.app.dashboard.overlayMedium,
-        }}
+      <SchedulingSectionCard
+        step={1}
+        title="IP details"
+        subtitle="IPv4 or IPv6. The same IP can be blocked on multiple websites from the previous step."
       >
-        <Box
-          sx={{
-            width: 44,
-            height: 44,
-            borderRadius: "50%",
-            bgcolor: theme.app.dashboard.overlayLight,
-            border: `1px solid ${theme.app.dashboard.cardBorder}`,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            flexShrink: 0,
-          }}
-          aria-hidden
-        >
-          <Phone sx={{ fontSize: 22, color: theme.app.dashboard.textMuted }} />
+        <Box sx={assignWebsiteFormGridSx}>
+          <InputField
+            label="IP address"
+            name="ipAddress"
+            placeholder="e.g. 203.0.113.42"
+            value={draft.ipAddress}
+            onChange={(e) => patchDraft({ ipAddress: e.target.value })}
+          />
+          <InputField
+            label="Reason (optional)"
+            name="reason"
+            placeholder="E.g. spam messages, suspicious activity…"
+            value={draft.reason}
+            onChange={(e) => patchDraft({ reason: e.target.value })}
+          />
         </Box>
-        <Box sx={{ flex: 1, minWidth: 0 }}>
-          <Typography variant="mediumLarge" component="p" sx={{ mb: 0.25, color: theme.app.text.primary }}>
-            Rule Status
-          </Typography>
-          <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted }}>
-            Determine if this block rule is active immediately.
-          </Typography>
-        </Box>
-        <Switch
-          checked={ruleOn}
-          onChange={(_, v) => setRuleOn(v)}
-          color="success"
-          inputProps={{ "aria-label": "Rule status" }}
-        />
-      </Box>
-    </AddIpBlockWizardShell>
+      </SchedulingSectionCard>
+
+      <IpBlockRuleToggleCard
+        checked={draft.isActive}
+        onChange={(isActive) => patchDraft({ isActive })}
+      />
+    </IpBlockWizardShell>
   );
 }

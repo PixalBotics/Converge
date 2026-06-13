@@ -10,10 +10,16 @@ const STATUS_OPTIONS = [
   { label: "Allow", value: "allow" },
 ];
 
+export type EditIpBlockSavePayload = {
+  ipAddress: string;
+  reason?: string;
+  status: string;
+};
+
 export interface EditIpBlockModalProps {
   open: boolean;
   onClose: () => void;
-  onSave?: () => void;
+  onSave?: (payload: EditIpBlockSavePayload) => void | Promise<void>;
   initialIpAddress?: string;
   initialReason?: string;
   initialStatus?: string;
@@ -23,8 +29,8 @@ export function EditIpBlockModal({
   open,
   onClose,
   onSave,
-  initialIpAddress = "123.234.23423",
-  initialReason = "Spam Message Detecd",
+  initialIpAddress = "",
+  initialReason = "",
   initialStatus = "block",
 }: EditIpBlockModalProps) {
   const [ipAddress, setIpAddress] = useState(initialIpAddress);
@@ -38,16 +44,19 @@ export function EditIpBlockModal({
     setReason(initialReason);
   }, [open, initialIpAddress, initialReason, initialStatus]);
 
-  const handleSave = () => {
-    onSave?.();
-    onClose();
+  const handleSave = async () => {
+    await onSave?.({
+      ipAddress: ipAddress.trim(),
+      reason: reason.trim() || undefined,
+      status,
+    });
   };
 
   return (
     <FormModal
       open={open}
       title="Edit IP Block"
-      description="Create a new user account with appropriate access levels."
+      description="Update the IP rule for this website."
       maxWidth={560}
       fitContent
       onClose={onClose}

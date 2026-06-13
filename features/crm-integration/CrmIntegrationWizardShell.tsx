@@ -1,84 +1,36 @@
 "use client";
 
 import type { ReactNode } from "react";
-import CheckCircle from "@mui/icons-material/CheckCircle";
+import Link from "next/link";
+import ArrowBack from "@mui/icons-material/ArrowBack";
 import Box from "@mui/material/Box";
-import type { SxProps, Theme } from "@mui/material/styles";
 import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
-import { resolveSx } from "@/utils/resolveSx";
-import {
-  stepperDivider,
-  stepperNumberCircleActive,
-  stepperNumberCircleInactive,
-  stepperOuter,
-  stepperSegment,
-  stepperCheckIcon,
-  stepperLabelChildInactive,
-  stepperLabelResellerActive,
-  stepperLabelResellerDone,
-} from "@/app/dashboard/companies/overview.styles";
 import { DashboardCard, Typography } from "@/components/common";
-import { distributionSetupSectionIconBox } from "@/app/dashboard/distribution-setup/distribution-setup.styles";
+import { CrmWizardStepper } from "./components/CrmWizardStepper";
+import { CRM_ROUTES } from "./crm.constants";
+import { CRM_WIZARD_STEP_COUNT } from "./crm-wizard.types";
+import type { CrmWizardStep } from "./crm-wizard.types";
 import {
+  distributionWizardBackLinkSx,
   distributionWizardCardFooter,
-  distributionWizardCardSx,
+  distributionWizardMainCardSx,
   distributionWizardPageHeader,
   distributionWizardPageWrapper,
+  distributionWizardSectionBody,
+  distributionWizardSectionHeader,
 } from "@/app/dashboard/distribution-setup/wizard.styles";
 
 const DEFAULT_SUBTITLE =
-  "Connect your workflow with industry-leading CRM platforms in minutes.";
+  "Connect HubSpot, Salesforce, or Zoho — map wrap-up fields and use with distribution (Email, CRM, or Both).";
 
 export interface CrmIntegrationWizardShellProps {
-  step: 1 | 2 | 3;
+  step: CrmWizardStep;
   cardTitle: string;
   children: ReactNode;
   subtitle?: string;
   footer?: ReactNode | null;
-}
-
-function StepCircle({
-  label,
-  stepNum,
-  active,
-  completed,
-}: {
-  label: string;
-  stepNum: string;
-  active: boolean;
-  completed: boolean;
-}) {
-  const theme = useTheme();
-
-  return (
-    <Box sx={stepperSegment}>
-      {completed ? (
-        <CheckCircle sx={resolveSx(stepperCheckIcon, theme)} aria-hidden />
-      ) : (
-        <Box
-          component="span"
-          sx={resolveSx(active ? stepperNumberCircleActive : stepperNumberCircleInactive, theme)}
-          aria-hidden
-        >
-          {stepNum}
-        </Box>
-      )}
-      <Typography
-        variant="body2"
-        sx={resolveSx(
-          active
-            ? stepperLabelResellerActive
-            : completed
-              ? stepperLabelResellerDone
-              : stepperLabelChildInactive,
-          theme
-        )}
-      >
-        {label}
-      </Typography>
-    </Box>
-  );
+  cardHeaderRight?: ReactNode;
 }
 
 export function CrmIntegrationWizardShell({
@@ -87,68 +39,71 @@ export function CrmIntegrationWizardShell({
   children,
   footer,
   subtitle = DEFAULT_SUBTITLE,
+  cardHeaderRight,
 }: CrmIntegrationWizardShellProps) {
   const theme = useTheme() as AppTheme;
 
   return (
     <Box sx={distributionWizardPageWrapper}>
+      <Link href={CRM_ROUTES.home} style={{ textDecoration: "none" }}>
+        <Box component="span" sx={distributionWizardBackLinkSx}>
+          <ArrowBack sx={{ fontSize: 18 }} />
+          Back to CRM list
+        </Box>
+      </Link>
+
       <Box sx={distributionWizardPageHeader}>
         <Typography variant="regularLarge" fontWeight={700} color="white" sx={{ mb: 0.5 }}>
-          Configure CRM Integration
+          CRM integration
         </Typography>
         <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted, maxWidth: 720 }}>
           {subtitle}
         </Typography>
       </Box>
 
-      <Box sx={{ mb: 2.5, width: "100%" }}>
-        <Box sx={stepperOuter}>
-          <StepCircle
-            label="Organization Selection"
-            stepNum="01"
-            active={step === 1}
-            completed={step > 1}
-          />
-          <Box sx={stepperDivider} />
-          <StepCircle
-            label="CRM Selection"
-            stepNum="02"
-            active={step === 2}
-            completed={step > 2}
-          />
-          <Box sx={stepperDivider} />
-          <StepCircle
-            label="HubSpot Connection Fields"
-            stepNum="03"
-            active={step === 3}
-            completed={false}
-          />
-        </Box>
-      </Box>
+      <CrmWizardStepper currentStep={step} />
 
-      <DashboardCard sx={distributionWizardCardSx}>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 2 }}>
-          <Box sx={distributionSetupSectionIconBox} aria-hidden>
-            <Typography
-              sx={{
-                color: theme.app.dashboard.white95,
-                fontWeight: 700,
-                fontSize: "1.1rem",
-                lineHeight: 1,
-              }}
-            >
-              $
-            </Typography>
+      <DashboardCard sx={distributionWizardMainCardSx}>
+        <Box sx={distributionWizardSectionHeader}>
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "flex-start",
+              justifyContent: "space-between",
+              gap: 2,
+              flexWrap: "wrap",
+            }}
+          >
+            <Box sx={{ minWidth: 0 }}>
+              <Typography variant="mediumLarge" color="white" fontWeight={600} sx={{ mb: 0.5 }}>
+                {cardTitle}
+              </Typography>
+              <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted }}>
+                Step {step} of {CRM_WIZARD_STEP_COUNT}
+              </Typography>
+            </Box>
+            {cardHeaderRight ? (
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: { xs: "stretch", md: "flex-end" },
+                  gap: 1.5,
+                  flex: { xs: "1 1 100%", md: "0 1 auto" },
+                  minWidth: 0,
+                  width: { xs: "100%", md: "auto" },
+                }}
+              >
+                {cardHeaderRight}
+              </Box>
+            ) : null}
           </Box>
-          <Typography variant="mediumLarge" color="white" fontWeight={600}>
-            {cardTitle}
-          </Typography>
         </Box>
 
-        {children}
+        <Box sx={distributionWizardSectionBody}>{children}</Box>
 
         {footer != null && footer !== false ? (
-          <Box sx={[distributionWizardCardFooter, { borderTop: "none" }] as SxProps<Theme>}>{footer}</Box>
+          <Box sx={distributionWizardCardFooter}>{footer}</Box>
         ) : null}
       </DashboardCard>
     </Box>

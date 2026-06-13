@@ -102,7 +102,7 @@ const nextConfig: NextConfig = {
   },
   /** tsParticles: transpile so Next can bundle ESM cleanly. */
   transpilePackages: ["@tsparticles/react", "tsparticles", "@tsparticles/engine"],
-  webpack: (config, { dev, isServer }) => {
+  webpack: (config, { isServer }) => {
     /**
      * tsParticles `exports` expose both `browser` and `import`. Webpack often prefers `browser`
      * first; a bad Windows unpack can leave `browser/*.js` missing (only `*.DELETE.*` stubs).
@@ -120,22 +120,12 @@ const nextConfig: NextConfig = {
     }
 
     /**
-     * Large apps on Windows can exhaust the default Node heap when webpack persists
-     * pack caches (PackFileCacheStrategy / Array buffer allocation failed).
-     * Filesystem cache keeps compile times reasonable without holding the full graph in RAM.
-     * @see https://nextjs.org/docs/app/guides/memory-usage
+     * Do not replace `config.cache` — Next.js already configures filesystem caching
+     * (distDir/cache/webpack, version key, configFile deps). Overriding it breaks
+     * resolution of the virtual `next.config.compiled.js` from next.config.ts and
+     * triggers PackFileCacheStrategy warnings + full recompiles every dev start.
+     * Use experimental.webpackMemoryOptimizations for heap pressure instead.
      */
-    if (dev) {
-      config.cache = {
-        type: "filesystem",
-        compression: false,
-        buildDependencies: {
-          config: [__filename],
-        },
-      };
-    } else if (config.cache) {
-      config.cache = Object.freeze({ type: "memory" });
-    }
 
     return config;
   },
