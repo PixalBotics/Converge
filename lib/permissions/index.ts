@@ -15,6 +15,14 @@ export {
   getOperationalViewAnyOfForDashboardPath,
   userSatisfiesOperationalViewForDashboardPath,
 } from "./operational-view-gate";
+export {
+  canAccessLeaveApprovalInbox,
+  hasDepartmentWorkforceTier,
+  hasPoolWorkforceTier,
+  hasTenantWorkforceTier,
+  resolveHrmsWorkforceTier,
+} from "./hrms-workforce-tier";
+export type { HrmsWorkforceTier, HrmsWorkforceTierInput } from "./hrms-workforce-tier";
 export { PAGE, ORG, HRMS, HRMS_LEAVE_APPROVE_ANY, HRMS_WORKFORCE_VIEW_ANY, flattenPermissionCodes } from "./permission-constants";
 export {
   hasAnyOperational,

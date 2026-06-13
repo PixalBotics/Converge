@@ -1,6 +1,6 @@
 import type { DashboardNavItem } from "./dashboard-nav.types";
 import { OP } from "./operational-keys";
-import { PAGE } from "./permission-constants";
+import { HRMS, PAGE } from "./permission-constants";
 import {
   COMMERCIAL_PAGE_PERMISSIONS,
   PAGE_PERMISSION_ORDER,
@@ -328,7 +328,7 @@ const HRMS_GROUP: DashboardNavItem = {
     },
     {
       href: "/dashboard/attendance/team-attendance",
-      label: "Team attendance",
+      label: "Attendance",
       section: "activity",
       iconKey: "reports",
       permission: PAGE.HRMS,
@@ -361,7 +361,12 @@ const HRMS_GROUP: DashboardNavItem = {
       section: "activity",
       iconKey: "leave",
       permission: PAGE.HRMS,
-      operationalAny: [OP.hrms.leave.approve, OP.hrms.leave.approvePool, OP.hrms.leave.approveDepartment],
+      operationalAny: [
+        OP.hrms.leave.approve,
+        OP.hrms.leave.approvePool,
+        OP.hrms.leave.approveDepartment,
+        HRMS.LEAVE_APPROVE_TENANT,
+      ],
     },
     {
       href: "/dashboard/leave/leave-balance",

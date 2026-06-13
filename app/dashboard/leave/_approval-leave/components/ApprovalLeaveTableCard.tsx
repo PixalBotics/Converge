@@ -83,6 +83,8 @@ export function ApprovalLeaveTableCard({
   canUseTenantQueue = true,
 }: ApprovalLeaveTableCardProps) {
   const theme = useTheme() as AppTheme;
+  const visibleQueueCount = [canUsePoolQueue, canUseDepartmentQueue, canUseTenantQueue].filter(Boolean).length;
+  const showQueueTabs = visibleQueueCount > 0;
 
   return (
     <DashboardCard sx={rolesCard}>
@@ -97,35 +99,40 @@ export function ApprovalLeaveTableCard({
         </Box>
 
         <Box sx={approvalLeaveToolbarSx}>
-          <Box sx={{ display: "flex", gap: 1 }}>
-            <Button
-              type="button"
-              variant={queue === "pool" ? "primary" : "secondary"}
-              onClick={() => onQueueChange("pool")}
-              disabled={!canUsePoolQueue}
-              sx={queue === "pool" ? gradientPrimaryButtonSx : undefined}
-            >
-              Pool queue
-            </Button>
-            <Button
-              type="button"
-              variant={queue === "department" ? "primary" : "secondary"}
-              onClick={() => onQueueChange("department")}
-              disabled={!canUseDepartmentQueue}
-              sx={queue === "department" ? gradientPrimaryButtonSx : undefined}
-            >
-              Department queue
-            </Button>
-            <Button
-              type="button"
-              variant={queue === "tenant" ? "primary" : "secondary"}
-              onClick={() => onQueueChange("tenant")}
-              disabled={!canUseTenantQueue}
-              sx={queue === "tenant" ? gradientPrimaryButtonSx : undefined}
-            >
-              Tenant queue
-            </Button>
-          </Box>
+          {showQueueTabs ? (
+            <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
+              {canUsePoolQueue ? (
+                <Button
+                  type="button"
+                  variant={queue === "pool" ? "primary" : "secondary"}
+                  onClick={() => onQueueChange("pool")}
+                  sx={queue === "pool" ? gradientPrimaryButtonSx : undefined}
+                >
+                  Team Members
+                </Button>
+              ) : null}
+              {canUseDepartmentQueue ? (
+                <Button
+                  type="button"
+                  variant={queue === "department" ? "primary" : "secondary"}
+                  onClick={() => onQueueChange("department")}
+                  sx={queue === "department" ? gradientPrimaryButtonSx : undefined}
+                >
+                  Pool Heads
+                </Button>
+              ) : null}
+              {canUseTenantQueue ? (
+                <Button
+                  type="button"
+                  variant={queue === "tenant" ? "primary" : "secondary"}
+                  onClick={() => onQueueChange("tenant")}
+                  sx={queue === "tenant" ? gradientPrimaryButtonSx : undefined}
+                >
+                  Department Heads
+                </Button>
+              ) : null}
+            </Box>
+          ) : null}
           <Box sx={approvalLeaveSearchWrapSx}>
             <SearchBar value={search} onChange={onSearchChange} placeholder="Search anything..." sx={{ width: "100%" }} />
           </Box>
