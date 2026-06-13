@@ -1,8 +1,6 @@
 import type { User } from "@/lib/auth/types";
-import {
-  canAccessLeaveApprovalInbox,
-  resolveHrmsWorkforceTier,
-} from "@/lib/permissions/hrms-workforce-tier";
+import { HRMS, hasAnyOperational } from "@/lib/permissions";
+import { OP } from "@/lib/permissions/operational-keys";
 
 export type ApprovalInboxQueue = "pool" | "department" | "tenant";
 
@@ -16,10 +14,52 @@ export type ApprovalInboxAccess = {
 type ResolveApprovalInboxAccessInput = {
   hasOperational: (code: string) => boolean;
   isPlatformAdmin: boolean;
+  isDepartmentHead: boolean;
   user: User | null | undefined;
 };
 
-/** One queue tab per login — highest applicable tier wins (permissions + flags). */
+function isPoolHeadOrManager(user: User | null | undefined): boolean {
+  return user?.isPoolHead === true || user?.role === "manager";
+}
+
+/** Parent company / tenant approver — reviews department-head leaves. */
+export function isParentCompanyAdminApprover(input: {
+  hasOperational: (code: string) => boolean;
+  isPlatformAdmin: boolean;
+  user: User | null | undefined;
+}): boolean {
+  const { isPlatformAdmin, user, hasOperational: h } = input;
+  if (isPlatformAdmin) return true;
+  if (isPoolHeadOrManager(user)) return false;
+
+  const hasTenantLeave = h(HRMS.LEAVE_APPROVE_TENANT);
+  const hasCompanyOps = hasAnyOperational(h, [OP.company.view, OP.company.manage, OP.company.list]);
+  const isParentCompanyAdmin =
+    Boolean(user?.parentCompanyId?.trim()) &&
+    (user?.role === "admin" || user?.role === "hr-admin" || hasCompanyOps);
+
+  return hasTenantLeave || isParentCompanyAdmin;
+}
+
+function isParentCompanyAdminTier(input: ResolveApprovalInboxAccessInput): boolean {
+  return isParentCompanyAdminApprover(input);
+}
+
+function canViewApprovalInbox(input: ResolveApprovalInboxAccessInput): boolean {
+  const { hasOperational: h, user, isDepartmentHead } = input;
+
+  if (isPoolHeadOrManager(user) || isDepartmentHead) return true;
+
+  return hasAnyOperational(h, [
+    HRMS.LEAVE_APPROVE_POOL,
+    HRMS.LEAVE_APPROVE_DEPT,
+    HRMS.LEAVE_APPROVE_TENANT,
+    HRMS.LEAVE_APPROVE,
+    HRMS.LEAVE_VIEW,
+  ]);
+}
+
+/** One queue tab per login — highest applicable tier wins. */
 export function resolveApprovalInboxAccess(input: ResolveApprovalInboxAccessInput): ApprovalInboxAccess {
   const denied: ApprovalInboxAccess = {
     queue: null,
@@ -28,11 +68,11 @@ export function resolveApprovalInboxAccess(input: ResolveApprovalInboxAccessInpu
     canUseTenantQueue: false,
   };
 
-  if (!canAccessLeaveApprovalInbox(input)) return denied;
+  if (!canViewApprovalInbox(input)) return denied;
 
-  const tier = resolveHrmsWorkforceTier(input);
+  const { hasOperational: h, isDepartmentHead } = input;
 
-  if (tier === "tenant") {
+  if (isParentCompanyAdminTier(input)) {
     return {
       queue: "tenant",
       canUsePoolQueue: false,
@@ -41,7 +81,17 @@ export function resolveApprovalInboxAccess(input: ResolveApprovalInboxAccessInpu
     };
   }
 
-  if (tier === "pool") {
+  // Department head roster outranks pool tier — dept heads review pool-head leaves even when they also carry pool permissions.
+  if (isDepartmentHead || h(HRMS.LEAVE_APPROVE_DEPT)) {
+    return {
+      queue: "department",
+      canUsePoolQueue: false,
+      canUseDepartmentQueue: true,
+      canUseTenantQueue: false,
+    };
+  }
+
+  if (isPoolHeadOrManager(input.user) || h(HRMS.LEAVE_APPROVE_POOL)) {
     return {
       queue: "pool",
       canUsePoolQueue: true,
@@ -50,11 +100,11 @@ export function resolveApprovalInboxAccess(input: ResolveApprovalInboxAccessInpu
     };
   }
 
-  if (tier === "department") {
+  if (h(HRMS.LEAVE_APPROVE)) {
     return {
-      queue: "department",
-      canUsePoolQueue: false,
-      canUseDepartmentQueue: true,
+      queue: "pool",
+      canUsePoolQueue: true,
+      canUseDepartmentQueue: false,
       canUseTenantQueue: false,
     };
   }

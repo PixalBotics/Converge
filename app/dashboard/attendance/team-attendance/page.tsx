@@ -8,7 +8,7 @@ import type { DataTableColumn } from "@/components/common";
 import { rolesPageWrapper } from "../../roles/roles.styles";
 import { pageWrapper } from "../../companies/overview.styles";
 import { useAuth } from "@/lib/auth";
-import { HRMS, resolveHrmsWorkforceTier } from "@/lib/permissions";
+import { HRMS } from "@/lib/permissions";
 import {
   useDepartmentHeadsListQuery,
   useDepartmentHeadsAttendanceQuery,
@@ -33,6 +33,7 @@ import {
   findListedHeadDepartmentId,
   findListedHeadDepartmentName,
   paginateItems,
+  userIsListedHead,
 } from "../_team-attendance/utils/attendance-roster";
 import { resolveTeamAttendanceAccess } from "../_team-attendance/utils/attendance-scope";
 import { useHeadRosterDayAttendanceQueries } from "../_team-attendance/utils/use-head-roster-day-attendance";
@@ -68,32 +69,31 @@ const SCOPE_EMPTY = {
 export default function TeamAttendancePage() {
   const { hasOperational: h, user, isPlatformAdmin } = useAuth();
 
-  const tierInput = useMemo(
-    () => ({ hasOperational: h, isPlatformAdmin, user }),
-    [h, isPlatformAdmin, user],
-  );
-
-  const workforceTier = useMemo(() => resolveHrmsWorkforceTier(tierInput), [tierInput]);
-
-  const needsDeptHeadsRoster = workforceTier === "department" || workforceTier === "tenant";
+  const skipDeptHeadRoster = user?.isPoolHead === true || user?.role === "manager";
 
   const deptHeadsRosterQuery = useDepartmentHeadsListQuery(
     {
       all: true,
       ...(user?.parentCompanyId?.trim() ? { parentCompanyId: user.parentCompanyId.trim() } : {}),
     },
-    { enabled: h(HRMS.ATTENDANCE_VIEW) && needsDeptHeadsRoster, scope: "attendance-dept-heads-roster" },
+    { enabled: h(HRMS.ATTENDANCE_VIEW) && !skipDeptHeadRoster, scope: "attendance-role-detect" },
   );
+
+  const isDepartmentHead = useMemo(() => {
+    if (user?.isPoolHead || user?.role === "manager") return false;
+    return userIsListedHead(deptHeadsRosterQuery.data, user?.id);
+  }, [deptHeadsRosterQuery.data, user?.id, user?.isPoolHead, user?.role]);
 
   const access = useMemo(
     () =>
       resolveTeamAttendanceAccess({
         hasAttendanceView: h(HRMS.ATTENDANCE_VIEW),
         isPlatformAdmin,
+        isDepartmentHead,
         user,
         hasOperational: h,
       }),
-    [h, isPlatformAdmin, user],
+    [h, isPlatformAdmin, isDepartmentHead, user],
   );
 
   const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
@@ -107,10 +107,8 @@ export default function TeamAttendancePage() {
   }, [access.scope]);
 
   const departmentHeadDepartmentId = useMemo(
-    () =>
-      user?.departmentId?.trim() ||
-      findListedHeadDepartmentId(deptHeadsRosterQuery.data, user?.id),
-    [user?.departmentId, deptHeadsRosterQuery.data, user?.id],
+    () => findListedHeadDepartmentId(deptHeadsRosterQuery.data, user?.id),
+    [deptHeadsRosterQuery.data, user?.id],
   );
 
   const departmentHeadUserIds = useMemo(
