@@ -175,8 +175,8 @@ export default function DistributionSettingsPage() {
         ) : method === "crm" ? (
           <Box sx={distributionChannelCardSx}>
             <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted, lineHeight: 1.5 }}>
-              No email form is required for CRM-only distribution. Department CRM field mapping is
-              configured in the distribution table step.
+              No email form is required for CRM-only distribution. Map destination department
+              and other fields in CRM Integration → Field mapping.
             </Typography>
           </Box>
         ) : method ? (

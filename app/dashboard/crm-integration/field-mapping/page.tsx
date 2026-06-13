@@ -33,6 +33,7 @@ import {
 import type { CrmIntegrationTestPanelHandle } from "@/features/crm-integration/components/CrmIntegrationTestPanel";
 import { publishAppToast } from "@/lib/notify";
 import { extractApiErrorMessageForToast } from "@/lib/notify/extract-api-message";
+import { CRM_DEPARTMENT_FIELD_KEY } from "@/features/crm-integration/crm-field-map.constants";
 import { DISTRIBUTION_ROUTES } from "@/features/distribution-setup/distribution.constants";
 
 export default function CrmFieldMappingPage() {
@@ -133,8 +134,22 @@ export default function CrmFieldMappingPage() {
     );
   };
 
+  const validateMappings = (): boolean => {
+    const departmentMapped = rows.some(
+      (r) => r.ourFieldKey === CRM_DEPARTMENT_FIELD_KEY && r.crmFieldKey.trim(),
+    );
+    if (!departmentMapped) {
+      publishAppToast({
+        variant: "error",
+        message: 'Map "Destination department" to a CRM field before saving.',
+      });
+      return false;
+    }
+    return true;
+  };
+
   const handleSave = async () => {
-    if (!integrationId) return;
+    if (!integrationId || !validateMappings()) return;
     try {
       await saveMappings.mutateAsync({
         mappings: rows
@@ -155,6 +170,7 @@ export default function CrmFieldMappingPage() {
   };
 
   const handleFinish = async () => {
+    if (!validateMappings()) return;
     await handleSave();
     clearCrmWizardDraft();
     publishAppToast({

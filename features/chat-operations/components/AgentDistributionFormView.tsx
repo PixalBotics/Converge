@@ -86,6 +86,7 @@ export type AgentDistributionFormViewProps = {
   departmentId: string;
   onDepartmentChange: (id: string) => void;
   subject?: string;
+  method?: string;
   loading?: boolean;
   submitted?: boolean;
   submitting?: boolean;
@@ -101,6 +102,7 @@ export function AgentDistributionFormView({
   departmentId,
   onDepartmentChange,
   subject,
+  method,
   loading,
   submitted,
   submitting,
@@ -125,6 +127,33 @@ export function AgentDistributionFormView({
     [fields],
   );
 
+  const deliveryMethod = method?.trim().toLowerCase() ?? "email";
+  const usesCrm = deliveryMethod === "crm" || deliveryMethod === "both";
+  const formTitle =
+    deliveryMethod === "crm"
+      ? "CRM distribution"
+      : deliveryMethod === "both"
+        ? "Email & CRM distribution"
+        : "Email distribution";
+  const submitLabel =
+    deliveryMethod === "crm"
+      ? "Submit to CRM"
+      : deliveryMethod === "both"
+        ? "Send email & CRM"
+        : "Send distribution email";
+
+  const departmentOptions = departments.map((dept) => {
+    const suffix =
+      dept.recipientCount > 0
+        ? `${dept.recipientCount} recipient${dept.recipientCount === 1 ? "" : "s"}`
+        : usesCrm
+          ? "CRM"
+          : "no recipients";
+    return {
+      value: dept.id,
+      label: `${dept.name} (${suffix})`,
+    };
+  });
   const groupLabelSx = {
     color: theme.palette.primary.light,
     fontWeight: 700,
@@ -231,7 +260,7 @@ export function AgentDistributionFormView({
           </Box>
           <Box sx={{ minWidth: 0 }}>
             <Typography variant="mediumLarge" fontWeight={700} color="white">
-              Email distribution
+              {formTitle}
             </Typography>
             {subject ? (
               <Typography
@@ -273,15 +302,12 @@ export function AgentDistributionFormView({
           ) : (
             <>
               <SelectField
-                label="Distribution department"
+                label="Destination department"
                 value={departmentId}
                 onChange={onDepartmentChange}
                 disabled={submitted}
                 searchable={departments.length > 6}
-                options={departments.map((dept) => ({
-                  value: dept.id,
-                  label: `${dept.name} (${dept.recipientCount} recipient${dept.recipientCount === 1 ? "" : "s"})`,
-                }))}
+                options={departmentOptions}
               />
 
               {groups.map(({ group, fields: groupFields }) => (
@@ -331,7 +357,11 @@ export function AgentDistributionFormView({
                   </Typography>
                 ) : (
                   <Typography variant="caption" sx={{ color: d.textMuted, flex: 1, alignSelf: "center" }}>
-                    Recipients come from the selected department&apos;s To/CC/BCC list.
+                    {deliveryMethod === "crm"
+                      ? "Selected department is sent to CRM using your field mapping."
+                      : deliveryMethod === "both"
+                        ? "Email goes to To/CC/BCC; CRM receives mapped fields including destination department."
+                        : "Recipients come from the selected department's To/CC/BCC list."}
                   </Typography>
                 )}
                 {!submitted ? (
@@ -342,7 +372,7 @@ export function AgentDistributionFormView({
                     startIcon={<SendOutlined sx={{ fontSize: 18 }} />}
                     sx={gradientPrimaryButtonSx}
                   >
-                    {submitting ? "Sending…" : "Submit distribution"}
+                    {submitting ? "Sending…" : submitLabel}
                   </Button>
                 ) : null}
               </Box>
