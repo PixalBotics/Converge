@@ -93,7 +93,7 @@ export default function ApprovalLeavePage() {
 
   const { hasOperational: h, user, isPlatformAdmin } = useAuth();
 
-  const skipDeptHeadRoster = user?.isPoolHead === true;
+  const skipDeptHeadRoster = user?.isPoolHead === true || user?.role === "manager";
 
   const deptHeadsRosterQuery = useDepartmentHeadsListQuery(
 
@@ -119,15 +119,17 @@ export default function ApprovalLeavePage() {
 
   const isDepartmentHead = useMemo(() => {
 
-    if (user?.isPoolHead || isParentCompanyAdmin) return false;
+    if (user?.isPoolHead || user?.role === "manager") return false;
 
     if (userIsListedHead(deptHeadsRosterQuery.data, user?.id)) return true;
 
+    if (isParentCompanyAdmin) return false;
+
     return h(HRMS.LEAVE_APPROVE_DEPT);
 
-  }, [deptHeadsRosterQuery.data, user?.id, user?.isPoolHead, isParentCompanyAdmin, h]);
+  }, [deptHeadsRosterQuery.data, user?.id, user?.isPoolHead, user?.role, isParentCompanyAdmin, h]);
 
-  const needsRosterDetect = !skipDeptHeadRoster && !isParentCompanyAdmin;
+  const needsRosterDetect = !skipDeptHeadRoster;
 
   const roleDetectLoading = needsRosterDetect && deptHeadsRosterQuery.isLoading;
 

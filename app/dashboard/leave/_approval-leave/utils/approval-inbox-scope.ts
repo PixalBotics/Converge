@@ -72,6 +72,16 @@ export function resolveApprovalInboxAccess(input: ResolveApprovalInboxAccessInpu
 
   const { hasOperational: h, isDepartmentHead } = input;
 
+  // Listed department heads outrank company-admin tier (they often share parent-company scope/permissions).
+  if (isDepartmentHead) {
+    return {
+      queue: "department",
+      canUsePoolQueue: false,
+      canUseDepartmentQueue: true,
+      canUseTenantQueue: false,
+    };
+  }
+
   if (isParentCompanyAdminTier(input)) {
     return {
       queue: "tenant",
@@ -81,21 +91,20 @@ export function resolveApprovalInboxAccess(input: ResolveApprovalInboxAccessInpu
     };
   }
 
-  // Department head roster outranks pool tier — dept heads review pool-head leaves even when they also carry pool permissions.
-  if (isDepartmentHead || h(HRMS.LEAVE_APPROVE_DEPT)) {
-    return {
-      queue: "department",
-      canUsePoolQueue: false,
-      canUseDepartmentQueue: true,
-      canUseTenantQueue: false,
-    };
-  }
-
   if (isPoolHeadOrManager(input.user) || h(HRMS.LEAVE_APPROVE_POOL)) {
     return {
       queue: "pool",
       canUsePoolQueue: true,
       canUseDepartmentQueue: false,
+      canUseTenantQueue: false,
+    };
+  }
+
+  if (h(HRMS.LEAVE_APPROVE_DEPT)) {
+    return {
+      queue: "department",
+      canUsePoolQueue: false,
+      canUseDepartmentQueue: true,
       canUseTenantQueue: false,
     };
   }
