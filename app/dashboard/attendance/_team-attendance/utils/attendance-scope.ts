@@ -1,6 +1,5 @@
 import type { User } from "@/lib/auth/types";
-import { HRMS, hasAnyOperational } from "@/lib/permissions";
-import { OP } from "@/lib/permissions/operational-keys";
+import { resolveHrmsWorkforceTier } from "@/lib/permissions/hrms-workforce-tier";
 
 export type TeamAttendanceScope = "team_members" | "pool_heads" | "department_heads";
 
@@ -14,34 +13,15 @@ export type TeamAttendanceAccess = {
 type ResolveTeamAttendanceAccessInput = {
   hasAttendanceView: boolean;
   isPlatformAdmin: boolean;
-  isDepartmentHead: boolean;
   user: User | null | undefined;
   hasOperational: (code: string) => boolean;
 };
 
-/** Parent-company / tenant overseer (not a pool or department head). */
-function isCompanyAdminTier(input: ResolveTeamAttendanceAccessInput): boolean {
-  const { isPlatformAdmin, isDepartmentHead, user, hasOperational: h } = input;
-  if (isPlatformAdmin) return true;
-  if (user?.isPoolHead || isDepartmentHead) return false;
-
-  const hasCompanyOps = hasAnyOperational(h, [
-    OP.company.view,
-    OP.company.manage,
-    OP.company.list,
-  ]);
-  const isParentCompanyAdmin =
-    Boolean(user?.parentCompanyId?.trim()) &&
-    (user?.role === "admin" || user?.role === "hr-admin" || hasCompanyOps);
-
-  return isParentCompanyAdmin;
-}
-
 /**
- * Match backend attendance visibility:
- * - pool head / manager → GET /hrms/pool-heads/attendance (pool members)
- * - department head → GET /hrms/department-heads/attendance (pool heads in dept)
- * - company admin → department heads roster via scoped user attendance
+ * Permission + flag based attendance visibility (mirrors backend):
+ * - pool head flag / LEAVE_APPROVE_POOL → pool members attendance
+ * - department head flag / LEAVE_APPROVE_DEPT → pool heads in department
+ * - tenant / company ops → department heads in company
  */
 export function resolveTeamAttendanceAccess(
   input: ResolveTeamAttendanceAccessInput,
@@ -55,9 +35,9 @@ export function resolveTeamAttendanceAccess(
 
   if (!input.hasAttendanceView) return denied;
 
-  const { isDepartmentHead, user } = input;
+  const tier = resolveHrmsWorkforceTier(input);
 
-  if (isCompanyAdminTier(input)) {
+  if (tier === "tenant") {
     return {
       scope: "department_heads",
       canUseTeamMembers: false,
@@ -66,8 +46,7 @@ export function resolveTeamAttendanceAccess(
     };
   }
 
-  // Pool head / manager outranks department-head tier (managers often carry dept permissions too).
-  if (user?.isPoolHead === true || user?.role === "manager") {
+  if (tier === "pool") {
     return {
       scope: "team_members",
       canUseTeamMembers: true,
@@ -76,7 +55,7 @@ export function resolveTeamAttendanceAccess(
     };
   }
 
-  if (isDepartmentHead) {
+  if (tier === "department") {
     return {
       scope: "pool_heads",
       canUseTeamMembers: false,
@@ -85,10 +64,5 @@ export function resolveTeamAttendanceAccess(
     };
   }
 
-  return {
-    scope: "team_members",
-    canUseTeamMembers: true,
-    canUsePoolHeads: false,
-    canUseDepartmentHeads: false,
-  };
+  return denied;
 }

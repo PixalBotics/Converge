@@ -115,6 +115,10 @@ type ApiUser = {
   parentCompanyId?: string;
   parent_company_id?: string;
   isPoolHead?: boolean;
+  isDepartmentHead?: boolean;
+  is_department_head?: boolean;
+  departmentId?: string;
+  department_id?: string;
 };
 
 function parseApiUserType(user: ApiUser): AuthUserType | undefined {
@@ -209,6 +213,12 @@ function mapApiUserToUser(user: ApiUser): User | null {
     (typeof user.parentCompanyId === "string" && user.parentCompanyId.trim()) ||
     (typeof user.parent_company_id === "string" && user.parent_company_id.trim()) ||
     undefined;
+  const departmentId =
+    (typeof user.departmentId === "string" && user.departmentId.trim()) ||
+    (typeof user.department_id === "string" && user.department_id.trim()) ||
+    undefined;
+  const isDepartmentHead =
+    user.isDepartmentHead === true || user.is_department_head === true;
   return {
     id: user.id,
     email: user.email,
@@ -219,6 +229,8 @@ function mapApiUserToUser(user: ApiUser): User | null {
     poolId,
     poolName,
     isPoolHead: user.isPoolHead === true,
+    isDepartmentHead,
+    departmentId,
     resellerId,
     wideResellerScope,
     parentCompanyId,
