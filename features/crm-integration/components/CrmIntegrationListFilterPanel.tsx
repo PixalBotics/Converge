@@ -65,26 +65,26 @@ export function CrmIntegrationListFilterPanel({
           <SelectField
             label="Client of (reseller)"
             value={filterResellerId}
-            onChange={(e) => setFilterResellerId(e.target.value)}
+            onChange={setFilterResellerId}
             options={resellerFilterOptions}
           />
         ) : null}
         <SelectField
           label="Parent company"
           value={filterParentCompanyId}
-          onChange={(e) => setFilterParentCompanyId(e.target.value)}
+          onChange={setFilterParentCompanyId}
           options={parentCompanyFilterOptions}
         />
         <SelectField
           label="Child company"
           value={filterChildCompanyId}
-          onChange={(e) => setFilterChildCompanyId(e.target.value)}
+          onChange={setFilterChildCompanyId}
           options={childCompanyFilterOptions}
         />
         <SelectField
           label="CRM platform"
           value={filterPlatform}
-          onChange={(e) => onFilterPlatformChange(e.target.value)}
+          onChange={onFilterPlatformChange}
           options={[...CRM_PLATFORM_FILTER_OPTIONS]}
         />
       </Box>
