@@ -23,9 +23,9 @@ const PUBLISHED_KEY = "distribution-wizard-published";
 
 
 
-/** User-selectable methods in the wizard. Only `email` is implemented today. */
+/** User-selectable methods in the wizard. */
 
-export type DistributionWizardMethod = "email" | "crm";
+export type DistributionWizardMethod = "email" | "crm" | "both";
 
 
 
@@ -69,7 +69,7 @@ export function readWizardMethod(): DistributionWizardMethod | null {
 
   const raw = sessionStorage.getItem(METHOD_KEY)?.trim().toLowerCase();
 
-  if (raw === "email" || raw === "crm") return raw;
+  if (raw === "email" || raw === "crm" || raw === "both") return raw;
 
   return null;
 
