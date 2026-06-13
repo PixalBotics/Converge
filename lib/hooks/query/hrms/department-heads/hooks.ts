@@ -17,9 +17,10 @@ export type HrmsDepartmentHeadsListParams = {
 };
 
 export type HrmsDepartmentHeadsAttendanceParams = {
-  departmentId: string;
+  departmentId?: string;
   poolId?: string;
   date?: string;
+  search?: string;
   page?: number;
   limit?: number;
   all?: boolean;
@@ -47,11 +48,10 @@ export function useDepartmentHeadsAttendanceQuery(
   const enabled = options?.enabled ?? true;
   const scope = options?.scope ?? "default";
   const req = params as unknown as JsonRecord | undefined;
-  const departmentId = (params?.departmentId ?? "").trim();
   return useQuery({
     queryKey: [...hrmsDepartmentHeadsKeys.attendance(req), scope] as const,
     queryFn: () => listDepartmentHeadsAttendance(req),
-    enabled: enabled && departmentId.length > 0,
+    enabled: enabled && params != null,
     placeholderData: keepPreviousData,
   });
 }

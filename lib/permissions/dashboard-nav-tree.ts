@@ -328,7 +328,7 @@ const HRMS_GROUP: DashboardNavItem = {
     },
     {
       href: "/dashboard/attendance/team-attendance",
-      label: "Team attendance",
+      label: "Attendance",
       section: "activity",
       iconKey: "reports",
       permission: PAGE.HRMS,
