@@ -601,7 +601,7 @@ export function embedComposerRowSx(appearance: RuntimeChatAppearance): SxProps<T
   void appearance;
   return {
     display: "flex",
-    alignItems: "center",
+    alignItems: "flex-end",
     gap: 1,
     width: "100%",
     minHeight: 44,
@@ -621,6 +621,7 @@ export function embedComposerInputSx(appearance: RuntimeChatAppearance): SxProps
       fontFamily: c.fontFamily,
       fontSize: c.inputFontSizePx,
       minHeight: 42,
+      alignItems: "flex-start",
       px: 0.5,
       boxShadow: "none",
       "& fieldset": {
@@ -633,12 +634,16 @@ export function embedComposerInputSx(appearance: RuntimeChatAppearance): SxProps
         borderColor: `${c.primary} !important`,
         borderWidth: "1px !important",
       },
-      "& input": {
+      "& .MuiInputBase-input": {
         color: `${c.inputText} !important`,
         caretColor: c.inputText,
         WebkitTextFillColor: `${c.inputText} !important`,
+        lineHeight: 1.35,
         py: 1.1,
         px: 1.5,
+        resize: "none",
+        overflowY: "auto !important",
+        scrollbarWidth: "thin",
         "&::placeholder": {
           color: `${c.inputPlaceholder} !important`,
           opacity: 1,

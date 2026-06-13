@@ -4,6 +4,7 @@ import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
 import HubOutlined from "@mui/icons-material/HubOutlined";
 import MailOutline from "@mui/icons-material/MailOutline";
+import SyncAltOutlined from "@mui/icons-material/SyncAltOutlined";
 import { alpha, useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import { Typography } from "@/components/common";
@@ -20,7 +21,8 @@ export type DistributionMethodPickerProps = {
 
 function MethodIcon({ option }: { option: DistributionMethodOption }) {
   const theme = useTheme() as AppTheme;
-  const Icon = option.id === "email" ? MailOutline : HubOutlined;
+  const Icon =
+    option.id === "email" ? MailOutline : option.id === "both" ? SyncAltOutlined : HubOutlined;
   return (
     <Box
       sx={{
@@ -52,7 +54,7 @@ export function DistributionMethodPicker({ value, onChange }: DistributionMethod
     <Box
       sx={{
         display: "grid",
-        gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" },
+        gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr", md: "1fr 1fr 1fr" },
         gap: 1.5,
       }}
     >
