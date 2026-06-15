@@ -1,4 +1,5 @@
 import type { PickWebsitePreset } from "@/features/website-assignments/components/PickWebsiteModal";
+import { CRM_PLATFORM_CODES, type CrmPlatformCode } from "./crm.constants";
 
 const WEBSITE_KEY = "crm-wizard-website";
 const PLATFORM_KEY = "crm-wizard-platform";
@@ -6,7 +7,7 @@ const METHOD_KEY = "crm-wizard-connection-method";
 const INTEGRATION_ID_KEY = "crm-wizard-integration-id";
 const CONFIG_KEY = "crm-wizard-config-draft";
 
-export type CrmWizardPlatform = "hubspot" | "salesforce" | "zoho";
+export type CrmWizardPlatform = CrmPlatformCode;
 export type CrmWizardConnectionMethod = string;
 
 export function readCrmWizardWebsite(): PickWebsitePreset | null {
@@ -29,8 +30,12 @@ export function writeCrmWizardWebsite(preset: PickWebsitePreset): void {
 export function readCrmWizardPlatform(): CrmWizardPlatform | null {
   if (typeof sessionStorage === "undefined") return null;
   const raw = sessionStorage.getItem(PLATFORM_KEY)?.trim().toLowerCase();
-  if (raw === "hubspot" || raw === "salesforce" || raw === "zoho") return raw;
+  if (raw && isCrmPlatformCode(raw)) return raw;
   return null;
+}
+
+function isCrmPlatformCode(raw: string): raw is CrmPlatformCode {
+  return (CRM_PLATFORM_CODES as readonly string[]).includes(raw);
 }
 
 export function writeCrmWizardPlatform(platform: CrmWizardPlatform | null): void {

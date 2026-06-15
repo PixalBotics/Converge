@@ -21,4 +21,4 @@ export { CrmSelectedScopeBanner } from "./components/CrmSelectedScopeBanner";
 export { getCrmPlatformMeta, CRM_PLATFORM_META } from "./crm-platform-meta";
 export { CrmWizardStepper } from "./components/CrmWizardStepper";
 export { CrmIntegrationListPage } from "./pages/CrmIntegrationListPage";
-export { clearCrmWizardDraft } from "./wizard-storage";
+export { CrmOAuthConnectButton } from "./components/CrmOAuthConnectButton";

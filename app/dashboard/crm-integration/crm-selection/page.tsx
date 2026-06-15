@@ -12,6 +12,7 @@ import {
   CrmWizardFooter,
   CRM_ROUTES,
 } from "@/features/crm-integration";
+import type { CrmPlatformCode } from "@/features/crm-integration/crm.constants";
 import { crmChannelCardSx, crmWizardLayoutSx } from "@/features/crm-integration/styles/crm-wizard-ui.styles";
 import {
   readCrmWizardPlatform,
@@ -46,7 +47,7 @@ export default function CrmSelectionPage() {
       publishAppToast({ variant: "error", message: "Select a CRM platform." });
       return;
     }
-    writeCrmWizardPlatform(platformCode as "hubspot" | "salesforce" | "zoho");
+    writeCrmWizardPlatform(platformCode as CrmPlatformCode);
     router.push(CRM_ROUTES.connectionMethod);
   };
 

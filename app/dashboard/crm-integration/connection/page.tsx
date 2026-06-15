@@ -29,8 +29,13 @@ import {
   useUpsertCrmIntegrationMutation,
 } from "@/features/crm-integration/hooks/useCrmIntegrationQueries";
 import { publishAppToast } from "@/lib/notify";
+import { CrmOAuthConnectButton } from "@/features/crm-integration/components/CrmOAuthConnectButton";
 
-const EMBED_FIELD_KEYS = new Set(["web_form_url", "web_to_lead_url"]);
+const EMBED_FIELD_KEYS = new Set([
+  "web_form_url",
+  "web_to_lead_url",
+  "webhook_schema_json",
+]);
 
 export default function CrmConnectionPage() {
   const router = useRouter();
@@ -70,6 +75,7 @@ export default function CrmConnectionPage() {
   );
 
   const guideSteps = platform?.setupGuide?.[connectionMethod ?? ""] ?? [];
+  const oauthRedirectUri = platform?.oauthRedirectUri ?? null;
 
   useEffect(() => {
     const source = detailQuery.data ?? lookupQuery.data;
@@ -90,17 +96,42 @@ export default function CrmConnectionPage() {
     setConfig((prev) => ({ ...prev, [fieldKey]: value }));
   };
 
+  const isOAuth = connectionMethod === "oauth";
+  const oauthConnected =
+    detailQuery.data?.config?.oauth_connected === "true" ||
+    lookupQuery.data?.config?.oauth_connected === "true";
+  const hasStoredOAuthSecret = Boolean(
+    detailQuery.data?.configMasked?.oauth_client_secret ||
+      lookupQuery.data?.configMasked?.oauth_client_secret,
+  );
+  const hasOAuthAppCreds =
+    Boolean(config.oauth_client_id?.trim()) &&
+    (Boolean(config.oauth_client_secret?.trim()) || hasStoredOAuthSecret);
+
+  const saveIntegration = async () => {
+    if (!website?.childCompanyId || !platformCode || !connectionMethod) return null;
+    const saved = await upsertMutation.mutateAsync({
+      companyId: website.childCompanyId,
+      platformCode,
+      connectionMethod,
+      config,
+      websiteId: website.websiteId,
+    });
+    writeCrmWizardIntegrationId(saved.id);
+    return saved.id;
+  };
+
   const handleSaveAndNext = async () => {
     if (!website?.childCompanyId || !platformCode || !connectionMethod) return;
-    try {
-      const saved = await upsertMutation.mutateAsync({
-        companyId: website.childCompanyId,
-        platformCode,
-        connectionMethod,
-        config,
-        websiteId: website.websiteId,
+    if (isOAuth && !oauthConnected) {
+      publishAppToast({
+        variant: "error",
+        message: "Connect your CRM with OAuth before continuing.",
       });
-      writeCrmWizardIntegrationId(saved.id);
+      return;
+    }
+    try {
+      await saveIntegration();
       publishAppToast({ variant: "success", message: "CRM connection saved." });
       router.push(CRM_ROUTES.fieldMapping);
     } catch (e) {
@@ -115,7 +146,11 @@ export default function CrmConnectionPage() {
     <CrmIntegrationWizardShell
       step={4}
       cardTitle={`${platform?.name ?? "CRM"} connection`}
-      subtitle="Paste your CRM form URL or embed HTML (like distribution setup), then continue to field mapping."
+      subtitle={
+        isOAuth
+          ? "Enter your CRM app's OAuth credentials, register the redirect URL in your CRM developer portal, then connect."
+          : "Paste your CRM form URL or embed HTML (like distribution setup), then continue to field mapping."
+      }
       footer={
         <CrmWizardFooter onBack={() => router.push(CRM_ROUTES.connectionMethod)} backLabel="Back">
           <Button
@@ -150,49 +185,102 @@ export default function CrmConnectionPage() {
           >
             Step 4 · Connection details
           </Typography>
-          <Typography
-            variant="caption"
-            sx={{ color: (t) => t.app.dashboard.textMuted, display: "block", mb: 2, lineHeight: 1.55 }}
-          >
-            For Zoho or Salesforce Web-to-Lead you can paste the public form URL or the full embed
-            HTML from your CRM — fields on the next step come from this form only.
-          </Typography>
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-            {visibleSteps.map((step) => {
-              const isEmbedField = EMBED_FIELD_KEYS.has(step.fieldKey);
-              const value = config[step.fieldKey] ?? "";
 
-              if (isEmbedField) {
-                return (
-                  <InputField
-                    key={step.fieldKey}
-                    label={step.label}
-                    name={step.fieldKey}
-                    value={value}
-                    onChange={(e) => updateField(step.fieldKey, e.target.value)}
-                    multiline
-                    minRows={8}
-                    placeholder={
-                      step.helpText ??
-                      "Public form URL or paste full embed HTML from Zoho / Salesforce"
-                    }
-                  />
-                );
-              }
+          {isOAuth ? (
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+              {oauthRedirectUri ? (
+                <Box
+                  sx={(t) => ({
+                    p: 1.5,
+                    borderRadius: 1.5,
+                    bgcolor: t.app.dashboard.overlayLight,
+                    border: `1px solid ${t.app.dashboard.shellBorder}`,
+                  })}
+                >
+                  <Typography
+                    variant="caption"
+                    sx={{ color: (t) => t.app.dashboard.textMuted, display: "block", mb: 0.5 }}
+                  >
+                    OAuth redirect URL — add this in your CRM app settings
+                  </Typography>
+                  <Typography variant="caption" sx={{ color: "white", wordBreak: "break-all" }}>
+                    {oauthRedirectUri}
+                  </Typography>
+                </Box>
+              ) : null}
 
-              return (
+              {visibleSteps.map((step) => (
                 <InputField
                   key={step.fieldKey}
                   label={step.label}
                   name={step.fieldKey}
                   type={step.fieldType === "password" ? "password" : "text"}
-                  value={value}
+                  value={config[step.fieldKey] ?? ""}
                   onChange={(e) => updateField(step.fieldKey, e.target.value)}
                   placeholder={step.helpText ?? undefined}
                 />
-              );
-            })}
-          </Box>
+              ))}
+
+              {website?.childCompanyId ? (
+              <CrmOAuthConnectButton
+                platformCode={platformCode ?? ""}
+                companyId={website.childCompanyId}
+                websiteId={website.websiteId}
+                integrationId={integrationId}
+                disabled={!hasOAuthAppCreds || upsertMutation.isPending}
+                onSaveBeforeConnect={saveIntegration}
+              />
+              ) : null}
+
+              {oauthConnected ? (
+                <Typography variant="caption" sx={{ color: (t) => t.palette.success.light }}>
+                  OAuth connected. Save and continue to field mapping.
+                </Typography>
+              ) : (
+                <Typography variant="caption" sx={{ color: (t) => t.app.dashboard.textMuted, lineHeight: 1.55 }}>
+                  Each website / reseller uses their own CRM OAuth app. Credentials are stored encrypted
+                  per integration — not in platform environment variables.
+                </Typography>
+              )}
+            </Box>
+          ) : (
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+              {visibleSteps.map((step) => {
+                const isEmbedField = EMBED_FIELD_KEYS.has(step.fieldKey);
+                const value = config[step.fieldKey] ?? "";
+
+                if (isEmbedField) {
+                  return (
+                    <InputField
+                      key={step.fieldKey}
+                      label={step.label}
+                      name={step.fieldKey}
+                      value={value}
+                      onChange={(e) => updateField(step.fieldKey, e.target.value)}
+                      multiline
+                      minRows={8}
+                      placeholder={
+                        step.helpText ??
+                        "Public form URL or paste full embed HTML from Zoho / Salesforce"
+                      }
+                    />
+                  );
+                }
+
+                return (
+                  <InputField
+                    key={step.fieldKey}
+                    label={step.label}
+                    name={step.fieldKey}
+                    type={step.fieldType === "password" ? "password" : "text"}
+                    value={value}
+                    onChange={(e) => updateField(step.fieldKey, e.target.value)}
+                    placeholder={step.helpText ?? undefined}
+                  />
+                );
+              })}
+            </Box>
+          )}
         </Box>
       </Box>
     </CrmIntegrationWizardShell>

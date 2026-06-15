@@ -1,4 +1,6 @@
-export type CrmPlatformCode = "hubspot" | "salesforce" | "zoho";
+import type { CrmPlatformCode } from "./crm.constants";
+
+export type { CrmPlatformCode };
 
 export type CrmPlatformMeta = {
   code: CrmPlatformCode;
@@ -45,6 +47,26 @@ export const CRM_PLATFORM_META: Record<CrmPlatformCode, CrmPlatformMeta> = {
     logoNoChrome: true,
     logoWide: true,
     blurb: "Published web form URL",
+  },
+  dynamics365: {
+    code: "dynamics365",
+    name: "Dynamics 365",
+    logoSrc: "/assets/images/crm/dynamics365.png",
+    accent: "#5c2d91",
+    logoBg: "transparent",
+    logoNoChrome: true,
+    logoWide: true,
+    blurb: "Dataverse API or Power Automate webhook",
+  },
+  gohighlevel: {
+    code: "gohighlevel",
+    name: "Go High Level",
+    logoSrc: "/assets/images/crm/gohighlevel.png",
+    accent: "#0f2744",
+    logoBg: "transparent",
+    logoFullBleed: true,
+    logoNoChrome: true,
+    blurb: "Location API key or workflow webhook",
   },
 };
 
