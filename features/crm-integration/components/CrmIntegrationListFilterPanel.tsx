@@ -16,6 +16,8 @@ export const CRM_PLATFORM_FILTER_OPTIONS = [
   { value: "hubspot", label: "HubSpot" },
   { value: "salesforce", label: "Salesforce" },
   { value: "zoho", label: "Zoho CRM" },
+  { value: "dynamics365", label: "Dynamics 365" },
+  { value: "gohighlevel", label: "Go High Level" },
 ] as const;
 
 export type CrmIntegrationListFilterPanelProps = WebsiteAssignmentScopeFilterState & {

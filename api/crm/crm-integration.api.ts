@@ -34,7 +34,7 @@ export type CrmPlatformField = {
 
 export type CrmDiscoveredFieldsResponse = {
   fields: CrmPlatformField[];
-  source: "live_form" | "hubspot_api";
+  source: "live_form" | "hubspot_api" | "dynamics365_api" | "power_automate_schema" | "gohighlevel_api" | "gohighlevel_webhook_schema";
   message?: string;
 };
 
@@ -43,6 +43,7 @@ export type CrmPlatformItem = {
   code: string;
   name: string;
   connectionMethods: CrmConnectionMethod[];
+  oauthRedirectUri?: string;
   setupGuide: Record<string, CrmSetupGuideStep[]>;
   configSteps: CrmPlatformConfigStep[];
   fields: CrmPlatformField[];

@@ -9,5 +9,11 @@ export const CRM_ROUTES = {
   fieldMapping: `${CRM_BASE_PATH}/field-mapping`,
 } as const;
 
-export const CRM_PLATFORM_CODES = ["hubspot", "salesforce", "zoho"] as const;
+export const CRM_PLATFORM_CODES = [
+  "hubspot",
+  "salesforce",
+  "zoho",
+  "dynamics365",
+  "gohighlevel",
+] as const;
 export type CrmPlatformCode = (typeof CRM_PLATFORM_CODES)[number];

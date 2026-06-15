@@ -119,13 +119,30 @@ export default function CrmFieldMappingPage() {
     discoveredCrmFields,
   ]);
 
+  const connectionMethod =
+    detailQuery.data?.connectionMethod ??
+    lookupQuery.data?.connectionMethod ??
+    "";
+
   const discoverError = discoverQuery.isError
     ? extractApiErrorMessageForToast(
         discoverQuery.error,
-        "Could not load fields from your CRM form. Go back and paste the public form URL or embed HTML.",
+        platformCode === "dynamics365"
+          ? connectionMethod === "power_automate"
+            ? "Could not load fields from Power Automate schema. Paste valid sample JSON on the connection step."
+            : "Could not load fields from Dynamics 365. Check your Azure app credentials, application user role, and record type."
+          : platformCode === "gohighlevel"
+            ? connectionMethod === "inbound_webhook"
+              ? "Could not load fields from GHL webhook schema. Paste valid sample JSON on the connection step."
+              : "Could not load fields from Go High Level. Check API key, Location ID, and contacts scope."
+            : "Could not load fields from your CRM form. Go back and paste the public form URL or embed HTML.",
       )
     : discoverQuery.isSuccess && !discoveredCrmFields.length
-      ? "No fields were found on your CRM form. Update the connection step and try again."
+      ? platformCode === "dynamics365"
+        ? "No fields were returned. For Web API check entity access; for Power Automate verify your schema JSON."
+        : platformCode === "gohighlevel"
+          ? "No fields were returned. For API key check location access; for webhook verify your schema JSON."
+          : "No fields were found on your CRM form. Update the connection step and try again."
       : null;
 
   const handleChange = (ourFieldKey: string, crmFieldKey: string) => {

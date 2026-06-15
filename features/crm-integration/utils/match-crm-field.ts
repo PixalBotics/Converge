@@ -6,12 +6,22 @@ function normalizeFieldToken(value: string): string {
 
 const OUR_FIELD_ALIASES: Record<string, string[]> = {
   name: ["firstname", "first name", "first_name", "fullname", "contact name"],
-  email: ["email", "emailaddress", "email address"],
-  phone: ["phone", "mobile", "phonenumber", "phone number"],
-  company: ["company", "companyname", "company name", "organization"],
+  email: ["email", "emailaddress", "email address", "emailaddress1"],
+  phone: ["phone", "mobile", "phonenumber", "phone number", "telephone1"],
+  company: ["company", "companyname", "company name", "organization", "companyname"],
   transcript: ["description", "notes", "message", "comments", "chat transcript"],
-  department: ["lastname", "last name", "last_name", "department", "leadsource", "lead source"],
-  website: ["website", "url", "web site"],
+  department: [
+    "lastname",
+    "last name",
+    "last_name",
+    "department",
+    "leadsource",
+    "lead source",
+    "subject",
+    "title",
+    "caseorigincode",
+  ],
+  website: ["website", "url", "web site", "websiteurl"],
 };
 
 export function autoMatchDiscoveredCrmField(
