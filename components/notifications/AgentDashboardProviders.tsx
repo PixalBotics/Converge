@@ -22,7 +22,10 @@ export function AgentDashboardProviders({ children }: { children: React.ReactNod
     realtimeEnabled && (gates.agentInbox || gates.monitor);
 
   useAuthRealtimeBridge(realtimeEnabled, token);
-  useAgentSessionSockets(chatSocketEnabled, { inboxDeltas: gates.agentInbox });
+  useAgentSessionSockets(chatSocketEnabled, {
+    inboxDeltas: gates.agentInbox,
+    respectChatSession: gates.agentInbox,
+  });
 
   return <NotificationsProvider enabled={realtimeEnabled}>{children}</NotificationsProvider>;
 }

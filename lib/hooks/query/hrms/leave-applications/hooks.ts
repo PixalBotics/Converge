@@ -42,11 +42,14 @@ export function useLeaveQuotaSummaryQuery(
 ) {
   const scope = options?.scope ?? "default";
   const enabled = options?.enabled ?? true;
-  const req = params as unknown as JsonRecord | undefined;
+  const year = params?.year;
+  const req = year != null && Number.isFinite(year) ? ({ year } as JsonRecord) : undefined;
   return useQuery({
     queryKey: [...hrmsLeaveApplicationsKeys.quotaSummary(req), scope] as const,
     queryFn: () => getLeaveQuotaSummary(req),
-    enabled,
+    enabled: enabled && year != null && Number.isFinite(year),
+    staleTime: 5 * 60_000,
+    refetchOnWindowFocus: false,
     placeholderData: keepPreviousData,
   });
 }

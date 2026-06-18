@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Box from "@mui/material/Box";
 import Divider from "@mui/material/Divider";
-import { AttachMoney as AttachMoneyIcon } from "@mui/icons-material";
+import { EventAvailable as EventAvailableIcon } from "@mui/icons-material";
 import type { SxProps, Theme } from "@mui/material/styles";
 import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
@@ -15,10 +15,13 @@ import {
   applyLeaveIconSx,
 } from "../apply-leave/apply-leave.styles";
 import { leaveBalanceHeaderWrapSx, leaveBalanceSubtextSx } from "./leave-balance.styles";
-import { unwrapApiData, isRecord, pickNum, pickStr } from "@/lib/utils/core";
 import { useLeaveQuotaSummaryQuery } from "@/lib/hooks/query";
 import { useAuth } from "@/lib/auth";
 import { OP } from "@/lib/permissions";
+import {
+  formatLeaveDayCount,
+  parseLeaveQuotaSummaryRows,
+} from "@/lib/utils/hrms/leave-quota-display";
 
 export default function LeaveBalancePage() {
   const theme = useTheme() as AppTheme;
@@ -27,7 +30,10 @@ export default function LeaveBalancePage() {
     hasOperational(OP.hrms.leave.selfView) || hasOperational(OP.hrms.leave.apply);
   const [quotaYear, setQuotaYear] = useState(() => new Date().getUTCFullYear());
 
-  const quotaQuery = useLeaveQuotaSummaryQuery({ year: quotaYear }, { enabled: true, scope: "leave-balance" });
+  const quotaQuery = useLeaveQuotaSummaryQuery(
+    { year: quotaYear },
+    { enabled: showLeaveInsights, scope: "leave-balance" },
+  );
 
   const quotaYearOptions = useMemo(() => {
     const now = new Date().getUTCFullYear();
@@ -35,35 +41,10 @@ export default function LeaveBalancePage() {
     return years.map((y) => ({ value: String(y), label: String(y) }));
   }, []);
 
-  const quotaRows = useMemo(() => {
-    const payload = unwrapApiData(quotaQuery.data);
-    const obj = isRecord(payload) ? payload : null;
-    const arr =
-      Array.isArray(payload) ? (payload as unknown[]) :
-      Array.isArray(obj?.["items"]) ? (obj?.["items"] as unknown[]) :
-      Array.isArray(obj?.["leaveTypes"]) ? (obj?.["leaveTypes"] as unknown[]) :
-      Array.isArray(obj?.["data"]) ? (obj?.["data"] as unknown[]) :
-      [];
-    const items = arr.filter(isRecord);
-    return items
-      .map((r) => {
-        const leaveTypeObj = isRecord(r["leaveType"]) ? (r["leaveType"] as Record<string, unknown>) : null;
-        const id = pickStr(leaveTypeObj, ["id"]) || pickStr(r, ["leaveTypeId", "id"]) || "";
-        const name = pickStr(leaveTypeObj, ["name"]) || pickStr(r, ["leaveTypeName", "name", "typeName"]) || "—";
-        const max =
-          pickNum(r, ["yearlyMax", "yearlyMaxDays", "maxDaysPerYear", "maxDays", "yearMaxDays"]) ??
-          pickNum(leaveTypeObj, ["maxDaysPerYear", "yearlyMaxDays"]);
-        const used =
-          pickNum(r, ["countedDays", "usedDays", "daysUsed", "daysCounted", "takenDays", "daysTaken"]) ??
-          pickNum(r, ["pendingAndApprovedDays", "pendingApprovedDays"]);
-        const safeMax = typeof max === "number" && Number.isFinite(max) ? Math.max(0, max) : null;
-        const safeUsed = typeof used === "number" && Number.isFinite(used) ? Math.max(0, used) : 0;
-        const remaining = safeMax == null ? null : Math.max(0, safeMax - safeUsed);
-        const pct = safeMax && safeMax > 0 ? Math.min(100, Math.round((safeUsed / safeMax) * 100)) : 0;
-        return { id: id || name, name, max: safeMax, used: safeUsed, remaining, pct };
-      })
-      .sort((a, b) => a.name.localeCompare(b.name));
-  }, [quotaQuery.data]);
+  const quotaRows = useMemo(
+    () => parseLeaveQuotaSummaryRows(quotaQuery.data),
+    [quotaQuery.data],
+  );
 
   return (
     <Box sx={[pageWrapper, rolesPageWrapper] as SxProps<Theme>}>
@@ -72,7 +53,7 @@ export default function LeaveBalancePage() {
           Leave Balance
         </Typography>
         <Typography variant="body2" sx={leaveBalanceSubtextSx}>
-          Generate and distribute licenses to client companies
+          View approved leave counts and remaining quota for the selected year.
         </Typography>
       </Box>
 
@@ -81,14 +62,14 @@ export default function LeaveBalancePage() {
           <Box sx={{ ...applyLeaveCardHeaderSx, justifyContent: "space-between", gap: 2, alignItems: "flex-start" }}>
             <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
               <Box sx={rolesIconBox}>
-                <AttachMoneyIcon sx={applyLeaveIconSx} />
+                <EventAvailableIcon sx={applyLeaveIconSx} />
               </Box>
               <Box>
                 <Typography variant="mediumLarge" fontWeight={600} color="white">
                   Quota summary
                 </Typography>
                 <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, mt: 0.25 }}>
-                  Leave usage for the selected year.
+                  Approved leave days counted against your yearly limits.
                 </Typography>
               </Box>
             </Box>
@@ -104,7 +85,7 @@ export default function LeaveBalancePage() {
             </Box>
           </Box>
 
-          {quotaQuery.isLoading || quotaQuery.isFetching ? (
+          {quotaQuery.isPending ? (
             <Box sx={{ mt: 2 }}>
               <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted }}>
                 Loading quota summary…
@@ -119,14 +100,14 @@ export default function LeaveBalancePage() {
           ) : quotaRows.length === 0 ? (
             <Box sx={{ mt: 2 }}>
               <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted }}>
-                No quota information available for this year.
+                No quota information available for {quotaYear}.
               </Typography>
             </Box>
           ) : (
             <Box sx={{ mt: 2, display: "flex", flexDirection: "column", gap: 1.25 }}>
-              {quotaRows.map((r) => (
+              {quotaRows.map((row) => (
                 <Box
-                  key={r.id}
+                  key={row.id}
                   sx={{
                     border: `1px solid ${theme.palette.mode === "light" ? "rgba(15, 23, 42, 0.10)" : "rgba(255,255,255,0.10)"}`,
                     borderRadius: 2,
@@ -138,10 +119,12 @@ export default function LeaveBalancePage() {
                 >
                   <Box sx={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 1.5 }}>
                     <Typography variant="mediumLarge" fontWeight={600} color="white">
-                      {r.name}
+                      {row.name}
                     </Typography>
                     <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, whiteSpace: "nowrap" }}>
-                      {r.max == null ? "No yearly limit" : `${r.used} / ${r.max} days`}
+                      {row.yearlyMax == null
+                        ? `${formatLeaveDayCount(row.approvedDays)} approved`
+                        : `${formatLeaveDayCount(row.approvedDays)} / ${formatLeaveDayCount(row.yearlyMax)}`}
                     </Typography>
                   </Box>
 
@@ -157,7 +140,7 @@ export default function LeaveBalancePage() {
                       <Box
                         sx={{
                           height: "100%",
-                          width: `${r.max == null ? 0 : r.pct}%`,
+                          width: `${row.yearlyMax == null ? 0 : row.usagePct}%`,
                           borderRadius: 999,
                           background: `linear-gradient(90deg, ${theme.app.dashboard.buttonIndigo} 0%, ${theme.app.dashboard.accentGreen ?? theme.palette.success.main} 100%)`,
                           transition: "width 180ms ease",
@@ -169,35 +152,60 @@ export default function LeaveBalancePage() {
                       sx={{
                         mt: 1.25,
                         display: "grid",
-                        gridTemplateColumns: { xs: "1fr", sm: "minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr)" },
+                        gridTemplateColumns: {
+                          xs: "1fr",
+                          sm: "repeat(2, minmax(0, 1fr))",
+                          md: "repeat(4, minmax(0, 1fr))",
+                        },
                         gap: 1,
                         alignItems: "center",
                       }}
                     >
                       <Box>
                         <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, display: "block" }}>
-                          Used
+                          Approved leaves
                         </Typography>
                         <Typography variant="body2" sx={{ color: "white", fontWeight: 600 }}>
-                          {r.used} day{r.used === 1 ? "" : "s"}
+                          {formatLeaveDayCount(row.approvedDays)}
                         </Typography>
                       </Box>
-                      <Divider sx={{ display: { xs: "none", sm: "block" }, borderColor: "rgba(255,255,255,0.10)" }} orientation="vertical" flexItem />
+                      <Divider
+                        sx={{ display: { xs: "none", md: "block" }, borderColor: "rgba(255,255,255,0.10)" }}
+                        orientation="vertical"
+                        flexItem
+                      />
+                      <Box>
+                        <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, display: "block" }}>
+                          Pending
+                        </Typography>
+                        <Typography variant="body2" sx={{ color: "white", fontWeight: 600 }}>
+                          {formatLeaveDayCount(row.pendingDays)}
+                        </Typography>
+                      </Box>
+                      <Divider
+                        sx={{ display: { xs: "none", md: "block" }, borderColor: "rgba(255,255,255,0.10)" }}
+                        orientation="vertical"
+                        flexItem
+                      />
                       <Box>
                         <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, display: "block" }}>
                           Remaining
                         </Typography>
                         <Typography variant="body2" sx={{ color: "white", fontWeight: 600 }}>
-                          {r.remaining == null ? "—" : `${r.remaining} day${r.remaining === 1 ? "" : "s"}`}
+                          {row.remainingDays == null ? "—" : formatLeaveDayCount(row.remainingDays)}
                         </Typography>
                       </Box>
-                      <Divider sx={{ display: { xs: "none", sm: "block" }, borderColor: "rgba(255,255,255,0.10)" }} orientation="vertical" flexItem />
+                      <Divider
+                        sx={{ display: { xs: "none", md: "block" }, borderColor: "rgba(255,255,255,0.10)" }}
+                        orientation="vertical"
+                        flexItem
+                      />
                       <Box>
                         <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, display: "block" }}>
                           Yearly limit
                         </Typography>
                         <Typography variant="body2" sx={{ color: "white", fontWeight: 600 }}>
-                          {r.max == null ? "—" : `${r.max} day${r.max === 1 ? "" : "s"}`}
+                          {row.yearlyMax == null ? "—" : formatLeaveDayCount(row.yearlyMax)}
                         </Typography>
                       </Box>
                     </Box>

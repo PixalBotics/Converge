@@ -74,54 +74,71 @@ export default function DashboardHeader({ onMenuClick }: { onMenuClick?: () => v
           sx={{
             display: "flex",
             alignItems: "center",
-            gap: { xs: 0.25, sm: 1.5 },
+            gap: { xs: 0.75, sm: 1.25 },
             flex: 1,
             minWidth: 0,
             justifyContent: "flex-end",
           }}
         >
           <NotificationsBellDrawer />
-          <Box sx={{ display: "flex", alignItems: "center", gap: { xs: 0.5, sm: 1.5 }, ml: { xs: 0, sm: 1 } }}>
-            <Avatar
-              sx={{
-                width: { xs: 32, md: 40 },
-                height: { xs: 32, md: 40 },
-                bgcolor: app.dashboard.accentBlue,
-                fontSize: "0.9rem",
-              }}
-            >
-              {initials}
-            </Avatar>
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: { xs: 0.75, sm: 1.25 },
+              minWidth: 0,
+              pl: { xs: 0, sm: 0.25 },
+            }}
+          >
             <Box
               component="button"
               type="button"
               onClick={handleClick}
               sx={{
-                display: { xs: "none", sm: "flex" },
+                display: "flex",
                 alignItems: "center",
-                gap: 0.5,
+                gap: { xs: 0.5, sm: 0.75 },
                 border: "none",
                 background: "none",
                 cursor: "pointer",
                 padding: 0,
                 textAlign: "left",
+                minWidth: 0,
               }}
             >
-              <Box>
-                <Typography variant="body2" fontWeight={600} sx={{ color: app.text.primary }}>
+              <Avatar
+                sx={{
+                  width: { xs: 32, md: 40 },
+                  height: { xs: 32, md: 40 },
+                  bgcolor: app.dashboard.accentBlue,
+                  fontSize: "0.9rem",
+                  flexShrink: 0,
+                }}
+              >
+                {initials}
+              </Avatar>
+              <Box sx={{ minWidth: 0, display: { xs: "none", sm: "block" } }}>
+                <Typography
+                  variant="body2"
+                  fontWeight={600}
+                  sx={{
+                    color: app.text.primary,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                    maxWidth: { sm: 120, md: 160 },
+                  }}
+                >
                   {displayName.toUpperCase()}
                 </Typography>
                 <Typography variant="medium" sx={{ color: app.dashboard.white60 }}>
                   {roleLabel}
                 </Typography>
               </Box>
-              <KeyboardArrowDownIcon sx={{ color: app.dashboard.white60, fontSize: 20 }} />
+              <KeyboardArrowDownIcon
+                sx={{ color: app.dashboard.white60, fontSize: 20, flexShrink: 0 }}
+              />
             </Box>
-            {isMobile && (
-              <IconButton onClick={handleClick} sx={{ color: app.dashboard.white90, p: 0.5 }} aria-label="Account menu">
-                <KeyboardArrowDownIcon sx={{ fontSize: 20 }} />
-              </IconButton>
-            )}
           </Box>
         </Box>
       </Box>

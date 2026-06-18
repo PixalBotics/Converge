@@ -97,26 +97,18 @@ export default function MarkAttendancePage() {
     todayAttendanceQuery.isFetching;
 
   const mutateWithToast = (
-    mutate: (body: { date: string }, opts: { onSuccess: () => void; onError: (e: unknown) => void }) => void,
+    mutate: (opts: { onSuccess: () => void; onError: (e: unknown) => void }) => void,
     successMessage: string,
     errorFallback: string,
   ) => {
-    const d = date.trim();
-    if (!d) {
-      publishAppToast({ variant: "error", message: "Please select a date." });
-      return;
-    }
-    mutate(
-      { date: d },
-      {
-        onSuccess: () => publishAppToast({ variant: "success", message: successMessage }),
-        onError: (error) =>
-          publishAppToast({
-            variant: "error",
-            message: extractApiErrorMessageForToast(error) ?? errorFallback,
-          }),
-      },
-    );
+    mutate({
+      onSuccess: () => publishAppToast({ variant: "success", message: successMessage }),
+      onError: (error) =>
+        publishAppToast({
+          variant: "error",
+          message: extractApiErrorMessageForToast(error) ?? errorFallback,
+        }),
+    });
   };
 
   return (
@@ -160,7 +152,13 @@ export default function MarkAttendancePage() {
             <Button
               variant="secondary"
               disabled={isBusy || dayState.hasOpenSession}
-              onClick={() => mutateWithToast(checkInMutation.mutate, "Checked in.", "Could not check in.")}
+              onClick={() =>
+                mutateWithToast(
+                  (opts) => checkInMutation.mutate(undefined, opts),
+                  "Checked in.",
+                  "Could not check in.",
+                )
+              }
             >
               {checkInMutation.isPending ? "Checking in…" : "Check in"}
             </Button>
@@ -169,7 +167,13 @@ export default function MarkAttendancePage() {
             <Button
               variant="secondary"
               disabled={isBusy}
-              onClick={() => mutateWithToast(breakInMutation.mutate, "Break started.", "Could not start break.")}
+              onClick={() =>
+                mutateWithToast(
+                  (opts) => breakInMutation.mutate(undefined, opts),
+                  "Break started.",
+                  "Could not start break.",
+                )
+              }
             >
               {breakInMutation.isPending ? "Starting break…" : "Start break"}
             </Button>
@@ -178,7 +182,13 @@ export default function MarkAttendancePage() {
             <Button
               variant="secondary"
               disabled={isBusy}
-              onClick={() => mutateWithToast(breakOutMutation.mutate, "Break ended.", "Could not end break.")}
+              onClick={() =>
+                mutateWithToast(
+                  (opts) => breakOutMutation.mutate(undefined, opts),
+                  "Break ended.",
+                  "Could not end break.",
+                )
+              }
             >
               {breakOutMutation.isPending ? "Ending break…" : "End break"}
             </Button>
@@ -188,7 +198,13 @@ export default function MarkAttendancePage() {
               variant="primary"
               sx={gradientPrimaryButtonSx}
               disabled={isBusy}
-              onClick={() => mutateWithToast(checkOutMutation.mutate, "Checked out.", "Could not check out.")}
+              onClick={() =>
+                mutateWithToast(
+                  (opts) => checkOutMutation.mutate(undefined, opts),
+                  "Checked out.",
+                  "Could not check out.",
+                )
+              }
             >
               {checkOutMutation.isPending ? "Checking out…" : "Check out"}
             </Button>

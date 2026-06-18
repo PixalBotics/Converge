@@ -14,10 +14,19 @@ import {
   applyTypingSocketPayload,
 } from "@/lib/hooks/chat/apply-typing-socket-payload";
 import type { TypingPayload } from "@/services/chat/chat.types";
+import { isAgentChatSessionAccepting } from "@/lib/hooks/chat/agent-chat-session-bus";
 import {
   connectSharedAgentChat,
   getSharedAgentChatSocket,
 } from "@/services/chat/sharedAgentChatSocket";
+
+const ASSIGNMENT_INBOX_EVENTS = new Set([
+  "agent_assignment_popup",
+  "agent_queue_popup",
+  "chat_assigned",
+  "chat_queued",
+  "chat_talk_to_agent",
+]);
 
 /**
  * Keeps agent `/chat` connected for the dashboard session (popups + inbox deltas).
@@ -25,21 +34,26 @@ import {
  */
 export function useAgentSessionSockets(
   enabled: boolean,
-  options?: { inboxDeltas?: boolean },
+  options?: { inboxDeltas?: boolean; respectChatSession?: boolean },
 ): void {
   const token = useAccessToken() ?? "";
   const { user } = useAuth();
   const agentIdRef = useRef(user?.id);
   agentIdRef.current = user?.id;
   const inboxDeltas = options?.inboxDeltas ?? true;
+  const respectChatSession = options?.respectChatSession ?? false;
   useEffect(() => {
     if (!enabled || !token) return undefined;
 
     const socketClient = getSharedAgentChatSocket();
     connectSharedAgentChat(token);
 
+    const shouldAcceptNewWork = () =>
+      !respectChatSession || isAgentChatSessionAccepting();
+
     const applySocketInbox = (event: string, payload: unknown) => {
       if (!inboxDeltas) return;
+      if (!shouldAcceptNewWork() && ASSIGNMENT_INBOX_EVENTS.has(event)) return;
       const patch = buildInboxPatchFromSocket(
         event,
         payload,
@@ -52,6 +66,7 @@ export function useAgentSessionSockets(
 
     const offAssignment = socketClient.onAgentAssignmentPopup((payload) => {
       applySocketInbox("agent_assignment_popup", payload);
+      if (!shouldAcceptNewWork()) return;
       publishAgentChatNotificationSync(
         "assignment",
         conversationIdFromSocketPayload(payload) ?? undefined,
@@ -60,6 +75,7 @@ export function useAgentSessionSockets(
 
     const offQueue = socketClient.onAgentQueuePopup((payload) => {
       applySocketInbox("agent_queue_popup", payload);
+      if (!shouldAcceptNewWork()) return;
       publishAgentChatNotificationSync(
         "queue",
         conversationIdFromSocketPayload(payload) ?? undefined,
@@ -92,6 +108,7 @@ export function useAgentSessionSockets(
     });
 
     const offVisitorMessage = socketClient.onVisitorMessageRaw((payload) => {
+      if (!shouldAcceptNewWork()) return;
       publishAgentChatNotificationSync(
         "visitor_message",
         conversationIdFromSocketPayload(payload) ?? undefined,
@@ -139,5 +156,5 @@ export function useAgentSessionSockets(
       offTyping();
       offStopTyping();
     };
-  }, [enabled, inboxDeltas, token, user?.id]);
+  }, [enabled, inboxDeltas, respectChatSession, token, user?.id]);
 }

@@ -249,8 +249,14 @@ export default function TeamAttendancePage() {
       statusCol,
       { id: "checkIn", label: "Check-in" },
       { id: "checkOut", label: "Check-out" },
+      { id: "login", label: "Login" },
+      { id: "logout", label: "Logout" },
       { id: "breakSummary", label: "Break" },
       { id: "workedMinutes", label: "Worked" },
+      { id: "startChat", label: "Start chat" },
+      { id: "chatPause", label: "Chat pause" },
+      { id: "chatMinutes", label: "Chat min" },
+      { id: "meetingMinutes", label: "Meeting min" },
     ];
 
     if (scope === "team_members") {
@@ -270,8 +276,14 @@ export default function TeamAttendancePage() {
       statusCol,
       { id: "checkIn", label: "Check-in" },
       { id: "checkOut", label: "Check-out" },
+      { id: "login", label: "Login" },
+      { id: "logout", label: "Logout" },
       { id: "breakSummary", label: "Break" },
       { id: "workedMinutes", label: "Worked" },
+      { id: "startChat", label: "Start chat" },
+      { id: "chatPause", label: "Chat pause" },
+      { id: "chatMinutes", label: "Chat min" },
+      { id: "meetingMinutes", label: "Meeting min" },
     ];
   }, [scope]);
 

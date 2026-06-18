@@ -1,35 +1,34 @@
 import { apiClient } from "../http/axios-instance";
 import type { JsonRecord } from "../types/common.types";
 
-export async function attendanceCheckIn(body?: JsonRecord): Promise<unknown> {
-  const { data } = await apiClient.post(
-    "/hrms/attendance/check-in",
-    body === undefined ? undefined : body,
-  );
+/** Server resolves the attendance day from shift timezone — no request body. */
+export async function attendanceCheckIn(): Promise<unknown> {
+  const { data } = await apiClient.post("/hrms/attendance/check-in");
   return data;
 }
 
-export async function attendanceCheckOut(body?: JsonRecord): Promise<unknown> {
-  const { data } = await apiClient.post(
-    "/hrms/attendance/check-out",
-    body === undefined ? undefined : body,
-  );
+export async function attendanceCheckOut(): Promise<unknown> {
+  const { data } = await apiClient.post("/hrms/attendance/check-out");
   return data;
 }
 
-export async function attendanceBreakIn(body?: JsonRecord): Promise<unknown> {
-  const { data } = await apiClient.post(
-    "/hrms/attendance/break-in",
-    body === undefined ? undefined : body,
-  );
+export async function attendanceBreakIn(): Promise<unknown> {
+  const { data } = await apiClient.post("/hrms/attendance/break-in");
   return data;
 }
 
-export async function attendanceBreakOut(body?: JsonRecord): Promise<unknown> {
-  const { data } = await apiClient.post(
-    "/hrms/attendance/break-out",
-    body === undefined ? undefined : body,
-  );
+export async function attendanceBreakOut(): Promise<unknown> {
+  const { data } = await apiClient.post("/hrms/attendance/break-out");
+  return data;
+}
+
+export async function attendanceMeetingIn(): Promise<unknown> {
+  const { data } = await apiClient.post("/hrms/attendance/meeting-in");
+  return data;
+}
+
+export async function attendanceMeetingOut(): Promise<unknown> {
+  const { data } = await apiClient.post("/hrms/attendance/meeting-out");
   return data;
 }
 

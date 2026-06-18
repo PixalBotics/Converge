@@ -1,11 +1,13 @@
 "use client";
 
+import Box from "@mui/material/Box";
 import { useAuth } from "@/lib/auth/AuthContext";
 import SupervisorDashboardOverview from "./supervisor-dashboard/SupervisorDashboardOverview";
 import AgentDashboardOverview from "./agent-dashboard/AgentDashboardOverview";
 import QaDashboardOverview from "./qa-dashboard/QaDashboardOverview";
 import CompanyAdminOverview from "./company-admin-dashboard/CompanyAdminOverview";
 import SupperDashboardOverview from "./supper-dashboard/SupperDashboardOverview";
+import { DashboardAttendanceMetrics } from "./components/DashboardAttendanceMetrics";
 
 export default function DashboardPage() {
   const { user } = useAuth();
@@ -15,21 +17,22 @@ export default function DashboardPage() {
   const isManager = user?.role === "manager";
   const isEmployee = user?.role === "user";
 
-  if (isHrAdmin) {
-    return <SupervisorDashboardOverview />;
-  }
+  const overview = isHrAdmin ? (
+    <SupervisorDashboardOverview />
+  ) : isNetworkAdmin ? (
+    <AgentDashboardOverview />
+  ) : isManager ? (
+    <QaDashboardOverview />
+  ) : isEmployee ? (
+    <CompanyAdminOverview />
+  ) : (
+    <SupperDashboardOverview />
+  );
 
-  if (isNetworkAdmin) {
-    return <AgentDashboardOverview />;
-  }
-
-  if (isManager) {
-    return <QaDashboardOverview />;
-  }
-
-  if (isEmployee) {
-    return <CompanyAdminOverview />;
-  }
-
-  return <SupperDashboardOverview />;
+  return (
+    <Box sx={{ display: "flex", flexDirection: "column", gap: { xs: 1.5, sm: 2, md: 2.2 } }}>
+      <DashboardAttendanceMetrics />
+      {overview}
+    </Box>
+  );
 }

@@ -41,6 +41,7 @@ import {
 import {
   disconnectSharedAgentChat,
 } from "@/services/chat/sharedAgentChatSocket";
+import { resetAgentChatSession } from "@/lib/hooks/chat/agent-chat-session-bus";
 import { disconnectSharedNotifications } from "@/services/notifications/notificationsSocket";
 import {
   clearImpersonationSession,
@@ -1155,6 +1156,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = useCallback(async () => {
     disconnectSharedAgentChat(true);
     disconnectSharedNotifications(true);
+    resetAgentChatSession();
     try {
       await logoutMutation.mutateAsync();
     } catch {
