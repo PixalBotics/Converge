@@ -41,6 +41,7 @@ import {
 } from "@/lib/companies/setup-draft.utils";
 import { pickItemsArray, toIdNameOption } from "@/app/dashboard/user-page/components/add-user-modal.utils";
 import { publishAppToast } from "@/lib/notify";
+import { formatPhoneInputValue, PHONE_INPUT_PLACEHOLDER } from "@/lib/ui/format-phone-input";
 import { AddCircleIcon } from "@/components/common/icons";
 import {
   stepperOuter,
@@ -196,7 +197,12 @@ export function CompanySetupWizardModal({ open, draftId, onClose }: CompanySetup
     setParentEmail(parsed.parentEmail);
     setParentPhone(parsed.parentPhone);
     setParentAddress(parsed.parentAddress);
-    setDraftChildRows(parsed.draftChildRows);
+    setDraftChildRows(
+      parsed.draftChildRows.map((row) => ({
+        ...row,
+        phone: formatPhoneInputValue(row.phone),
+      })),
+    );
     setModalStep(parsed.modalStep);
   }, []);
 
@@ -934,7 +940,8 @@ export function CompanySetupWizardModal({ open, draftId, onClose }: CompanySetup
               />
               <InputField
                 label="Phone"
-                placeholder="Phone"
+                placeholder={PHONE_INPUT_PLACEHOLDER}
+                type="phone"
                 value={row.phone}
                 scrollAnchorPath={childrenDraftFieldPath(index, "phone")}
                 error={!!getCompanySetupFieldError(apiFieldErrors, childrenDraftFieldPath(index, "phone"))}

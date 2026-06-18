@@ -30,6 +30,7 @@ import { isAuthSessionTerminated } from "@/api/session/terminate-auth-session";
 import { useLoginMutation, useLogoutMutation } from "@/lib/hooks";
 import { clearAppQueryCache } from "@/lib/hooks/query/core/app-query-cache";
 import { extractApiErrorMessageForToast } from "@/lib/notify";
+import { extractNestFieldErrors } from "@/lib/companies/extract-nest-field-errors";
 import { AUTH_PATHS, shouldSkipRemoteAuthHydration } from "./auth-paths";
 import { clearClientAuthStorage } from "./clear-client-auth-state";
 import { sessionExpiredLoginHref } from "./session-expired-login";
@@ -281,37 +282,20 @@ type LoginFieldErrors = {
   licenseKey?: string;
 };
 
-type LoginErrorEnvelope = {
-  success?: boolean;
-  error?: {
-    code?: string;
-    message?: string;
-  };
-  requestId?: string;
-};
+const LOGIN_FORM_FIELDS = ["email", "password", "licenseKey"] as const;
 
-function mapBackendLoginFieldErrors(payload: unknown): LoginFieldErrors | null {
-  if (!payload || typeof payload !== "object") {
-    return null;
-  }
+function mapBackendLoginFieldErrors(error: unknown): LoginFieldErrors | null {
+  const extracted = extractNestFieldErrors(error);
+  const fieldErrors: LoginFieldErrors = {};
 
-  const message = (payload as LoginErrorEnvelope).error?.message?.trim();
-  if (!message) {
-    return null;
+  for (const key of LOGIN_FORM_FIELDS) {
+    const message = extracted[key]?.trim();
+    if (message) {
+      fieldErrors[key] = message;
+    }
   }
 
-  const normalized = message.toLowerCase();
-  if (normalized.includes("invalid email")) {
-    return { email: message };
-  }
-  if (normalized.includes("invalid password")) {
-    return { password: message };
-  }
-  if (normalized.includes("invalid license key")) {
-    return { licenseKey: message };
-  }
-
-  return null;
+  return Object.keys(fieldErrors).length > 0 ? fieldErrors : null;
 }
 
 interface LoginResult {
@@ -1114,6 +1098,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { success: true };
       } catch (err: unknown) {
         if (isAxiosError(err)) {
+          const backendFieldErrors = mapBackendLoginFieldErrors(err);
+          if (backendFieldErrors) {
+            return {
+              success: false,
+              fieldErrors: backendFieldErrors,
+            };
+          }
+
           const surfacedInToast = extractApiErrorMessageForToast(err);
           if (surfacedInToast) {
             /**
@@ -1121,14 +1113,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
              * map the same failure to red `react-hook-form` fields on the login page.
              */
             return { success: false };
-          }
-
-          const backendFieldErrors = mapBackendLoginFieldErrors(err.response?.data);
-          if (backendFieldErrors) {
-            return {
-              success: false,
-              fieldErrors: backendFieldErrors,
-            };
           }
 
           const status = err.response?.status;

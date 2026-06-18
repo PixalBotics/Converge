@@ -205,13 +205,7 @@ export function extractApiErrorMessageForToast(error: unknown, fallback?: string
       return stringifyMessageFragment(error.message) ?? "Request failed";
     }
 
-    const top = readTopLevelMessage(data);
-    if (top) return normalizeToastErrorMessage(top);
-
-    const nestedData = readNestedDataErrorMessage(data);
-    if (nestedData) return normalizeToastErrorMessage(nestedData);
-
-    /** Per-field-only errors (e.g. `details.fields`) with no top-level message. */
+    /** Per-field errors (e.g. `error.details.fieldErrors`) — forms show inline; skip global toast. */
     if (hasNestInlineFieldPayload(data)) {
       return null;
     }
@@ -219,6 +213,12 @@ export function extractApiErrorMessageForToast(error: unknown, fallback?: string
     if (hasOnlyFieldStyleErrors(data)) {
       return null;
     }
+
+    const top = readTopLevelMessage(data);
+    if (top) return normalizeToastErrorMessage(top);
+
+    const nestedData = readNestedDataErrorMessage(data);
+    if (nestedData) return normalizeToastErrorMessage(nestedData);
 
     const status = error.response?.status;
     if (typeof status === "number") {
