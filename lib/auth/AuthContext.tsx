@@ -81,6 +81,7 @@ import { resolveDashboardLandingHref } from "@/lib/permissions";
 import { useAppearance } from "@/lib/theme/appearance-context";
 import { registerAfterTokenSessionSync } from "./after-token-session-sync";
 import { registerSessionHydrationRetry } from "./session-hydration-retry";
+import { enrichUserFromMePayload } from "./me-payload";
 
 export type AuthGateState = "loading" | "ready" | "blocked";
 
@@ -237,6 +238,11 @@ function extractUserFromMePayload(payload: unknown): ApiUser | null {
   return source.user ?? source.data?.user ?? null;
 }
 
+function mapMePayloadToUser(payload: unknown): User | null {
+  const meUser = extractUserFromMePayload(payload);
+  return enrichUserFromMePayload(meUser ? mapApiUserToUser(meUser) : null, payload);
+}
+
 function extractAccountThemeBackgroundColorFromMePayload(payload: unknown): string | null {
   const user = extractUserFromMePayload(payload);
   if (!user || typeof user !== "object") return null;
@@ -330,6 +336,8 @@ interface AuthContextValue {
   can: (code: string) => boolean;
   isImpersonating: boolean;
   revertImpersonation: () => Promise<boolean>;
+  /** Refetch GET `/auth/me` for header profile (name, role, license, permissions). */
+  refreshProfile: () => Promise<void>;
   login: (credentials: LoginCredentials) => Promise<LoginResult>;
   logout: () => Promise<void>;
 }
@@ -579,8 +587,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
         }
         const mePayload = await getMe({ permissionsBreakdown: false });
-        const meUser = extractUserFromMePayload(mePayload);
-        let mappedMeUser = meUser ? mapApiUserToUser(meUser) : null;
+        let mappedMeUser = mapMePayloadToUser(mePayload);
         const meResellerId = extractResellerIdFromMePayload(mePayload);
         if (mappedMeUser && meResellerId && !mappedMeUser.resellerId) {
           mappedMeUser = { ...mappedMeUser, resellerId: meResellerId };
@@ -733,8 +740,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     beginAuthTransition("impersonation-hydrate");
     try {
       const mePayload = await getMe({ permissionsBreakdown: false });
-      const meUser = extractUserFromMePayload(mePayload);
-      const mappedMeUser = meUser ? mapApiUserToUser(meUser) : null;
+      const mappedMeUser = mapMePayloadToUser(mePayload);
       const fromMe = extractPermissionsByType(mePayload);
       flushSync(() => {
         setPermissionsByType(fromMe ?? undefined);
@@ -792,8 +798,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             preparePublicAuthRoute();
             return;
           }
-          const meUser = extractUserFromMePayload(mePayload);
-          const mappedMeUser = meUser ? mapApiUserToUser(meUser) : null;
+          const mappedMeUser = mapMePayloadToUser(mePayload);
           const impersonating = isImpersonatingSessionActive();
           const incoming = extractPermissionsByType(mePayload);
           setPermissionsByType((prev) => {
@@ -860,8 +865,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       const mePayload = await getMe({ permissionsBreakdown: false });
-      const meUser = extractUserFromMePayload(mePayload);
-      const mappedMeUser = meUser ? mapApiUserToUser(meUser) : null;
+      const mappedMeUser = mapMePayloadToUser(mePayload);
       const impersonating = isImpersonatingSessionActive();
       const incoming = extractPermissionsByType(mePayload);
       setPermissionsByType((prev) => {
@@ -950,8 +954,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return;
         }
         const mePayload = await getMe({ permissionsBreakdown: false });
-        const meUser = extractUserFromMePayload(mePayload);
-        let mappedMeUser = meUser ? mapApiUserToUser(meUser) : null;
+        let mappedMeUser = mapMePayloadToUser(mePayload);
         const meResellerId = extractResellerIdFromMePayload(mePayload);
         if (mappedMeUser && meResellerId && !mappedMeUser.resellerId) {
           mappedMeUser = { ...mappedMeUser, resellerId: meResellerId };
@@ -1154,6 +1157,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     router.push(AUTH_PATHS.login);
   }, [logoutMutation, router]);
 
+  const refreshProfile = useCallback(async (): Promise<void> => {
+    if (!getAccessToken() && !getRefreshToken()) return;
+    try {
+      const mePayload = await getMe({ permissionsBreakdown: false });
+      let mappedMeUser = mapMePayloadToUser(mePayload);
+      const meResellerId = extractResellerIdFromMePayload(mePayload);
+      if (mappedMeUser && meResellerId && !mappedMeUser.resellerId) {
+        mappedMeUser = { ...mappedMeUser, resellerId: meResellerId };
+      }
+      const fromMe = extractPermissionsByType(mePayload);
+      const impersonating = isImpersonatingSessionActive();
+      const platformAdmin = resolvePlatformAdminFromAuthPayload(mePayload, { impersonating });
+      if (mappedMeUser) {
+        setUser(mappedMeUser);
+      }
+      if (fromMe) {
+        setPermissionsByType((prev) =>
+          impersonating ? fromMe : mergePermissionsByType(prev, fromMe) ?? fromMe,
+        );
+      }
+      setIsPlatformAdmin(platformAdmin);
+      syncAccountThemeFromMePayload(mePayload);
+    } catch {
+      // Keep cached profile if refresh fails while the menu is open.
+    }
+  }, [syncAccountThemeFromMePayload]);
+
   const revertImpersonation = useCallback(async (): Promise<boolean> => {
     const session = getImpersonationSession();
     if (!session?.originalTokenPair) {
@@ -1165,8 +1195,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       clearAppQueryCache();
       setTokenPair(session.originalTokenPair);
       const mePayload = await getMe({ permissionsBreakdown: false });
-      const meUser = extractUserFromMePayload(mePayload);
-      const mappedMeUser = meUser ? mapApiUserToUser(meUser) : null;
+      const mappedMeUser = mapMePayloadToUser(mePayload);
       const incoming = extractPermissionsByType(mePayload);
       const platformAdmin = resolvePlatformAdminFromAuthPayload(mePayload);
       let restoredPermissions: PermissionsByType | undefined;
@@ -1214,6 +1243,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       can,
       isImpersonating,
       revertImpersonation,
+      refreshProfile,
       login,
       logout,
     }),
@@ -1232,6 +1262,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       can,
       isImpersonating,
       revertImpersonation,
+      refreshProfile,
       login,
       logout,
     ],
