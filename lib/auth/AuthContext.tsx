@@ -30,6 +30,7 @@ import { isAuthSessionTerminated } from "@/api/session/terminate-auth-session";
 import { useLoginMutation, useLogoutMutation } from "@/lib/hooks";
 import { clearAppQueryCache } from "@/lib/hooks/query/core/app-query-cache";
 import { extractApiErrorMessageForToast } from "@/lib/notify";
+import { extractNestFieldErrors } from "@/lib/companies/extract-nest-field-errors";
 import { AUTH_PATHS, shouldSkipRemoteAuthHydration } from "./auth-paths";
 import { clearClientAuthStorage } from "./clear-client-auth-state";
 import { sessionExpiredLoginHref } from "./session-expired-login";
@@ -81,6 +82,7 @@ import { resolveDashboardLandingHref } from "@/lib/permissions";
 import { useAppearance } from "@/lib/theme/appearance-context";
 import { registerAfterTokenSessionSync } from "./after-token-session-sync";
 import { registerSessionHydrationRetry } from "./session-hydration-retry";
+import { enrichUserFromMePayload } from "./me-payload";
 
 export type AuthGateState = "loading" | "ready" | "blocked";
 
@@ -237,6 +239,11 @@ function extractUserFromMePayload(payload: unknown): ApiUser | null {
   return source.user ?? source.data?.user ?? null;
 }
 
+function mapMePayloadToUser(payload: unknown): User | null {
+  const meUser = extractUserFromMePayload(payload);
+  return enrichUserFromMePayload(meUser ? mapApiUserToUser(meUser) : null, payload);
+}
+
 function extractAccountThemeBackgroundColorFromMePayload(payload: unknown): string | null {
   const user = extractUserFromMePayload(payload);
   if (!user || typeof user !== "object") return null;
@@ -282,37 +289,20 @@ type LoginFieldErrors = {
   licenseKey?: string;
 };
 
-type LoginErrorEnvelope = {
-  success?: boolean;
-  error?: {
-    code?: string;
-    message?: string;
-  };
-  requestId?: string;
-};
+const LOGIN_FORM_FIELDS = ["email", "password", "licenseKey"] as const;
 
-function mapBackendLoginFieldErrors(payload: unknown): LoginFieldErrors | null {
-  if (!payload || typeof payload !== "object") {
-    return null;
-  }
+function mapBackendLoginFieldErrors(error: unknown): LoginFieldErrors | null {
+  const extracted = extractNestFieldErrors(error);
+  const fieldErrors: LoginFieldErrors = {};
 
-  const message = (payload as LoginErrorEnvelope).error?.message?.trim();
-  if (!message) {
-    return null;
+  for (const key of LOGIN_FORM_FIELDS) {
+    const message = extracted[key]?.trim();
+    if (message) {
+      fieldErrors[key] = message;
+    }
   }
 
-  const normalized = message.toLowerCase();
-  if (normalized.includes("invalid email")) {
-    return { email: message };
-  }
-  if (normalized.includes("invalid password")) {
-    return { password: message };
-  }
-  if (normalized.includes("invalid license key")) {
-    return { licenseKey: message };
-  }
-
-  return null;
+  return Object.keys(fieldErrors).length > 0 ? fieldErrors : null;
 }
 
 interface LoginResult {
@@ -347,6 +337,8 @@ interface AuthContextValue {
   can: (code: string) => boolean;
   isImpersonating: boolean;
   revertImpersonation: () => Promise<boolean>;
+  /** Refetch GET `/auth/me` for header profile (name, role, license, permissions). */
+  refreshProfile: () => Promise<void>;
   login: (credentials: LoginCredentials) => Promise<LoginResult>;
   logout: () => Promise<void>;
 }
@@ -596,8 +588,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
         }
         const mePayload = await getMe({ permissionsBreakdown: false });
-        const meUser = extractUserFromMePayload(mePayload);
-        let mappedMeUser = meUser ? mapApiUserToUser(meUser) : null;
+        let mappedMeUser = mapMePayloadToUser(mePayload);
         const meResellerId = extractResellerIdFromMePayload(mePayload);
         if (mappedMeUser && meResellerId && !mappedMeUser.resellerId) {
           mappedMeUser = { ...mappedMeUser, resellerId: meResellerId };
@@ -750,8 +741,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     beginAuthTransition("impersonation-hydrate");
     try {
       const mePayload = await getMe({ permissionsBreakdown: false });
-      const meUser = extractUserFromMePayload(mePayload);
-      const mappedMeUser = meUser ? mapApiUserToUser(meUser) : null;
+      const mappedMeUser = mapMePayloadToUser(mePayload);
       const fromMe = extractPermissionsByType(mePayload);
       flushSync(() => {
         setPermissionsByType(fromMe ?? undefined);
@@ -809,8 +799,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             preparePublicAuthRoute();
             return;
           }
-          const meUser = extractUserFromMePayload(mePayload);
-          const mappedMeUser = meUser ? mapApiUserToUser(meUser) : null;
+          const mappedMeUser = mapMePayloadToUser(mePayload);
           const impersonating = isImpersonatingSessionActive();
           const incoming = extractPermissionsByType(mePayload);
           setPermissionsByType((prev) => {
@@ -877,8 +866,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       const mePayload = await getMe({ permissionsBreakdown: false });
-      const meUser = extractUserFromMePayload(mePayload);
-      const mappedMeUser = meUser ? mapApiUserToUser(meUser) : null;
+      const mappedMeUser = mapMePayloadToUser(mePayload);
       const impersonating = isImpersonatingSessionActive();
       const incoming = extractPermissionsByType(mePayload);
       setPermissionsByType((prev) => {
@@ -967,8 +955,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return;
         }
         const mePayload = await getMe({ permissionsBreakdown: false });
-        const meUser = extractUserFromMePayload(mePayload);
-        let mappedMeUser = meUser ? mapApiUserToUser(meUser) : null;
+        let mappedMeUser = mapMePayloadToUser(mePayload);
         const meResellerId = extractResellerIdFromMePayload(mePayload);
         if (mappedMeUser && meResellerId && !mappedMeUser.resellerId) {
           mappedMeUser = { ...mappedMeUser, resellerId: meResellerId };
@@ -1115,6 +1102,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { success: true };
       } catch (err: unknown) {
         if (isAxiosError(err)) {
+          const backendFieldErrors = mapBackendLoginFieldErrors(err);
+          if (backendFieldErrors) {
+            return {
+              success: false,
+              fieldErrors: backendFieldErrors,
+            };
+          }
+
           const surfacedInToast = extractApiErrorMessageForToast(err);
           if (surfacedInToast) {
             /**
@@ -1122,14 +1117,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
              * map the same failure to red `react-hook-form` fields on the login page.
              */
             return { success: false };
-          }
-
-          const backendFieldErrors = mapBackendLoginFieldErrors(err.response?.data);
-          if (backendFieldErrors) {
-            return {
-              success: false,
-              fieldErrors: backendFieldErrors,
-            };
           }
 
           const status = err.response?.status;
@@ -1172,6 +1159,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     router.push(AUTH_PATHS.login);
   }, [logoutMutation, router]);
 
+  const refreshProfile = useCallback(async (): Promise<void> => {
+    if (!getAccessToken() && !getRefreshToken()) return;
+    try {
+      const mePayload = await getMe({ permissionsBreakdown: false });
+      let mappedMeUser = mapMePayloadToUser(mePayload);
+      const meResellerId = extractResellerIdFromMePayload(mePayload);
+      if (mappedMeUser && meResellerId && !mappedMeUser.resellerId) {
+        mappedMeUser = { ...mappedMeUser, resellerId: meResellerId };
+      }
+      const fromMe = extractPermissionsByType(mePayload);
+      const impersonating = isImpersonatingSessionActive();
+      const platformAdmin = resolvePlatformAdminFromAuthPayload(mePayload, { impersonating });
+      if (mappedMeUser) {
+        setUser(mappedMeUser);
+      }
+      if (fromMe) {
+        setPermissionsByType((prev) =>
+          impersonating ? fromMe : mergePermissionsByType(prev, fromMe) ?? fromMe,
+        );
+      }
+      setIsPlatformAdmin(platformAdmin);
+      syncAccountThemeFromMePayload(mePayload);
+    } catch {
+      // Keep cached profile if refresh fails while the menu is open.
+    }
+  }, [syncAccountThemeFromMePayload]);
+
   const revertImpersonation = useCallback(async (): Promise<boolean> => {
     const session = getImpersonationSession();
     if (!session?.originalTokenPair) {
@@ -1183,8 +1197,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       clearAppQueryCache();
       setTokenPair(session.originalTokenPair);
       const mePayload = await getMe({ permissionsBreakdown: false });
-      const meUser = extractUserFromMePayload(mePayload);
-      const mappedMeUser = meUser ? mapApiUserToUser(meUser) : null;
+      const mappedMeUser = mapMePayloadToUser(mePayload);
       const incoming = extractPermissionsByType(mePayload);
       const platformAdmin = resolvePlatformAdminFromAuthPayload(mePayload);
       let restoredPermissions: PermissionsByType | undefined;
@@ -1232,6 +1245,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       can,
       isImpersonating,
       revertImpersonation,
+      refreshProfile,
       login,
       logout,
     }),
@@ -1250,6 +1264,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       can,
       isImpersonating,
       revertImpersonation,
+      refreshProfile,
       login,
       logout,
     ],

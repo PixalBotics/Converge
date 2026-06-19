@@ -25,6 +25,7 @@ import {
   toIdNameOption,
 } from "./add-user-modal.utils";
 import { publishAppToast } from "@/lib/notify";
+import { formatPhoneInputValue, PHONE_INPUT_PLACEHOLDER } from "@/lib/ui/format-phone-input";
 import {
   useAuth,
   sessionMayAssignWideResellerScope,
@@ -331,15 +332,17 @@ export function AddUserModal({
     setLastName(String(u.lastName ?? u.last_name ?? "").trim());
     setEmail(String(u.email ?? "").trim());
     setPhone(
-      String(
-        u.phoneNo
-          ?? u.phone_no
-          ?? u.phone
-          ?? u.phoneNumber
-          ?? u.mobile
-          ?? u.phone_number
-          ?? "",
-      ).trim(),
+      formatPhoneInputValue(
+        String(
+          u.phoneNo
+            ?? u.phone_no
+            ?? u.phone
+            ?? u.phoneNumber
+            ?? u.mobile
+            ?? u.phone_number
+            ?? "",
+        ).trim(),
+      ),
     );
 
     const wrRaw = u.wideResellerScope ?? u.wide_reseller_scope;
@@ -676,7 +679,8 @@ export function AddUserModal({
         />
         <InputField
           label="Phone Number"
-          placeholder="Phone Number"
+          placeholder={PHONE_INPUT_PLACEHOLDER}
+          type="phone"
           value={phone}
           onChange={(e) => setPhone(e.target.value)}
           disabled={mode === "edit" && isEditLoading}

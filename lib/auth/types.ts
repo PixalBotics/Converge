@@ -19,6 +19,8 @@ export interface User {
   wideResellerScope?: boolean;
   /** Client root (parent company) from JWT or `/auth/me`. */
   parentCompanyId?: string;
+  /** Tenant license key from `/auth/me` `claims.licenseKey`. */
+  licenseKey?: string;
 }
 
 export interface LoginCredentials {

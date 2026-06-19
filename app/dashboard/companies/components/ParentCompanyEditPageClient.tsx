@@ -38,6 +38,7 @@ import { isRecord } from "@/lib/utils/core";
 import { useAuth } from "@/lib/auth";
 import { CompanyClientPermissionsPanel } from "@/features/companies/components/CompanyClientPermissionsPanel";
 import { canCompaniesModuleAction } from "@/lib/permissions";
+import { formatPhoneInputValue, PHONE_INPUT_PLACEHOLDER } from "@/lib/ui/format-phone-input";
 import { pageWrapper } from "../overview.styles";
 import {
   companyEditBranchPanelHeaderSx,
@@ -83,7 +84,7 @@ function toChildForm(c: ParentCompanyChildDetail): ChildFormState {
   return {
     name: c.name ?? "",
     email: String(emailRaw ?? ""),
-    phone: c.phone ?? "",
+    phone: formatPhoneInputValue(String(c.phone ?? "")),
     address: c.address ?? "",
   };
 }
@@ -693,12 +694,14 @@ export function ParentCompanyEditPageClient() {
                               />
                               <InputField
                                 label="Phone"
+                                type="phone"
+                                placeholder={PHONE_INPUT_PLACEHOLDER}
                                 value={form.phone}
                                 onChange={(e) => updateChildField(child.id, { phone: e.target.value })}
                                 disabled={!canUpdateCompanies}
                                 error={Boolean(fe.phone)}
                                 helperText={fe.phone ?? " "}
-                                inputProps={{ maxLength: 80 }}
+                                inputProps={{ maxLength: 20 }}
                               />
                               <Box sx={companyEditFormGridFullSx}>
                                 <Label htmlFor={`child-address-${child.id}`} variant="mediumLarge" sx={{ mb: 0.75 }}>

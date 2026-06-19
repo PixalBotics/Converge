@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
 import Divider from "@mui/material/Divider";
@@ -61,7 +61,12 @@ export function AccountMenu({
   const app = theme.app;
   const blur = String(app.dashboard.cardBackdropBlur ?? "").trim();
   const rowSx = accountMenuRowSx(theme);
-  const { hasOperational } = useAuth();
+  const { hasOperational, refreshProfile } = useAuth();
+
+  useEffect(() => {
+    if (!open) return;
+    void refreshProfile();
+  }, [open, refreshProfile]);
 
   const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
   const canCheckIn =

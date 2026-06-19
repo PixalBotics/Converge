@@ -13,12 +13,13 @@ import {
   accountSetupGridSx,
   accountSetupSectionIconSx,
 } from "./account-setup.styles";
+import { formatPhoneInputValue, PHONE_INPUT_PLACEHOLDER } from "@/lib/ui/format-phone-input";
 
 export default function AccountSetupPage() {
   const theme = useTheme() as AppTheme;
   const [companyName, setCompanyName] = useState("Jeera");
   const [email, setEmail] = useState("rajasaifali125@gmail.com");
-  const [phone, setPhone] = useState("+920313939237");
+  const [phone, setPhone] = useState(() => formatPhoneInputValue("+920313939237"));
   const [address, setAddress] = useState("Your Address Here");
   const [password, setPassword] = useState("Saif1234@");
   const [confirmPassword, setConfirmPassword] = useState("Saif1234@");
@@ -88,10 +89,11 @@ export default function AccountSetupPage() {
             label="Phone Number"
             name="phone"
             id="account-setup-phone"
-            placeholder="Phone Number"
+            type="phone"
+            placeholder={PHONE_INPUT_PLACEHOLDER}
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
-            inputProps={{ maxLength: 32 }}
+            inputProps={{ maxLength: 20 }}
           />
           <InputField
             label="Address"

@@ -12,7 +12,7 @@ export interface InputFieldProps
    * Mirrors HTML input types used across dashboard forms.
    * Keep narrow (instead of `string`) so usage stays consistent.
    */
-  type?: "text" | "email" | "password" | "time" | "number" | "date";
+  type?: "text" | "email" | "password" | "time" | "number" | "date" | "phone";
   name?: string;
   id?: string;
   error?: boolean;
