@@ -26,11 +26,38 @@ export type PublicDistributionFeedbackFormContext = {
   };
 };
 
+export type PublicDistributionNoteFormContext = {
+  alreadySubmitted: boolean;
+  thankYouMessage?: string;
+  submittedAt?: string;
+  note?: string | null;
+  settings?: {
+    notesPlaceholder: string;
+    notesSubmitLabel: string;
+    notesRequired: boolean;
+    goodThankYouMessage: string;
+  };
+  send: {
+    id: string;
+    subject: string;
+    departmentName: string;
+    recipientEmail: string;
+    recipientRole: string;
+    sentAt: string;
+    websiteLabel: string;
+  };
+};
+
 export type SubmitDistributionFeedbackBody = {
   token: string;
   rating: "good" | "poor";
   reasonKeys?: string[];
   comment?: string;
+};
+
+export type SubmitDistributionNoteBody = {
+  token: string;
+  note: string;
 };
 
 async function publicFetch<T>(path: string, init?: RequestInit): Promise<T> {
@@ -63,6 +90,24 @@ export async function submitPublicDistributionFeedback(
   body: SubmitDistributionFeedbackBody,
 ): Promise<{ rating: string; thankYouMessage: string }> {
   return publicFetch(`/public/distribution-feedback/submit`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export async function getPublicDistributionNoteForm(
+  token: string,
+): Promise<PublicDistributionNoteFormContext> {
+  const q = new URLSearchParams({ token });
+  return publicFetch<PublicDistributionNoteFormContext>(
+    `/public/distribution-feedback/note-form?${q.toString()}`,
+  );
+}
+
+export async function submitPublicDistributionNote(
+  body: SubmitDistributionNoteBody,
+): Promise<{ thankYouMessage: string }> {
+  return publicFetch(`/public/distribution-feedback/submit-note`, {
     method: "POST",
     body: JSON.stringify(body),
   });

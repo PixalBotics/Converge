@@ -36,6 +36,8 @@ export type WebsiteAssignmentsWebsitesParams = {
   userId?: string;
   search?: string;
   serviceSchedulingConfigured?: boolean;
+  serviceHoursConfigured?: boolean;
+  visitorTopicsConfigured?: boolean;
   fullyAssigned?: boolean;
 };
 

@@ -12,7 +12,8 @@ import IconButton from "@mui/material/IconButton";
 import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import { Button, InputField, Typography } from "@/components/common";
-import type { ServiceChannel } from "@/api/types/website-assignments.types";
+import type { OperatingChannels, ServiceChannel } from "@/api/types/website-assignments.types";
+import { rosterVisibleTiers } from "@/lib/website-assignments/roster-assignment-channels";
 import {
   useDepartmentRosterCoverageQuery,
   usePutDepartmentRosterCoverageMutation,
@@ -47,6 +48,7 @@ import {
 
 type CoverageBlocksPanelProps = {
   websiteId: string;
+  operatingChannels: OperatingChannels;
   departmentId: string;
   departmentName?: string;
   channel: ServiceChannel;
@@ -62,6 +64,7 @@ const STEP_CHIP_SX = {
 
 export function CoverageBlocksPanel({
   websiteId,
+  operatingChannels,
   departmentId,
   departmentName,
   channel,
@@ -70,6 +73,9 @@ export function CoverageBlocksPanel({
   onSaved,
 }: CoverageBlocksPanelProps) {
   const theme = useTheme() as AppTheme;
+  const rosterTiers = rosterVisibleTiers(operatingChannels);
+  const rosterTierLabel =
+    rosterTiers.length === 2 ? "Primary → Backup" : "Primary → Secondary → Backup";
   const coverageQuery = useDepartmentRosterCoverageQuery(
     websiteId,
     departmentId,
@@ -306,7 +312,7 @@ export function CoverageBlocksPanel({
                   variant="caption"
                   sx={{ color: theme.app.dashboard.textMuted, lineHeight: 1.55, display: "block", flex: 1 }}
                 >
-                  Use one Primary, Secondary, and Backup team for the full chat service window. Select
+                  Assign multiple Primary and Secondary agents for the full chat service window. Select
                   agents below and click <strong>Save team (full day)</strong>.
                 </Typography>
               </Box>
@@ -358,12 +364,13 @@ export function CoverageBlocksPanel({
           <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1, mb: 1.5 }}>
             <Chip label="Step 1" size="small" color="primary" sx={STEP_CHIP_SX} />
             <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, alignSelf: "center" }}>
-              Pick Primary → Secondary → Backup (one user per column)
+              Pick {rosterTierLabel} (one user per column)
             </Typography>
           </Box>
 
           <RosterUsersPickerTable
             websiteId={websiteId}
+            operatingChannels={operatingChannels}
             channel={channel}
             departmentId={departmentId}
             departmentName={departmentName}
@@ -499,12 +506,13 @@ export function CoverageBlocksPanel({
               <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1, mb: 1 }}>
                 <Chip label="Step 2" size="small" sx={STEP_CHIP_SX} />
                 <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, alignSelf: "center" }}>
-                  Team for this period only — Primary, Secondary, Backup
+                  Team for this period only — {rosterTierLabel}
                 </Typography>
               </Box>
 
               <RosterUsersPickerTable
                 websiteId={websiteId}
+                operatingChannels={operatingChannels}
                 channel={channel}
                 departmentId={departmentId}
                 departmentName={departmentName}

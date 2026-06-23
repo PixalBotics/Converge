@@ -1,3 +1,5 @@
-"use client";
+import { redirect } from "next/navigation";
 
-export { EmailAgentFeedbackPage as default } from "@/features/email/pages/EmailAgentFeedbackPage";
+export default function LegacyEmailFeedbackRedirect() {
+  redirect("/dashboard/feedback");
+}

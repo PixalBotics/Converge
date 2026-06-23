@@ -1,22 +1,26 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import AutoAwesome from "@mui/icons-material/AutoAwesome";
-import MoreVert from "@mui/icons-material/MoreVert";
+import DeleteIcon from "@mui/icons-material/Delete";
 import Box from "@mui/material/Box";
 import IconButton from "@mui/material/IconButton";
 import { alpha } from "@mui/material/styles";
 import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
+import type { SocialMediaConnectionItem } from "@/api/social-media/social-media.api";
+import { formatConnectedDate } from "@/api/social-media/social-media.api";
 import {
-  AddSocialMediaModal,
   Button,
   DashboardCard,
   DataTable,
-  DisconnectConfirmModal,
+  FormModal,
   SearchBar,
   TablePagination,
+  ToolbarFilterPopover,
   Typography,
+  dataTableActionButton,
 } from "@/components/common";
 import type { DataTableColumn } from "@/components/common";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
@@ -33,174 +37,191 @@ import {
   integrationsSearchRow,
   integrationsSectionIconBox,
 } from "./integrations.styles";
+import { SocialMediaListFilterPanel } from "@/features/social-media/components/SocialMediaListFilterPanel";
+import {
+  SOCIAL_MEDIA_ROUTES,
+  clearSocialMediaWizardDraft,
+} from "@/features/social-media";
+import {
+  useDeleteSocialMediaConnectionMutation,
+  useSocialMediaConnectionsQuery,
+} from "@/features/social-media/hooks/useSocialMediaQueries";
+import { useWebsiteAssignmentScopeFilters } from "@/features/website-assignments/hooks/useWebsiteAssignmentScopeFilters";
+import { useAuth } from "@/lib/auth";
+import { OP } from "@/lib/permissions/operational-keys";
+import { publishAppToast } from "@/lib/notify";
+import { extractApiErrorMessageForToast } from "@/lib/notify/extract-api-message";
 
-interface SocialIntegrationRow extends Record<string, unknown> {
-  id: string;
-  parentCompany: string;
-  childCompany: string;
-  website: string;
-  platform: string;
-  accountName: string;
-  connectedDate: string;
+const PAGE_SIZE = 10;
+
+type SocialIntegrationRow = SocialMediaConnectionItem & Record<string, unknown>;
+
+function statusBadge(theme: AppTheme, status: string) {
+  const online = status === "active";
+  const color = online ? theme.palette.success.main : theme.app.dashboard.textMuted;
+  return (
+    <Box
+      component="span"
+      sx={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 0.75,
+        px: 1.25,
+        py: 0.5,
+        borderRadius: "9999px",
+        bgcolor: alpha(color, theme.palette.mode === "light" ? 0.16 : 0.12),
+        border: `1px solid ${alpha(color, theme.palette.mode === "light" ? 0.3 : 0.28)}`,
+      }}
+    >
+      <Box
+        component="span"
+        sx={{
+          width: 8,
+          height: 8,
+          borderRadius: "50%",
+          bgcolor: online ? theme.app.dashboard.accentGreen : color,
+          flexShrink: 0,
+        }}
+      />
+      <Typography
+        component="span"
+        variant="body2"
+        sx={{
+          color: online
+            ? theme.palette.mode === "light"
+              ? "#166534"
+              : theme.palette.success.light
+            : theme.app.dashboard.textMuted,
+          fontWeight: 600,
+          fontSize: "0.8125rem",
+          textTransform: "capitalize",
+        }}
+      >
+        {online ? "Online" : status.replace(/_/g, " ")}
+      </Typography>
+    </Box>
+  );
 }
-
-const TOTAL_ENTRIES = 256_000;
-const PAGE_COUNT = 2;
-
-function formatEntries(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(0)}M`;
-  if (n >= 1_000) return `${Math.round(n / 1_000)}K`;
-  return String(n);
-}
-
-const TABLE_ROWS: SocialIntegrationRow[] = [
-  {
-    id: "1",
-    parentCompany: "Alpha Enterprise",
-    childCompany: "Alpha - Retail",
-    website: "www.alpha-retail.com",
-    platform: "Facebook",
-    accountName: "Alpha Retail Page",
-    connectedDate: "Jan 12, 2025",
-  },
-  {
-    id: "2",
-    parentCompany: "National Group",
-    childCompany: "Nation - Media",
-    website: "www.nationalmedia.io",
-    platform: "Instagram",
-    accountName: "@national.media",
-    connectedDate: "Jan 10, 2025",
-  },
-  {
-    id: "3",
-    parentCompany: "Vertex Holdings",
-    childCompany: "Vertex - Labs",
-    website: "www.vertexlabs.com",
-    platform: "WhatsApp Business",
-    accountName: "+1 415 555 0192",
-    connectedDate: "Jan 08, 2025",
-  },
-  {
-    id: "4",
-    parentCompany: "BluePeak Media",
-    childCompany: "BluePeak - Studio",
-    website: "www.bluepeak.co",
-    platform: "LinkedIn",
-    accountName: "BluePeak Company",
-    connectedDate: "Jan 05, 2025",
-  },
-  {
-    id: "5",
-    parentCompany: "CloudForge",
-    childCompany: "CloudForge - Dev",
-    website: "www.cloudforge.dev",
-    platform: "Facebook",
-    accountName: "CloudForge Dev",
-    connectedDate: "Jan 03, 2025",
-  },
-  {
-    id: "6",
-    parentCompany: "DataNest AI",
-    childCompany: "DataNest - Analytics",
-    website: "www.datanest.ai",
-    platform: "Instagram",
-    accountName: "@datanest.ai",
-    connectedDate: "Dec 28, 2024",
-  },
-  {
-    id: "7",
-    parentCompany: "PixelWorks",
-    childCompany: "PixelWorks - Studio",
-    website: "www.pixelworks.co",
-    platform: "YouTube",
-    accountName: "PixelWorks Channel",
-    connectedDate: "Dec 22, 2024",
-  },
-  {
-    id: "8",
-    parentCompany: "Northwind Labs",
-    childCompany: "Northwind - R&D",
-    website: "www.northwind.io",
-    platform: "X (Twitter)",
-    accountName: "@NorthwindLabs",
-    connectedDate: "Dec 18, 2024",
-  },
-];
 
 export default function IntegrationsPage() {
   const theme = useTheme() as AppTheme;
+  const router = useRouter();
+  const { hasOperational } = useAuth();
+  const canCreate = hasOperational(OP.socialMedia.create);
+  const canDelete = hasOperational(OP.socialMedia.delete);
+
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
-  const [addSocialOpen, setAddSocialOpen] = useState(false);
-  const [disconnectOpen, setDisconnectOpen] = useState(false);
+  const [disconnectTarget, setDisconnectTarget] = useState<SocialIntegrationRow | null>(null);
+  const [filterPopoverOpen, setFilterPopoverOpen] = useState(false);
+  const [filterPlatform, setFilterPlatform] = useState("");
 
-  const filteredRows = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return TABLE_ROWS;
-    return TABLE_ROWS.filter((row) =>
-      [
-        row.parentCompany,
-        row.childCompany,
-        row.website,
-        row.platform,
-        row.accountName,
-        row.connectedDate,
-      ].some((field) => field.toLowerCase().includes(q))
-    );
-  }, [search]);
+  const scope = useWebsiteAssignmentScopeFilters();
+
+  const listQuery = useSocialMediaConnectionsQuery({
+    page,
+    limit: PAGE_SIZE,
+    search: search.trim() || undefined,
+    resellerId: scope.filterResellerId.trim() || undefined,
+    parentCompanyId: scope.filterParentCompanyId.trim() || undefined,
+    childCompanyId: scope.filterChildCompanyId.trim() || undefined,
+    platform:
+      filterPlatform === "facebook_messenger" ||
+      filterPlatform === "instagram_dm" ||
+      filterPlatform === "whatsapp"
+        ? filterPlatform
+        : undefined,
+  });
+
+  const deleteMutation = useDeleteSocialMediaConnectionMutation();
+
+  const hasActiveFilters = Boolean(filterPlatform.trim() || scope.hasScopeFilters);
+
+  const clearAllFilters = () => {
+    scope.clearScopeFilters();
+    setFilterPlatform("");
+  };
+
+  useEffect(() => {
+    setPage(1);
+  }, [
+    search,
+    filterPlatform,
+    scope.filterResellerId,
+    scope.filterParentCompanyId,
+    scope.filterChildCompanyId,
+  ]);
+
+  const items = listQuery.data?.items ?? [];
+  const total = listQuery.data?.pagination.total ?? 0;
+  const totalPages = listQuery.data?.pagination.totalPages ?? 1;
+  const rangeStart = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
+  const rangeEnd = Math.min(page * PAGE_SIZE, total);
 
   const columns = useMemo<DataTableColumn<SocialIntegrationRow>[]>(
     () => [
+      { id: "clientOf", label: "Client of" },
       { id: "parentCompany", label: "Parent Company" },
       { id: "childCompany", label: "Child Company" },
       { id: "website", label: "Website", cellVariant: "muted" },
-      { id: "platform", label: "Platform" },
-      { id: "accountName", label: "Account Name", cellVariant: "muted" },
-      { id: "connectedDate", label: "Connected Date", cellVariant: "muted" },
+      { id: "platformLabel", label: "Platform" },
+      {
+        id: "accountName",
+        label: "Account Name",
+        cellVariant: "muted",
+        render: (_v, row) => row.accountName?.trim() || row.externalAccountId,
+      },
+      {
+        id: "connectedDate",
+        label: "Connected Date",
+        cellVariant: "muted",
+        render: (_v, row) => formatConnectedDate(row.connectedDate),
+      },
       {
         id: "status",
         label: "Status",
-        render: () => (
-          <Box
-            component="span"
-            sx={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 0.75,
-              px: 1.25,
-              py: 0.5,
-              borderRadius: "9999px",
-              bgcolor: alpha(theme.palette.success.main, theme.palette.mode === "light" ? 0.16 : 0.12),
-              border: `1px solid ${alpha(theme.palette.success.main, theme.palette.mode === "light" ? 0.3 : 0.28)}`,
-            }}
-          >
-            <Box
-              component="span"
-              sx={{
-                width: 8,
-                height: 8,
-                borderRadius: "50%",
-                bgcolor: theme.app.dashboard.accentGreen,
-                flexShrink: 0,
-              }}
-            />
-            <Typography
-              component="span"
-              variant="body2"
-              sx={{
-                color: theme.palette.mode === "light" ? "#166534" : theme.palette.success.light,
-                fontWeight: 600,
-                fontSize: "0.8125rem",
-              }}
-            >
-              Online
-            </Typography>
-          </Box>
-        ),
+        render: (_v, row) => statusBadge(theme, row.status),
       },
     ],
-    [theme]
+    [theme],
+  );
+
+  const handleDisconnect = async () => {
+    if (!disconnectTarget) return;
+    try {
+      await deleteMutation.mutateAsync(disconnectTarget.id);
+      publishAppToast({ variant: "success", message: "Social account disconnected." });
+      setDisconnectTarget(null);
+    } catch (err) {
+      publishAppToast({
+        variant: "error",
+        message: extractApiErrorMessageForToast(err, "Could not disconnect account."),
+      });
+    }
+  };
+
+  const actionColumn = useMemo(
+    () =>
+      canDelete
+        ? {
+            label: "Actions",
+            render: (row: SocialIntegrationRow) => (
+              <IconButton
+                type="button"
+                size="small"
+                aria-label="Disconnect integration"
+                sx={{
+                  ...dataTableActionButton,
+                  color: theme.app.dashboard.accentRedLight,
+                }}
+                onClick={() => setDisconnectTarget(row)}
+              >
+                <DeleteIcon fontSize="small" />
+              </IconButton>
+            ),
+          }
+        : undefined,
+    [canDelete, theme.app.dashboard.accentRedLight],
   );
 
   return (
@@ -211,20 +232,25 @@ export default function IntegrationsPage() {
             All social media integrations.
           </Typography>
           <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted, maxWidth: 480 }}>
-            Connected accounts and pages.
+            Connect Facebook, Instagram, or WhatsApp per website. Messages appear in the same agent inbox as live chat.
           </Typography>
         </Box>
-        <Box sx={integrationsHeaderActions}>
-          <Button
-            type="button"
-            variant="primary"
-            sx={gradientPrimaryButtonSx}
-            startIcon={<AutoAwesome sx={{ fontSize: 18 }} />}
-            onClick={() => setAddSocialOpen(true)}
-          >
-            Add Social Media
-          </Button>
-        </Box>
+        {canCreate ? (
+          <Box sx={integrationsHeaderActions}>
+            <Button
+              type="button"
+              variant="primary"
+              sx={gradientPrimaryButtonSx}
+              startIcon={<AutoAwesome sx={{ fontSize: 18 }} />}
+              onClick={() => {
+                clearSocialMediaWizardDraft();
+                router.push(SOCIAL_MEDIA_ROUTES.addOrg);
+              }}
+            >
+              Add Social Media
+            </Button>
+          </Box>
+        ) : null}
       </Box>
 
       <DashboardCard sx={integrationsMainCardSx}>
@@ -248,49 +274,76 @@ export default function IntegrationsPage() {
           </Box>
           <Box sx={integrationsSearchRow}>
             <Box sx={integrationsSearchFieldWrapper}>
-              <SearchBar value={search} onChange={setSearch} placeholder="Search anything..." sx={{ minWidth: "100%" }} />
+              <SearchBar
+                value={search}
+                onChange={setSearch}
+                placeholder="Search reseller, company, website, account…"
+                sx={{ minWidth: "100%" }}
+              />
             </Box>
+            <ToolbarFilterPopover
+              open={filterPopoverOpen}
+              onOpenChange={setFilterPopoverOpen}
+              active={hasActiveFilters}
+            >
+              <SocialMediaListFilterPanel
+                {...scope}
+                filterPlatform={filterPlatform}
+                onFilterPlatformChange={setFilterPlatform}
+                hasActiveFilters={hasActiveFilters}
+                onClearAll={clearAllFilters}
+                onClose={() => setFilterPopoverOpen(false)}
+              />
+            </ToolbarFilterPopover>
           </Box>
         </Box>
 
-        <DataTable<SocialIntegrationRow>
-          columns={columns}
-          rows={filteredRows}
-          getRowId={(row) => row.id}
-          minWidth={1280}
-          size="medium"
-          actionColumn={{
-            label: "Actions",
-            render: () => (
-              <IconButton
-                type="button"
-                size="small"
-                aria-label="Disconnect integration"
-                onClick={() => setDisconnectOpen(true)}
-                sx={{ color: theme.app.dashboard.iconMuted, "&:hover": { color: theme.app.text.primary } }}
-              >
-                <MoreVert fontSize="small" />
-              </IconButton>
-            ),
-          }}
-        />
-
-        <Box sx={integrationsFooterRow}>
-          <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted }}>
-            Showing data 1 to {filteredRows.length} of {formatEntries(TOTAL_ENTRIES)} entries
+        {listQuery.isError ? (
+          <Typography color="error" sx={{ px: 2, pb: 2 }}>
+            Could not load social media integrations.
           </Typography>
-          <Box sx={integrationsPaginationWrapper}>
-            <TablePagination page={page} pageCount={PAGE_COUNT} onPageChange={setPage} />
-          </Box>
-        </Box>
+        ) : (
+          <>
+            <DataTable<SocialIntegrationRow>
+              columns={columns}
+              rows={items as SocialIntegrationRow[]}
+              getRowId={(row) => row.id}
+              minWidth={1400}
+              size="medium"
+              actionColumn={actionColumn}
+            />
+
+            <Box sx={integrationsFooterRow}>
+              <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted }}>
+                Showing {rangeStart} to {rangeEnd} of {total} entries
+              </Typography>
+              <Box sx={integrationsPaginationWrapper}>
+                <TablePagination
+                  page={page}
+                  pageCount={Math.max(1, totalPages)}
+                  onPageChange={setPage}
+                />
+              </Box>
+            </Box>
+          </>
+        )}
       </DashboardCard>
 
-      <AddSocialMediaModal open={addSocialOpen} onClose={() => setAddSocialOpen(false)} />
-
-      <DisconnectConfirmModal
-        open={disconnectOpen}
-        onDismiss={() => setDisconnectOpen(false)}
-        onConfirm={() => setDisconnectOpen(false)}
+      <FormModal
+        open={Boolean(disconnectTarget)}
+        title="Disconnect social account?"
+        description={
+          disconnectTarget
+            ? `Remove ${disconnectTarget.platformLabel} (${disconnectTarget.accountName ?? disconnectTarget.externalAccountId}) from ${disconnectTarget.website}?`
+            : undefined
+        }
+        onClose={() => !deleteMutation.isPending && setDisconnectTarget(null)}
+        onSave={() => void handleDisconnect()}
+        primaryButtonLabel={deleteMutation.isPending ? "Disconnecting…" : "Disconnect"}
+        primaryButtonVariant="danger"
+        primaryButtonDisabled={deleteMutation.isPending || !canDelete}
+        cancelButtonLabel="Cancel"
+        maxWidth={480}
       />
     </Box>
   );

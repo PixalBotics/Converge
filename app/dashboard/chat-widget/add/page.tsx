@@ -2,11 +2,11 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import ChatBubbleOutline from "@mui/icons-material/ChatBubbleOutline";
-import MessageOutlined from "@mui/icons-material/MessageOutlined";
-import RadioButtonChecked from "@mui/icons-material/RadioButtonChecked";
-import RadioButtonUnchecked from "@mui/icons-material/RadioButtonUnchecked";
 import Box from "@mui/material/Box";
+import Dialog from "@mui/material/Dialog";
+import DialogActions from "@mui/material/DialogActions";
+import DialogContent from "@mui/material/DialogContent";
+import DialogTitle from "@mui/material/DialogTitle";
 import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import {
@@ -18,6 +18,8 @@ import {
 import { Button, Typography, SelectField } from "@/components/common";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
 import { WidgetFlowShell } from "@/features/chat-widget";
+import { WebsiteWidgetConflictAlert } from "@/components/dashboard/chat-widget/WebsiteWidgetConflictAlert";
+import { WidgetTypeSelectionCards } from "@/components/dashboard/chat-widget/WidgetTypeSelectionCards";
 import { useResellerListScope } from "@/lib/auth";
 import { websiteAssignmentItemToSelectOption } from "@/lib/websites/format-website-select-label";
 import {
@@ -38,10 +40,12 @@ import {
 } from "@/lib/chat-widget/chat-wizard-edit";
 import { loadInquiryTopicsFromScheduling } from "@/lib/chat-widget/hydrate-widget-inquiry-from-scheduling";
 import type { WidgetDraft } from "@/lib/chat-widget/widgetDraft";
+import { findConflictingWebsiteWidgets, wizardEntryPathForKind } from "@/lib/chat-widget/widget-type-conflicts";
+import { useWebsiteWidgetsQuery } from "@/lib/chat-widget/use-website-widgets-query";
 import { extractApiErrorMessageForToast } from "@/lib/notify/extract-api-message";
 import { publishAppToast } from "@/lib/notify";
 
-type WidgetType = "chat" | "text";
+type WidgetType = "chat" | "text" | "both";
 
 export default function WidgetTypeSelectionPage() {
   const router = useRouter();
@@ -58,6 +62,7 @@ export default function WidgetTypeSelectionPage() {
 
   const [hydratedFromDraft, setHydratedFromDraft] = useState(false);
   const [creatingDraft, setCreatingDraft] = useState(false);
+  const [conflictDialogOpen, setConflictDialogOpen] = useState(false);
 
   useEffect(() => {
     if (!canFilterByResellerId && sessionResellerId) {
@@ -73,7 +78,7 @@ export default function WidgetTypeSelectionPage() {
     if (d.tenantParentCompanyId) setParentCompanyId(d.tenantParentCompanyId);
     if (d.tenantChildCompanyId) setChildCompanyId(d.tenantChildCompanyId);
     if (d.websiteId) setWebsiteId(d.websiteId);
-    if (d.type === "chat" || d.type === "text") {
+    if (d.type === "chat" || d.type === "text" || d.type === "both") {
       setSelectedType(d.type);
       selectedTypeRef.current = d.type;
     }
@@ -247,6 +252,104 @@ export default function WidgetTypeSelectionPage() {
     !sitesError &&
     !creatingDraft;
 
+  const siteWidgetsQuery = useWebsiteWidgetsQuery(websiteId, canContinue || Boolean(websiteId));
+  const conflicts = useMemo(
+    () => findConflictingWebsiteWidgets(siteWidgetsQuery.data ?? [], selectedType),
+    [siteWidgetsQuery.data, selectedType],
+  );
+
+  const runCreateAndContinue = () => {
+    if (!websiteId || !hierarchyReady || creatingDraft) return;
+    void (async () => {
+      const prev = readChatWizardDraft(null);
+      const wid = websiteId.trim();
+      const kind = selectedTypeRef.current;
+      let needNewRemote =
+        !prev.remoteWidgetKey?.trim() ||
+        prev.websiteId?.trim() !== wid ||
+        prev.type !== kind;
+
+      if (!needNewRemote && prev.remoteWidgetKey?.trim()) {
+        try {
+          const alive = await isServerWidgetDraftAlive(prev.remoteWidgetKey);
+          if (!alive) needNewRemote = true;
+        } catch (verifyErr) {
+          publishAppToast({
+            variant: "error",
+            message:
+              extractApiErrorMessageForToast(verifyErr) ??
+              "Could not verify existing widget draft.",
+          });
+          return;
+        }
+      }
+
+      const base: WidgetDraft = {
+        ...prev,
+        type: kind,
+        websiteId: wid,
+        tenantResellerId: (canFilterByResellerId ? resellerId : sessionResellerId).trim(),
+        tenantParentCompanyId: parentCompanyId.trim(),
+        tenantChildCompanyId: childCompanyId.trim(),
+        completed: false,
+      };
+
+      setCreatingDraft(true);
+      try {
+        if (needNewRemote) {
+          const created = await createRemoteWidgetDraftWithMeta({
+            draft: base,
+            widgetKind: kind,
+          });
+          appendWizardSaveTraceToSession({
+            stepKey: "website",
+            stepLabel: "Step 0 — Website & type",
+            method: created.meta.method,
+            path: created.meta.path,
+            scope: "create",
+            publishNow: created.meta.publishNow,
+            requestBody: created.meta.requestBody,
+            responseBody: created.meta.inner,
+          });
+          const fromScheduling = await loadInquiryTopicsFromScheduling(wid);
+          saveChatWizardDraft(null, {
+            ...base,
+            remoteWidgetKey: created.widgetKey,
+            widgetId: created.widgetKey,
+            requiresPublishBeforeEmbed: created.requiresPublishBeforeEmbed,
+            ...(fromScheduling.length > 0
+              ? { inquiryOptions: fromScheduling, inquiryOn: true }
+              : {}),
+          });
+          publishAppToast({
+            variant: "success",
+            message: "Draft saved on server. Continue configuration.",
+          });
+        } else {
+          const fromScheduling = await loadInquiryTopicsFromScheduling(wid);
+          saveChatWizardDraft(null, {
+            ...base,
+            ...(fromScheduling.length > 0
+              ? { inquiryOptions: fromScheduling, inquiryOn: true }
+              : {}),
+          });
+        }
+
+        router.push(wizardEntryPathForKind(kind));
+      } catch (e) {
+        publishAppToast({
+          variant: "error",
+          message:
+            extractApiErrorMessageForToast(e) ??
+            "Could not create widget draft on the server.",
+        });
+      } finally {
+        setCreatingDraft(false);
+        setConflictDialogOpen(false);
+      }
+    })();
+  };
+
   const subtitle = useMemo(() => {
     if (!hydratedFromDraft) return "Loading…";
     if (websitesLoading) return "Loading websites for the selected child company…";
@@ -271,98 +374,12 @@ export default function WidgetTypeSelectionPage() {
             sx={gradientPrimaryButtonSx}
             disabled={!canContinue}
             onClick={() => {
-              if (!websiteId || !hierarchyReady || creatingDraft) return;
-              void (async () => {
-                const prev = readChatWizardDraft(null);
-                const wid = websiteId.trim();
-                const kind = selectedTypeRef.current;
-                let needNewRemote =
-                  !prev.remoteWidgetKey?.trim() ||
-                  prev.websiteId?.trim() !== wid ||
-                  prev.type !== kind;
-
-                if (!needNewRemote && prev.remoteWidgetKey?.trim()) {
-                  try {
-                    const alive = await isServerWidgetDraftAlive(prev.remoteWidgetKey);
-                    if (!alive) needNewRemote = true;
-                  } catch (verifyErr) {
-                    publishAppToast({
-                      variant: "error",
-                      message:
-                        extractApiErrorMessageForToast(verifyErr) ??
-                        "Could not verify existing widget draft.",
-                    });
-                    return;
-                  }
-                }
-
-                const base: WidgetDraft = {
-                  ...prev,
-                  type: kind,
-                  websiteId: wid,
-                  tenantResellerId: (canFilterByResellerId ? resellerId : sessionResellerId).trim(),
-                  tenantParentCompanyId: parentCompanyId.trim(),
-                  tenantChildCompanyId: childCompanyId.trim(),
-                  completed: false,
-                };
-
-                setCreatingDraft(true);
-                try {
-                  if (needNewRemote) {
-                    const created = await createRemoteWidgetDraftWithMeta({
-                      draft: base,
-                      widgetKind: kind,
-                    });
-                    appendWizardSaveTraceToSession({
-                      stepKey: "website",
-                      stepLabel: "Step 0 — Website & type",
-                      method: created.meta.method,
-                      path: created.meta.path,
-                      scope: "create",
-                      publishNow: created.meta.publishNow,
-                      requestBody: created.meta.requestBody,
-                      responseBody: created.meta.inner,
-                    });
-                    const fromScheduling = await loadInquiryTopicsFromScheduling(wid);
-                    saveChatWizardDraft(null, {
-                      ...base,
-                      remoteWidgetKey: created.widgetKey,
-                      widgetId: created.widgetKey,
-                      requiresPublishBeforeEmbed: created.requiresPublishBeforeEmbed,
-                      ...(fromScheduling.length > 0
-                        ? { inquiryOptions: fromScheduling, inquiryOn: true }
-                        : {}),
-                    });
-                    publishAppToast({
-                      variant: "success",
-                      message: "Draft saved on server. Continue configuration.",
-                    });
-                  } else {
-                    const fromScheduling = await loadInquiryTopicsFromScheduling(wid);
-                    saveChatWizardDraft(null, {
-                      ...base,
-                      ...(fromScheduling.length > 0
-                        ? { inquiryOptions: fromScheduling, inquiryOn: true }
-                        : {}),
-                    });
-                  }
-
-                  router.push(
-                    kind === "chat"
-                      ? "/dashboard/chat-widget/add/chat/button"
-                      : "/dashboard/chat-widget/add/text",
-                  );
-                } catch (e) {
-                  publishAppToast({
-                    variant: "error",
-                    message:
-                      extractApiErrorMessageForToast(e) ??
-                      "Could not create widget draft on the server.",
-                  });
-                } finally {
-                  setCreatingDraft(false);
-                }
-              })();
+              if (!canContinue) return;
+              if (conflicts.length > 0) {
+                setConflictDialogOpen(true);
+                return;
+              }
+              runCreateAndContinue();
             }}
           >
             {creatingDraft ? "Saving draft…" : "Next"}
@@ -440,59 +457,51 @@ export default function WidgetTypeSelectionPage() {
         ) : null}
       </Box>
 
-      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 1.25 }}>
-        {[
-          { id: "chat" as const, title: "Chat Widget", icon: <ChatBubbleOutline sx={{ fontSize: 18 }} />, iconColor: "#7DD3FC" },
-          { id: "text" as const, title: "Text Us Widget", icon: <MessageOutlined sx={{ fontSize: 18 }} />, iconColor: "#FDBA74" },
-        ].map((item) => {
-          const active = selectedType === item.id;
-          return (
-            <Box
-              key={item.id}
-              onClick={() => {
-                setSelectedType(item.id);
-                selectedTypeRef.current = item.id;
-              }}
-              sx={{
-                borderRadius: 2,
-                border: `1px solid ${active ? theme.app.dashboard.accentBlue : theme.app.dashboard.cardBorder}`,
-                p: 2.25,
-                cursor: "pointer",
-                background: theme.app.dashboard.overlayLight,
-              }}
-            >
-              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1.5 }}>
-                <Box
-                  sx={{
-                    width: 32,
-                    height: 32,
-                    borderRadius: "50%",
-                    bgcolor: item.iconColor,
-                    display: "inline-flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    color: "#0B1024",
-                  }}
-                >
-                  {item.icon}
-                </Box>
-                {active ? (
-                  <RadioButtonChecked sx={{ color: theme.app.dashboard.accentBlue, fontSize: 20 }} />
-                ) : (
-                  <RadioButtonUnchecked sx={{ color: theme.app.dashboard.textMuted, fontSize: 20 }} />
-                )}
-              </Box>
-              <Typography variant="mediumLarge" color="white" sx={{ mb: 0.25 }}>
-                {item.title}
-              </Typography>
-              <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted }}>
-                Continuing saves a server draft (websiteId, widgetType, publishNow: false). Styling and text
-                are merged on later steps via PATCH.
-              </Typography>
-            </Box>
-          );
-        })}
-      </Box>
+      {websiteId ? (
+        <Box sx={{ mb: 2 }}>
+          <WebsiteWidgetConflictAlert
+            conflicts={conflicts}
+            selectedKind={selectedType}
+            mode="create"
+          />
+        </Box>
+      ) : null}
+
+      <WidgetTypeSelectionCards
+        selectedType={selectedType}
+        onSelect={(kind) => {
+          setSelectedType(kind);
+          selectedTypeRef.current = kind;
+        }}
+      />
+
+      <Dialog open={conflictDialogOpen} onClose={() => !creatingDraft && setConflictDialogOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>This website already has a widget</DialogTitle>
+        <DialogContent>
+          <WebsiteWidgetConflictAlert
+            conflicts={conflicts}
+            selectedKind={selectedType}
+            mode="create"
+          />
+          <Typography variant="body2" sx={{ mt: 2, color: theme.app.dashboard.textMuted }}>
+            We recommend editing the existing widget or using <strong>Chat + Text Us</strong> instead
+            of adding a second embed script.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button variant="secondary" onClick={() => setConflictDialogOpen(false)} disabled={creatingDraft}>
+            Choose different type
+          </Button>
+          <Button
+            variant="primary"
+            sx={gradientPrimaryButtonSx}
+            onClick={runCreateAndContinue}
+            disabled={creatingDraft}
+          >
+            Create anyway
+          </Button>
+        </DialogActions>
+      </Dialog>
     </WidgetFlowShell>
   );
 }

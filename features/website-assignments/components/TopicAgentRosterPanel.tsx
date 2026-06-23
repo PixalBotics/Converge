@@ -14,10 +14,9 @@ import type {
 } from "@/api/types/website-assignments.types";
 import type { ServiceSchedulingTopic } from "@/services/chat/service-scheduling.types";
 import {
-  canShowExternalSlots,
-  canShowInternalSlots,
-  isChannelAllowed,
-} from "@/lib/website-assignments/channel-helpers";
+  resolveRosterDepartmentId,
+  rosterAssignmentUiChannels,
+} from "@/lib/website-assignments/roster-assignment-channels";
 import { assignmentStepChipSx, assignmentStepRowSx } from "../styles/website-assignment-ui.styles";
 import {
   buildVisitorTopicContexts,
@@ -30,7 +29,7 @@ import { CoverageBlocksPanel } from "./CoverageBlocksPanel";
 type TopicAgentRosterPanelProps = {
   websiteId: string;
   operatingChannels: OperatingChannels;
-  allowedChannels: ServiceChannel[];
+  allowedAssignmentChannels: ServiceChannel[];
   departmentRoster: WebsiteDepartmentRosterRow[];
   topics: ServiceSchedulingTopic[];
   canEdit: boolean;
@@ -39,15 +38,14 @@ type TopicAgentRosterPanelProps = {
   initialTopicKey?: string;
 };
 
-const CHANNEL_OPTIONS: { value: ServiceChannel; label: string }[] = [
-  { value: "Internal", label: "Internal" },
-  { value: "External", label: "External" },
-];
+const CHANNEL_LABELS: Record<ServiceChannel, string> = {
+  Internal: "Internal",
+  External: "External",
+};
 
 export function TopicAgentRosterPanel({
   websiteId,
   operatingChannels,
-  allowedChannels,
   departmentRoster,
   topics,
   canEdit,
@@ -61,24 +59,39 @@ export function TopicAgentRosterPanel({
     [topics, departmentRoster],
   );
 
-  const showInternal =
-    canShowInternalSlots(operatingChannels) && isChannelAllowed("Internal", allowedChannels);
-  const showExternal =
-    canShowExternalSlots(operatingChannels) && isChannelAllowed("External", allowedChannels);
-
   const channelOptions = useMemo(() => {
-    const opts: { value: string; label: string }[] = [];
-    if (showInternal) opts.push(CHANNEL_OPTIONS[0]);
-    if (showExternal) opts.push(CHANNEL_OPTIONS[1]);
-    return opts;
-  }, [showInternal, showExternal]);
+    return rosterAssignmentUiChannels(operatingChannels).map((value) => ({
+      value,
+      label: CHANNEL_LABELS[value],
+    }));
+  }, [operatingChannels]);
 
   const [channel, setChannel] = useState<ServiceChannel>(initialChannel ?? "Internal");
-  const [topicKey, setTopicKey] = useState(initialTopicKey ?? "");
+  const [topicKey, setTopicKey] = useState("");
+  const [directDepartmentId, setDirectDepartmentId] = useState("");
+
+  const isInternalChannel = channel === "Internal";
+  const showExternalTopicPicker = !isInternalChannel && topicContexts.length > 0;
+  const useTopicRouting = showExternalTopicPicker && Boolean(topicKey.trim());
+
+  const typedDepartmentOptions = useMemo(() => {
+    const wantType = channel === "External" ? "External" : "Internal";
+    return departmentRoster
+      .filter((d) => d.departmentType === wantType)
+      .map((d) => ({ value: d.departmentId, label: d.departmentName }));
+  }, [departmentRoster, channel]);
+
+  const departmentSelectOptions = useMemo(
+    () => [
+      { value: "", label: "Optional — website default routing" },
+      ...typedDepartmentOptions,
+    ],
+    [typedDepartmentOptions],
+  );
 
   useEffect(() => {
     if (channelOptions.length === 0) return;
-    const allowed = channelOptions.map((o) => o.value as ServiceChannel);
+    const allowed = channelOptions.map((o) => o.value);
     const preferred =
       initialChannel && allowed.includes(initialChannel) ? initialChannel : channel;
     if (!allowed.includes(preferred)) setChannel(allowed[0]!);
@@ -86,41 +99,59 @@ export function TopicAgentRosterPanel({
   }, [channelOptions, channel, initialChannel]);
 
   useEffect(() => {
-    if (topicContexts.length === 0) {
+    if (isInternalChannel) setTopicKey("");
+  }, [isInternalChannel]);
+
+  useEffect(() => {
+    if (!showExternalTopicPicker) {
       setTopicKey("");
       return;
     }
-    const preferred =
-      initialTopicKey && topicContexts.some((t) => t.routingKey === initialTopicKey)
-        ? initialTopicKey
-        : topicKey;
-    if (!topicContexts.some((t) => t.routingKey === preferred)) {
-      setTopicKey(topicContexts[0]!.routingKey);
-    } else if (preferred !== topicKey) {
-      setTopicKey(preferred);
+    if (
+      initialTopicKey?.trim() &&
+      topicContexts.some((t) => t.routingKey === initialTopicKey.trim())
+    ) {
+      setTopicKey(initialTopicKey.trim());
     }
-  }, [topicContexts, topicKey, initialTopicKey]);
+  }, [showExternalTopicPicker, initialTopicKey, topicContexts]);
 
   const selectedTopic = useMemo(
-    () => topicContexts.find((t) => t.routingKey === topicKey),
-    [topicContexts, topicKey],
+    () => (useTopicRouting ? topicContexts.find((t) => t.routingKey === topicKey) : undefined),
+    [useTopicRouting, topicContexts, topicKey],
   );
 
-  const activeDepartmentId = selectedTopic
-    ? departmentIdForTopicChannel(selectedTopic, channel)
-    : "";
+  const effectiveDepartmentId = useMemo(() => {
+    if (useTopicRouting && selectedTopic) {
+      return departmentIdForTopicChannel(selectedTopic, "External");
+    }
+    return resolveRosterDepartmentId(channel, directDepartmentId, departmentRoster);
+  }, [useTopicRouting, selectedTopic, channel, directDepartmentId, departmentRoster]);
 
-  const activeDepartmentLabel = selectedTopic
-    ? departmentLabelForTopicChannel(selectedTopic, channel)
-    : "";
+  const activeDepartmentLabel = useMemo(() => {
+    if (useTopicRouting && selectedTopic) {
+      return departmentLabelForTopicChannel(selectedTopic, "External");
+    }
+    if (directDepartmentId.trim()) {
+      return (
+        departmentRoster.find((d) => d.departmentId === directDepartmentId)?.departmentName ?? ""
+      );
+    }
+    const resolved = departmentRoster.find((d) => d.departmentId === effectiveDepartmentId);
+    return resolved ? `${resolved.departmentName} (default)` : "Website default";
+  }, [
+    useTopicRouting,
+    selectedTopic,
+    directDepartmentId,
+    departmentRoster,
+    effectiveDepartmentId,
+  ]);
 
-  const activeTopicPoolId = selectedTopic
-    ? poolIdForTopicChannel(selectedTopic, channel)
-    : null;
+  const activeTopicPoolId =
+    useTopicRouting && selectedTopic ? poolIdForTopicChannel(selectedTopic, "External") : null;
 
   const topicOptions = useMemo(
     () => [
-      { value: "", label: topicContexts.length ? "Select visitor topic…" : "No topics configured" },
+      { value: "", label: "No topic — assign by channel" },
       ...topicContexts.map((t) => ({
         value: t.routingKey,
         label: `${t.clientLabel} (${t.routingKey})`,
@@ -129,13 +160,7 @@ export function TopicAgentRosterPanel({
     [topicContexts],
   );
 
-  if (topicContexts.length === 0) {
-    return (
-      <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted }}>
-        Add at least one active visitor topic in service scheduling before assigning agents.
-      </Typography>
-    );
-  }
+  const canShowRoster = Boolean(effectiveDepartmentId);
 
   return (
     <Box>
@@ -153,17 +178,36 @@ export function TopicAgentRosterPanel({
       >
         <InfoOutlined sx={{ color: theme.palette.info.light, fontSize: 22, mt: 0.25 }} />
         <Typography variant="body2" sx={{ lineHeight: 1.6, color: theme.app.dashboard.textMuted }}>
-          <strong>Step 3 — Assign agents:</strong> Choose <strong>same team all day</strong> or{" "}
-          <strong>duty periods</strong> (morning / afternoon teams). Chats route to the assigned{" "}
-          <strong>Primary</strong> when they are online in the chat inbox, then <strong>Secondary</strong>, then{" "}
-          <strong>Backup</strong> (Backup may be an external agent on internal channel).
+          Assignment follows your <strong>service scheduling mode</strong>:
+          <br />
+          <strong>Internal only</strong> — Internal channel; external users allowed as Backup only.
+          <br />
+          <strong>External only</strong> — External channel; external users only.
+          <br />
+          <strong>Both</strong> — Internal and External channels; Primary and Backup tiers only.
+          <br />
+          Department is optional. Inquire topics are optional (external visitor routing only).
         </Typography>
       </Box>
 
       <Box sx={assignmentStepRowSx}>
         <Chip label="1. Channel" size="small" sx={assignmentStepChipSx(Boolean(channel))} />
-        <Chip label="2. Visitor topic" size="small" sx={assignmentStepChipSx(Boolean(topicKey))} />
-        <Chip label="3. Coverage & team" size="small" sx={assignmentStepChipSx(Boolean(activeDepartmentId))} />
+        <Chip
+          label={
+            isInternalChannel
+              ? "2. Department (optional)"
+              : showExternalTopicPicker
+                ? "2. Topic (optional)"
+                : "2. Department (optional)"
+          }
+          size="small"
+          sx={assignmentStepChipSx(true)}
+        />
+        <Chip
+          label="3. Team"
+          size="small"
+          sx={assignmentStepChipSx(canShowRoster)}
+        />
       </Box>
 
       <Box
@@ -182,18 +226,52 @@ export function TopicAgentRosterPanel({
           disabled={!canEdit || channelOptions.length <= 1}
           menuMaxRows={4}
         />
-        <SelectField
-          label="Visitor topic (inquire)"
-          value={topicKey}
-          onChange={setTopicKey}
-          options={topicOptions}
-          disabled={!canEdit}
-          menuMaxRows={4}
-          searchPlaceholder="Search topic…"
-        />
+        {showExternalTopicPicker ? (
+          <SelectField
+            label="Inquire topic (optional)"
+            value={topicKey}
+            onChange={setTopicKey}
+            options={topicOptions}
+            disabled={!canEdit}
+            menuMaxRows={4}
+            searchPlaceholder="Search topic…"
+          />
+        ) : (
+          <SelectField
+            label="Department (optional)"
+            value={directDepartmentId}
+            onChange={setDirectDepartmentId}
+            options={
+              typedDepartmentOptions.length
+                ? departmentSelectOptions
+                : [{ value: "", label: "No departments — using website default" }]
+            }
+            disabled={!canEdit || typedDepartmentOptions.length === 0}
+            menuMaxRows={6}
+            searchPlaceholder="Search department…"
+          />
+        )}
       </Box>
 
-      {selectedTopic ? (
+      {showExternalTopicPicker && !useTopicRouting ? (
+        <Box sx={{ mb: 2 }}>
+          <SelectField
+            label="Department (optional)"
+            value={directDepartmentId}
+            onChange={setDirectDepartmentId}
+            options={
+              typedDepartmentOptions.length
+                ? departmentSelectOptions
+                : [{ value: "", label: "No external departments" }]
+            }
+            disabled={!canEdit || typedDepartmentOptions.length === 0}
+            menuMaxRows={6}
+            searchPlaceholder="Search department…"
+          />
+        </Box>
+      ) : null}
+
+      {useTopicRouting && selectedTopic ? (
         <Box
           sx={{
             mb: 2,
@@ -204,49 +282,32 @@ export function TopicAgentRosterPanel({
           }}
         >
           <Typography variant="body2" fontWeight={700} sx={{ mb: 0.75 }}>
-            Routing for this selection
+            External routing for this topic
           </Typography>
-          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75, mb: 0.75 }}>
-            <Chip
-              label={channel}
-              size="small"
-              color={channel === "External" ? "warning" : "info"}
-              sx={{ fontWeight: 700 }}
-            />
-            <Chip
-              label={`Topic: ${selectedTopic.clientLabel}`}
-              size="small"
-              variant="outlined"
-            />
-            <Chip
-              label={`Dept: ${activeDepartmentLabel}`}
-              size="small"
-              variant="outlined"
-            />
-            {activeTopicPoolId ? (
-              <Chip label="Pool-restricted roster" size="small" variant="outlined" />
-            ) : null}
-          </Box>
-          <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, display: "block" }}>
-            Visitor topic <strong>{selectedTopic.routingKey}</strong> routes{" "}
-            <strong>{channel.toLowerCase()}</strong> chats to department{" "}
+          <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted }}>
+            Topic <strong>{selectedTopic.routingKey}</strong> → department{" "}
             <strong>{activeDepartmentLabel}</strong>
-            {activeTopicPoolId ? " (linked pool members only)" : ""}.
           </Typography>
         </Box>
       ) : null}
 
-      {selectedTopic && activeDepartmentId ? (
+      {!canShowRoster ? (
+        <Typography variant="body2" sx={{ color: theme.palette.warning.light }}>
+          No department exists under this parent company. Create at least one Internal or External
+          department in HRMS, then assign agents here.
+        </Typography>
+      ) : (
         <CoverageBlocksPanel
           websiteId={websiteId}
-          departmentId={activeDepartmentId}
+          operatingChannels={operatingChannels}
+          departmentId={effectiveDepartmentId}
           departmentName={activeDepartmentLabel}
           channel={channel}
           topicPoolId={activeTopicPoolId ?? undefined}
           canEdit={canEdit}
           onSaved={onSaved}
         />
-      ) : null}
+      )}
     </Box>
   );
 }

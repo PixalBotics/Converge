@@ -18,6 +18,9 @@ import { DashboardCard, Typography } from "@/components/common";
 
 import { WidgetDraftStatusBar } from "@/features/chat-widget/components/WidgetDraftStatusBar";
 import { WidgetWizardStepper } from "@/features/chat-widget/components/WidgetWizardStepper";
+import { readChatWizardDraft, resolveEditWidgetKeyForNavigation } from "@/lib/chat-widget/chat-wizard-edit";
+import { widgetWizardStepCount } from "@/lib/chat-widget/widget-wizard-steps";
+import { useSearchParams } from "next/navigation";
 
 import {
 
@@ -36,12 +39,6 @@ import {
   distributionWizardSectionHeader,
 
 } from "@/app/dashboard/distribution-setup/wizard.styles";
-
-
-
-const WIDGET_WIZARD_STEP_COUNT = 4;
-
-
 
 export interface WidgetFlowShellProps {
 
@@ -80,13 +77,13 @@ export function WidgetFlowShell({
 }: WidgetFlowShellProps) {
 
   const theme = useTheme() as AppTheme;
+  const searchParams = useSearchParams();
+  const editKey = resolveEditWidgetKeyForNavigation(searchParams.get("edit") ?? "");
+  const wizardStepCount = widgetWizardStepCount(readChatWizardDraft(editKey || undefined).type);
 
   const stepIndex =
-
     currentStep !== undefined
-
-      ? Math.min(Math.max(0, currentStep), WIDGET_WIZARD_STEP_COUNT - 1)
-
+      ? Math.min(Math.max(0, currentStep), wizardStepCount - 1)
       : undefined;
 
 
@@ -147,7 +144,7 @@ export function WidgetFlowShell({
 
               <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted }}>
 
-                Step {stepIndex + 1} of {WIDGET_WIZARD_STEP_COUNT}
+                Step {stepIndex + 1} of {wizardStepCount}
 
               </Typography>
 

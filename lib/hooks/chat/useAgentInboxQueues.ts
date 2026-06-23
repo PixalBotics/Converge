@@ -5,6 +5,10 @@ import axios from "axios";
 import { subscribeAgentInboxDelta } from "./agent-inbox-delta-bus";
 import { applyInboxQueuePatch } from "./agent-inbox-queue-patch";
 import { subscribeAgentInboxRefresh } from "./agent-inbox-refresh-bus";
+import {
+  isAgentChatSessionAccepting,
+  subscribeAgentChatSession,
+} from "./agent-chat-session-bus";
 import { MAX_ACTIVE_CHATS_PER_AGENT } from "@/services/chat/chat.constants";
 import {
   getMyActiveChats,
@@ -37,9 +41,14 @@ export function useAgentInboxQueues(
   token: string,
   permissionEnabled = true,
   currentAgentId?: string | null,
+  options?: { respectChatSession?: boolean },
 ): AgentInboxQueuesState {
   const tokenReady = Boolean(token.trim());
   const apiEnabled = permissionEnabled && tokenReady;
+  const respectChatSession = options?.respectChatSession ?? false;
+  const [acceptingChats, setAcceptingChats] = useState(() =>
+    respectChatSession ? isAgentChatSessionAccepting() : true,
+  );
   const [activeChats, setActiveChats] = useState<ConversationSummary[]>([]);
   const [waitingChats, setWaitingChats] = useState<ConversationSummary[]>([]);
   const [closedChats, setClosedChats] = useState<ConversationSummary[]>([]);
@@ -47,6 +56,21 @@ export function useAgentInboxQueues(
   const closedRefreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const agentIdRef = useRef(currentAgentId);
   agentIdRef.current = currentAgentId;
+
+  useEffect(() => {
+    if (!respectChatSession) {
+      setAcceptingChats(true);
+      return undefined;
+    }
+    return subscribeAgentChatSession((session) => {
+      setAcceptingChats(session.status === "active" && session.acceptingChats);
+    });
+  }, [respectChatSession]);
+
+  useEffect(() => {
+    if (!respectChatSession || acceptingChats) return;
+    setWaitingChats([]);
+  }, [acceptingChats, respectChatSession]);
 
   const refreshClosedOnly = useCallback(async () => {
     if (!apiEnabled || !token) return;
@@ -68,7 +92,7 @@ export function useAgentInboxQueues(
 
     const [activeResult, waitingResult, closedResult] = await Promise.allSettled([
       getMyActiveChats(token),
-      getWaitingChats(token),
+      acceptingChats ? getWaitingChats(token) : Promise.resolve([] as ConversationSummary[]),
       getMyClosedChats(token),
     ]);
 
@@ -102,7 +126,7 @@ export function useAgentInboxQueues(
         });
       }
     }
-  }, [apiEnabled, token]);
+  }, [acceptingChats, apiEnabled, token]);
 
   const queuesRef = useRef({
     activeChats: [] as ConversationSummary[],
@@ -145,7 +169,7 @@ export function useAgentInboxQueues(
     }
     if (!tokenReady) return;
     void refreshQueues();
-  }, [permissionEnabled, refreshQueues, tokenReady]);
+  }, [acceptingChats, permissionEnabled, refreshQueues, tokenReady]);
 
   useEffect(() => {
     if (!permissionEnabled || !tokenReady) return undefined;
@@ -157,9 +181,14 @@ export function useAgentInboxQueues(
   useEffect(() => {
     if (!permissionEnabled) return undefined;
     return subscribeAgentInboxDelta((patch) => {
+      if (respectChatSession && !acceptingChats) {
+        if (patch.kind === "queue_add" || patch.kind === "assigned_to_agent") {
+          return;
+        }
+      }
       applyPatch(patch);
     });
-  }, [permissionEnabled, applyPatch]);
+  }, [acceptingChats, applyPatch, permissionEnabled, respectChatSession]);
 
   useEffect(
     () => () => {

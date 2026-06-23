@@ -91,7 +91,24 @@ export async function sendAgentMessage(
   return unwrapChatHttpData(data);
 }
 
-export interface TransferToPoolHeadResponse {
+export interface ChatTransferTarget {
+  userId: string;
+  name: string;
+  email: string | null;
+  userType: "Internal" | "External";
+  departmentId: string | null;
+  departmentName: string | null;
+  assignmentType: string;
+  serviceChannel: string;
+  label: string;
+}
+
+export interface ChatTransferTargetsResponse {
+  conversationId: string;
+  agents: ChatTransferTarget[];
+}
+
+export interface TransferConversationResponse {
   conversationId: string;
   transfer: {
     conversationId: string;
@@ -108,6 +125,40 @@ export interface TransferToPoolHeadResponse {
   } | null;
 }
 
+/** @deprecated Use transferConversation instead. */
+export interface TransferToPoolHeadResponse extends TransferConversationResponse {}
+
+export async function fetchConversationTransferTargets(
+  conversationId: string,
+  token?: string,
+): Promise<ChatTransferTargetsResponse> {
+  const { data } = await apiClient.get<unknown>(
+    `/chat/agent/conversations/${encodeURIComponent(conversationId)}/transfer-targets`,
+    { headers: chatAuthHeaders(token) },
+  );
+  return unwrapChatHttpData<ChatTransferTargetsResponse>(data);
+}
+
+export async function transferConversation(
+  conversationId: string,
+  toUserId: string,
+  token?: string,
+): Promise<TransferConversationResponse> {
+  return agentChatSocketAckOrRest<TransferConversationResponse>(
+    (socket) =>
+      socket.transferConversationWithAck({ conversationId, toUserId }, 15_000),
+    async () => {
+      const { data } = await apiClient.post<unknown>(
+        `/chat/agent/conversations/${encodeURIComponent(conversationId)}/transfer`,
+        { toUserId },
+        { headers: chatAuthHeaders(token) },
+      );
+      return unwrapChatHttpData<TransferConversationResponse>(data);
+    },
+  );
+}
+
+/** @deprecated Use transferConversation instead. */
 export async function transferConversationToPoolHead(
   conversationId: string,
   _token?: string,

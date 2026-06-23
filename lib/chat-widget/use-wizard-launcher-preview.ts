@@ -40,7 +40,8 @@ export function useWizardLauncherChrome(
     return mergePartialWidgetDraft({
       ...d,
       ...launcherChrome,
-      buttonLabel: overrides?.buttonLabel?.trim() || d.buttonLabel,
+      buttonLabel:
+        overrides?.buttonLabel !== undefined ? overrides.buttonLabel.trim() : d.buttonLabel,
       buttonColor: launcherChrome.buttonColor,
       buttonHoverColor: launcherChrome.buttonHoverColor,
       themePrimaryColor:

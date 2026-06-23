@@ -25,6 +25,8 @@ function launcherShapeRadius(shape: string): string {
   return "50%";
 }
 
+export { launcherShapeRadius };
+
 /** Shared FAB surface styles for embed + dashboard preview. */
 export function resolveLauncherFabSurfaceSx(params: {
   style: WidgetLauncherStyleId;

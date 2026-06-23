@@ -65,7 +65,7 @@ export default function AddServiceSchedulePage() {
             Add service schedule
           </Typography>
           <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted, maxWidth: 560 }}>
-            Choose the organization and website, then set operating mode, hours, and visitor topics.
+            Choose the organization and website, then set operating mode and service hours.
           </Typography>
         </Box>
         <Box sx={websiteAssignmentHeaderActions}>

@@ -3,6 +3,7 @@ import {
   formatAttendanceStatus,
   formatBreakSummary,
   formatTimeOnly,
+  mapAttendanceEnrichedColumns,
 } from "@/lib/utils/hrms/attendance-display";
 
 export type TeamAttendanceTableRow = {
@@ -16,6 +17,12 @@ export type TeamAttendanceTableRow = {
   checkOut: string;
   breakSummary: string;
   workedMinutes: string;
+  startChat: string;
+  chatPause: string;
+  login: string;
+  logout: string;
+  chatMinutes: string;
+  meetingMinutes: string;
 };
 
 export function extractAttendanceItems(data: unknown): Record<string, unknown>[] {
@@ -109,6 +116,8 @@ export function mapAttendanceQueueRow(
   const over = pickNum(row, ["overBreakMinutes"]);
   const worked = pickNum(row, ["workedMinutes"]);
 
+  const enriched = mapAttendanceEnrichedColumns(row);
+
   return {
     id: field(row, ["id", "attendanceId"]) || `${idPrefix}-${idx}`,
     employeeName,
@@ -120,5 +129,11 @@ export function mapAttendanceQueueRow(
     checkOut: formatTimeOnly(field(row, ["checkOutAt", "checkOut", "checkOutTime", "outTime"])),
     breakSummary: formatBreakSummary(taken, allowed, over),
     workedMinutes: worked != null ? `${worked} min` : "—",
+    startChat: enriched.startChat,
+    chatPause: enriched.chatPause,
+    login: enriched.login,
+    logout: enriched.logout,
+    chatMinutes: enriched.chatMinutes,
+    meetingMinutes: enriched.meetingMinutes,
   };
 }

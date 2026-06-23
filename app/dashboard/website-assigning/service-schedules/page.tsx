@@ -63,7 +63,7 @@ type ScheduleRow = {
   websiteUrl: string;
   parentCompany: string;
   childCompany: string;
-  serviceSchedulingConfigured: boolean;
+  serviceHoursConfigured: boolean;
 };
 
 function itemToRow(item: WebsiteAssignmentScopeItem): ScheduleRow {
@@ -75,7 +75,7 @@ function itemToRow(item: WebsiteAssignmentScopeItem): ScheduleRow {
     websiteUrl: url || "—",
     parentCompany: item.parentCompanyName || "—",
     childCompany: item.childCompanyName || "—",
-    serviceSchedulingConfigured: Boolean(item.serviceSchedulingConfigured),
+    serviceHoursConfigured: Boolean(item.serviceHoursConfigured),
   };
 }
 
@@ -109,7 +109,7 @@ export default function ServiceSchedulesPage() {
         resellerId: scope.filterResellerId,
         parentCompanyId: scope.filterParentCompanyId,
         childCompanyId: scope.filterChildCompanyId,
-        serviceSchedulingConfigured: schedulingParam,
+        serviceHoursConfigured: schedulingParam,
       }),
     [
       scope.canFilterByResellerId,
@@ -186,9 +186,9 @@ export default function ServiceSchedulesPage() {
         id: "status",
         label: "Schedule status",
         render: (_, row) =>
-          row.serviceSchedulingConfigured ? (
+          row.serviceHoursConfigured ? (
             <Chip
-              label="Ready for agents"
+              label="Hours configured"
               size="small"
               sx={{
                 height: 24,
@@ -253,8 +253,8 @@ export default function ServiceSchedulesPage() {
             Service scheduling
           </Typography>
           <Typography variant="medium" sx={mergeSx(filterPanelDescriptionSx, { maxWidth: 640 })}>
-            Step 1: set operating mode, service hours, and visitor topics per website. Step 2: assign
-            agents when status is ready.
+            Step 1: set operating mode and service hours per website. Step 2: assign agents when ready.
+            Inquire topics are optional.
           </Typography>
         </Box>
         <Box sx={websiteAssignmentHeaderActions}>
@@ -342,7 +342,7 @@ export default function ServiceSchedulesPage() {
                 row={{
                   websiteId: row.id,
                   websiteName: row.websiteName,
-                  serviceSchedulingConfigured: row.serviceSchedulingConfigured,
+                  serviceSchedulingConfigured: row.serviceHoursConfigured,
                 }}
                 canEdit={gates.assign}
                 onEdit={() => router.push(schedulingPath(row.id))}

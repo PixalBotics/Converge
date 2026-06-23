@@ -5,7 +5,12 @@ import type {
 } from "@/api/types/widgets.types";
 import { buildChatColorsFromWidgetDraft } from "./widget-colors-draft";
 import { CHAT_WIZARD_PATCH_DEFAULTS } from "./chat-wizard-patch-defaults";
-import type { TextUsFormFieldDraft, WidgetDraft } from "./widgetDraft";
+import {
+  DEFAULT_TEXT_US_FORM_FIELDS,
+  resolveTextUsFormFields,
+} from "./text-us-form-defaults";
+import { buildTextUsDesignJsonFromDraft } from "./text-us-design-json";
+import type { WidgetDraft } from "./widgetDraft";
 import { applyAiTypeToWidgetConfig } from "./widget-ai-type";
 import { accumulateWizardInstallConfigFromSaveTrace } from "./merge-wizard-draft-for-publish";
 import { mergeWidgetConfigForEdit } from "./merge-widget-config-for-edit";
@@ -27,16 +32,22 @@ export interface WidgetInstallationAssetUrls {
   bannerImagePublicUrl?: string;
   bannerVideoPublicUrl?: string;
   headerLogoPublicUrl?: string;
+  textUsHeaderLogoPublicUrl?: string;
   agentAvatarPublicUrl?: string;
   visitorAvatarPublicUrl?: string;
 }
 
-const defaultTextUsFormFields = (): JsonRecord[] => [
-  { key: "name", label: "Name", fieldType: "text", required: true },
-  { key: "email", label: "Email", fieldType: "email", required: true },
-  { key: "message", label: "Message", fieldType: "textarea", required: false },
-  { key: "phone", label: "Phone", fieldType: "phone", required: false },
-];
+const defaultTextUsFormFields = (): JsonRecord[] =>
+  DEFAULT_TEXT_US_FORM_FIELDS.map((f) => {
+    const row: JsonRecord = {
+      key: f.key,
+      label: f.label,
+      fieldType: f.fieldType,
+      required: Boolean(f.required),
+    };
+    if (f.placeholder?.trim()) row.placeholder = f.placeholder.trim();
+    return row;
+  });
 
 /** Backend UpdateWidgetConfigurationDto rejects unknown top-level `config` keys. */
 function sanitizeWidgetPatchConfig(config: JsonRecord): JsonRecord {
@@ -60,13 +71,25 @@ function buildLauncherDesignJsonFromDraft(
     position: draft.buttonPosition,
     insetBottomPx: draft.launcherInsetBottomPx,
     insetSidePx: draft.launcherInsetSidePx,
-    iconPreset: draft.launcherIconPreset || "phosphor-chat-dots",
     style: draft.launcherStyle ?? "solid",
   };
-  if (draftUsesCustomLauncherIcon(draft, urls)) {
-    launcher.iconUrl = urls.buttonIconPublicUrl;
-  } else {
+  if (draft.launcherIconEnabled === false) {
+    launcher.iconEnabled = false;
+    launcher.iconPreset = "";
     launcher.iconUrl = "";
+  } else {
+    launcher.iconEnabled = true;
+    launcher.iconPreset = draft.launcherIconPreset || "phosphor-chat-dots";
+    if (draftUsesCustomLauncherIcon(draft, urls)) {
+      launcher.iconUrl = urls.buttonIconPublicUrl;
+    } else {
+      launcher.iconUrl = "";
+    }
+  }
+  if (draft.launcherLabelEnabled === false) {
+    launcher.labelEnabled = false;
+  } else {
+    launcher.labelEnabled = true;
   }
   return launcher;
 }
@@ -260,8 +283,19 @@ export function buildLauncherUiFromDraft(
     proactiveSecondaryCtaHref: draft.proactiveSecondaryCtaHref?.trim() || undefined,
     proactiveSecondaryCtaKind: draft.proactiveSecondaryCtaKind?.trim() || undefined,
     closedMessagePreviewEnabled: draft.closedMessagePreviewEnabled !== false,
-    buttonLabel: draft.buttonLabel ?? def.buttonLabel,
+    buttonLabel:
+      typeof draft.buttonLabel === "string" ? draft.buttonLabel.trim() : def.buttonLabel,
   };
+  if (draft.launcherIconEnabled === false) {
+    ui.launcherIconEnabled = false;
+  } else {
+    ui.launcherIconEnabled = true;
+  }
+  if (draft.launcherLabelEnabled === false) {
+    ui.launcherLabelEnabled = false;
+  } else {
+    ui.launcherLabelEnabled = true;
+  }
   if (draftUsesCustomLauncherIcon(draft, urls)) {
     ui.buttonIconUrl = urls.buttonIconPublicUrl;
   } else {
@@ -366,7 +400,8 @@ export function buildChatPanelUiFromDraft(
   const headerAlign = (draft.headerTitleAlign ?? "Center").toLowerCase();
   const panel = resolvePanelBackground(draft);
   const ui: JsonRecord = {
-    buttonLabel: draft.buttonLabel ?? def.buttonLabel,
+    buttonLabel:
+      typeof draft.buttonLabel === "string" ? draft.buttonLabel.trim() : def.buttonLabel,
     headerTitle: draft.headerTitle?.trim() ?? "",
     headerTitleAlign: headerAlign,
     header: { align: headerAlign, companyName: draft.headerTitle },
@@ -414,7 +449,8 @@ export function buildChatShellUiFromDraft(
   const panel = resolvePanelBackground(draft);
   const ui: JsonRecord = {
     ...buildLauncherUiFromDraft(draft, assetUrls),
-    buttonLabel: draft.buttonLabel ?? def.buttonLabel,
+    buttonLabel:
+      typeof draft.buttonLabel === "string" ? draft.buttonLabel.trim() : def.buttonLabel,
     headerTitle: draft.headerTitle?.trim() ?? "",
     headerTitleAlign: headerAlign,
     header: { align: headerAlign, companyName: draft.headerTitle },
@@ -536,6 +572,47 @@ export function buildFullChatPublishConfigFromDraft(
   return merged;
 }
 
+/** BOTH final publish: full chat wizard config + Text Us designJson + SMS form fields. */
+export function buildFullBothPublishConfigFromDraft(
+  draft: WidgetDraft,
+  assetUrls?: WidgetInstallationAssetUrls,
+): JsonRecord {
+  const chatConfig = buildFullChatPublishConfigFromDraft(draft, assetUrls);
+  const chatTheme =
+    typeof chatConfig.theme === "object" &&
+    chatConfig.theme !== null &&
+    !Array.isArray(chatConfig.theme)
+      ? ({ ...(chatConfig.theme as JsonRecord) } as JsonRecord)
+      : ({} as JsonRecord);
+  const designJson =
+    typeof chatTheme.designJson === "object" &&
+    chatTheme.designJson !== null &&
+    !Array.isArray(chatTheme.designJson)
+      ? ({ ...(chatTheme.designJson as JsonRecord) } as JsonRecord)
+      : ({} as JsonRecord);
+  const chatForm =
+    typeof chatConfig.form === "object" &&
+    chatConfig.form !== null &&
+    !Array.isArray(chatConfig.form)
+      ? ({ ...(chatConfig.form as JsonRecord) } as JsonRecord)
+      : ({} as JsonRecord);
+
+  return {
+    ...chatConfig,
+    theme: {
+      ...chatTheme,
+      designJson: {
+        ...designJson,
+        textUs: buildTextUsDesignJsonFromDraft(draft, assetUrls),
+      },
+    },
+    form: {
+      ...chatForm,
+      fields: textUsDraftFieldsAsFormPayload(draft),
+    },
+  };
+}
+
 /** Step 3 PATCH `config`: routing, domains, behavior, session, form, response. */
 export function buildChatWizardStep3Config(draft: WidgetDraft): JsonRecord {
   const def = CHAT_WIZARD_PATCH_DEFAULTS;
@@ -595,6 +672,18 @@ export function buildChatWizardStep3Config(draft: WidgetDraft): JsonRecord {
       prechatMessageRequired: draft.prechatMessageRequired ?? def.prechatMessageRequired,
       fields: prechatDraftFieldsAsFormPayload(draft),
     },
+    offlineForm: {
+      enabled: draft.offlineFormEnabled ?? def.offlineFormEnabled,
+      title: draft.offlineFormTitle ?? def.offlineFormTitle,
+      subtitle: draft.offlineFormSubtitle ?? def.offlineFormSubtitle,
+      submitLabel: draft.offlineFormSubmitLabel ?? def.offlineFormSubmitLabel,
+      prechatNameEnabled: draft.offlinePrechatNameEnabled ?? def.offlinePrechatNameEnabled,
+      prechatEmailEnabled: draft.offlinePrechatEmailEnabled ?? def.offlinePrechatEmailEnabled,
+      prechatPhoneEnabled: draft.offlinePrechatPhoneEnabled ?? def.offlinePrechatPhoneEnabled,
+      prechatMessageEnabled: draft.offlinePrechatMessageEnabled ?? def.offlinePrechatMessageEnabled,
+      prechatMessageRequired: draft.offlinePrechatMessageRequired ?? def.offlinePrechatMessageRequired,
+      fields: offlineDraftFieldsAsFormPayload(draft),
+    },
     response: {
       welcomeMessage: draft.responseWelcomeMessage ?? def.responseWelcomeMessage,
       offlineMessage: draft.responseOfflineMessage ?? def.responseOfflineMessage,
@@ -617,16 +706,22 @@ export function buildChatWizardStep3Config(draft: WidgetDraft): JsonRecord {
 }
 
 /**
- * Chat pre-chat fields from wizard toggles (notifications step).
- * Maps to `config.form.fields` for embed `extractPrechatFieldsFromWidgetConfig`.
+ * Chat pre-chat / offline form fields from wizard toggles.
+ * Maps to `config.form.fields` / `config.offlineForm.fields` for embed field resolver.
  */
-export function prechatDraftFieldsAsFormPayload(draft: WidgetDraft): JsonRecord[] {
+export function prechatTogglesToFormFields(toggles: {
+  prechatNameEnabled?: boolean;
+  prechatEmailEnabled?: boolean;
+  prechatPhoneEnabled?: boolean;
+  prechatMessageEnabled?: boolean;
+  prechatMessageRequired?: boolean;
+}): JsonRecord[] {
   const def = CHAT_WIZARD_PATCH_DEFAULTS;
-  const nameOn = draft.prechatNameEnabled ?? def.prechatNameEnabled;
-  const emailOn = draft.prechatEmailEnabled ?? def.prechatEmailEnabled;
-  const phoneOn = draft.prechatPhoneEnabled ?? def.prechatPhoneEnabled;
-  const messageOn = draft.prechatMessageEnabled ?? def.prechatMessageEnabled;
-  const messageRequired = draft.prechatMessageRequired ?? def.prechatMessageRequired;
+  const nameOn = toggles.prechatNameEnabled ?? def.prechatNameEnabled;
+  const emailOn = toggles.prechatEmailEnabled ?? def.prechatEmailEnabled;
+  const phoneOn = toggles.prechatPhoneEnabled ?? def.prechatPhoneEnabled;
+  const messageOn = toggles.prechatMessageEnabled ?? def.prechatMessageEnabled;
+  const messageRequired = toggles.prechatMessageRequired ?? def.prechatMessageRequired;
 
   const fields: JsonRecord[] = [];
   if (nameOn) {
@@ -672,24 +767,42 @@ export function prechatDraftFieldsAsFormPayload(draft: WidgetDraft): JsonRecord[
   return fields;
 }
 
+export function prechatDraftFieldsAsFormPayload(draft: WidgetDraft): JsonRecord[] {
+  const def = CHAT_WIZARD_PATCH_DEFAULTS;
+  return prechatTogglesToFormFields({
+    prechatNameEnabled: draft.prechatNameEnabled ?? def.prechatNameEnabled,
+    prechatEmailEnabled: draft.prechatEmailEnabled ?? def.prechatEmailEnabled,
+    prechatPhoneEnabled: draft.prechatPhoneEnabled ?? def.prechatPhoneEnabled,
+    prechatMessageEnabled: draft.prechatMessageEnabled ?? def.prechatMessageEnabled,
+    prechatMessageRequired: draft.prechatMessageRequired ?? def.prechatMessageRequired,
+  });
+}
+
+export function offlineDraftFieldsAsFormPayload(draft: WidgetDraft): JsonRecord[] {
+  const def = CHAT_WIZARD_PATCH_DEFAULTS;
+  return prechatTogglesToFormFields({
+    prechatNameEnabled: draft.offlinePrechatNameEnabled ?? def.offlinePrechatNameEnabled,
+    prechatEmailEnabled: draft.offlinePrechatEmailEnabled ?? def.offlinePrechatEmailEnabled,
+    prechatPhoneEnabled: draft.offlinePrechatPhoneEnabled ?? def.offlinePrechatPhoneEnabled,
+    prechatMessageEnabled: draft.offlinePrechatMessageEnabled ?? def.offlinePrechatMessageEnabled,
+    prechatMessageRequired: draft.offlinePrechatMessageRequired ?? def.offlinePrechatMessageRequired,
+  });
+}
+
 /** Text-us field list goes under PATCH `config.form.fields`; use `type` for runtime pre-chat resolver. */
 export function textUsDraftFieldsAsFormPayload(draft: WidgetDraft): JsonRecord[] {
-  const fallback: TextUsFormFieldDraft[] = defaultTextUsFormFields().map((j) => ({
-    key: String(j.key),
-    label: typeof j.label === "string" ? j.label : String(j.key),
-    fieldType: String(j.fieldType ?? "text"),
-    required: Boolean(j.required),
-  }));
-  const source =
-    draft.textUsFormFields && draft.textUsFormFields.length > 0
-      ? draft.textUsFormFields
-      : fallback;
-  return source.map((f) => ({
-    key: String(f.key),
-    label: String(f.label ?? f.key),
-    required: Boolean(f.required),
-    type: String(f.fieldType ?? "text").toLowerCase(),
-  }));
+  const source = resolveTextUsFormFields(draft.textUsFormFields);
+  return source.map((f) => {
+    const row: JsonRecord = {
+      key: String(f.key),
+      label: String(f.label ?? f.key),
+      required: Boolean(f.required),
+      type: String(f.fieldType ?? "text").toLowerCase(),
+    };
+    const ph = f.placeholder?.trim();
+    if (ph) row.placeholder = ph;
+    return row;
+  });
 }
 
 /**
@@ -730,12 +843,7 @@ export function buildWidgetInstallationPayload(input: {
       : {};
 
   if (widgetType === "TEXT_US" || widgetType === "BOTH") {
-    themeDesign.textUs = {
-      buttonColor: draft.textUsButtonColor ?? "#da9b2f",
-      position: draft.textUsPosition ?? "center",
-      headerTitle: draft.textUsHeaderTitle ?? "Special Offer",
-      welcomeMessage: draft.textUsWelcomeMessage ?? "",
-    };
+    themeDesign.textUs = buildTextUsDesignJsonFromDraft(draft, assetUrls);
   }
 
   const body: JsonRecord = {
@@ -795,7 +903,7 @@ export function buildWidgetPatchConfigurationBody(input: {
   publishNow: boolean;
   assetUrls?: WidgetInstallationAssetUrls;
   embedAllowAnyOrigin?: boolean;
-  /** When set for `CHAT`, PATCH body is trimmed to that wizard step (ignored for TEXT_US / BOTH). */
+  /** When set for `CHAT`, PATCH body is trimmed to that wizard step (scoped steps also apply to `BOTH` chat slices). */
   chatWizardPatchScope?: ChatWidgetWizardPatchScope;
 }): JsonRecord {
   const { draft, widgetType, publishNow, assetUrls, embedAllowAnyOrigin } =
@@ -808,24 +916,40 @@ export function buildWidgetPatchConfigurationBody(input: {
     ...(embedAllowAnyOrigin !== undefined ? { embedAllowAnyOrigin } : {}),
   });
 
-  if (widgetType === "CHAT" && input.chatWizardPatchScope === "launcher_only") {
+  if (
+    (widgetType === "CHAT" || widgetType === "BOTH") &&
+    input.chatWizardPatchScope === "launcher_only"
+  ) {
     return withConfig(buildChatWizardStep1Config(draft, assetUrls));
   }
 
-  if (widgetType === "CHAT" && input.chatWizardPatchScope === "chat_surface") {
+  if (
+    (widgetType === "CHAT" || widgetType === "BOTH") &&
+    input.chatWizardPatchScope === "chat_surface"
+  ) {
     return withConfig(buildChatWizardStep2Config(draft, assetUrls));
   }
 
-  if (widgetType === "CHAT" && input.chatWizardPatchScope === "notifications_only") {
+  if (
+    (widgetType === "CHAT" || widgetType === "BOTH") &&
+    input.chatWizardPatchScope === "notifications_only"
+  ) {
     return withConfig(buildChatWizardStep3Config(draft));
   }
 
-  if (widgetType === "CHAT" && input.chatWizardPatchScope === "inquiry_only") {
+  if (
+    (widgetType === "CHAT" || widgetType === "BOTH") &&
+    input.chatWizardPatchScope === "inquiry_only"
+  ) {
     return withConfig(buildInquiryBehaviorPatchFromDraft(draft));
   }
 
   if (widgetType === "CHAT" && !input.chatWizardPatchScope) {
     return withConfig(buildFullChatPublishConfigFromDraft(draft, assetUrls));
+  }
+
+  if (widgetType === "BOTH" && !input.chatWizardPatchScope) {
+    return withConfig(buildFullBothPublishConfigFromDraft(draft, assetUrls));
   }
 
   const wid = draft.websiteId?.trim();

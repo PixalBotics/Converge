@@ -20,6 +20,10 @@ export type WebsiteAssignmentScopeFilterPanelProps = WebsiteAssignmentScopeFilte
   filterScheduling?: string;
   onFilterSchedulingChange?: (v: string) => void;
   schedulingOptions?: { value: string; label: string }[];
+  showTopicsFilter?: boolean;
+  filterTopics?: string;
+  onFilterTopicsChange?: (v: string) => void;
+  topicsOptions?: { value: string; label: string }[];
   showRosterFilter?: boolean;
   filterRoster?: string;
   onFilterRosterChange?: (v: string) => void;
@@ -48,6 +52,10 @@ export function WebsiteAssignmentScopeFilterPanel({
   filterScheduling = "",
   onFilterSchedulingChange,
   schedulingOptions = [],
+  showTopicsFilter,
+  filterTopics = "",
+  onFilterTopicsChange,
+  topicsOptions = [],
   showRosterFilter,
   filterRoster = "",
   onFilterRosterChange,
@@ -80,6 +88,15 @@ export function WebsiteAssignmentScopeFilterPanel({
             value={filterScheduling}
             onChange={onFilterSchedulingChange}
             options={schedulingOptions}
+            menuMaxRows={6}
+          />
+        ) : null}
+        {showTopicsFilter && onFilterTopicsChange ? (
+          <SelectField
+            label="Topics status"
+            value={filterTopics}
+            onChange={onFilterTopicsChange}
+            options={topicsOptions}
             menuMaxRows={6}
           />
         ) : null}

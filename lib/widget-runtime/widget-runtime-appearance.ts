@@ -19,6 +19,8 @@ import {
   type DensityTokens,
 } from "@/lib/chat-widget/design-accent-density";
 import {
+  mixHex,
+  pickReadableText,
   resolveWidgetColorTokens,
   type ResolvedWidgetColors,
 } from "./widget-color-tokens";
@@ -75,10 +77,15 @@ export interface RuntimeLauncherAppearance {
   proactiveTeaserAvatarUrl: string;
   proactiveSecondaryCta: ProactiveSecondaryCta;
   position: "left" | "center" | "right";
+  /** When `top`, FAB + panel anchor from viewport top (Text Us / custom placement). */
+  verticalAnchor?: "top" | "bottom";
   shape: string;
   insetBottomPx: number;
+  insetTopPx?: number;
   insetSidePx: number;
   iconPreset: LauncherIconPresetId;
+  /** When false, launcher shows label only (no icon glyph). */
+  iconEnabled: boolean;
   /** Published `ui.buttonIconUrl` — overrides preset when set. */
   iconUrl: string;
   buttonColor: string;
@@ -164,6 +171,8 @@ export interface RuntimeChatAppearance {
   borderRadiusPx: number;
   form: RuntimeFormAppearance;
   formEnabled: boolean;
+  offlineForm: RuntimeFormAppearance;
+  offlineFormEnabled: boolean;
   banner: RuntimeBannerAppearance;
   videoWelcome: RuntimeVideoWelcomeAppearance;
   inquiryOptions: RuntimeInquiryOption[];
@@ -214,12 +223,37 @@ function strFirst(...candidates: unknown[]): string {
   return "";
 }
 
+/** Visible launcher label — empty string is valid (icon-only FAB). */
+function resolveLauncherVisibleLabel(
+  configRecord: Record<string, unknown>,
+  ui: unknown,
+  djUi: unknown,
+  djLauncher?: unknown,
+): string {
+  const labelDisabled =
+    (isObj(ui) && ui.launcherLabelEnabled === false) ||
+    (isObj(djUi) && djUi.launcherLabelEnabled === false) ||
+    (isObj(djLauncher) && djLauncher.labelEnabled === false);
+  if (labelDisabled) return "";
+  if (isObj(ui) && typeof ui.buttonLabel === "string") return ui.buttonLabel.trim();
+  if (isObj(djUi) && typeof djUi.buttonLabel === "string") return djUi.buttonLabel.trim();
+  if (typeof configRecord.ctaButtonText === "string") {
+    return String(configRecord.ctaButtonText).trim();
+  }
+  return "";
+}
+
 function numFirst(...candidates: unknown[]): number | undefined {
   for (const c of candidates) {
     const n = typeof c === "number" ? c : typeof c === "string" ? Number.parseFloat(c) : NaN;
     if (Number.isFinite(n)) return n;
   }
   return undefined;
+}
+
+function clampInt(raw: unknown, fallback: number, min: number, max: number): number {
+  const n = numFirst(raw) ?? fallback;
+  return Math.min(max, Math.max(min, Math.round(n)));
 }
 
 function normalizePosition(raw: string): RuntimeLauncherAppearance["position"] {
@@ -322,6 +356,7 @@ export function extractRuntimeChatAppearance(
   const behavior = isObj(configRecord.behavior) ? configRecord.behavior : null;
   const response = isObj(configRecord.response) ? configRecord.response : null;
   const formCfg = isObj(configRecord.form) ? configRecord.form : null;
+  const offlineFormCfg = isObj(configRecord.offlineForm) ? configRecord.offlineForm : null;
 
   const dj = readDesignJson(configRecord);
   const designAccent = normalizeDesignAccent(typeof dj?.accent === "string" ? dj.accent : undefined);
@@ -591,6 +626,24 @@ export function extractRuntimeChatAppearance(
       subtitle: strFirst(formCfg?.subtitle, "Tell us who you are"),
       submitLabel: strFirst(formCfg?.submitLabel, "Start chat"),
     },
+    offlineFormEnabled: (() => {
+      const exp = parseWidgetExperienceV1(configRecord._experience);
+      if (exp && isObj(exp.offlineForm)) {
+        return exp.offlineForm.enabled !== false;
+      }
+      if (offlineFormCfg && "enabled" in offlineFormCfg) {
+        return runtimeBoolFlag(offlineFormCfg.enabled, true);
+      }
+      return configRecord.offlineFormEnabled !== false;
+    })(),
+    offlineForm: {
+      title: strFirst(
+        offlineFormCfg?.title,
+        "Leave us a message",
+      ),
+      subtitle: strFirst(offlineFormCfg?.subtitle, ""),
+      submitLabel: strFirst(offlineFormCfg?.submitLabel, "Send message"),
+    },
     banner: {
       enabled:
         chatBox?.bannerEnabled === true ||
@@ -618,13 +671,9 @@ export function extractRuntimeChatAppearance(
     },
     launcher: (() => {
       const teaser = resolveProactiveTeaser({ ...djUi, ...ui });
+      const launcherIconEnabled = launcher?.iconEnabled !== false;
       return {
-      buttonLabel: strFirst(
-        configRecord.ctaButtonText,
-        ui?.buttonLabel,
-        djUi?.buttonLabel,
-        "Chat with us",
-      ),
+      buttonLabel: resolveLauncherVisibleLabel(configRecord, ui, djUi, launcher),
       proactiveTeaserActive: teaser.active,
       proactiveTeaser: teaser.text,
       proactiveTeaserAvatarUrl: teaser.avatarUrl,
@@ -640,20 +689,25 @@ export function extractRuntimeChatAppearance(
       ) ?? 28,
       insetSidePx:
         numFirst(launcher?.insetSidePx, ui?.launcherInsetSidePx, djUi?.launcherInsetSidePx) ?? 28,
-      iconPreset: normalizeIconPreset(
-        strFirst(
-          launcher?.iconPreset,
-          ui?.launcherIconPreset,
-          ui?.iconPreset,
-          djUi?.launcherIconPreset,
-          "phosphor-chat-circle",
-        ),
-      ),
-      iconUrl: resolveLauncherCustomIconUrl(
-        ui?.buttonIconUrl,
-        configRecord.buttonIconUrl,
-        launcher?.iconUrl,
-      ),
+      iconEnabled: launcherIconEnabled,
+      iconPreset: launcherIconEnabled
+        ? normalizeIconPreset(
+            strFirst(
+              launcher?.iconPreset,
+              ui?.launcherIconPreset,
+              ui?.iconPreset,
+              djUi?.launcherIconPreset,
+              "phosphor-chat-circle",
+            ),
+          )
+        : ("" as LauncherIconPresetId),
+      iconUrl: launcherIconEnabled
+        ? resolveLauncherCustomIconUrl(
+            ui?.buttonIconUrl,
+            configRecord.buttonIconUrl,
+            launcher?.iconUrl,
+          )
+        : "",
       buttonColor,
       buttonHoverColor: buttonHover,
       iconColor,
@@ -772,11 +826,146 @@ export function extractRuntimeChatAppearance(
   };
 }
 
+/**
+ * Text-us-only widgets store visuals under `theme.designJson.textUs`.
+ * Maps into `RuntimeChatAppearance` so embed chrome reuses chat panel styling.
+ */
+export function extractRuntimeTextUsAppearance(
+  configRecord: Record<string, unknown>,
+): RuntimeChatAppearance {
+  const base = extractRuntimeChatAppearance(configRecord);
+  const dj = readDesignJson(configRecord);
+  const textUs = dj && isObj(dj.textUs) ? dj.textUs : null;
+  if (!textUs) return base;
+
+  const buttonColor = str(textUs.buttonColor, "#1E63D5");
+  const buttonHover = str(textUs.buttonHoverColor, mixHex(buttonColor, "#000000", 88));
+  const headerTitle = str(textUs.headerTitle, "Text us");
+  const welcomeMessage = str(textUs.welcomeMessage, "");
+  const buttonLabel = str(textUs.buttonLabel, "Text us");
+  const position = normalizePosition(str(textUs.position, "right"));
+  const verticalAnchor =
+    str(textUs.verticalAnchor, "bottom").toLowerCase() === "top" ? "top" : "bottom";
+  const insetBottomPx = clampInt(textUs.insetBottomPx, 28, 0, 240);
+  const insetTopPx = clampInt(textUs.insetTopPx, insetBottomPx, 0, 240);
+  const insetSidePx = clampInt(textUs.insetSidePx, 28, 0, 240);
+  const boxWidth = clampInt(textUs.boxWidth, base.chatBox.boxWidth, 280, 520);
+  const boxHeight = clampInt(textUs.boxHeight, base.chatBox.boxHeight, 320, 640);
+  const headerLogoUrl = str(textUs.headerLogoUrl, "");
+  const iconColor = str(textUs.iconColor, pickReadableText(buttonColor, "#ffffff", "#0f172a", "#ffffff"));
+  const headerTextColor = pickReadableText(buttonColor, "#ffffff", "#0f172a", "#ffffff");
+  const panelBackground = str(textUs.panelBackground, base.chatBox.backgroundColor);
+  const motionEnabled = textUs.motionEnabled !== false;
+
+  const textUsLauncher = isObj(textUs.launcher) ? textUs.launcher : null;
+  const launcherIconEnabled = textUsLauncher?.iconEnabled !== false;
+  const iconPreset = launcherIconEnabled
+    ? (normalizeLauncherIconPreset(
+        typeof textUsLauncher?.iconPreset === "string" ? textUsLauncher.iconPreset : undefined,
+        base.launcher.iconPreset || "phosphor-chat-circle",
+      ) as LauncherIconPresetId)
+    : ("" as LauncherIconPresetId);
+  const launcherStyle = normalizeLauncherStyle(
+    str(textUsLauncher?.style, base.launcher.style),
+  );
+
+  const designAccent = normalizeDesignAccent(
+    typeof textUs.accent === "string"
+      ? textUs.accent
+      : typeof dj?.accent === "string"
+        ? dj.accent
+        : undefined,
+  );
+  const designDensity = normalizeDesignDensity(
+    typeof textUs.density === "string"
+      ? textUs.density
+      : typeof dj?.density === "string"
+        ? dj.density
+        : undefined,
+  );
+
+  const theme = isObj(configRecord.theme) ? configRecord.theme : null;
+  const formCfg = isObj(configRecord.form) ? configRecord.form : null;
+
+  const resolvedColors = resolveWidgetColorTokens({
+    theme,
+    chatColors: {
+      primary: buttonColor,
+      button: buttonColor,
+      headerBackground: buttonColor,
+      headerText: headerTextColor,
+      panelBackground,
+    },
+    designTheme: null,
+    ui: null,
+  });
+
+  const colors: ResolvedWidgetColors = {
+    ...resolvedColors,
+    primary: buttonColor,
+    headerBackground: buttonColor,
+    headerText: headerTextColor,
+    panelBackground,
+  };
+
+  return {
+    ...base,
+    colors,
+    motionEnabled,
+    welcomeMessage: welcomeMessage || strFirst(configRecord.welcomeMessage, headerTitle),
+    panelGreetingMessage: welcomeMessage || headerTitle,
+    panelSurfaceStyle: launcherStyle,
+    accentPalette: resolveAccentPalette(designAccent),
+    densityTokens: resolveDensityTokens(designDensity),
+    launcher: {
+      ...base.launcher,
+      position,
+      verticalAnchor,
+      insetBottomPx,
+      insetTopPx,
+      insetSidePx,
+      buttonColor,
+      buttonHoverColor: buttonHover,
+      iconColor,
+      iconPreset,
+      iconEnabled: launcherIconEnabled,
+      style: launcherStyle,
+      buttonLabel,
+    },
+    chatBox: {
+      ...base.chatBox,
+      headerTitle,
+      headerLogoUrl,
+      headerBg: buttonColor,
+      headerTextColor,
+      headerAlign: "left",
+      greetingMessage: welcomeMessage || headerTitle,
+      backgroundColor: panelBackground,
+      boxWidth,
+      boxHeight,
+    },
+    form: {
+      ...base.form,
+      title: "",
+      subtitle: "",
+      submitLabel: strFirst(formCfg?.submitLabel, "Send message"),
+    },
+  };
+}
+
 export function launcherFabPositionSx(
   appearance: RuntimeLauncherAppearance,
 ): Record<string, string | number> {
   const { position, insetBottomPx, insetSidePx } = appearance;
-  const base = { bottom: `${insetBottomPx}px` };
+  const verticalAnchor = appearance.verticalAnchor === "top" ? "top" : "bottom";
+  const inset =
+    verticalAnchor === "top"
+      ? (appearance.insetTopPx ?? insetBottomPx)
+      : insetBottomPx;
+  const base =
+    verticalAnchor === "top"
+      ? { top: `${inset}px`, bottom: "auto" as const }
+      : { bottom: `${inset}px`, top: "auto" as const };
   if (position === "left") {
     return { ...base, left: `${insetSidePx}px`, right: "auto", transform: "none" };
   }
@@ -789,6 +978,75 @@ export function launcherFabPositionSx(
     };
   }
   return { ...base, right: `${insetSidePx}px`, left: "auto", transform: "none" };
+}
+
+export const EMBED_LAUNCHER_SHADOW_PAD_PX = 22;
+export const EMBED_LAUNCHER_BADGE_PAD_PX = 14;
+export const EMBED_INNER_BASE_PAD_PX = 10;
+export const TEXT_US_EMBED_LAUNCHER_HEIGHT_PX = 56;
+
+export type LauncherFrameChromeOptions = {
+  hasBadge?: boolean;
+};
+
+export function estimatePillLauncherWidth(label: string, iconEnabled: boolean): number {
+  const text = label.trim() || "Text us";
+  const charWidth = 8.5;
+  const textWidth = Math.min(text.length * charWidth, 180);
+  const iconPart = iconEnabled ? 26 + 12 : 0;
+  const padding = 32;
+  return Math.ceil(Math.max(56, iconPart + textWidth + padding));
+}
+
+export function launcherFrameChromeInsets(
+  appearance: Pick<RuntimeLauncherAppearance, "position" | "verticalAnchor">,
+  options?: LauncherFrameChromeOptions,
+): { top: number; right: number; bottom: number; left: number } {
+  const base = EMBED_INNER_BASE_PAD_PX;
+  const shadow = EMBED_LAUNCHER_SHADOW_PAD_PX;
+  const badge = options?.hasBadge ? EMBED_LAUNCHER_BADGE_PAD_PX : 0;
+  const vertical = appearance.verticalAnchor === "top" ? "top" : "bottom";
+  const pos = appearance.position;
+
+  const top = base + badge;
+  const bottom = vertical === "bottom" ? base + shadow : base;
+  let left = base;
+  let right = base;
+
+  if (pos === "right") {
+    right += shadow + badge;
+  } else if (pos === "left") {
+    left += shadow + badge;
+  } else {
+    left += badge;
+    right += shadow + badge;
+  }
+
+  return { top, right, bottom, left };
+}
+
+export function launcherInnerRootSx(
+  appearance: Pick<RuntimeLauncherAppearance, "position" | "verticalAnchor">,
+  options?: LauncherFrameChromeOptions,
+): Record<string, string | number> {
+  const { top, right, bottom, left } = launcherFrameChromeInsets(appearance, options);
+  const verticalAnchor = appearance.verticalAnchor === "top" ? "top" : "bottom";
+  const vertical =
+    verticalAnchor === "top"
+      ? { top, bottom: "auto" as const }
+      : { bottom, top: "auto" as const };
+  if (appearance.position === "left") {
+    return { ...vertical, left, right: "auto", transform: "none" };
+  }
+  if (appearance.position === "center") {
+    return {
+      ...vertical,
+      left: "50%",
+      right: "auto",
+      transform: "translateX(-50%)",
+    };
+  }
+  return { ...vertical, right, left: "auto", transform: "none" };
 }
 
 export function launcherEmbedRootSx(

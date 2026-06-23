@@ -157,12 +157,11 @@ export function DepartmentCatalogPanel({
 export function SchedulingStepBar({
   activeStep,
 }: {
-  activeStep: 1 | 2 | 3;
+  activeStep: 1 | 2;
 }) {
   const steps = [
     { n: 1, label: "Mode & policy" },
     { n: 2, label: "Service hours" },
-    { n: 3, label: "Visitor topics" },
   ] as const;
   return (
     <Box sx={assignmentStepRowSx}>

@@ -524,5 +524,36 @@ export async function postWidgetTalkToAgent(
   return rest;
 }
 
+export type WidgetVisitorAvailability = {
+  chatMode: string;
+  behavior: "open" | "queue" | "offline";
+  agentsAvailable: boolean;
+  shouldShowOfflineForm: boolean;
+};
+
+export async function fetchWidgetVisitorAvailability(
+  websiteId: string,
+  widgetKey: string,
+): Promise<WidgetVisitorAvailability | null> {
+  const base = getResolvedPublicApiBaseUrl();
+  const params = new URLSearchParams({ widgetKey });
+  const url = `${base}/widget/websites/${encodeURIComponent(websiteId)}/visitor-availability?${params}`;
+
+  try {
+    const res = await fetch(url, {
+      method: "GET",
+      credentials: WIDGET_FETCH_CREDENTIALS,
+      headers: { Accept: "application/json" },
+    });
+    if (!res.ok) return null;
+    const raw = await res.json();
+    const data = peelSuccessEnvelope(raw) as WidgetVisitorAvailability | null;
+    if (!data || typeof data !== "object") return null;
+    return data;
+  } catch {
+    return null;
+  }
+}
+
 /** @deprecated Use {@link postWidgetTalkToAgent}. */
 export const postWidgetRequestHuman = postWidgetTalkToAgent;

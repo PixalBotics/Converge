@@ -46,7 +46,10 @@ export function mergeWizardDraftForPublish(draft: WidgetDraft): WidgetDraft {
   return {
     ...draft,
     ...fromTrace,
-    type: "chat",
+    type:
+      draft.type === "both" || draft.type === "text"
+        ? draft.type
+        : (draft.type ?? fromTrace.type ?? "chat"),
     websiteId: draft.websiteId ?? fromTrace.websiteId,
     remoteWidgetKey: draft.remoteWidgetKey ?? fromTrace.remoteWidgetKey,
     widgetId: draft.widgetId ?? fromTrace.widgetId,

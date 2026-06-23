@@ -53,6 +53,7 @@ import {
 } from "../utils/conversation-scoped-state";
 import type { VisitorProfileField } from "@/services/chat/visitor-profile.types";
 import { ChatConversationPanel } from "./ChatConversationPanel";
+import { AgentChatSessionToolbar } from "./AgentChatSessionToolbar";
 import { ChatQueueSidebar } from "./ChatQueueSidebar";
 import type { VisitorProfileCaptureSelection } from "./ChatMessageList";
 import { useVisitorProfileCapture } from "../hooks/useVisitorProfileCapture";
@@ -754,6 +755,7 @@ export function ChatOperationsWorkspace() {
             data-chat-pane="thread"
             sx={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}
           >
+            {!teamView && !viewingOtherAgent ? <AgentChatSessionToolbar /> : null}
             <ChatConversationPanel
               conversationId={agentChat.selectedConversationId}
               messages={agentChat.messages}

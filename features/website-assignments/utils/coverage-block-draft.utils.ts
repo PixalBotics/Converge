@@ -5,7 +5,7 @@ import type {
 } from "@/api/types/roster-coverage.types";
 import type { SlotDraft } from "../components/RosterSlotPicker";
 import { emptySlotDraft } from "../components/RosterSlotPicker";
-import { draftToChannelBody, slotsFromRoster } from "./roster-draft.utils";
+import { draftToChannelBody, slotsFromRoster, tierListsEqual } from "./roster-draft.utils";
 import {
   coerceTimeHm24,
   formatHm12Label,
@@ -141,7 +141,7 @@ export function blocksDraftChanged(
       return true;
     }
     for (const tier of ["Primary", "Secondary", "Backup"] as const) {
-      if (a.roster[tier] !== b.roster[tier]) return true;
+      if (!tierListsEqual(a.roster[tier], b.roster[tier])) return true;
     }
   }
   return false;

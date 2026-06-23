@@ -6,8 +6,14 @@ export const ASSIGNED_FILTER_OPTIONS = [
 
 export const SCHEDULING_FILTER_OPTIONS = [
   { value: "", label: "All schedules" },
-  { value: "ready", label: "Ready for agents" },
+  { value: "ready", label: "Hours configured" },
   { value: "needed", label: "Please add schedule" },
+] as const;
+
+export const TOPICS_FILTER_OPTIONS = [
+  { value: "", label: "All topics" },
+  { value: "ready", label: "Topics configured" },
+  { value: "needed", label: "Please add topics" },
 ] as const;
 
 export const ROSTER_FILTER_OPTIONS = [
@@ -24,6 +30,12 @@ export function parseAssignedFilter(value: string): boolean | undefined {
 }
 
 export function parseSchedulingFilter(value: string): boolean | undefined {
+  if (value === "ready") return true;
+  if (value === "needed") return false;
+  return undefined;
+}
+
+export function parseTopicsFilter(value: string): boolean | undefined {
   if (value === "ready") return true;
   if (value === "needed") return false;
   return undefined;

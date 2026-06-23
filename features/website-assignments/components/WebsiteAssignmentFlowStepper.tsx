@@ -19,7 +19,7 @@ export type WebsiteAssignmentFlowStep = 1 | 2 | 3 | 4;
 
 const STEPS = [
   { n: 1 as const, label: "Website", hint: "Organization & site" },
-  { n: 2 as const, label: "Scheduling", hint: "Hours & topics" },
+  { n: 2 as const, label: "Scheduling", hint: "Service hours" },
   { n: 3 as const, label: "Agent roster", hint: "Primary / Backup" },
   { n: 4 as const, label: "Complete", hint: "Ready for chat" },
 ];

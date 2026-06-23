@@ -6,7 +6,6 @@ import CloseRounded from "@mui/icons-material/CloseRounded";
 import Send from "@mui/icons-material/Send";
 import Box from "@mui/material/Box";
 import Checkbox from "@mui/material/Checkbox";
-import Divider from "@mui/material/Divider";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Badge from "@mui/material/Badge";
 import IconButton from "@mui/material/IconButton";
@@ -57,6 +56,7 @@ import { normalizeChatMessageText } from "@/lib/safe-markdown/text";
 import { useVisitorChat } from "@/lib/hooks/chat/useVisitorChat";
 import { isHiddenFromVisitorWidget } from "@/lib/hooks/chat/visitor-widget-messages";
 import { LauncherPresetIcon } from "@/lib/chat-widget/launcherIcons";
+import { TextUsLauncherChip } from "@/components/embed/TextUsLauncherChip";
 import {
   resolveInquiryRoutingTargets,
   type RuntimeInquiryOption,
@@ -67,21 +67,26 @@ import {
   buildVisitorPayloadParts,
   buildVisitorTranscriptDisplay,
   extractPrechatFieldsFromWidgetConfig,
+  extractOfflineFormFieldsFromWidgetConfig,
   isPrechatBootstrapVisitorMessage,
   resolvePersonalizedAssistantWelcome,
   type PrechatFieldDto,
 } from "@/lib/widget-runtime/prechat-form";
 import {
   extractRuntimeChatAppearance,
+  extractRuntimeTextUsAppearance,
   resolveEmbedGreetingMessage,
-  launcherFabPositionSx,
+  launcherFrameChromeInsets,
+  launcherInnerRootSx,
   resolveRuntimeConfigRecord,
   type RuntimeChatAppearance,
 } from "@/lib/widget-runtime/widget-runtime-appearance";
 import {
+  computeEmbedOpenPanelMaxHeightPx,
   EMBED_LAUNCHER_SIZE_PX,
   postEmbedHostResize,
   type EmbedClosedChrome,
+  type EmbedHostSurface,
 } from "@/lib/widget-runtime/embed-host-messaging";
 import {
   notifyWidgetIncoming,
@@ -130,6 +135,7 @@ import { resolveWidgetPanelHeaderSurfaceSx } from "@/lib/chat-widget/launcher-st
 import {
   getWidgetRuntimeConfigForEmbed,
   postWidgetSession,
+  postTextUsSubmit,
 } from "@/lib/widget-runtime/widget-public-fetch";
 import type { WidgetConfigEnvelope } from "@/lib/widget-runtime/widget-types";
 import { decodeJwtExpMs } from "@/lib/widget-runtime/jwt-expiry";
@@ -147,6 +153,7 @@ import {
   saveWidgetJwt,
 } from "@/lib/widget-runtime/browser-storage";
 import type { ChatMessage } from "@/services/chat/chat.types";
+import { fetchWidgetVisitorAvailability } from "@/services/chat/widget-visitor.api";
 import {
   shouldSendSandboxConversationFlag,
   shouldSkipWidgetAnalytics,
@@ -176,6 +183,10 @@ export interface EmbedWidgetClientProps {
   embedEnv?: WidgetEmbedEnv;
   /** Signed token for public draft sandbox links (no dashboard login). */
   previewShareToken?: string;
+  /** Parent page already sent `page_view` with this session — iframe should not duplicate. */
+  parentVisitorSessionId?: string;
+  /** When BOTH surfaces are enabled, host mounts separate iframes (`chat` | `textUs`). */
+  embedSurface?: EmbedHostSurface;
 }
 
 export function EmbedWidgetClient({
@@ -185,6 +196,8 @@ export function EmbedWidgetClient({
   sandboxMode = false,
   embedEnv: embedEnvProp,
   previewShareToken,
+  parentVisitorSessionId,
+  embedSurface,
 }: EmbedWidgetClientProps) {
   const [boot, setBoot] = useState<BootState>({ phase: "loading" });
   const embedEnv: WidgetEmbedEnv =
@@ -194,6 +207,12 @@ export function EmbedWidgetClient({
   useEffect(() => {
     void resolveClientGeoHints();
   }, []);
+
+  useEffect(() => {
+    const sid = parentVisitorSessionId?.trim();
+    if (!sid) return;
+    persistVisitorSessionId(widgetKey, sid);
+  }, [parentVisitorSessionId, widgetKey]);
 
   useEffect(() => {
     let cancelled = false;
@@ -319,6 +338,8 @@ export function EmbedWidgetClient({
       envelope={boot.config}
       sessionToken={boot.sessionToken}
       embedEnv={embedEnv}
+      parentPageViewAlreadyTracked={Boolean(parentVisitorSessionId?.trim())}
+      embedSurface={embedSurface}
     />
   );
 }
@@ -396,6 +417,10 @@ function FloatingChatEmbed({
   appearance,
   textUsBelow,
   embedEnv = "production",
+  skipParentPageView = false,
+  stackedLauncherCount = 1,
+  suppressHostResize = false,
+  hostSurface,
 }: {
   widgetKey: string;
   welcomeText: string;
@@ -407,6 +432,12 @@ function FloatingChatEmbed({
   appearance: RuntimeChatAppearance;
   textUsBelow?: ReactNode;
   embedEnv?: WidgetEmbedEnv;
+  /** Parent `widget.js` already sent page_view for this session. */
+  skipParentPageView?: boolean;
+  /** BOTH widgets: closed iframe height for stacked Text Us + chat launchers. */
+  stackedLauncherCount?: number;
+  suppressHostResize?: boolean;
+  hostSurface?: EmbedHostSurface;
 }) {
   const skipAnalytics = shouldSkipWidgetAnalytics(embedEnv);
   const [launcherOpen, setLauncherOpen] = useState(false);
@@ -529,7 +560,7 @@ function FloatingChatEmbed({
   ]);
 
   useEffect(() => {
-    if (!websiteId || skipAnalytics) return;
+    if (!websiteId || skipAnalytics || skipParentPageView) return;
     const sid = ensureVisitorSessionId(widgetKey);
     void (async () => {
       if (
@@ -566,7 +597,7 @@ function FloatingChatEmbed({
         pageUrl: parentPageUrl,
       });
     })();
-  }, [websiteId, siteKey, parentPageUrl, skipAnalytics, widgetKey]);
+  }, [websiteId, siteKey, parentPageUrl, skipAnalytics, skipParentPageView, widgetKey]);
 
   useEffect(() => {
     const hasPersistedConversation = Boolean(readConversationId(siteKey));
@@ -584,7 +615,7 @@ function FloatingChatEmbed({
     const id = window.setTimeout(() => {
       unlockWidgetAudio();
       setLauncherOpen(true);
-      postEmbedHostResize(true, appearance);
+      postEmbedHostResize(true, appearance, undefined, hostSurface);
       markWidgetReturnVisit(widgetKey);
     }, appearance.autoOpenDelaySeconds * 1000);
     return () => window.clearTimeout(id);
@@ -642,29 +673,42 @@ function FloatingChatEmbed({
     !launcherOpen &&
     (showClosedMessagePreview || launcher.proactiveTeaserActive);
 
+  const showLauncherBadge =
+    !launcherOpen &&
+    appearance.launcherBadgeMode !== "none" &&
+    (sandboxPreviewAlerts || unreadCount > 0);
+
   const closedChrome = useMemo<EmbedClosedChrome>(
     () => ({
       hasInvitationBubble: showClosedInvitationBubble,
+      hasLauncherBadge: showLauncherBadge,
+      stackedLauncherCount,
     }),
-    [showClosedInvitationBubble],
+    [showClosedInvitationBubble, showLauncherBadge, stackedLauncherCount],
   );
 
   const closeLauncher = () => {
     setLauncherOpen(false);
-    postEmbedHostResize(false, appearance, {
-      hasInvitationBubble:
-        showClosedMessagePreview || launcher.proactiveTeaserActive,
-    });
+    if (!suppressHostResize) {
+      postEmbedHostResize(false, appearance, {
+        hasInvitationBubble:
+          showClosedMessagePreview || launcher.proactiveTeaserActive,
+        hasLauncherBadge: showLauncherBadge,
+        stackedLauncherCount,
+      }, hostSurface);
+    }
     setGreetingAck(!hasGreetingStep || readWelcomeAcknowledged(widgetKey));
     markWidgetReturnVisit(widgetKey);
   };
 
-  useEmbedHostResize(launcherOpen, appearance, closedChrome);
+  useEmbedHostResize(launcherOpen, appearance, closedChrome, suppressHostResize, hostSurface);
 
   const openLauncher = () => {
     unlockWidgetAudio();
     setLauncherOpen(true);
-    postEmbedHostResize(true, appearance);
+    if (!suppressHostResize) {
+      postEmbedHostResize(true, appearance, undefined, hostSurface);
+    }
   };
 
   const toggleLauncher = () => {
@@ -684,7 +728,7 @@ function FloatingChatEmbed({
     <Box
       sx={{
         position: "fixed",
-        ...launcherFabPositionSx(launcher),
+        ...launcherInnerRootSx(launcher, { hasBadge: showLauncherBadge }),
         zIndex: 2147483000,
         display: "flex",
         flexDirection: "column",
@@ -890,8 +934,21 @@ function FloatingChatEmbed({
                     />
                   </Box>
                   {textUsBelow ? (
-                    <Box sx={{ px: 1.25, pb: 1.5 }}>
-                      <Divider sx={{ my: 1.5 }} />
+                    <Box
+                      sx={{
+                        px: `${Math.max(10, appearance.densityTokens.panelPaddingPx * 0.65)}px`,
+                        pb: 1.5,
+                        pt: 0.5,
+                        borderTop: `1px solid ${appearance.colors.inputBorder}`,
+                      }}
+                    >
+                      <Typography
+                        variant="subtitle2"
+                        sx={{ ...embedLabelTextSx(appearance), mb: 1 }}
+                      >
+                        {extractRuntimeTextUsAppearance(configRecord).chatBox.headerTitle ||
+                          "Text us"}
+                      </Typography>
                       {textUsBelow}
                     </Box>
                   ) : null}
@@ -920,7 +977,7 @@ function FloatingChatEmbed({
         ) : null}
 
         <Badge
-          overlap="circular"
+          overlap={launcher.buttonLabel?.trim() ? "rectangular" : "circular"}
           invisible={
             launcherOpen ||
             appearance.launcherBadgeMode === "none" ||
@@ -950,182 +1007,335 @@ function FloatingChatEmbed({
             },
           }}
         >
-          <IconButton
-            type="button"
-            disableRipple
-            disableFocusRipple
-            aria-label={
-              launcherOpen
-                ? "Close widget window"
-                : unreadCount > 0
-                  ? `Open chat, ${unreadCount} new message${unreadCount === 1 ? "" : "s"}`
-                  : launcher.buttonLabel?.trim() || "Open chat widget"
+          <TextUsLauncherChip
+            size="embed"
+            open={launcherOpen}
+            buttonColor={launcher.buttonColor}
+            buttonHoverColor={launcher.buttonHoverColor}
+            iconColor={launcher.iconColor}
+            iconPreset={launcher.iconPreset}
+            iconDataUrl={launcher.iconUrl}
+            iconEnabled={launcher.iconEnabled !== false}
+            launcherStyle={launcher.style}
+            buttonLabel={launcher.buttonLabel}
+            buttonShape={
+              launcher.shape === "square" || launcher.shape === "rounded"
+                ? launcher.shape
+                : "circle"
             }
+            ariaLabelPrefix="chat"
             onClick={toggleLauncher}
-            sx={embedLauncherFabSx(appearance, launcher.shape, EMBED_LAUNCHER_SIZE_PX)}
-          >
-            {launcherOpen ? (
-              <CloseRounded sx={{ fontSize: 28 }} />
-            ) : launcher.iconUrl ? (
-              <Box
-                component="img"
-                src={launcher.iconUrl}
-                alt=""
-                sx={{ width: 30, height: 30, objectFit: "contain", display: "block" }}
-              />
-            ) : launcher.iconPreset ? (
-              <LauncherPresetIcon
-                presetId={launcher.iconPreset}
-                color={launcher.iconColor}
-                fontSizePx={30}
-              />
-            ) : (
-              <ChatRounded sx={{ fontSize: 30 }} />
-            )}
-          </IconButton>
+          />
         </Badge>
       </Box>
     </Box>
   );
 }
 
-/** Text-only widget uses the same launcher + welcome → form flow */
+/** Text-only widget — same launcher + themed panel shell as chat */
 function FloatingTextUsEmbed({
   widgetKey,
-  welcomeText,
   websiteId,
   parentPageUrl,
   sessionToken,
   textUsFormConfig,
+  configRecord,
+  suppressHostResize = false,
+  hostSurface = "textUs",
 }: {
   widgetKey: string;
-  welcomeText: string;
   websiteId: string;
   parentPageUrl: string;
   sessionToken: string;
   textUsFormConfig: Record<string, unknown>;
+  configRecord: Record<string, unknown>;
+  suppressHostResize?: boolean;
+  hostSurface?: EmbedHostSurface;
 }) {
+  const appearance = useMemo(
+    () => extractRuntimeTextUsAppearance(configRecord),
+    [configRecord],
+  );
+  const { launcher, chatBox } = appearance;
+  const greetingMessage = resolveEmbedGreetingMessage(
+    appearance,
+    appearance.panelGreetingMessage,
+  );
+  const hasGreetingStep = greetingMessage.length > 0;
+
   const [launcherOpen, setLauncherOpen] = useState(false);
-  const [welcomeAck, setWelcomeAck] = useState(false);
+  const [greetingAck, setGreetingAck] = useState(
+    () => !hasGreetingStep || readWelcomeAcknowledged(`${widgetKey}:textUs`),
+  );
 
   useEffect(() => {
-    setWelcomeAck(readWelcomeAcknowledged(`${widgetKey}:textUs`));
-  }, [widgetKey]);
+    setGreetingAck(
+      !hasGreetingStep || readWelcomeAcknowledged(`${widgetKey}:textUs`),
+    );
+  }, [widgetKey, hasGreetingStep]);
 
-  const acknowledgeWelcome = () => {
-    setWelcomeAck(true);
+  const acknowledgeGreeting = () => {
+    setGreetingAck(true);
     writeWelcomeAcknowledged(`${widgetKey}:textUs`);
   };
 
+  const panelAlign =
+    launcher.position === "left"
+      ? "flex-start"
+      : launcher.position === "center"
+        ? "center"
+        : "flex-end";
+  const sidePad = launcher.insetSidePx * 2;
+  const verticalAnchor = launcher.verticalAnchor === "top" ? "top" : "bottom";
+  const chromeInsets = useMemo(
+    () => launcherFrameChromeInsets(launcher),
+    [launcher],
+  );
+  const panelMaxHeightPx = useMemo(
+    () => computeEmbedOpenPanelMaxHeightPx(appearance, hostSurface),
+    [appearance, hostSurface],
+  );
+
+  const closeLauncher = () => {
+    setLauncherOpen(false);
+    if (!suppressHostResize) {
+      postEmbedHostResize(false, appearance, undefined, hostSurface);
+    }
+    setGreetingAck(
+      !hasGreetingStep || readWelcomeAcknowledged(`${widgetKey}:textUs`),
+    );
+  };
+
+  const openLauncher = () => {
+    unlockWidgetAudio();
+    setLauncherOpen(true);
+    if (!suppressHostResize) {
+      postEmbedHostResize(true, appearance, undefined, hostSurface);
+    }
+  };
+
+  const toggleLauncher = () => {
+    if (launcherOpen) closeLauncher();
+    else openLauncher();
+  };
+
+  useEmbedHostResize(launcherOpen, appearance, undefined, suppressHostResize, hostSurface);
+
   return (
-    <Box
-      sx={{
-        position: "fixed",
-        inset: 0,
-        pointerEvents: "none",
-        zIndex: 2147483000,
-        fontFamily: (theme) => theme.typography.fontFamily,
-      }}
-    >
+    <EmbedWidgetTheme appearance={appearance}>
       <Box
         sx={{
-          position: "absolute",
-          right: 16,
-          bottom: 16,
+          position: "fixed",
+          ...(launcherOpen
+            ? {
+                top: 0,
+                right: 0,
+                bottom: 0,
+                left: 0,
+                transform: "none",
+                boxSizing: "border-box",
+                padding: `${chromeInsets.top}px ${chromeInsets.right}px ${chromeInsets.bottom}px ${chromeInsets.left}px`,
+              }
+            : launcherInnerRootSx(launcher)),
+          zIndex: 2147483000,
           display: "flex",
           flexDirection: "column",
-          alignItems: "flex-end",
+          alignItems: panelAlign,
+          justifyContent:
+            launcherOpen && verticalAnchor === "bottom" ? "flex-end" : "flex-start",
           gap: 1,
-          pointerEvents: "auto",
-          maxWidth: "calc(100vw - 32px)",
+          width: launcherOpen ? "100%" : "max-content",
+          maxWidth: launcherOpen ? "100%" : `calc(100vw - ${sidePad}px)`,
+          height: launcherOpen ? "100%" : undefined,
+          background: "transparent",
+          pointerEvents: "none",
+          fontFamily:
+            chatBox.fontFamily && chatBox.fontFamily !== "inherit"
+              ? chatBox.fontFamily
+              : (theme) => theme.typography.fontFamily,
         }}
       >
-        {launcherOpen ? (
-          <Paper
-            elevation={12}
-            sx={{
-              width: "min(392px, calc(100vw - 32px))",
-              maxHeight: "min(520px, 85vh)",
-              display: "flex",
-              flexDirection: "column",
-              overflow: "hidden",
-              borderRadius: 2,
-              bgcolor: "background.paper",
-            }}
-          >
-            <Stack
-              direction="row"
-              alignItems="center"
-              justifyContent="space-between"
-              sx={{ px: 2, py: 1.25, borderBottom: 1, borderColor: "divider" }}
-            >
-              <Typography variant="subtitle2" fontWeight={700}>
-                Text us
-              </Typography>
-              <IconButton
-                type="button"
-                aria-label="Minimize widget"
-                size="small"
-                onClick={() => setLauncherOpen(false)}
-              >
-                <CloseRounded fontSize="small" />
-              </IconButton>
-            </Stack>
-
-            <Box sx={{ flex: 1, minHeight: 0, overflowY: "auto", p: welcomeAck ? 1.25 : 2 }}>
-              {!welcomeAck ? (
-                <Stack spacing={2} sx={{ pt: 0.5 }}>
-                  <Typography variant="body1" fontWeight={600}>
-                    {welcomeText || "Drop us a message"}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Continue to open the form and send us a note.
-                  </Typography>
-                  <MuiButton type="button" variant="contained" fullWidth onClick={acknowledgeWelcome}>
-                    Continue
-                  </MuiButton>
-                </Stack>
-              ) : (
-                <WidgetTextUsPanel
-                  embedded
-                  websiteId={websiteId}
-                  parentPageUrl={parentPageUrl}
-                  sessionToken={sessionToken}
-                  widgetKey={widgetKey}
-                  textUsFormConfig={textUsFormConfig}
-                />
-              )}
-            </Box>
-          </Paper>
-        ) : null}
-
-        <IconButton
-          type="button"
-          aria-label={launcherOpen ? "Close widget window" : "Open Text us widget"}
-          onClick={() => setLauncherOpen((o) => !o)}
+        <Box
+          onPointerDown={() => unlockWidgetAudio()}
           sx={{
-            width: 58,
-            height: 58,
-            borderRadius: "50%",
-            bgcolor: "secondary.main",
-            color: "secondary.contrastText",
-            boxShadow: "none",
-            overflow: "hidden",
-            "&:hover": {
-              bgcolor: "secondary.dark",
-              color: "secondary.contrastText",
-              boxShadow: "none",
-            },
+            display: "flex",
+            flexDirection:
+              !launcherOpen && verticalAnchor === "bottom" ? "column-reverse" : "column",
+            alignItems: panelAlign,
+            justifyContent:
+              launcherOpen && verticalAnchor === "bottom" ? "flex-end" : "flex-start",
+            gap: 1,
+            pointerEvents: "auto",
+            width: launcherOpen ? "100%" : "max-content",
+            maxWidth: launcherOpen ? "100%" : `calc(100vw - ${sidePad}px)`,
+            height: launcherOpen ? "100%" : undefined,
+            minHeight: 0,
           }}
         >
-          {launcherOpen ? (
-            <CloseRounded sx={{ fontSize: 28 }} />
-          ) : (
-            <ChatRounded sx={{ fontSize: 30 }} />
-          )}
-        </IconButton>
+          {launcherOpen || greetingAck ? (
+            <Paper
+              elevation={0}
+              sx={{
+                transition: appearance.motionEnabled
+                  ? "opacity 0.22s ease, transform 0.22s ease"
+                  : undefined,
+                width: chatBox.boxWidth,
+                maxWidth: "100%",
+                height: launcherOpen ? panelMaxHeightPx : "auto",
+                minHeight: 280,
+                maxHeight: launcherOpen ? "100%" : panelMaxHeightPx,
+                display: launcherOpen ? "flex" : "none",
+                flexDirection: "column",
+                flexShrink: 0,
+                overflow: "hidden",
+                ...embedPanelPaperSx(appearance),
+              }}
+              aria-hidden={!launcherOpen}
+            >
+              <Box
+                sx={{
+                  position: "relative",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "flex-end",
+                  gap: 0.5,
+                  px: 2,
+                  py: 1,
+                  color: chatBox.headerTextColor,
+                  minHeight: 44,
+                  ...resolveWidgetPanelHeaderSurfaceSx({
+                    style: appearance.panelSurfaceStyle,
+                    headerBg: chatBox.headerBg,
+                    buttonHoverColor: launcher.buttonHoverColor,
+                  }),
+                }}
+              >
+                <Stack
+                  direction="row"
+                  alignItems="center"
+                  spacing={0.75}
+                  sx={{ flex: 1, minWidth: 0, justifyContent: "flex-start", mr: "auto" }}
+                >
+                  {chatBox.headerLogoUrl ? (
+                    <Box
+                      component="img"
+                      src={chatBox.headerLogoUrl}
+                      alt=""
+                      sx={{
+                        height: EMBED_HEADER_LOGO_HEIGHT_PX,
+                        width: "auto",
+                        maxWidth: EMBED_HEADER_LOGO_MAX_WIDTH_PX,
+                        objectFit: "contain",
+                        flexShrink: 0,
+                      }}
+                    />
+                  ) : null}
+                  {chatBox.headerTitle.trim() ? (
+                    <Typography
+                      variant="subtitle2"
+                      fontWeight={700}
+                      sx={{
+                        letterSpacing: 0.02,
+                        minWidth: 0,
+                        color: "inherit",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {chatBox.headerTitle.trim()}
+                    </Typography>
+                  ) : null}
+                </Stack>
+                <IconButton
+                  type="button"
+                  aria-label="Minimize widget"
+                  size="small"
+                  onClick={closeLauncher}
+                  sx={{ color: "inherit", flexShrink: 0 }}
+                >
+                  <CloseRounded fontSize="small" />
+                </IconButton>
+              </Box>
+
+              <Box
+                sx={{
+                  flex: 1,
+                  minHeight: 0,
+                  overflow: "hidden",
+                  display: "flex",
+                  flexDirection: "column",
+                  p: greetingAck ? 0 : appearance.densityTokens.panelPaddingPx / 8,
+                  ...embedPanelBodyBackgroundSx(appearance),
+                }}
+              >
+                {!greetingAck ? (
+                  <Stack spacing={2} sx={{ pt: 0.5, px: 1.5 }}>
+                    <EmbedChatBubble appearance={appearance} role="greeting">
+                      {greetingMessage}
+                    </EmbedChatBubble>
+                    <Typography variant="body2" sx={embedMutedTextSx(appearance)}>
+                      Continue to open the form and send us a message.
+                    </Typography>
+                    <EmbedActionButton
+                      type="button"
+                      appearance={appearance}
+                      fullWidth
+                      onClick={acknowledgeGreeting}
+                    >
+                      Continue
+                    </EmbedActionButton>
+                  </Stack>
+                ) : (
+                  <Box
+                    sx={{
+                      flex: 1,
+                      minHeight: 0,
+                      overflowY: "auto",
+                      px: `${Math.max(10, appearance.densityTokens.panelPaddingPx * 0.65)}px`,
+                      py: 1.25,
+                      ...embedPanelBodyBackgroundSx(appearance),
+                    }}
+                  >
+                    {appearance.welcomeMessage.trim() ? (
+                      <Box sx={{ mb: 1.25 }}>
+                        <EmbedChatBubble appearance={appearance} role="greeting">
+                          {appearance.welcomeMessage.trim()}
+                        </EmbedChatBubble>
+                      </Box>
+                    ) : null}
+                    <WidgetTextUsPanel
+                      embedded
+                      websiteId={websiteId}
+                      parentPageUrl={parentPageUrl}
+                      sessionToken={sessionToken}
+                      widgetKey={widgetKey}
+                      textUsFormConfig={textUsFormConfig}
+                      appearance={appearance}
+                    />
+                  </Box>
+                )}
+              </Box>
+            </Paper>
+          ) : null}
+
+          {!launcherOpen ? (
+            <TextUsLauncherChip
+              size="embed"
+              open={launcherOpen}
+              buttonColor={launcher.buttonColor}
+              buttonHoverColor={launcher.buttonHoverColor}
+              iconColor={launcher.iconColor}
+              iconPreset={launcher.iconPreset}
+              iconEnabled={launcher.iconEnabled !== false}
+              launcherStyle={launcher.style}
+              buttonLabel={launcher.buttonLabel}
+              onClick={toggleLauncher}
+            />
+          ) : null}
+        </Box>
       </Box>
-    </Box>
+    </EmbedWidgetTheme>
   );
 }
 
@@ -1150,12 +1360,16 @@ function WidgetSurfaces({
   envelope,
   sessionToken,
   embedEnv = "production",
+  parentPageViewAlreadyTracked = false,
+  embedSurface,
 }: {
   widgetKey: string;
   parentPageUrl: string;
   envelope: WidgetConfigEnvelope;
   sessionToken: string;
   embedEnv?: WidgetEmbedEnv;
+  parentPageViewAlreadyTracked?: boolean;
+  embedSurface?: EmbedHostSurface;
 }) {
   const chatOn =
     envelope.surfaces?.chatEnabled !== false &&
@@ -1175,6 +1389,58 @@ function WidgetSurfaces({
   const websiteId = typeof envelope.websiteId === "string" ? envelope.websiteId : "";
   const textUsForm = resolveTextUsFormBinding(configRecord);
 
+  if (embedSurface === "chat") {
+    if (!chatOn) {
+      return (
+        <Box sx={{ p: 2 }}>
+          <Typography variant="body2" color="text.secondary">
+            Chat is not enabled for this widget.
+          </Typography>
+        </Box>
+      );
+    }
+    return (
+      <EmbedWidgetTheme appearance={appearance}>
+        <FloatingChatEmbed
+          widgetKey={widgetKey}
+          welcomeText={welcome}
+          websiteId={websiteId}
+          parentPageUrl={parentPageUrl}
+          mode={mode}
+          sessionToken={sessionToken}
+          configRecord={configRecord}
+          appearance={appearance}
+          embedEnv={embedEnv}
+          skipParentPageView={parentPageViewAlreadyTracked}
+          hostSurface="chat"
+        />
+      </EmbedWidgetTheme>
+    );
+  }
+
+  if (embedSurface === "textUs") {
+    if (!textOn) {
+      return (
+        <Box sx={{ p: 2 }}>
+          <Typography variant="body2" color="text.secondary">
+            Text Us is not enabled for this widget.
+          </Typography>
+        </Box>
+      );
+    }
+    return (
+      <FloatingTextUsEmbed
+        widgetKey={widgetKey}
+        websiteId={websiteId}
+        parentPageUrl={parentPageUrl}
+        sessionToken={sessionToken}
+        textUsFormConfig={textUsForm}
+        configRecord={configRecord}
+        hostSurface="textUs"
+      />
+    );
+  }
+
   if (chatOn) {
     return (
       <EmbedWidgetTheme appearance={appearance}>
@@ -1188,6 +1454,7 @@ function WidgetSurfaces({
           configRecord={configRecord}
           appearance={appearance}
           embedEnv={embedEnv}
+          skipParentPageView={parentPageViewAlreadyTracked}
           textUsBelow={
             textOn ? (
               <WidgetTextUsPanel
@@ -1210,11 +1477,11 @@ function WidgetSurfaces({
     return (
       <FloatingTextUsEmbed
         widgetKey={widgetKey}
-        welcomeText={welcome || "How can we help?"}
         websiteId={websiteId}
         parentPageUrl={parentPageUrl}
         sessionToken={sessionToken}
         textUsFormConfig={textUsForm}
+        configRecord={configRecord}
       />
     );
   }
@@ -1270,14 +1537,66 @@ function WidgetChatPanel({
     () => extractPrechatFieldsFromWidgetConfig(configRecord),
     [configRecord],
   );
+  const offlineFields = useMemo(
+    () => extractOfflineFormFieldsFromWidgetConfig(configRecord),
+    [configRecord],
+  );
   const schema = useMemo(() => buildDynamicPrechatZod(fields), [fields]);
+  const offlineSchema = useMemo(
+    () => buildDynamicPrechatZod(offlineFields),
+    [offlineFields],
+  );
 
   type FormValues = z.infer<typeof schema>;
+  type OfflineFormValues = z.infer<typeof offlineSchema>;
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: buildDefaultFormValues(fields) as FormValues,
   });
+  const offlineFormHook = useForm<OfflineFormValues>({
+    resolver: zodResolver(offlineSchema),
+    defaultValues: buildDefaultFormValues(offlineFields) as OfflineFormValues,
+  });
+
+  const [visitorAvailability, setVisitorAvailability] = useState<Awaited<
+    ReturnType<typeof fetchWidgetVisitorAvailability>
+  > | null>(null);
+  const [availabilityChecked, setAvailabilityChecked] = useState(
+    mode !== "AGENT_ONLY",
+  );
+  const [offlineFormSubmitted, setOfflineFormSubmitted] = useState(false);
+
+  useEffect(() => {
+    if (mode !== "AGENT_ONLY" || !websiteId.trim() || !widgetKey.trim()) {
+      setAvailabilityChecked(true);
+      return;
+    }
+    let cancelled = false;
+    void fetchWidgetVisitorAvailability(websiteId.trim(), widgetKey.trim()).then(
+      (res) => {
+        if (cancelled) return;
+        setVisitorAvailability(res);
+        setAvailabilityChecked(true);
+      },
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [mode, websiteId, widgetKey]);
+
+  const offlineCaptureActive =
+    mode === "AGENT_ONLY" &&
+    availabilityChecked &&
+    visitorAvailability?.shouldShowOfflineForm === true &&
+    appearance?.offlineFormEnabled !== false &&
+    !offlineFormSubmitted;
+
+  const offlineMessageOnly =
+    mode === "AGENT_ONLY" &&
+    availabilityChecked &&
+    visitorAvailability?.shouldShowOfflineForm === true &&
+    appearance?.offlineFormEnabled === false;
 
   const formEnabled = appearance?.formEnabled ?? true;
   const inquiryOptions: RuntimeInquiryOption[] = appearance?.inquiryOptions ?? [];
@@ -1804,6 +2123,72 @@ function WidgetChatPanel({
     }
   };
 
+  const submitOfflineForm = useCallback(
+    async (values: Record<string, unknown>) => {
+      if (!websiteId.trim()) {
+        setSubmitError("This widget is not linked to a website yet.");
+        return;
+      }
+      setSubmitBusy(true);
+      setSubmitError(null);
+      setFormValidationHint(null);
+      try {
+        const { visitor, firstMessage } = buildVisitorPayloadParts(
+          values,
+          offlineFields,
+          visitorSessionId,
+          "Offline inquiry",
+        );
+        void resolveClientGeoHints();
+        const geo = peekClientGeoHints();
+        const created = await chat.startConversation({
+          websiteId,
+          visitor,
+          firstMessage,
+          currentPageUrl: parentPageUrl,
+          referrerUrl: typeof document !== "undefined" ? document.referrer : "",
+          clientTimezone: geo.clientTimezone,
+          clientLocale: geo.clientLocale,
+          clientScreenResolution: geo.clientScreenResolution,
+          clientLocationCity: geo.clientLocationCity,
+          clientLocationCountry: geo.clientLocationCountry,
+          clientLocationRegion: geo.clientLocationRegion,
+          clientLocationZipcode: geo.clientLocationZipcode,
+          deferInitialAiReply: true,
+          ...(shouldSendSandboxConversationFlag(embedEnv) ? { sandbox: true } : {}),
+        });
+        persistConversationId(persistenceKey, created.conversationId);
+        setOfflineFormSubmitted(true);
+      } catch (err) {
+        setSubmitError(
+          err instanceof Error
+            ? err.message
+            : "Could not send your message. Please try again.",
+        );
+      } finally {
+        setSubmitBusy(false);
+      }
+    },
+    [
+      chat,
+      embedEnv,
+      offlineFields,
+      parentPageUrl,
+      persistenceKey,
+      visitorSessionId,
+      websiteId,
+    ],
+  );
+
+  const onOfflineFormSubmit = offlineFormHook.handleSubmit(
+    async (values) => {
+      await submitOfflineForm(values as Record<string, unknown>);
+    },
+    () => {
+      setFormValidationHint("Please fill in all required fields.");
+    },
+  );
+
   const [draft, setDraft] = useState("");
   const messageListRef = useRef<HTMLDivElement | null>(null);
   const visitorTypingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1958,6 +2343,129 @@ function WidgetChatPanel({
         p: 2,
         bgcolor: "background.paper",
       };
+
+  if (mode === "AGENT_ONLY" && !availabilityChecked) {
+    return (
+      <Box sx={embedContainerSx}>
+        <Typography variant="body2" sx={{ opacity: 0.75, p: embedded ? 1.5 : 2 }}>
+          Checking availability…
+        </Typography>
+      </Box>
+    );
+  }
+
+  if (offlineFormSubmitted) {
+    return (
+      <Box
+        sx={[
+          embedContainerSx,
+          appearance ? { color: appearance.colors.bodyText } : {},
+        ]}
+      >
+        <Stack spacing={1.25} sx={{ px: embedded ? 1.5 : 0, py: embedded ? 0.75 : 0 }}>
+          <Typography variant="body2" sx={{ color: "success.main" }}>
+            Thanks — we received your message. We will get back to you soon.
+          </Typography>
+        </Stack>
+      </Box>
+    );
+  }
+
+  if (offlineMessageOnly && appearance) {
+    return (
+      <Box sx={[embedContainerSx, { color: appearance.colors.bodyText }]}>
+        <Stack spacing={1.25} sx={{ px: embedded ? 1.5 : 0, py: embedded ? 0.75 : 0 }}>
+          <EmbedChatBubble appearance={appearance} role="greeting">
+            {appearance.offlineMessage?.trim() || "We are currently offline."}
+          </EmbedChatBubble>
+        </Stack>
+      </Box>
+    );
+  }
+
+  if (offlineCaptureActive && appearance) {
+    const offlineTitle = appearance.offlineForm.title?.trim() || "Leave us a message";
+    const offlineSubtitle = appearance.offlineForm.subtitle?.trim() ?? "";
+    const offlineSubmitLabel =
+      appearance.offlineForm.submitLabel?.trim() || "Send message";
+
+    return (
+      <Box sx={[embedContainerSx, { color: appearance.colors.bodyText }]}>
+        <Stack
+          spacing={1.25}
+          sx={{
+            width: "100%",
+            alignItems: "stretch",
+            px: embedded ? 1.5 : 0,
+            py: embedded ? 0.75 : 0,
+          }}
+        >
+          {appearance.offlineMessage?.trim() ? (
+            <EmbedChatBubble appearance={appearance} role="greeting">
+              {appearance.offlineMessage}
+            </EmbedChatBubble>
+          ) : null}
+          <Box
+            component="form"
+            onSubmit={onOfflineFormSubmit}
+            sx={embedPrechatFormBubbleShellSx()}
+          >
+            <Box sx={embedPrechatFormBubbleInnerSx(appearance)}>
+              <Stack spacing={1 * (appearance.densityTokens.stackGapMultiplier ?? 1)}>
+                <Box>
+                  <Typography
+                    variant="subtitle2"
+                    component="p"
+                    sx={{
+                      m: 0,
+                      mb: offlineSubtitle ? 0.35 : 0,
+                      fontWeight: 600,
+                      color: "inherit",
+                      fontFamily: appearance.colors.fontFamily,
+                    }}
+                  >
+                    {offlineTitle}
+                  </Typography>
+                  {offlineSubtitle ? (
+                    <Typography variant="body2" component="p" sx={{ m: 0, opacity: 0.88 }}>
+                      {offlineSubtitle}
+                    </Typography>
+                  ) : null}
+                </Box>
+                {offlineFields.map((f) => (
+                  <PrechatFieldRenderer
+                    key={`offline-${f.key}`}
+                    field={f}
+                    control={offlineFormHook.control}
+                    appearance={appearance}
+                  />
+                ))}
+                {formValidationHint ? (
+                  <Typography variant="caption" color="error" sx={{ display: "block" }}>
+                    {formValidationHint}
+                  </Typography>
+                ) : null}
+                {submitError ? (
+                  <Typography variant="caption" color="error" sx={{ display: "block" }}>
+                    {submitError}
+                  </Typography>
+                ) : null}
+                <EmbedActionButton
+                  type="submit"
+                  appearance={appearance}
+                  fullWidth
+                  disabled={submitBusy}
+                  sx={{ mt: 0.5 }}
+                >
+                  {submitBusy ? "Sending…" : offlineSubmitLabel}
+                </EmbedActionButton>
+              </Stack>
+            </Box>
+          </Box>
+        </Stack>
+      </Box>
+    );
+  }
 
   if (!prechatDone) {
     const panelWelcome = appearance
@@ -2396,6 +2904,7 @@ function PrechatFieldRenderer({
   appearance?: RuntimeChatAppearance;
 }) {
   const label = field.label ?? field.key;
+  const placeholder = field.placeholder?.trim() || undefined;
   const low = String(field.type || field.fieldType || "text").toLowerCase();
   const labelSx = appearance ? embedLabelTextSx(appearance) : undefined;
   const inputStyle = appearance ? embedNativeInputStyle(appearance) : { width: "100%", borderRadius: 8, padding: 8 };
@@ -2412,6 +2921,7 @@ function PrechatFieldRenderer({
               name={field.key}
               fullWidth
               variant="outlined"
+              placeholder={placeholder}
               value={(f.value as string) ?? ""}
               onChange={(e) => f.onChange(e.target.value)}
               error={Boolean(fieldState.error)}
@@ -2426,6 +2936,7 @@ function PrechatFieldRenderer({
               name={field.key}
               appearance={appearance}
               multiline
+              placeholder={placeholder}
               value={(f.value as string) ?? ""}
               onChange={f.onChange}
               error={Boolean(fieldState.error)}
@@ -2490,6 +3001,7 @@ function PrechatFieldRenderer({
             appearance={appearance}
             type={low === "email" ? "email" : "text"}
             inputMode={low === "phone" ? "tel" : undefined}
+            placeholder={placeholder}
             value={(f.value as string) ?? ""}
             onChange={f.onChange}
             error={Boolean(fieldState.error)}
@@ -2533,22 +3045,6 @@ function WidgetTextUsPanel({
     defaultValues: buildDefaultFormValues(fields) as FormValues,
   });
 
-  const siteKey = `text:${widgetKey}:${websiteId}`;
-  const visitorSessionId = useMemo(() => {
-    const existing = readVisitorSessionId(siteKey);
-    if (existing) return existing;
-    const created = generateClientSessionId();
-    persistVisitorSessionId(siteKey, created);
-    return created;
-  }, [siteKey]);
-
-  const chat = useVisitorChat({
-    autoConnect: false,
-    widgetSessionToken: sessionToken,
-    websiteId,
-    getCurrentPageUrl: () => parentPageUrl,
-  });
-
   const [done, setDone] = useState(false);
   const [submitBusy, setSubmitBusy] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -2564,28 +3060,24 @@ function WidgetTextUsPanel({
           setSubmitError("This widget is not linked to a website yet.");
           return;
         }
-        const { visitor, firstMessage } = buildVisitorPayloadParts(
-          values as Record<string, unknown>,
-          fields,
-          visitorSessionId,
-          "Text Us inquiry",
-        );
-        void resolveClientGeoHints();
-        const geo = peekClientGeoHints();
-        await chat.startConversation({
-          websiteId,
-          visitor,
-          firstMessage,
-          currentPageUrl: parentPageUrl,
-          referrerUrl: typeof document !== "undefined" ? document.referrer : "",
-          clientTimezone: geo.clientTimezone,
-          clientLocale: geo.clientLocale,
-          clientScreenResolution: geo.clientScreenResolution,
-          clientLocationCity: geo.clientLocationCity,
-          clientLocationCountry: geo.clientLocationCountry,
-          clientLocationRegion: geo.clientLocationRegion,
-          clientLocationZipcode: geo.clientLocationZipcode,
+        let originHost: string | undefined;
+        try {
+          originHost = parentPageUrl?.trim()
+            ? new URL(parentPageUrl).host
+            : undefined;
+        } catch {
+          originHost = undefined;
+        }
+        const result = await postTextUsSubmit({
+          widgetKey,
+          websiteId: websiteId.trim(),
+          fieldValues: values as Record<string, unknown>,
+          originHost,
         });
+        if (!result.ok) {
+          setSubmitError(result.message || "Could not send your message.");
+          return;
+        }
         setDone(true);
       } catch (err) {
         setSubmitError(
@@ -2603,41 +3095,60 @@ function WidgetTextUsPanel({
   );
 
   if (done) {
+    if (!appearance) {
+      return (
+        <Typography variant="body2" color="text.secondary">
+          Thanks — we received your message.
+        </Typography>
+      );
+    }
     return (
-      <Typography variant="body2" sx={{ color: "success.light" }}>
-        Thanks — we received your message.
-      </Typography>
+      <Stack spacing={1.25}>
+        <EmbedChatBubble appearance={appearance} role="greeting">
+          Thanks — we received your message.
+        </EmbedChatBubble>
+        <Typography variant="body2" sx={appearance ? embedMutedTextSx(appearance) : undefined}>
+          We will get back to you shortly.
+        </Typography>
+      </Stack>
     );
   }
 
+  const fieldSpacing = appearance
+    ? Math.max(0.75, appearance.densityTokens.stackGapMultiplier)
+    : 1;
+
   return (
-    <Stack component="form" spacing={1} onSubmit={onSubmit}>
-      {embedded ? (
-        <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
-          Send a message
+    <Stack component="form" spacing={fieldSpacing} onSubmit={onSubmit}>
+      {!embedded && appearance?.form.title?.trim() ? (
+        <Typography variant="subtitle2" sx={embedLabelTextSx(appearance)}>
+          {appearance.form.title}
         </Typography>
-      ) : (
-        <Typography variant="subtitle2">Text us</Typography>
-      )}
+      ) : null}
+      {!embedded && appearance?.form.subtitle?.trim() ? (
+        <Typography variant="body2" sx={embedMutedTextSx(appearance)}>
+          {appearance.form.subtitle}
+        </Typography>
+      ) : null}
       {fields.map((f) => (
         <PrechatFieldRenderer key={f.key} field={f} control={form.control} appearance={appearance} />
       ))}
       {formValidationHint ? (
-        <Typography variant="caption" color="error">
+        <Typography variant="caption" sx={{ color: appearance?.colors.primary ?? "error.main" }}>
           {formValidationHint}
         </Typography>
       ) : null}
       {submitError ? (
-        <Typography variant="caption" color="error">
+        <Typography variant="caption" sx={{ color: appearance?.colors.primary ?? "error.main" }}>
           {submitError}
         </Typography>
       ) : null}
       {appearance ? (
-        <EmbedActionButton type="submit" appearance={appearance} disabled={submitBusy}>
-          {submitBusy ? "Sending…" : "Send"}
+        <EmbedActionButton type="submit" appearance={appearance} fullWidth disabled={submitBusy}>
+          {submitBusy ? "Sending…" : appearance.form.submitLabel || "Send"}
         </EmbedActionButton>
       ) : (
-        <MuiButton type="submit" variant="contained" disabled={submitBusy}>
+        <MuiButton type="submit" variant="contained" fullWidth disabled={submitBusy}>
           {submitBusy ? "Sending…" : "Send"}
         </MuiButton>
       )}

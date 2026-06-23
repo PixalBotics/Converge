@@ -201,9 +201,17 @@ export function normalizePublicWidgetConfigEnvelope(
       ? o.theme_design_json
       : undefined;
 
+  const textUsFormConfig = isRecord(o.textUsFormConfig)
+    ? o.textUsFormConfig
+    : isRecord(o.text_us_form_config)
+      ? o.text_us_form_config
+      : undefined;
+
   let mergedConfig = experienceWithLegacyInquiry
     ? configRecordFromEnvelope({
         experience: experienceWithLegacyInquiry,
+        themeDesignJson,
+        textUsFormConfig,
         chatMode:
           typeof o.chatMode === "string"
             ? o.chatMode
@@ -312,6 +320,7 @@ export function normalizePublicWidgetConfigEnvelope(
       : undefined,
     clientSettings: isRecord(o.clientSettings) ? o.clientSettings : undefined,
     themeDesignJson,
+    textUsFormConfig,
     /** Legacy fat snapshot; omitted when API returns `experience` only. */
     config:
       !experienceWithLegacyInquiry && Object.keys(mergedConfig).length > 0
@@ -541,4 +550,59 @@ export async function postAiVisitorRespond(
   const raw = await res.json();
   const data = parseAiVisitorRespondResponse(raw);
   return { ok: true as const, data };
+}
+
+export type SubmitTextUsRequest = {
+  widgetKey: string;
+  websiteId: string;
+  fieldValues: Record<string, unknown>;
+  originHost?: string;
+  serviceTileId?: string;
+};
+
+export type SubmitTextUsResponse = {
+  submissionId: string;
+  smsSent: boolean;
+  smsMessageSid: string | null;
+};
+
+function parseTextUsSubmitResponse(raw: unknown): SubmitTextUsResponse | null {
+  const peeled = peelSuccessEnvelope(raw);
+  if (peeled === null || typeof peeled !== "object" || Array.isArray(peeled)) return null;
+  const o = peeled as Record<string, unknown>;
+  const submissionId = typeof o.submissionId === "string" ? o.submissionId : "";
+  if (!submissionId) return null;
+  return {
+    submissionId,
+    smsSent: o.smsSent === true,
+    smsMessageSid: typeof o.smsMessageSid === "string" ? o.smsMessageSid : null,
+  };
+}
+
+/** Public Text Us form submit — saves submission and sends SMS when website is configured. */
+export async function postTextUsSubmit(body: SubmitTextUsRequest) {
+  const payload: Record<string, unknown> = {
+    widgetKey: body.widgetKey,
+    websiteId: body.websiteId,
+    fieldValues: body.fieldValues,
+  };
+  const originHost = body.originHost?.trim();
+  if (originHost) payload.originHost = originHost;
+  const serviceTileId = body.serviceTileId?.trim();
+  if (serviceTileId) payload.serviceTileId = serviceTileId;
+
+  const result = await fetchJsonPublic<unknown>(`/widget/text-us/submit`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+  if (!result.ok) return result;
+  const parsed = parseTextUsSubmitResponse(result.data);
+  if (!parsed) {
+    return {
+      ok: false as const,
+      status: 200,
+      message: "Invalid Text Us submit response from server.",
+    };
+  }
+  return { ok: true as const, data: parsed };
 }

@@ -5,6 +5,7 @@ import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
 import Link from "@mui/material/Link";
 import Radio from "@mui/material/Radio";
+import Checkbox from "@mui/material/Checkbox";
 import Table from "@mui/material/Table";
 import TableBody from "@mui/material/TableBody";
 import TableCell from "@mui/material/TableCell";
@@ -16,10 +17,12 @@ import type { AppTheme } from "@/theme/theme";
 import NextLink from "next/link";
 import { InputField, Typography } from "@/components/common";
 import type { ServiceChannel, WebsiteAssignmentTier } from "@/api/types/website-assignments.types";
+import type { OperatingChannels } from "@/api/types/website-assignments.types";
+import { rosterVisibleTiers } from "@/lib/website-assignments/roster-assignment-channels";
 import type { RosterUserHrmsContext } from "@/api/types/roster-hrms-context.types";
 import { useDepartmentRosterHrmsContextQuery, useUsersListQuery } from "@/lib/hooks";
 import { useQaRosterExclusionsQuery } from "@/features/chat-settings/hooks/useChatSettings";
-import { buildRosterUserOptions, formatRosterSelectLabel } from "../utils/roster-user-options";
+import { buildRosterUserOptions } from "../utils/roster-user-options";
 import {
   formatRosterShiftLabel,
   formatSelectedUserShiftLine,
@@ -29,13 +32,14 @@ import {
   rosterScheduleOverlapHint,
 } from "../utils/roster-hrms-display.utils";
 import { formatHm12Label } from "../utils/schedule-time.utils";
-import { ROSTER_TIERS } from "../utils/roster-draft.utils";
+import { ROSTER_TIERS, isUserInOtherTier, isUserInTier, isUserSelectedInDraft, toggleTierUser } from "../utils/roster-draft.utils";
 import type { SlotDraft } from "./RosterSlotPicker";
 
 type RosterUserTypeFilter = "all" | "Internal" | "External";
 
 type RosterUsersPickerTableProps = {
   websiteId: string;
+  operatingChannels: OperatingChannels;
   channel: ServiceChannel;
   departmentId: string;
   departmentName?: string;
@@ -59,6 +63,7 @@ type RosterUsersPickerTableProps = {
 
 export function RosterUsersPickerTable({
   websiteId,
+  operatingChannels,
   channel,
   departmentId,
   departmentName,
@@ -74,7 +79,9 @@ export function RosterUsersPickerTable({
   const theme = useTheme() as AppTheme;
   const [userSearch, setUserSearch] = useState("");
   const [userTypeFilter, setUserTypeFilter] = useState<RosterUserTypeFilter>("all");
-  const showDualUserTypes = channel === "Internal";
+  const showDualUserTypes =
+    operatingChannels === "internal_only" && channel === "Internal";
+  const visibleTiers = rosterVisibleTiers(operatingChannels);
 
   const internalUsersQuery = useUsersListQuery(
     { all: true, userType: "Internal" },
@@ -152,8 +159,7 @@ export function RosterUsersPickerTable({
     const ids = new Set<string>();
     for (const u of userOptions) ids.add(u.id);
     for (const tier of ROSTER_TIERS) {
-      const id = draft[tier]?.trim();
-      if (id) ids.add(id);
+      for (const id of draft[tier]) ids.add(id);
     }
     return [...ids].join(",");
   }, [userOptions, draft]);
@@ -183,9 +189,7 @@ export function RosterUsersPickerTable({
 
   const filteredUsers = useMemo(() => {
     const q = userSearch.trim().toLowerCase();
-    const selectedIds = new Set(
-      ROSTER_TIERS.map((t) => draft[t]?.trim()).filter(Boolean) as string[],
-    );
+    const selectedIds = new Set(ROSTER_TIERS.flatMap((t) => draft[t]));
     return userOptions.filter((u) => {
       const blockedReason = blockedInOtherBlocks?.get(u.id);
       if (blockedReason && !selectedIds.has(u.id)) return false;
@@ -203,9 +207,7 @@ export function RosterUsersPickerTable({
 
   const hiddenByBlockCount = useMemo(() => {
     if (!blockedInOtherBlocks?.size) return 0;
-    const selectedIds = new Set(
-      ROSTER_TIERS.map((t) => draft[t]?.trim()).filter(Boolean) as string[],
-    );
+    const selectedIds = new Set(ROSTER_TIERS.flatMap((t) => draft[t]));
     let n = 0;
     for (const userId of blockedInOtherBlocks.keys()) {
       if (!selectedIds.has(userId)) n += 1;
@@ -215,50 +217,25 @@ export function RosterUsersPickerTable({
 
   const assignTier = (tier: WebsiteAssignmentTier, userId: string) => {
     if (!canEdit || disabled) return;
-    const next = { ...draft };
-    if (next[tier] === userId) {
-      next[tier] = "";
-    } else {
-      for (const t of ROSTER_TIERS) {
-        if (t !== tier && next[t] === userId) next[t] = "";
-      }
-      next[tier] = userId;
-    }
-    onChange(next);
+    onChange(toggleTierUser(draft, tier, userId));
   };
 
-  const tierTakenByOther = (tier: WebsiteAssignmentTier, userId: string) => {
-    for (const t of ROSTER_TIERS) {
-      if (t === tier) continue;
-      if (draft[t] === userId) return true;
-    }
-    return false;
-  };
-
-  const selectedSummary = ROSTER_TIERS.map((tier) => {
-    const id = draft[tier];
-    if (!id) return null;
-    const u = userOptions.find((o) => o.id === id);
-    const hrms = hrmsByUserId.get(id);
-    const shiftLine = formatSelectedUserShiftLine(hrms, showHrmsShift);
-    return {
-      tier,
-      userId: id,
-      label: u?.label ?? "Assigned user",
-      hrms,
-      shiftLine,
-      statusLabel: showHrmsShift && hrms ? rosterHrmsStatusLabel(hrms) : null,
-      missingShift: showHrmsShift && Boolean(hrms && !hrms.shift),
-    };
-  }).filter(Boolean) as {
-    tier: WebsiteAssignmentTier;
-    userId: string;
-    label: string;
-    hrms: RosterUserHrmsContext | undefined;
-    shiftLine: string | null;
-    statusLabel: string | null;
-    missingShift: boolean;
-  }[];
+  const selectedSummary = visibleTiers.flatMap((tier) =>
+    draft[tier].map((id) => {
+      const u = userOptions.find((o) => o.id === id);
+      const hrms = hrmsByUserId.get(id);
+      const shiftLine = formatSelectedUserShiftLine(hrms, showHrmsShift);
+      return {
+        tier,
+        userId: id,
+        label: u?.label ?? "Assigned user",
+        hrms,
+        shiftLine,
+        statusLabel: showHrmsShift && hrms ? rosterHrmsStatusLabel(hrms) : null,
+        missingShift: showHrmsShift && Boolean(hrms && !hrms.shift),
+      };
+    }),
+  );
 
   const showHrmsColumn = showHrmsShift;
 
@@ -299,7 +276,7 @@ export function RosterUsersPickerTable({
             <Chip label={`Dept: ${departmentName}`} size="small" variant="outlined" />
           ) : null}
           {showDualUserTypes ? (
-            <Chip label="Internal + External list" size="small" variant="outlined" />
+            <Chip label="External allowed for Backup" size="small" variant="outlined" />
           ) : null}
           {!usersLoading ? (
             <Chip
@@ -312,13 +289,24 @@ export function RosterUsersPickerTable({
         <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, lineHeight: 1.5 }}>
           {showDualUserTypes ? (
             <>
-              Pick <strong>Primary</strong> and <strong>Secondary</strong> from internal agents (online in
-              chat inbox). <strong>Backup</strong> may be internal or external. Filter the list below by user
-              type.
+              Pick <strong>Primary</strong> and <strong>Secondary</strong> internal agents.{" "}
+              <strong>Backup</strong> may be internal or external.
+            </>
+          ) : operatingChannels === "both" ? (
+            <>
+              Select <strong>Primary</strong> and <strong>Backup</strong> agents. Only{" "}
+              <strong>{channel.toLowerCase()}</strong> users
+              {departmentName ? (
+                <>
+                  {" "}
+                  for <strong>{departmentName}</strong>
+                </>
+              ) : null}{" "}
+              are shown.
             </>
           ) : (
             <>
-              Select one agent per column (click the same radio again to clear). Only{" "}
+              Select agents per column (checkbox). Multiple primaries allowed. Only{" "}
               <strong>{channel.toLowerCase()}</strong> users
               {departmentName ? (
                 <>
@@ -397,67 +385,6 @@ export function RosterUsersPickerTable({
         </Typography>
       ) : null}
 
-      {selectedSummary.length > 0 ? (
-        <Box
-          sx={{
-            mb: 1.5,
-            p: 1.25,
-            borderRadius: 1.5,
-            bgcolor: `${theme.palette.primary.main}10`,
-            border: `1px solid ${theme.palette.primary.main}33`,
-          }}
-        >
-          {selectedSummary.map(({ tier, userId, label, shiftLine, statusLabel, missingShift }) => (
-            <Box key={tier} sx={{ mb: selectedSummary.length > 1 ? 0.75 : 0 }}>
-              <Typography variant="caption" sx={{ display: "block", lineHeight: 1.5 }}>
-                <strong>{tier}:</strong>{" "}
-                {userOptions.find((o) => o.id === userId)
-                  ? formatRosterSelectLabel(userOptions.find((o) => o.id === userId)!)
-                  : label}
-              </Typography>
-              {websiteHoursLabel ? (
-                <Typography
-                  variant="caption"
-                  sx={{ display: "block", lineHeight: 1.45, color: theme.app.dashboard.textMuted }}
-                >
-                  Chat service hours: {websiteHoursLabel}
-                </Typography>
-              ) : null}
-              {showHrmsShift ? (
-                <Typography
-                  variant="caption"
-                  sx={{
-                    display: "block",
-                    lineHeight: 1.45,
-                    color: missingShift ? theme.palette.warning.light : theme.app.dashboard.textMuted,
-                  }}
-                >
-                  HRMS shift: {shiftLine ?? "—"}
-                  {statusLabel ? ` · ${statusLabel}` : ""}
-                  {missingShift ? (
-                    <>
-                      {" · "}
-                      <Box
-                        component={NextLink}
-                        href={hrmsSchedulingHref(userId)}
-                        sx={{
-                          display: "inline",
-                          color: theme.palette.primary.light,
-                          textDecoration: "underline",
-                          fontSize: "inherit",
-                        }}
-                      >
-                        Assign shift in HRMS
-                      </Box>
-                    </>
-                  ) : null}
-                </Typography>
-              ) : null}
-            </Box>
-          ))}
-        </Box>
-      ) : null}
-
       <InputField
         label="Search users"
         value={userSearch}
@@ -503,9 +430,11 @@ export function RosterUsersPickerTable({
                 <TableCell sx={{ fontWeight: 700, width: 72 }} align="center">
                   Primary
                 </TableCell>
-                <TableCell sx={{ fontWeight: 700, width: 72 }} align="center">
-                  Secondary
-                </TableCell>
+                {visibleTiers.includes("Secondary") ? (
+                  <TableCell sx={{ fontWeight: 700, width: 72 }} align="center">
+                    Secondary
+                  </TableCell>
+                ) : null}
                 <TableCell sx={{ fontWeight: 700, width: 72 }} align="center">
                   Backup
                 </TableCell>
@@ -514,7 +443,7 @@ export function RosterUsersPickerTable({
             <TableBody>
               {filteredUsers.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={showHrmsColumn ? 8 : 7}>
+                  <TableCell colSpan={(showHrmsColumn ? 5 : 4) + visibleTiers.length}>
                     <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, py: 1 }}>
                       No users match your search.
                     </Typography>
@@ -524,10 +453,7 @@ export function RosterUsersPickerTable({
                 filteredUsers.map((user) => {
                   const blocked = user.disabled;
                   const hrms = hrmsByUserId.get(user.id);
-                  const isSelected =
-                    draft.Primary === user.id ||
-                    draft.Secondary === user.id ||
-                    draft.Backup === user.id;
+                  const isSelected = isUserSelectedInDraft(draft, user.id);
                   return (
                     <TableRow
                       key={user.id}
@@ -640,31 +566,47 @@ export function RosterUsersPickerTable({
                           )}
                         </TableCell>
                       ) : null}
-                      {ROSTER_TIERS.map((tier) => {
-                        const checked = draft[tier] === user.id;
-                        const takenElsewhere = tierTakenByOther(tier, user.id);
+                      {visibleTiers.map((tier) => {
+                        const checked = isUserInTier(draft, tier, user.id);
+                        const takenElsewhere = isUserInOtherTier(draft, tier, user.id);
                         const externalBackupOnly =
                           showDualUserTypes &&
                           user.userType === "External" &&
                           tier !== "Backup";
-                        const radioDisabled =
+                        const cellDisabled =
                           !canEdit ||
                           disabled ||
                           blocked ||
                           externalBackupOnly ||
                           (takenElsewhere && !checked);
+                        const useCheckbox =
+                          tier === "Primary" ||
+                          (tier === "Secondary" && visibleTiers.includes("Secondary"));
                         return (
                           <TableCell key={tier} align="center" padding="checkbox">
-                            <Radio
-                              size="small"
-                              checked={checked}
-                              disabled={radioDisabled}
-                              onChange={() => assignTier(tier, user.id)}
-                              inputProps={{
-                                "aria-label": `${tier} — ${user.label}`,
-                              }}
-                              sx={{ p: 0.5 }}
-                            />
+                            {useCheckbox ? (
+                              <Checkbox
+                                size="small"
+                                checked={checked}
+                                disabled={cellDisabled}
+                                onChange={() => assignTier(tier, user.id)}
+                                inputProps={{
+                                  "aria-label": `${tier} — ${user.label}`,
+                                }}
+                                sx={{ p: 0.5 }}
+                              />
+                            ) : (
+                              <Radio
+                                size="small"
+                                checked={checked}
+                                disabled={cellDisabled}
+                                onChange={() => assignTier(tier, user.id)}
+                                inputProps={{
+                                  "aria-label": `${tier} — ${user.label}`,
+                                }}
+                                sx={{ p: 0.5 }}
+                              />
+                            )}
                           </TableCell>
                         );
                       })}
@@ -675,6 +617,151 @@ export function RosterUsersPickerTable({
             </TableBody>
           </Table>
         </TableContainer>
+      ) : null}
+
+      {selectedSummary.length > 0 ? (
+        <Box sx={{ mt: 2.5 }}>
+          <Typography variant="body2" fontWeight={700} sx={{ mb: 1 }}>
+            Selected agents ({selectedSummary.length})
+          </Typography>
+          <TableContainer
+            sx={{
+              maxHeight: 280,
+              borderRadius: 2,
+              border: `1px solid ${theme.palette.primary.main}44`,
+              bgcolor: `${theme.palette.primary.main}08`,
+            }}
+          >
+            <Table size="small" stickyHeader>
+              <TableHead>
+                <TableRow>
+                  <TableCell sx={{ fontWeight: 700, minWidth: 160 }}>User</TableCell>
+                  <TableCell sx={{ fontWeight: 700, minWidth: 88 }}>Type</TableCell>
+                  <TableCell sx={{ fontWeight: 700, minWidth: 120 }}>Department</TableCell>
+                  <TableCell sx={{ fontWeight: 700, minWidth: 100 }}>Pool</TableCell>
+                  <TableCell sx={{ fontWeight: 700, width: 100 }}>Tier</TableCell>
+                  {showHrmsColumn ? (
+                    <TableCell sx={{ fontWeight: 700, minWidth: 180 }}>HRMS shift</TableCell>
+                  ) : null}
+                  <TableCell sx={{ fontWeight: 700, minWidth: 140 }}>Service hours</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {selectedSummary.map(
+                  ({ tier, userId, label, shiftLine, statusLabel, missingShift }) => {
+                    const user = userOptions.find((o) => o.id === userId);
+                    const tierColor =
+                      tier === "Primary"
+                        ? theme.palette.success.main
+                        : tier === "Secondary"
+                          ? theme.palette.info.main
+                          : theme.palette.warning.main;
+                    return (
+                      <TableRow key={`${tier}-${userId}`}>
+                        <TableCell>
+                          <Typography variant="body2" fontWeight={600}>
+                            {user?.name ?? label}
+                          </Typography>
+                          {user?.email ? (
+                            <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted }}>
+                              {user.email}
+                            </Typography>
+                          ) : null}
+                        </TableCell>
+                        <TableCell>
+                          {user?.userType ? (
+                            <Chip
+                              label={user.userType}
+                              size="small"
+                              sx={{
+                                height: 22,
+                                fontSize: 11,
+                                fontWeight: 700,
+                                bgcolor:
+                                  user.userType === "External"
+                                    ? `${theme.palette.warning.main}22`
+                                    : `${theme.palette.info.main}22`,
+                                color:
+                                  user.userType === "External"
+                                    ? theme.palette.warning.light
+                                    : theme.palette.info.light,
+                              }}
+                            />
+                          ) : (
+                            "—"
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted }}>
+                            {user?.department ?? "—"}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted }}>
+                            {user?.pool ?? "—"}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Chip
+                            label={tier}
+                            size="small"
+                            sx={{
+                              height: 24,
+                              fontWeight: 700,
+                              bgcolor: `${tierColor}22`,
+                              color: tierColor,
+                            }}
+                          />
+                        </TableCell>
+                        {showHrmsColumn ? (
+                          <TableCell>
+                            {showHrmsShift ? (
+                              <Box>
+                                <Typography
+                                  variant="caption"
+                                  sx={{
+                                    display: "block",
+                                    lineHeight: 1.45,
+                                    color: missingShift ? theme.palette.warning.light : undefined,
+                                  }}
+                                >
+                                  {shiftLine ?? "—"}
+                                  {statusLabel ? ` · ${statusLabel}` : ""}
+                                </Typography>
+                                {missingShift ? (
+                                  <Link
+                                    component={NextLink}
+                                    href={hrmsSchedulingHref(userId)}
+                                    variant="caption"
+                                    sx={{
+                                      display: "inline-block",
+                                      mt: 0.35,
+                                      color: theme.palette.primary.light,
+                                      textDecoration: "underline",
+                                    }}
+                                  >
+                                    Assign shift in HRMS
+                                  </Link>
+                                ) : null}
+                              </Box>
+                            ) : (
+                              "—"
+                            )}
+                          </TableCell>
+                        ) : null}
+                        <TableCell>
+                          <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, lineHeight: 1.45 }}>
+                            {websiteHoursLabel ?? blockHoursLabel ?? "—"}
+                          </Typography>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  },
+                )}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </Box>
       ) : null}
     </Box>
   );

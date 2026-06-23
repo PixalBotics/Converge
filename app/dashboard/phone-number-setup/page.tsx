@@ -4,17 +4,30 @@ import { useMemo, useState } from "react";
 import Box from "@mui/material/Box";
 import BlurOnRounded from "@mui/icons-material/BlurOnRounded";
 import AddIcCallRounded from "@mui/icons-material/AddIcCallRounded";
-import MoreHoriz from "@mui/icons-material/MoreHoriz";
-import IconButton from "@mui/material/IconButton";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import type { SxProps, Theme } from "@mui/material/styles";
 import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
-import { Button, DashboardCard, DataTable, SelectField, TablePagination, Typography, dataTableActionButton } from "@/components/common";
+import {
+  Button,
+  DashboardCard,
+  DataTable,
+  InputField,
+  SelectField,
+  TablePagination,
+  Typography,
+} from "@/components/common";
 import type { DataTableColumn } from "@/components/common";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
 import { pageWrapper, footerMutedText } from "../companies/overview.styles";
-import { rolesCard, rolesFooterRow, rolesIconBox, rolesPageWrapper, rolesPaginationWrapper } from "../roles/roles.styles";
+import {
+  rolesCard,
+  rolesFooterRow,
+  rolesIconBox,
+  rolesPageWrapper,
+  rolesPaginationWrapper,
+} from "../roles/roles.styles";
 import {
   phoneNumberSetupAddButtonSx,
   phoneNumberSetupCardHeaderSx,
@@ -23,84 +36,99 @@ import {
   phoneNumberSetupStatusApprovedSx,
   phoneNumberSetupSubtextSx,
 } from "./phone-number-setup.styles";
-
-type PhoneNumberSetupRow = {
-  id: string;
-  phoneNumber: string;
-  assignedTo: string;
-  resellerName: string;
-  parentCompany: string;
-  childCompany: string;
-  status: "Approved";
-};
-
-const RESELLER_OPTIONS = [
-  { label: "TechDistributors", value: "tech-distributors" },
-  { label: "Alpha Reseller", value: "alpha-reseller" },
-];
-const PARENT_OPTIONS = [
-  { label: "ABC Group", value: "abc-group" },
-  { label: "Vertex Group", value: "vertex-group" },
-];
-const CHILD_OPTIONS = [
-  { label: "Native Group", value: "native-group" },
-  { label: "Matrix Group", value: "matrix-group" },
-];
+import type { WebsiteSmsConfigListItem } from "@/api/sms/sms.api";
+import { useWebsiteSmsConfigsQuery } from "@/features/sms/hooks/useSms";
+import { useResellerListScope } from "@/lib/auth";
+import {
+  useCompaniesSetupResellersQuery,
+  useScopedCompanyTreeQuery,
+} from "@/lib/hooks";
+import {
+  extractChildCompanyOptionsForParentFromByResellerTree,
+  extractParentCompaniesFromByResellerTree,
+  pickItemsArray,
+  toIdNameOption,
+} from "@/app/dashboard/user-page/components/add-user-modal.utils";
 
 const PAGE_SIZE = 10;
-const DISPLAY_TOTAL_ENTRIES = 256_000;
-
-const ROWS: PhoneNumberSetupRow[] = Array.from({ length: 18 }, (_, i) => ({
-  id: `pn-${i + 1}`,
-  phoneNumber: "IV-2024",
-  assignedTo: "Raja Saif",
-  resellerName: "Jhon Wick",
-  parentCompany: "Netflix",
-  childCompany: "Amazon",
-  status: "Approved",
-}));
-
-function formatCompactEntryTotal(n: number): string {
-  if (n >= 1_000_000) {
-    const m = n / 1_000_000;
-    return `${m % 1 === 0 ? m : m.toFixed(1)}M`;
-  }
-  if (n >= 1000) {
-    const k = n / 1000;
-    return `${k % 1 === 0 ? k : k.toFixed(0)}K`;
-  }
-  return String(n);
-}
 
 export default function PhoneNumberSetupPage() {
   const theme = useTheme() as AppTheme;
-  const [reseller, setReseller] = useState("tech-distributors");
-  const [parentCompany, setParentCompany] = useState("abc-group");
-  const [childCompany, setChildCompany] = useState("native-group");
+  const { canFilterByResellerId, sessionResellerId } = useResellerListScope();
+  const [resellerId, setResellerId] = useState("");
+  const [parentCompanyId, setParentCompanyId] = useState("");
+  const [childCompanyId, setChildCompanyId] = useState("");
   const [page, setPage] = useState(1);
+  const [applied, setApplied] = useState({
+    resellerId: "",
+    parentCompanyId: "",
+    childCompanyId: "",
+  });
 
-  const pageCount = Math.max(1, Math.ceil(ROWS.length / PAGE_SIZE));
-  const paginatedRows = useMemo(() => {
-    const start = (page - 1) * PAGE_SIZE;
-    return ROWS.slice(start, start + PAGE_SIZE);
-  }, [page]);
+  const listQuery = useWebsiteSmsConfigsQuery({
+    page,
+    limit: PAGE_SIZE,
+    resellerId: applied.resellerId || undefined,
+    parentCompanyId: applied.parentCompanyId || undefined,
+    childCompanyId: applied.childCompanyId || undefined,
+  });
 
-  const rangeStart = paginatedRows.length ? (page - 1) * PAGE_SIZE + 1 : 0;
-  const rangeEnd = (page - 1) * PAGE_SIZE + paginatedRows.length;
+  const resellersQuery = useCompaniesSetupResellersQuery({
+    enabled: canFilterByResellerId,
+  });
+  const companiesTreeQuery = useScopedCompanyTreeQuery(
+    resellerId || sessionResellerId || "",
+    canFilterByResellerId,
+    sessionResellerId,
+    { enabled: Boolean(resellerId || sessionResellerId) },
+  );
 
-  const columns = useMemo<DataTableColumn<PhoneNumberSetupRow>[]>(
+  const resellerOptions = useMemo(
+    () =>
+      pickItemsArray(resellersQuery.data)
+        .map(toIdNameOption)
+        .filter((o): o is { value: string; label: string } => o !== null),
+    [resellersQuery.data],
+  );
+  const parentOptions = useMemo(
+    () =>
+      extractParentCompaniesFromByResellerTree(companiesTreeQuery.data)
+        .map(toIdNameOption)
+        .filter((o): o is { value: string; label: string } => o !== null),
+    [companiesTreeQuery.data],
+  );
+  const childOptions = useMemo(
+    () =>
+      extractChildCompanyOptionsForParentFromByResellerTree(
+        companiesTreeQuery.data,
+        parentCompanyId,
+      )
+        .map(toIdNameOption)
+        .filter((o): o is { value: string; label: string } => o !== null),
+    [companiesTreeQuery.data, parentCompanyId],
+  );
+
+  const rows = listQuery.data?.items ?? [];
+  const total = listQuery.data?.total ?? 0;
+  const pageCount = listQuery.data?.totalPages ?? 1;
+  const rangeStart = rows.length ? (page - 1) * PAGE_SIZE + 1 : 0;
+  const rangeEnd = (page - 1) * PAGE_SIZE + rows.length;
+
+  const columns = useMemo<DataTableColumn<WebsiteSmsConfigListItem>[]>(
     () => [
-      { id: "phoneNumber", label: "Phone Number" },
-      { id: "assignedTo", label: "Assigned To" },
-      { id: "resellerName", label: "Reseller Name" },
+      { id: "accountSid", label: "Twilio Account" },
+      { id: "fromNumber", label: "From (Twilio)" },
+      { id: "notifyToNumber", label: "Notify To" },
+      { id: "website", label: "Website" },
+      { id: "resellerName", label: "Reseller" },
       { id: "parentCompany", label: "Parent Company" },
       { id: "childCompany", label: "Child Company" },
       {
-        id: "status",
+        id: "isEnabled",
         label: "Status",
-        render: (value) => (
+        render: (_, row) => (
           <Typography component="span" sx={phoneNumberSetupStatusApprovedSx}>
-            {String(value)}
+            {row.isEnabled ? "Active" : "Disabled"}
           </Typography>
         ),
       },
@@ -113,10 +141,10 @@ export default function PhoneNumberSetupPage() {
       <Box sx={phoneNumberSetupHeaderSx}>
         <Box>
           <Typography variant="regularLarge" fontWeight={700} color="white">
-            Phone Number Setup (Main Page)
+            Phone Number Setup
           </Typography>
           <Typography variant="body2" sx={phoneNumberSetupSubtextSx}>
-            Generate and distribute licenses to client companies
+            Each website connects its own Twilio account for Text Us SMS alerts
           </Typography>
         </Box>
         <Button
@@ -137,17 +165,50 @@ export default function PhoneNumberSetupPage() {
             <BlurOnRounded sx={{ fontSize: 18, color: theme.app.dashboard.white95 }} />
           </Box>
           <Typography variant="mediumLarge" color="white" fontWeight={600}>
-            Select Filter
+            Filter
           </Typography>
         </Box>
         <Box sx={phoneNumberSetupFilterGridSx}>
-          <SelectField label="Reseller (Dropdown)" value={reseller} onChange={setReseller} options={RESELLER_OPTIONS} />
-          <SelectField label="Parent Company" value={parentCompany} onChange={setParentCompany} options={PARENT_OPTIONS} />
-          <SelectField label="Child Company" value={childCompany} onChange={setChildCompany} options={CHILD_OPTIONS} />
+          {canFilterByResellerId ? (
+            <SelectField
+              label="Reseller"
+              value={resellerId}
+              onChange={(v) => {
+                setResellerId(v);
+                setParentCompanyId("");
+                setChildCompanyId("");
+              }}
+              options={resellerOptions}
+            />
+          ) : null}
+          <SelectField
+            label="Parent Company"
+            value={parentCompanyId}
+            onChange={(v) => {
+              setParentCompanyId(v);
+              setChildCompanyId("");
+            }}
+            options={parentOptions}
+          />
+          <SelectField
+            label="Child Company"
+            value={childCompanyId}
+            onChange={setChildCompanyId}
+            options={childOptions}
+            disabled={!parentCompanyId}
+          />
           <Button
             type="button"
             variant="primary"
             sx={{ minWidth: 126, width: { xs: "100%", lg: "auto" }, ...(gradientPrimaryButtonSx as object) }}
+            onClick={() => {
+              setPage(1);
+              setApplied({
+                resellerId: canFilterByResellerId ? resellerId : sessionResellerId ?? "",
+                parentCompanyId,
+                childCompanyId,
+              });
+            }}
           >
             Apply Filter
           </Button>
@@ -160,30 +221,22 @@ export default function PhoneNumberSetupPage() {
             <BlurOnRounded sx={{ fontSize: 18, color: theme.app.dashboard.white95 }} />
           </Box>
           <Typography variant="mediumLarge" color="white" fontWeight={600}>
-            Phone Number Setup
+            Website phone assignments
           </Typography>
         </Box>
 
-        <DataTable<PhoneNumberSetupRow>
+        <DataTable<WebsiteSmsConfigListItem>
           columns={columns}
-          rows={paginatedRows}
+          rows={rows}
           getRowId={(row) => row.id}
           minWidth={1100}
-          actionColumn={{
-            label: "Actions",
-            render: () => (
-              <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
-                <IconButton size="small" sx={dataTableActionButton}>
-                  <MoreHoriz fontSize="small" />
-                </IconButton>
-              </Box>
-            ),
-          }}
         />
 
         <Box sx={rolesFooterRow}>
           <Typography variant="medium" sx={footerMutedText(theme)}>
-            {`Showing data ${rangeStart} to ${rangeEnd} of ${formatCompactEntryTotal(DISPLAY_TOTAL_ENTRIES)} entries`}
+            {listQuery.isLoading
+              ? "Loading…"
+              : `Showing ${rangeStart} to ${rangeEnd} of ${total} entries`}
           </Typography>
           <Box sx={rolesPaginationWrapper}>
             <TablePagination page={page} pageCount={pageCount} onPageChange={setPage} />

@@ -24,6 +24,7 @@ export const PAGE = {
   CHAT_CANNED: "page:chat-canned",
   CHAT_INVOLVEMENT: "page:chat-involvement",
   CHAT_QA_ROSTER: "page:chat-qa-roster",
+  PHONE_NUMBER_SETUP: "page:phone-number-setup",
   AI_ASSISTANT: "page:ai-assistant",
   AI_CHATBOT: "page:ai-chatbot",
   ROLES: "page:roles",

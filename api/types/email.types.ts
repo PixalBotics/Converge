@@ -239,13 +239,20 @@ export type PlatformAgentFeedbackSettingsBody = Partial<
 
 export type DistributionFeedbackSubmissionRow = {
   id: string;
-  rating: string;
+  feedbackType: "rating" | "note";
+  rating: string | null;
   reasonKeys: string[];
   comment: string | null;
   submittedAt: string;
   send: {
     id: string;
     conversationId: string | null;
+    conversation: {
+      id: string;
+      shortId: string;
+      startedAt: string;
+      status: string | null;
+    } | null;
     subject: string;
     recipientEmail: string;
     recipientRole: string;
@@ -261,6 +268,7 @@ export type DistributionFeedbackSubmissionRow = {
 
 export type DistributionFeedbackSubmissionList = {
   items: DistributionFeedbackSubmissionRow[];
+  websiteOptions: Array<{ id: string; name: string }>;
   page: number;
   limit: number;
   total: number;

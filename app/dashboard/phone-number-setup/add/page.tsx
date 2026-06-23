@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import Box from "@mui/material/Box";
 import Switch from "@mui/material/Switch";
 import BlurOnRounded from "@mui/icons-material/BlurOnRounded";
@@ -21,63 +22,207 @@ import {
   addPhoneStatusRowSx,
   addPhoneSubtextSx,
 } from "./add-phone-number.styles";
-
-const ASSIGN_LEVEL_OPTIONS = [
-  { label: "Food", value: "food" },
-  { label: "Level 1", value: "level-1" },
-  { label: "Level 2", value: "level-2" },
-];
-
-const RESELLER_OPTIONS = [
-  { label: "Food", value: "food" },
-  { label: "TechDistributors", value: "tech-distributors" },
-];
-
-const PARENT_COMPANY_BY_RESELLER: Record<string, { label: string; value: string }[]> = {
-  food: [
-    { label: "Food Group", value: "food-group" },
-    { label: "Daily Foods", value: "daily-foods" },
-  ],
-  "tech-distributors": [
-    { label: "ABC Group", value: "abc-group" },
-    { label: "Vertex Group", value: "vertex-group" },
-  ],
-};
-
-const CHILD_COMPANY_BY_PARENT: Record<string, { label: string; value: string }[]> = {
-  "food-group": [
-    { label: "Food Child A", value: "food-child-a" },
-    { label: "Food Child B", value: "food-child-b" },
-  ],
-  "daily-foods": [{ label: "Daily Child", value: "daily-child" }],
-  "abc-group": [
-    { label: "Native Group", value: "native-group" },
-    { label: "Cloud Group", value: "cloud-group" },
-  ],
-  "vertex-group": [{ label: "Matrix Group", value: "matrix-group" }],
-};
+import {
+  useFetchWebsiteTwilioNumbersMutation,
+  useUpsertWebsiteSmsConfigMutation,
+  useWebsiteSmsConfigQuery,
+} from "@/features/sms/hooks/useSms";
+import { useResellerListScope } from "@/lib/auth";
+import {
+  buildWebsitesInScopeParams,
+  useCompaniesSetupResellersQuery,
+  useScopedCompanyTreeQuery,
+  useWebsiteAssignmentsWebsitesQuery,
+} from "@/lib/hooks";
+import {
+  extractChildCompanyOptionsForParentFromByResellerTree,
+  extractParentCompaniesFromByResellerTree,
+  pickItemsArray,
+  toIdNameOption,
+} from "@/app/dashboard/user-page/components/add-user-modal.utils";
+import { websiteAssignmentItemToSelectOption } from "@/lib/websites/format-website-select-label";
+import { extractApiErrorMessageForToast } from "@/lib/notify/extract-api-message";
+import { publishAppToast } from "@/lib/notify";
 
 export default function AddPhoneNumberPage() {
+  const router = useRouter();
   const theme = useTheme() as AppTheme;
-  const [accountSid, setAccountSid] = useState("Food");
-  const [authToken, setAuthToken] = useState("Assign Department Head");
-  const [selectedNumber, setSelectedNumber] = useState("Food");
-  const [assignLevel, setAssignLevel] = useState("food");
-  const [reseller, setReseller] = useState("food");
-  const [parentCompany, setParentCompany] = useState("");
-  const [childCompany, setChildCompany] = useState("");
+  const { canFilterByResellerId, sessionResellerId } = useResellerListScope();
+
+  const [resellerId, setResellerId] = useState("");
+  const [parentCompanyId, setParentCompanyId] = useState("");
+  const [childCompanyId, setChildCompanyId] = useState("");
+  const [websiteId, setWebsiteId] = useState("");
+  const [accountSid, setAccountSid] = useState("");
+  const [authToken, setAuthToken] = useState("");
+  const [hasSavedToken, setHasSavedToken] = useState(false);
+  const [fromNumber, setFromNumber] = useState("");
+  const [notifyToNumber, setNotifyToNumber] = useState("");
+  const [label, setLabel] = useState("");
   const [enabled, setEnabled] = useState(true);
+  const [numberOptions, setNumberOptions] = useState<
+    { label: string; value: string }[]
+  >([]);
 
-  const parentCompanyOptions = useMemo(() => {
-    const list = PARENT_COMPANY_BY_RESELLER[reseller] ?? [];
-    return list.length > 0 ? list : [{ label: "No parent companies", value: "" }];
-  }, [reseller]);
+  const websiteConfigQuery = useWebsiteSmsConfigQuery(websiteId, {
+    enabled: Boolean(websiteId),
+  });
+  const fetchNumbers = useFetchWebsiteTwilioNumbersMutation();
+  const saveWebsite = useUpsertWebsiteSmsConfigMutation();
 
-  const childCompanyOptions = useMemo(() => {
-    if (!parentCompany) return [{ label: "Select parent company first", value: "" }];
-    const list = CHILD_COMPANY_BY_PARENT[parentCompany] ?? [];
-    return list.length > 0 ? list : [{ label: "No child companies", value: "" }];
-  }, [parentCompany]);
+  useEffect(() => {
+    if (!canFilterByResellerId && sessionResellerId) setResellerId(sessionResellerId);
+  }, [canFilterByResellerId, sessionResellerId]);
+
+  useEffect(() => {
+    const cfg = websiteConfigQuery.data;
+    if (!cfg || !websiteId) return;
+    if (!cfg.configured) {
+      setAccountSid("");
+      setAuthToken("");
+      setHasSavedToken(false);
+      setFromNumber("");
+      setNotifyToNumber("");
+      setLabel("");
+      setEnabled(true);
+      setNumberOptions([]);
+      return;
+    }
+    setAccountSid(cfg.accountSid);
+    setHasSavedToken(cfg.hasAuthToken);
+    setAuthToken("");
+    setFromNumber(cfg.fromNumber);
+    setNotifyToNumber(cfg.notifyToNumber);
+    setLabel(cfg.label ?? "");
+    setEnabled(cfg.isEnabled);
+    setNumberOptions([
+      {
+        label: cfg.fromNumber,
+        value: cfg.fromNumber,
+      },
+    ]);
+  }, [websiteConfigQuery.data, websiteId]);
+
+  const resellersQuery = useCompaniesSetupResellersQuery({
+    enabled: canFilterByResellerId,
+  });
+  const companiesTreeQuery = useScopedCompanyTreeQuery(
+    resellerId,
+    canFilterByResellerId,
+    sessionResellerId,
+    { enabled: Boolean(resellerId || sessionResellerId) },
+  );
+  const websitesQuery = useWebsiteAssignmentsWebsitesQuery(
+    buildWebsitesInScopeParams({
+      canFilterByResellerId,
+      resellerId: resellerId || sessionResellerId || "",
+      parentCompanyId,
+      childCompanyId,
+      all: true,
+    }),
+    { enabled: Boolean(childCompanyId) },
+  );
+
+  const resellerOptions = useMemo(
+    () =>
+      pickItemsArray(resellersQuery.data)
+        .map(toIdNameOption)
+        .filter((o): o is { value: string; label: string } => o !== null),
+    [resellersQuery.data],
+  );
+  const parentOptions = useMemo(
+    () =>
+      extractParentCompaniesFromByResellerTree(companiesTreeQuery.data)
+        .map(toIdNameOption)
+        .filter((o): o is { value: string; label: string } => o !== null),
+    [companiesTreeQuery.data],
+  );
+  const childOptions = useMemo(
+    () =>
+      extractChildCompanyOptionsForParentFromByResellerTree(
+        companiesTreeQuery.data,
+        parentCompanyId,
+      )
+        .map(toIdNameOption)
+        .filter((o): o is { value: string; label: string } => o !== null),
+    [companiesTreeQuery.data, parentCompanyId],
+  );
+  const websiteOptions = useMemo(
+    () =>
+      (websitesQuery.data?.data?.items ?? []).map(websiteAssignmentItemToSelectOption),
+    [websitesQuery.data?.data?.items],
+  );
+
+  const loadTwilioNumbers = async () => {
+    if (!accountSid.trim()) {
+      publishAppToast({ variant: "error", message: "Enter Twilio Account SID." });
+      return;
+    }
+    if (!authToken.trim() && !hasSavedToken) {
+      publishAppToast({ variant: "error", message: "Enter Twilio Auth Token." });
+      return;
+    }
+    try {
+      const numbers = await fetchNumbers.mutateAsync({
+        websiteId: websiteId.trim() || undefined,
+        accountSid: accountSid.trim(),
+        authToken: authToken.trim() || undefined,
+      });
+      if (!numbers.length) {
+        publishAppToast({ variant: "error", message: "No Twilio numbers found on this account." });
+        return;
+      }
+      const opts = numbers.map((n) => ({
+        label: n.friendlyName ? `${n.phoneNumber} (${n.friendlyName})` : n.phoneNumber,
+        value: n.phoneNumber,
+      }));
+      setNumberOptions(opts);
+      if (!fromNumber) setFromNumber(numbers[0]!.phoneNumber);
+      publishAppToast({ variant: "success", message: `Loaded ${numbers.length} number(s).` });
+    } catch (e) {
+      publishAppToast({
+        variant: "error",
+        message: extractApiErrorMessageForToast(e) ?? "Could not fetch Twilio numbers.",
+      });
+    }
+  };
+
+  const saveAssignment = async () => {
+    if (!websiteId.trim()) {
+      publishAppToast({ variant: "error", message: "Select a website." });
+      return;
+    }
+    if (!accountSid.trim()) {
+      publishAppToast({ variant: "error", message: "Twilio Account SID is required." });
+      return;
+    }
+    if (!authToken.trim() && !hasSavedToken) {
+      publishAppToast({ variant: "error", message: "Twilio Auth Token is required." });
+      return;
+    }
+    if (!fromNumber.trim() || !notifyToNumber.trim()) {
+      publishAppToast({ variant: "error", message: "From and Notify To numbers are required." });
+      return;
+    }
+    try {
+      await saveWebsite.mutateAsync({
+        websiteId: websiteId.trim(),
+        accountSid: accountSid.trim(),
+        authToken: authToken.trim() || undefined,
+        fromNumber: fromNumber.trim(),
+        notifyToNumber: notifyToNumber.trim(),
+        label: label.trim() || undefined,
+        isEnabled: enabled,
+      });
+      publishAppToast({ variant: "success", message: "Website phone configuration saved." });
+      router.push("/dashboard/phone-number-setup");
+    } catch (e) {
+      publishAppToast({
+        variant: "error",
+        message: extractApiErrorMessageForToast(e) ?? "Could not save website configuration.",
+      });
+    }
+  };
 
   return (
     <Box sx={[pageWrapper, rolesPageWrapper] as SxProps<Theme>}>
@@ -86,7 +231,7 @@ export default function AddPhoneNumberPage() {
           Add Phone Number
         </Typography>
         <Typography variant="body2" sx={addPhoneSubtextSx}>
-          Configure Twilio phone number and assignment
+          Each website uses its own Twilio account and numbers for Text Us SMS
         </Typography>
       </Box>
 
@@ -96,103 +241,140 @@ export default function AddPhoneNumberPage() {
             <BlurOnRounded sx={{ fontSize: 18, color: theme.app.dashboard.white95 }} />
           </Box>
           <Typography variant="mediumLarge" color="white" fontWeight={600}>
-            Twilio Configuration
-          </Typography>
-        </Box>
-
-        <Box sx={addPhoneFormGridTwoSx}>
-          <InputField label="Account SID" value={accountSid} onChange={(e) => setAccountSid(e.target.value)} />
-          <InputField label="Auth Token" value={authToken} onChange={(e) => setAuthToken(e.target.value)} />
-        </Box>
-
-        <Box sx={addPhoneFetchRowSx}>
-          <InputField
-            label="Select Number"
-            value={selectedNumber}
-            onChange={(e) => setSelectedNumber(e.target.value)}
-            sx={{ "& .MuiFormHelperText-root": { display: "none" } }}
-          />
-          <Box sx={{ display: "flex", alignItems: "flex-end" }}>
-            <Button type="button" variant="primary" sx={{ minWidth: 132, ...(gradientPrimaryButtonSx as object) }}>
-              Fetch Numbers
-            </Button>
-          </Box>
-        </Box>
-      </DashboardCard>
-
-      <DashboardCard sx={rolesCard}>
-        <Box sx={addPhoneCardHeaderSx}>
-          <Box sx={rolesIconBox}>
-            <BlurOnRounded sx={{ fontSize: 18, color: theme.app.dashboard.white95 }} />
-          </Box>
-          <Typography variant="mediumLarge" color="white" fontWeight={600}>
-            Assignment
+            Website & Twilio account
           </Typography>
         </Box>
         <Box sx={addPhoneFormGridTwoSx}>
-          <SelectField label="Assign Level" value={assignLevel} onChange={setAssignLevel} options={ASSIGN_LEVEL_OPTIONS} />
-          <SelectField
-            label="Reseller"
-            value={reseller}
-            onChange={(value) => {
-              setReseller(value);
-              setParentCompany("");
-              setChildCompany("");
-            }}
-            options={RESELLER_OPTIONS}
-          />
+          {canFilterByResellerId ? (
+            <SelectField
+              label="Reseller"
+              value={resellerId}
+              onChange={(v) => {
+                setResellerId(v);
+                setParentCompanyId("");
+                setChildCompanyId("");
+                setWebsiteId("");
+              }}
+              options={resellerOptions}
+            />
+          ) : null}
           <SelectField
             label="Parent Company"
-            value={parentCompany}
-            onChange={(value) => {
-              setParentCompany(value);
-              setChildCompany("");
+            value={parentCompanyId}
+            onChange={(v) => {
+              setParentCompanyId(v);
+              setChildCompanyId("");
+              setWebsiteId("");
             }}
-            options={parentCompanyOptions}
-            disabled={!reseller}
+            options={parentOptions}
           />
           <SelectField
             label="Child Company"
-            value={childCompany}
-            onChange={setChildCompany}
-            options={childCompanyOptions}
-            disabled={!parentCompany}
+            value={childCompanyId}
+            onChange={(v) => {
+              setChildCompanyId(v);
+              setWebsiteId("");
+            }}
+            options={childOptions}
+            disabled={!parentCompanyId}
+          />
+          <SelectField
+            label="Website"
+            value={websiteId}
+            onChange={setWebsiteId}
+            options={websiteOptions}
+            disabled={!childCompanyId}
           />
         </Box>
-      </DashboardCard>
 
-      <DashboardCard sx={rolesCard}>
-        <Box sx={addPhoneCardHeaderSx}>
-          <Box sx={rolesIconBox}>
-            <BlurOnRounded sx={{ fontSize: 18, color: theme.app.dashboard.white95 }} />
-          </Box>
-          <Typography variant="mediumLarge" color="white" fontWeight={600}>
-            Status
-          </Typography>
-        </Box>
-
-        <Box sx={addPhoneStatusRowSx}>
-          <Box>
-            <Typography variant="medium" color="white">
-              Status
-            </Typography>
-            <Typography variant="small" sx={addPhoneStatusLabelSx}>
-              Enable or disable this phone number
-            </Typography>
-          </Box>
-          <Switch
-            checked={enabled}
-            onChange={(e) => setEnabled(e.target.checked)}
-            color="primary"
+        <Box sx={addPhoneFormGridTwoSx}>
+          <InputField
+            label="Twilio Account SID"
+            value={accountSid}
+            onChange={(e) => setAccountSid(e.target.value)}
+          />
+          <InputField
+            label="Twilio Auth Token"
+            type="password"
+            value={authToken}
+            onChange={(e) => setAuthToken(e.target.value)}
+            helperText={
+              hasSavedToken && !authToken
+                ? "Leave blank to keep existing token"
+                : "This website's own Twilio credentials"
+            }
           />
         </Box>
 
         <Box sx={addPhoneActionsSx}>
-          <Button type="button" variant="secondary">
+          <Button
+            type="button"
+            variant="primary"
+            sx={gradientPrimaryButtonSx}
+            disabled={fetchNumbers.isPending}
+            onClick={() => void loadTwilioNumbers()}
+          >
+            {fetchNumbers.isPending ? "Fetching…" : "Fetch Numbers"}
+          </Button>
+        </Box>
+
+        <Box sx={addPhoneFetchRowSx}>
+          {numberOptions.length > 0 ? (
+            <SelectField
+              label="From number (Twilio)"
+              value={fromNumber}
+              onChange={setFromNumber}
+              options={numberOptions}
+            />
+          ) : (
+            <InputField
+              label="From number (Twilio, E.164)"
+              value={fromNumber}
+              onChange={(e) => setFromNumber(e.target.value)}
+              placeholder="+14155551234"
+            />
+          )}
+        </Box>
+        <Box sx={addPhoneFormGridTwoSx}>
+          <InputField
+            label="Notify To (E.164)"
+            value={notifyToNumber}
+            onChange={(e) => setNotifyToNumber(e.target.value)}
+            placeholder="+14155559999"
+            helperText="Where Text Us alerts are delivered"
+          />
+          <InputField
+            label="Label (optional)"
+            value={label}
+            onChange={(e) => setLabel(e.target.value)}
+          />
+        </Box>
+      </DashboardCard>
+
+      <DashboardCard sx={rolesCard}>
+        <Box sx={addPhoneStatusRowSx}>
+          <Box>
+            <Typography variant="medium" color="white">
+              Active
+            </Typography>
+            <Typography variant="small" sx={addPhoneStatusLabelSx}>
+              Enable SMS for this website
+            </Typography>
+          </Box>
+          <Switch checked={enabled} onChange={(e) => setEnabled(e.target.checked)} color="primary" />
+        </Box>
+        <Box sx={addPhoneActionsSx}>
+          <Button type="button" variant="secondary" onClick={() => router.push("/dashboard/phone-number-setup")}>
             Cancel
           </Button>
-          <Button type="button" variant="primary" sx={gradientPrimaryButtonSx}>
-            Block IP
+          <Button
+            type="button"
+            variant="primary"
+            sx={gradientPrimaryButtonSx}
+            disabled={saveWebsite.isPending}
+            onClick={() => void saveAssignment()}
+          >
+            {saveWebsite.isPending ? "Saving…" : "Save configuration"}
           </Button>
         </Box>
       </DashboardCard>

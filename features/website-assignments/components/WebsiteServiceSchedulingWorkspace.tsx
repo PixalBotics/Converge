@@ -21,7 +21,6 @@ import NextLink from "next/link";
 import { SchedulingSaveSuccessPanel } from "@/features/website-assignments/components/SchedulingSaveSuccessPanel";
 import { WebsiteAssignmentFlowStepper } from "@/features/website-assignments/components/WebsiteAssignmentFlowStepper";
 import { ServiceScheduleTab } from "@/features/chat-settings/components/ServiceScheduleTab";
-import { useDepartmentCatalogQuery } from "@/features/chat-settings/hooks/useChatSettings";
 import {
   useDeleteServiceSchedulingMutation,
   useServiceSchedulingQuery,
@@ -57,13 +56,6 @@ export function WebsiteServiceSchedulingWorkspace({ websiteId }: { websiteId: st
   );
 
   const schedulingQuery = useServiceSchedulingQuery(websiteId, gates.canViewApi);
-  const parentCompanyId =
-    schedulingQuery.data?.parentCompanyId ?? detail?.parentCompanyId ?? "";
-
-  const departmentsQuery = useDepartmentCatalogQuery(
-    parentCompanyId,
-    gates.canViewApi && Boolean(parentCompanyId.trim()),
-  );
 
   if (gates.ready && !gates.pageView) {
     return (
@@ -85,8 +77,9 @@ export function WebsiteServiceSchedulingWorkspace({ websiteId }: { websiteId: st
 
   const title = detail?.name || schedulingQuery.data?.websiteId?.slice(0, 8) || "Website";
   const url = detail?.url ?? "";
-  const schedulingConfigured =
-    detail?.serviceSchedulingConfigured === true || Boolean(schedulingQuery.data?.operatingChannels);
+  const hoursConfigured = detail?.serviceHoursConfigured === true;
+  const readyForRoster =
+    detail?.serviceHoursConfigured === true || detail?.serviceSchedulingConfigured === true;
 
   return (
     <Box sx={websiteAssignmentPageWrapper}>
@@ -110,10 +103,19 @@ export function WebsiteServiceSchedulingWorkspace({ websiteId }: { websiteId: st
             Service scheduling
           </Typography>
           <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted, maxWidth: 560, lineHeight: "20px" }}>
-            Configure when this website accepts chats and which visitor topics route to departments.
+            Configure operating mode and service hours for this website. Inquire topics are configured
+            separately.
           </Typography>
         </Box>
         <Box sx={websiteAssignmentHeaderActions}>
+          <Button
+            type="button"
+            variant="outlined"
+            component={NextLink}
+            href={`/dashboard/website-assigning/website/${encodeURIComponent(websiteId)}/inquire-topics`}
+          >
+            Inquire topics
+          </Button>
           {assignGates.assign && gates.canEditApi ? (
             <Button
               type="button"
@@ -131,7 +133,7 @@ export function WebsiteServiceSchedulingWorkspace({ websiteId }: { websiteId: st
         activeStep={2}
         websiteId={websiteId}
         pickHref="/dashboard/website-assigning/service-schedules/add"
-        schedulingComplete={schedulingConfigured}
+        schedulingComplete={readyForRoster}
         rosterComplete={Boolean(detail?.isFullyAssigned)}
       />
 
@@ -154,13 +156,15 @@ export function WebsiteServiceSchedulingWorkspace({ websiteId }: { websiteId: st
             ) : null}
             <Chip
               size="small"
-              label="Hours · timezone · visitor topics"
+              label={hoursConfigured ? "Hours configured" : "Please add schedule"}
               sx={{
                 height: 26,
                 fontWeight: 600,
-                bgcolor: `${theme.palette.primary.main}18`,
-                color: theme.palette.primary.light,
-                border: `1px solid ${theme.palette.primary.main}33`,
+                bgcolor: hoursConfigured
+                  ? `${theme.palette.success.main}18`
+                  : `${theme.palette.warning.main}18`,
+                color: hoursConfigured ? theme.palette.success.main : theme.palette.warning.light,
+                border: `1px solid ${hoursConfigured ? theme.palette.success.main : theme.palette.warning.main}33`,
               }}
             />
           </Box>
@@ -182,8 +186,6 @@ export function WebsiteServiceSchedulingWorkspace({ websiteId }: { websiteId: st
         <DashboardCard sx={websiteAssignmentModernCardSx}>
           <ServiceScheduleTab
             websiteId={websiteId}
-            departments={departmentsQuery.data ?? []}
-            departmentsLoading={departmentsQuery.isLoading}
             canView={gates.canViewApi}
             canEdit={gates.canEditApi}
             onSaved={() => setSaveSuccess(true)}

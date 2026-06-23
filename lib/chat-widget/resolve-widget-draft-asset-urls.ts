@@ -38,6 +38,9 @@ export function resolveExistingHttpAssetUrls(
   if (isHttpUrl(draft.visitorAvatarDataUrl)) {
     out.visitorAvatarPublicUrl = draft.visitorAvatarDataUrl.trim();
   }
+  if (isHttpUrl(draft.textUsHeaderLogoDataUrl)) {
+    out.textUsHeaderLogoPublicUrl = draft.textUsHeaderLogoDataUrl.trim();
+  }
   return out;
 }
 
@@ -88,5 +91,8 @@ export function persistAssetUrlsOnDraft(
   if (urls.headerLogoPublicUrl) out.headerLogoDataUrl = urls.headerLogoPublicUrl;
   if (urls.agentAvatarPublicUrl) out.agentAvatarDataUrl = urls.agentAvatarPublicUrl;
   if (urls.visitorAvatarPublicUrl) out.visitorAvatarDataUrl = urls.visitorAvatarPublicUrl;
+  if (urls.textUsHeaderLogoPublicUrl) {
+    out.textUsHeaderLogoDataUrl = urls.textUsHeaderLogoPublicUrl;
+  }
   return out;
 }

@@ -138,7 +138,7 @@ export function TeamAttendanceTableCard({
           columns={columns}
           rows={rows}
           getRowId={(row) => row.id}
-          minWidth={920}
+          minWidth={1080}
           isLoading
         />
       ) : rows.length === 0 ? (
@@ -148,7 +148,7 @@ export function TeamAttendanceTableCard({
           columns={columns}
           rows={rows}
           getRowId={(row) => row.id}
-          minWidth={920}
+          minWidth={1080}
         />
       )}
 

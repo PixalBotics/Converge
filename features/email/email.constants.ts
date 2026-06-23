@@ -31,7 +31,7 @@ export const EMAIL_ROUTES = {
   formsStandard: `${EMAIL_BASE_PATH}/forms/standard`,
   formsCustom: `${EMAIL_BASE_PATH}/forms/custom`,
   formsSet: `${EMAIL_BASE_PATH}/forms/set`,
-  feedback: `${EMAIL_BASE_PATH}/feedback`,
+  feedback: "/dashboard/feedback",
   /** Legacy paths — redirects */
   connection: `${EMAIL_BASE_PATH}/connection`,
   connectionReseller: `${EMAIL_BASE_PATH}/connection/reseller`,

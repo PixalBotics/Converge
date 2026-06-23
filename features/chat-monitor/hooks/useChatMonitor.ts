@@ -219,13 +219,17 @@ export function useChatMonitor(
 
   const handleMonitorLiveUpdate = useCallback(
     (update: MonitorLiveUpdatePayload) => {
+      const ev = String(update.event ?? "").toLowerCase();
+      if (ev === "chat_offline") {
+        invalidateLists();
+      }
       handleListSocketEvent(
         String(update.event ?? ""),
         update.payload,
         update.conversationId,
       );
     },
-    [handleListSocketEvent],
+    [handleListSocketEvent, invalidateLists],
   );
 
   const upsertMessage = useCallback(

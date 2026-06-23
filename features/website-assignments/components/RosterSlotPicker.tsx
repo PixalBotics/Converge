@@ -28,10 +28,10 @@ const TIER_HINTS: Record<WebsiteAssignmentTier, string> = {
   Backup: "Last resort after Primary and Secondary",
 };
 
-export type SlotDraft = Record<WebsiteAssignmentTier, string>;
+export type SlotDraft = Record<WebsiteAssignmentTier, string[]>;
 
 export function emptySlotDraft(): SlotDraft {
-  return { Primary: "", Secondary: "", Backup: "" };
+  return { Primary: [], Secondary: [], Backup: [] };
 }
 
 export function formatAgentLabel(name: string, email?: string, department?: string): string {
@@ -50,7 +50,7 @@ type RosterSlotPickerProps = {
   draft: SlotDraft;
   disabled?: boolean;
   canEdit: boolean;
-  onChange: (tier: WebsiteAssignmentTier, userId: string) => void;
+  onChange: (tier: WebsiteAssignmentTier, userIds: string[]) => void;
 };
 
 export function RosterSlotPicker({
@@ -84,7 +84,7 @@ export function RosterSlotPicker({
     if (!candidateId) return false;
     for (const t of TIERS) {
       if (t === tier) continue;
-      if (draft[t] === candidateId) return true;
+      if (draft[t].includes(candidateId)) return true;
     }
     return false;
   };
@@ -144,8 +144,11 @@ export function RosterSlotPicker({
               <Select
                 labelId={`roster-${channel}-${departmentId}-${tier}`}
                 label="Team member"
-                value={draft[tier]}
-                onChange={(e) => onChange(tier, e.target.value)}
+                value={draft[tier][0] ?? ""}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  onChange(tier, v ? [v] : []);
+                }}
                 displayEmpty
                 renderValue={(v) => {
                   if (!v) {

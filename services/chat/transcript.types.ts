@@ -71,6 +71,8 @@ export interface TranscriptListItem {
     firstName?: string | null;
     lastName?: string | null;
   } | null;
+  /** Human agent name, or "AI" for AI-only / AI-handled chats without an assignee. */
+  resolvedAgentLabel?: string | null;
   department?: { id: string; name: string; type?: string } | null;
   pool?: { id: string; name: string } | null;
 }

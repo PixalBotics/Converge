@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { MouseEvent } from "react";
+import type { ChangeEvent, MouseEvent } from "react";
 import Box from "@mui/material/Box";
 import TextField from "@mui/material/TextField";
 import IconButton from "@mui/material/IconButton";
@@ -16,6 +16,7 @@ import { textFieldStyles } from "./InputField.styles";
 import type { SxProps, Theme } from "@mui/material/styles";
 import type { InputFieldProps } from "./InputField.types";
 import { resolveSx } from "@/utils/resolveSx";
+import { formatPhoneInputValue } from "@/lib/ui/format-phone-input";
 import { eyeSvg, hideEyeSvg } from "@/assets";
 
 export function InputField({
@@ -36,9 +37,10 @@ export function InputField({
   const theme = useTheme();
   const fieldId = id ?? name ?? label.toLowerCase().replace(/\s+/g, "-");
   const isPasswordField = type === "password";
+  const isPhoneField = type === "phone";
   const [showPassword, setShowPassword] = useState(false);
-  const inputType = isPasswordField && showPassword ? "text" : type;
-  const { onMouseMove, onMouseLeave, ...textFieldRest } = rest;
+  const inputType = isPasswordField && showPassword ? "text" : isPhoneField ? "tel" : type;
+  const { onMouseMove, onMouseLeave, onChange, ...textFieldRest } = rest;
 
   const handleMouseMove = (event: MouseEvent<HTMLDivElement>) => {
     applyOutlineFieldCursorPosition(event);
@@ -79,11 +81,22 @@ export function InputField({
         placeholder={placeholder}
         inputProps={{
           "aria-label": showLabel ? label : name ?? fieldId,
+          ...(isPhoneField ? { inputMode: "tel" as const } : {}),
           ...inputProps,
         }}
         type={inputType}
         error={error}
         helperText={helperSlot}
+        onChange={(event) => {
+          if (isPhoneField && onChange) {
+            const formatted = formatPhoneInputValue(event.target.value);
+            event.target.value = formatted;
+            event.currentTarget.value = formatted;
+            onChange(event as ChangeEvent<HTMLInputElement>);
+            return;
+          }
+          onChange?.(event as ChangeEvent<HTMLInputElement>);
+        }}
         FormHelperTextProps={{
           sx: (t) => ({
             minHeight: "1.25rem",

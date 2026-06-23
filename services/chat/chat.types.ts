@@ -31,6 +31,9 @@ export interface AgentVisitorPresentation {
   websiteName: string;
   childCompanyName: string;
   websiteUrl: string;
+  /** e.g. "Instagram · @handle" — social inbound only */
+  channelLabel?: string | null;
+  inboundChannel?: string | null;
 }
 
 /** Rich product/project card attached to AI messages. */
