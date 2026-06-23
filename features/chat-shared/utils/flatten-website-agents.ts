@@ -27,26 +27,28 @@ export function flattenAgentsFromWebsiteDetail(
     for (const channel of ["internal", "external"] as const) {
       const roster = channel === "internal" ? dept.roster.internal : dept.roster.external;
       for (const tier of ["primary", "secondary", "backup"] as const) {
-        const slot = roster[tier];
-        if (!slot?.userId) continue;
-        const serviceChannel = channel === "internal" ? "Internal" : "External";
-        const rowKey = `${slot.userId}:${dept.departmentId}:${serviceChannel}:${tier}`;
-        if (seen.has(rowKey)) continue;
-        seen.add(rowKey);
-        out.push({
-          rowKey,
-          userId: slot.userId,
-          displayName: slot.name || slot.email || slot.userId.slice(0, 8),
-          email: slot.email ?? "",
-          userType: slot.userType ?? serviceChannel,
-          departmentId: dept.departmentId,
-          departmentName: dept.departmentName,
-          departmentType: dept.departmentType,
-          serviceChannel,
-          assignmentTier: tier.charAt(0).toUpperCase() + tier.slice(1),
-          liveCount: 0,
-          kind: "roster",
-        });
+        const slots = roster[tier] ?? [];
+        for (const slot of slots) {
+          if (!slot.userId) continue;
+          const serviceChannel = channel === "internal" ? "Internal" : "External";
+          const rowKey = `${slot.userId}:${dept.departmentId}:${serviceChannel}:${tier}`;
+          if (seen.has(rowKey)) continue;
+          seen.add(rowKey);
+          out.push({
+            rowKey,
+            userId: slot.userId,
+            displayName: slot.name || slot.email || slot.userId.slice(0, 8),
+            email: slot.email ?? "",
+            userType: slot.userType ?? serviceChannel,
+            departmentId: dept.departmentId,
+            departmentName: dept.departmentName,
+            departmentType: dept.departmentType,
+            serviceChannel,
+            assignmentTier: tier.charAt(0).toUpperCase() + tier.slice(1),
+            liveCount: 0,
+            kind: "roster",
+          });
+        }
       }
     }
   }

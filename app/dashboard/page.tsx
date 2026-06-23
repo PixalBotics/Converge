@@ -8,7 +8,6 @@ import AgentDashboardOverview from "./agent-dashboard/AgentDashboardOverview";
 import QaDashboardOverview from "./qa-dashboard/QaDashboardOverview";
 import CompanyAdminOverview from "./company-admin-dashboard/CompanyAdminOverview";
 import SupperDashboardOverview from "./supper-dashboard/SupperDashboardOverview";
-import { DashboardAttendanceMetrics } from "./components/DashboardAttendanceMetrics";
 import { pageWrapper } from "./dashboard.styles";
 
 export default function DashboardPage() {
@@ -45,7 +44,6 @@ export default function DashboardPage() {
         ] as SxProps<Theme>
       }
     >
-      <DashboardAttendanceMetrics />
       {overview}
     </Box>
   );

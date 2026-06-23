@@ -1,7 +1,7 @@
 import { isRecord } from "@/lib/utils";
 import type { JsonRecord } from "@/api/types/common.types";
 import { widgetResponseData } from "@/api/widgets/widgets.api";
-import type { WidgetDraft } from "./widgetDraft";
+import type { WidgetDraft, WidgetInstallChatMode } from "./widgetDraft";
 import { apiWidgetTypeToDraftKind } from "./widget-remote-sync";
 import {
   defaultWidgetDraft,

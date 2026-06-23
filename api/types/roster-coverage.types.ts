@@ -1,6 +1,7 @@
 import type {
   WebsiteAssignmentChannelRoster,
   ServiceChannel,
+  ChannelRosterSlotsBody,
 } from "./website-assignments.types";
 
 export type RosterCoverageBlockRow = {
@@ -41,11 +42,7 @@ export type RosterCoverageBlockInput = {
   crossesMidnight?: boolean;
   label?: string | null;
   sortOrder?: number;
-  roster: {
-    Primary?: string | null;
-    Secondary?: string | null;
-    Backup?: string | null;
-  };
+  roster: ChannelRosterSlotsBody;
 };
 
 export type PutDepartmentRosterCoverageBody = {
