@@ -269,7 +269,9 @@ export default function WebsiteDirectoryPage() {
   if (!canView) {
     return (
       <Box sx={websiteAssignmentPageWrapper}>
-        <Typography variant="h5">Website directory</Typography>
+        <Typography variant="regularLarge" fontWeight={400} color="white">
+          Website directory
+        </Typography>
         <Typography variant="body2" sx={{ mt: 1, color: theme.app.dashboard.textMuted }}>
           You do not have permission to view this page.
         </Typography>
@@ -281,10 +283,19 @@ export default function WebsiteDirectoryPage() {
     <Box sx={websiteAssignmentPageWrapper}>
       <Box sx={websiteAssignmentPageHeader}>
         <Box>
-          <Typography variant="h4" fontWeight={700}>
+          <Typography variant="regularLarge" fontWeight={400} color="white">
             Website directory
           </Typography>
-          <Typography variant="body2" sx={{ mt: 0.5, color: theme.app.dashboard.textMuted }}>
+          <Typography
+            variant="medium"
+            sx={{
+              color: theme.app.dashboard.textMuted,
+              mt: 0.25,
+              display: "block",
+              maxWidth: 640,
+              lineHeight: "24px",
+            }}
+          >
             Reseller, parent and child company, POC, and who created each website.
           </Typography>
         </Box>

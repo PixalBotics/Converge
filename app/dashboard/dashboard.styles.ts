@@ -38,7 +38,7 @@ export const dashboardMainGlassSx: SxProps<Theme> = (theme) => {
 
 export const pageWrapper: SxProps<Theme> = {
   maxWidth: 1600,
-  mx: "auto",
+  // mx: "auto",
 };
 
 export const overviewHeader: SxProps<Theme> = {

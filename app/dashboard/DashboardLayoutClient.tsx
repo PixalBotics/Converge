@@ -177,8 +177,8 @@ export default function DashboardLayoutClient({
                 ? dashboardChatWorkstationMainSx
                 : {
                     flex: 1,
-                    py: { xs: 1.5, sm: 2, md: 2.5 },
-                    px: { xs: 1.5, sm: 2, md: 3 },
+                    // py: { xs: 1.5, sm: 2, md: 2.5 },
+                    // px: { xs: 1.5, sm: 2, md: 3 },
                     overflow: "auto",
                     boxSizing: "border-box",
                   },
