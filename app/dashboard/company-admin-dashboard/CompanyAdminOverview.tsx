@@ -17,6 +17,7 @@ import {
 import type { AppTheme } from "@/theme/theme";
 import { userIconPath } from "@/assets";
 import { MetricCard } from "@/components/common";
+import { DashboardAttendanceMetrics } from "../components/DashboardAttendanceMetrics";
 import {
   DashboardCard,
   DataTable,
@@ -245,6 +246,8 @@ export default function CompanyAdminOverview() {
           />
         </Box>
       </Box>
+
+      <DashboardAttendanceMetrics />
 
       <Box sx={grid4}>
         <MetricCard

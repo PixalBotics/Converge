@@ -87,7 +87,7 @@ export const grid3: SxProps<Theme> = {
   display: "grid",
   gridTemplateColumns: { xs: "1fr", md: "repeat(3, 1fr)" },
   gap: { xs: 1.5, sm: 2 },
-  mb: 2,
+  mb: 3,
 };
 
 export const grid3Lg: SxProps<Theme> = {

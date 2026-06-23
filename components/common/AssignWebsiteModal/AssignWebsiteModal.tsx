@@ -443,7 +443,7 @@ export function AssignWebsiteModal({ open, onClose, onAssign, preset }: AssignWe
               <TopicAgentRosterPanel
                 websiteId={wid}
                 operatingChannels={operatingChannels}
-                allowedChannels={allowedChannels}
+                allowedAssignmentChannels={allowedChannels}
                 departmentRoster={detail.departmentRoster}
                 topics={schedulingTopics}
                 canEdit={gates.assign}
