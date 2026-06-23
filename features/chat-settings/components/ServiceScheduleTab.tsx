@@ -8,7 +8,6 @@ import Checkbox from "@mui/material/Checkbox";
 import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import { Button, InputField, SelectField, Typography } from "@/components/common";
-import { VisitorTopicsEditor } from "@/features/chat-settings/components/VisitorTopicsEditor";
 import { buildTimezoneSelectOptions } from "@/lib/utils/core/timezone-options";
 import { ServiceWeekdayPicker } from "@/features/website-assignments/components/ServiceWeekdayPicker";
 import {
@@ -19,7 +18,6 @@ import {
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
 import { publishAppToast } from "@/lib/notify";
 import { extractApiErrorMessageForToast } from "@/lib/notify/extract-api-message";
-import type { DepartmentCatalogOption } from "../utils/catalog";
 import {
   CrossMidnightToggle,
   SchedulingSectionCard,
@@ -32,9 +30,7 @@ import {
 } from "@/features/website-assignments/styles/website-assignment-ui.styles";
 import {
   useSaveServiceSchedulingMutation,
-  useSaveVisitorTopicsMutation,
   useServiceSchedulingQuery,
-  useVisitorTopicsQuery,
 } from "../hooks/useServiceScheduling";
 import {
   fromTimeInputValue,
@@ -43,19 +39,15 @@ import {
 } from "@/features/website-assignments/utils/schedule-time.utils";
 import {
   buildScheduleSaveBody,
-  buildVisitorTopicsSaveBody,
   bundleToDraft,
   canShowExternalSlots,
   canShowInternalSlots,
   defaultSchedulingDraft,
   emptyScheduleWindow,
-  emptyTopic,
   isTwentyFourHourWindow,
   singleServiceWindow,
-  topicsBundleToDraft,
   twentyFourHourScheduleWindow,
   validateScheduleDraft,
-  validateVisitorTopicsDraft,
   type ServiceSchedulingDraft,
 } from "./service-scheduling-form.utils";
 import type {
@@ -84,8 +76,6 @@ const CHANNEL_MODE_OPTIONS: { value: OperatingChannels; label: string }[] = [
 
 interface ServiceScheduleTabProps {
   websiteId: string;
-  departments: DepartmentCatalogOption[];
-  departmentsLoading?: boolean;
   canView: boolean;
   canEdit: boolean;
   /** Called after a successful save (e.g. show success panel). */
@@ -281,65 +271,35 @@ function TimezoneSelect({
 
 export function ServiceScheduleTab({
   websiteId,
-  departments,
-  departmentsLoading = false,
   canView,
   canEdit,
   onSaved,
 }: ServiceScheduleTabProps) {
   const theme = useTheme() as AppTheme;
   const schedulingQuery = useServiceSchedulingQuery(websiteId, canView);
-  const visitorTopicsQuery = useVisitorTopicsQuery(websiteId, canView);
   const saveScheduleMutation = useSaveServiceSchedulingMutation(websiteId);
-  const saveTopicsMutation = useSaveVisitorTopicsMutation(websiteId);
 
   const [draft, setDraft] = useState<ServiceSchedulingDraft>(() => defaultSchedulingDraft());
 
   useEffect(() => {
     if (schedulingQuery.data) {
-      setDraft((prev) => ({
-        ...bundleToDraft(schedulingQuery.data),
-        topics: prev.topics,
-      }));
+      setDraft(bundleToDraft(schedulingQuery.data));
     }
   }, [schedulingQuery.data]);
 
-  useEffect(() => {
-    if (visitorTopicsQuery.data) {
-      setDraft((prev) => ({
-        ...prev,
-        topics: topicsBundleToDraft(visitorTopicsQuery.data),
-      }));
-    }
-  }, [visitorTopicsQuery.data]);
-
-  const allowTwentyFourHours = draft.operatingChannels !== "both";
+  const allowExternalTwentyFourHours = draft.operatingChannels !== "both";
 
   useEffect(() => {
-    if (allowTwentyFourHours) return;
+    if (allowExternalTwentyFourHours) return;
     setDraft((p) => {
-      const internalWin = singleServiceWindow(p.internalWindows)[0]!;
       const externalWin = singleServiceWindow(p.externalWindows)[0]!;
-      const internal24 = isTwentyFourHourWindow(internalWin);
-      const external24 = isTwentyFourHourWindow(externalWin);
-      if (!internal24 && !external24) return p;
+      if (!isTwentyFourHourWindow(externalWin)) return p;
       return {
         ...p,
-        ...(internal24 ? { internalWindows: singleServiceWindow([emptyScheduleWindow()]) } : {}),
-        ...(external24 ? { externalWindows: singleServiceWindow([emptyScheduleWindow()]) } : {}),
+        externalWindows: singleServiceWindow([emptyScheduleWindow()]),
       };
     });
-  }, [allowTwentyFourHours]);
-
-  const internalDeptOptions = useMemo(
-    () => departments.filter((d) => d.departmentType === "Internal"),
-    [departments],
-  );
-  const externalDeptOptions = useMemo(
-    () => departments.filter((d) => d.departmentType === "External"),
-    [departments],
-  );
-
+  }, [allowExternalTwentyFourHours]);
 
   const runSaveSchedule = (afterSuccess?: () => void) => {
     const err = validateScheduleDraft(draft);
@@ -360,24 +320,6 @@ export function ServiceScheduleTab({
     });
   };
 
-  const runSaveTopics = () => {
-    const err = validateVisitorTopicsDraft(draft.topics);
-    if (err) {
-      publishAppToast({ message: err, variant: "error" });
-      return;
-    }
-    saveTopicsMutation.mutate(buildVisitorTopicsSaveBody(draft.topics), {
-      onSuccess: () => {
-        publishAppToast({ message: "Inquire topics saved", variant: "success" });
-      },
-      onError: (e) =>
-        publishAppToast({
-          message: extractApiErrorMessageForToast(e, "Could not save inquire topics"),
-          variant: "error",
-        }),
-    });
-  };
-
   const handleSave = () => runSaveSchedule(onSaved);
 
   if (!canView) {
@@ -388,7 +330,7 @@ export function ServiceScheduleTab({
     );
   }
 
-  if (schedulingQuery.isLoading || visitorTopicsQuery.isLoading) {
+  if (schedulingQuery.isLoading) {
     return (
       <Typography sx={{ color: theme.app.dashboard.textMuted, py: 2 }}>
         Loading service scheduling…
@@ -396,7 +338,7 @@ export function ServiceScheduleTab({
     );
   }
 
-  if (schedulingQuery.isError || visitorTopicsQuery.isError) {
+  if (schedulingQuery.isError) {
     return (
       <Typography sx={{ color: theme.palette.error.light }}>
         Could not load service scheduling. Refresh and try again.
@@ -404,17 +346,14 @@ export function ServiceScheduleTab({
     );
   }
 
-  const activeStep: 1 | 2 | 3 =
-    draft.topics.some((t) => t.routingKey.trim() && t.internalDepartmentId.trim())
-      ? 3
-      : canShowInternalSlots(draft.operatingChannels) && draft.internalWindows.length > 0
-        ? 2
-        : 1;
+  const activeStep: 1 | 2 =
+    canShowInternalSlots(draft.operatingChannels) && draft.internalWindows.length > 0 ? 2 : 1;
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 0, maxWidth: 1040 }}>
       <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, lineHeight: 1.55, mb: 2 }}>
-        Set operating mode and service hours, then save schedule. Inquire topics use a separate API — save them in step 3.
+        Set operating mode and service hours, then save schedule. Inquire topics are configured
+        separately under Website → Inquire topics.
       </Typography>
 
       <SchedulingStepBar activeStep={activeStep} />
@@ -432,13 +371,14 @@ export function ServiceScheduleTab({
         disabled={!canEdit}
         menuMaxRows={6}
       />
-      {!allowTwentyFourHours ? (
+      {draft.operatingChannels === "both" ? (
         <Typography
           variant="caption"
           sx={{ display: "block", mt: 1.25, color: theme.app.dashboard.textMuted, lineHeight: 1.5 }}
         >
-          Internal + External mode requires separate internal and external service hours — 24 hours is not
-          available.
+          Internal can run <strong>24/7</strong> while external uses fixed duty hours. During external
+          hours, chats go to external agents first; if they are busy or offline, internal primary agents
+          receive the chat.
         </Typography>
       ) : null}
 
@@ -507,7 +447,7 @@ export function ServiceScheduleTab({
           title=""
           windows={draft.internalWindows}
           canEdit={canEdit}
-          allowTwentyFourHours={allowTwentyFourHours}
+          allowTwentyFourHours
           onChange={(internalWindows) =>
             setDraft((p) => ({ ...p, internalWindows: singleServiceWindow(internalWindows) }))
           }
@@ -538,71 +478,13 @@ export function ServiceScheduleTab({
           title=""
           windows={draft.externalWindows}
           canEdit={canEdit}
-          allowTwentyFourHours={allowTwentyFourHours}
+          allowTwentyFourHours={allowExternalTwentyFourHours}
           onChange={(externalWindows) =>
             setDraft((p) => ({ ...p, externalWindows: singleServiceWindow(externalWindows) }))
           }
         />
         </SchedulingSectionCard>
       ) : null}
-
-      <SchedulingSectionCard
-        step={3}
-        title="Visitor topics"
-        subtitle="Saved per website (same rows as Chat Box Design → Inquiry topics). Each topic needs a department for routing."
-      >
-        <VisitorTopicsEditor
-          topics={draft.topics.map((t) => ({
-            routingKey: t.routingKey,
-            clientLabel: t.clientLabel,
-            internalDepartmentId: t.internalDepartmentId,
-            externalDepartmentId: t.externalDepartmentId,
-            internalPoolId: t.internalPoolId,
-            externalPoolId: t.externalPoolId,
-            isActive: t.isActive,
-          }))}
-          onChange={(rows) =>
-            setDraft((p) => ({
-              ...p,
-              topics: rows.map((row, i) => ({
-                ...emptyTopic(i),
-                ...p.topics[i],
-                routingKey: row.routingKey,
-                clientLabel: row.clientLabel,
-                internalDepartmentId: row.internalDepartmentId,
-                externalDepartmentId: row.externalDepartmentId,
-                internalPoolId: row.internalPoolId ?? null,
-                externalPoolId: row.externalPoolId ?? null,
-                isActive: row.isActive !== false,
-                displayOrder: i,
-              })),
-            }))
-          }
-          canEdit={canEdit}
-          showDepartmentCatalog
-          showActive
-          departments={departments}
-          departmentsLoading={departmentsLoading}
-          internalDeptOptions={[]}
-          externalDeptOptions={externalDeptOptions}
-          externalDeptOnly
-          minRows={1}
-        />
-        {canEdit ? (
-          <Box sx={{ mt: 2, display: "flex", justifyContent: "flex-end" }}>
-            <Button
-              type="button"
-              variant="primary"
-              sx={gradientPrimaryButtonSx}
-              startIcon={<Save sx={{ fontSize: 18 }} />}
-              disabled={saveTopicsMutation.isPending}
-              onClick={runSaveTopics}
-            >
-              {saveTopicsMutation.isPending ? "Saving…" : "Save inquire topics"}
-            </Button>
-          </Box>
-        ) : null}
-      </SchedulingSectionCard>
 
       {canEdit ? (
         <Box sx={scheduleFormActionBarSx}>

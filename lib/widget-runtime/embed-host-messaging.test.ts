@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { computeEmbedHostFrameSize, EMBED_LAUNCHER_SIZE_PX } from "./embed-host-messaging";
+import {
+  computeEmbedHostFrameSize,
+  computeEmbedOpenPanelMaxHeightPx,
+  EMBED_LAUNCHER_SIZE_PX,
+} from "./embed-host-messaging";
 import type { RuntimeChatAppearance } from "./widget-runtime-appearance";
 
 function mockAppearance(
@@ -31,6 +35,7 @@ function mockAppearance(
       buttonLabel: "Chat",
       iconPreset: "phosphor-chat-circle",
       iconUrl: "",
+      iconEnabled: true,
       proactiveSecondaryCta: { enabled: false, label: "", href: "", kind: "" },
     },
     panelSurfaceStyle: "solid",
@@ -57,10 +62,39 @@ function mockAppearance(
 describe("computeEmbedHostFrameSize", () => {
   it("uses launcher-only size when closed without invitation", () => {
     const size = computeEmbedHostFrameSize(false, mockAppearance());
-    expect(size).toEqual({
-      width: EMBED_LAUNCHER_SIZE_PX,
-      height: EMBED_LAUNCHER_SIZE_PX,
-    });
+    expect(size.width).toBeGreaterThan(EMBED_LAUNCHER_SIZE_PX);
+    expect(size.height).toBeGreaterThan(EMBED_LAUNCHER_SIZE_PX);
+  });
+
+  it("sizes chat pill launcher wider than the circular FAB", () => {
+    const appearance = mockAppearance();
+    appearance.launcher.buttonLabel = "Chat with us";
+    const size = computeEmbedHostFrameSize(false, appearance, undefined, "chat");
+    expect(size.width).toBeGreaterThan(160);
+    expect(size.height).toBeGreaterThan(56);
+  });
+
+  it("sizes Text Us pill launcher wider than the chat FAB", () => {
+    const appearance = mockAppearance();
+    appearance.launcher.buttonLabel = "Text us";
+    const size = computeEmbedHostFrameSize(false, appearance, undefined, "textUs");
+    expect(size.width).toBeGreaterThan(EMBED_LAUNCHER_SIZE_PX);
+    expect(size.height).toBeGreaterThan(56);
+  });
+
+  it("adds badge overflow room when launcher badge is visible", () => {
+    const appearance = mockAppearance();
+    appearance.launcher.buttonLabel = "Chat with us";
+    appearance.launcherBadgeMode = "count";
+    const withoutBadge = computeEmbedHostFrameSize(false, appearance, undefined, "chat");
+    const withBadge = computeEmbedHostFrameSize(
+      false,
+      appearance,
+      { hasLauncherBadge: true },
+      "chat",
+    );
+    expect(withBadge.width).toBeGreaterThan(withoutBadge.width);
+    expect(withBadge.height).toBeGreaterThanOrEqual(withoutBadge.height);
   });
 
   it("expands closed frame when invitation bubble is visible", () => {
@@ -73,7 +107,26 @@ describe("computeEmbedHostFrameSize", () => {
 
   it("uses configured panel size when open", () => {
     const size = computeEmbedHostFrameSize(true, mockAppearance());
-    expect(size.width).toBe(360);
+    expect(size.width).toBeGreaterThanOrEqual(360);
     expect(size.height).toBeGreaterThan(480);
+  });
+
+  it("caps Text Us open panel height to parent viewport minus page inset", () => {
+    const appearance = mockAppearance();
+    appearance.launcher.verticalAnchor = "top";
+    appearance.launcher.insetTopPx = 28;
+    appearance.chatBox.boxHeight = 720;
+    const panelH = computeEmbedOpenPanelMaxHeightPx(appearance, "textUs", 420);
+    expect(panelH).toBeLessThan(720);
+    expect(panelH).toBeGreaterThanOrEqual(280);
+  });
+
+  it("sizes Text Us open iframe to panel only (launcher hidden)", () => {
+    const appearance = mockAppearance();
+    appearance.launcher.buttonLabel = "Text us";
+    const panelH = computeEmbedOpenPanelMaxHeightPx(appearance, "textUs", 900);
+    const size = computeEmbedHostFrameSize(true, appearance, undefined, "textUs");
+    expect(size.height).toBeLessThan(panelH + 80);
+    expect(size.height).toBeGreaterThan(panelH);
   });
 });

@@ -40,7 +40,7 @@ export function SchedulingSaveSuccessPanel({
         <strong style={{ color: theme.app.text.primary }}>{websiteName}</strong>
         {websiteUrl ? ` · ${websiteUrl}` : ""}
         <br />
-        Service hours and visitor topics are saved for this website.
+        Service hours are saved for this website. You can assign agents without inquire topics.
       </Typography>
       <Box
         sx={{

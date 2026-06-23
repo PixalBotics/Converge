@@ -227,10 +227,10 @@ export function AssignWebsiteWorkspace({ preset }: { preset?: AssignWebsitePrese
   const visitorTopicsQuery = useVisitorTopicsQuery(wid, wid.length > 0);
   const schedulingReady =
     detail?.serviceSchedulingConfigured === true ||
-    isServiceSchedulingReady(schedulingQuery.data, visitorTopicsQuery.data);
+    detail?.serviceHoursConfigured === true ||
+    isServiceSchedulingReady(schedulingQuery.data);
   const schedulingLoading =
-    Boolean(wid) &&
-    (schedulingQuery.isLoading || visitorTopicsQuery.isLoading || detailQuery.isLoading);
+    Boolean(wid) && (schedulingQuery.isLoading || detailQuery.isLoading);
 
   const operatingChannels = detail?.operatingChannels ?? "internal_only";
   const allowedChannels = detail?.allowedAssignmentChannels ?? [];
@@ -440,7 +440,7 @@ export function AssignWebsiteWorkspace({ preset }: { preset?: AssignWebsitePrese
                     Complete service scheduling first
                   </Typography>
                   <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, mb: 1.5 }}>
-                    Set operating mode, service hours, and visitor topics. Assignment unlocks after you save
+                    Set operating mode and service hours. Assignment unlocks after you save
                     scheduling for this site.
                   </Typography>
                   {schedulingHref ? (

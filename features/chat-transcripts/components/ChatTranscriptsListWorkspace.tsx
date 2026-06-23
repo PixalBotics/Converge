@@ -351,7 +351,8 @@ export function ChatTranscriptsListWorkspace() {
         label: "Agent",
         render: (_, row) => {
           const r = row as unknown as TranscriptListItem;
-          return r.agent ? agentDisplayName(r.agent) : "—";
+          if (r.agent) return agentDisplayName(r.agent);
+          return r.resolvedAgentLabel ?? "—";
         },
       },
       {

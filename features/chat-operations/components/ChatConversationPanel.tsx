@@ -19,7 +19,7 @@ import { parseVisitorInfo } from "../utils/visitor-info";
 import type { ChatWhisperSocketPayload } from "@/services/chat/supervisor.types";
 import { ChatContextRail } from "./ChatContextRail";
 import { GuestLinkHeaderAction } from "./GuestLinkHeaderAction";
-import { TransferToHeadHeaderAction } from "./TransferToHeadHeaderAction";
+import { TransferChatHeaderAction } from "./TransferChatHeaderAction";
 import { inboxTranscriptDisplayForClosed } from "../utils/inbox-transcript-messages";
 import { ChatWhisperComposerStrip } from "./ChatWhisperComposerStrip";
 import { ChatComposer } from "./ChatComposer";
@@ -343,7 +343,7 @@ export function ChatConversationPanel({
             >
               {!readOnly ? (
                 <>
-                  <TransferToHeadHeaderAction conversationId={conversationId} />
+                  <TransferChatHeaderAction conversationId={conversationId} />
                   <GuestLinkHeaderAction
                     conversationId={conversationId}
                     hasOperational={hasOperational}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { MouseEvent } from "react";
+import type { ChangeEvent, MouseEvent } from "react";
 import Box from "@mui/material/Box";
 import TextField from "@mui/material/TextField";
 import IconButton from "@mui/material/IconButton";
@@ -90,14 +90,12 @@ export function InputField({
         onChange={(event) => {
           if (isPhoneField && onChange) {
             const formatted = formatPhoneInputValue(event.target.value);
-            onChange({
-              ...event,
-              target: { ...event.target, value: formatted },
-              currentTarget: { ...event.currentTarget, value: formatted },
-            });
+            event.target.value = formatted;
+            event.currentTarget.value = formatted;
+            onChange(event as ChangeEvent<HTMLInputElement>);
             return;
           }
-          onChange?.(event);
+          onChange?.(event as ChangeEvent<HTMLInputElement>);
         }}
         FormHelperTextProps={{
           sx: (t) => ({

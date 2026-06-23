@@ -156,6 +156,11 @@ export function ChatTranscriptDetailWorkspace({
     { label: "Website", value: readTenantName(conv, "website", transcripts.selectedRow) },
   ].filter((item) => item.value);
 
+  const resolvedAgentLabel =
+    typeof conv?.resolvedAgentLabel === "string" && conv.resolvedAgentLabel.trim()
+      ? conv.resolvedAgentLabel.trim()
+      : transcripts.selectedRow?.resolvedAgentLabel?.trim() || null;
+
   if (!permissionsSyncing && !hasPageAccess) {
     return (
       <PermissionDeniedPanel
@@ -211,6 +216,12 @@ export function ChatTranscriptDetailWorkspace({
               <Chip
                 size="small"
                 label={`Agent: ${agentDisplayName(monitorRow.agent)}`}
+                sx={{ fontWeight: 600 }}
+              />
+            ) : resolvedAgentLabel ? (
+              <Chip
+                size="small"
+                label={`Agent: ${resolvedAgentLabel}`}
                 sx={{ fontWeight: 600 }}
               />
             ) : null}

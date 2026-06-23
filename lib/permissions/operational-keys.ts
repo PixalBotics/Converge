@@ -72,6 +72,12 @@ export const OP = {  accountSetup: {
     update: "distribution-setup:update",
     view: "distribution-setup:view",
   },
+  phoneNumberSetup: {
+    create: "phone-number-setup:create",
+    delete: "phone-number-setup:delete",
+    update: "phone-number-setup:update",
+    view: "phone-number-setup:view",
+  },
   hrms: {
     attendance: {
       checkIn: "hrms:attendance:checkin",

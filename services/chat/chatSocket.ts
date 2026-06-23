@@ -384,6 +384,13 @@ export class ChatSocketClient {
     return this.connection.emitWithAck("transfer_to_pool_head", payload, timeoutMs);
   }
 
+  transferConversationWithAck(
+    payload: { conversationId: string; toUserId: string },
+    timeoutMs?: number,
+  ): Promise<unknown> {
+    return this.connection.emitWithAck("transfer_conversation", payload, timeoutMs);
+  }
+
   sendSupervisorWhisperWithAck(
     payload: { conversationId: string; message: string },
     timeoutMs?: number,

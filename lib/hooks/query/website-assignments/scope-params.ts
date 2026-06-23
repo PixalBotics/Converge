@@ -14,6 +14,8 @@ export function buildWebsitesInScopeParams(input: {
   childCompanyId?: string;
   userId?: string;
   serviceSchedulingConfigured?: boolean;
+  serviceHoursConfigured?: boolean;
+  visitorTopicsConfigured?: boolean;
   fullyAssigned?: boolean;
 }): WebsiteAssignmentsWebsitesParams {
   const params: WebsiteAssignmentsWebsitesParams = {};
@@ -37,6 +39,12 @@ export function buildWebsitesInScopeParams(input: {
   if (uid) params.userId = uid;
   if (input.serviceSchedulingConfigured !== undefined) {
     params.serviceSchedulingConfigured = input.serviceSchedulingConfigured;
+  }
+  if (input.serviceHoursConfigured !== undefined) {
+    params.serviceHoursConfigured = input.serviceHoursConfigured;
+  }
+  if (input.visitorTopicsConfigured !== undefined) {
+    params.visitorTopicsConfigured = input.visitorTopicsConfigured;
   }
   if (input.fullyAssigned !== undefined) {
     params.fullyAssigned = input.fullyAssigned;

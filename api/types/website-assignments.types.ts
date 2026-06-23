@@ -21,6 +21,12 @@ export interface WebsiteAssignmentScopeItem {
   uniqueMemberCount?: number;
   expectedRosterSlots?: number;
   serviceSchedulingConfigured?: boolean;
+  /** Operating mode + service windows saved (no inquire topics). */
+  serviceHoursConfigured?: boolean;
+  /** At least one active inquire topic with external department. */
+  visitorTopicsConfigured?: boolean;
+  activeTopicCount?: number;
+  topicLabels?: string[];
   isFullyAssigned: boolean;
   assignments: unknown[];
 }
@@ -44,9 +50,9 @@ export interface WebsiteAssignmentSlotUser {
 }
 
 export interface WebsiteAssignmentChannelRoster {
-  primary: WebsiteAssignmentSlotUser | null;
-  secondary: WebsiteAssignmentSlotUser | null;
-  backup: WebsiteAssignmentSlotUser | null;
+  primary: WebsiteAssignmentSlotUser[];
+  secondary: WebsiteAssignmentSlotUser[];
+  backup: WebsiteAssignmentSlotUser[];
 }
 
 export interface WebsiteDepartmentRosterRow {
@@ -66,6 +72,8 @@ export interface WebsiteAssignmentDetail {
   operatingChannels: OperatingChannels;
   allowedAssignmentChannels: ServiceChannel[];
   serviceSchedulingConfigured?: boolean;
+  serviceHoursConfigured?: boolean;
+  visitorTopicsConfigured?: boolean;
   isFullyAssigned?: boolean;
   expectedRosterSlots?: number;
   filledSlots?: number;
@@ -96,11 +104,11 @@ export interface AssignWebsiteTierResponse {
   [key: string]: unknown;
 }
 
-/** PUT …/departments/:departmentId/roster — null tier value clears slot. */
+/** PUT …/departments/:departmentId/roster — empty array clears tier agents. */
 export interface ChannelRosterSlotsBody {
-  Primary?: string | null;
-  Secondary?: string | null;
-  Backup?: string | null;
+  Primary?: string[] | null;
+  Secondary?: string[] | null;
+  Backup?: string[] | null;
 }
 
 export interface PutDepartmentRosterBody {

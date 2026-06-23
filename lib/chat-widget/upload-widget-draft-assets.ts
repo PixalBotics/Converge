@@ -173,6 +173,23 @@ export async function uploadDraftWidgetAssets(params: {
     }
   }
 
+  const textUsLogoUrl = draft.textUsHeaderLogoDataUrl?.trim();
+  if (textUsLogoUrl?.startsWith("data:") && textUsLogoUrl.length < MAX_INLINE_BYTES) {
+    const file = await dataUrlToFile(textUsLogoUrl, "text-us-header-logo", ".png");
+    if (file) {
+      const publicUrl = await uploadAssetFile({
+        websiteId,
+        assetType: "header_logo",
+        file,
+        label: "Text Us header logo",
+        errors,
+      });
+      if (publicUrl) urls.textUsHeaderLogoPublicUrl = publicUrl;
+    } else {
+      errors.push("Text Us header logo: could not read uploaded file.");
+    }
+  }
+
   const agentAvatarUrl = draft.agentAvatarDataUrl?.trim();
   if (agentAvatarUrl?.startsWith("data:") && agentAvatarUrl.length < MAX_INLINE_BYTES) {
     const file = await dataUrlToFile(agentAvatarUrl, "widget-agent-avatar", ".png");

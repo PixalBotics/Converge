@@ -4,6 +4,7 @@ import { useLayoutEffect } from "react";
 import {
   postEmbedHostResize,
   type EmbedClosedChrome,
+  type EmbedHostSurface,
 } from "./embed-host-messaging";
 import type { RuntimeChatAppearance } from "./widget-runtime-appearance";
 
@@ -12,13 +13,22 @@ export function useEmbedHostResize(
   open: boolean,
   appearance: RuntimeChatAppearance,
   closedChrome?: EmbedClosedChrome,
+  disabled = false,
+  surface?: EmbedHostSurface,
 ): void {
   useLayoutEffect(() => {
-    postEmbedHostResize(open, appearance, closedChrome);
-    const id = window.setTimeout(
-      () => postEmbedHostResize(open, appearance, closedChrome),
-      0,
-    );
+    if (disabled) return;
+    const post = () =>
+      postEmbedHostResize(open, appearance, closedChrome, surface);
+    post();
+    const id = window.setTimeout(post, 0);
+    if (open) {
+      window.addEventListener("resize", post);
+      return () => {
+        window.clearTimeout(id);
+        window.removeEventListener("resize", post);
+      };
+    }
     return () => window.clearTimeout(id);
-  }, [open, appearance, closedChrome]);
+  }, [open, appearance, closedChrome, disabled, surface]);
 }

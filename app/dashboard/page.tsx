@@ -1,6 +1,7 @@
 "use client";
 
 import Box from "@mui/material/Box";
+import type { SxProps, Theme } from "@mui/material/styles";
 import { useAuth } from "@/lib/auth/AuthContext";
 import SupervisorDashboardOverview from "./supervisor-dashboard/SupervisorDashboardOverview";
 import AgentDashboardOverview from "./agent-dashboard/AgentDashboardOverview";
@@ -8,6 +9,7 @@ import QaDashboardOverview from "./qa-dashboard/QaDashboardOverview";
 import CompanyAdminOverview from "./company-admin-dashboard/CompanyAdminOverview";
 import SupperDashboardOverview from "./supper-dashboard/SupperDashboardOverview";
 import { DashboardAttendanceMetrics } from "./components/DashboardAttendanceMetrics";
+import { pageWrapper } from "./dashboard.styles";
 
 export default function DashboardPage() {
   const { user } = useAuth();
@@ -30,7 +32,19 @@ export default function DashboardPage() {
   );
 
   return (
-    <Box sx={{ display: "flex", flexDirection: "column", gap: { xs: 1.5, sm: 2, md: 2.2 } }}>
+    <Box
+      sx={
+        [
+          pageWrapper,
+          {
+            display: "flex",
+            flexDirection: "column",
+            gap: { xs: 1.5, sm: 2, md: 2.2 },
+            width: "100%",
+          },
+        ] as SxProps<Theme>
+      }
+    >
       <DashboardAttendanceMetrics />
       {overview}
     </Box>

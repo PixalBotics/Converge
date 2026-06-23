@@ -312,6 +312,14 @@ export function buildInboxPatchFromSocket(
     };
   }
 
+  if (ev === "chat_offline") {
+    if (!summary) return null;
+    return {
+      kind: "queue_add",
+      summary: { ...summary, status: "offline", queuedForAgent: false },
+    };
+  }
+
   if (
     ev === "chat_closed" ||
     ev === "chat_completed" ||

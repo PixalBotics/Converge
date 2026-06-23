@@ -22,6 +22,11 @@ export const CHAT_WIDGET_EDIT_QUERY_PARAM = "edit";
 /** Avoid re-fetching GET snapshot on every wizard step mount — keeps in-memory draft authoritative. */
 const hydratedEditWidgetKeys = new Set<string>();
 
+export function markEditWizardHydrated(widgetKey: string): void {
+  const k = widgetKey.trim();
+  if (k) hydratedEditWidgetKeys.add(k);
+}
+
 export function clearWizardEditHydration(widgetKey?: string): void {
   const k = widgetKey?.trim() ?? "";
   if (k) hydratedEditWidgetKeys.delete(k);
@@ -42,7 +47,7 @@ export function saveChatWizardDraft(
   else patchCreateWizardDraft(patch);
 }
 
-export { resetCreateWizardDraft };
+export { resetCreateWizardDraft, replaceEditWizardDraftFromApi };
 
 export function resolveRemoteWidgetKeyForChatWizard(
   editWidgetKey: string | undefined | null,

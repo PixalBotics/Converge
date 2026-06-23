@@ -68,7 +68,8 @@ export default function WebsiteAssignmentDetailPage() {
   const title = detail?.name || "Website";
   const url = detail?.url ?? "";
   const modeLabel = detail ? MODE_LABELS[detail.operatingChannels] ?? detail.operatingChannels : "—";
-  const schedulingConfigured = detail?.serviceSchedulingConfigured === true;
+  const schedulingConfigured =
+    detail?.serviceSchedulingConfigured === true || detail?.serviceHoursConfigured === true;
   const schedulingHref = detail?.websiteId
     ? `/dashboard/website-assigning/website/${encodeURIComponent(detail.websiteId)}/service-scheduling`
     : "";
@@ -181,7 +182,7 @@ export default function WebsiteAssignmentDetailPage() {
               Service scheduling required
             </Typography>
             <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, mb: 1.5, lineHeight: 1.55 }}>
-              Set service hours and visitor topics before assigning agents to this website.
+              Set operating mode and service hours before assigning agents to this website.
             </Typography>
             <Button
               type="button"
@@ -211,7 +212,7 @@ export default function WebsiteAssignmentDetailPage() {
           Team assignments
         </Typography>
         <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, mb: 2.5, lineHeight: 1.55 }}>
-          Pick a channel and visitor topic, then assign Primary, Secondary, and Backup users.
+          Choose channel and assign agents. Department and inquire topics are optional.
         </Typography>
         {detailQuery.isLoading ? (
           <Typography sx={{ color: theme.app.dashboard.textMuted }}>Loading roster…</Typography>

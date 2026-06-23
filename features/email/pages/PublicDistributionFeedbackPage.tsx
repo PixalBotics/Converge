@@ -135,8 +135,26 @@ export function PublicDistributionFeedbackPage() {
     );
   }
 
-  if (ratingParam === "good") {
-    return null;
+  if (ratingParam === "good" && !done) {
+    if (error) {
+      return (
+        <Box sx={{ minHeight: "100vh", display: "grid", placeItems: "center", bgcolor: "#f1f5f9", p: 3 }}>
+          <Box sx={{ maxWidth: 420, bgcolor: "#fff", borderRadius: 2, p: 3, boxShadow: 2 }}>
+            <Typography variant="medium" fontWeight={700} sx={{ mb: 1 }}>
+              Feedback unavailable
+            </Typography>
+            <Typography variant="small" sx={{ color: "text.secondary" }}>
+              {error}
+            </Typography>
+          </Box>
+        </Box>
+      );
+    }
+    return (
+      <Box sx={{ minHeight: "100vh", display: "grid", placeItems: "center", bgcolor: "#f1f5f9" }}>
+        <CircularProgress />
+      </Box>
+    );
   }
 
   const title = ctx?.settings?.poorFormTitle ?? "Feedback";

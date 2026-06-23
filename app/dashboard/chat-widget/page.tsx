@@ -52,14 +52,17 @@ import {
 } from "@/api/widgets/widgets.api";
 import { DeleteWidgetConfirmModal } from "@/features/chat-widget/components/DeleteWidgetConfirmModal";
 import { WidgetSandboxActionButton } from "@/features/chat-widget/components/WidgetSandboxActionButton";
+import { TextUsLauncherChip } from "@/components/embed/TextUsLauncherChip";
 import { LauncherPresetIcon } from "@/lib/chat-widget/launcherIcons";
 import {
   mapAdminWidgetToTableRow,
   parseWidgetListData,
 } from "@/lib/chat-widget/admin-widget-list-mapper";
+import { resolveTextUsFormFields } from "@/lib/chat-widget/text-us-form-defaults";
 import { extractApiErrorMessageForToast } from "@/lib/notify/extract-api-message";
 import { publishAppToast } from "@/lib/notify";
 import { readWidgetDraft, type WidgetDraft } from "@/lib/chat-widget/widgetDraft";
+import { launcherFabPositionSx, type RuntimeLauncherAppearance } from "@/lib/widget-runtime/widget-runtime-appearance";
 
 function formatEntries(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(0)}M`;
@@ -72,7 +75,14 @@ const WIDGET_LIST_PAGE_LIMIT = 20;
 const WIDGET_LAUNCHER_SIZE_PX = 58;
 const WIDGET_PANEL_ABOVE_LAUNCHER_PX = 70;
 const WIDGET_WELCOME_ABOVE_LAUNCHER_PX = 76;
+const TEXT_US_STACK_ABOVE_CHAT_PX = WIDGET_LAUNCHER_SIZE_PX + 8;
 const TEXT_WIDGET_ENABLED_KEY = "text_widget_enabled_v1";
+
+function normalizeTextUsPreviewPosition(raw?: string): "left" | "center" | "right" {
+  const p = (raw ?? "right").toLowerCase();
+  if (p === "left" || p === "center") return p;
+  return "right";
+}
 
 export default function ChatWidgetPage() {
   const router = useRouter();
@@ -320,6 +330,58 @@ export default function ChatWidgetPage() {
     widgetDraft?.launcherInsetSidePx,
     widgetDraft?.buttonPosition,
   ]);
+
+  const textUsLauncherLayout = useMemo(() => {
+    if (!widgetDraft?.completed) return null;
+
+    const position = normalizeTextUsPreviewPosition(widgetDraft.textUsPosition);
+    const verticalAnchor = widgetDraft.textUsVerticalAnchor === "top" ? "top" : "bottom";
+    const insetBottomPx = widgetDraft.textUsInsetBottomPx ?? 28;
+    const insetTopPx = widgetDraft.textUsInsetTopPx ?? 28;
+    const insetSidePx = widgetDraft.textUsInsetSidePx ?? 28;
+
+    let stackedBottomInsetPx = insetBottomPx;
+    if (
+      launcherLayout &&
+      verticalAnchor === "bottom" &&
+      normalizeTextUsPreviewPosition(widgetDraft.buttonPosition) === position
+    ) {
+      stackedBottomInsetPx += TEXT_US_STACK_ABOVE_CHAT_PX;
+    }
+
+    const horizontalFab = launcherFabPositionSx({
+      position,
+      verticalAnchor,
+      insetBottomPx: stackedBottomInsetPx,
+      insetTopPx,
+      insetSidePx,
+    } as RuntimeLauncherAppearance);
+
+    const panelAlign =
+      position === "left" ? "flex-start" : position === "center" ? "center" : "flex-end";
+
+    return {
+      horizontalFab,
+      panelAlign,
+      stackDirection: verticalAnchor === "bottom" ? ("column-reverse" as const) : ("column" as const),
+      pos: position,
+      side: insetSidePx,
+      boxWidth: Math.max(280, Math.min(520, widgetDraft.textUsBoxWidth ?? 360)),
+      boxHeight: Math.max(320, Math.min(640, widgetDraft.textUsBoxHeight ?? 480)),
+      buttonColor: widgetDraft.textUsButtonColor ?? "#1E63D5",
+      buttonHoverColor: widgetDraft.textUsButtonHoverColor ?? "#164EB0",
+      iconColor: widgetDraft.textUsIconColor ?? "#FFFFFF",
+      buttonLabel: widgetDraft.textUsButtonLabel ?? "Text us",
+      headerTitle: widgetDraft.textUsHeaderTitle ?? "Text us",
+      welcomeMessage: widgetDraft.textUsWelcomeMessage?.trim() ?? "",
+      headerLogoDataUrl: widgetDraft.textUsHeaderLogoDataUrl?.trim() ?? "",
+      panelBackground: widgetDraft.textUsPanelBackground ?? "#f8fafc",
+      launcherIconPreset: widgetDraft.textUsLauncherIconPreset ?? "phosphor-chat-circle",
+      launcherIconEnabled: widgetDraft.textUsLauncherIconEnabled !== false,
+      launcherStyle: widgetDraft.textUsLauncherStyle ?? "solid",
+      formFields: resolveTextUsFormFields(widgetDraft.textUsFormFields),
+    };
+  }, [widgetDraft, launcherLayout]);
 
   const rowsForTable = tableRows;
 
@@ -828,35 +890,70 @@ export default function ChatWidgetPage() {
           </Box>
           ) : null}
 
-          {textWidgetEnabled ? (
-            <>
+          {textWidgetEnabled && textUsLauncherLayout && !previewOpen ? (
+            <Box
+              sx={{
+                position: "fixed",
+                ...textUsLauncherLayout.horizontalFab,
+                zIndex: 1201,
+                display: "flex",
+                flexDirection: textUsLauncherLayout.stackDirection,
+                alignItems: textUsLauncherLayout.panelAlign,
+                gap: 1.25,
+                width: "max-content",
+                maxWidth: `calc(100vw - ${textUsLauncherLayout.side * 2}px)`,
+                pointerEvents: "none",
+              }}
+            >
               {textPreviewOpen ? (
                 <Box
                   ref={textPreviewPanelRef}
                   sx={{
-                    position: "fixed",
-                    right: 12,
-                    bottom: 112,
-                    width: "320px",
-                    height: "360px",
-                    zIndex: 1200,
+                    pointerEvents: "auto",
+                    width: textUsLauncherLayout.boxWidth,
+                    height: textUsLauncherLayout.boxHeight,
+                    maxWidth: `calc(100vw - ${textUsLauncherLayout.side * 2}px)`,
+                    maxHeight: "min(85vh, calc(100vh - 96px))",
                     borderRadius: 2.5,
                     overflow: "hidden",
                     border: `1px solid ${theme.app.dashboard.cardBorder}`,
-                    bgcolor: "#EEF1F7",
+                    bgcolor: textUsLauncherLayout.panelBackground,
                     boxShadow: "0 16px 38px rgba(3, 12, 37, 0.45)",
                     display: "flex",
                     flexDirection: "column",
                   }}
                 >
-                  <Box sx={{ px: 2, py: 1.5, bgcolor: "#da9b2f", color: "#FFFFFF", display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 1 }}>
-                    <Box sx={{ minWidth: 0 }}>
-                      <Typography variant="mediumLarge" sx={{ color: "inherit" }}>
-                        Special Offer
-                      </Typography>
-                      <Typography variant="body2" sx={{ color: "inherit", opacity: 0.92 }}>
-                        Get 20% off all premium plans today.
-                      </Typography>
+                  <Box
+                    sx={{
+                      px: 2,
+                      py: 1.5,
+                      bgcolor: textUsLauncherLayout.buttonColor,
+                      color: textUsLauncherLayout.iconColor,
+                      display: "flex",
+                      alignItems: "flex-start",
+                      justifyContent: "space-between",
+                      gap: 1,
+                    }}
+                  >
+                    <Box sx={{ minWidth: 0, display: "flex", alignItems: "center", gap: 1 }}>
+                      {textUsLauncherLayout.headerLogoDataUrl ? (
+                        <Box
+                          component="img"
+                          src={textUsLauncherLayout.headerLogoDataUrl}
+                          alt=""
+                          sx={{ height: 24, width: "auto", maxWidth: 80, objectFit: "contain", flexShrink: 0 }}
+                        />
+                      ) : null}
+                      <Box sx={{ minWidth: 0 }}>
+                        <Typography variant="mediumLarge" sx={{ color: "inherit" }}>
+                          {textUsLauncherLayout.headerTitle}
+                        </Typography>
+                        {textUsLauncherLayout.welcomeMessage ? (
+                          <Typography variant="body2" sx={{ color: "inherit", opacity: 0.92 }}>
+                            {textUsLauncherLayout.welcomeMessage}
+                          </Typography>
+                        ) : null}
+                      </Box>
                     </Box>
                     <IconButton
                       type="button"
@@ -868,31 +965,54 @@ export default function ChatWidgetPage() {
                         mt: -0.4,
                         mr: -0.6,
                         opacity: 0.92,
-                        "&:hover": { opacity: 1, bgcolor: "rgba(0,0,0,0.12)" },
+                        "&:hover": { opacity: 1, bgcolor: alpha("#000", 0.12) },
                       }}
                     >
                       <CloseRounded sx={{ fontSize: 22 }} />
                     </IconButton>
                   </Box>
-                  <Box sx={{ p: 1.5, display: "flex", flexDirection: "column", gap: 1, flex: 1, minHeight: 0, overflow: "hidden" }}>
-                    <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1 }}>
-                      <Box sx={{ bgcolor: "#FFFFFF", border: "1px solid #CCD6E6", borderRadius: 1.25, px: 1.2, py: 0.9 }}>
-                        <Typography variant="body2" sx={{ color: "#5B6B82" }}>Name</Typography>
+                  <Box
+                    sx={{
+                      p: 1.5,
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 1,
+                      flex: 1,
+                      minHeight: 0,
+                      overflow: "auto",
+                      bgcolor: textUsLauncherLayout.panelBackground,
+                    }}
+                  >
+                    {textUsLauncherLayout.formFields.slice(0, 4).map((field) => (
+                      <Box
+                        key={field.key}
+                        sx={{
+                          bgcolor: "#FFFFFF",
+                          border: "1px solid #CCD6E6",
+                          borderRadius: 1.25,
+                          px: 1.2,
+                          py: 0.9,
+                        }}
+                      >
+                        <Typography variant="body2" sx={{ color: "#5B6B82" }}>
+                          {field.label || field.key}
+                        </Typography>
                       </Box>
-                      <Box sx={{ bgcolor: "#FFFFFF", border: "1px solid #CCD6E6", borderRadius: 1.25, px: 1.2, py: 0.9 }}>
-                        <Typography variant="body2" sx={{ color: "#5B6B82" }}>Email</Typography>
-                      </Box>
-                    </Box>
-                    <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1 }}>
-                      <Box sx={{ bgcolor: "#FFFFFF", border: "1px solid #CCD6E6", borderRadius: 1.25, px: 1.2, py: 0.9 }}>
-                        <Typography variant="body2" sx={{ color: "#5B6B82" }}>Message</Typography>
-                      </Box>
-                      <Box sx={{ bgcolor: "#FFFFFF", border: "1px solid #CCD6E6", borderRadius: 1.25, px: 1.2, py: 0.9 }}>
-                        <Typography variant="body2" sx={{ color: "#5B6B82" }}>Phone Number</Typography>
-                      </Box>
-                    </Box>
-                    <Box sx={{ mt: "auto", display: "flex", alignItems: "center", gap: 1, bgcolor: "#FFFFFF", border: "1px solid #CCD6E6", borderRadius: "22px", px: 1.2, py: 0.75 }}>
-                      <TextsmsRounded sx={{ color: "#da9b2f", fontSize: 20 }} />
+                    ))}
+                    <Box
+                      sx={{
+                        mt: "auto",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 1,
+                        bgcolor: "#FFFFFF",
+                        border: "1px solid #CCD6E6",
+                        borderRadius: "22px",
+                        px: 1.2,
+                        py: 0.75,
+                      }}
+                    >
+                      <TextsmsRounded sx={{ color: textUsLauncherLayout.buttonColor, fontSize: 20 }} />
                       <Typography variant="body2" sx={{ color: "#5B6B82", flex: 1 }}>
                         Enter message...
                       </Typography>
@@ -903,12 +1023,15 @@ export default function ChatWidgetPage() {
                         tabIndex={-1}
                         disableRipple
                         sx={{
-                          bgcolor: "#da9b2f",
-                          color: "#FFFFFF",
+                          bgcolor: textUsLauncherLayout.buttonColor,
+                          color: textUsLauncherLayout.iconColor,
                           width: 42,
                           height: 42,
                           flexShrink: 0,
-                          "&:hover": { bgcolor: "#da9b2f", filter: "brightness(1.06)" },
+                          "&:hover": {
+                            bgcolor: textUsLauncherLayout.buttonHoverColor,
+                            filter: "brightness(1.06)",
+                          },
                         }}
                       >
                         <SendRounded sx={{ fontSize: 22 }} />
@@ -918,41 +1041,22 @@ export default function ChatWidgetPage() {
                 </Box>
               ) : null}
 
-              <Box
-                ref={textPreviewToggleRef}
-                role="button"
-                aria-label={textPreviewOpen ? "Close text widget preview" : "Open text widget preview"}
-                onClick={() => setTextPreviewOpen((prev) => !prev)}
-                sx={{
-                  position: "fixed",
-                  right: 0,
-                  top: "50%",
-                  transform: "translateY(-50%)",
-                  zIndex: 1201,
-                  minWidth: 88,
-                  height: 46,
-                  px: 1.6,
-                  borderRadius: "10px 0 0 10px",
-                  bgcolor: "#da9b2f",
-                  color: "#FFFFFF",
-                  display: textPreviewOpen || previewOpen ? "none" : "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  cursor: "pointer",
-                  boxShadow: "0 10px 28px rgba(2, 12, 43, 0.45)",
-                  transition: "transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease",
-                  "&:hover": {
-                    transform: "translate(-2px, -50%)",
-                    boxShadow: "0 20px 42px rgba(2, 12, 43, 0.62), 0 0 0 4px rgba(255, 255, 255, 0.14)",
-                    filter: "brightness(1.05)",
-                  },
-                }}
-              >
-                <Typography variant="medium" sx={{ color: "inherit", fontWeight: 700, letterSpacing: 0.2 }}>
-                  Text Us
-                </Typography>
+              <Box ref={textPreviewToggleRef} sx={{ pointerEvents: "auto" }}>
+                <TextUsLauncherChip
+                  size="embed"
+                  open={textPreviewOpen}
+                  buttonColor={textUsLauncherLayout.buttonColor}
+                  buttonHoverColor={textUsLauncherLayout.buttonHoverColor}
+                  iconColor={textUsLauncherLayout.iconColor}
+                  iconPreset={textUsLauncherLayout.launcherIconPreset}
+                  iconEnabled={textUsLauncherLayout.launcherIconEnabled}
+                  launcherStyle={textUsLauncherLayout.launcherStyle}
+                  buttonLabel={textUsLauncherLayout.buttonLabel}
+                  ariaLabelPrefix={textPreviewOpen ? "Close" : "Open"}
+                  onClick={() => setTextPreviewOpen((prev) => !prev)}
+                />
               </Box>
-            </>
+            </Box>
           ) : null}
         </>
       ) : null}

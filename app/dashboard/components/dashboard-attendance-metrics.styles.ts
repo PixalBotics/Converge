@@ -8,4 +8,6 @@ export const attendanceMetricsGrid: SxProps<Theme> = {
     lg: "repeat(2, minmax(0, 1fr))",
   },
   gap: { xs: 1.5, sm: 2 },
+  width: "100%",
+  minWidth: 0,
 };
