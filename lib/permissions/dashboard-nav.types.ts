@@ -82,6 +82,7 @@ export type PagePermission =
   | "page:departments"
   | "page:designations"
   | "page:distribution-setup"
+  | "page:phone-number-setup"
   | "page:hrms"
   | "page:ip-blocklist"
   | "page:licenses"

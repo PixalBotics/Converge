@@ -45,8 +45,12 @@ export function WidgetLauncherIconPicker({
 
   return (
     <Box>
+      <Typography variant="medium" sx={{ color: theme.app.text.primary, fontWeight: 600, mb: 0.5 }}>
+        Launcher icon
+      </Typography>
       <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, display: "block", mb: 1 }}>
-        {LAUNCHER_ICON_PRESETS.length} SVG icons — Phosphor duotone. Tap to select, or upload your own below.
+        Pick a built-in icon (chat, phone, message…). These are vector icons — not your header logo.
+        Upload a custom launcher image on the chat button step if you use Chat + Text Us.
       </Typography>
       <Box
         sx={{

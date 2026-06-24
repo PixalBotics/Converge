@@ -14,6 +14,7 @@ import {
 } from "@/components/common";
 import type { DataTableColumn } from "@/components/common";
 import { MetricCard } from "@/components/common";
+import { DashboardAttendanceMetrics } from "../components/DashboardAttendanceMetrics";
 import {
   Person as PersonIcon,
   AttachMoney as AttachMoneyIcon,
@@ -193,6 +194,8 @@ export default function SupervisorDashboardOverview() {
           />
         </Box>
       </Box>
+
+      <DashboardAttendanceMetrics />
 
       <WebsiteTrafficSummarySection dateRangeLabel={dateRangeValue} />
 

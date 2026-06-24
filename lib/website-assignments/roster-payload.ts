@@ -22,12 +22,22 @@ function readSlotUser(raw: unknown): WebsiteAssignmentSlotUser | null {
   return { userId, name, email, userType };
 }
 
+function readTierUsers(raw: unknown): WebsiteAssignmentSlotUser[] {
+  if (Array.isArray(raw)) {
+    return raw
+      .map(readSlotUser)
+      .filter((u): u is WebsiteAssignmentSlotUser => u !== null);
+  }
+  const single = readSlotUser(raw);
+  return single ? [single] : [];
+}
+
 function readChannelRoster(raw: unknown): WebsiteAssignmentChannelRoster {
   const rec = isRecord(raw) ? raw : {};
   return {
-    primary: readSlotUser(rec.primary),
-    secondary: readSlotUser(rec.secondary),
-    backup: readSlotUser(rec.backup),
+    primary: readTierUsers(rec.primary),
+    secondary: readTierUsers(rec.secondary),
+    backup: readTierUsers(rec.backup),
   };
 }
 

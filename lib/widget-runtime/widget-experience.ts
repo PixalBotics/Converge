@@ -57,6 +57,7 @@ export type WidgetExperienceV1 = {
     fallback: WidgetExperienceInquiryTopic | null;
   };
   form: Record<string, unknown>;
+  offlineForm: Record<string, unknown>;
   behavior: Record<string, unknown>;
   session: Record<string, unknown>;
 };
@@ -249,6 +250,7 @@ export function parseWidgetExperienceV1(raw: unknown): WidgetExperienceV1 | null
       fallback,
     },
     form: isRecord(raw.form) ? raw.form : {},
+    offlineForm: isRecord(raw.offlineForm) ? raw.offlineForm : {},
     behavior: isRecord(raw.behavior) ? raw.behavior : {},
     session: isRecord(raw.session) ? raw.session : {},
   };
@@ -395,6 +397,10 @@ export function applyExperienceToConfigRecord(
     form: {
       ...(isRecord(config.form) ? config.form : {}),
       ...experience.form,
+    },
+    offlineForm: {
+      ...(isRecord(config.offlineForm) ? config.offlineForm : {}),
+      ...experience.offlineForm,
     },
     response: {
       ...(isRecord(config.response) ? config.response : {}),
@@ -574,12 +580,31 @@ export function buildThemeDesignJsonFromExperience(
   };
 }
 
+/** Preserve Text Us blocks from published snapshot when rebuilding designJson from experience. */
+export function mergeDesignJsonWithExperienceSnapshot(
+  fromExperience: Record<string, unknown>,
+  snapshot?: Record<string, unknown> | null,
+): Record<string, unknown> {
+  if (!snapshot || Object.keys(snapshot).length === 0) return fromExperience;
+  const merged: Record<string, unknown> = { ...fromExperience, ...snapshot };
+  if (isRecord(snapshot.textUs)) {
+    merged.textUs = snapshot.textUs;
+  }
+  if (isRecord(snapshot.chat)) {
+    merged.chat = isRecord(fromExperience.chat)
+      ? { ...fromExperience.chat, ...snapshot.chat }
+      : snapshot.chat;
+  }
+  return merged;
+}
+
 /** Build runtime config record when public API omits legacy `config` blob. */
 export function configRecordFromEnvelope(
   envelope: {
     experience?: WidgetExperienceV1 | null;
     clientSettings?: Record<string, unknown>;
     themeDesignJson?: Record<string, unknown>;
+    textUsFormConfig?: Record<string, unknown>;
     config?: Record<string, unknown>;
     chatMode?: string;
   },
@@ -587,13 +612,20 @@ export function configRecordFromEnvelope(
   if (envelope.experience) {
     const cfg = applyExperienceToConfigRecord({}, envelope.experience);
     const prevTheme = isRecord(cfg.theme) ? cfg.theme : {};
-    return {
+    const record: Record<string, unknown> = {
       ...cfg,
       theme: {
         ...prevTheme,
-        designJson: buildThemeDesignJsonFromExperience(envelope.experience),
+        designJson: mergeDesignJsonWithExperienceSnapshot(
+          buildThemeDesignJsonFromExperience(envelope.experience),
+          envelope.themeDesignJson,
+        ),
       },
     };
+    if (isRecord(envelope.textUsFormConfig)) {
+      record.textUsFormConfig = envelope.textUsFormConfig;
+    }
+    return record;
   }
   const cs = envelope.clientSettings;
   if (isRecord(cs)) {

@@ -7,7 +7,6 @@ import SmartToyOutlined from "@mui/icons-material/SmartToyOutlined";
 import Box from "@mui/material/Box";
 import Checkbox from "@mui/material/Checkbox";
 import FormControlLabel from "@mui/material/FormControlLabel";
-import Alert from "@mui/material/Alert";
 import LinearProgress from "@mui/material/LinearProgress";
 import Stack from "@mui/material/Stack";
 import { useTheme } from "@mui/material/styles";
@@ -27,10 +26,16 @@ import {
   useDeleteAiAssistantKbSourceMutation,
   useDeleteAiChatbotSourceMutation,
 } from "@/lib/hooks/query/ai-knowledge";
+import {
+  useAiTrainingBehaviorQuery,
+  useUpdateAiTrainingBehaviorMutation,
+} from "@/lib/hooks/query/ai-training/hooks";
 import { AiTrainingPageShell } from "./AiTrainingPageShell";
 import { AiTrainingStudioHeaderTabs } from "./AiTrainingStudioHeaderTabs";
 import { AiTrainingSourcePreview } from "./AiTrainingSourcePreview";
-import { AiTrainingScrapeProgressDetail } from "./AiTrainingScrapeProgressDetail";
+import { AiTrainingNonWebProcessingCard } from "./AiTrainingNonWebProcessingCard";
+import { AiTrainingParallelScrapeToggle } from "./AiTrainingParallelScrapeToggle";
+import { AiTrainingScrapeStatusCard } from "./AiTrainingScrapeStatusCard";
 import { AiTrainingSourcesTable } from "./AiTrainingSourcesTable";
 import {
   aiTrainingAddHref,
@@ -40,12 +45,9 @@ import {
 import {
   hostFromWebsiteUrl,
   isReindexBulkResult,
-  KB_BACKGROUND_TRAINING_STARTED_MESSAGE,
   KB_TRAINING_SOURCES_POLL_MS,
   isWebSourceType,
   toastMessageForCreateResult,
-  formatSourceRefForDisplay,
-  formatTrainingTierBanner,
   type AiTrainingKbVariant,
 } from "./ai-training-kb.utils";
 import { useAiTrainingHierarchy } from "./use-ai-training-hierarchy";
@@ -90,6 +92,8 @@ export function AiTrainingWebsiteManagePage({ variant }: { variant: AiTrainingKb
   const reindexAssistant = useAiAssistantKbReindexMutation();
 
   const websiteId = hierarchy.websiteId.trim() || websiteIdParam;
+  const behaviorQuery = useAiTrainingBehaviorQuery(websiteId || undefined);
+  const updateBehavior = useUpdateAiTrainingBehaviorMutation();
   const registeredUrl = hierarchy.selectedWebsite?.url ?? "";
   const registeredHost = hostFromWebsiteUrl(registeredUrl);
 
@@ -148,20 +152,20 @@ export function AiTrainingWebsiteManagePage({ variant }: { variant: AiTrainingKb
   const hasBackgroundTraining = listItems.some(
     (i) => i.status === "processing" || i.status === "pending",
   );
-  const processingCount = listItems.filter(
-    (i) => i.status === "processing" || i.status === "pending",
-  ).length;
   const listTotal = sourcesQuery.data?.total ?? 0;
   const reindexBusy = reindexChatbot.isPending || reindexAssistant.isPending;
 
-  const processingWebSources = useMemo(
-    () =>
-      listItems.filter(
-        (i) =>
-          (i.status === "processing" || i.status === "pending") &&
-          isWebSourceType(i.sourceType),
-      ),
+  const processingSources = useMemo(
+    () => listItems.filter((i) => i.status === "processing" || i.status === "pending"),
     [listItems],
+  );
+  const processingWebSources = useMemo(
+    () => processingSources.filter((i) => isWebSourceType(i.sourceType)),
+    [processingSources],
+  );
+  const processingNonWebSources = useMemo(
+    () => processingSources.filter((i) => !isWebSourceType(i.sourceType)),
+    [processingSources],
   );
 
   const previewSource = useMemo(
@@ -276,51 +280,14 @@ export function AiTrainingWebsiteManagePage({ variant }: { variant: AiTrainingKb
       ) : null}
 
       {hasBackgroundTraining ? (
-        <>
-          {processingWebSources.map((source) => {
-            const tierBanner = formatTrainingTierBanner(
-              source.scrapeProgress,
-              source.trainingTier ?? source.scrapeProgress?.trainingTier,
-            );
-            if (!tierBanner && !source.scrapeProgress) return null;
-            return (
-              <Alert
-                key={source.id}
-                severity={tierBanner?.severity ?? "info"}
-                sx={{ borderRadius: 1, mb: 1.5 }}
-              >
-                {tierBanner ? (
-                  <>
-                    <Typography variant="body2" fontWeight={700} sx={{ mb: 0.5 }}>
-                      {tierBanner.title}
-                    </Typography>
-                    <Typography variant="caption" sx={{ display: "block" }}>
-                      {tierBanner.body}
-                    </Typography>
-                  </>
-                ) : null}
-                {source.scrapeProgress ? (
-                  <Box sx={{ mt: tierBanner ? 1.5 : 0 }}>
-                    <Typography variant="caption" fontWeight={700} sx={{ display: "block", mb: 0.75 }}>
-                      {formatSourceRefForDisplay(source)}
-                    </Typography>
-                    <AiTrainingScrapeProgressDetail
-                      progress={source.scrapeProgress}
-                      sourceRef={source.sourceRef}
-                      compact={Boolean(tierBanner)}
-                    />
-                  </Box>
-                ) : null}
-              </Alert>
-            );
-          })}
-          {!processingWebSources.some((s) => s.scrapeProgress) ? (
-            <Alert severity="info" sx={{ borderRadius: 1, mb: 1.5 }}>
-              {KB_BACKGROUND_TRAINING_STARTED_MESSAGE}
-              {processingCount > 0 ? ` (${processingCount} item(s) in progress)` : ""}
-            </Alert>
-          ) : null}
-        </>
+        <Stack spacing={1} sx={{ mb: 0.5 }}>
+          {processingWebSources.map((source) => (
+            <AiTrainingScrapeStatusCard key={source.id} source={source} />
+          ))}
+          {processingNonWebSources.map((source) => (
+            <AiTrainingNonWebProcessingCard key={source.id} source={source} />
+          ))}
+        </Stack>
       ) : null}
 
       <Stack spacing={2}>
@@ -388,6 +355,33 @@ export function AiTrainingWebsiteManagePage({ variant }: { variant: AiTrainingKb
             onClose={() => setPreviewSourceId(null)}
           />
         ) : null}
+      </DashboardCard>
+
+      <DashboardCard sx={{ p: 2.5 }}>
+        <Typography variant="mediumLarge" color="white" fontWeight={600} sx={{ mb: 0.5 }}>
+          Scrape speed
+        </Typography>
+        <Typography variant="small" sx={{ color: theme.app.dashboard.textMuted, mb: 2 }}>
+          Default is one page at a time so you can see exactly what is being scraped. Enable parallel
+          only if you want faster total scrape time.
+        </Typography>
+        <AiTrainingParallelScrapeToggle
+          checked={behaviorQuery.data?.parallelScrapePages ?? false}
+          disabled={!websiteId || updateBehavior.isPending || behaviorQuery.isLoading}
+          onSave={async (enabled) => {
+            if (!websiteId) return;
+            await updateBehavior.mutateAsync({
+              websiteId,
+              body: { parallelScrapePages: enabled },
+            });
+            publishAppToast({
+              variant: "success",
+              message: enabled
+                ? "Parallel scrape on — applies on the next training run."
+                : "Parallel scrape off — one page at a time.",
+            });
+          }}
+        />
       </DashboardCard>
 
       <DashboardCard sx={{ p: 2.5 }}>

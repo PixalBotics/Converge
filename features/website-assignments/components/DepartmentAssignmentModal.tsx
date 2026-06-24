@@ -125,7 +125,7 @@ export function DepartmentAssignmentModal({
       fitContent
       maxWidth={920}
       title={`Manage agents — ${department.departmentName}`}
-      description="Use the table to pick one Primary, one Secondary, and one Backup agent per channel for this department."
+      description="Select multiple Primary and Secondary agents per channel. Online primaries receive chats first (fewest active chats wins)."
       onClose={onClose}
       onSave={() => void handleSave()}
       primaryButtonLabel={saving ? "Saving…" : "Save assignments"}
@@ -139,6 +139,7 @@ export function DepartmentAssignmentModal({
           <Box>
             <RosterUsersPickerTable
               websiteId={websiteId}
+              operatingChannels={operatingChannels}
               channel="Internal"
               departmentId={department.departmentId}
               departmentName={department.departmentName}
@@ -167,6 +168,7 @@ export function DepartmentAssignmentModal({
           <Box>
             <RosterUsersPickerTable
               websiteId={websiteId}
+              operatingChannels={operatingChannels}
               channel="External"
               departmentId={department.departmentId}
               departmentName={department.departmentName}

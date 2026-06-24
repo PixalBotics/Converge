@@ -62,6 +62,8 @@ function normalizeListItem(raw: unknown): TranscriptListItem | null {
     childCompany: o.childCompany as TranscriptListItem["childCompany"],
     website: o.website as TranscriptListItem["website"],
     agent: o.agent as TranscriptListItem["agent"],
+    resolvedAgentLabel:
+      typeof o.resolvedAgentLabel === "string" ? o.resolvedAgentLabel : null,
     department: o.department as TranscriptListItem["department"],
     pool: o.pool as TranscriptListItem["pool"],
   };

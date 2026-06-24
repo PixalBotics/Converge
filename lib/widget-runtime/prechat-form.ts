@@ -13,6 +13,7 @@ export interface PrechatFieldDto {
   type?: PrechatFieldType | string;
   fieldType?: PrechatFieldType | string;
   label?: string;
+  placeholder?: string;
   required?: boolean;
   options?: Array<{ label: string; value: string }>;
 }
@@ -44,6 +45,11 @@ export function normalizePrechatFields(raw: PrechatFieldDto[]): PrechatFieldDto[
     }
     usedKeys.add(key);
 
+    const placeholder =
+      typeof o.placeholder === "string" && o.placeholder.trim()
+        ? o.placeholder.trim()
+        : undefined;
+
     out.push({
       ...o,
       key,
@@ -51,6 +57,7 @@ export function normalizePrechatFields(raw: PrechatFieldDto[]): PrechatFieldDto[
       type: o.type ?? o.fieldType ?? "text",
       fieldType: o.fieldType ?? o.type ?? "text",
       required: o.required === true,
+      ...(placeholder ? { placeholder } : {}),
     });
   });
 
@@ -164,6 +171,20 @@ export function extractPrechatFieldsFromWidgetConfig(
       ? (rootFields as PrechatFieldDto[])
       : defaultVisitorFields,
   );
+}
+
+/** Offline capture form — uses `config.offlineForm` toggles/fields when present. */
+export function extractOfflineFormFieldsFromWidgetConfig(
+  cfg: Record<string, unknown>,
+): PrechatFieldDto[] {
+  const offlineForm = cfg.offlineForm;
+  if (offlineForm && typeof offlineForm === "object" && !Array.isArray(offlineForm)) {
+    return extractPrechatFieldsFromWidgetConfig({
+      ...cfg,
+      form: offlineForm as Record<string, unknown>,
+    });
+  }
+  return extractPrechatFieldsFromWidgetConfig(cfg);
 }
 
 /** React Hook Form + zod resolver schema for pre-chat intake. */

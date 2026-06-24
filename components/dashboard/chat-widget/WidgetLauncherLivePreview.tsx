@@ -1,6 +1,5 @@
 "use client";
 
-import ChatRounded from "@mui/icons-material/ChatRounded";
 import Badge from "@mui/material/Badge";
 import Box from "@mui/material/Box";
 import Paper from "@mui/material/Paper";
@@ -11,14 +10,10 @@ import { Typography } from "@/components/common";
 import { WidgetAccentDensityPreview } from "@/components/dashboard/chat-widget/WidgetAccentDensityPreview";
 import { EmbedAgentAvatar } from "@/components/embed/EmbedAgentAvatar";
 import { WidgetProactiveTeaserBubble } from "@/components/embed/WidgetProactiveTeaserBubble";
+import { TextUsLauncherChip } from "@/components/embed/TextUsLauncherChip";
 import { truncateClosedMessagePreviewHalf } from "@/lib/widget-runtime/widget-notifications";
-import { LauncherPresetIcon } from "@/lib/chat-widget/launcherIcons";
 import { parseProactiveSecondaryCtaFromUi } from "@/lib/chat-widget/proactive-teaser-types";
-import {
-  normalizeLauncherStyle,
-  resolveLauncherFabSurfaceSx,
-  type WidgetLauncherStyleId,
-} from "@/lib/chat-widget/launcher-style";
+import type { WidgetLauncherStyleId } from "@/lib/chat-widget/launcher-style";
 import type { LauncherIconPresetId } from "@/lib/chat-widget/widgetDraft";
 
 const LAUNCHER_PX = 52;
@@ -33,6 +28,9 @@ export function WidgetLauncherLivePreview({
   iconColor,
   iconDataUrl,
   launcherIconPreset,
+  launcherIconEnabled = true,
+  launcherLabelEnabled = true,
+  buttonLabel = "",
   proactiveTeaser = "",
   proactiveTeaserActive = false,
   proactiveTeaserAvatarUrl = "",
@@ -58,6 +56,9 @@ export function WidgetLauncherLivePreview({
   iconColor: string;
   iconDataUrl: string;
   launcherIconPreset: LauncherIconPresetId;
+  launcherIconEnabled?: boolean;
+  launcherLabelEnabled?: boolean;
+  buttonLabel?: string;
   proactiveTeaser?: string;
   proactiveTeaserActive?: boolean;
   proactiveTeaserAvatarUrl?: string;
@@ -194,45 +195,31 @@ export function WidgetLauncherLivePreview({
               </Paper>
             ) : null}
           <Badge
-            overlap="circular"
+            overlap={launcherLabelEnabled && buttonLabel?.trim() ? "rectangular" : "circular"}
             invisible={!badgeVisible}
             badgeContent={launcherBadgeMode === "count" ? 1 : undefined}
             variant={launcherBadgeMode === "dot" ? "dot" : "standard"}
             sx={{
               "& .MuiBadge-badge": {
-                bgcolor: hoverColor || fabColor,
+                bgcolor: fabColor,
                 color: "#fff",
                 fontWeight: 700,
               },
             }}
           >
-            <Box
-              sx={{
-                ...resolveLauncherFabSurfaceSx({
-                  style: normalizeLauncherStyle(launcherStyle),
-                  buttonColor: fabColor,
-                  buttonHoverColor: hoverColor || fabColor,
-                  iconColor: iconColor || "#FFFFFF",
-                  shape: buttonShape,
-                  sizePx: LAUNCHER_PX,
-                }),
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                cursor: "pointer",
-                "&:hover": {
-                  transform: "scale(1.06)",
-                },
-              }}
-            >
-              {iconDataUrl ? (
-                <Box component="img" src={iconDataUrl} alt="" sx={{ width: 26, height: 26, objectFit: "contain" }} />
-              ) : launcherIconPreset ? (
-                <LauncherPresetIcon presetId={launcherIconPreset} color={iconColor || "#FFFFFF"} fontSizePx={26} />
-              ) : (
-                <ChatRounded sx={{ color: iconColor || "#FFFFFF", fontSize: 26 }} />
-              )}
-            </Box>
+            <TextUsLauncherChip
+              size="preview"
+              buttonColor={fabColor}
+              buttonHoverColor={hoverColor || fabColor}
+              iconColor={iconColor || "#FFFFFF"}
+              iconPreset={launcherIconPreset}
+              iconDataUrl={iconDataUrl}
+              iconEnabled={launcherIconEnabled}
+              launcherStyle={launcherStyle}
+              buttonLabel={launcherLabelEnabled ? buttonLabel : ""}
+              buttonShape={buttonShape}
+              ariaLabelPrefix="chat"
+            />
           </Badge>
           </Box>
         </Box>

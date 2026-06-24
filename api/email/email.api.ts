@@ -406,6 +406,7 @@ export async function updatePlatformAgentFeedbackSettings(
 export async function listDistributionFeedbackSubmissions(params?: {
   page?: number;
   limit?: number;
+  websiteId?: string;
 }): Promise<DistributionFeedbackSubmissionList> {
   const { data } = await apiClient.get("/platform/agent-feedback/submissions", {
     params,

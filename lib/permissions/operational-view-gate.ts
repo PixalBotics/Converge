@@ -240,6 +240,15 @@ const PREFIX_VIEW_RULES: readonly { prefix: string; anyOf: readonly string[] }[]
   { prefix: "/dashboard/shifts/pool-shift", anyOf: [HRMS.SHIFT_VIEW, OP.hrms.shift.view] },
   { prefix: "/dashboard/shifts", anyOf: [HRMS.SHIFT_VIEW, OP.hrms.shift.view, OP.hrms.shiftAssignment.view] },
   {
+    prefix: "/dashboard/phone-number-setup",
+    anyOf: [
+      OP.phoneNumberSetup.view,
+      OP.phoneNumberSetup.create,
+      OP.phoneNumberSetup.update,
+      OP.phoneNumberSetup.delete,
+    ],
+  },
+  {
     prefix: "/dashboard/email/distribution",
     anyOf: [
       OP.distributionSetup.view,
@@ -247,6 +256,10 @@ const PREFIX_VIEW_RULES: readonly { prefix: string; anyOf: readonly string[] }[]
       OP.distributionSetup.update,
       OP.distributionSetup.delete,
     ],
+  },
+  {
+    prefix: "/dashboard/feedback",
+    anyOf: [OP.agentFeedback.view, OP.agentFeedback.update],
   },
   {
     prefix: "/dashboard/email/feedback",
@@ -344,6 +357,7 @@ const PAGE_PERMISSION_TO_VIEW_ANY: Readonly<Record<string, readonly string[]>> =
   [PAGE.SHIFTS]: [HRMS.SHIFT_VIEW, OP.hrms.shift.view, OP.company.list, OP.company.view],
   "page:crm-integration": [OP.crmIntegration.view],
   "page:distribution-setup": [OP.distributionSetup.view],
+  "page:phone-number-setup": [OP.phoneNumberSetup.view],
   "page:ip-blocklist": [OP.ipBlocklist.view],
   "page:licenses": [
     OP.license.view,

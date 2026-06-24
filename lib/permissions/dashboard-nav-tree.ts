@@ -60,6 +60,7 @@ const LIVE_CHAT_GROUP: DashboardNavItem = {
     PAGE.CHAT_CLOSE_POLICY,
     PAGE.CHAT_CANNED,
     PAGE.CHAT_INVOLVEMENT,
+    PAGE.PHONE_NUMBER_SETUP,
   ],
   prefixMatch: true,
   children: [
@@ -88,6 +89,13 @@ const LIVE_CHAT_GROUP: DashboardNavItem = {
     chatNavItem(PAGE.CHAT_REPORTS, "/dashboard/chat-reports", "Reports", "reports", [OP.chat.reportView]),
     chatNavItem(PAGE.CHAT_REPORTS, "/dashboard/website-analytics", "Website analytics", "reports", [OP.chat.reportView]),
     chatNavItem(PAGE.CHAT_WIDGET, "/dashboard/chat-widget", "Widget", "chatWidget"),
+    chatNavItem(
+      PAGE.PHONE_NUMBER_SETUP,
+      "/dashboard/phone-number-setup",
+      "Phone / Text Us",
+      "chatWidget",
+      [OP.phoneNumberSetup.view],
+    ),
     chatNavItem(PAGE.CHAT_CLOSE_POLICY, "/dashboard/chat-settings", "Settings", "chatWidget"),
     chatNavItem(PAGE.CHAT_CANNED, "/dashboard/chat-canned", "Canned messages", "chatWidget"),
     chatNavItem(PAGE.CHAT_INVOLVEMENT, "/dashboard/chat-involvement", "Involvement", "chatWidget"),
@@ -234,7 +242,7 @@ const WEBSITE_GROUP: DashboardNavItem = {
       ...toNavItem(PAGE.WEBSITE_ASSIGNMENTS)!,
       label: "Website assign",
       prefixMatch: true,
-      pathExcludes: ["/service-schedules", "/service-scheduling", "/dashboard/websites"],
+      pathExcludes: ["/service-schedules", "/service-scheduling", "/inquire-topics", "/dashboard/websites"],
     },
     {
       href: "/dashboard/websites",
@@ -252,6 +260,15 @@ const WEBSITE_GROUP: DashboardNavItem = {
       permission: PAGE.WEBSITE_ASSIGNMENTS,
       prefixMatch: true,
       pathIncludes: "/service-scheduling",
+    },
+    {
+      href: "/dashboard/website-assigning/inquire-topics",
+      label: "Inquire topics",
+      section: "activity",
+      iconKey: "websiteAssignments",
+      permission: PAGE.WEBSITE_ASSIGNMENTS,
+      prefixMatch: true,
+      pathIncludes: "/inquire-topics",
     },
   ],
 };
@@ -328,7 +345,7 @@ const HRMS_GROUP: DashboardNavItem = {
     },
     {
       href: "/dashboard/attendance/team-attendance",
-      label: "Team attendance",
+      label: "Attendance",
       section: "activity",
       iconKey: "reports",
       permission: PAGE.HRMS,
@@ -424,7 +441,7 @@ const EMAIL_GROUP: DashboardNavItem = {
   section: "activity",
   iconKey: "smtpEmail",
   permission: null,
-  permissionsAny: ["page:smtp-email", "page:email-template", "page:email-agent-feedback"],
+  permissionsAny: ["page:smtp-email", "page:email-template"],
   prefixMatch: true,
   children: [
     {
@@ -476,14 +493,6 @@ const EMAIL_GROUP: DashboardNavItem = {
       permission: "page:email-template",
       prefixMatch: true,
     },
-    {
-      href: "/dashboard/email/feedback",
-      label: "Feedback",
-      section: "activity",
-      iconKey: "smtpEmail",
-      permission: "page:email-agent-feedback",
-      internalOnly: true,
-    },
   ],
 };
 
@@ -507,7 +516,8 @@ export const DASHBOARD_NAV_ITEMS: readonly DashboardNavItem[] = PAGE_PERMISSION_
     permission === "page:chat-widget" ||
     permission === "page:chat-close-policy" ||
     permission === "page:chat-canned" ||
-    permission === "page:chat-involvement"
+    permission === "page:chat-involvement" ||
+    permission === "page:phone-number-setup"
   ) {
     return permission === "page:chat-inbox" ? [LIVE_CHAT_GROUP] : [];
   }
@@ -521,6 +531,10 @@ export const DASHBOARD_NAV_ITEMS: readonly DashboardNavItem[] = PAGE_PERMISSION_
   }
   if (permission === "page:smtp-email" || permission === "page:email-template") {
     return [EMAIL_GROUP];
+  }
+  if (permission === "page:email-agent-feedback") {
+    const item = toNavItem(permission);
+    return item ? [item] : [];
   }
   if (permission === "page:settings" || permission === "page:observability:logs") {
     return permission === "page:settings" ? [SETTINGS_GROUP] : [];

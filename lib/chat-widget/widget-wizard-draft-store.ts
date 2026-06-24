@@ -103,6 +103,16 @@ export function patchCreateWizardDraft(update: Partial<WidgetDraft>): WidgetDraf
   return createFlowDraft;
 }
 
+/** Prefer create-flow widget kind when API hydrate lacks or downgrades widgetType. */
+function preferCreateWizardType(create: WidgetDraft, merged: WidgetDraft): WidgetDraft {
+  const createKey = create.remoteWidgetKey?.trim() ?? "";
+  const mergedKey = merged.remoteWidgetKey?.trim() ?? "";
+  if (!createKey || createKey !== mergedKey) return merged;
+  const kind = create.type ?? merged.type ?? "chat";
+  if (kind === merged.type) return merged;
+  return { ...merged, type: kind };
+}
+
 /** Keep edit-route draft in sync when create flow already saved step 1 (before `?edit=` on step 2). */
 function mirrorCreateFlowDraftToEditCache(widgetKey: string): void {
   const k = widgetKey.trim();
@@ -111,7 +121,7 @@ function mirrorCreateFlowDraftToEditCache(widgetKey: string): void {
     k,
     mergePartialWidgetDraft({
       ...createFlowDraft,
-      type: "chat",
+      type: createFlowDraft.type ?? "chat",
       remoteWidgetKey: k,
       widgetId: createFlowDraft.widgetId?.trim() || k,
     }),
@@ -126,7 +136,7 @@ export function readEditWizardDraft(widgetKey: string): WidgetDraft {
   const create = readCreateWizardDraft();
   const seeded = mergePartialWidgetDraft({
     ...(create.remoteWidgetKey?.trim() === k ? create : {}),
-    type: "chat",
+    type: create.remoteWidgetKey?.trim() === k ? (create.type ?? "chat") : "chat",
     remoteWidgetKey: k,
     widgetId: k,
   });
@@ -144,34 +154,44 @@ function mergeCreateLauncherWhenApiHasThemeDefaults(
   }
   const apiLauncher = resolveLauncherPreviewFromDraft(fromApi);
   const createLauncher = resolveLauncherPreviewFromDraft(create);
-  const apiLauncherIsThemeDefault =
+  const apiLauncherIsFullyDefault =
     apiLauncher.buttonShape === defaultWidgetDraft.buttonShape &&
-    apiLauncher.buttonPosition === defaultWidgetDraft.buttonPosition;
+    apiLauncher.buttonPosition === defaultWidgetDraft.buttonPosition &&
+    apiLauncher.buttonColor === defaultWidgetDraft.buttonColor &&
+    apiLauncher.buttonHoverColor === defaultWidgetDraft.buttonHoverColor &&
+    !fromApi.iconDataUrl?.trim();
   const createHasCustomLauncher =
     createLauncher.buttonShape !== defaultWidgetDraft.buttonShape ||
     createLauncher.buttonPosition !== defaultWidgetDraft.buttonPosition ||
     Boolean(create.iconDataUrl?.trim()) ||
-    createLauncher.buttonColor !== defaultWidgetDraft.buttonColor;
+    createLauncher.buttonColor !== defaultWidgetDraft.buttonColor ||
+    createLauncher.buttonHoverColor !== defaultWidgetDraft.buttonHoverColor;
 
-  if (!apiLauncherIsThemeDefault || !createHasCustomLauncher) {
-    return mergePartialWidgetDraft({ ...create, ...fromApi });
+  if (!apiLauncherIsFullyDefault || !createHasCustomLauncher) {
+    return preferCreateWizardType(
+      create,
+      mergePartialWidgetDraft({ ...create, ...fromApi }),
+    );
   }
 
-  return mergePartialWidgetDraft({
-    ...fromApi,
-    ...createLauncher,
-    iconDataUrl: create.iconDataUrl || fromApi.iconDataUrl,
-    proactiveTeaserEnabled: create.proactiveTeaserEnabled,
-    proactiveTeaser: create.proactiveTeaser,
-    proactiveTeaserAvatarEnabled: create.proactiveTeaserAvatarEnabled,
-    proactiveTeaserAvatarDataUrl: create.proactiveTeaserAvatarDataUrl,
-    proactiveSecondaryCtaEnabled: create.proactiveSecondaryCtaEnabled,
-    proactiveSecondaryCtaLabel: create.proactiveSecondaryCtaLabel,
-    proactiveSecondaryCtaHref: create.proactiveSecondaryCtaHref,
-    proactiveSecondaryCtaKind: create.proactiveSecondaryCtaKind,
-    themeDesignJsonAccent: create.themeDesignJsonAccent ?? fromApi.themeDesignJsonAccent,
-    themeDesignJsonDensity: create.themeDesignJsonDensity ?? fromApi.themeDesignJsonDensity,
-  });
+  return preferCreateWizardType(
+    create,
+    mergePartialWidgetDraft({
+      ...fromApi,
+      ...createLauncher,
+      iconDataUrl: create.iconDataUrl || fromApi.iconDataUrl,
+      proactiveTeaserEnabled: create.proactiveTeaserEnabled,
+      proactiveTeaser: create.proactiveTeaser,
+      proactiveTeaserAvatarEnabled: create.proactiveTeaserAvatarEnabled,
+      proactiveTeaserAvatarDataUrl: create.proactiveTeaserAvatarDataUrl,
+      proactiveSecondaryCtaEnabled: create.proactiveSecondaryCtaEnabled,
+      proactiveSecondaryCtaLabel: create.proactiveSecondaryCtaLabel,
+      proactiveSecondaryCtaHref: create.proactiveSecondaryCtaHref,
+      proactiveSecondaryCtaKind: create.proactiveSecondaryCtaKind,
+      themeDesignJsonAccent: create.themeDesignJsonAccent ?? fromApi.themeDesignJsonAccent,
+      themeDesignJsonDensity: create.themeDesignJsonDensity ?? fromApi.themeDesignJsonDensity,
+    }),
+  );
 }
 
 export function replaceEditWizardDraftFromApi(
@@ -182,11 +202,14 @@ export function replaceEditWizardDraftFromApi(
   const create = readCreateWizardDraft();
   const fromApi = mergePartialWidgetDraft({
     ...mapped,
-    type: "chat",
+    type: mapped.type ?? create.type ?? "chat",
     remoteWidgetKey: k,
     widgetId: mapped.widgetId?.trim() || k,
   });
-  const next = mergeCreateLauncherWhenApiHasThemeDefaults(fromApi, create);
+  const next = preferCreateWizardType(
+    create,
+    mergeCreateLauncherWhenApiHasThemeDefaults(fromApi, create),
+  );
   editFlowDrafts.set(k, next);
   return next;
 }
@@ -200,7 +223,7 @@ export function patchEditWizardDraft(
   const next = mergePartialWidgetDraft({
     ...current,
     ...update,
-    type: "chat",
+    type: update.type ?? current.type ?? "chat",
     remoteWidgetKey: k,
     widgetId: update.widgetId?.trim() || current.widgetId || k,
   });

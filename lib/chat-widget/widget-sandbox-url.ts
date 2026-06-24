@@ -1,4 +1,5 @@
 import { resolveWidgetEmbedAppOrigin } from "@/lib/chat-widget/widget-embed-api-origin";
+import type { EmbedHostSurface } from "@/lib/widget-runtime/embed-host-messaging";
 
 export type WidgetSandboxUrlMode = "draft" | "published";
 
@@ -8,6 +9,7 @@ export function buildWidgetEmbedIframeUrl(input: {
   previewShareToken?: string;
   parentPage?: string;
   appOrigin?: string;
+  surface?: EmbedHostSurface;
 }): string {
   const key = input.widgetKey.trim();
   if (!key) return "";
@@ -28,6 +30,10 @@ export function buildWidgetEmbedIframeUrl(input: {
     params.set("env", "preview");
     const token = input.previewShareToken?.trim();
     if (token) params.set("token", token);
+  }
+
+  if (input.surface === "chat" || input.surface === "textUs") {
+    params.set("surface", input.surface);
   }
 
   return `${origin.replace(/\/+$/, "")}/embed/widget?${params.toString()}`;

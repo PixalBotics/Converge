@@ -56,6 +56,12 @@ function statusChipColor(
       color: theme.app.dashboard.accentOrange,
     };
   }
+  if (status === "offline") {
+    return {
+      bgcolor: "rgba(148,163,184,0.18)",
+      color: theme.app.dashboard.textMuted,
+    };
+  }
   if (status === "closed") {
     return { bgcolor: "rgba(148,163,184,0.15)", color: theme.app.dashboard.textMuted };
   }

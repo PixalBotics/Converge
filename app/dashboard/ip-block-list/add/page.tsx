@@ -1,66 +1,84 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import Box from "@mui/material/Box";
-import { Button, SelectField } from "@/components/common";
+import { Button } from "@/components/common";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
-import { AddIpBlockWizardShell } from "@/features/ip-block";
-import { distributionWizardFormGrid3 } from "../../distribution-setup/wizard.styles";
-import { SmtpChipTagField } from "../../smtp-email-integration/SmtpChipTagField";
-
-const CLIENT_OPTIONS = [{ label: "Jeera", value: "jeera" }];
-const PARENT_OPTIONS = [{ label: "ABC Holding", value: "abc-holding" }];
-const SITE_OPTIONS = ["ABC Lahore", "ABC Karachi", "ABC Faisalabad"];
+import { DistributionWizardFooter } from "@/features/distribution-setup/components/DistributionWizardFooter";
+import { IpBlockOrgSelectFields } from "@/features/ip-block/components/IpBlockOrgSelectFields";
+import { IpBlockWizardShell } from "@/features/ip-block/IpBlockWizardShell";
+import { IP_BLOCK_ROUTES } from "@/features/ip-block/ip-block.constants";
+import {
+  emptyIpBlockWizardDraft,
+  readIpBlockWizardDraft,
+  writeIpBlockWizardDraft,
+  type IpBlockWizardDraft,
+} from "@/features/ip-block/wizard-storage";
+import { useAuth } from "@/lib/auth";
+import { resolveSessionListFilterScope } from "@/lib/auth/session-scope";
+import { publishAppToast } from "@/lib/notify";
 
 export default function AddIpBlockOrganizationPage() {
   const router = useRouter();
-  const [clientOf, setClientOf] = useState("jeera");
-  const [parentCompany, setParentCompany] = useState("abc-holding");
-  const [childSites, setChildSites] = useState<string[]>(["ABC Lahore", "ABC Karachi"]);
-  const [websiteSites, setWebsiteSites] = useState<string[]>(["ABC Lahore", "ABC Karachi"]);
+  const { user, isPlatformAdmin } = useAuth();
+  const [draft, setDraft] = useState<IpBlockWizardDraft>(emptyIpBlockWizardDraft);
+
+  useEffect(() => {
+    const loaded = readIpBlockWizardDraft();
+    const sessionScope = resolveSessionListFilterScope(isPlatformAdmin, user);
+    const merged = {
+      ...loaded,
+      resellerId: loaded.resellerId || sessionScope.lockedResellerId || "",
+      parentCompanyId:
+        loaded.parentCompanyId || sessionScope.lockedParentCompanyId || "",
+    };
+    writeIpBlockWizardDraft(merged);
+    setDraft(merged);
+  }, [isPlatformAdmin, user]);
+
+  const patchDraft = useCallback((patch: Partial<IpBlockWizardDraft>) => {
+    setDraft((prev) => {
+      const next = { ...prev, ...patch };
+      writeIpBlockWizardDraft(next);
+      return next;
+    });
+  }, []);
+
+  const handleNext = () => {
+    const sessionScope = resolveSessionListFilterScope(isPlatformAdmin, user);
+    if (sessionScope.resellerPickerMode !== "hidden" && sessionScope.resellerPickerMode === "optional") {
+      if (!draft.resellerId.trim() && sessionScope.lockedResellerId) {
+        patchDraft({ resellerId: sessionScope.lockedResellerId });
+      }
+    }
+    if (!draft.parentCompanyId.trim()) {
+      publishAppToast({ message: "Select a parent company.", variant: "error" });
+      return;
+    }
+    if (!draft.websiteIds.length) {
+      publishAppToast({ message: "Select at least one website.", variant: "error" });
+      return;
+    }
+    router.push(IP_BLOCK_ROUTES.addConfigure);
+  };
 
   return (
-    <AddIpBlockWizardShell
+    <IpBlockWizardShell
       step={1}
-      cardTitle="Organization Selection"
+      cardTitle="Organization & websites"
+      subtitle="Select where this IP block applies. Scope follows your tenant permissions."
       footer={
-        <>
-          <Button type="button" variant="secondary" onClick={() => router.push("/dashboard/ip-block-list")}>
-            Cancel
+        <DistributionWizardFooter
+          onBack={() => router.push(IP_BLOCK_ROUTES.list)}
+          backLabel="Back to list"
+        >
+          <Button type="button" variant="primary" sx={gradientPrimaryButtonSx} onClick={handleNext}>
+            Continue
           </Button>
-          <Button
-            type="button"
-            variant="primary"
-            sx={gradientPrimaryButtonSx}
-            onClick={() => router.push("/dashboard/ip-block-list/add/configure")}
-          >
-            Next
-          </Button>
-        </>
+        </DistributionWizardFooter>
       }
     >
-      <Box sx={distributionWizardFormGrid3}>
-        <SelectField label="Client Of" value={clientOf} onChange={setClientOf} options={CLIENT_OPTIONS} />
-        <SelectField
-          label="Parent Company"
-          value={parentCompany}
-          onChange={setParentCompany}
-          options={PARENT_OPTIONS}
-        />
-        <SmtpChipTagField
-          label="Child Company"
-          values={childSites}
-          onChange={setChildSites}
-          options={SITE_OPTIONS}
-        />
-      </Box>
-      <SmtpChipTagField
-        label="Website"
-        values={websiteSites}
-        onChange={setWebsiteSites}
-        options={SITE_OPTIONS}
-      />
-    </AddIpBlockWizardShell>
+      <IpBlockOrgSelectFields draft={draft} onPatch={patchDraft} />
+    </IpBlockWizardShell>
   );
 }

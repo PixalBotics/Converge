@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { isAxiosError } from "axios";
 import { isAuthSessionTerminated } from "@/api";
 import { isDashboardAccessToken } from "@/lib/auth/access-token";
@@ -33,6 +33,11 @@ import {
   type AgentChatNotificationSyncReason,
 } from "@/lib/hooks/chat/agent-chat-notification-sync-bus";
 import { conversationIdFromNotificationPayload } from "@/lib/hooks/chat/chat-socket-delivery";
+import {
+  isAgentChatSessionAccepting,
+  subscribeAgentChatSession,
+} from "@/lib/hooks/chat/agent-chat-session-bus";
+import { getAgentChatFocusedConversation } from "@/lib/hooks/chat/agent-chat-focus-bus";
 import type { NotificationBadgeGroup } from "@/services/notifications/notifications.types";
 import {
   EMPTY_BADGES,
@@ -103,6 +108,16 @@ export function useNotifications(enabled: boolean) {
     reason: AgentChatNotificationSyncReason;
     conversationId?: string;
   } | null>(null);
+  const acceptingChatsRef = useRef(isAgentChatSessionAccepting());
+
+  useEffect(() => subscribeAgentChatSession((session) => {
+    acceptingChatsRef.current =
+      session.status === "active" && session.acceptingChats;
+  }), []);
+
+  const shouldDeliverChatAlerts = useCallback((): boolean => {
+    return acceptingChatsRef.current;
+  }, []);
 
   const shouldSkipChatAlert = useCallback((conversationId: string | null): boolean => {
     if (!conversationId) return false;
@@ -116,11 +131,22 @@ export function useNotifications(enabled: boolean) {
 
   const alertChatNotification = useCallback(
     (notification: NotificationDto, conversationId?: string | null): void => {
+      if (!shouldDeliverChatAlerts()) return;
       const cid =
         conversationId?.trim() ||
         conversationIdFromNotificationPayload(notification) ||
         null;
       if (shouldSkipChatAlert(cid)) return;
+
+      const focusedId = getAgentChatFocusedConversation();
+      if (
+        cid &&
+        focusedId === cid &&
+        typeof document !== "undefined" &&
+        document.visibilityState === "visible"
+      ) {
+        return;
+      }
 
       publishNotificationToast(notification);
       recordChatAlert(cid);
@@ -132,7 +158,7 @@ export function useNotifications(enabled: boolean) {
       if (soundKey) playNotificationSound(soundKey);
       else playSoundForNotificationType(notification.type);
     },
-    [recordChatAlert, shouldSkipChatAlert],
+    [recordChatAlert, shouldDeliverChatAlerts, shouldSkipChatAlert],
   );
 
   const applySnapshot = useCallback(
@@ -273,6 +299,7 @@ export function useNotifications(enabled: boolean) {
 
   const scheduleChatNotificationSync = useCallback(
     (reason: AgentChatNotificationSyncReason, conversationId?: string) => {
+      if (!shouldDeliverChatAlerts()) return;
       chatSyncPendingRef.current = { reason, conversationId };
       if (chatSyncTimerRef.current) return;
       chatSyncTimerRef.current = setTimeout(() => {
@@ -287,7 +314,7 @@ export function useNotifications(enabled: boolean) {
         );
       }, 280);
     },
-    [clearChatSyncRetries, syncNotificationsFromChatSocket],
+    [clearChatSyncRetries, shouldDeliverChatAlerts, syncNotificationsFromChatSocket],
   );
 
   const refreshBadges = useCallback(async () => {
@@ -344,6 +371,7 @@ export function useNotifications(enabled: boolean) {
           normalized.badgeGroup === "chat" ||
           String(normalized.type).toLowerCase().includes("chat")
         ) {
+          if (!shouldDeliverChatAlerts()) return;
           alertChatNotification(normalized, cid);
           if (cid) publishAgentChatMessageSync(cid);
         } else {
@@ -385,7 +413,7 @@ export function useNotifications(enabled: boolean) {
         }
       }
     },
-    [alertChatNotification, refreshList],
+    [alertChatNotification, refreshList, shouldDeliverChatAlerts],
   );
 
   useEffect(() => {
@@ -537,9 +565,28 @@ export function useNotifications(enabled: boolean) {
 
   const closeDrawer = useCallback(() => setDrawerOpen(false), []);
 
+  const [acceptingChats, setAcceptingChats] = useState(isAgentChatSessionAccepting);
+  useEffect(
+    () =>
+      subscribeAgentChatSession((session) => {
+        setAcceptingChats(session.status === "active" && session.acceptingChats);
+      }),
+    [],
+  );
+
+  const visibleBadgeCounts = useMemo(() => {
+    if (acceptingChats) return badgeCounts;
+    return { ...badgeCounts, chat: 0 };
+  }, [acceptingChats, badgeCounts]);
+
+  const visibleItems = useMemo(() => {
+    if (acceptingChats) return items;
+    return items.filter((n) => n.badgeGroup !== "chat");
+  }, [acceptingChats, items]);
+
   return {
-    badgeCounts,
-    items,
+    badgeCounts: visibleBadgeCounts,
+    items: visibleItems,
     loading,
     connected,
     drawerOpen,

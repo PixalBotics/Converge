@@ -30,6 +30,7 @@ import {
 } from "@/features/distribution-setup/utils/map-distribution-rows";
 import {
   readWizardEmailFormId,
+  readWizardMethod,
   readWizardSetupId,
   readWizardSubject,
   readWizardTableRows,
@@ -38,6 +39,7 @@ import {
   writeWizardSetupId,
   writeWizardSubject,
   writeWizardTableRows,
+  methodFromDetailApi,
 } from "@/features/distribution-setup/wizard-storage";
 import { useQuery } from "@tanstack/react-query";
 import { DISTRIBUTION_ROUTES } from "@/features/distribution-setup/distribution.constants";
@@ -217,7 +219,10 @@ export default function DistributionTablePage() {
 
     const savedId = await publishSetup({
       setupId: setupId ?? readWizardSetupId(),
-      method: "email",
+      method:
+        readWizardMethod() ??
+        methodFromDetailApi(detailQuery.data?.method) ??
+        "email",
       subject: saveOverrides.subject,
       emailConfigurationId: saveOverrides.emailConfigurationId,
       tableRows: rowsForPublish,

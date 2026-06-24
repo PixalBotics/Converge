@@ -18,6 +18,7 @@ import {
 } from "@/components/common";
 import type { DataTableColumn } from "@/components/common";
 import { MetricCard } from "@/components/common";
+import { DashboardAttendanceMetrics } from "../components/DashboardAttendanceMetrics";
 import { ChatsByDepartmentIcon } from "@/components/common/icons";
 import { userIconPath } from "@/assets";
 import {
@@ -209,6 +210,8 @@ export default function SupperDashboardOverview() {
           />
         </Box>
       </Box>
+
+      <DashboardAttendanceMetrics />
 
       <Box sx={grid3}>
         <MetricCard

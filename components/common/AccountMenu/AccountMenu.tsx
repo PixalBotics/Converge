@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
 import Divider from "@mui/material/Divider";
@@ -11,6 +11,8 @@ import {
   LogoutOutlined as LogoutOutlinedIcon,
   FreeBreakfastOutlined as FreeBreakfastOutlinedIcon,
   PlayCircleOutline as PlayCircleOutlineIcon,
+  GroupsOutlined as GroupsOutlinedIcon,
+  GroupOffOutlined as GroupOffOutlinedIcon,
 } from "@mui/icons-material";
 import type { AppTheme } from "@/theme/theme";
 import { Typography } from "@/components/common";
@@ -19,6 +21,7 @@ import {
   AccountMenuIconWrap,
   accountMenuBreakIconWrapSx,
   accountMenuCheckIconWrapSx,
+  accountMenuMeetingIconWrapSx,
   accountMenuRowSx,
 } from "./AccountMenu.styled";
 import { useAuth } from "@/lib/auth";
@@ -28,6 +31,8 @@ import {
   useAttendanceBreakOutMutation,
   useAttendanceCheckInMutation,
   useAttendanceCheckOutMutation,
+  useAttendanceMeetingInMutation,
+  useAttendanceMeetingOutMutation,
   useAttendanceMeQuery,
 } from "@/lib/hooks/query";
 import { isRecord, unwrapApiData } from "@/lib/utils/core";
@@ -56,7 +61,12 @@ export function AccountMenu({
   const app = theme.app;
   const blur = String(app.dashboard.cardBackdropBlur ?? "").trim();
   const rowSx = accountMenuRowSx(theme);
-  const { hasOperational } = useAuth();
+  const { hasOperational, refreshProfile } = useAuth();
+
+  useEffect(() => {
+    if (!open) return;
+    void refreshProfile();
+  }, [open, refreshProfile]);
 
   const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
   const canCheckIn =
@@ -67,6 +77,10 @@ export function AccountMenu({
     hasOperational(OP.hrms.attendance.breakIn) || hasOperational(OP.hrms.attendance.self);
   const canBreakOut =
     hasOperational(OP.hrms.attendance.breakOut) || hasOperational(OP.hrms.attendance.self);
+  const canMeetingIn =
+    hasOperational(OP.hrms.attendance.meetingIn) || hasOperational(OP.hrms.attendance.self);
+  const canMeetingOut =
+    hasOperational(OP.hrms.attendance.meetingOut) || hasOperational(OP.hrms.attendance.self);
 
   const todayAttendanceQuery = useAttendanceMeQuery(
     { from: today, to: today, page: 1, limit: 1 },
@@ -76,6 +90,8 @@ export function AccountMenu({
   const checkOutMutation = useAttendanceCheckOutMutation();
   const breakInMutation = useAttendanceBreakInMutation();
   const breakOutMutation = useAttendanceBreakOutMutation();
+  const meetingInMutation = useAttendanceMeetingInMutation();
+  const meetingOutMutation = useAttendanceMeetingOutMutation();
 
   const dayState = useMemo(
     () => parseAttendanceDayState(firstTodayRow(todayAttendanceQuery.data) ?? {}),
@@ -87,42 +103,49 @@ export function AccountMenu({
     checkOutMutation.isPending ||
     breakInMutation.isPending ||
     breakOutMutation.isPending ||
+    meetingInMutation.isPending ||
+    meetingOutMutation.isPending ||
     todayAttendanceQuery.isFetching;
 
   const mutateWithToast = useCallback(
     (
-      mutate: (body: { date: string }, opts: { onSuccess: () => void; onError: (e: unknown) => void }) => void,
+      mutate: (opts: { onSuccess: () => void; onError: (e: unknown) => void }) => void,
       successMessage: string,
       errorFallback: string,
     ) => {
-      mutate(
-        { date: today },
-        {
-          onSuccess: () => publishAppToast({ variant: "success", message: successMessage }),
-          onError: (error) =>
-            publishAppToast({
-              variant: "error",
-              message: extractApiErrorMessageForToast(error) ?? errorFallback,
-            }),
-        },
-      );
+      mutate({
+        onSuccess: () => publishAppToast({ variant: "success", message: successMessage }),
+        onError: (error) =>
+          publishAppToast({
+            variant: "error",
+            message: extractApiErrorMessageForToast(error) ?? errorFallback,
+          }),
+      });
     },
-    [today],
+    [],
   );
 
   const handleCheckToggle = useCallback(() => {
     if (dayState.hasOpenSession) {
       if (!canCheckOut || isAttendanceBusy) return;
-      mutateWithToast(checkOutMutation.mutate, "Checked out.", "Could not check out.");
+      mutateWithToast(
+        (opts) => checkOutMutation.mutate(undefined, opts),
+        "Checked out.",
+        "Could not check out.",
+      );
       return;
     }
     if (!canCheckIn || isAttendanceBusy) return;
-    mutateWithToast(checkInMutation.mutate, "Checked in.", "Could not check in.");
+    mutateWithToast(
+      (opts) => checkInMutation.mutate(undefined, opts),
+      "Checked in.",
+      "Could not check in.",
+    );
   }, [
     canCheckIn,
     canCheckOut,
-    checkInMutation.mutate,
-    checkOutMutation.mutate,
+    checkInMutation,
+    checkOutMutation,
     dayState.hasOpenSession,
     isAttendanceBusy,
     mutateWithToast,
@@ -132,19 +155,55 @@ export function AccountMenu({
     if (!dayState.hasOpenSession || isAttendanceBusy) return;
     if (dayState.isOnBreak) {
       if (!canBreakOut) return;
-      mutateWithToast(breakOutMutation.mutate, "Break ended.", "Could not end break.");
+      mutateWithToast(
+        (opts) => breakOutMutation.mutate(undefined, opts),
+        "Break ended.",
+        "Could not end break.",
+      );
       return;
     }
     if (!canBreakIn) return;
-    mutateWithToast(breakInMutation.mutate, "Break started.", "Could not start break.");
+    mutateWithToast(
+      (opts) => breakInMutation.mutate(undefined, opts),
+      "Break started.",
+      "Could not start break.",
+    );
   }, [
-    breakInMutation.mutate,
-    breakOutMutation.mutate,
+    breakInMutation,
+    breakOutMutation,
     canBreakIn,
     canBreakOut,
     dayState.hasOpenSession,
     dayState.isOnBreak,
     isAttendanceBusy,
+    mutateWithToast,
+  ]);
+
+  const handleMeetingToggle = useCallback(() => {
+    if (!dayState.hasOpenSession || isAttendanceBusy) return;
+    if (dayState.isOnMeeting) {
+      if (!canMeetingOut) return;
+      mutateWithToast(
+        (opts) => meetingOutMutation.mutate(undefined, opts),
+        "Meeting ended.",
+        "Could not end meeting.",
+      );
+      return;
+    }
+    if (!canMeetingIn) return;
+    mutateWithToast(
+      (opts) => meetingInMutation.mutate(undefined, opts),
+      "Meeting started.",
+      "Could not start meeting.",
+    );
+  }, [
+    canMeetingIn,
+    canMeetingOut,
+    dayState.hasOpenSession,
+    dayState.isOnMeeting,
+    isAttendanceBusy,
+    meetingInMutation,
+    meetingOutMutation,
     mutateWithToast,
   ]);
 
@@ -160,8 +219,15 @@ export function AccountMenu({
     return dayState.isOnBreak ? "Break-out" : "Break-in";
   }, [breakInMutation.isPending, breakOutMutation.isPending, dayState.isOnBreak]);
 
+  const meetingLabel = useMemo(() => {
+    if (meetingInMutation.isPending) return "Starting meeting…";
+    if (meetingOutMutation.isPending) return "Ending meeting…";
+    return dayState.isOnMeeting ? "Meeting-out" : "Meeting-in";
+  }, [dayState.isOnMeeting, meetingInMutation.isPending, meetingOutMutation.isPending]);
+
   const showCheckRow = canCheckIn || canCheckOut;
   const showBreakRow = canBreakIn || canBreakOut;
+  const showMeetingRow = canMeetingIn || canMeetingOut;
 
   const paperSx = useMemo(
     () => ({
@@ -200,6 +266,12 @@ export function AccountMenu({
     isAttendanceBusy ||
     !dayState.hasOpenSession ||
     (dayState.isOnBreak ? !canBreakOut : !canBreakIn);
+
+  const meetingDisabled =
+    isAttendanceBusy ||
+    !dayState.hasOpenSession ||
+    dayState.isOnBreak ||
+    (dayState.isOnMeeting ? !canMeetingOut : !canMeetingIn);
 
   return (
     <Menu
@@ -242,26 +314,38 @@ export function AccountMenu({
           </Typography>
         </MenuItem>
       ) : null}
+      {showMeetingRow ? (
+        <MenuItem onClick={handleMeetingToggle} disabled={meetingDisabled} disableRipple sx={rowSx}>
+          <AccountMenuIconWrap sx={accountMenuMeetingIconWrapSx(theme)}>
+            {dayState.isOnMeeting ? (
+              <GroupOffOutlinedIcon sx={{ fontSize: 20, display: "block", lineHeight: 0 }} />
+            ) : (
+              <GroupsOutlinedIcon sx={{ fontSize: 20, display: "block", lineHeight: 0 }} />
+            )}
+          </AccountMenuIconWrap>
+          <Typography variant="body2" fontWeight={600} sx={{ color: app.text.primary }}>
+            {meetingLabel}
+          </Typography>
+        </MenuItem>
+      ) : null}
+      {isImpersonating && (showCheckRow || showBreakRow || showMeetingRow) ? (
+        <Divider sx={{ my: 0.75, borderColor: app.dashboard.shellBorder, opacity: 0.85 }} />
+      ) : null}
       {isImpersonating ? (
-        <>
-          {(showCheckRow || showBreakRow) ? (
-            <Divider sx={{ my: 0.75, borderColor: app.dashboard.shellBorder, opacity: 0.85 }} />
-          ) : null}
-          <MenuItem onClick={onLoginAsAdmin} disableRipple sx={signOutRowSx}>
-            <AccountMenuIconWrap
-              sx={{
-                borderColor: alpha(app.dashboard.accentRed, 0.45),
-                color: app.dashboard.accentRedLight,
-                bgcolor: alpha(app.dashboard.accentRed, theme.palette.mode === "dark" ? 0.12 : 0.08),
-              }}
-            >
-              <LoginIcon sx={{ fontSize: 20 }} />
-            </AccountMenuIconWrap>
-            <Typography variant="body2" fontWeight={600} sx={{ color: "inherit" }}>
-              Login As Admin
-            </Typography>
-          </MenuItem>
-        </>
+        <MenuItem onClick={onLoginAsAdmin} disableRipple sx={signOutRowSx}>
+          <AccountMenuIconWrap
+            sx={{
+              borderColor: alpha(app.dashboard.accentRed, 0.45),
+              color: app.dashboard.accentRedLight,
+              bgcolor: alpha(app.dashboard.accentRed, theme.palette.mode === "dark" ? 0.12 : 0.08),
+            }}
+          >
+            <LoginIcon sx={{ fontSize: 20 }} />
+          </AccountMenuIconWrap>
+          <Typography variant="body2" fontWeight={600} sx={{ color: "inherit" }}>
+            Login As Admin
+          </Typography>
+        </MenuItem>
       ) : null}
     </Menu>
   );

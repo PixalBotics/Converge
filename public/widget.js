@@ -597,11 +597,19 @@
 
       : "right";
 
+    var verticalAnchor = payload.verticalAnchor === "top" ? "top" : "bottom";
+
     var bottom = typeof payload.insetBottomPx === "number"
 
       ? payload.insetBottomPx
 
       : DEFAULT_INSET_BOTTOM_PX;
+
+    var top = typeof payload.insetTopPx === "number"
+
+      ? payload.insetTopPx
+
+      : bottom;
 
     var side = typeof payload.insetSidePx === "number"
 
@@ -627,9 +635,15 @@
 
     var vh = window.innerHeight || height;
 
+    var maxHeight = verticalAnchor === "top"
+
+      ? Math.max(280, vh - top)
+
+      : Math.max(280, vh - bottom);
+
     width = Math.min(Math.ceil(width), vw);
 
-    height = Math.min(Math.ceil(height), vh);
+    height = Math.min(Math.ceil(height), maxHeight);
 
 
 
@@ -653,13 +667,27 @@
 
     style.height = height + "px";
 
-    style.bottom = bottom + "px";
+    if (verticalAnchor === "top") {
+
+      style.top = top + "px";
+
+      style.bottom = "auto";
+
+    } else {
+
+      style.bottom = bottom + "px";
+
+      style.top = "auto";
+
+    }
 
     style.maxWidth = "100vw";
 
     style.maxHeight = "100vh";
 
     style.overflow = "hidden";
+
+    style.pointerEvents = "auto";
 
 
 
@@ -686,6 +714,68 @@
       style.left = "auto";
 
       style.transform = "";
+
+    }
+
+  }
+
+
+
+  function mountEmbedFrame(appOrigin, baseParams, surface, frames) {
+
+    var frameParams = new URLSearchParams(baseParams.toString());
+
+    if (surface) {
+
+      frameParams.set("surface", surface);
+
+    }
+
+    var iframe = document.createElement("iframe");
+
+    iframe.setAttribute("title", surface === "textUs" ? "Text Us widget" : "Chat widget");
+
+    iframe.setAttribute("allow", "clipboard-write");
+
+    iframe.setAttribute("aria-label", surface === "textUs" ? "Text Us widget" : "Chat widget");
+
+    iframe.setAttribute("data-converge-surface", surface || "chat");
+
+    iframe.src = appOrigin + "/embed/widget?" + frameParams.toString();
+
+    var initialW = surface === "textUs" ? 168 : 220;
+
+    var initialH = surface === "textUs" ? 88 : 240;
+
+    applyFrameLayout(iframe, {
+
+      width: initialW,
+
+      height: initialH,
+
+      position: "right",
+
+      insetBottomPx: DEFAULT_INSET_BOTTOM_PX,
+
+      insetSidePx: DEFAULT_INSET_SIDE_PX,
+
+      open: false,
+
+    });
+
+    frames[surface || "chat"] = iframe;
+
+    if (document.body) {
+
+      document.body.appendChild(iframe);
+
+    } else {
+
+      document.addEventListener("DOMContentLoaded", function () {
+
+        document.body.appendChild(iframe);
+
+      });
 
     }
 
@@ -767,51 +857,26 @@
 
 
 
-    var params = new URLSearchParams();
+    var baseParams = new URLSearchParams();
 
-    params.set("widgetKey", widgetKey);
+    baseParams.set("widgetKey", widgetKey);
 
-    params.set("parentHost", pageHost());
+    baseParams.set("parentHost", pageHost());
 
-    params.set("parentPage", pageUrl());
+    baseParams.set("parentPage", pageUrl());
+
+    var sessionId = ensureVisitorSessionId(widgetKey);
+    if (sessionId) {
+      baseParams.set("visitorSession", sessionId);
+    }
 
     if (embedEnv) {
 
-      params.set("env", embedEnv);
+      baseParams.set("env", embedEnv);
 
     }
 
-
-
-    var iframe = document.createElement("iframe");
-
-    iframe.setAttribute("title", "Chat widget");
-
-    iframe.setAttribute("allow", "clipboard-write");
-
-    iframe.setAttribute("aria-label", "Chat widget");
-
-    iframe.src = appOrigin + "/embed/widget?" + params.toString();
-
-
-
-    applyFrameLayout(iframe, {
-
-      width: LAUNCHER_SIZE_PX,
-
-      height: LAUNCHER_SIZE_PX,
-
-      position: "right",
-
-      insetBottomPx: DEFAULT_INSET_BOTTOM_PX,
-
-      insetSidePx: DEFAULT_INSET_SIDE_PX,
-
-      open: false,
-
-    });
-
-
+    var frames = {};
 
     window.addEventListener("message", function (event) {
 
@@ -819,25 +884,95 @@
 
       if (event.origin !== appOrigin) return;
 
-      applyFrameLayout(iframe, event.data);
+      var surface = event.data.surface === "textUs" ? "textUs" : "chat";
+
+      var frame = frames[surface];
+
+      if (frame) applyFrameLayout(frame, event.data);
 
     });
 
+    function mountFromSession(data) {
 
+      var widgetType = String((data && data.widgetType) || "CHAT").toUpperCase();
 
-    if (document.body) {
+      var surfaces = (data && data.surfaces) || {};
 
-      document.body.appendChild(iframe);
+      var dual =
 
-    } else {
+        widgetType === "BOTH" &&
 
-      document.addEventListener("DOMContentLoaded", function () {
+        surfaces.chatEnabled !== false &&
 
-        document.body.appendChild(iframe);
+        surfaces.textUsEnabled !== false;
 
-      });
+      if (widgetType === "TEXT_US") {
+
+        mountEmbedFrame(appOrigin, baseParams, "textUs", frames);
+
+        return;
+
+      }
+
+      if (dual) {
+
+        mountEmbedFrame(appOrigin, baseParams, "chat", frames);
+
+        mountEmbedFrame(appOrigin, baseParams, "textUs", frames);
+
+        return;
+
+      }
+
+      mountEmbedFrame(appOrigin, baseParams, "chat", frames);
 
     }
+
+    if (!apiOrigin || typeof fetch !== "function") {
+
+      mountEmbedFrame(appOrigin, baseParams, "chat", frames);
+
+      return;
+
+    }
+
+    fetch(normalizeOrigin(apiOrigin) + "/widget/session", {
+
+      method: "POST",
+
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+
+      body: JSON.stringify({
+
+        widgetKey: widgetKey,
+
+        originHost: typeof window !== "undefined" ? window.location.origin : undefined,
+
+      }),
+
+      credentials: "omit",
+
+    })
+
+      .then(function (res) {
+
+        if (!res.ok) throw new Error("session");
+
+        return res.json();
+
+      })
+
+      .then(function (json) {
+
+        mountFromSession(peelApiSuccess(json));
+
+      })
+
+      .catch(function () {
+
+        mountEmbedFrame(appOrigin, baseParams, "chat", frames);
+
+      });
 
   }
 

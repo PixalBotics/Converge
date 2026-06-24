@@ -2,6 +2,7 @@ import { isRecord } from "@/lib/utils";
 import type { JsonRecord } from "@/api/types/common.types";
 import { widgetResponseData } from "@/api/widgets/widgets.api";
 import type { WidgetDraft, WidgetInstallChatMode } from "./widgetDraft";
+import { apiWidgetTypeToDraftKind } from "./widget-remote-sync";
 import {
   defaultWidgetDraft,
   normalizeButtonPosition,
@@ -29,6 +30,15 @@ function pickStr(obj: unknown, keys: string[]): string {
     if (typeof v === "string" && v.trim()) return v.trim();
   }
   return "";
+}
+
+function pickStrAllowEmpty(obj: unknown, keys: string[]): string | undefined {
+  if (!isRecord(obj)) return undefined;
+  for (const k of keys) {
+    const v = obj[k];
+    if (typeof v === "string") return v.trim();
+  }
+  return undefined;
 }
 
 function pickNum(obj: unknown, keys: string[]): number | undefined {
@@ -82,6 +92,31 @@ function firstRecord(...values: Array<JsonRecord | null | undefined>): JsonRecor
   return null;
 }
 
+function normalizeAllowedDomainsList(raw: unknown): string[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  const list = raw
+    .filter((x): x is string => typeof x === "string" && x.trim().length > 0)
+    .map((s) => s.trim());
+  return list.length ? list : undefined;
+}
+
+/** DB stores domains on widget row; config may carry an empty array — prefer non-empty sources. */
+function resolveAllowedDomainsList(
+  config: JsonRecord | null,
+  root: JsonRecord,
+): string[] | undefined {
+  for (const raw of [
+    root.allowedDomains,
+    root.allowed_domains,
+    config?.allowedDomains,
+    config?.allowed_domains,
+  ]) {
+    const list = normalizeAllowedDomainsList(raw);
+    if (list) return list;
+  }
+  return undefined;
+}
+
 /**
  * Maps `GET /widgets/:widgetKey` (admin) payload into `WidgetDraft` fields used by the 3-step CHAT wizard + PATCH builders.
  */
@@ -121,6 +156,10 @@ export function mapAdminWidgetResponseToWidgetDraft(
     djSession,
   );
   const form = firstRecord(pickRecord(config, ["form"]), pickRecord(settingsJson, ["form"]), djForm);
+  const offlineForm = firstRecord(
+    pickRecord(config, ["offlineForm"]),
+    pickRecord(settingsJson, ["offlineForm"]),
+  );
   const response = firstRecord(
     pickRecord(config, ["response"]),
     pickRecord(settingsJson, ["response"]),
@@ -131,10 +170,7 @@ export function mapAdminWidgetResponseToWidgetDraft(
   const chatModeRaw =
     pickStr(config ?? {}, ["chatMode", "chat_mode", "mode"]) ||
     pickStr(root, ["chatMode", "chat_mode", "mode"]);
-  const allowedDomainsRaw = config?.allowedDomains ?? root.allowedDomains;
-  const allowedDomains = Array.isArray(allowedDomainsRaw)
-    ? allowedDomainsRaw.filter((x): x is string => typeof x === "string" && x.trim().length > 0).map((s) => s.trim())
-    : undefined;
+  const allowedDomains = resolveAllowedDomainsList(config, root);
 
   const inquiryRaw = behavior?.inquiryOptions;
   const inquiryOptions = normalizeWidgetInquiryOptions(
@@ -146,8 +182,12 @@ export function mapAdminWidgetResponseToWidgetDraft(
     pickStr(ui ?? {}, ["headerTitleAlign"]) ||
     "Center";
 
+  const widgetTypeRaw =
+    pickStr(root, ["widgetType", "widget_type"]) ||
+    pickStr(config ?? {}, ["widgetType", "widget_type"]);
+
   const patch: Partial<WidgetDraft> = {
-    type: "chat",
+    type: apiWidgetTypeToDraftKind(widgetTypeRaw),
     remoteWidgetKey: widgetKey,
     widgetId: widgetKey,
     websiteId: websiteId || undefined,
@@ -158,6 +198,9 @@ export function mapAdminWidgetResponseToWidgetDraft(
       ...(root as Record<string, unknown>),
     }),
     allowedDomains: allowedDomains?.length ? allowedDomains : undefined,
+    embedAllowAnyOrigin:
+      pickBool(root, ["embedAllowAnyOrigin", "embed_allow_any_origin"]) ??
+      defaultWidgetDraft.embedAllowAnyOrigin,
     themeName: pickStr(theme ?? {}, ["name"]) || defaultWidgetDraft.themeName,
     themePrimaryColor:
       pickStr(theme ?? {}, ["primaryColor", "primary_color"]) ||
@@ -218,6 +261,14 @@ export function mapAdminWidgetResponseToWidgetDraft(
     launcherIconPreset: normalizeLauncherIconPresetFromApi(
       pickStr(ui ?? {}, ["launcherIconPreset"]),
     ),
+    launcherIconEnabled:
+      launcher?.iconEnabled === false
+        ? false
+        : pickBool(ui ?? {}, ["launcherIconEnabled"]) ?? defaultWidgetDraft.launcherIconEnabled ?? true,
+    launcherLabelEnabled:
+      launcher?.labelEnabled === false
+        ? false
+        : pickBool(ui ?? {}, ["launcherLabelEnabled"]) ?? defaultWidgetDraft.launcherLabelEnabled ?? true,
     launcherStyle: normalizeLauncherStyle(
       pickStr(launcher ?? ui ?? {}, ["style", "launcherStyle"]),
     ),
@@ -322,7 +373,8 @@ export function mapAdminWidgetResponseToWidgetDraft(
       defaultWidgetDraft.bannerDataUrl,
     boxWidth: pickNum(chatBox ?? ui ?? {}, ["boxWidth", "width"]) ?? defaultWidgetDraft.boxWidth,
     boxHeight: pickNum(chatBox ?? ui ?? {}, ["boxHeight", "height"]) ?? defaultWidgetDraft.boxHeight,
-    buttonLabel: pickStr(ui ?? {}, ["buttonLabel"]) || defaultWidgetDraft.buttonLabel,
+    buttonLabel:
+      pickStrAllowEmpty(ui ?? {}, ["buttonLabel"]) ?? defaultWidgetDraft.buttonLabel,
     proactiveTeaserEnabled:
       pickBool(ui ?? {}, ["proactiveTeaserEnabled"]) ?? defaultWidgetDraft.proactiveTeaserEnabled,
     proactiveTeaser:
@@ -409,7 +461,9 @@ export function mapAdminWidgetResponseToWidgetDraft(
       defaultWidgetDraft.privacyPolicyUrl,
     privacyNotice: pickStr(behavior ?? {}, ["privacyNotice"]) || defaultWidgetDraft.privacyNotice,
     allowedDomainsText:
-      pickStr(behavior ?? {}, ["allowedDomainsText"]) || defaultWidgetDraft.allowedDomainsText,
+      (allowedDomains?.length ? allowedDomains.join(", ") : "") ||
+      pickStr(behavior ?? {}, ["allowedDomainsText"]) ||
+      defaultWidgetDraft.allowedDomainsText,
     inquiryOn: inquiryOptions != null ? inquiryOptions.length > 0 : defaultWidgetDraft.inquiryOn,
     inquiryRequired: pickBool(behavior ?? {}, ["inquiryRequired"]) ?? false,
     inquirySkipLabel:
@@ -426,7 +480,6 @@ export function mapAdminWidgetResponseToWidgetDraft(
       defaultWidgetDraft.sessionTtlMinutes,
     formEnabled:
       pickBool(form ?? {}, ["enabled"]) ??
-      pickBool(config ?? {}, ["offlineFormEnabled"]) ??
       defaultWidgetDraft.formEnabled,
     formTitle:
       pickStr(form ?? {}, ["title"]) ||
@@ -454,6 +507,32 @@ export function mapAdminWidgetResponseToWidgetDraft(
       pickBool(form ?? {}, ["prechatMessageRequired"]) ??
       pickBool(config ?? {}, ["prechatMessageRequired"]) ??
       defaultWidgetDraft.prechatMessageRequired,
+    offlineFormEnabled:
+      pickBool(offlineForm ?? {}, ["enabled"]) ??
+      pickBool(config ?? {}, ["offlineFormEnabled"]) ??
+      defaultWidgetDraft.offlineFormEnabled,
+    offlineFormTitle:
+      pickStr(offlineForm ?? {}, ["title"]) || defaultWidgetDraft.offlineFormTitle,
+    offlineFormSubtitle:
+      pickStr(offlineForm ?? {}, ["subtitle"]) || defaultWidgetDraft.offlineFormSubtitle,
+    offlineFormSubmitLabel:
+      pickStr(offlineForm ?? {}, ["submitLabel", "submit_label"]) ||
+      defaultWidgetDraft.offlineFormSubmitLabel,
+    offlinePrechatNameEnabled:
+      pickBool(offlineForm ?? {}, ["prechatNameEnabled"]) ??
+      defaultWidgetDraft.offlinePrechatNameEnabled,
+    offlinePrechatEmailEnabled:
+      pickBool(offlineForm ?? {}, ["prechatEmailEnabled"]) ??
+      defaultWidgetDraft.offlinePrechatEmailEnabled,
+    offlinePrechatPhoneEnabled:
+      pickBool(offlineForm ?? {}, ["prechatPhoneEnabled"]) ??
+      defaultWidgetDraft.offlinePrechatPhoneEnabled,
+    offlinePrechatMessageEnabled:
+      pickBool(offlineForm ?? {}, ["prechatMessageEnabled"]) ??
+      defaultWidgetDraft.offlinePrechatMessageEnabled,
+    offlinePrechatMessageRequired:
+      pickBool(offlineForm ?? {}, ["prechatMessageRequired"]) ??
+      defaultWidgetDraft.offlinePrechatMessageRequired,
     responseWelcomeMessage:
       pickStr(response ?? {}, ["welcomeMessage"]) ||
       pickStr(config ?? {}, ["welcomeMessage"]) ||

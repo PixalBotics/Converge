@@ -29,8 +29,8 @@ export const emailKeys = {
     [...emailKeys.all, "platform-template-assignment-list"] as const,
   platformTemplateVersions: () => [...emailKeys.all, "platform-template-versions"] as const,
   platformAgentFeedback: () => [...emailKeys.all, "platform-agent-feedback"] as const,
-  distributionFeedbackSubmissions: (page: number, limit: number) =>
-    [...emailKeys.all, "distribution-feedback-submissions", page, limit] as const,
+  distributionFeedbackSubmissions: (page: number, limit: number, websiteId?: string) =>
+    [...emailKeys.all, "distribution-feedback-submissions", page, limit, websiteId ?? "all"] as const,
   resellerTemplateVersions: (resellerId: string) =>
     [...emailKeys.all, "reseller-template-versions", resellerId] as const,
 };

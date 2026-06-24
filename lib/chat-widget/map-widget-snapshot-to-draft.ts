@@ -45,10 +45,21 @@ export function mapWidgetSnapshotToWidgetDraft(
       mergedConfig.ai_type ??
       snapshot.aiType ??
       snapshot.ai_type,
-    allowedDomains:
-      mergedConfig.allowedDomains ??
-      snapshot.allowedDomains ??
-      snapshot.allowed_domains,
+    allowedDomains: (() => {
+      for (const raw of [
+        snapshot.allowedDomains,
+        snapshot.allowed_domains,
+        mergedConfig.allowedDomains,
+        mergedConfig.allowed_domains,
+      ]) {
+        if (!Array.isArray(raw)) continue;
+        const list = raw
+          .filter((x): x is string => typeof x === "string" && x.trim().length > 0)
+          .map((s) => s.trim());
+        if (list.length) return list;
+      }
+      return undefined;
+    })(),
     embedAllowAnyOrigin: snapshot.embedAllowAnyOrigin ?? snapshot.embed_allow_any_origin,
     config: mergedConfig,
   };

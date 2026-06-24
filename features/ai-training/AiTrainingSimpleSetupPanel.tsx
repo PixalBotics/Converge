@@ -34,6 +34,7 @@ import {
   type SimpleSetupDraft,
 } from "./ai-flow-sync.util";
 import type { AiTrainingKbVariant } from "./ai-training-kb.utils";
+import { AiTrainingParallelScrapeToggle } from "./AiTrainingParallelScrapeToggle";
 import { aiTrainingManageHref } from "./ai-training-routes";
 import {
   aiTrainingSettingsFieldSx,
@@ -277,7 +278,7 @@ export function AiTrainingSimpleSetupPanel({
               }}
             >
               <FormControlLabel
-                sx={{ alignItems: "flex-start", m: 0 }}
+                sx={{ alignItems: "flex-start", m: 0, mb: 1.5 }}
                 control={
                   <Checkbox
                     checked={draft.autoLearnFromVisitorPages}
@@ -302,6 +303,31 @@ export function AiTrainingSimpleSetupPanel({
                     </Typography>
                   </Box>
                 }
+              />
+              <AiTrainingParallelScrapeToggle
+                checked={draft.parallelScrapePages}
+                disabled={updateBehavior.isPending}
+                onSave={async (enabled) => {
+                  try {
+                    await updateBehavior.mutateAsync({
+                      websiteId,
+                      body: { parallelScrapePages: enabled },
+                    });
+                    setDraft((p) => (p ? { ...p, parallelScrapePages: enabled } : p));
+                    publishAppToast({
+                      variant: "success",
+                      message: enabled
+                        ? "Parallel scrape enabled — next training run will fetch multiple pages at once."
+                        : "Parallel scrape off — pages scrape one at a time (clearer progress).",
+                    });
+                  } catch (e) {
+                    publishAppToast({
+                      variant: "error",
+                      message: extractApiErrorMessageForToast(e) ?? "Could not save setting.",
+                    });
+                    throw e;
+                  }
+                }}
               />
             </Box>
             <Box sx={{ display: "flex", gap: 1.5, flexWrap: "wrap" }}>

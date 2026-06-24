@@ -8,6 +8,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import type { AppTheme } from "@/theme/theme";
 import { Button, Typography } from "@/components/common";
 import { DISTRIBUTION_ROUTES } from "@/features/distribution-setup/distribution.constants";
+import { CRM_ROUTES } from "@/features/crm-integration";
 import {
   DistributionEmailFormConfigurator,
   DistributionWizardShell,
@@ -41,6 +42,7 @@ export default function DistributionSettingsPage() {
   const website = readWizardWebsite();
   const detailQuery = useDistributionSetupDetailQuery(setupId);
   const websiteId = website?.websiteId ?? detailQuery.data?.websiteId ?? "";
+  const childCompanyId = website?.childCompanyId ?? detailQuery.data?.childCompanyId ?? "";
 
   const [method, setMethod] = useState<DistributionWizardMethod | null>(() => readWizardMethod());
   const [emailConfigId, setEmailConfigId] = useState<string | null>(null);
@@ -50,8 +52,7 @@ export default function DistributionSettingsPage() {
   }, [setupId]);
 
   useEffect(() => {
-    const id =
-      detailQuery.data?.emailConfigurationId ?? emailConfigId ?? null;
+    const id = detailQuery.data?.emailConfigurationId ?? emailConfigId ?? null;
     if (id) {
       writeWizardEmailFormId(id);
       setEmailConfigId(id);
@@ -69,8 +70,11 @@ export default function DistributionSettingsPage() {
     writeWizardMethod(next);
   };
 
+  const needsEmailForm = method === "email" || method === "both";
   const canContinue =
-    method === "email" && Boolean(websiteId) && Boolean(emailConfigId);
+    Boolean(method) &&
+    Boolean(websiteId) &&
+    (!needsEmailForm || Boolean(emailConfigId));
 
   const { goBack, goNext, saving: navSaving } = useDistributionWizardNav({
     currentStep: 2,
@@ -93,8 +97,8 @@ export default function DistributionSettingsPage() {
   return (
     <DistributionWizardShell
       step={2}
-      cardTitle="Email distribution form"
-      subtitle="Choose Email delivery and configure the agent form in this step — no separate popup."
+      cardTitle="Distribution delivery"
+      subtitle="Choose Email, CRM, or Both. Email paths use To/CC/BCC; CRM uses your field mapping."
       footer={
         <DistributionWizardFooter onBack={goBack}>
           <Button
@@ -131,12 +135,30 @@ export default function DistributionSettingsPage() {
               variant="caption"
               sx={{ color: theme.palette.warning.light, mt: 1.5, display: "block" }}
             >
-              Select Email to configure the distribution form, subject, and recipients.
+              Select a delivery method to continue.
             </Typography>
           ) : null}
         </Box>
 
-        {method === "email" && websiteId ? (
+        {(method === "crm" || method === "both") && childCompanyId ? (
+          <Box sx={distributionChannelCardSx}>
+            <Typography variant="small" fontWeight={600} color="white" sx={{ mb: 1 }}>
+              CRM integration
+            </Typography>
+            <Typography
+              variant="caption"
+              sx={{ color: theme.app.dashboard.textMuted, display: "block", mb: 1.5, lineHeight: 1.6 }}
+            >
+              Connect HubSpot, Salesforce, or Zoho for this child company and map wrap-up fields.
+              CC/BCC apply only to the email leg when using Both.
+            </Typography>
+            <Button type="button" variant="secondary" onClick={() => router.push(CRM_ROUTES.home)}>
+              Configure CRM Integration
+            </Button>
+          </Box>
+        ) : null}
+
+        {needsEmailForm && websiteId ? (
           <Box sx={distributionChannelCardSx}>
             <Typography variant="small" fontWeight={600} color="white" sx={{ mb: 1 }}>
               Email form fields
@@ -148,15 +170,19 @@ export default function DistributionSettingsPage() {
               Save the form here before continuing. Agents will see this form in the chat transcript
               after each close.
             </Typography>
-            <DistributionEmailFormConfigurator
-              websiteId={websiteId}
-              onSaved={handleFormSaved}
-            />
+            <DistributionEmailFormConfigurator websiteId={websiteId} onSaved={handleFormSaved} />
+          </Box>
+        ) : method === "crm" ? (
+          <Box sx={distributionChannelCardSx}>
+            <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted, lineHeight: 1.5 }}>
+              No email form is required for CRM-only distribution. Map destination department
+              and other fields in CRM Integration → Field mapping.
+            </Typography>
           </Box>
         ) : method ? (
           <Box sx={distributionChannelCardSx}>
             <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted, lineHeight: 1.5 }}>
-              Select a website on step 1 before configuring the email form.
+              Select a website on step 1 before continuing.
             </Typography>
           </Box>
         ) : null}

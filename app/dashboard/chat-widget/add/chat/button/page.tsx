@@ -17,6 +17,7 @@ import { WidgetLauncherIconPicker } from "@/components/dashboard/chat-widget/Wid
 import { mergeWizardDraftForPublish } from "@/lib/chat-widget/merge-wizard-draft-for-publish";
 import {
   patchRemoteWidgetConfigurationWithMeta,
+  resolveWizardKindFromDraft,
   summarizePatchResult,
 } from "@/lib/chat-widget/widget-remote-sync";
 import { persistAssetUrlsOnDraft } from "@/lib/chat-widget/resolve-widget-draft-asset-urls";
@@ -82,6 +83,13 @@ export default function ChatWidgetButtonDesignPage() {
   const [iconFileName, setIconFileName] = useState("");
   const [iconDataUrl, setIconDataUrl] = useState("");
   const [launcherIconPreset, setLauncherIconPreset] = useState<LauncherIconPresetId>("phosphor-chat-circle");
+  const [launcherIconEnabled, setLauncherIconEnabled] = useState(
+    defaultWidgetDraft.launcherIconEnabled !== false,
+  );
+  const [launcherLabelEnabled, setLauncherLabelEnabled] = useState(
+    defaultWidgetDraft.launcherLabelEnabled !== false,
+  );
+  const [buttonLabel, setButtonLabel] = useState(defaultWidgetDraft.buttonLabel ?? "Chat with us");
   const [launcherStyle, setLauncherStyle] = useState<WidgetLauncherStyleId>(
     defaultWidgetDraft.launcherStyle ?? "solid",
   );
@@ -127,6 +135,11 @@ export default function ChatWidgetButtonDesignPage() {
     setIconDataUrl(d.iconDataUrl || "");
     setIconFileName(d.iconDataUrl ? "Uploaded icon" : "");
     setLauncherIconPreset(d.launcherIconPreset);
+    if (d.launcherIconEnabled != null) setLauncherIconEnabled(d.launcherIconEnabled);
+    if (d.launcherLabelEnabled != null) setLauncherLabelEnabled(d.launcherLabelEnabled);
+    setButtonLabel(
+      typeof d.buttonLabel === "string" ? d.buttonLabel : (defaultWidgetDraft.buttonLabel ?? ""),
+    );
     setLauncherStyle(d.launcherStyle ?? defaultWidgetDraft.launcherStyle ?? "solid");
     setLauncherInsetBottom(String(d.launcherInsetBottomPx ?? 28));
     setLauncherInsetSide(String(d.launcherInsetSidePx ?? 28));
@@ -157,6 +170,9 @@ export default function ChatWidgetButtonDesignPage() {
     selectedIconColor,
     iconDataUrl,
     launcherIconPreset,
+    launcherIconEnabled,
+    launcherLabelEnabled,
+    buttonLabel,
     launcherStyle,
     proactiveTeaserEnabled,
     proactiveTeaser,
@@ -179,6 +195,9 @@ export default function ChatWidgetButtonDesignPage() {
     selectedIconColor,
     iconDataUrl,
     launcherIconPreset,
+    launcherIconEnabled,
+    launcherLabelEnabled,
+    buttonLabel,
     launcherStyle,
     proactiveTeaserEnabled,
     proactiveTeaser,
@@ -199,7 +218,7 @@ export default function ChatWidgetButtonDesignPage() {
     const sidePx = parseInsetPxString(s.launcherInsetSide, 28);
     const whatsappHref = normalizeWhatsAppHref(s.proactiveSecondaryCtaHref);
     saveChatWizardDraft(editKey || undefined, {
-      type: "chat",
+      type: prev.type,
       buttonShape: s.buttonShape,
       buttonPosition: s.buttonPosition,
       launcherInsetBottomPx: bottomPx,
@@ -209,6 +228,9 @@ export default function ChatWidgetButtonDesignPage() {
       iconColor: s.selectedIconColor || "#FFFFFF",
       iconDataUrl: s.iconDataUrl,
       launcherIconPreset: s.launcherIconPreset,
+      launcherIconEnabled: s.launcherIconEnabled,
+      launcherLabelEnabled: s.launcherLabelEnabled,
+      buttonLabel: s.buttonLabel.trim(),
       launcherStyle: s.launcherStyle,
       proactiveTeaserEnabled: s.proactiveTeaserEnabled,
       proactiveTeaser: s.proactiveTeaser.trim(),
@@ -345,6 +367,13 @@ export default function ChatWidgetButtonDesignPage() {
 
   const handleNext = () => {
     if (saving) return;
+    if (!launcherIconEnabled && (!launcherLabelEnabled || !buttonLabel.trim())) {
+      publishAppToast({
+        variant: "error",
+        message: "Turn on the launcher icon or button label, and add label text.",
+      });
+      return;
+    }
     const bottomPx = parseInsetPxString(launcherInsetBottom, 28);
     const sidePx = parseInsetPxString(launcherInsetSide, 28);
     const whatsappHref = normalizeWhatsAppHref(proactiveSecondaryCtaHref);
@@ -386,7 +415,7 @@ export default function ChatWidgetButtonDesignPage() {
         });
 
         saveChatWizardDraft(editKey || undefined, {
-          type: "chat",
+          type: prev.type,
           buttonShape,
           buttonPosition,
           launcherInsetBottomPx: bottomPx,
@@ -396,6 +425,9 @@ export default function ChatWidgetButtonDesignPage() {
           iconColor: selectedIconColor || "#FFFFFF",
           iconDataUrl,
           launcherIconPreset,
+          launcherIconEnabled,
+          launcherLabelEnabled,
+          buttonLabel: buttonLabel.trim(),
           launcherStyle,
           proactiveTeaserEnabled,
           proactiveTeaser: proactiveTeaser.trim(),
@@ -433,7 +465,7 @@ export default function ChatWidgetButtonDesignPage() {
         const latest = readChatWizardDraft(editKey || undefined);
         const patchMeta = await patchRemoteWidgetConfigurationWithMeta({
           widgetKey: rk,
-          widgetKind: "chat",
+          widgetKind: resolveWizardKindFromDraft(latest),
           draft: latest,
           publishNow: false,
           chatWizardPatchScope: "launcher_only",
@@ -528,6 +560,9 @@ export default function ChatWidgetButtonDesignPage() {
             iconColor={selectedIconColor || "#FFFFFF"}
             iconDataUrl={iconDataUrl}
             launcherIconPreset={launcherIconPreset}
+            launcherIconEnabled={launcherIconEnabled}
+            launcherLabelEnabled={launcherLabelEnabled}
+            buttonLabel={buttonLabel}
             proactiveTeaser={teaserPreview.text}
             proactiveTeaserActive={teaserPreview.active}
             proactiveTeaserAvatarUrl={teaserPreview.avatarUrl}
@@ -805,6 +840,45 @@ export default function ChatWidgetButtonDesignPage() {
         </Typography>
       </SchedulingSectionCard>
 
+      <WidgetWizardToggleRow
+        label="Button label"
+        description="Turn off to hide text on the launcher — visitors see the icon and shape only."
+        checked={launcherLabelEnabled}
+        onChange={setLauncherLabelEnabled}
+      />
+
+      {launcherLabelEnabled ? (
+      <Box>
+      <Typography variant="mediumLarge" sx={{ color: theme.app.text.primary, mb: 0.5 }}>
+        Launcher button text
+      </Typography>
+      <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, mb: 1.25 }}>
+        {launcherIconEnabled
+          ? "Shown on the floating pill next to the icon."
+          : "Required when the icon is off — this is the only label visitors see."}
+      </Typography>
+      <WidgetTextField
+        label="Button label"
+        value={buttonLabel}
+        onChange={setButtonLabel}
+        maxLength={FIELD_MAX.shortLabel}
+        placeholder="Chat with us"
+      />
+      </Box>
+      ) : (
+        <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted }}>
+          Label hidden — visitors see the launcher icon only (your chosen shape is kept).
+        </Typography>
+      )}
+
+      <WidgetWizardToggleRow
+        label="Launcher icon"
+        description="Turn off to show only your button text (no glyph)."
+        checked={launcherIconEnabled}
+        onChange={setLauncherIconEnabled}
+      />
+
+      {launcherIconEnabled ? (
       <Box>
       <Typography variant="mediumLarge" sx={{ color: theme.app.text.primary, mb: 0.5 }}>
         Default launcher icon
@@ -863,6 +937,7 @@ export default function ChatWidgetButtonDesignPage() {
       </Box>
       <Box component="input" ref={iconUploadRef} type="file" accept=".svg,.png,.jpg,.jpeg,.webp" onChange={handleIconUpload} sx={{ display: "none" }} />
       </Box>
+      ) : null}
 
       <SelectField
         label="Button Position"

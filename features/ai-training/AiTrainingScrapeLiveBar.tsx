@@ -8,8 +8,12 @@ import type { AppTheme } from "@/theme/theme";
 import type { KnowledgeScrapeProgress, KnowledgeTrainingTier } from "@/api/ai-knowledge/types";
 import { Typography } from "@/components/common";
 import {
+  computeAvgSecPerPage,
+  computeCurrentPageElapsedSec,
   computeScrapeTiming,
   formatDurationSeconds,
+  formatScrapePageDisplay,
+  formatScrapePhaseLabel,
   formatScrapeProgressLabel,
   formatTrainingTierBanner,
   resolveFullScrapeUiPhase,
@@ -18,9 +22,12 @@ import {
 export function AiTrainingScrapeLiveBar({
   progress,
   trainingTier,
+  showPageList = false,
 }: {
   progress: KnowledgeScrapeProgress;
   trainingTier?: KnowledgeTrainingTier | null;
+  /** Show recent + in-flight pages (training page). */
+  showPageList?: boolean;
 }) {
   const theme = useTheme() as AppTheme;
   const d = theme.app.dashboard;
@@ -32,8 +39,17 @@ export function AiTrainingScrapeLiveBar({
   }, []);
 
   const timing = useMemo(() => computeScrapeTiming(progress, nowMs), [progress, nowMs]);
+  const pageElapsedSec = useMemo(
+    () => computeCurrentPageElapsedSec(progress, nowMs),
+    [progress, nowMs],
+  );
+  const avgSecPerPage = useMemo(
+    () => computeAvgSecPerPage(progress, nowMs),
+    [progress, nowMs],
+  );
   const tierBanner = formatTrainingTierBanner(progress, trainingTier ?? progress.trainingTier);
   const progressLabel = formatScrapeProgressLabel(progress);
+  const phaseLabel = formatScrapePhaseLabel(progress);
   const postScrapePhase = resolveFullScrapeUiPhase(progress);
   const tier = progress.trainingTier;
   const percent =
@@ -46,11 +62,12 @@ export function AiTrainingScrapeLiveBar({
         ? Math.min(100, Math.round((progress.pagesDone / progress.pagesTotal) * 100))
         : null;
 
-  const currentTitle =
-    progress.currentPage?.title?.trim() ||
-    progress.currentPage?.url ||
-    progress.activePages?.[0]?.title ||
-    null;
+  const currentPage = progress.currentPage ?? progress.activePages?.[0] ?? null;
+  const currentDisplay = formatScrapePageDisplay(currentPage?.url, currentPage?.title);
+  const lastDone = progress.recentPages[0] ?? null;
+  const lastDoneDisplay = lastDone
+    ? formatScrapePageDisplay(lastDone.url, lastDone.title)
+    : null;
 
   const severity = tierBanner?.severity ?? "info";
   const accent =
@@ -82,11 +99,16 @@ export function AiTrainingScrapeLiveBar({
           {tierBanner?.title ?? "Training in progress"}
         </Typography>
         <Typography variant="caption" sx={{ color: d.textMuted, fontWeight: 600 }}>
-          {formatDurationSeconds(timing.elapsedSec)}
+          Total {formatDurationSeconds(timing.elapsedSec)}
         </Typography>
         {progressLabel ? (
-          <Typography variant="caption" sx={{ color: d.textMuted }}>
+          <Typography variant="caption" sx={{ color: d.textMuted, fontWeight: 600 }}>
             {progressLabel}
+          </Typography>
+        ) : null}
+        {avgSecPerPage != null ? (
+          <Typography variant="caption" sx={{ color: d.textMuted }}>
+            ~{avgSecPerPage}s/page
           </Typography>
         ) : null}
         {timing.etaSec != null ? (
@@ -94,11 +116,36 @@ export function AiTrainingScrapeLiveBar({
             ~{formatDurationSeconds(timing.etaSec)} left
           </Typography>
         ) : null}
-        {currentTitle ? (
+      </Box>
+
+      <Typography
+        variant="caption"
+        sx={{
+          display: "block",
+          mt: 0.35,
+          color: d.textMuted,
+          fontWeight: 600,
+        }}
+      >
+        {phaseLabel}
+      </Typography>
+
+      {currentDisplay ? (
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "baseline",
+            gap: 1,
+            mt: 0.35,
+            minWidth: 0,
+            flexWrap: "wrap",
+          }}
+        >
           <Typography
             variant="caption"
             sx={{
-              color: d.textMuted,
+              color: accent,
+              fontWeight: 700,
               minWidth: 0,
               flex: 1,
               overflow: "hidden",
@@ -106,10 +153,97 @@ export function AiTrainingScrapeLiveBar({
               whiteSpace: "nowrap",
             }}
           >
-            {currentTitle}
+            Scraping: {currentDisplay}
           </Typography>
-        ) : null}
-      </Box>
+          {pageElapsedSec != null ? (
+            <Typography variant="caption" sx={{ color: d.textMuted, flexShrink: 0 }}>
+              {formatDurationSeconds(pageElapsedSec)} on this page
+            </Typography>
+          ) : null}
+        </Box>
+      ) : null}
+
+      {(progress.activePages?.length ?? 0) > 1 ? (
+        <Typography variant="caption" sx={{ display: "block", mt: 0.25, color: d.textMuted }}>
+          +{(progress.activePages?.length ?? 0) - 1} more page
+          {(progress.activePages?.length ?? 0) - 1 === 1 ? "" : "s"} in parallel
+        </Typography>
+      ) : null}
+
+      {!showPageList && lastDoneDisplay && postScrapePhase !== "embedding" ? (
+        <Typography
+          variant="caption"
+          sx={{
+            display: "block",
+            mt: 0.25,
+            color: d.textMuted,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
+          Last done: {lastDoneDisplay}
+          {lastDone && lastDone.chunks > 0 ? ` (${lastDone.chunks} pieces)` : ""}
+        </Typography>
+      ) : null}
+
+      {showPageList ? (
+        <Box sx={{ mt: 0.75, minWidth: 0 }}>
+          {progress.currentPage || (progress.activePages?.length ?? 0) > 0 ? (
+            <Typography
+              variant="caption"
+              sx={{ color: d.textMuted, fontWeight: 700, display: "block", mb: 0.35 }}
+            >
+              In progress
+            </Typography>
+          ) : null}
+          <Box component="ul" sx={{ m: 0, pl: 2.25, mb: 0.5 }}>
+            {(progress.activePages ?? []).map((page) => (
+              <Box component="li" key={`active-${page.url}`} sx={{ mb: 0.2 }}>
+                <Typography variant="caption" sx={{ color: accent, fontWeight: 600 }}>
+                  {formatScrapePageDisplay(page.url, page.title) ?? page.url}
+                </Typography>
+              </Box>
+            ))}
+            {progress.currentPage &&
+            !(progress.activePages ?? []).some((p) => p.url === progress.currentPage?.url) ? (
+              <Box component="li" sx={{ mb: 0.2 }}>
+                <Typography variant="caption" sx={{ color: accent, fontWeight: 600 }}>
+                  {formatScrapePageDisplay(
+                    progress.currentPage.url,
+                    progress.currentPage.title,
+                  ) ?? progress.currentPage.url}
+                </Typography>
+              </Box>
+            ) : null}
+          </Box>
+          {progress.recentPages.length > 0 ? (
+            <>
+              <Typography
+                variant="caption"
+                sx={{ color: d.textMuted, fontWeight: 700, display: "block", mb: 0.35 }}
+              >
+                Completed pages
+              </Typography>
+              <Box component="ul" sx={{ m: 0, pl: 2.25 }}>
+                {progress.recentPages.slice(0, 6).map((page) => (
+                  <Box component="li" key={page.url} sx={{ mb: 0.2 }}>
+                    <Typography variant="caption" sx={{ color: d.textMuted }}>
+                      {formatScrapePageDisplay(page.url, page.title) ?? page.url}
+                      {page.chunks > 0 ? ` · ${page.chunks} pieces` : ""}
+                    </Typography>
+                  </Box>
+                ))}
+              </Box>
+            </>
+          ) : progress.pagesDone === 0 && progress.phase === "discovering" ? (
+            <Typography variant="caption" sx={{ color: d.textMuted, display: "block" }}>
+              {formatScrapePhaseLabel(progress)} — page list will appear here shortly.
+            </Typography>
+          ) : null}
+        </Box>
+      ) : null}
+
       {postScrapePhase === "finishing_pages" || postScrapePhase === "embedding" ? (
         <LinearProgress
           sx={{

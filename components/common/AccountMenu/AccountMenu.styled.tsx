@@ -57,6 +57,17 @@ export const accountMenuBreakIconWrapSx = (theme: Theme): SxProps<Theme> => {
   };
 };
 
+/** Meeting-in / meeting-out row. */
+export const accountMenuMeetingIconWrapSx = (theme: Theme): SxProps<Theme> => {
+  const app = (theme as AppTheme).app;
+  const mode = theme.palette.mode;
+  return {
+    backgroundColor: alpha(theme.palette.info.main, mode === "dark" ? 0.2 : 0.12),
+    border: `1px solid ${alpha(theme.palette.info.main, mode === "dark" ? 0.5 : 0.38)}`,
+    color: theme.palette.info.light,
+  };
+};
+
 export const AccountMenuIconWrap = styled("span")(({ theme }) => {
   const app = (theme as AppTheme).app;
   const mode = theme.palette.mode;

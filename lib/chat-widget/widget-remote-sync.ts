@@ -23,12 +23,25 @@ import {
 } from "./widget-install-response";
 import { resolveWidgetDraftAssetUrls } from "./resolve-widget-draft-asset-urls";
 import { mergeWizardDraftForPublish } from "./merge-wizard-draft-for-publish";
-import type { WidgetDraft } from "./widgetDraft";
+import type { WidgetDraft, WidgetKind } from "./widgetDraft";
 
-export type WizardWidgetKind = "chat" | "text";
+export type WizardWidgetKind = "chat" | "text" | "both";
 
 export function wizardKindToApiType(kind: WizardWidgetKind) {
-  return kind === "text" ? ("TEXT_US" as const) : ("CHAT" as const);
+  if (kind === "text") return "TEXT_US" as const;
+  if (kind === "both") return "BOTH" as const;
+  return "CHAT" as const;
+}
+
+export function apiWidgetTypeToDraftKind(widgetType: unknown): WidgetKind {
+  const wt = String(widgetType ?? "").toUpperCase();
+  if (wt === "TEXT_US") return "text";
+  if (wt === "BOTH") return "both";
+  return "chat";
+}
+
+export function resolveWizardKindFromDraft(draft: WidgetDraft): WizardWidgetKind {
+  return draft.type ?? "chat";
 }
 
 /**
@@ -103,7 +116,7 @@ export async function patchRemoteWidgetConfigurationWithMeta(params: {
 
   let draft = params.draft;
   if (
-    params.widgetKind === "chat" &&
+    (params.widgetKind === "chat" || params.widgetKind === "both") &&
     (!scope || publishNow)
   ) {
     draft = mergeWizardDraftForPublish(draft);

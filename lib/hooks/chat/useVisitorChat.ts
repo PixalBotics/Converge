@@ -55,8 +55,6 @@ export interface UseVisitorChatReturn {
   isConnected: boolean;
   /** True when an agent is emitting typing for the active conversation. */
   agentTypingSeen: boolean;
-  /** Live draft preview while agent/supervisor types. */
-  agentTypingDraft: string;
   /** True while the server is generating an AI reply (before/during stream). */
   botReplying: boolean;
   /** Streaming AI reply text (grows token-by-token via `ai_reply_delta`). */
@@ -109,7 +107,6 @@ export function useVisitorChat(
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isConnected, setIsConnected] = useState(false);
   const [agentTypingFromOther, setAgentTypingFromOther] = useState(false);
-  const [agentTypingDraft, setAgentTypingDraft] = useState("");
   const [botReplying, setBotReplying] = useState(false);
   const [botStreamingText, setBotStreamingText] = useState("");
 
@@ -555,7 +552,6 @@ export function useVisitorChat(
         payload.typingRole === "supervisor";
       if (isRemoteAgent) {
         setAgentTypingFromOther(true);
-        setAgentTypingDraft(typeof payload.draft === "string" ? payload.draft : "");
       }
     });
     const offStopTyping = socketClient.onStopTyping((payload: TypingPayload) => {
@@ -567,8 +563,6 @@ export function useVisitorChat(
         payload.typingRole === "supervisor"
       ) {
         setAgentTypingFromOther(false);
-      setAgentTypingDraft("");
-        setAgentTypingDraft("");
         scheduleReconnectSync();
       }
     });
@@ -600,7 +594,6 @@ export function useVisitorChat(
     const offClosed = socketClient.onChatClosed(() => {
       setAssigned(false);
       setAgentTypingFromOther(false);
-      setAgentTypingDraft("");
     });
 
     return () => {
@@ -646,7 +639,9 @@ export function useVisitorChat(
       const token = widgetTokenRef.current;
       if (token) {
         socketClient.connect({ authToken: token });
-        await socketClient.waitUntilSocketReady(12_000);
+        await socketClient.waitUntilSocketReady(
+          socketClient.isConnected() ? 3_000 : 12_000,
+        );
       }
 
       let created: VisitorCreateConversationResponse | null = null;
@@ -829,11 +824,16 @@ export function useVisitorChat(
         ...(sendOpts?.messageType ? { messageType: sendOpts.messageType } : {}),
       };
 
-      await socketClient.waitUntilConnected(10_000);
+      await socketClient.waitUntilConnected(
+        socketClient.isConnected() ? 2_000 : 10_000,
+      );
 
       if (socketClient.isConnected()) {
         try {
-          const ack = await socketClient.sendVisitorMessageWithAck(socketPayload);
+          const ack = await socketClient.sendVisitorMessageWithAck(
+            socketPayload,
+            15_000,
+          );
           applyVisitorSendAck(ack, optimisticKey);
           return;
         } catch {
@@ -888,7 +888,6 @@ export function useVisitorChat(
     const token = widgetTokenRef.current;
     if (token) {
       socketClient.connect({ authToken: token });
-      await socketClient.waitUntilSocketReady(12_000);
     }
     return postWidgetTalkToAgent(cid, wid, token ?? undefined, socketClient);
   }, [socketClient]);
@@ -900,7 +899,6 @@ export function useVisitorChat(
     messages,
     isConnected,
     agentTypingSeen: agentTypingFromOther,
-    agentTypingDraft: agentTypingDraft.trim(),
     botReplying,
     botStreamingText,
     startConversation,

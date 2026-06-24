@@ -125,13 +125,13 @@ const nextConfig: NextConfig = {
      * Filesystem cache keeps compile times reasonable without holding the full graph in RAM.
      * @see https://nextjs.org/docs/app/guides/memory-usage
      */
-    if (dev) {
+    if (dev && config.cache && typeof config.cache === "object") {
+      // Preserve Next's cache (version, cacheDirectory, buildDependencies). Overriding
+      // buildDependencies with __filename points at ephemeral next.config.compiled.js
+      // and triggers PackFileCacheStrategy resolve warnings.
       config.cache = {
-        type: "filesystem",
+        ...config.cache,
         compression: false,
-        buildDependencies: {
-          config: [__filename],
-        },
       };
     } else if (config.cache) {
       config.cache = Object.freeze({ type: "memory" });

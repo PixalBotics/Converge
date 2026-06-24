@@ -229,10 +229,10 @@ export function AssignWebsiteModal({ open, onClose, onAssign, preset }: AssignWe
   const visitorTopicsQuery = useVisitorTopicsQuery(wid, open && wid.length > 0);
   const schedulingReady =
     detail?.serviceSchedulingConfigured === true ||
-    isServiceSchedulingReady(schedulingQuery.data, visitorTopicsQuery.data);
+    detail?.serviceHoursConfigured === true ||
+    isServiceSchedulingReady(schedulingQuery.data);
   const schedulingLoading =
-    Boolean(wid) &&
-    (schedulingQuery.isLoading || visitorTopicsQuery.isLoading || detailQuery.isLoading);
+    Boolean(wid) && (schedulingQuery.isLoading || detailQuery.isLoading);
 
   const operatingChannels = detail?.operatingChannels ?? "internal_only";
   const allowedChannels = detail?.allowedAssignmentChannels ?? [];
@@ -393,7 +393,7 @@ export function AssignWebsiteModal({ open, onClose, onAssign, preset }: AssignWe
                 Step 2: Complete service scheduling
               </Typography>
               <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, mb: 1.5 }}>
-                Set operating mode, service hours, and visitor topics before choosing a department.
+                Set operating mode and service hours before choosing a department.
                 Visitor topics are saved per website. Assignment unlocks after you save scheduling for
                 the selected site.
               </Typography>
@@ -443,7 +443,7 @@ export function AssignWebsiteModal({ open, onClose, onAssign, preset }: AssignWe
               <TopicAgentRosterPanel
                 websiteId={wid}
                 operatingChannels={operatingChannels}
-                allowedChannels={allowedChannels}
+                allowedAssignmentChannels={allowedChannels}
                 departmentRoster={detail.departmentRoster}
                 topics={schedulingTopics}
                 canEdit={gates.assign}

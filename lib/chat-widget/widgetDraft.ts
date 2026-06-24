@@ -14,7 +14,7 @@ import {
 } from "./widget-embed-api-origin";
 import { DEFAULT_TALK_TO_AGENT_BUTTON_LABEL } from "./talk-to-agent.constants";
 
-export type WidgetKind = "chat" | "text";
+export type WidgetKind = "chat" | "text" | "both";
 
 import {
   normalizeLauncherIconPreset,
@@ -30,10 +30,12 @@ export { normalizeLauncherIconPreset };
 export type WidgetInstallChatMode = "AI_ONLY" | "AGENT_ONLY" | "HYBRID";
 
 export type { WidgetAiType } from "./widget-ai-type";
+export type { WidgetLauncherStyleId } from "./launcher-style";
 
 export interface TextUsFormFieldDraft {
   key: string;
   label: string;
+  placeholder?: string;
   fieldType: string;
   required?: boolean;
 }
@@ -56,6 +58,8 @@ export interface WidgetDraft {
   aiType?: WidgetAiType;
   /** Allowed embedding domains (hostname strings). */
   allowedDomains?: string[];
+  /** When true, widget may embed on any origin (`chat_widget_config.embedAllowAnyOrigin`). */
+  embedAllowAnyOrigin?: boolean;
   widgetId: string;
   completed: boolean;
   buttonShape: "circle" | "rounded" | "square";
@@ -70,6 +74,10 @@ export interface WidgetDraft {
   iconDataUrl: string;
   /** When set and `iconDataUrl` is empty, FAB uses preset Phosphor-style icon */
   launcherIconPreset: LauncherIconPresetId;
+  /** When false, chat launcher shows button text only (no glyph). */
+  launcherIconEnabled?: boolean;
+  /** When false, chat launcher shows icon/shape only (no pill text). */
+  launcherLabelEnabled?: boolean;
   /** FAB visual preset — solid, gradient, glass, glow. */
   launcherStyle?: WidgetLauncherStyleId;
   headerTitleAlign: "Center" | "Left";
@@ -100,9 +108,27 @@ export interface WidgetDraft {
   boxHeight: number;
   /** Text Us surface (dashboard builder). */
   textUsButtonColor?: string;
+  textUsButtonHoverColor?: string;
+  textUsButtonLabel?: string;
+  textUsIconColor?: string;
   textUsPosition?: string;
+  textUsVerticalAnchor?: "top" | "bottom";
+  textUsInsetBottomPx?: number;
+  textUsInsetTopPx?: number;
+  textUsInsetSidePx?: number;
+  textUsBoxWidth?: number;
+  textUsBoxHeight?: number;
   textUsHeaderTitle?: string;
   textUsWelcomeMessage?: string;
+  textUsHeaderLogoDataUrl?: string;
+  textUsLauncherIconPreset?: LauncherIconPresetId;
+  /** When false, floating launcher shows button text only (no glyph). */
+  textUsLauncherIconEnabled?: boolean;
+  textUsLauncherStyle?: WidgetLauncherStyleId;
+  textUsMotionEnabled?: boolean;
+  textUsPanelBackground?: string;
+  textUsAccent?: string;
+  textUsDensity?: string;
   textUsFormFields?: TextUsFormFieldDraft[];
   /** Brand theme (PATCH `config.theme`) — optional; sensible fallbacks in patch builders. */
   themeName?: string;
@@ -208,6 +234,16 @@ export interface WidgetDraft {
   prechatPhoneEnabled?: boolean;
   prechatMessageEnabled?: boolean;
   prechatMessageRequired?: boolean;
+  /** Step 3 PATCH `config.offlineForm` — shown when no agent is available. */
+  offlineFormEnabled?: boolean;
+  offlineFormTitle?: string;
+  offlineFormSubtitle?: string;
+  offlineFormSubmitLabel?: string;
+  offlinePrechatNameEnabled?: boolean;
+  offlinePrechatEmailEnabled?: boolean;
+  offlinePrechatPhoneEnabled?: boolean;
+  offlinePrechatMessageEnabled?: boolean;
+  offlinePrechatMessageRequired?: boolean;
   /** Step 3 PATCH `config.response` */
   responseWelcomeMessage?: string;
   responseOfflineMessage?: string;
@@ -226,6 +262,7 @@ export const defaultWidgetDraft: WidgetDraft = {
   chatMode: "HYBRID",
   aiType: "AI_CHATBOT",
   allowedDomains: undefined,
+  embedAllowAnyOrigin: false,
   widgetId: "12345",
   completed: false,
   buttonShape: "circle",
@@ -237,6 +274,8 @@ export const defaultWidgetDraft: WidgetDraft = {
   iconColor: "#FFFFFF",
   iconDataUrl: "",
   launcherIconPreset: "phosphor-chat-circle",
+  launcherIconEnabled: true,
+  launcherLabelEnabled: true,
   launcherStyle: "solid",
   headerTitleAlign: "Center",
   headerLogoDataUrl: "",
@@ -259,10 +298,27 @@ export const defaultWidgetDraft: WidgetDraft = {
   bannerMediaType: "image",
   boxWidth: 350,
   boxHeight: 430,
-  textUsButtonColor: "#da9b2f",
-  textUsPosition: "center",
-  textUsHeaderTitle: "Special Offer",
-  textUsWelcomeMessage: "Get 20% off all premium plans today.",
+  textUsButtonColor: "#1E63D5",
+  textUsButtonHoverColor: "#164EB0",
+  textUsButtonLabel: "Text us",
+  textUsIconColor: "#FFFFFF",
+  textUsPosition: "right",
+  textUsVerticalAnchor: "bottom",
+  textUsInsetBottomPx: 28,
+  textUsInsetTopPx: 28,
+  textUsInsetSidePx: 28,
+  textUsBoxWidth: 360,
+  textUsBoxHeight: 480,
+  textUsHeaderTitle: "Text us",
+  textUsWelcomeMessage: "Send us a message — we reply by SMS.",
+  textUsHeaderLogoDataUrl: "",
+  textUsLauncherIconPreset: "phosphor-chat-circle",
+  textUsLauncherIconEnabled: true,
+  textUsLauncherStyle: "solid",
+  textUsMotionEnabled: true,
+  textUsPanelBackground: "#f8fafc",
+  textUsAccent: "blue",
+  textUsDensity: "comfortable",
   themeName: "Brand Default",
   themeSecondaryColor: "#64748b",
   themeFontFamily: "Inter, system-ui, sans-serif",
@@ -324,6 +380,15 @@ export const defaultWidgetDraft: WidgetDraft = {
   prechatPhoneEnabled: false,
   prechatMessageEnabled: true,
   prechatMessageRequired: false,
+  offlineFormEnabled: true,
+  offlineFormTitle: "Leave us a message",
+  offlineFormSubtitle: "We're away right now — tell us how we can help.",
+  offlineFormSubmitLabel: "Send message",
+  offlinePrechatNameEnabled: true,
+  offlinePrechatEmailEnabled: true,
+  offlinePrechatPhoneEnabled: false,
+  offlinePrechatMessageEnabled: true,
+  offlinePrechatMessageRequired: true,
   responseWelcomeMessage: "Hello! A teammate will join shortly.",
   responseOfflineMessage: "We are offline; leave a message and we will reply.",
   responseGreetingMessage: "Good day!",

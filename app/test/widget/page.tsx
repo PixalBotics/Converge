@@ -15,10 +15,12 @@ import { resolveWidgetEmbedAppOrigin } from "@/lib/chat-widget/widget-embed-api-
 import { publishAppToast } from "@/lib/notify";
 import {
   applyEmbedHostFrameLayout,
-  EMBED_LAUNCHER_SIZE_PX,
+  TEXT_US_EMBED_LAUNCHER_HEIGHT_PX,
   WIDGET_EMBED_RESIZE_MESSAGE,
+  type EmbedHostSurface,
   type WidgetEmbedResizePayload,
 } from "@/lib/widget-runtime/embed-host-messaging";
+import { postWidgetSession } from "@/lib/widget-runtime/widget-public-fetch";
 
 function DemoWebsiteContent() {
   return (
@@ -180,26 +182,40 @@ function DemoWebsiteContent() {
   );
 }
 
-function WidgetEmbedHostFrame({ src }: { src: string }) {
+function WidgetEmbedHostFrame({
+  src,
+  surface = "chat",
+}: {
+  src: string;
+  surface?: EmbedHostSurface;
+}) {
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
 
   useEffect(() => {
     const frame = iframeRef.current;
     if (!frame) return;
 
+    const initial =
+      surface === "textUs"
+        ? { width: 168, height: TEXT_US_EMBED_LAUNCHER_HEIGHT_PX + 32 }
+        : { width: 220, height: 240 };
+
     applyEmbedHostFrameLayout(frame, {
       type: WIDGET_EMBED_RESIZE_MESSAGE,
       open: false,
-      width: EMBED_LAUNCHER_SIZE_PX,
-      height: EMBED_LAUNCHER_SIZE_PX,
+      width: initial.width,
+      height: initial.height,
       position: "right",
       insetBottomPx: 16,
       insetSidePx: 16,
+      surface,
     });
 
     const onMessage = (event: MessageEvent) => {
       const data = event.data as Partial<WidgetEmbedResizePayload> | null;
       if (!data || data.type !== WIDGET_EMBED_RESIZE_MESSAGE) return;
+      const msgSurface = data.surface === "textUs" ? "textUs" : "chat";
+      if (msgSurface !== surface) return;
       try {
         const embedOrigin = new URL(src, window.location.href).origin;
         if (event.origin !== embedOrigin) return;
@@ -211,16 +227,16 @@ function WidgetEmbedHostFrame({ src }: { src: string }) {
 
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
-  }, [src]);
+  }, [src, surface]);
 
   return (
     <Box
       ref={iframeRef}
       component="iframe"
-      title="Chat widget"
+      title={surface === "textUs" ? "Text Us widget" : "Chat widget"}
       src={src}
       allow="clipboard-write"
-      aria-label="Chat widget"
+      aria-label={surface === "textUs" ? "Text Us widget" : "Chat widget"}
       sx={{ border: "none", display: "block" }}
     />
   );
@@ -230,25 +246,66 @@ function PublicWidgetTestPageInner() {
   const sp = useSearchParams();
   const widgetKey = sp.get("widgetKey") || sp.get("widget-key") || "";
   const previewShareToken = sp.get("token") || sp.get("previewToken") || "";
-  const [iframeSrc, setIframeSrc] = useState<string | null>(null);
+  const [iframeSrcBySurface, setIframeSrcBySurface] = useState<
+    Partial<Record<EmbedHostSurface, string>>
+  >({});
 
   useEffect(() => {
     if (!widgetKey.trim()) {
-      setIframeSrc(null);
+      setIframeSrcBySurface({});
       return;
     }
-    const embedOrigin = resolveWidgetEmbedAppOrigin({
-      browserOrigin: window.location.origin,
-    });
-    setIframeSrc(
-      buildWidgetEmbedIframeUrl({
+
+    let cancelled = false;
+
+    async function load() {
+      const embedOrigin = resolveWidgetEmbedAppOrigin({
+        browserOrigin: window.location.origin,
+      });
+      const shareToken = previewShareToken.trim() || undefined;
+
+      const sess = await postWidgetSession({
         widgetKey,
-        mode: previewShareToken ? "draft" : undefined,
-        previewShareToken: previewShareToken || undefined,
-        parentPage: window.location.href,
-        appOrigin: embedOrigin,
-      }),
-    );
+        originHost: window.location.origin,
+        ...(shareToken ? { previewShareToken: shareToken } : {}),
+      });
+
+      const widgetType = sess.ok
+        ? String(sess.data.widgetType ?? "CHAT").toUpperCase()
+        : "CHAT";
+      const surfaces = sess.ok ? sess.data.surfaces : undefined;
+
+      let hostSurfaces: EmbedHostSurface[] = ["chat"];
+      if (
+        widgetType === "BOTH" &&
+        surfaces?.chatEnabled !== false &&
+        surfaces?.textUsEnabled !== false
+      ) {
+        hostSurfaces = ["chat", "textUs"];
+      } else if (widgetType === "TEXT_US") {
+        hostSurfaces = ["textUs"];
+      }
+
+      const next: Partial<Record<EmbedHostSurface, string>> = {};
+      for (const surface of hostSurfaces) {
+        const url = buildWidgetEmbedIframeUrl({
+          widgetKey,
+          mode: shareToken ? "draft" : undefined,
+          previewShareToken: shareToken,
+          parentPage: window.location.href,
+          appOrigin: embedOrigin,
+          surface,
+        });
+        if (url) next[surface] = url;
+      }
+
+      if (!cancelled) setIframeSrcBySurface(next);
+    }
+
+    void load();
+    return () => {
+      cancelled = true;
+    };
   }, [widgetKey, previewShareToken]);
 
   const copyPageLink = async () => {
@@ -395,7 +452,11 @@ function PublicWidgetTestPageInner() {
 
       <DemoWebsiteContent />
 
-      {iframeSrc ? <WidgetEmbedHostFrame src={iframeSrc} /> : null}
+      {(["chat", "textUs"] as const).map((surface) => {
+        const src = iframeSrcBySurface[surface];
+        if (!src) return null;
+        return <WidgetEmbedHostFrame key={surface} src={src} surface={surface} />;
+      })}
     </Box>
   );
 }

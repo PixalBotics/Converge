@@ -209,8 +209,9 @@ export const ROUTE_RULES: readonly RouteRule[] = [
   },
   {
     permission: "page:email-agent-feedback",
-    href: "/dashboard/email/feedback",
-    iconKey: "smtpEmail",
+    href: "/dashboard/feedback",
+    iconKey: "chat",
+    label: "Feedback",
   },
   {
     permission: "page:smtp-email",
@@ -225,9 +226,10 @@ export const ROUTE_RULES: readonly RouteRule[] = [
   /** Alternate / legacy entry paths that share the same backend page permission. */
   { permission: "page:crm-integration", href: "/dashboard/crm-integrator", iconKey: "crmIntegration", prefixMatch: true },
   {
-    permission: "page:distribution-setup",
+    permission: "page:phone-number-setup",
     href: "/dashboard/phone-number-setup",
-    iconKey: "distributionSetup",
+    iconKey: "chatWidget",
+    label: "Phone / Text Us",
     prefixMatch: true,
   },
   { permission: "page:dashboard", href: "/dashboard/company-admin-dashboard", iconKey: "dashboard", prefixMatch: true },
@@ -265,7 +267,9 @@ export const PAGE_PERMISSION_ORDER: readonly PagePermission[] = [
   "page:chat-monitor",
   "page:chat-qa",
   "page:chat-reports",
+  "page:email-agent-feedback",
   "page:chat-widget",
+  "page:phone-number-setup",
   "page:chat-close-policy",
   "page:chat-canned",
   "page:chat-involvement",
@@ -282,7 +286,6 @@ export const PAGE_PERMISSION_ORDER: readonly PagePermission[] = [
   "page:observability:logs",
   "page:smtp-email",
   "page:email-template",
-  "page:email-agent-feedback",
   "page:social-media",
   "page:resellers",
 ] as const;
@@ -341,7 +344,7 @@ const DASHBOARD_URL_SEGMENT_TO_PAGE: Readonly<Record<string, PagePermission>> = 
   "crm-integration": "page:crm-integration",
   "crm-integrator": "page:crm-integration",
   "distribution-setup": "page:distribution-setup",
-  "phone-number-setup": "page:distribution-setup",
+  "phone-number-setup": "page:phone-number-setup",
   "ip-block-list": "page:ip-blocklist",
   "license-generate": "page:licenses",
   reports: "page:reports",

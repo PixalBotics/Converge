@@ -4,6 +4,15 @@ import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { EmbedWidgetClient } from "@/components/embed/EmbedWidgetClient";
 import { resolveWidgetEmbedEnv } from "@/lib/widget-runtime/widget-embed-env";
+import type { EmbedHostSurface } from "@/lib/widget-runtime/embed-host-messaging";
+
+function parseEmbedSurface(raw: string | null): EmbedHostSurface | undefined {
+  const v = (raw ?? "").trim().toLowerCase();
+  if (v === "chat" || v === "textus" || v === "text_us" || v === "text-us") {
+    return v === "chat" ? "chat" : "textUs";
+  }
+  return undefined;
+}
 
 function EmbedWidgetPageInner() {
   const sp = useSearchParams();
@@ -11,6 +20,7 @@ function EmbedWidgetPageInner() {
   const widgetKey =
     sp.get("widgetKey") || sp.get("widget-key") || "";
   const parentHost = sp.get("parentHost") || sp.get("parent_host") || "";
+  const embedSurface = parseEmbedSurface(sp.get("surface"));
 
   let parentPageUrl =
     sp.get("parentPage") || sp.get("parent_page") || sp.get("ref") || "";
@@ -28,6 +38,7 @@ function EmbedWidgetPageInner() {
     trainingTest: sp.get("trainingTest"),
   });
   const previewShareToken = sp.get("token") || sp.get("previewToken") || "";
+  const parentVisitorSessionId = sp.get("visitorSession") || sp.get("visitor_session") || "";
 
   if (!widgetKey) {
     return (
@@ -54,6 +65,8 @@ function EmbedWidgetPageInner() {
         embedEnv={embedEnv}
         sandboxMode={embedEnv === "dashboard_preview"}
         previewShareToken={previewShareToken || undefined}
+        parentVisitorSessionId={parentVisitorSessionId || undefined}
+        embedSurface={embedSurface}
       />
     </main>
   );

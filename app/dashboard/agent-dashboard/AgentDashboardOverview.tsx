@@ -17,6 +17,7 @@ import {
 } from "@/components/common";
 import type { DataTableColumn } from "@/components/common";
 import { MetricCard } from "@/components/common";
+import { DashboardAttendanceMetrics } from "../components/DashboardAttendanceMetrics";
 import {
   ChatBubbleOutline as ChatBubbleOutlineIcon,
   Forum as ForumIcon,
@@ -151,6 +152,8 @@ export default function AgentDashboardOverview() {
           <ButtonOutline text="Today, Oct 24" />
         </Box>
       </Box>
+
+      <DashboardAttendanceMetrics />
 
       <Box sx={metricsGrid}>
         <MetricCard

@@ -61,14 +61,25 @@ export function AgentDistributionPage() {
     void submitMutation
       .mutateAsync()
       .then((res) => {
-        const sent = Number((res.submission as { sent?: number }).sent ?? 0);
-        publishAppToast({
-          variant: "success",
-          message:
-            sent > 0
-              ? `Distribution sent (${sent} recipient${sent === 1 ? "" : "s"}).`
-              : "Distribution submitted.",
-        });
+        const submission = res.submission as {
+          sent?: number;
+          crmSubmitted?: boolean;
+          method?: string;
+        };
+        const sent = Number(submission.sent ?? 0);
+        const crmSubmitted = Boolean(submission.crmSubmitted);
+        const method = submission.method?.toLowerCase() ?? "email";
+
+        let message = "Distribution submitted.";
+        if (method === "both" && sent > 0 && crmSubmitted) {
+          message = `Sent to ${sent} email recipient${sent === 1 ? "" : "s"} and CRM.`;
+        } else if (method === "crm" && crmSubmitted) {
+          message = "Submitted to CRM.";
+        } else if (sent > 0) {
+          message = `Distribution sent (${sent} recipient${sent === 1 ? "" : "s"}).`;
+        }
+
+        publishAppToast({ variant: "success", message });
         router.push("/dashboard/chat-operations");
       })
       .catch((err) => {
@@ -108,6 +119,7 @@ export function AgentDistributionPage() {
         departments={payload?.departments ?? []}
         departmentId={departmentId}
         onDepartmentChange={setDepartmentId}
+        method={payload?.method}
         subject={payload?.subject}
         submitted={submitted}
         submitting={submitMutation.isPending}

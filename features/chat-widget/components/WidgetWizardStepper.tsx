@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Check from "@mui/icons-material/Check";
 import Box from "@mui/material/Box";
@@ -8,10 +8,12 @@ import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import { Typography } from "@/components/common";
 import {
+  readChatWizardDraft,
   withChatEditQuery,
   resolveEditWidgetKeyForNavigation,
 } from "@/lib/chat-widget/chat-wizard-edit";
 import { flushActiveWizardStepToDraft } from "@/lib/chat-widget/widget-wizard-step-flush";
+import { resolveWidgetWizardSteps } from "@/lib/chat-widget/widget-wizard-steps";
 import {
   distributionStepCardSx,
   distributionStepNumberSx,
@@ -21,35 +23,6 @@ import {
 } from "@/features/distribution-setup/styles/distribution-wizard-ui.styles";
 import { widgetStepperGridSx } from "@/features/chat-widget/styles/widget-wizard-ui.styles";
 import { mergeSx } from "@/lib/mui/merge-sx";
-
-const WIDGET_WIZARD_STEPS = [
-  {
-    index: 0,
-    label: "Button design",
-    hint: "Launcher",
-    path: "/dashboard/chat-widget/add/chat/button",
-  },
-  {
-    index: 1,
-    label: "Chat box",
-    hint: "Panel & topics",
-    path: "/dashboard/chat-widget/add/chat/box",
-  },
-  {
-    index: 2,
-    label: "Notifications",
-    hint: "Alerts & forms",
-    path: "/dashboard/chat-widget/add/chat/notifications",
-  },
-  {
-    index: 3,
-    label: "Install",
-    hint: "Publish & embed",
-    path: "/dashboard/chat-widget/add/chat/script",
-  },
-] as const;
-
-const STEP_COUNT = WIDGET_WIZARD_STEPS.length;
 
 export type WidgetWizardStepperProps = {
   /** Zero-based index of the active wizard step. */
@@ -61,18 +34,21 @@ export function WidgetWizardStepper({ currentStep }: WidgetWizardStepperProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const editKey = resolveEditWidgetKeyForNavigation(searchParams.get("edit") ?? "");
-  const safeStep = Math.min(Math.max(0, currentStep), STEP_COUNT - 1);
-  const progressPct = ((safeStep + 1) / STEP_COUNT) * 100;
+  const draftType = readChatWizardDraft(editKey || undefined).type;
+  const steps = useMemo(() => resolveWidgetWizardSteps(draftType), [draftType]);
+  const stepCount = steps.length;
+  const safeStep = Math.min(Math.max(0, currentStep), stepCount - 1);
+  const progressPct = ((safeStep + 1) / stepCount) * 100;
 
   const handleStepClick = useCallback(
     (target: number) => {
       if (target === safeStep || target > safeStep) return;
-      const step = WIDGET_WIZARD_STEPS[target];
+      const step = steps[target];
       if (!step) return;
       flushActiveWizardStepToDraft();
       router.push(withChatEditQuery(step.path, editKey || undefined));
     },
-    [editKey, router, safeStep],
+    [editKey, router, safeStep, steps],
   );
 
   return (
@@ -88,9 +64,9 @@ export function WidgetWizardStepper({ currentStep }: WidgetWizardStepperProps) {
         }}
       >
         <Typography variant="small" fontWeight={600} sx={{ color: theme.app.dashboard.textMuted }}>
-          Step {safeStep + 1} of {STEP_COUNT}
+          Step {safeStep + 1} of {stepCount}
           {" · "}
-          Draft saves on each Next — full publish on Install (step 4)
+          Draft saves on each Next — full publish on Install (final step)
         </Typography>
         <Typography variant="caption" sx={{ color: theme.palette.primary.light, fontWeight: 600 }}>
           {Math.round(progressPct)}% complete
@@ -102,13 +78,13 @@ export function WidgetWizardStepper({ currentStep }: WidgetWizardStepperProps) {
       </Box>
 
       <Box sx={widgetStepperGridSx}>
-        {WIDGET_WIZARD_STEPS.map(({ index, label, hint }) => {
+        {steps.map(({ index, label, hint, path }) => {
           const state = index < safeStep ? "done" : index === safeStep ? "active" : "upcoming";
           const canGoBack = index < safeStep;
 
           return (
             <Box
-              key={label}
+              key={path}
               component={canGoBack ? "button" : "div"}
               type={canGoBack ? "button" : undefined}
               onClick={canGoBack ? () => handleStepClick(index) : undefined}

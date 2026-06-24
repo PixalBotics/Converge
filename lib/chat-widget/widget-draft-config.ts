@@ -36,7 +36,8 @@ export function buildConfigRecordFromWidgetDraft(draft: WidgetDraft): Record<str
     greetingMessage: draft.greetingMessage ?? def.greetingMessage,
     welcomeMessage: draft.firstMessage ?? def.firstMessage,
     offlineMessage: draft.responseOfflineMessage ?? def.responseOfflineMessage,
-    ctaButtonText: draft.buttonLabel ?? def.buttonLabel,
+    ctaButtonText:
+      typeof draft.buttonLabel === "string" ? draft.buttonLabel.trim() : def.buttonLabel,
     ui: {
       proactiveTeaser: draft.proactiveTeaser ?? def.proactiveTeaser,
       proactiveTeaserAvatarUrl:
@@ -48,7 +49,8 @@ export function buildConfigRecordFromWidgetDraft(draft: WidgetDraft): Record<str
       proactiveSecondaryCtaLabel: draft.proactiveSecondaryCtaLabel,
       proactiveSecondaryCtaHref: draft.proactiveSecondaryCtaHref,
       proactiveSecondaryCtaKind: draft.proactiveSecondaryCtaKind,
-      buttonLabel: draft.buttonLabel ?? def.buttonLabel,
+      buttonLabel:
+        typeof draft.buttonLabel === "string" ? draft.buttonLabel.trim() : def.buttonLabel,
       buttonShape: draft.buttonShape,
       buttonPosition: draft.buttonPosition,
       launcherInsetBottomPx: draft.launcherInsetBottomPx,

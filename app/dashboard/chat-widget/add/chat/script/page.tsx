@@ -29,11 +29,13 @@ import {
   resolveEditWidgetKeyForNavigation,
   saveChatWizardDraft,
   useChatWidgetWizardEdit,
+  withChatEditQuery,
 } from "@/lib/chat-widget/chat-wizard-edit";
 import { mergeWizardDraftForPublish } from "@/lib/chat-widget/merge-wizard-draft-for-publish";
 import {
   createRemoteWidgetDraftWithMeta,
   patchRemoteWidgetConfigurationWithMeta,
+  resolveWizardKindFromDraft,
 } from "@/lib/chat-widget/widget-remote-sync";
 import {
   pickInstallWidgetKeys,
@@ -43,11 +45,20 @@ import {
 import { uploadDraftWidgetAssets } from "@/lib/chat-widget/upload-widget-draft-assets";
 import { extractApiErrorMessageForToast } from "@/lib/notify/extract-api-message";
 import { publishAppToast } from "@/lib/notify";
+import { widgetWizardStepCount } from "@/lib/chat-widget/widget-wizard-steps";
 import {
   buildApiWidgetEmbedScript,
   normalizeEmbedSnippetForApi,
   resolveWidgetEmbedAppOrigin,
 } from "@/lib/chat-widget/widget-embed-api-origin";
+
+function isTextUsWizardConfigured(draft: WidgetDraft): boolean {
+  return Boolean(
+    draft.textUsButtonColor?.trim() &&
+      draft.textUsHeaderTitle?.trim() &&
+      (draft.textUsFormFields?.length ?? 0) > 0,
+  );
+}
 
 function launcherSandboxHorizontalSx(position: WidgetDraft["buttonPosition"], sidePx: number): Record<string, string | number> {
   if (position === "left") return { left: sidePx, right: "auto", transform: "none" };
@@ -74,12 +85,17 @@ export default function ChatWidgetScriptPage() {
   useEffect(() => {
     if (!draftReady) return;
 
+    const editKey = resolveEditWidgetKeyForNavigation(editWidgetKey);
+    const current = readChatWizardDraft(editKey || undefined);
+    if (current.type === "both" && !isTextUsWizardConfigured(current)) {
+      router.replace(withChatEditQuery("/dashboard/chat-widget/add/text", editKey || undefined));
+      return;
+    }
+
     let cancelled = false;
 
     async function runInstall() {
-      const editKey = resolveEditWidgetKeyForNavigation(editWidgetKey);
-      const current = readChatWizardDraft(editKey || undefined);
-      const typed = { ...current, type: "chat" as const };
+      const typed = readChatWizardDraft(editKey || undefined);
 
       if (!typed.websiteId?.trim()) {
         setInstallUi({
@@ -112,7 +128,7 @@ export default function ChatWidgetScriptPage() {
         } else if (!widgetKey) {
           const created = await createRemoteWidgetDraftWithMeta({
             draft: typed,
-            widgetKind: "chat",
+            widgetKind: resolveWizardKindFromDraft(typed),
           });
           widgetKey = created.widgetKey;
           saveChatWizardDraft(undefined, {
@@ -130,11 +146,11 @@ export default function ChatWidgetScriptPage() {
 
         const patchMeta = await patchRemoteWidgetConfigurationWithMeta({
           widgetKey,
-          widgetKind: "chat",
+          widgetKind: resolveWizardKindFromDraft(draftForPublish),
           draft: draftForPublish,
           publishNow: false,
           assetUrls,
-          embedAllowAnyOrigin: false,
+          embedAllowAnyOrigin: draftForPublish.embedAllowAnyOrigin ?? false,
         });
         if (cancelled) return;
 
@@ -158,7 +174,7 @@ export default function ChatWidgetScriptPage() {
 
         saveChatWizardDraft(editKey || undefined, {
           ...readChatWizardDraft(editKey || undefined),
-          type: "chat",
+          type: draftForPublish.type ?? typed.type ?? "chat",
           widgetId: finalKey,
           remoteWidgetKey: finalKey,
           completed: true,
@@ -205,7 +221,7 @@ export default function ChatWidgetScriptPage() {
     return () => {
       cancelled = true;
     };
-  }, [draftReady, editWidgetKey, recordSave]);
+  }, [draftReady, editWidgetKey, recordSave, router]);
 
   const draft =
     installUi.phase === "ready"
@@ -241,12 +257,14 @@ export default function ChatWidgetScriptPage() {
     window.setTimeout(() => setCopied(false), 1500);
   };
 
+  const installStepIndex = widgetWizardStepCount(draft.type) - 1;
+
   return (
     <WidgetFlowShell
-      pageTitle="Widget Script"
+      pageTitle={draft.type === "both" ? "Install (Chat + Text Us)" : "Widget Script"}
       subtitle="Install saves your widget — go live when ready; until then only the test link works"
       cardTitle="Install & embed code"
-      currentStep={3}
+      currentStep={installStepIndex}
       footer={
         <>
           <Button type="button" variant="secondary" onClick={() => setShowPreview((prev) => !prev)}>Preview Widget</Button>

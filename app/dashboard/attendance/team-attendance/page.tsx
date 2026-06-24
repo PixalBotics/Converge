@@ -2,46 +2,42 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Box from "@mui/material/Box";
-import { AccessTime as AccessTimeIcon } from "@mui/icons-material";
 import type { SxProps, Theme } from "@mui/material/styles";
-import { useTheme } from "@mui/material/styles";
-import {
-  Typography,
-  DashboardCard,
-  DataTable,
-  TablePagination,
-  Button,
-  Calendar,
-  SelectField,
-  SegmentedControl,
-  InputField,
-} from "@/components/common";
+import { Typography } from "@/components/common";
 import type { DataTableColumn } from "@/components/common";
-import { rolesCard, rolesFooterRow, rolesIconBox, rolesPageWrapper, rolesPaginationWrapper } from "../../roles/roles.styles";
-import { footerMutedText, pageWrapper } from "../../companies/overview.styles";
-import type { AppTheme } from "@/theme/theme";
+import { rolesPageWrapper } from "../../roles/roles.styles";
+import { pageWrapper } from "../../companies/overview.styles";
+import { useAuth } from "@/lib/auth";
+import { HRMS } from "@/lib/permissions";
 import {
-  useAttendanceUserQuery,
-  useDepartmentsListQuery,
+  useDepartmentHeadsListQuery,
+  useDepartmentHeadsAttendanceQuery,
   usePoolHeadsAttendanceQuery,
-  usePoolsListQuery,
-  useUsersListQuery,
 } from "@/lib/hooks/query";
-import { isRecord, pickStr, unwrapApiData } from "@/lib/utils/core";
 import {
-  formatAttendanceStatus,
-  formatBreakSummary,
-  formatTimeOnly,
-} from "@/lib/utils/hrms/attendance-display";
-import { extractUsersRows } from "@/app/dashboard/user-page/utils";
-import { pickItemsArray, toIdNameOption } from "@/app/dashboard/user-page/components/add-user-modal.utils";
-import { EmptyAttendanceState } from "../components/EmptyAttendanceState";
+  approvalLeaveHeaderWrapSx,
+  approvalLeaveSubtextSx,
+} from "../../leave/_approval-leave/approval-leave.styles";
+import { TeamAttendanceTableCard } from "../_team-attendance/components";
 import {
-  teamAttendanceApplyButtonSx,
-  teamAttendanceCardTitleSx,
-  teamAttendanceDateRangeFieldSx,
-  teamAttendanceFilterGridSx,
-  teamAttendanceHeaderActionsSx,
+  extractAttendanceItems,
+  extractAttendanceTotal,
+  extractAttendanceTotalPages,
+  mapAttendanceQueueRow,
+  type TeamAttendanceTableRow,
+} from "../_team-attendance/utils/attendance-rows";
+import {
+  buildHeadRosterProfileByUserId,
+  extractHeadUserIds,
+  extractAttendancePayloadDepartmentName,
+  findListedHeadDepartmentId,
+  findListedHeadDepartmentName,
+  paginateItems,
+  userIsListedHead,
+} from "../_team-attendance/utils/attendance-roster";
+import { resolveTeamAttendanceAccess } from "../_team-attendance/utils/attendance-scope";
+import { useHeadRosterDayAttendanceQueries } from "../_team-attendance/utils/use-head-roster-day-attendance";
+import {
   teamAttendanceHeaderRowSx,
   teamAttendanceStatusTextSx,
   teamAttendanceSubtextSx,
@@ -49,443 +45,298 @@ import {
 
 const PAGE_LIMIT = 16;
 
-type TeamAttendanceRow = {
-  id: string;
-  employeeName: string;
-  date: string;
-  status: string;
-  checkIn: string;
-  checkOut: string;
-  breakSummary: string;
-  workedMinutes: string;
-};
+const SCOPE_SUBTEXT = {
+  team_members: "Attendance for pool members in pools you manage.",
+  pool_heads: "Attendance for pool heads in your department.",
+  department_heads: "Attendance for department heads in your company.",
+} as const;
 
-type PoolTeamRow = {
-  id: string;
-  employeeName: string;
-  poolName: string;
-  date: string;
-  status: string;
-  checkIn: string;
-  checkOut: string;
-  breakSummary: string;
-  workedMinutes: string;
-};
-
-function mapAttendanceListRow(
-  row: Record<string, unknown>,
-  idx: number,
-  idPrefix: string,
-  employeeName: string,
-): Omit<TeamAttendanceRow, "employeeName"> & { employeeName: string } {
-  const pick = (keys: string[]) => pickStr(row, keys) || "";
-  const pickNum = (keys: string[]) => {
-    for (const k of keys) {
-      const v = row[k];
-      if (typeof v === "number" && Number.isFinite(v)) return v;
-    }
-    return null;
-  };
-  const rawStatus = pick(["status"]);
-  const taken = pickNum(["breakMinutesTaken"]);
-  const allowed = pickNum(["breakMinutesAllowed"]);
-  const over = pickNum(["overBreakMinutes"]);
-  const worked = pickNum(["workedMinutes"]);
-  return {
-    id: pick(["id", "attendanceId"]) || `${idPrefix}-${idx}`,
-    employeeName,
-    date: pick(["date", "day", "attendanceDate"]) || "—",
-    status: rawStatus ? formatAttendanceStatus(rawStatus) : "—",
-    checkIn: formatTimeOnly(pick(["checkInAt", "checkIn", "checkInTime", "inTime"])),
-    checkOut: formatTimeOnly(pick(["checkOutAt", "checkOut", "checkOutTime", "outTime"])),
-    breakSummary: formatBreakSummary(taken, allowed, over),
-    workedMinutes: worked != null ? `${worked} min` : "—",
-  };
-}
-
-function extractItems(data: unknown): Record<string, unknown>[] {
-  const payload = unwrapApiData(data);
-  if (!payload) return [];
-  if (Array.isArray(payload)) return payload.filter(isRecord);
-  if (!isRecord(payload)) return [];
-  const items = payload["items"];
-  return Array.isArray(items) ? items.filter(isRecord) : [];
-}
+const SCOPE_EMPTY = {
+  team_members: {
+    title: "No team attendance",
+    subtitle: "No pool member attendance for this date. You must be assigned as a pool head.",
+  },
+  pool_heads: {
+    title: "No pool head attendance",
+    subtitle: "No pool head attendance for this date in your department scope.",
+  },
+  department_heads: {
+    title: "No department head attendance",
+    subtitle: "No department head attendance for this date in your company scope.",
+  },
+} as const;
 
 export default function TeamAttendancePage() {
-  const theme = useTheme() as AppTheme;
+  const { hasOperational: h, user, isPlatformAdmin } = useAuth();
+
+  const skipDeptHeadRoster = user?.isPoolHead === true || user?.role === "manager";
+
+  const deptHeadsRosterQuery = useDepartmentHeadsListQuery(
+    {
+      all: true,
+      ...(user?.parentCompanyId?.trim() ? { parentCompanyId: user.parentCompanyId.trim() } : {}),
+    },
+    { enabled: h(HRMS.ATTENDANCE_VIEW) && !skipDeptHeadRoster, scope: "attendance-role-detect" },
+  );
+
+  const isDepartmentHead = useMemo(() => {
+    if (user?.isPoolHead || user?.role === "manager") return false;
+    return userIsListedHead(deptHeadsRosterQuery.data, user?.id);
+  }, [deptHeadsRosterQuery.data, user?.id, user?.isPoolHead, user?.role]);
+
+  const access = useMemo(
+    () =>
+      resolveTeamAttendanceAccess({
+        hasAttendanceView: h(HRMS.ATTENDANCE_VIEW),
+        isPlatformAdmin,
+        isDepartmentHead,
+        user,
+        hasOperational: h,
+      }),
+    [h, isPlatformAdmin, isDepartmentHead, user],
+  );
+
   const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
-  const startOfMonth = useMemo(() => `${today.slice(0, 7)}-01`, [today]);
-
-  const [view, setView] = useState<"user" | "pool">("user");
-
-  const [from, setFrom] = useState(startOfMonth);
-  const [to, setTo] = useState(today);
-  const [selectedUserId, setSelectedUserId] = useState("");
+  const [scope, setScope] = useState<"team_members" | "pool_heads" | "department_heads">("team_members");
+  const [search, setSearch] = useState("");
+  const [date, setDate] = useState(today);
   const [page, setPage] = useState(1);
 
-  const [departmentId, setDepartmentId] = useState("");
-  const [poolId, setPoolId] = useState("");
-  const [poolMemberName, setPoolMemberName] = useState("");
-  const [poolDate, setPoolDate] = useState(today);
-  const [poolPage, setPoolPage] = useState(1);
+  useEffect(() => {
+    if (access.scope) setScope(access.scope);
+  }, [access.scope]);
 
-  const usersQuery = useUsersListQuery({ all: true }, { enabled: view === "user" });
-  const userRows = useMemo(() => extractUsersRows(usersQuery.data), [usersQuery.data]);
-  const userOptions = useMemo(() => {
-    const base = userRows.map((u) => ({ value: u.id, label: `${u.user} · ${u.email}` }));
-    return [{ value: "", label: usersQuery.isLoading ? "Loading users…" : "— Select user —" }, ...base];
-  }, [userRows, usersQuery.isLoading]);
-
-  const attendanceQuery = useAttendanceUserQuery(
-    selectedUserId,
-    { from, to, page, limit: PAGE_LIMIT },
-    { enabled: view === "user" && Boolean(selectedUserId.trim() && from.trim() && to.trim()) },
+  const departmentHeadDepartmentId = useMemo(
+    () => findListedHeadDepartmentId(deptHeadsRosterQuery.data, user?.id),
+    [deptHeadsRosterQuery.data, user?.id],
   );
 
-  const departmentsQuery = useDepartmentsListQuery({ all: true }, { enabled: view === "pool", scope: "team-attendance" });
-  const departmentOptions = useMemo(() => {
-    const base = pickItemsArray(departmentsQuery.data)
-      .map(toIdNameOption)
-      .filter((o): o is { value: string; label: string } => o !== null);
-    return [{ value: "", label: departmentsQuery.isLoading ? "Loading…" : "— Department —" }, ...base];
-  }, [departmentsQuery.data, departmentsQuery.isLoading]);
-
-  const poolsQuery = usePoolsListQuery(
-    { all: true, ...(departmentId.trim() ? { departmentId: departmentId.trim() } : {}) },
-    { enabled: view === "pool", scope: "team-attendance-pools" },
+  const departmentHeadUserIds = useMemo(
+    () => extractHeadUserIds(deptHeadsRosterQuery.data),
+    [deptHeadsRosterQuery.data],
   );
-  const poolOptions = useMemo(() => {
-    const items = extractItems(poolsQuery.data);
-    const base = items
-      .map((r) => {
-        const id = pickStr(r, ["id"]) || "";
-        const name = pickStr(r, ["name", "poolName"]) || "";
-        if (!id || !name) return null;
-        return { value: id, label: name };
-      })
-      .filter((o): o is { value: string; label: string } => o !== null);
-    return [{ value: "", label: poolsQuery.isLoading ? "Loading…" : "All pools (optional)" }, ...base];
-  }, [poolsQuery.data, poolsQuery.isLoading]);
 
-  const poolAttendanceParams = useMemo(() => {
-    if (view !== "pool") return undefined;
-    return {
-      page: poolPage,
+  const departmentHeadProfileByUserId = useMemo(
+    () => buildHeadRosterProfileByUserId(deptHeadsRosterQuery.data),
+    [deptHeadsRosterQuery.data],
+  );
+
+  const teamMembersQuery = usePoolHeadsAttendanceQuery(
+    {
+      page,
       limit: PAGE_LIMIT,
-      ...(poolId.trim() ? { poolId: poolId.trim() } : {}),
-      ...(poolDate.trim() ? { date: poolDate.trim() } : {}),
-      ...(poolMemberName.trim() ? { memberName: poolMemberName.trim() } : {}),
-    };
-  }, [view, poolPage, poolId, poolDate, poolMemberName]);
+      ...(date.trim() ? { date: date.trim() } : {}),
+      ...(search.trim() ? { memberName: search.trim() } : {}),
+    },
+    {
+      enabled: scope === "team_members" && access.canUseTeamMembers,
+      scope: "attendance-team-members",
+    },
+  );
 
-  const poolAttendanceQuery = usePoolHeadsAttendanceQuery(poolAttendanceParams, {
-    enabled: view === "pool",
-    scope: "team-attendance-pool",
+  const poolHeadsScopeQuery = useDepartmentHeadsAttendanceQuery(
+    {
+      page,
+      limit: PAGE_LIMIT,
+      ...(departmentHeadDepartmentId?.trim()
+        ? { departmentId: departmentHeadDepartmentId.trim() }
+        : {}),
+      ...(date.trim() ? { date: date.trim() } : {}),
+      ...(search.trim() ? { search: search.trim() } : {}),
+    },
+    {
+      enabled:
+        scope === "pool_heads" &&
+        access.canUsePoolHeads &&
+        Boolean(departmentHeadDepartmentId?.trim()),
+      scope: "attendance-pool-heads",
+    },
+  );
+
+  const departmentHeadDepartmentName = useMemo(
+    () =>
+      findListedHeadDepartmentName(deptHeadsRosterQuery.data, user?.id) ||
+      extractAttendancePayloadDepartmentName(poolHeadsScopeQuery.data),
+    [deptHeadsRosterQuery.data, user?.id, poolHeadsScopeQuery.data],
+  );
+
+  const departmentHeadRosterAttendance = useHeadRosterDayAttendanceQueries(departmentHeadUserIds, date, {
+    enabled: scope === "department_heads" && access.canUseDepartmentHeads,
   });
 
-  const apiItems = useMemo(() => {
-    const data = unwrapApiData(attendanceQuery.data);
-    if (!data) return [];
-    if (Array.isArray(data)) return data.filter(isRecord);
-    if (!isRecord(data)) return [];
-    const items = data["items"];
-    return Array.isArray(items) ? items.filter(isRecord) : [];
-  }, [attendanceQuery.data]);
+  const scopedSearch = search.trim().toLowerCase();
+
+  const filteredDepartmentHeadItems = useMemo(() => {
+    const raw = departmentHeadRosterAttendance.items;
+    if (!scopedSearch) return raw;
+    return raw.filter((row) => {
+      const mapped = mapAttendanceQueueRow(row, 0, "filter", {
+        rosterProfileByUserId: departmentHeadProfileByUserId,
+      });
+      return (
+        mapped.employeeName.toLowerCase().includes(scopedSearch) ||
+        mapped.departmentName.toLowerCase().includes(scopedSearch)
+      );
+    });
+  }, [departmentHeadRosterAttendance.items, scopedSearch, departmentHeadProfileByUserId]);
+
+  const activeItems = useMemo(() => {
+    if (scope === "team_members") return extractAttendanceItems(teamMembersQuery.data);
+    if (scope === "pool_heads") return extractAttendanceItems(poolHeadsScopeQuery.data);
+    return paginateItems(filteredDepartmentHeadItems, page, PAGE_LIMIT);
+  }, [scope, teamMembersQuery.data, poolHeadsScopeQuery.data, filteredDepartmentHeadItems, page]);
+
+  const rows = useMemo<TeamAttendanceTableRow[]>(
+    () =>
+      activeItems.map((row, idx) =>
+        mapAttendanceQueueRow(row, idx, scope, {
+          fallbackDepartmentName: scope === "pool_heads" ? departmentHeadDepartmentName : undefined,
+          rosterProfileByUserId: scope === "department_heads" ? departmentHeadProfileByUserId : undefined,
+        }),
+      ),
+    [activeItems, scope, departmentHeadDepartmentName, departmentHeadProfileByUserId],
+  );
 
   const total = useMemo(() => {
-    const data = unwrapApiData(attendanceQuery.data);
-    if (!isRecord(data)) return apiItems.length;
-    const n = Number(data["total"]);
-    return Number.isFinite(n) ? n : apiItems.length;
-  }, [attendanceQuery.data, apiItems.length]);
+    if (scope === "team_members") {
+      return extractAttendanceTotal(teamMembersQuery.data, rows.length);
+    }
+    if (scope === "pool_heads") {
+      return extractAttendanceTotal(poolHeadsScopeQuery.data, rows.length);
+    }
+    return filteredDepartmentHeadItems.length;
+  }, [scope, teamMembersQuery.data, poolHeadsScopeQuery.data, rows.length, filteredDepartmentHeadItems.length]);
 
-  const totalPages = useMemo(() => {
-    const data = unwrapApiData(attendanceQuery.data);
-    if (!isRecord(data)) return 1;
-    const n = Number(data["totalPages"]);
-    return Number.isFinite(n) && n > 0 ? n : 1;
-  }, [attendanceQuery.data]);
+  const pageCount = useMemo(() => {
+    if (scope === "team_members") return extractAttendanceTotalPages(teamMembersQuery.data);
+    if (scope === "pool_heads") return extractAttendanceTotalPages(poolHeadsScopeQuery.data);
+    return Math.max(1, Math.ceil(total / PAGE_LIMIT));
+  }, [scope, teamMembersQuery.data, poolHeadsScopeQuery.data, total]);
 
-  const poolApiItems = useMemo(() => extractItems(poolAttendanceQuery.data), [poolAttendanceQuery.data]);
-  const poolTotal = useMemo(() => {
-    const data = unwrapApiData(poolAttendanceQuery.data);
-    if (!isRecord(data)) return poolApiItems.length;
-    const n = Number(data["total"]);
-    return Number.isFinite(n) ? n : poolApiItems.length;
-  }, [poolAttendanceQuery.data, poolApiItems.length]);
-  const poolTotalPages = useMemo(() => {
-    const data = unwrapApiData(poolAttendanceQuery.data);
-    if (!isRecord(data)) return 1;
-    const n = Number(data["totalPages"]);
-    return Number.isFinite(n) && n > 0 ? n : 1;
-  }, [poolAttendanceQuery.data]);
+  const isLoading =
+    scope === "team_members"
+      ? teamMembersQuery.isLoading || teamMembersQuery.isFetching
+      : scope === "pool_heads"
+        ? poolHeadsScopeQuery.isLoading ||
+          poolHeadsScopeQuery.isFetching ||
+          deptHeadsRosterQuery.isLoading
+        : departmentHeadRosterAttendance.isLoading || deptHeadsRosterQuery.isLoading;
 
   useEffect(() => {
     setPage(1);
-  }, [selectedUserId, from, to, view]);
+  }, [scope, search, date]);
 
   useEffect(() => {
-    setPage((p) => (p > totalPages ? totalPages : p));
-  }, [totalPages]);
+    setPage((prev) => (prev > pageCount ? pageCount : prev));
+  }, [pageCount]);
 
-  useEffect(() => {
-    setPoolId("");
-    setPoolPage(1);
-  }, [departmentId, view]);
+  const footerRangeStart = rows.length > 0 ? (page - 1) * PAGE_LIMIT + 1 : 0;
+  const footerRangeEnd = (page - 1) * PAGE_LIMIT + rows.length;
 
-  useEffect(() => {
-    setPoolPage(1);
-  }, [poolId, view]);
-
-  useEffect(() => {
-    setPoolPage((p) => (p > poolTotalPages ? poolTotalPages : p));
-  }, [poolTotalPages]);
-
-  const tableRows = useMemo<TeamAttendanceRow[]>(() => {
-    const userLabel = userOptions.find((o) => o.value === selectedUserId)?.label ?? "—";
-    return apiItems.map((row, idx) => {
-      const name =
-        pickStr(row, ["employeeName", "userName", "name"]) ||
-        userLabel;
-      return mapAttendanceListRow(row, idx, "team", name);
-    });
-  }, [apiItems, selectedUserId, userOptions]);
-
-  const poolTableRows = useMemo<PoolTeamRow[]>(() => {
-    return poolApiItems.map((row, idx) => {
-      const poolNested = row["pool"];
-      const poolName =
-        pickStr(isRecord(poolNested) ? (poolNested as Record<string, unknown>) : row, [
-          "name",
-          "poolName",
-        ]) ||
-        pickStr(row, ["poolName"]) ||
-        "—";
-      const userNested = row["user"];
-      const fromUser = isRecord(userNested)
-        ? `${pickStr(userNested, ["firstName"])} ${pickStr(userNested, ["lastName"])}`.trim()
-        : "";
-      const employeeName =
-        pickStr(row, ["employeeName", "userName", "name"]) || fromUser || "—";
-      const mapped = mapAttendanceListRow(row, idx, "pool-team", employeeName);
-      return { ...mapped, poolName };
-    });
-  }, [poolApiItems]);
-
-  const footerRangeStart = tableRows.length > 0 ? (page - 1) * PAGE_LIMIT + 1 : 0;
-  const footerRangeEnd = (page - 1) * PAGE_LIMIT + tableRows.length;
-  const poolFooterStart = poolTableRows.length > 0 ? (poolPage - 1) * PAGE_LIMIT + 1 : 0;
-  const poolFooterEnd = (poolPage - 1) * PAGE_LIMIT + poolTableRows.length;
-
-  const columns = useMemo<DataTableColumn<TeamAttendanceRow>[]>(
-    () => [
-      { id: "employeeName", label: "Employee Name" },
-      { id: "date", label: "Date" },
-      {
-        id: "status",
-        label: "Status",
-        render: (value) => (
-          <Box component="span" sx={teamAttendanceStatusTextSx}>
-            {String(value)}
-          </Box>
-        ),
-      },
-      { id: "checkIn", label: "Check-in" },
-      { id: "checkOut", label: "Check-out" },
-      { id: "breakSummary", label: "Break" },
-      { id: "workedMinutes", label: "Worked" },
-    ],
-    [],
-  );
-
-  const poolColumns = useMemo<DataTableColumn<PoolTeamRow>[]>(
-    () => [
-      { id: "employeeName", label: "Member" },
-      { id: "poolName", label: "Pool" },
+  const columns = useMemo<DataTableColumn<TeamAttendanceTableRow>[]>(() => {
+    const statusCol: DataTableColumn<TeamAttendanceTableRow> = {
+      id: "status",
+      label: "Status",
+      render: (value) => (
+        <Box component="span" sx={teamAttendanceStatusTextSx}>
+          {String(value)}
+        </Box>
+      ),
+    };
+    const base: DataTableColumn<TeamAttendanceTableRow>[] = [
+      { id: "employeeName", label: "Employee" },
       { id: "date", label: "Date (UTC)" },
-      {
-        id: "status",
-        label: "Status",
-        render: (value) => (
-          <Box component="span" sx={teamAttendanceStatusTextSx}>
-            {String(value)}
-          </Box>
-        ),
-      },
+      statusCol,
       { id: "checkIn", label: "Check-in" },
       { id: "checkOut", label: "Check-out" },
+      { id: "login", label: "Login" },
+      { id: "logout", label: "Logout" },
       { id: "breakSummary", label: "Break" },
       { id: "workedMinutes", label: "Worked" },
-    ],
-    [],
-  );
+      { id: "startChat", label: "Start chat" },
+      { id: "chatPause", label: "Chat pause" },
+      { id: "chatMinutes", label: "Chat min" },
+      { id: "meetingMinutes", label: "Meeting min" },
+    ];
+
+    if (scope === "team_members") {
+      return [{ id: "poolName", label: "Pool" }, ...base];
+    }
+    if (scope === "pool_heads") {
+      return [
+        { id: "poolName", label: "Pool" },
+        { id: "departmentName", label: "Department" },
+        ...base,
+      ];
+    }
+    return [
+      { id: "employeeName", label: "Employee" },
+      { id: "departmentName", label: "Department" },
+      { id: "date", label: "Date (UTC)" },
+      statusCol,
+      { id: "checkIn", label: "Check-in" },
+      { id: "checkOut", label: "Check-out" },
+      { id: "login", label: "Login" },
+      { id: "logout", label: "Logout" },
+      { id: "breakSummary", label: "Break" },
+      { id: "workedMinutes", label: "Worked" },
+      { id: "startChat", label: "Start chat" },
+      { id: "chatPause", label: "Chat pause" },
+      { id: "chatMinutes", label: "Chat min" },
+      { id: "meetingMinutes", label: "Meeting min" },
+    ];
+  }, [scope]);
+
+  if (!access.scope) {
+    return (
+      <Box sx={[pageWrapper, rolesPageWrapper] as SxProps<Theme>}>
+        <Typography variant="regularLarge" fontWeight={700} color="white">
+          Attendance
+        </Typography>
+        <Typography variant="body2" sx={teamAttendanceSubtextSx}>
+          You do not have permission to view attendance.
+        </Typography>
+      </Box>
+    );
+  }
+
+  const emptyCopy = SCOPE_EMPTY[scope];
 
   return (
     <Box sx={[pageWrapper, rolesPageWrapper] as SxProps<Theme>}>
-      <Box sx={teamAttendanceHeaderRowSx}>
+      <Box sx={[approvalLeaveHeaderWrapSx, teamAttendanceHeaderRowSx] as SxProps<Theme>}>
         <Box>
           <Typography variant="regularLarge" fontWeight={700} color="white">
-            Team Attendance
+            Attendance
           </Typography>
-          <Typography variant="body2" sx={teamAttendanceSubtextSx}>
-            {view === "user"
-              ? "Review attendance for one user over a date range (existing user attendance API)."
-              : "Review pool head plus all pool members for a day using GET /hrms/pool-heads/attendance."}
+          <Typography variant="body2" sx={[approvalLeaveSubtextSx, teamAttendanceSubtextSx] as SxProps<Theme>}>
+            {SCOPE_SUBTEXT[scope]}
           </Typography>
-        </Box>
-        <Box sx={teamAttendanceHeaderActionsSx}>
-          <SegmentedControl
-            options={[
-              { value: "user", label: "By user" },
-              { value: "pool", label: "Pool team" },
-            ]}
-            value={view}
-            onChange={(v) => setView(v as "user" | "pool")}
-          />
         </Box>
       </Box>
 
-      <DashboardCard sx={rolesCard}>
-        <Box sx={teamAttendanceCardTitleSx}>
-          <Box sx={rolesIconBox}>
-            <AccessTimeIcon sx={{ fontSize: 20, color: theme.app.dashboard.white95 }} />
-          </Box>
-          <Typography variant="mediumLarge" fontWeight={600} color="white">
-            Select Filter
-          </Typography>
-        </Box>
-
-        {view === "user" ? (
-          <Box sx={teamAttendanceFilterGridSx}>
-            <SelectField
-              label="User"
-              value={selectedUserId}
-              onChange={setSelectedUserId}
-              options={userOptions}
-              menuMaxRows={8}
-            />
-            <Box sx={teamAttendanceDateRangeFieldSx}>
-              <Calendar label="From" value={from} onChange={setFrom} />
-            </Box>
-            <Box sx={teamAttendanceDateRangeFieldSx}>
-              <Calendar label="To" value={to} onChange={setTo} />
-            </Box>
-            <Button variant="primary" sx={teamAttendanceApplyButtonSx}>
-              Apply Filter
-            </Button>
-          </Box>
-        ) : (
-          <Box
-            sx={{
-              display: "grid",
-              gridTemplateColumns: { xs: "1fr", md: "minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr)" },
-              gap: 1.5,
-              alignItems: "end",
-            }}
-          >
-            <SelectField
-              label="Department"
-              value={departmentId}
-              onChange={setDepartmentId}
-              options={departmentOptions}
-              menuMaxRows={8}
-            />
-            <SelectField
-              label="Pool"
-              value={poolId}
-              onChange={setPoolId}
-              options={poolOptions}
-              menuMaxRows={8}
-            />
-            <Box sx={teamAttendanceDateRangeFieldSx}>
-              <InputField
-                label="Member name / email"
-                placeholder="Optional contains…"
-                value={poolMemberName}
-                onChange={(e) => setPoolMemberName(e.target.value)}
-              />
-            </Box>
-            <Calendar label="Date (UTC)" value={poolDate} onChange={setPoolDate} />
-          </Box>
-        )}
-      </DashboardCard>
-
-      <DashboardCard sx={rolesCard}>
-        <Box sx={teamAttendanceCardTitleSx}>
-          <Box sx={rolesIconBox}>
-            <AccessTimeIcon sx={{ fontSize: 20, color: theme.app.dashboard.white95 }} />
-          </Box>
-          <Typography variant="mediumLarge" fontWeight={600} color="white">
-            Attendance Records
-          </Typography>
-        </Box>
-
-        {view === "user" ? (
-          attendanceQuery.isLoading || attendanceQuery.isFetching ? (
-            <DataTable<TeamAttendanceRow>
-              columns={columns}
-              rows={tableRows}
-              getRowId={(row) => row.id}
-              isLoading
-              minWidth={860}
-            />
-          ) : !selectedUserId.trim() ? (
-            <EmptyAttendanceState
-              title="Select a user to view attendance"
-              subtitle="Choose a user from the filter above, then apply the date range."
-            />
-          ) : tableRows.length === 0 ? (
-            <EmptyAttendanceState />
-          ) : (
-            <DataTable<TeamAttendanceRow>
-              columns={columns}
-              rows={tableRows}
-              getRowId={(row) => row.id}
-              minWidth={860}
-            />
-          )
-        ) : poolAttendanceQuery.isLoading || poolAttendanceQuery.isFetching ? (
-          <DataTable<PoolTeamRow>
-            columns={poolColumns}
-            rows={poolTableRows}
-            getRowId={(row) => row.id}
-            isLoading
-            minWidth={900}
-          />
-        ) : poolTableRows.length === 0 ? (
-          <EmptyAttendanceState
-            title="No attendance rows"
-            subtitle="Adjust department, pool, member filter, or date — or confirm your account can access this pool."
-          />
-        ) : (
-          <DataTable<PoolTeamRow>
-            columns={poolColumns}
-            rows={poolTableRows}
-            getRowId={(row) => row.id}
-            minWidth={900}
-          />
-        )}
-
-        <Box sx={rolesFooterRow}>
-          <Typography variant="medium" sx={footerMutedText(theme)}>
-            {view === "user"
-              ? attendanceQuery.isLoading
-                ? "Loading…"
-                : `Showing data ${footerRangeStart} to ${footerRangeEnd} of ${total} entries`
-              : poolAttendanceQuery.isLoading
-                ? "Loading…"
-                : `Showing data ${poolFooterStart} to ${poolFooterEnd} of ${poolTotal} entries`}
-          </Typography>
-          <Box sx={rolesPaginationWrapper}>
-            {view === "user" ? (
-              <TablePagination page={page} pageCount={totalPages} onPageChange={setPage} />
-            ) : (
-              <TablePagination page={poolPage} pageCount={poolTotalPages} onPageChange={setPoolPage} />
-            )}
-          </Box>
-        </Box>
-      </DashboardCard>
+      <TeamAttendanceTableCard
+        scope={scope}
+        onScopeChange={setScope}
+        search={search}
+        onSearchChange={setSearch}
+        date={date}
+        onDateChange={setDate}
+        page={page}
+        pageCount={pageCount}
+        onPageChange={setPage}
+        footerText={
+          isLoading ? "Loading…" : `Showing data ${footerRangeStart} to ${footerRangeEnd} of ${total} entries`
+        }
+        isLoading={isLoading}
+        rows={rows}
+        columns={columns}
+        canUseTeamMembers={access.canUseTeamMembers}
+        canUsePoolHeads={access.canUsePoolHeads}
+        canUseDepartmentHeads={access.canUseDepartmentHeads}
+        emptyTitle={emptyCopy.title}
+        emptySubtitle={emptyCopy.subtitle}
+      />
     </Box>
   );
 }

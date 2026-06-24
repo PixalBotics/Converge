@@ -10,6 +10,7 @@ import { Button, DataTable, SelectField, Typography } from "@/components/common"
 import type { DataTableColumn } from "@/components/common";
 import {
   formatSourceRefForDisplay,
+  formatKbErrorForDisplay,
   formatScrapeProgressLabel,
   isBasicTrainingReady,
   isWebSourceType,
@@ -196,8 +197,8 @@ export function AiTrainingSourcesTable({
         label: "Error",
         render: (_, row) =>
           row.errorMessage ? (
-            <Typography variant="caption" sx={{ color: theme.palette.error.light, maxWidth: 220 }}>
-              {row.errorMessage}
+            <Typography variant="caption" sx={{ color: theme.palette.error.light, maxWidth: 280 }}>
+              {formatKbErrorForDisplay(row.errorMessage)}
             </Typography>
           ) : (
             "—"
@@ -269,7 +270,7 @@ export function AiTrainingSourcesTable({
           display: "flex",
           flexWrap: "wrap",
           gap: 1.5,
-          alignItems: "flex-end",
+          alignItems: { xs: "stretch", sm: "center" },
           justifyContent: "space-between",
           mb: 2,
         }}

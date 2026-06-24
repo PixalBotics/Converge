@@ -25,7 +25,9 @@ export function buildWidgetWizardChecklist(draft: WidgetDraft): WidgetWizardChec
   const panelGreeting = (draft.greetingMessage ?? "").trim();
   const chatWelcome = (draft.firstMessage ?? "").trim();
 
-  return [
+  const isTextUs = draft.type === "text" || draft.type === "both";
+
+  const items: WidgetWizardCheckItem[] = [
     {
       id: "website",
       label: "Website linked",
@@ -128,6 +130,19 @@ export function buildWidgetWizardChecklist(draft: WidgetDraft): WidgetWizardChec
       ok: draft.completed === true,
     },
   ];
+
+  if (isTextUs) {
+    items.splice(3, 0, {
+      id: "textUsDesign",
+      label: "Text Us styling",
+      detail: draft.textUsButtonColor?.trim()
+        ? `${draft.textUsHeaderTitle ?? "Title"} · ${draft.textUsButtonColor}`
+        : "Set on Text Us step",
+      ok: Boolean(draft.textUsButtonColor?.trim() && draft.textUsHeaderTitle?.trim()),
+    });
+  }
+
+  return items;
 }
 
 export function widgetWizardReadyToPublish(draft: WidgetDraft): boolean {

@@ -42,6 +42,7 @@ import {
 import { useConversationTypingEntries } from "./useConversationTyping";
 import { useAgentInboxQueues } from "./useAgentInboxQueues";
 import { useAgentChatSocket } from "./useAgentChatSocket";
+import { isAgentChatSessionAccepting } from "./agent-chat-session-bus";
 
 interface UseAgentChatParams {
   token: string;
@@ -91,7 +92,9 @@ export function useAgentChat(params: UseAgentChatParams): UseAgentChatReturn {
   const token = params.token?.trim() ?? "";
   const apiEnabled = permissionEnabled && Boolean(token);
   const socketClient = useMemo(() => getSharedAgentChatSocket(), []);
-  const queues = useAgentInboxQueues(token, permissionEnabled, params.agentId);
+  const queues = useAgentInboxQueues(token, permissionEnabled, params.agentId, {
+    respectChatSession: permissionEnabled,
+  });
 
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
   const [selectedWebsiteId, setSelectedWebsiteId] = useState<string | null>(null);
@@ -508,6 +511,7 @@ export function useAgentChat(params: UseAgentChatParams): UseAgentChatReturn {
 
   const handleAgentAssignmentPopup = useCallback(
     (payload: unknown) => {
+      if (!isAgentChatSessionAccepting()) return;
       const patch = buildInboxPatchFromSocket(
         "agent_assignment_popup",
         payload,

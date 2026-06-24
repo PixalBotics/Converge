@@ -17,6 +17,7 @@ import {
 } from "@/components/common";
 import type { DataTableColumn } from "@/components/common";
 import { MetricCard } from "@/components/common";
+import { DashboardAttendanceMetrics } from "../components/DashboardAttendanceMetrics";
 import {
   AccessTime as AccessTimeIcon,
   MoreHoriz as MoreHorizIcon,
@@ -143,6 +144,8 @@ export default function QaDashboardOverview() {
           <ButtonOutline text="Today, Oct 24" />
         </Box>
       </Box>
+
+      <DashboardAttendanceMetrics />
 
       <Box sx={metricsGrid}>
         <MetricCard

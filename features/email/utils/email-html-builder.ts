@@ -65,6 +65,7 @@ export type EmailAgentFeedbackPreview = {
 export type EmailFeedbackLinks = {
   goodUrl: string;
   poorUrl: string;
+  noteUrl?: string;
 };
 
 export function buildEmailHtml(input: {
@@ -387,19 +388,17 @@ function renderBlock(
       ].join("");
     case "additional_notes": {
       if (feedback && !feedback.notesEnabled) return "";
-      const placeholder =
-        feedback?.notesPlaceholder?.trim() ||
-        "Add wrap-up notes for the next agent or supervisor…";
       const submitLabel = feedback?.notesSubmitLabel?.trim() || "Submit note";
-      const note =
-        sample.additionalNotes?.trim() ||
-        "Agent notes and wrap-up comments appear here when submitted.";
+      const noteHref = feedbackLinks?.noteUrl ?? "#";
+      const agentNote = sample.additionalNotes?.trim();
       return [
         sectionTitle(style.title, accent, sectionStyle),
         `<tr><td style="padding:12px 24px 16px;">`,
-        `<textarea readonly placeholder="${escAttr(placeholder)}" style="width:100%;box-sizing:border-box;min-height:72px;padding:12px 14px;border:1px solid #cbd5e1;border-radius:6px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#334155;resize:vertical;background:#fff;">${escHtml(note === placeholder ? "" : note)}</textarea>`,
-        `<div style="margin-top:10px;text-align:right;">`,
-        `<a href="#" style="display:inline-block;padding:10px 20px;background:${escAttr(accent)};color:#ffffff;border-radius:6px;text-decoration:none;font-weight:700;font-size:13px;cursor:pointer;">${escHtml(submitLabel)}</a>`,
+        agentNote
+          ? `<div style="background:#f1f5f9;border:1px solid #e2e8f0;border-radius:6px;padding:14px 16px;font-size:13px;color:#475569;line-height:1.5;margin-bottom:12px;">${escHtml(agentNote)}</div>`
+          : `<div style="background:#f8fafc;border:1px dashed #cbd5e1;border-radius:6px;padding:12px 14px;font-size:12px;color:#64748b;line-height:1.5;margin-bottom:12px;">Agent wrap-up notes appear here when submitted.</div>`,
+        `<div style="text-align:right;">`,
+        `<a href="${escAttr(noteHref)}" target="_blank" rel="noopener noreferrer" style="display:inline-block;padding:10px 20px;background:${escAttr(accent)};color:#ffffff;border-radius:6px;text-decoration:none;font-weight:700;font-size:13px;">${escHtml(submitLabel)}</a>`,
         `</div></td></tr>`,
       ].join("");
     }

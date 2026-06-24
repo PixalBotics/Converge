@@ -15,7 +15,7 @@ import { useTheme } from "@mui/material/styles";
 import { useAttendanceMeQuery } from "@/lib/hooks/query";
 import { publishAppToast } from "@/lib/notify";
 import { isRecord, unwrapApiData } from "@/lib/utils/core";
-import { formatAttendanceStatus, formatBreakSummary } from "@/lib/utils/hrms/attendance-display";
+import { formatAttendanceStatus, formatBreakSummary, mapAttendanceEnrichedColumns } from "@/lib/utils/hrms/attendance-display";
 import { EmptyAttendanceState } from "../components/EmptyAttendanceState";
 import { useAuth } from "@/lib/auth";
 import { OP } from "@/lib/permissions";
@@ -39,6 +39,12 @@ type AttendanceRow = {
   status: string;
   breakSummary: string;
   workedMinutes: string;
+  startChat: string;
+  chatPause: string;
+  login: string;
+  logout: string;
+  chatMinutes: string;
+  meetingMinutes: string;
 };
 
 function formatDateOnly(value: string): string {
@@ -78,10 +84,15 @@ export default function MyAttendancePage() {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
 
-  const attendanceQuery = useAttendanceMeQuery(
-    { from, to, page, limit: PAGE_LIMIT },
-    { enabled: Boolean(from.trim() && to.trim()) },
+  const attendanceParams = useMemo(
+    () => ({ from, to, page, limit: PAGE_LIMIT }),
+    [from, to, page],
   );
+
+  const attendanceQuery = useAttendanceMeQuery(attendanceParams, {
+    enabled: canViewSelfAttendance && Boolean(from.trim() && to.trim()),
+    keepPreviousPage: true,
+  });
 
   const apiItems = useMemo(() => {
     const data = unwrapApiData(attendanceQuery.data);
@@ -127,6 +138,7 @@ export default function MyAttendancePage() {
       const over = pickNum(["overBreakMinutes"]);
       const worked = pickNum(["workedMinutes"]);
       const rawStatus = pick(["status"]);
+      const enriched = mapAttendanceEnrichedColumns(row);
       return {
         id: pick(["id", "attendanceId"]) || `attendance-${idx}`,
         date: formatDateOnly(pick(["date", "day", "attendanceDate"])),
@@ -135,6 +147,12 @@ export default function MyAttendancePage() {
         status: rawStatus ? formatAttendanceStatus(rawStatus) : "—",
         breakSummary: formatBreakSummary(taken, allowed, over),
         workedMinutes: worked != null ? `${worked} min` : "—",
+        startChat: enriched.startChat,
+        chatPause: enriched.chatPause,
+        login: enriched.login,
+        logout: enriched.logout,
+        chatMinutes: enriched.chatMinutes,
+        meetingMinutes: enriched.meetingMinutes,
       } as AttendanceRow;
     });
   }, [apiItems]);
@@ -150,7 +168,13 @@ export default function MyAttendancePage() {
         r.checkOutTime.toLowerCase().includes(q) ||
         r.status.toLowerCase().includes(q) ||
         r.breakSummary.toLowerCase().includes(q) ||
-        r.workedMinutes.toLowerCase().includes(q),
+        r.workedMinutes.toLowerCase().includes(q) ||
+        r.startChat.toLowerCase().includes(q) ||
+        r.chatPause.toLowerCase().includes(q) ||
+        r.login.toLowerCase().includes(q) ||
+        r.logout.toLowerCase().includes(q) ||
+        r.chatMinutes.toLowerCase().includes(q) ||
+        r.meetingMinutes.toLowerCase().includes(q),
     );
   }, [search, toBaseRows]);
 
@@ -175,6 +199,8 @@ export default function MyAttendancePage() {
       { id: "date", label: "Date" },
       { id: "checkInTime", label: "Check-in Time" },
       { id: "checkOutTime", label: "Check-out Time" },
+      { id: "login", label: "Login" },
+      { id: "logout", label: "Logout" },
       {
         id: "status",
         label: "Status",
@@ -182,6 +208,10 @@ export default function MyAttendancePage() {
       },
       { id: "breakSummary", label: "Break" },
       { id: "workedMinutes", label: "Worked" },
+      { id: "startChat", label: "Start chat" },
+      { id: "chatPause", label: "Chat pause" },
+      { id: "chatMinutes", label: "Chat min" },
+      { id: "meetingMinutes", label: "Meeting min" },
     ],
     [],
   );
@@ -284,13 +314,13 @@ export default function MyAttendancePage() {
             </Box>
             .
           </Typography>
-        ) : attendanceQuery.isLoading || attendanceQuery.isFetching ? (
+        ) : attendanceQuery.isPending ? (
           <DataTable<AttendanceRow>
             columns={columns}
             rows={tableRows}
             getRowId={(row) => row.id}
             isLoading
-            minWidth={960}
+            minWidth={1120}
           />
         ) : tableRows.length === 0 ? (
           <EmptyAttendanceState />
@@ -299,7 +329,7 @@ export default function MyAttendancePage() {
             columns={columns}
             rows={tableRows}
             getRowId={(row) => row.id}
-            minWidth={960}
+            minWidth={1120}
           />
         )}
 

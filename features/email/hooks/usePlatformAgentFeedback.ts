@@ -33,11 +33,12 @@ export function useUpdatePlatformAgentFeedbackMutation() {
 export function useDistributionFeedbackSubmissionsQuery(
   page = 1,
   limit = 25,
+  websiteId?: string,
   options?: { enabled?: boolean },
 ) {
   return useQuery({
-    queryKey: emailKeys.distributionFeedbackSubmissions(page, limit),
-    queryFn: () => listDistributionFeedbackSubmissions({ page, limit }),
+    queryKey: emailKeys.distributionFeedbackSubmissions(page, limit, websiteId),
+    queryFn: () => listDistributionFeedbackSubmissions({ page, limit, websiteId }),
     enabled: options?.enabled ?? true,
   });
 }

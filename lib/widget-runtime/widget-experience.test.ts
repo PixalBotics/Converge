@@ -4,6 +4,7 @@ import {
   configRecordFromEnvelope,
   hydrateExperienceInquiryFromBehavior,
   inquiryOptionsFromExperience,
+  mergeDesignJsonWithExperienceSnapshot,
   parseWidgetExperienceV1,
 } from "./widget-experience";
 
@@ -77,6 +78,84 @@ describe("configRecordFromEnvelope", () => {
     expect(chatBox.headerLogoUrl).toBe("https://cdn.example/logo.png");
     expect(chatBox.headerAlign).toBe("center");
     expect(djLauncher.style).toBe("glass");
+  });
+
+  it("preserves theme.designJson.textUs from snapshot when API returns experience", () => {
+    const experience = {
+      schemaVersion: 1,
+      mode: "HYBRID",
+      content: {
+        headerTitle: "Support",
+        greeting: "Hi",
+        chatWelcome: "Hello",
+        offline: "",
+        sendPlaceholder: "Type…",
+        buttonLabel: "Chat",
+        proactiveTeaserEnabled: false,
+        proactiveTeaser: "",
+        proactiveTeaserAvatarEnabled: false,
+        panelGreetingEnabled: true,
+        chatWelcomeEnabled: true,
+        proactiveTeaserAvatarUrl: "",
+        proactiveSecondaryCtaEnabled: false,
+        proactiveSecondaryCtaLabel: "",
+        proactiveSecondaryCtaHref: "",
+        proactiveSecondaryCtaKind: "",
+        closedMessagePreviewEnabled: true,
+      },
+      design: {
+        launcher: {
+          style: "solid",
+          position: "right",
+          shape: "circle",
+          insetBottomPx: 28,
+          insetSidePx: 28,
+        },
+        panel: {
+          headerLogoUrl: "",
+          headerAlign: "left",
+          backgroundColor: "#fff",
+          width: 360,
+          height: 480,
+        },
+        banner: { enabled: false, title: "", description: "" },
+        videoWelcome: { enabled: false, url: "" },
+        chatColors: {},
+      },
+      inquiry: { enabled: false, required: false, skipLabel: "General", topics: [], fallback: null },
+      behavior: {},
+      form: {},
+      session: {},
+    };
+    const cfg = configRecordFromEnvelope({
+      experience: experience as never,
+      themeDesignJson: {
+        textUs: {
+          buttonColor: "#1E63D5",
+          buttonLabel: "Text us",
+          headerTitle: "Text us",
+        },
+      },
+      textUsFormConfig: {
+        fields: [{ key: "phone", label: "Phone", type: "phone", required: true }],
+      },
+    });
+    const dj = (cfg.theme as Record<string, unknown>).designJson as Record<string, unknown>;
+    expect(dj.textUs).toMatchObject({ buttonLabel: "Text us" });
+    expect(cfg.textUsFormConfig).toEqual({
+      fields: [{ key: "phone", label: "Phone", type: "phone", required: true }],
+    });
+  });
+});
+
+describe("mergeDesignJsonWithExperienceSnapshot", () => {
+  it("keeps textUs block from snapshot", () => {
+    const merged = mergeDesignJsonWithExperienceSnapshot(
+      { chat: { colors: { primary: "#000" } } },
+      { textUs: { buttonLabel: "Text us" }, accent: "blue" },
+    );
+    expect(merged.textUs).toEqual({ buttonLabel: "Text us" });
+    expect(merged.accent).toBe("blue");
   });
 });
 

@@ -13,6 +13,7 @@ import { WidgetFlowShell } from "@/features/chat-widget";
 import { mergeWizardDraftForPublish } from "@/lib/chat-widget/merge-wizard-draft-for-publish";
 import {
   patchRemoteWidgetConfigurationWithMeta,
+  resolveWizardKindFromDraft,
   summarizePatchResult,
 } from "@/lib/chat-widget/widget-remote-sync";
 import { useWidgetWizardSaveTrace } from "@/features/chat-widget/components/WidgetWizardSaveTraceContext";
@@ -125,6 +126,25 @@ export default function ChatWidgetNotificationsPage() {
   const [prechatPhoneEnabled, setPrechatPhoneEnabled] = useState(d0.prechatPhoneEnabled ?? false);
   const [prechatMessageEnabled, setPrechatMessageEnabled] = useState(d0.prechatMessageEnabled ?? true);
   const [prechatMessageRequired, setPrechatMessageRequired] = useState(d0.prechatMessageRequired ?? false);
+  const [offlineFormEnabled, setOfflineFormEnabled] = useState(d0.offlineFormEnabled ?? true);
+  const [offlineFormTitle, setOfflineFormTitle] = useState(d0.offlineFormTitle ?? "");
+  const [offlineFormSubtitle, setOfflineFormSubtitle] = useState(d0.offlineFormSubtitle ?? "");
+  const [offlineFormSubmitLabel, setOfflineFormSubmitLabel] = useState(d0.offlineFormSubmitLabel ?? "");
+  const [offlinePrechatNameEnabled, setOfflinePrechatNameEnabled] = useState(
+    d0.offlinePrechatNameEnabled ?? true,
+  );
+  const [offlinePrechatEmailEnabled, setOfflinePrechatEmailEnabled] = useState(
+    d0.offlinePrechatEmailEnabled ?? true,
+  );
+  const [offlinePrechatPhoneEnabled, setOfflinePrechatPhoneEnabled] = useState(
+    d0.offlinePrechatPhoneEnabled ?? false,
+  );
+  const [offlinePrechatMessageEnabled, setOfflinePrechatMessageEnabled] = useState(
+    d0.offlinePrechatMessageEnabled ?? true,
+  );
+  const [offlinePrechatMessageRequired, setOfflinePrechatMessageRequired] = useState(
+    d0.offlinePrechatMessageRequired ?? true,
+  );
   const [responseOfflineMessage, setResponseOfflineMessage] = useState(d0.responseOfflineMessage ?? "");
   const [responseTalkToAgentEnabled, setresponseTalkToAgentEnabled] = useState(
     d0.responseTalkToAgentEnabled ?? true,
@@ -185,6 +205,19 @@ export default function ChatWidgetNotificationsPage() {
     setPrechatPhoneEnabled(d.prechatPhoneEnabled ?? def.prechatPhoneEnabled ?? false);
     setPrechatMessageEnabled(d.prechatMessageEnabled ?? def.prechatMessageEnabled ?? true);
     setPrechatMessageRequired(d.prechatMessageRequired ?? def.prechatMessageRequired ?? false);
+    setOfflineFormEnabled(d.offlineFormEnabled ?? def.offlineFormEnabled ?? true);
+    setOfflineFormTitle(d.offlineFormTitle ?? def.offlineFormTitle ?? "");
+    setOfflineFormSubtitle(d.offlineFormSubtitle ?? def.offlineFormSubtitle ?? "");
+    setOfflineFormSubmitLabel(d.offlineFormSubmitLabel ?? def.offlineFormSubmitLabel ?? "");
+    setOfflinePrechatNameEnabled(d.offlinePrechatNameEnabled ?? def.offlinePrechatNameEnabled ?? true);
+    setOfflinePrechatEmailEnabled(d.offlinePrechatEmailEnabled ?? def.offlinePrechatEmailEnabled ?? true);
+    setOfflinePrechatPhoneEnabled(d.offlinePrechatPhoneEnabled ?? def.offlinePrechatPhoneEnabled ?? false);
+    setOfflinePrechatMessageEnabled(
+      d.offlinePrechatMessageEnabled ?? def.offlinePrechatMessageEnabled ?? true,
+    );
+    setOfflinePrechatMessageRequired(
+      d.offlinePrechatMessageRequired ?? def.offlinePrechatMessageRequired ?? true,
+    );
     setResponseOfflineMessage(d.responseOfflineMessage ?? def.responseOfflineMessage ?? "");
     setresponseTalkToAgentEnabled(d.responseTalkToAgentEnabled ?? def.responseTalkToAgentEnabled ?? true);
     setMotionEnabled(d.motionEnabled !== false);
@@ -233,6 +266,15 @@ export default function ChatWidgetNotificationsPage() {
     prechatPhoneEnabled,
     prechatMessageEnabled,
     prechatMessageRequired,
+    offlineFormEnabled,
+    offlineFormTitle,
+    offlineFormSubtitle,
+    offlineFormSubmitLabel,
+    offlinePrechatNameEnabled,
+    offlinePrechatEmailEnabled,
+    offlinePrechatPhoneEnabled,
+    offlinePrechatMessageEnabled,
+    offlinePrechatMessageRequired,
     responseOfflineMessage,
     responseTalkToAgentEnabled,
     responseTalkToAgentTriggerText,
@@ -270,6 +312,15 @@ export default function ChatWidgetNotificationsPage() {
     prechatPhoneEnabled,
     prechatMessageEnabled,
     prechatMessageRequired,
+    offlineFormEnabled,
+    offlineFormTitle,
+    offlineFormSubtitle,
+    offlineFormSubmitLabel,
+    offlinePrechatNameEnabled,
+    offlinePrechatEmailEnabled,
+    offlinePrechatPhoneEnabled,
+    offlinePrechatMessageEnabled,
+    offlinePrechatMessageRequired,
     responseOfflineMessage,
     responseTalkToAgentEnabled,
     responseTalkToAgentTriggerText,
@@ -287,6 +338,7 @@ export default function ChatWidgetNotificationsPage() {
     const prev = readChatWizardDraft(editKey || undefined);
     const autoOpenDelay = Math.min(300, Math.max(0, Number.parseInt(s.autoOpenDelayStr, 10) || 10));
     saveChatWizardDraft(editKey || undefined, {
+      type: prev.type,
       chatMode: s.chatMode,
       aiType: shouldShowWidgetAiType(s.chatMode) ? s.aiType : undefined,
       allowedDomains: mergeDraftAllowedDomains(parseDomainListInput(s.allowedDomainsInput)),
@@ -323,6 +375,15 @@ export default function ChatWidgetNotificationsPage() {
       prechatPhoneEnabled: s.prechatPhoneEnabled,
       prechatMessageEnabled: s.prechatMessageEnabled,
       prechatMessageRequired: s.prechatMessageRequired,
+      offlineFormEnabled: s.offlineFormEnabled,
+      offlineFormTitle: s.offlineFormTitle.trim(),
+      offlineFormSubtitle: s.offlineFormSubtitle.trim(),
+      offlineFormSubmitLabel: s.offlineFormSubmitLabel.trim(),
+      offlinePrechatNameEnabled: s.offlinePrechatNameEnabled,
+      offlinePrechatEmailEnabled: s.offlinePrechatEmailEnabled,
+      offlinePrechatPhoneEnabled: s.offlinePrechatPhoneEnabled,
+      offlinePrechatMessageEnabled: s.offlinePrechatMessageEnabled,
+      offlinePrechatMessageRequired: s.offlinePrechatMessageRequired,
       responseOfflineMessage: s.responseOfflineMessage.trim(),
       responseTalkToAgentEnabled: s.responseTalkToAgentEnabled,
       responseTalkToAgentTriggerText: s.responseTalkToAgentTriggerText.trim() || "Talk to agent",
@@ -440,6 +501,7 @@ export default function ChatWidgetNotificationsPage() {
         const draftBefore = readChatWizardDraft(editKey || undefined);
         const launcherFromStep1 = resolveWizardLauncherPreview(prev);
         saveChatWizardDraft(editKey || undefined, {
+          type: prev.type,
           ...launcherFromStep1,
           buttonShape: launcherFromStep1.buttonShape,
           buttonPosition: launcherFromStep1.buttonPosition,
@@ -501,6 +563,15 @@ export default function ChatWidgetNotificationsPage() {
           prechatPhoneEnabled,
           prechatMessageEnabled,
           prechatMessageRequired,
+          offlineFormEnabled,
+          offlineFormTitle: offlineFormTitle.trim(),
+          offlineFormSubtitle: offlineFormSubtitle.trim(),
+          offlineFormSubmitLabel: offlineFormSubmitLabel.trim(),
+          offlinePrechatNameEnabled,
+          offlinePrechatEmailEnabled,
+          offlinePrechatPhoneEnabled,
+          offlinePrechatMessageEnabled,
+          offlinePrechatMessageRequired,
           responseOfflineMessage: responseOfflineMessage.trim(),
           responseTalkToAgentEnabled,
           responseTalkToAgentTriggerText: responseTalkToAgentTriggerText.trim() || "Talk to agent",
@@ -510,10 +581,10 @@ export default function ChatWidgetNotificationsPage() {
         const latest = readChatWizardDraft(editKey || undefined);
         const patchMeta = await patchRemoteWidgetConfigurationWithMeta({
           widgetKey: rk,
-          widgetKind: "chat",
+          widgetKind: resolveWizardKindFromDraft(latest),
           draft: latest,
           publishNow: false,
-          embedAllowAnyOrigin: false,
+          embedAllowAnyOrigin: latest.embedAllowAnyOrigin ?? false,
           chatWizardPatchScope: "notifications_only",
         });
         recordSave({
@@ -527,14 +598,21 @@ export default function ChatWidgetNotificationsPage() {
           responseBody: patchMeta.inner,
         });
         const sum = summarizePatchResult(patchMeta.inner);
+        const mergedForPublish = mergeWizardDraftForPublish(readChatWizardDraft(editKey || undefined));
         saveChatWizardDraft(editKey || undefined, {
-          ...mergeWizardDraftForPublish(readChatWizardDraft(editKey || undefined)),
+          ...mergedForPublish,
+          type: prev.type ?? mergedForPublish.type,
           requiresPublishBeforeEmbed: sum.requiresPublishBeforeEmbed,
         });
         setChecklistRefreshKey((k) => k + 1);
+        const latestAfter = readChatWizardDraft(editKey || undefined);
+        const nextPath =
+          latestAfter.type === "both"
+            ? "/dashboard/chat-widget/add/text"
+            : "/dashboard/chat-widget/add/chat/script";
         router.push(
           withChatEditQuery(
-            "/dashboard/chat-widget/add/chat/script",
+            nextPath,
             resolveEditWidgetKeyForNavigation(editKey) || rk,
           ),
         );
@@ -549,6 +627,12 @@ export default function ChatWidgetNotificationsPage() {
       }
     })();
   };
+
+  const notificationsDraft = readChatWizardDraft(
+    resolveEditWidgetKeyForNavigation(editWidgetKey) || undefined,
+  );
+  const notificationsNextLabel =
+    notificationsDraft.type === "both" ? "Next: Text Us" : "Next: Install";
 
   return (
     <WidgetFlowShell
@@ -568,7 +652,7 @@ export default function ChatWidgetNotificationsPage() {
             disabled={saving || !draftReady}
             onClick={handleSaveAndNext}
           >
-            {saving ? "Saving…" : "Next: Install"}
+            {saving ? "Saving…" : notificationsNextLabel}
           </Button>
         </>
       }
@@ -881,6 +965,64 @@ export default function ChatWidgetNotificationsPage() {
               />
             </Box>
           ) : null}
+          </Box>
+        </SchedulingSectionCard>
+
+        <SchedulingSectionCard
+          title="Offline form"
+          subtitle="Shown in Agent-only mode when no agent is available. Submissions appear in Chat Monitor."
+        >
+          <Box sx={notificationsFormStackSx}>
+            <WidgetWizardToggleRow
+              label="Show offline form"
+              description="When off, visitors only see the offline message with no form."
+              checked={offlineFormEnabled}
+              onChange={setOfflineFormEnabled}
+            />
+            <WidgetTextField
+              label="Form title"
+              name="offline-form-title"
+              value={offlineFormTitle}
+              onChange={setOfflineFormTitle}
+              maxLength={FIELD_MAX.title}
+            />
+            <WidgetTextField
+              label="Form subtitle"
+              name="offline-form-subtitle"
+              value={offlineFormSubtitle}
+              onChange={setOfflineFormSubtitle}
+              maxLength={FIELD_MAX.message}
+            />
+            <WidgetTextField
+              label="Submit button label"
+              name="offline-form-submit"
+              value={offlineFormSubmitLabel}
+              onChange={setOfflineFormSubmitLabel}
+              maxLength={FIELD_MAX.shortLabel}
+            />
+            <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, mb: 0.5 }}>
+              Fields to show when offline
+            </Typography>
+            <Box sx={{ display: "flex", flexWrap: "wrap", gap: 2 }}>
+              {[
+                ["Name", offlinePrechatNameEnabled, setOfflinePrechatNameEnabled] as const,
+                ["Email", offlinePrechatEmailEnabled, setOfflinePrechatEmailEnabled] as const,
+                ["Phone", offlinePrechatPhoneEnabled, setOfflinePrechatPhoneEnabled] as const,
+                ["Message", offlinePrechatMessageEnabled, setOfflinePrechatMessageEnabled] as const,
+                [
+                  "Message required",
+                  offlinePrechatMessageRequired,
+                  setOfflinePrechatMessageRequired,
+                ] as const,
+              ].map(([label, val, setter]) => (
+                <Box key={label} sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                  <Switch checked={val} onChange={(_, c) => setter(c)} color="success" />
+                  <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted }}>
+                    {label}
+                  </Typography>
+                </Box>
+              ))}
+            </Box>
           </Box>
         </SchedulingSectionCard>
       </WidgetWizardPageLayout>

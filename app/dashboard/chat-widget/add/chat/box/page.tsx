@@ -13,6 +13,7 @@ import { WidgetFlowShell } from "@/features/chat-widget";
 import { mergeWizardDraftForPublish } from "@/lib/chat-widget/merge-wizard-draft-for-publish";
 import {
   patchRemoteWidgetConfigurationWithMeta,
+  resolveWizardKindFromDraft,
   summarizePatchResult,
 } from "@/lib/chat-widget/widget-remote-sync";
 import { persistAssetUrlsOnDraft } from "@/lib/chat-widget/resolve-widget-draft-asset-urls";
@@ -253,7 +254,9 @@ export default function ChatWidgetBoxDesignPage() {
     );
     setBoxWidth(String(d.boxWidth ?? 350));
     setBoxHeight(String(d.boxHeight ?? 430));
-    setButtonLabel(d.buttonLabel ?? "Chat with us");
+    setButtonLabel(
+      typeof d.buttonLabel === "string" ? d.buttonLabel : (defaultWidgetDraft.buttonLabel ?? ""),
+    );
     setFirstMessage(d.firstMessage ?? "Hi! How can we help today?");
     setBackgroundColor(d.backgroundColor ?? "#f8fafc");
     setChatColors(readWidgetChatColorsFromDraft(d));
@@ -442,7 +445,7 @@ export default function ChatWidgetBoxDesignPage() {
       bannerMediaType: s.bannerMediaType,
       boxWidth: safeWidth,
       boxHeight: safeHeight,
-      buttonLabel: s.buttonLabel.trim() || prev.buttonLabel || "Chat with us",
+      buttonLabel: s.buttonLabel.trim(),
       firstMessage: s.firstMessage.trim(),
       backgroundColor: s.backgroundColor.trim() || prev.backgroundColor || "#f8fafc",
       formEnabled: s.previewForm.formEnabled,
@@ -543,6 +546,7 @@ export default function ChatWidgetBoxDesignPage() {
       try {
         const launcherFromStep1 = resolveWizardLauncherPreview(prev);
         saveChatWizardDraft(editKey || undefined, {
+          type: prev.type,
           ...launcherFromStep1,
           buttonShape: launcherFromStep1.buttonShape,
           buttonPosition: launcherFromStep1.buttonPosition,
@@ -602,7 +606,7 @@ export default function ChatWidgetBoxDesignPage() {
           bannerMediaType,
           boxWidth: safeWidth,
           boxHeight: safeHeight,
-          buttonLabel: buttonLabel.trim() || prev.buttonLabel || "Chat with us",
+          buttonLabel: buttonLabel.trim(),
           firstMessage: firstMessage.trim(),
           backgroundColor: backgroundColor.trim() || prev.backgroundColor || "#f8fafc",
           inquiryOn: prev.inquiryOn ?? false,
@@ -623,7 +627,7 @@ export default function ChatWidgetBoxDesignPage() {
         const latest = readChatWizardDraft(editKey || undefined);
         const patchMeta = await patchRemoteWidgetConfigurationWithMeta({
           widgetKey: rk,
-          widgetKind: "chat",
+          widgetKind: resolveWizardKindFromDraft(latest),
           draft: latest,
           publishNow: false,
           chatWizardPatchScope: "chat_surface",

@@ -4,6 +4,22 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+/** Strip Nest/BusinessError `form:` prefix from API copy shown in toasts. */
+function stripFormLevelErrorPrefix(message: string): string {
+  return message.replace(/^(form:\s*)+/gi, "").trim();
+}
+
+function normalizeToastErrorMessage(message: string): string {
+  const stripped = stripFormLevelErrorPrefix(message);
+  if (/could not fetch url|failed to fetch url/i.test(stripped)) {
+    return "We could not reach this website. It may block bots or be temporarily offline.";
+  }
+  if (/no indexable|no readable content|could not index|could not extract text/i.test(stripped)) {
+    return "We could not extract enough text from this page. Try reindexing or use the KB worker with Playwright.";
+  }
+  return stripped;
+}
+
 function stringifyMessageFragment(value: unknown): string | null {
   if (typeof value === "string") {
     const t = value.trim();
@@ -180,20 +196,16 @@ export function extractApiErrorMessageForToast(error: unknown, fallback?: string
 
     if (typeof data === "string") {
       const t = data.trim();
-      return t.length > 0 ? t : stringifyMessageFragment(error.message) ?? "Request failed";
+      return t.length > 0
+        ? normalizeToastErrorMessage(t)
+        : normalizeToastErrorMessage(stringifyMessageFragment(error.message) ?? "Request failed");
     }
 
     if (!isRecord(data)) {
       return stringifyMessageFragment(error.message) ?? "Request failed";
     }
 
-    const top = readTopLevelMessage(data);
-    if (top) return top;
-
-    const nestedData = readNestedDataErrorMessage(data);
-    if (nestedData) return nestedData;
-
-    /** Per-field-only errors (e.g. `details.fields`) with no top-level message. */
+    /** Per-field errors (e.g. `error.details.fieldErrors`) — forms show inline; skip global toast. */
     if (hasNestInlineFieldPayload(data)) {
       return null;
     }
@@ -201,6 +213,12 @@ export function extractApiErrorMessageForToast(error: unknown, fallback?: string
     if (hasOnlyFieldStyleErrors(data)) {
       return null;
     }
+
+    const top = readTopLevelMessage(data);
+    if (top) return normalizeToastErrorMessage(top);
+
+    const nestedData = readNestedDataErrorMessage(data);
+    if (nestedData) return normalizeToastErrorMessage(nestedData);
 
     const status = error.response?.status;
     if (typeof status === "number") {
@@ -211,7 +229,7 @@ export function extractApiErrorMessageForToast(error: unknown, fallback?: string
   }
 
   if (error instanceof Error && error.message.trim()) {
-    return error.message.trim();
+    return normalizeToastErrorMessage(error.message.trim());
   }
 
   return fallback ?? null;

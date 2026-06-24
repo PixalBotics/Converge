@@ -39,6 +39,8 @@ export interface WidgetConfigEnvelope {
   clientSettings?: Record<string, unknown>;
   /** Published theme editor snapshot for embed colors/layout (same as `clientSettings.theme.designJson`). */
   themeDesignJson?: Record<string, unknown>;
+  /** Text-us field definitions when not folded into legacy `config`. */
+  textUsFormConfig?: Record<string, unknown>;
   config?: {
     mode?: WidgetModeDto;
     welcomeMessage?: string;
