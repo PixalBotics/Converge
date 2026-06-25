@@ -323,7 +323,9 @@ export function buildInboxPatchFromSocket(
   if (
     ev === "chat_closed" ||
     ev === "chat_completed" ||
-    ev === "agent_wrap_up_submitted"
+    ev === "agent_wrap_up_submitted" ||
+    ev === "agent_distribution_submitted" ||
+    ev === "chat_marked_spam"
   ) {
     return { kind: "conversation_closed", conversationId };
   }
@@ -374,7 +376,6 @@ export function applyInboxQueuePatch(
       return { activeChats, waitingChats, closedChats };
     }
     case "queue_add": {
-      waitingChats = upsertRow(waitingChats, patch.summary);
       activeChats = removeId(activeChats, cidOf(patch.summary));
       return { activeChats, waitingChats, closedChats };
     }
@@ -394,11 +395,6 @@ export function applyInboxQueuePatch(
       return { activeChats, waitingChats, closedChats };
     }
     case "conversation_resumed": {
-      waitingChats = upsertRow(waitingChats, {
-        ...patch.summary,
-        status: "waiting",
-        queuedForAgent: true,
-      });
       activeChats = removeId(activeChats, cidOf(patch.summary));
       closedChats = removeId(closedChats, cidOf(patch.summary));
       return { activeChats, waitingChats, closedChats };

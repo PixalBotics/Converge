@@ -7,7 +7,6 @@ import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import { SearchBar, Typography } from "@/components/common";
 import type { ConversationSummary } from "@/services/chat/chat.types";
-import { MAX_ACTIVE_CHATS_PER_AGENT } from "@/services/chat/chat.constants";
 import {
   chatOpsInboxHeaderSx,
   chatOpsInboxSearchWrap,
@@ -31,7 +30,11 @@ import {
   ScrollRegion,
 } from "../styles/chat-operations.styled";
 
-export type ChatQueueTab = "active" | "waiting" | "closed";
+export type ChatQueueTab =
+  | "active"
+  | "pending"
+  | "completed"
+  | "spam";
 
 interface ChatQueueSidebarProps {
   queueTab: ChatQueueTab;
@@ -40,12 +43,11 @@ interface ChatQueueSidebarProps {
   selectedConversationId: string | null;
   onSelectConversation: (id: string) => void;
   activeCount: number;
-  waitingCount: number;
-  closedCount: number;
+  pendingCount: number;
+  completedCount: number;
+  spamCount: number;
   connected: boolean;
   hasToken: boolean;
-  atActiveCap?: boolean;
-  canPickWaiting?: boolean;
 }
 
 export function ChatQueueSidebar({
@@ -55,12 +57,11 @@ export function ChatQueueSidebar({
   selectedConversationId,
   onSelectConversation,
   activeCount,
-  waitingCount,
-  closedCount,
+  pendingCount,
+  completedCount,
+  spamCount,
   connected,
   hasToken,
-  atActiveCap = false,
-  canPickWaiting = true,
 }: ChatQueueSidebarProps) {
   const theme = useTheme() as AppTheme;
   const [searchQuery, setSearchQuery] = useState("");
@@ -77,11 +78,15 @@ export function ChatQueueSidebar({
   }, [conversations, searchQuery]);
 
   const previewFallback =
-    queueTab === "waiting"
-      ? "Waiting for an agent…"
-      : queueTab === "closed"
-        ? "Closed conversation"
-        : "No messages yet";
+    queueTab === "pending"
+      ? "Pending form"
+      : queueTab === "completed"
+        ? "Completed chat"
+        : queueTab === "spam"
+          ? "Spam chat"
+          : "No messages yet";
+
+  const endedTab = queueTab === "pending" || queueTab === "completed" || queueTab === "spam";
 
   return (
     <PanelColumn sx={{ flex: 1, minHeight: 0, maxHeight: "100%" }}>
@@ -107,28 +112,28 @@ export function ChatQueueSidebar({
           <Box
             component="button"
             type="button"
-            sx={chatOpsInboxTabSx(queueTab === "waiting")}
-            onClick={() => onQueueTabChange("waiting")}
+            sx={chatOpsInboxTabSx(queueTab === "pending")}
+            onClick={() => onQueueTabChange("pending")}
           >
-            Waiting · {waitingCount}
+            Pending · {pendingCount}
           </Box>
           <Box
             component="button"
             type="button"
-            sx={chatOpsInboxTabSx(queueTab === "closed")}
-            onClick={() => onQueueTabChange("closed")}
+            sx={chatOpsInboxTabSx(queueTab === "completed")}
+            onClick={() => onQueueTabChange("completed")}
           >
-            Closed · {closedCount}
+            Done · {completedCount}
+          </Box>
+          <Box
+            component="button"
+            type="button"
+            sx={chatOpsInboxTabSx(queueTab === "spam")}
+            onClick={() => onQueueTabChange("spam")}
+          >
+            Spam · {spamCount}
           </Box>
         </Box>
-        {atActiveCap && queueTab === "waiting" ? (
-          <Typography
-            variant="caption"
-            sx={{ display: "block", mt: 0.75, color: theme.palette.warning.main, fontSize: 11 }}
-          >
-            Max {MAX_ACTIVE_CHATS_PER_AGENT} active chats — finish or close one to accept more.
-          </Typography>
-        ) : null}
       </Box>
 
       <Box sx={chatOpsInboxSearchWrap}>
@@ -159,9 +164,7 @@ export function ChatQueueSidebar({
               parsed.displayName !== "Visitor" ? parsed.displayName : undefined,
             );
             const selected = conversation.id === selectedConversationId;
-            const isWaiting = queueTab === "waiting";
-            const isClosed = queueTab === "closed";
-            const pickBlocked = isWaiting && !canPickWaiting;
+            const isEnded = endedTab;
             const unread =
               typeof conversation.unreadCount === "number" && conversation.unreadCount > 0
                 ? conversation.unreadCount
@@ -178,7 +181,7 @@ export function ChatQueueSidebar({
               typeof conversation.lastTransferFrom.label === "string"
                 ? conversation.lastTransferFrom.label.trim()
                 : "";
-            const liveTyping = queueTab !== "closed"
+            const liveTyping = !endedTab
               ? sidebarTypingMap.get(conversation.id.toLowerCase())
               : undefined;
             const liveDraft = liveTyping?.draft?.trim() ?? "";
@@ -194,35 +197,15 @@ export function ChatQueueSidebar({
               <QueueItemRow
                 key={conversation.id}
                 active={selected}
-                onClick={() => {
-                  if (!pickBlocked) onSelectConversation(conversation.id);
-                }}
+                onClick={() => onSelectConversation(conversation.id)}
                 sx={{
-                  ...(pickBlocked ? { opacity: 0.45, cursor: "not-allowed" } : {}),
-                  ...(isWaiting && !selected && !pickBlocked
-                    ? {
-                        "&::after": {
-                          content: '""',
-                          position: "absolute",
-                          right: 10,
-                          top: "50%",
-                          transform: "translateY(-50%)",
-                          width: 6,
-                          height: 6,
-                          borderRadius: "50%",
-                          bgcolor: theme.app.dashboard.accentOrange,
-                        },
-                      }
-                    : undefined),
-                  ...(isClosed && !selected
-                    ? { opacity: 0.92 }
-                    : undefined),
+                  ...(isEnded && !selected ? { opacity: 0.92 } : undefined),
                 }}
               >
                 <Badge
                   color="primary"
                   badgeContent={unread > 0 ? (unread > 9 ? "9+" : unread) : 0}
-                  invisible={unread === 0 || isClosed}
+                  invisible={unread === 0 || isEnded}
                   overlap="circular"
                 >
                   <QueueAvatar>{initials}</QueueAvatar>
@@ -286,18 +269,22 @@ export function ChatQueueSidebar({
                   <Typography
                     variant="small"
                     sx={{
-                      fontSize: 12,
+                      fontSize: 13,
+                      lineHeight: 1.45,
                       color:
                         isLiveTyping
                           ? theme.app.dashboard.accentCyan
-                          : unread > 0 && !isClosed
+                          : unread > 0 && !isEnded
                             ? theme.app.text.primary
                             : theme.app.dashboard.textMuted,
-                      fontWeight: isLiveTyping || (unread > 0 && !isClosed) ? 500 : 400,
+                      fontWeight: isLiveTyping || (unread > 0 && !isEnded) ? 500 : 400,
                       fontStyle: isLiveTyping ? "italic" : "normal",
                       overflow: "hidden",
                       textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
+                      display: "-webkit-box",
+                      WebkitLineClamp: 2,
+                      WebkitBoxOrient: "vertical",
+                      whiteSpace: "normal",
                     }}
                   >
                     {isLiveTyping ? liveDraft : rowPreview}

@@ -64,12 +64,14 @@ export function blockedUsersFromOtherBlocks(
     const otherLabel = safeLabel(other.label, `Period ${i + 1}`);
     const window = `${formatHm12Label(other.startTime)} – ${formatHm12Label(other.endTime)}`;
     for (const tier of ROSTER_TIERS) {
-      const userId = typeof other.roster[tier] === "string" ? other.roster[tier].trim() : "";
-      if (!userId || blocked.has(userId)) continue;
-      blocked.set(
-        userId,
-        `On duty in ${otherLabel} (${window}) — available again after that period ends.`,
-      );
+      for (const rawId of other.roster[tier] ?? []) {
+        const userId = rawId.trim();
+        if (!userId || blocked.has(userId)) continue;
+        blocked.set(
+          userId,
+          `On duty in ${otherLabel} (${window}) — available again after that period ends.`,
+        );
+      }
     }
   }
   return blocked;

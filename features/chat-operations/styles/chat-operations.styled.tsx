@@ -115,7 +115,7 @@ export const QueueAvatar = styled(Box)(({ theme }) => {
   };
 });
 
-export const MessageThread = styled(Box)({
+export const MessageThread = styled(Box)(({ theme }) => ({
   flex: 1,
   minHeight: 0,
   overflowY: "auto",
@@ -123,13 +123,17 @@ export const MessageThread = styled(Box)({
   display: "flex",
   flexDirection: "column",
   gap: 0,
-  scrollbarWidth: "none",
-  msOverflowStyle: "none",
+  scrollbarWidth: "thin",
+  msOverflowStyle: "auto",
   background: "transparent",
   paddingLeft: 4,
-  paddingRight: 40,
-  "&::-webkit-scrollbar": { display: "none" },
-});
+  paddingRight: 12,
+  "&::-webkit-scrollbar": { width: 6 },
+  "&::-webkit-scrollbar-thumb": {
+    background: alpha(dash(theme).cardBorder, 0.55),
+    borderRadius: 8,
+  },
+}));
 
 export const DateDivider = styled(Box)(({ theme }) => ({
   display: "flex",
@@ -160,7 +164,7 @@ export const MessageRowOuter = styled(Box, {
   alignItems: "flex-start",
   gap: 8,
   alignSelf: system ? "stretch" : outgoing ? "flex-end" : "flex-start",
-  maxWidth: system ? "100%" : "min(560px, 88%)",
+  maxWidth: system ? "100%" : "min(640px, 92%)",
   width: "100%",
   marginLeft: outgoing ? "auto" : 0,
 }));
@@ -250,13 +254,14 @@ export const MessageBubble = styled(Box, {
   const lc = live(theme);
   if (system) {
     return {
-      padding: theme.spacing(1.35, 1.5),
+      padding: theme.spacing(1, 1.25),
       borderRadius: CHAT_BUBBLE_RADIUS,
-      fontSize: 14,
+      fontSize: 13,
       lineHeight: 1.5,
-      background: alpha(d.overlayLight, 0.35),
-      border: `1px solid ${alpha(d.cardBorder, 0.45)}`,
-      color: lc.messageText,
+      background: alpha(d.overlayLight, 0.28),
+      border: `1px solid ${alpha(d.cardBorder, 0.35)}`,
+      color: alpha(lc.messageText, 0.88),
+      maxWidth: "100%",
     };
   }
   const radius = bubbleRadius(Boolean(outgoing), groupPosition);
@@ -268,10 +273,12 @@ export const MessageBubble = styled(Box, {
 
   return {
     marginTop: tightTop,
-    padding: theme.spacing(1.35, 1.5),
+    padding: theme.spacing(1.5, 1.65),
     borderRadius: radius,
-    fontSize: 15,
-    lineHeight: 1.55,
+    fontSize: 16,
+    lineHeight: 1.62,
+    letterSpacing: "0.01em",
+    wordBreak: "break-word",
     background: outgoing
       ? ai
         ? aiGradient
@@ -288,8 +295,8 @@ export const MessageBubble = styled(Box, {
 export const MessageMeta = styled(Typography)(({ theme }) => ({
   display: "block",
   marginTop: 0,
-  fontSize: 11,
-  lineHeight: 1.35,
+  fontSize: 12,
+  lineHeight: 1.4,
   color: dash(theme).textMuted,
 }));
 

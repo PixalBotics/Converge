@@ -7,10 +7,14 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { Typography } from "@/components/common";
 import { pageWrapper } from "@/app/dashboard/dashboard.styles";
 import { AgentDistributionFormView } from "@/features/chat-operations/components/AgentDistributionFormView";
+import { MarkSpamModal } from "@/features/chat-operations/components/MarkSpamModal";
+import type { SpamCategoryValue } from "@/features/chat-operations/utils/chat-close-outcome";
 import {
   fetchAgentDistributionForm,
   submitAgentDistribution,
 } from "@/services/chat/agent-distribution.api";
+import { markClosedConversationSpam } from "@/services/chat/agent-inbox.api";
+import { useAccessToken } from "@/lib/auth/use-access-token";
 import { publishAppToast } from "@/lib/notify";
 import { extractApiErrorMessageForToast } from "@/lib/notify/extract-api-message";
 
@@ -18,6 +22,7 @@ export function AgentDistributionPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const conversationId = searchParams.get("conversationId")?.trim() ?? "";
+  const accessToken = useAccessToken() ?? "";
 
   const formQuery = useQuery({
     queryKey: ["agent-distribution-form", conversationId],
@@ -27,6 +32,8 @@ export function AgentDistributionPage() {
 
   const [departmentId, setDepartmentId] = useState("");
   const [values, setValues] = useState<Record<string, string>>({});
+  const [spamModalOpen, setSpamModalOpen] = useState(false);
+  const [spamBusy, setSpamBusy] = useState(false);
 
   const payload = formQuery.data;
   const submitted = Boolean(payload?.submitted);
@@ -90,6 +97,30 @@ export function AgentDistributionPage() {
       });
   };
 
+  const handleReportSpam = async (input: {
+    spamCategory: SpamCategoryValue;
+    notes: string;
+  }) => {
+    setSpamBusy(true);
+    try {
+      await markClosedConversationSpam(
+        conversationId,
+        { spamCategory: input.spamCategory, notes: input.notes || undefined },
+        accessToken,
+      );
+      publishAppToast({ variant: "success", message: "Chat marked as spam." });
+      router.push("/dashboard/chat-operations");
+    } catch (err) {
+      publishAppToast({
+        variant: "error",
+        message: extractApiErrorMessageForToast(err, "Could not mark as spam."),
+      });
+    } finally {
+      setSpamBusy(false);
+      setSpamModalOpen(false);
+    }
+  };
+
   if (!conversationId) {
     return (
       <Box sx={pageWrapper}>
@@ -125,6 +156,13 @@ export function AgentDistributionPage() {
         submitting={submitMutation.isPending}
         onSubmit={handleSubmit}
         onBack={() => router.push("/dashboard/chat-operations")}
+        onReportSpam={submitted ? undefined : () => setSpamModalOpen(true)}
+      />
+      <MarkSpamModal
+        open={spamModalOpen}
+        busy={spamBusy}
+        onClose={() => !spamBusy && setSpamModalOpen(false)}
+        onConfirm={(input) => void handleReportSpam(input)}
       />
     </Box>
   );

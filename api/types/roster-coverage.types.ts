@@ -42,9 +42,9 @@ export type RosterCoverageBlockInput = {
   label?: string | null;
   sortOrder?: number;
   roster: {
-    Primary?: string | null;
-    Secondary?: string | null;
-    Backup?: string | null;
+    Primary?: string[] | null;
+    Secondary?: string[] | null;
+    Backup?: string[] | null;
   };
 };
 

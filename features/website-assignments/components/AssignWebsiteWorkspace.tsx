@@ -488,7 +488,7 @@ export function AssignWebsiteWorkspace({ preset }: { preset?: AssignWebsitePrese
                 <TopicAgentRosterPanel
                   websiteId={wid}
                   operatingChannels={operatingChannels}
-                  allowedChannels={allowedChannels}
+                  allowedAssignmentChannels={allowedChannels}
                   departmentRoster={detail.departmentRoster}
                   topics={schedulingTopics}
                   canEdit={gates.assign}

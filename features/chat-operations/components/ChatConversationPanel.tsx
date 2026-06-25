@@ -18,6 +18,11 @@ import type { AiChatMessage } from "../types/ai-chat";
 import { parseVisitorInfo } from "../utils/visitor-info";
 import type { ChatWhisperSocketPayload } from "@/services/chat/supervisor.types";
 import { ChatContextRail } from "./ChatContextRail";
+import { ChatTranscriptStatusChip } from "./ChatTranscriptStatusChip";
+import {
+  CLOSED_CHAT_BUCKETS,
+  resolveClosedChatBucket,
+} from "../utils/chat-close-outcome";
 import { GuestLinkHeaderAction } from "./GuestLinkHeaderAction";
 import { TransferChatHeaderAction } from "./TransferChatHeaderAction";
 import { inboxTranscriptDisplayForClosed } from "../utils/inbox-transcript-messages";
@@ -51,6 +56,7 @@ interface ChatConversationPanelProps {
   onStopTyping: () => void;
   onInsertCanned: (text: string) => void;
   onCloseChat?: () => void;
+  onMarkSpam?: () => void;
   canSend: boolean;
   aiMessages: AiChatMessage[];
   aiPrompt: string;
@@ -101,6 +107,7 @@ export function ChatConversationPanel({
   onStopTyping,
   onInsertCanned,
   onCloseChat,
+  onMarkSpam,
   canSend,
   aiMessages,
   aiPrompt,
@@ -174,23 +181,42 @@ export function ChatConversationPanel({
   const hasConversation = Boolean(conversationId);
 
   const transcriptDisplay = useMemo(() => {
+    const closeBucket = conversationMeta
+      ? resolveClosedChatBucket({
+          closeBucket:
+            typeof conversationMeta.closeBucket === "string"
+              ? conversationMeta.closeBucket
+              : null,
+          closeOutcome:
+            typeof conversationMeta.closeOutcome === "string"
+              ? conversationMeta.closeOutcome
+              : null,
+          requiresDistributionForm: Boolean(conversationMeta.requiresDistributionForm),
+          distributionSubmitted: Boolean(conversationMeta.distributionSubmitted),
+        })
+      : null;
+
+    if (!readOnly) {
+      return { hidePostCloseForms: true };
+    }
+
+    if (
+      closeBucket === CLOSED_CHAT_BUCKETS.COMPLETED ||
+      closeBucket === CLOSED_CHAT_BUCKETS.SPAM
+    ) {
+      return { hidePostCloseForms: true };
+    }
+
     const fromMessages = inboxTranscriptDisplayForClosed(messages);
     if (fromMessages) return fromMessages;
-    if (
-      readOnly &&
-      requiresDistributionForm &&
-      distributionFormHref?.trim()
-    ) {
+    if (requiresDistributionForm && distributionFormHref?.trim()) {
       return {
         requiresDistributionForm: true,
         distributionFormHref: distributionFormHref.trim(),
       };
     }
-    if (!readOnly) {
-      return { hidePostCloseForms: true };
-    }
-    return undefined;
-  }, [messages, readOnly, requiresDistributionForm, distributionFormHref]);
+    return { hidePostCloseForms: true };
+  }, [conversationMeta, messages, readOnly, requiresDistributionForm, distributionFormHref]);
 
   const typingPreviews = useMemo(
     () =>
@@ -279,48 +305,11 @@ export function ChatConversationPanel({
                   Transferred by {lastTransferFrom.label}
                 </Typography>
               ) : null}
-              <Box
-                component="span"
-                sx={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  alignSelf: "flex-start",
-                  gap: 0.5,
-                  mt: 0.15,
-                  height: chatOpsConversationMetaChipHeight,
-                  boxSizing: "border-box",
-                  px: 1,
-                  py: 0,
-                  borderRadius: 999,
-                  fontSize: 11,
-                  fontWeight: 600,
-                  color: readOnly
-                    ? theme.app.dashboard.textMuted
-                    : visitorTyping
-                      ? theme.app.dashboard.accentCyan
-                      : theme.palette.success.light,
-                  bgcolor: readOnly
-                    ? alpha(theme.app.dashboard.textMuted, 0.12)
-                    : visitorTyping
-                      ? alpha(theme.app.dashboard.accentCyan, 0.14)
-                      : alpha(theme.palette.success.main, 0.14),
-                }}
-              >
-                <Box
-                  component="span"
-                  sx={{
-                    width: 6,
-                    height: 6,
-                    borderRadius: "50%",
-                    bgcolor: readOnly
-                      ? theme.app.dashboard.textMuted
-                      : visitorTyping
-                        ? theme.app.dashboard.accentCyan
-                        : theme.palette.success.main,
-                  }}
-                />
-                {readOnly ? "Closed" : visitorTyping ? "Typing" : "Online"}
-              </Box>
+              <ChatTranscriptStatusChip
+                conversationMeta={conversationMeta}
+                readOnly={readOnly}
+                visitorTyping={visitorTyping}
+              />
             </Box>
           </Box>
           <Box
@@ -351,24 +340,46 @@ export function ChatConversationPanel({
                   />
                 </>
               ) : null}
-              {onCloseChat ? (
+              {onCloseChat || onMarkSpam ? (
                 <>
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    size="compact"
-                    onClick={() => void onCloseChat()}
-                    sx={{
-                      display: { xs: "none", md: "inline-flex" },
-                      minWidth: 0,
-                      height: chatOpsConversationMetaChipHeight,
-                      px: 1.5,
-                      py: 0,
-                      fontSize: 11,
-                    }}
-                  >
-                    Close chat
-                  </Button>
+                  {onCloseChat ? (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="compact"
+                      onClick={() => void onCloseChat()}
+                      sx={{
+                        display: { xs: "none", md: "inline-flex" },
+                        minWidth: 0,
+                        height: chatOpsConversationMetaChipHeight,
+                        px: 1.5,
+                        py: 0,
+                        fontSize: 11,
+                      }}
+                    >
+                      End session
+                    </Button>
+                  ) : null}
+                  {onMarkSpam ? (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="compact"
+                      onClick={() => onMarkSpam()}
+                      sx={{
+                        display: { xs: "none", md: "inline-flex" },
+                        minWidth: 0,
+                        height: chatOpsConversationMetaChipHeight,
+                        px: 1.5,
+                        py: 0,
+                        fontSize: 11,
+                        color: theme.palette.warning.light,
+                        borderColor: alpha(theme.palette.warning.main, 0.45),
+                      }}
+                    >
+                      Mark spam
+                    </Button>
+                  ) : null}
                   <IconButton
                     size="small"
                     aria-label="More actions"
@@ -393,12 +404,23 @@ export function ChatConversationPanel({
                     <MenuItem
                       onClick={() => {
                         setMenuAnchor(null);
-                        onCloseChat();
+                        onCloseChat?.();
                       }}
                       sx={{ color: theme.palette.error.light }}
                     >
-                      Close conversation
+                      End session
                     </MenuItem>
+                    {onMarkSpam ? (
+                      <MenuItem
+                        onClick={() => {
+                          setMenuAnchor(null);
+                          onMarkSpam();
+                        }}
+                        sx={{ color: theme.palette.warning.light }}
+                      >
+                        Mark as spam
+                      </MenuItem>
+                    ) : null}
                   </Menu>
                 </>
               ) : null}
@@ -439,6 +461,7 @@ export function ChatConversationPanel({
           overflow: "hidden",
           display: "flex",
           flexDirection: "column",
+          bgcolor: (t) => alpha((t as AppTheme).app.dashboard.overlayLight, 0.2),
         }}
       >
         <ChatMessageList
@@ -458,11 +481,13 @@ export function ChatConversationPanel({
         />
       </Box>
 
-      <ChatContextRail
-        hasConversation={hasConversation}
-        readOnly={readOnly}
-        availabilityHint={availabilityHint}
-      />
+      {!readOnly ? (
+        <ChatContextRail
+          hasConversation={hasConversation}
+          readOnly={readOnly}
+          availabilityHint={availabilityHint}
+        />
+      ) : null}
 
       {activeWhisper && onApplyWhisperToComposer && onDismissWhisper && !readOnly ? (
         <ChatWhisperComposerStrip

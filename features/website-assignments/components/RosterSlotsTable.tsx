@@ -110,8 +110,9 @@ export function RosterSlotsTable({
     const ids = new Set<string>();
     for (const u of userOptions) ids.add(u.id);
     for (const tier of ROSTER_TIERS) {
-      const id = draft[tier]?.trim();
-      if (id) ids.add(id);
+      for (const id of draft[tier]) {
+        if (id.trim()) ids.add(id);
+      }
     }
     return [...ids].join(",");
   }, [userOptions, draft]);
@@ -141,13 +142,13 @@ export function RosterSlotsTable({
   const selectOptionsForTier = (tier: WebsiteAssignmentTier) => {
     const base = [{ value: "", label: "Not assigned" }];
     const selectedIds = new Set(
-      ROSTER_TIERS.map((t) => draft[t]?.trim()).filter(Boolean) as string[],
+      ROSTER_TIERS.flatMap((t) => draft[t].filter((id) => id.trim())),
     );
 
     const filtered = userOptions.filter((u) => {
       const blockedReason = blockedInOtherBlocks?.get(u.id);
       if (blockedReason && !selectedIds.has(u.id)) return false;
-      if (u.disabled && draft[tier] !== u.id) return false;
+      if (u.disabled && !draft[tier].includes(u.id)) return false;
       if (takenByOther(tier, u.id)) return false;
       return true;
     });
@@ -165,21 +166,28 @@ export function RosterSlotsTable({
     if (!candidateId) return false;
     for (const t of ROSTER_TIERS) {
       if (t === tier) continue;
-      if (draft[t] === candidateId) return true;
+      if (draft[t].includes(candidateId)) return true;
     }
     return false;
   };
 
   const assignTier = (tier: WebsiteAssignmentTier, userId: string) => {
     if (!canEdit || disabled) return;
-    const next = { ...draft };
-    if (!userId || next[tier] === userId) {
-      next[tier] = "";
+    const next: SlotDraft = {
+      Primary: [...draft.Primary],
+      Secondary: [...draft.Secondary],
+      Backup: [...draft.Backup],
+    };
+    const current = next[tier][0] ?? "";
+    if (!userId || current === userId) {
+      next[tier] = [];
     } else {
       for (const t of ROSTER_TIERS) {
-        if (t !== tier && next[t] === userId) next[t] = "";
+        if (t !== tier) {
+          next[t] = next[t].filter((id) => id !== userId);
+        }
       }
-      next[tier] = userId;
+      next[tier] = [userId];
     }
     onChange(next);
   };
@@ -296,7 +304,7 @@ export function RosterSlotsTable({
         </Typography>
       ) : null}
 
-      {ROSTER_TIERS.some((t) => draft[t]?.trim()) ? (
+      {ROSTER_TIERS.some((t) => draft[t].some((id) => id.trim())) ? (
         <Box
           sx={{
             mb: 1.5,
@@ -307,7 +315,7 @@ export function RosterSlotsTable({
           }}
         >
           {ROSTER_TIERS.map((tier) => {
-            const id = draft[tier]?.trim();
+            const id = draft[tier][0]?.trim();
             if (!id) return null;
             const opt = findOption(id);
             const hrms = hrmsByUserId.get(id);
@@ -349,7 +357,7 @@ export function RosterSlotsTable({
         </TableHead>
         <TableBody>
           {ROSTER_TIERS.map((tier) => {
-            const value = draft[tier] ?? "";
+            const value = draft[tier][0] ?? "";
             return (
               <TableRow key={tier}>
                 <TableCell>

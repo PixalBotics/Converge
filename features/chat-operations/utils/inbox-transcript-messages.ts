@@ -70,7 +70,14 @@ export function prepareInboxTranscriptMessages(
   let list = sortMessagesChronologically(messages);
 
   if (opts?.hidePostCloseForms) {
-    list = list.filter((message) => !isInboxFormLinkMessage(message));
+    list = list.filter((message) => {
+      if (isInboxFormLinkMessage(message)) return false;
+      const type = readMessageType(message);
+      if (type === "policy_close" || type === "policy_nudge" || type === "policy_fallback") {
+        return false;
+      }
+      return true;
+    });
     return list;
   }
 

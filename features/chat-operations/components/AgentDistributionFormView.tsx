@@ -92,6 +92,7 @@ export type AgentDistributionFormViewProps = {
   submitting?: boolean;
   onSubmit?: () => void;
   onBack?: () => void;
+  onReportSpam?: () => void;
 };
 
 export function AgentDistributionFormView({
@@ -108,6 +109,7 @@ export function AgentDistributionFormView({
   submitting,
   onSubmit,
   onBack,
+  onReportSpam,
 }: AgentDistributionFormViewProps) {
   const theme = useTheme() as AppTheme;
   const d = theme.app.dashboard;
@@ -365,7 +367,19 @@ export function AgentDistributionFormView({
                   </Typography>
                 )}
                 {!submitted ? (
-                  <Button
+                  <>
+                    {onReportSpam ? (
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        disabled={submitting}
+                        onClick={onReportSpam}
+                        sx={{ color: theme.palette.warning.light }}
+                      >
+                        Report as spam
+                      </Button>
+                    ) : null}
+                    <Button
                     type="submit"
                     variant="primary"
                     disabled={submitting || departments.length === 0}
@@ -374,6 +388,7 @@ export function AgentDistributionFormView({
                   >
                     {submitting ? "Sending…" : submitLabel}
                   </Button>
+                  </>
                 ) : null}
               </Box>
             </>
