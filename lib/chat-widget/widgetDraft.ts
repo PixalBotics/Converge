@@ -31,6 +31,7 @@ export { normalizeLauncherIconPreset };
 export type WidgetInstallChatMode = "AI_ONLY" | "AGENT_ONLY" | "HYBRID";
 
 export type { WidgetAiType } from "./widget-ai-type";
+export type { WidgetLauncherStyleId } from "./launcher-style";
 
 export interface TextUsFormFieldDraft {
   key: string;

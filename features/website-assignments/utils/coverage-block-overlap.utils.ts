@@ -64,7 +64,7 @@ export function blockedUsersFromOtherBlocks(
     const otherLabel = safeLabel(other.label, `Period ${i + 1}`);
     const window = `${formatHm12Label(other.startTime)} – ${formatHm12Label(other.endTime)}`;
     for (const tier of ROSTER_TIERS) {
-      for (const rawId of other.roster[tier] ?? []) {
+      for (const rawId of other.roster[tier]) {
         const userId = rawId.trim();
         if (!userId || blocked.has(userId)) continue;
         blocked.set(

@@ -27,9 +27,9 @@ export function flattenAgentsFromWebsiteDetail(
     for (const channel of ["internal", "external"] as const) {
       const roster = channel === "internal" ? dept.roster.internal : dept.roster.external;
       for (const tier of ["primary", "secondary", "backup"] as const) {
-        const slotUsers = roster[tier] ?? [];
-        for (const slot of slotUsers) {
-          if (!slot?.userId) continue;
+        const slots = roster[tier] ?? [];
+        for (const slot of slots) {
+          if (!slot.userId) continue;
           const serviceChannel = channel === "internal" ? "Internal" : "External";
           const rowKey = `${slot.userId}:${dept.departmentId}:${serviceChannel}:${tier}`;
           if (seen.has(rowKey)) continue;
