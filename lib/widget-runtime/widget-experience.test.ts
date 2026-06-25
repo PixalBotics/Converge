@@ -247,6 +247,7 @@ describe("widget-experience inquiry", () => {
         fallback: null,
       },
       form: {},
+      offlineForm: {},
       behavior: {},
       session: {},
     });

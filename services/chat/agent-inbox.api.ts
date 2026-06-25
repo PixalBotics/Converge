@@ -179,16 +179,68 @@ export async function getAgentConversationHistorySocket(
   return normalizeConversationHistoryPayload(payload, conversationId);
 }
 
+export function isConversationAlreadyClosedError(err: unknown): boolean {
+  if (isAxiosError(err) && err.response?.status === 400) {
+    const data = err.response.data;
+    const text =
+      typeof data === "string"
+        ? data
+        : data && typeof data === "object" && "message" in data
+          ? String((data as { message?: unknown }).message ?? "")
+          : "";
+    if (text.toLowerCase().includes("already closed")) return true;
+  }
+  const msg =
+    err && typeof err === "object"
+      ? String((err as { message?: unknown }).message ?? err)
+      : String(err ?? "");
+  const lower = msg.toLowerCase();
+  return lower.includes("already closed") || lower.includes("conversation is closed");
+}
+
 export async function closeConversation(
   conversationId: string,
   token?: string,
 ): Promise<ChatCloseResponse> {
+  try {
+    const { data } = await apiClient.post<unknown>(
+      `/chat/agent/conversations/${encodeURIComponent(conversationId)}/close`,
+      undefined,
+      { headers: chatAuthHeaders(token) },
+    );
+    return unwrapChatHttpData<ChatCloseResponse>(data);
+  } catch (err) {
+    if (isConversationAlreadyClosedError(err)) {
+      return { conversationId, reassigned: null };
+    }
+    throw err;
+  }
+}
+
+export async function markConversationSpam(
+  conversationId: string,
+  body: { spamCategory: string; notes?: string },
+  token?: string,
+): Promise<ChatCloseResponse> {
   const { data } = await apiClient.post<unknown>(
-    `/chat/agent/conversations/${encodeURIComponent(conversationId)}/close`,
-    undefined,
+    `/chat/agent/conversations/${encodeURIComponent(conversationId)}/mark-spam`,
+    body,
     { headers: chatAuthHeaders(token) },
   );
   return unwrapChatHttpData<ChatCloseResponse>(data);
+}
+
+export async function markClosedConversationSpam(
+  conversationId: string,
+  body: { spamCategory: string; notes?: string },
+  token?: string,
+): Promise<{ conversationId: string; closeOutcome?: string }> {
+  const { data } = await apiClient.post<unknown>(
+    `/chat/agent/conversations/${encodeURIComponent(conversationId)}/mark-spam-from-form`,
+    body,
+    { headers: chatAuthHeaders(token) },
+  );
+  return unwrapChatHttpData(data);
 }
 
 export async function getConversationHistory(

@@ -77,6 +77,16 @@ export function ChatComposer({
     );
   }
 
+  if (disabled) {
+    return (
+      <ComposerIdleBar>
+        <Typography variant="small" sx={{ color: theme.app.dashboard.textMuted, fontSize: 13 }}>
+          Read-only transcript — new visitor messages may reopen this chat
+        </Typography>
+      </ComposerIdleBar>
+    );
+  }
+
   return (
     <ComposerWrap>
       <ComposerDrawerTabs

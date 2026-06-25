@@ -13,7 +13,6 @@ import { MAX_ACTIVE_CHATS_PER_AGENT } from "@/services/chat/chat.constants";
 import {
   getMyActiveChats,
   getMyClosedChats,
-  getWaitingChats,
 } from "@/services/chat/agent-inbox.api";
 import type { ConversationSummary } from "@/services/chat/chat.types";
 import { extractApiErrorMessageForToast, publishAppToast } from "@/lib/notify";
@@ -90,9 +89,8 @@ export function useAgentInboxQueues(
       return;
     }
 
-    const [activeResult, waitingResult, closedResult] = await Promise.allSettled([
+    const [activeResult, closedResult] = await Promise.allSettled([
       getMyActiveChats(token),
-      acceptingChats ? getWaitingChats(token) : Promise.resolve([] as ConversationSummary[]),
       getMyClosedChats(token),
     ]);
 
@@ -103,12 +101,7 @@ export function useAgentInboxQueues(
       failures.push(activeResult.reason);
       setActiveChats([]);
     }
-    if (waitingResult.status === "fulfilled") {
-      setWaitingChats(waitingResult.value);
-    } else {
-      failures.push(waitingResult.reason);
-      setWaitingChats([]);
-    }
+    setWaitingChats([]);
     if (closedResult.status === "fulfilled") {
       setClosedChats(closedResult.value);
     } else {

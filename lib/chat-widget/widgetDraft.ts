@@ -25,6 +25,7 @@ export type {
   LauncherIconPresetId,
   LauncherIconPresetIdNonEmpty,
 } from "./launcher-icon-presets";
+export type { WidgetLauncherStyleId } from "./launcher-style";
 export { normalizeLauncherIconPreset };
 
 export type WidgetInstallChatMode = "AI_ONLY" | "AGENT_ONLY" | "HYBRID";

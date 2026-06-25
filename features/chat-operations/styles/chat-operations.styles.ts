@@ -209,9 +209,10 @@ export const chatOpsInboxTabSx = (active: boolean): SxProps<Theme> => (theme) =>
     px: 0.85,
     cursor: "pointer",
     fontFamily: "inherit",
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: active ? 700 : 500,
     whiteSpace: "nowrap",
+    minWidth: 0,
     color: active ? (theme as AppTheme).app.text.primary : d.textMuted,
     background: active
       ? `linear-gradient(135deg, ${alpha(accent, 0.34)} 0%, ${alpha(accent, 0.16)} 100%)`

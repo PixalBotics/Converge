@@ -34,6 +34,7 @@ import { useChatMonitor } from "../hooks/useChatMonitor";
 import { MonitorQueueSidebar } from "./MonitorQueueSidebar";
 import { VisitorInfoPanel } from "@/features/chat-operations/components/VisitorInfoPanel";
 import { MonitorSupervisorSidePanel } from "./MonitorSupervisorSidePanel";
+import { MonitorAssignPanel } from "./MonitorAssignPanel";
 import { MonitorTranscriptPanel } from "./MonitorTranscriptPanel";
 import { extractVisitorPresentation } from "@/services/chat/visitor-presentation";
 import { agentDisplayName } from "@/services/chat/monitor-normalizers";
@@ -507,7 +508,21 @@ export function ChatMonitorWorkspace({
                 }}
               />
               {monitor.selectedRow?.status !== "closed" ? (
-                <MonitorSupervisorSidePanel
+                <>
+                  <MonitorAssignPanel
+                    conversationId={monitor.selectedConversationId}
+                    assignedAgentId={
+                      monitor.selectedRow?.agent?.id ??
+                      monitor.selectedRow?.agentId ??
+                      null
+                    }
+                    readOnly={monitorReadOnly}
+                    onAssigned={() => {
+                      monitor.refreshLists();
+                      void monitor.refreshSelectedTranscript();
+                    }}
+                  />
+                  <MonitorSupervisorSidePanel
                   conversationId={monitor.selectedConversationId}
                   assignedAgentId={
                     monitor.selectedRow?.agent?.id ?? monitor.selectedRow?.agentId ?? null
@@ -530,6 +545,7 @@ export function ChatMonitorWorkspace({
                     }
                   }}
                 />
+                </>
               ) : null}
             </Box>
           </Box>

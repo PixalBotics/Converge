@@ -55,6 +55,12 @@ import type { VisitorProfileField } from "@/services/chat/visitor-profile.types"
 import { ChatConversationPanel } from "./ChatConversationPanel";
 import { AgentChatSessionToolbar } from "./AgentChatSessionToolbar";
 import { ChatQueueSidebar } from "./ChatQueueSidebar";
+import { MarkSpamModal } from "./MarkSpamModal";
+import {
+  CLOSED_CHAT_BUCKETS,
+  resolveClosedChatBucket,
+} from "../utils/chat-close-outcome";
+import type { SpamCategoryValue } from "../utils/chat-close-outcome";
 import type { VisitorProfileCaptureSelection } from "./ChatMessageList";
 import { useVisitorProfileCapture } from "../hooks/useVisitorProfileCapture";
 import { VisitorInfoPanel } from "./VisitorInfoPanel";
@@ -66,6 +72,23 @@ import {
 
 function needsWebsite(action: AgentAiAction): boolean {
   return agentAiActionNeedsWebsite(action);
+}
+
+function splitEndedChats(rows: ConversationSummary[]) {
+  const pending: ConversationSummary[] = [];
+  const completed: ConversationSummary[] = [];
+  const spam: ConversationSummary[] = [];
+  for (const row of rows) {
+    const bucket = resolveClosedChatBucket(row);
+    if (bucket === CLOSED_CHAT_BUCKETS.SPAM) spam.push(row);
+    else if (bucket === CLOSED_CHAT_BUCKETS.PENDING) pending.push(row);
+    else completed.push(row);
+  }
+  return { pending, completed, spam };
+}
+
+function isLiveQueueTab(tab: ChatQueueTab): boolean {
+  return tab === "active";
 }
 
 export function ChatOperationsWorkspace() {
@@ -97,6 +120,8 @@ export function ChatOperationsWorkspace() {
   });
 
   const [queueTab, setQueueTab] = useState<ChatQueueTab>("active");
+  const [spamModalOpen, setSpamModalOpen] = useState(false);
+  const [spamSubmitBusy, setSpamSubmitBusy] = useState(false);
   const [draftsByConversation, setDraftsByConversation] = useState<Record<string, string>>({});
   const [aiByConversation, setAiByConversation] = useState<
     Record<string, { messages: AiChatMessage[]; prompt: string; busy: boolean }>
@@ -167,18 +192,6 @@ export function ChatOperationsWorkspace() {
     );
   }, [teamLiveQuery.data]);
 
-  const supervisedWaiting = useMemo(() => {
-    const rows = monitorRowsToConversationSummaries(teamLiveQuery.data ?? []);
-    return rows.filter(
-      (c) =>
-        (c.status === "waiting" ||
-          c.queuedForAgent === true ||
-          c.talkToAgentRequested === true ||
-          c.handoverRequested === true) &&
-        !isUnassignedActiveChat(c),
-    );
-  }, [teamLiveQuery.data]);
-
   const supervisedClosed = useMemo(
     () => monitorRowsToConversationSummaries(teamClosedQuery.data ?? []),
     [teamClosedQuery.data],
@@ -208,7 +221,7 @@ export function ChatOperationsWorkspace() {
 
   useEffect(() => {
     if (!superviseAgent || agentChat.selectedConversationId) return;
-    const pick = [...supervisedActive, ...supervisedWaiting];
+    const pick = supervisedActive;
     if (pick.length !== 1) return;
     const row = pick[0];
     void agentChat.selectConversation(row.id, {
@@ -221,7 +234,6 @@ export function ChatOperationsWorkspace() {
     agentChat.selectedConversationId,
     superviseAgent,
     supervisedActive,
-    supervisedWaiting,
   ]);
 
   useEffect(() => {
@@ -263,32 +275,32 @@ export function ChatOperationsWorkspace() {
   );
 
   const activeSource = superviseAgent ? supervisedActive : agentChat.activeChats;
-  const waitingSource = superviseAgent ? supervisedWaiting : agentChat.waitingChats;
   const closedSource = superviseAgent ? supervisedClosed : agentChat.closedChats;
 
   const activeFiltered = useMemo(
     () => (showScopeFilters && !superviseAgent ? filterByScope(activeSource) : activeSource),
     [activeSource, filterByScope, showScopeFilters, superviseAgent],
   );
-  const waitingFiltered = useMemo(
-    () => (showScopeFilters && !superviseAgent ? filterByScope(waitingSource) : waitingSource),
-    [filterByScope, showScopeFilters, superviseAgent, waitingSource],
-  );
   const closedFiltered = useMemo(
     () => (showScopeFilters && !superviseAgent ? filterByScope(closedSource) : closedSource),
     [closedSource, filterByScope, showScopeFilters, superviseAgent],
   );
 
+  const { pending: pendingFiltered, completed: completedFiltered, spam: spamFiltered } =
+    useMemo(() => splitEndedChats(closedFiltered), [closedFiltered]);
+
   const list: ConversationSummary[] =
     queueTab === "active"
       ? activeFiltered
-      : queueTab === "waiting"
-        ? waitingFiltered
-        : closedFiltered;
+      : queueTab === "pending"
+        ? pendingFiltered
+        : queueTab === "completed"
+          ? completedFiltered
+          : spamFiltered;
 
   const queuePool = superviseAgent
-    ? [...supervisedActive, ...supervisedWaiting, ...supervisedClosed]
-    : [...agentChat.activeChats, ...agentChat.waitingChats, ...agentChat.closedChats];
+    ? [...supervisedActive, ...supervisedClosed]
+    : [...agentChat.activeChats, ...agentChat.closedChats];
 
   const selectedSummary =
     queuePool.find((c) => c.id === agentChat.selectedConversationId) ??
@@ -520,10 +532,30 @@ export function ChatOperationsWorkspace() {
       row?.assignedAgentId ??
       (typeof row?.agentId === "string" ? row.agentId : null);
     void agentChat.selectConversation(id, {
-      readOnly: queueTab === "closed" || viewingOtherAgent,
+      readOnly: !isLiveQueueTab(queueTab) || viewingOtherAgent,
       assigneeAgentId,
     });
   };
+
+  const handleConfirmSpam = useCallback(
+    async (input: { spamCategory: SpamCategoryValue; notes: string }) => {
+      setSpamSubmitBusy(true);
+      try {
+        await agentChat.markSpamSelectedConversation(input);
+        setSpamModalOpen(false);
+        setQueueTab("spam");
+        publishAppToast({ variant: "success", message: "Chat marked as spam." });
+      } catch (err) {
+        publishAppToast({
+          variant: "error",
+          message: extractApiErrorMessageForToast(err, "Could not mark chat as spam."),
+        });
+      } finally {
+        setSpamSubmitBusy(false);
+      }
+    },
+    [agentChat],
+  );
 
   const canCaptureVisitorProfile = useMemo(() => {
     if (!inboxAllowed || !accessToken || !agentChat.selectedConversationId) return false;
@@ -609,13 +641,21 @@ export function ChatOperationsWorkspace() {
     );
   }
 
-  const canPickWaiting = !agentChat.atActiveCap;
   const wrapUpForSelected =
     agentChat.pendingWrapUp &&
     agentChat.selectedConversationId &&
     agentChat.pendingWrapUp.conversationId === agentChat.selectedConversationId
       ? agentChat.pendingWrapUp
       : null;
+
+  useEffect(() => {
+    if (
+      wrapUpForSelected?.requiresDistributionForm &&
+      !wrapUpForSelected.distributionSubmitted
+    ) {
+      setQueueTab("pending");
+    }
+  }, [wrapUpForSelected]);
 
   const distributionFormHref =
     wrapUpForSelected?.requiresDistributionForm
@@ -742,12 +782,11 @@ export function ChatOperationsWorkspace() {
               selectedConversationId={agentChat.selectedConversationId}
               onSelectConversation={handleSelectConversation}
               activeCount={activeFiltered.length}
-              waitingCount={waitingFiltered.length}
-              closedCount={closedFiltered.length}
+              pendingCount={pendingFiltered.length}
+              completedCount={completedFiltered.length}
+              spamCount={spamFiltered.length}
               connected={agentChat.isConnected}
               hasToken={Boolean(accessToken)}
-              atActiveCap={agentChat.atActiveCap}
-              canPickWaiting={canPickWaiting}
             />
           </Box>
 
@@ -774,9 +813,14 @@ export function ChatOperationsWorkspace() {
               onStopTyping={agentChat.emitStopTyping}
               onInsertCanned={pushCannedToComposer}
               onCloseChat={
-                agentChat.selectedIsClosed
+                agentChat.selectedIsClosed || viewingOtherAgent
                   ? undefined
                   : () => void agentChat.closeSelectedConversation()
+              }
+              onMarkSpam={
+                agentChat.selectedIsClosed || viewingOtherAgent
+                  ? undefined
+                  : () => setSpamModalOpen(true)
               }
               canSend={canSend}
               aiMessages={aiMessages}
@@ -829,6 +873,12 @@ export function ChatOperationsWorkspace() {
       </Box>
 
     </ChatLivePageShell>
+    <MarkSpamModal
+      open={spamModalOpen}
+      busy={spamSubmitBusy}
+      onClose={() => !spamSubmitBusy && setSpamModalOpen(false)}
+      onConfirm={(input) => void handleConfirmSpam(input)}
+    />
     </>
   );
 }
