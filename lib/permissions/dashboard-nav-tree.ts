@@ -390,6 +390,36 @@ const HRMS_GROUP: DashboardNavItem = {
   ],
 };
 
+const REPORTS_GROUP: DashboardNavItem = {
+  href: "/dashboard/reports",
+  label: "Reports",
+  section: "activity",
+  iconKey: "reports",
+  permission: "page:reports",
+  prefixMatch: true,
+  operationalAny: [OP.report.view],
+  children: [
+    {
+      href: "/dashboard/reports",
+      label: "Generate Reports",
+      section: "activity",
+      iconKey: "reports",
+      permission: "page:reports",
+      prefixMatch: false,
+      operationalAny: [OP.report.view],
+    },
+    {
+      href: "/dashboard/reports/configuration",
+      label: "Reports Configuration",
+      section: "activity",
+      iconKey: "reports",
+      permission: "page:reports",
+      prefixMatch: true,
+      operationalAny: [OP.report.view],
+    },
+  ],
+};
+
 const SETTINGS_GROUP: DashboardNavItem = {
   href: "/dashboard/settings",
   label: "Settings",
@@ -539,6 +569,7 @@ export const DASHBOARD_NAV_ITEMS: readonly DashboardNavItem[] = PAGE_PERMISSION_
   if (permission === "page:settings" || permission === "page:observability:logs") {
     return permission === "page:settings" ? [SETTINGS_GROUP] : [];
   }
+  if (permission === "page:reports") return [REPORTS_GROUP];
   const item = toNavItem(permission);
   return item ? [item] : [];
 });
