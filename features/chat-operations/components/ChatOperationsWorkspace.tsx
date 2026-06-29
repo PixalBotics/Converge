@@ -4,6 +4,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSearchParams, useRouter } from "next/navigation";
 import Box from "@mui/material/Box";
+import useMediaQuery from "@mui/material/useMediaQuery";
+import { useTheme } from "@mui/material/styles";
 import { postAgentAiSuggestion, parseAgentSuggestResponse } from "@/api";
 import { useAccessToken } from "@/lib/auth/use-access-token";
 import type { AgentAiAction } from "@/api/ai/agent-suggest.api";
@@ -56,8 +58,10 @@ import { ChatConversationPanel } from "./ChatConversationPanel";
 import { AgentChatSessionToolbar } from "./AgentChatSessionToolbar";
 import { ChatQueueSidebar } from "./ChatQueueSidebar";
 import { MarkSpamModal } from "./MarkSpamModal";
+import { useAgentInboxFocusMode } from "@/lib/hooks/chat/useAgentInboxFocusMode";
 import {
   CLOSED_CHAT_BUCKETS,
+  buildDistributionFormHref,
   resolveClosedChatBucket,
 } from "../utils/chat-close-outcome";
 import type { SpamCategoryValue } from "../utils/chat-close-outcome";
@@ -67,8 +71,19 @@ import { VisitorInfoPanel } from "./VisitorInfoPanel";
 import {
   chatOpsPageWrapper,
   chatOpsWorkspaceGrid,
+  chatOpsWorkspaceFocusGridSx,
   chatOpsWorkspaceShell,
+  chatOpsWorkspaceShellFocusSx,
 } from "../styles/chat-operations.styles";
+
+const chatOpsThreadPaneSx = {
+  flex: 1,
+  minHeight: 0,
+  minWidth: 0,
+  width: "100%",
+  display: "flex",
+  flexDirection: "column",
+} as const;
 
 function needsWebsite(action: AgentAiAction): boolean {
   return agentAiActionNeedsWebsite(action);
@@ -131,6 +146,7 @@ export function ChatOperationsWorkspace() {
   const [teamAgent, setTeamAgent] = useState<ChatWebsiteAgentRow | null>(null);
   const [agentSearch, setAgentSearch] = useState("");
   const [teamView, setTeamView] = useState(showScopeFilters);
+  const agentInboxFocusChrome = useAgentInboxFocusMode();
 
   const scopeMonitor = useChatMonitor(null, {
     apiEnabled: teamView && monitorApiEnabled,
@@ -312,6 +328,19 @@ export function ChatOperationsWorkspace() {
   const viewingOtherAgent = Boolean(
     superviseAgent && teamAgent?.userId && teamAgent.userId !== user?.id,
   );
+  const inboxFocusMode = agentInboxFocusChrome && !teamView && !viewingOtherAgent;
+  const theme = useTheme();
+  const isBelowLg = useMediaQuery(theme.breakpoints.down("lg"));
+  const showInboxPane =
+    inboxFocusMode || !isBelowLg || !agentChat.selectedConversationId;
+  const showThreadPane =
+    inboxFocusMode || !isBelowLg || Boolean(agentChat.selectedConversationId);
+  const showBackToQueue =
+    !inboxFocusMode && isBelowLg && Boolean(agentChat.selectedConversationId);
+  const showAgentToolbar = !teamView && !viewingOtherAgent;
+  const showAgentToolbarAboveGrid = showAgentToolbar && isBelowLg && !inboxFocusMode;
+  const showAgentToolbarInThread = showAgentToolbar && !showAgentToolbarAboveGrid;
+
   const assignedAgentLabel =
     (viewingOtherAgent ? teamAgent?.displayName : null)?.trim() ||
     user?.displayName?.trim() ||
@@ -537,6 +566,13 @@ export function ChatOperationsWorkspace() {
     });
   };
 
+  const handleDismissConversation = useCallback(() => {
+    agentChat.clearSelection();
+    if (conversationIdFromUrl) {
+      router.replace("/dashboard/chat-operations");
+    }
+  }, [agentChat.clearSelection, conversationIdFromUrl, router]);
+
   const handleConfirmSpam = useCallback(
     async (input: { spamCategory: SpamCategoryValue; notes: string }) => {
       setSpamSubmitBusy(true);
@@ -657,10 +693,29 @@ export function ChatOperationsWorkspace() {
     }
   }, [wrapUpForSelected]);
 
+  const selectedCloseBucket = selectedSummary
+    ? resolveClosedChatBucket(selectedSummary)
+    : null;
+  const selectedDistributionSubmitted = Boolean(
+    selectedSummary &&
+      typeof selectedSummary === "object" &&
+      (selectedSummary as Record<string, unknown>).distributionSubmitted,
+  );
+  const selectedRequiresDistribution =
+    selectedCloseBucket === CLOSED_CHAT_BUCKETS.PENDING ||
+    Boolean(
+      selectedSummary &&
+        typeof selectedSummary === "object" &&
+        (selectedSummary as Record<string, unknown>).requiresDistributionForm &&
+        !selectedDistributionSubmitted,
+    );
+
   const distributionFormHref =
-    wrapUpForSelected?.requiresDistributionForm
-      ? wrapUpForSelected.distributionFormPath ??
-        `/dashboard/chat-operations/distribution?conversationId=${encodeURIComponent(agentChat.selectedConversationId!)}`
+    agentChat.selectedConversationId && selectedRequiresDistribution
+      ? buildDistributionFormHref(
+          agentChat.selectedConversationId,
+          wrapUpForSelected?.distributionFormPath,
+        )
       : null;
 
   const canSend =
@@ -675,7 +730,7 @@ export function ChatOperationsWorkspace() {
   return (
     <>
     <ChatLivePageShell variant="workstation" sx={chatLiveAgentStackSx}>
-      {showScopeFilters ? (
+      {showScopeFilters && !inboxFocusMode ? (
         <>
           <Box sx={chatLiveWorkstationToolbarRowSx}>
             <ChatLiveViewSwitch
@@ -748,7 +803,7 @@ export function ChatOperationsWorkspace() {
           ) : null}
         </>
       ) : null}
-      <Box sx={chatOpsWorkspaceShell}>
+      <Box sx={mergeSx(chatOpsWorkspaceShell, inboxFocusMode ? chatOpsWorkspaceShellFocusSx : undefined)}>
         {teamView && teamAgent ? (
           <DashboardCard sx={{ flexShrink: 0, p: 1.25, mb: 1 }}>
             <Typography variant="body2">
@@ -773,28 +828,39 @@ export function ChatOperationsWorkspace() {
             </Typography>
           </DashboardCard>
         ) : null}
-        <Box sx={chatOpsWorkspaceGrid}>
-          <Box data-chat-pane="inbox">
-            <ChatQueueSidebar
-              queueTab={queueTab}
-              onQueueTabChange={setQueueTab}
-              conversations={list}
-              selectedConversationId={agentChat.selectedConversationId}
-              onSelectConversation={handleSelectConversation}
-              activeCount={activeFiltered.length}
-              pendingCount={pendingFiltered.length}
-              completedCount={completedFiltered.length}
-              spamCount={spamFiltered.length}
-              connected={agentChat.isConnected}
-              hasToken={Boolean(accessToken)}
-            />
-          </Box>
+        {showAgentToolbarAboveGrid ? (
+          <AgentChatSessionToolbar
+            showBackToQueue={showBackToQueue}
+            onBackToQueue={handleDismissConversation}
+          />
+        ) : null}
+        <Box sx={inboxFocusMode ? chatOpsWorkspaceFocusGridSx : chatOpsWorkspaceGrid}>
+          {showInboxPane ? (
+            <Box data-chat-pane="inbox">
+              <ChatQueueSidebar
+                queueTab={queueTab}
+                onQueueTabChange={setQueueTab}
+                conversations={list}
+                selectedConversationId={agentChat.selectedConversationId}
+                onSelectConversation={handleSelectConversation}
+                activeCount={activeFiltered.length}
+                pendingCount={pendingFiltered.length}
+                completedCount={completedFiltered.length}
+                spamCount={spamFiltered.length}
+                connected={agentChat.isConnected}
+                hasToken={Boolean(accessToken)}
+              />
+            </Box>
+          ) : null}
 
-          <Box
-            data-chat-pane="thread"
-            sx={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}
-          >
-            {!teamView && !viewingOtherAgent ? <AgentChatSessionToolbar /> : null}
+          {showThreadPane ? (
+          <Box data-chat-pane="thread" sx={chatOpsThreadPaneSx}>
+            {showAgentToolbarInThread ? (
+              <AgentChatSessionToolbar
+                showBackToQueue={showBackToQueue}
+                onBackToQueue={handleDismissConversation}
+              />
+            ) : null}
             <ChatConversationPanel
               conversationId={agentChat.selectedConversationId}
               messages={agentChat.messages}
@@ -812,10 +878,8 @@ export function ChatOperationsWorkspace() {
               onTyping={agentChat.emitTyping}
               onStopTyping={agentChat.emitStopTyping}
               onInsertCanned={pushCannedToComposer}
-              onCloseChat={
-                agentChat.selectedIsClosed || viewingOtherAgent
-                  ? undefined
-                  : () => void agentChat.closeSelectedConversation()
+              onDismissConversation={
+                agentChat.selectedConversationId ? handleDismissConversation : undefined
               }
               onMarkSpam={
                 agentChat.selectedIsClosed || viewingOtherAgent
@@ -840,35 +904,39 @@ export function ChatOperationsWorkspace() {
               onApplyWhisperToComposer={pushCannedToComposer}
               onDismissWhisper={agentChat.dismissWhisper}
               distributionFormHref={distributionFormHref}
-              requiresDistributionForm={Boolean(wrapUpForSelected?.requiresDistributionForm)}
+              requiresDistributionForm={selectedRequiresDistribution}
+              distributionSubmitted={selectedDistributionSubmitted}
               hasOperational={hasOperational}
               profileCaptureEnabled={canCaptureVisitorProfile}
               onCaptureField={handleCaptureField}
               profileCaptureBusy={profileCaptureBusy}
             />
           </Box>
+          ) : null}
 
-          <Box data-chat-pane="details">
-            <VisitorInfoPanel
-              visitor={agentChat.visitorFromHistory}
-              conversationId={agentChat.selectedConversationId}
-              websiteId={websiteIdEffective || null}
-              conversationMeta={conversationMeta}
-              visitorPresentation={visitorPresentation}
-              assignedAgentLabel={assignedAgentLabel}
-              assignedAgentId={assignedAgentId}
-              currentUserId={user?.id}
-              hasOperational={hasOperational}
-              supervisorRefreshToken={agentChat.supervisorRefreshToken}
-              onSupervisorActivity={(payload) => agentChat.onSupervisorActivity(payload)}
-              supervisorReadOnly={agentChat.selectedIsClosed}
-              showWebsiteFallback={Boolean(
-                agentChat.selectedConversationId && !selectedSummary?.websiteId,
-              )}
-              fallbackWebsiteId={fallbackWebsiteId}
-              onFallbackWebsiteIdChange={setFallbackWebsiteId}
-            />
-          </Box>
+          {!inboxFocusMode ? (
+            <Box data-chat-pane="details">
+              <VisitorInfoPanel
+                visitor={agentChat.visitorFromHistory}
+                conversationId={agentChat.selectedConversationId}
+                websiteId={websiteIdEffective || null}
+                conversationMeta={conversationMeta}
+                visitorPresentation={visitorPresentation}
+                assignedAgentLabel={assignedAgentLabel}
+                assignedAgentId={assignedAgentId}
+                currentUserId={user?.id}
+                hasOperational={hasOperational}
+                supervisorRefreshToken={agentChat.supervisorRefreshToken}
+                onSupervisorActivity={(payload) => agentChat.onSupervisorActivity(payload)}
+                supervisorReadOnly={agentChat.selectedIsClosed}
+                showWebsiteFallback={Boolean(
+                  agentChat.selectedConversationId && !selectedSummary?.websiteId,
+                )}
+                fallbackWebsiteId={fallbackWebsiteId}
+                onFallbackWebsiteIdChange={setFallbackWebsiteId}
+              />
+            </Box>
+          ) : null}
         </Box>
       </Box>
 

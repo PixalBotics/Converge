@@ -15,6 +15,7 @@ const CHAT_MONITOR_OPERATIONAL_ANY = [
   OP.chat.monitorDepartment,
   OP.chat.monitorParentCompany,
   OP.chat.monitorInvolvement,
+  OP.chat.monitorInternalSupervisor,
 ] as const;
 
 const CHAT_QA_OPERATIONAL_ANY = [
@@ -60,6 +61,7 @@ const LIVE_CHAT_GROUP: DashboardNavItem = {
     PAGE.CHAT_CLOSE_POLICY,
     PAGE.CHAT_CANNED,
     PAGE.CHAT_INVOLVEMENT,
+    PAGE.CHAT_INTERNAL_SUPERVISORS,
     PAGE.PHONE_NUMBER_SETUP,
   ],
   prefixMatch: true,
@@ -99,6 +101,12 @@ const LIVE_CHAT_GROUP: DashboardNavItem = {
     chatNavItem(PAGE.CHAT_CLOSE_POLICY, "/dashboard/chat-settings", "Settings", "chatWidget"),
     chatNavItem(PAGE.CHAT_CANNED, "/dashboard/chat-canned", "Canned messages", "chatWidget"),
     chatNavItem(PAGE.CHAT_INVOLVEMENT, "/dashboard/chat-involvement", "Involvement", "chatWidget"),
+    chatNavItem(
+      PAGE.CHAT_INTERNAL_SUPERVISORS,
+      "/dashboard/chat-internal-supervisors",
+      "Internal supervisors",
+      "chatWidget",
+    ),
   ],
 };
 
@@ -517,6 +525,7 @@ export const DASHBOARD_NAV_ITEMS: readonly DashboardNavItem[] = PAGE_PERMISSION_
     permission === "page:chat-close-policy" ||
     permission === "page:chat-canned" ||
     permission === "page:chat-involvement" ||
+    permission === "page:chat-internal-supervisors" ||
     permission === "page:phone-number-setup"
   ) {
     return permission === "page:chat-inbox" ? [LIVE_CHAT_GROUP] : [];

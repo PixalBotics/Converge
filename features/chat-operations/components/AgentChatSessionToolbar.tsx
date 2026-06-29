@@ -2,6 +2,7 @@
 
 import Box from "@mui/material/Box";
 import { alpha, useTheme } from "@mui/material/styles";
+import ArrowBackOutlined from "@mui/icons-material/ArrowBackOutlined";
 import PlayArrowOutlined from "@mui/icons-material/PlayArrowOutlined";
 import PauseOutlined from "@mui/icons-material/PauseOutlined";
 import GroupsOutlined from "@mui/icons-material/GroupsOutlined";
@@ -11,7 +12,13 @@ import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.style
 import { useAgentChatSession } from "@/lib/hooks/chat/useAgentChatSession";
 import { chatOpsInboxToolbarSx } from "../styles/chat-operations.styles";
 
-export function AgentChatSessionToolbar() {
+export function AgentChatSessionToolbar({
+  showBackToQueue = false,
+  onBackToQueue,
+}: {
+  showBackToQueue?: boolean;
+  onBackToQueue?: () => void;
+}) {
   const theme = useTheme() as AppTheme;
   const {
     session,
@@ -76,6 +83,19 @@ export function AgentChatSessionToolbar() {
       </Box>
 
       <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexShrink: 0, flexWrap: "wrap" }}>
+        {showBackToQueue ? (
+          <Button
+            type="button"
+            variant="secondary"
+            size="compact"
+            startIcon={<ArrowBackOutlined sx={{ fontSize: 16 }} />}
+            onClick={onBackToQueue}
+            sx={{ minWidth: 0, height: 34, px: 1.5, fontSize: 12 }}
+          >
+            Queue
+          </Button>
+        ) : null}
+
         {onMeeting ? (
           <Button
             type="button"

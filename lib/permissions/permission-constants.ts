@@ -23,6 +23,7 @@ export const PAGE = {
   CHAT_CLOSE_POLICY: "page:chat-close-policy",
   CHAT_CANNED: "page:chat-canned",
   CHAT_INVOLVEMENT: "page:chat-involvement",
+  CHAT_INTERNAL_SUPERVISORS: "page:chat-internal-supervisors",
   CHAT_QA_ROSTER: "page:chat-qa-roster",
   PHONE_NUMBER_SETUP: "page:phone-number-setup",
   AI_ASSISTANT: "page:ai-assistant",

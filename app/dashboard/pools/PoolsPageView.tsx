@@ -38,6 +38,7 @@ import {
 } from "./styles";
 import { publishAppToast } from "@/lib/notify";
 import { isRecord, pickNum, pickStr, unwrapApiData } from "@/lib/utils/core";
+import { formatPoolDepartmentLabel } from "./pool-catalog.constants";
 import {
   type HrmsPoolsListParams,
   useAddPoolMembersBulkMutation,
@@ -123,7 +124,9 @@ export function PoolsPageView({ mode }: PoolsPageViewProps) {
   const [hubUserSearchInput, setHubUserSearchInput] = useState("");
   const [hubUserSearchApplied, setHubUserSearchApplied] = useState("");
 
-  const resellersQuery = useCompaniesSetupResellersQuery({ enabled: effectiveFilterDeptKind === "External" });
+  const resellersQuery = useCompaniesSetupResellersQuery({
+    enabled: effectiveFilterDeptKind === "External",
+  });
   const resellerOptions = useMemo(() => {
     const base = pickItemsArray(resellersQuery.data)
       .map(toIdNameOption)
@@ -156,11 +159,6 @@ export function PoolsPageView({ mode }: PoolsPageViewProps) {
       enabled:
         createOpen && !isMembersHub && createDeptKind === "External" && Boolean(createModalResellerId.trim()),
     },
-  );
-
-  const createInternalDepartmentsQuery = useDepartmentsListQuery(
-    { type: "Internal", all: true },
-    { enabled: createOpen && !isMembersHub && createDeptKind === "Internal", scope: "pool-create-int-dept" },
   );
 
   const createExternalDepartmentsQuery = useDepartmentsListQuery(
@@ -267,12 +265,8 @@ export function PoolsPageView({ mode }: PoolsPageViewProps) {
   }, [createModalParentCompaniesQuery.data, createModalParentCompaniesQuery.isLoading]);
 
   const createPoolDepartmentOptions = useMemo(() => {
-    const data =
-      createDeptKind === "Internal" ? createInternalDepartmentsQuery.data : createExternalDepartmentsQuery.data;
-    const loading =
-      createDeptKind === "Internal"
-        ? createInternalDepartmentsQuery.isLoading
-        : createExternalDepartmentsQuery.isLoading;
+    const data = createExternalDepartmentsQuery.data;
+    const loading = createExternalDepartmentsQuery.isLoading;
     const base = pickItemsArray(data)
       .map(toIdNameOption)
       .filter((o): o is { value: string; label: string } => o !== null);
@@ -284,18 +278,15 @@ export function PoolsPageView({ mode }: PoolsPageViewProps) {
       ...base,
     ];
   }, [
-    createDeptKind,
-    createInternalDepartmentsQuery.data,
-    createInternalDepartmentsQuery.isLoading,
     createExternalDepartmentsQuery.data,
     createExternalDepartmentsQuery.isLoading,
   ]);
 
   const createSaveDisabled = useMemo(() => {
     if (!poolNameField.trim()) return true;
-    if (!createModalDepartmentId.trim()) return true;
     if (createDeptKind === "External") {
       if (!createModalResellerId.trim() || !createModalParentCompanyId.trim()) return true;
+      if (!createModalDepartmentId.trim()) return true;
     }
     return false;
   }, [
@@ -470,10 +461,12 @@ export function PoolsPageView({ mode }: PoolsPageViewProps) {
           pickStr(dept, ["id"]) ||
           pickStr(r, ["departmentId", "department_id"]) ||
           "";
+        const departmentName = pickStr(dept, ["name"]) || "—";
+        const departmentType = pickStr(dept, ["type"]) || "";
         return {
           id: pickStr(r, ["id"]) || "",
           poolName: pickStr(r, ["name", "poolName"]) || "—",
-          departmentName: pickStr(dept, ["name"]) || "—",
+          departmentName: formatPoolDepartmentLabel(departmentName, departmentType),
           departmentId: rowDepartmentId,
         };
       })
@@ -509,25 +502,30 @@ export function PoolsPageView({ mode }: PoolsPageViewProps) {
       publishAppToast({ variant: "error", message: "Please enter a pool name." });
       return;
     }
-    if (createDeptKind === "External" && (!createModalResellerId.trim() || !createModalParentCompanyId.trim())) {
-      publishAppToast({ variant: "error", message: "Select reseller and parent company for an external department." });
-      return;
+    if (createDeptKind === "External") {
+      if (!createModalResellerId.trim() || !createModalParentCompanyId.trim()) {
+        publishAppToast({ variant: "error", message: "Select reseller and parent company for an external pool." });
+        return;
+      }
+      if (!createModalDepartmentId.trim()) {
+        publishAppToast({ variant: "error", message: "Please select a department." });
+        return;
+      }
     }
-    if (!createModalDepartmentId.trim()) {
-      publishAppToast({ variant: "error", message: "Please select a department." });
-      return;
+
+    const body: Record<string, string> = { poolKind: createDeptKind, name };
+    if (createDeptKind === "External") {
+      body.departmentId = createModalDepartmentId.trim();
     }
-    createMutation.mutate(
-      { departmentId: createModalDepartmentId.trim(), name },
-      {
-        onSuccess: () => {
-          publishAppToast({ variant: "success", message: `Pool “${name}” saved.` });
-          resetForm();
-          opts?.onSuccess?.();
-        },
-        onError: () => publishAppToast({ variant: "error", message: "Could not create pool." }),
+
+    createMutation.mutate(body, {
+      onSuccess: () => {
+        publishAppToast({ variant: "success", message: `Pool “${name}” saved.` });
+        resetForm();
+        opts?.onSuccess?.();
       },
-    );
+      onError: () => publishAppToast({ variant: "error", message: "Could not create pool." }),
+    });
   };
 
   const hubModalParentCompanyOptions = useMemo(() => {

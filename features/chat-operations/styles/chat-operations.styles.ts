@@ -125,6 +125,49 @@ export const chatOpsQueueListMaxHeightPx = Math.round(
   CHAT_OPS_QUEUE_VISIBLE_ROWS * CHAT_OPS_QUEUE_ROW_HEIGHT_PX,
 );
 
+/** Chat Start focus — queue left + chat right (no visitor details column). */
+export const chatOpsWorkspaceFocusGridSx: SxProps<Theme> = (theme) => {
+  const d = dash(theme);
+  const divider = alpha(d.cardBorder, 0.18);
+  const paneBg = alpha(d.sidebarBg, 0.65);
+  return {
+    display: "grid",
+    gridTemplateColumns: "minmax(0, 300px) minmax(0, 1fr)",
+    gridTemplateRows: "minmax(0, 1fr)",
+    flex: 1,
+    minHeight: 0,
+    minWidth: 0,
+    width: "100%",
+    height: "100%",
+    maxHeight: "100%",
+    alignItems: "stretch",
+    overflow: "hidden",
+    "& > [data-chat-pane]": {
+      minWidth: 0,
+      minHeight: 0,
+      height: "100%",
+      maxHeight: "100%",
+      display: "flex",
+      flexDirection: "column",
+      overflow: "hidden",
+    },
+    "& > [data-chat-pane='inbox']": {
+      background: paneBg,
+      borderRight: `1px solid ${divider}`,
+    },
+    "& > [data-chat-pane='thread']": {
+      background: alpha(d.headerBg, 0.35),
+    },
+  };
+};
+
+export const chatOpsWorkspaceShellFocusSx: SxProps<Theme> = {
+  borderRadius: 0,
+  border: "none",
+  width: "100%",
+  maxWidth: "100%",
+};
+
 export const chatOpsWorkspaceGrid: SxProps<Theme> = (theme) => {
   const d = dash(theme);
   const divider = alpha(d.cardBorder, 0.18);

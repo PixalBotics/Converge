@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import MoreVert from "@mui/icons-material/MoreVert";
+import CloseOutlined from "@mui/icons-material/CloseOutlined";
 import Box from "@mui/material/Box";
 import { alpha } from "@mui/material/styles";
 import IconButton from "@mui/material/IconButton";
@@ -28,6 +29,7 @@ import { TransferChatHeaderAction } from "./TransferChatHeaderAction";
 import { inboxTranscriptDisplayForClosed } from "../utils/inbox-transcript-messages";
 import { ChatWhisperComposerStrip } from "./ChatWhisperComposerStrip";
 import { ChatComposer } from "./ChatComposer";
+import { ChatDistributionLinkBanner } from "./ChatDistributionLinkBanner";
 import { ChatMessageList, type VisitorProfileCaptureSelection } from "./ChatMessageList";
 import { chatOpsConversationMetaChipHeight } from "../styles/chat-operations.styles";
 import type { VisitorProfileField } from "@/services/chat/visitor-profile.types";
@@ -55,7 +57,7 @@ interface ChatConversationPanelProps {
   onTyping: (draft?: string) => void;
   onStopTyping: () => void;
   onInsertCanned: (text: string) => void;
-  onCloseChat?: () => void;
+  onDismissConversation?: () => void;
   onMarkSpam?: () => void;
   canSend: boolean;
   aiMessages: AiChatMessage[];
@@ -74,6 +76,7 @@ interface ChatConversationPanelProps {
   /** Fallback when post-close distribution link is not yet in transcript history. */
   distributionFormHref?: string | null;
   requiresDistributionForm?: boolean;
+  distributionSubmitted?: boolean;
   hasOperational?: (p: string) => boolean;
   profileCaptureEnabled?: boolean;
   onCaptureField?: (
@@ -106,7 +109,7 @@ export function ChatConversationPanel({
   onTyping,
   onStopTyping,
   onInsertCanned,
-  onCloseChat,
+  onDismissConversation,
   onMarkSpam,
   canSend,
   aiMessages,
@@ -124,6 +127,7 @@ export function ChatConversationPanel({
   onDismissWhisper,
   distributionFormHref = null,
   requiresDistributionForm = false,
+  distributionSubmitted = false,
   hasOperational = () => false,
   profileCaptureEnabled = false,
   onCaptureField,
@@ -340,46 +344,40 @@ export function ChatConversationPanel({
                   />
                 </>
               ) : null}
-              {onCloseChat || onMarkSpam ? (
+              {onDismissConversation ? (
+                <IconButton
+                  size="small"
+                  aria-label="Close chat"
+                  onClick={onDismissConversation}
+                  sx={{
+                    color: theme.app.dashboard.iconMuted,
+                    flexShrink: 0,
+                    "&:hover": { color: theme.app.text.primary },
+                  }}
+                >
+                  <CloseOutlined sx={{ fontSize: 20 }} />
+                </IconButton>
+              ) : null}
+              {onMarkSpam ? (
                 <>
-                  {onCloseChat ? (
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      size="compact"
-                      onClick={() => void onCloseChat()}
-                      sx={{
-                        display: { xs: "none", md: "inline-flex" },
-                        minWidth: 0,
-                        height: chatOpsConversationMetaChipHeight,
-                        px: 1.5,
-                        py: 0,
-                        fontSize: 11,
-                      }}
-                    >
-                      End session
-                    </Button>
-                  ) : null}
-                  {onMarkSpam ? (
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      size="compact"
-                      onClick={() => onMarkSpam()}
-                      sx={{
-                        display: { xs: "none", md: "inline-flex" },
-                        minWidth: 0,
-                        height: chatOpsConversationMetaChipHeight,
-                        px: 1.5,
-                        py: 0,
-                        fontSize: 11,
-                        color: theme.palette.warning.light,
-                        borderColor: alpha(theme.palette.warning.main, 0.45),
-                      }}
-                    >
-                      Mark spam
-                    </Button>
-                  ) : null}
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="compact"
+                    onClick={() => onMarkSpam()}
+                    sx={{
+                      display: { xs: "none", md: "inline-flex" },
+                      minWidth: 0,
+                      height: chatOpsConversationMetaChipHeight,
+                      px: 1.5,
+                      py: 0,
+                      fontSize: 11,
+                      color: theme.palette.warning.light,
+                      borderColor: alpha(theme.palette.warning.main, 0.45),
+                    }}
+                  >
+                    Mark spam
+                  </Button>
                   <IconButton
                     size="small"
                     aria-label="More actions"
@@ -404,23 +402,12 @@ export function ChatConversationPanel({
                     <MenuItem
                       onClick={() => {
                         setMenuAnchor(null);
-                        onCloseChat?.();
+                        onMarkSpam();
                       }}
-                      sx={{ color: theme.palette.error.light }}
+                      sx={{ color: theme.palette.warning.light }}
                     >
-                      End session
+                      Mark as spam
                     </MenuItem>
-                    {onMarkSpam ? (
-                      <MenuItem
-                        onClick={() => {
-                          setMenuAnchor(null);
-                          onMarkSpam();
-                        }}
-                        sx={{ color: theme.palette.warning.light }}
-                      >
-                        Mark as spam
-                      </MenuItem>
-                    ) : null}
                   </Menu>
                 </>
               ) : null}
@@ -452,6 +439,21 @@ export function ChatConversationPanel({
             </Box>
           </Box>
         </PanelHeader>
+      ) : null}
+
+      {hasConversation &&
+      readOnly &&
+      requiresDistributionForm &&
+      distributionFormHref?.trim() ? (
+        <Box sx={{ flexShrink: 0, px: 2, pt: 1.25 }}>
+          <ChatDistributionLinkBanner
+            href={distributionFormHref.trim()}
+            submitted={distributionSubmitted}
+            hint="Chat closed. Open the distribution form to send the transcript to a department."
+            buttonLabel="Open distribution form"
+            submittedHint="Distribution form already submitted for this chat."
+          />
+        </Box>
       ) : null}
 
       <Box

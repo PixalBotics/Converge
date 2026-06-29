@@ -206,7 +206,7 @@ export function ChatMonitorWorkspace({
     return (
       <PermissionDeniedPanel
         title="No monitor scope"
-        description="Assign pool/department head roles, add yourself on Chat involvement (Involvement users), or grant chat:monitor:involvement / chat:bundle:involvement-supervisor."
+        description="Assign pool/department head roles, internal supervisors (Chat → Internal supervisors), involvement users, or grant chat monitor bundles."
       />
     );
   }

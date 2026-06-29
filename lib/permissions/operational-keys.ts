@@ -27,6 +27,7 @@ export const OP = {  accountSetup: {
     monitorDepartment: "chat:monitor:department",
     monitorParentCompany: "chat:monitor:parent-company",
     monitorInvolvement: "chat:monitor:involvement",
+    monitorInternalSupervisor: "chat:monitor:internal-supervisor",
     whisper: "chat:whisper",
     takeoverRequest: "chat:takeover:request",
     takeoverApprove: "chat:takeover:approve",

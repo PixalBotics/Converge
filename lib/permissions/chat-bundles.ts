@@ -39,6 +39,11 @@ export const CHAT_BUNDLE_OPTIONS = [
     label: "Involvement monitor",
     description: "Involvement user: website + dept monitor, guest link, whisper, takeover",
   },
+  {
+    code: "chat:bundle:internal-supervisor",
+    label: "Internal supervisor",
+    description: "Internal pool monitor, whisper, takeover, and agent inbox",
+  },
 ] as const;
 
 export type ChatBundleCode = (typeof CHAT_BUNDLE_OPTIONS)[number]["code"];

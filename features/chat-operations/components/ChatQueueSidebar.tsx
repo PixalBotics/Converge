@@ -13,12 +13,16 @@ import {
   chatOpsInboxTabSx,
   chatOpsInboxTabsRow,
   chatOpsInboxToolbarSx,
+  chatOpsPaneSubtitleSx,
   chatOpsPaneTitleSx,
-  chatOpsQueueListMaxHeightPx,
 } from "../styles/chat-operations.styles";
 import { ConnectionStatusBar } from "./ConnectionStatusBar";
 import { getConversationPreview } from "../utils/conversation-preview";
 import { formatRelativeQueueTime } from "../utils/format-message-time";
+import {
+  resolveQueueFormActionHint,
+  resolveQueueFormStatusLabel,
+} from "../utils/chat-close-outcome";
 import { getInboxRowLabels } from "@/services/chat/visitor-presentation";
 import { useSidebarTypingPreviews } from "@/lib/hooks/chat/useConversationTyping";
 import { parseVisitorInfo } from "../utils/visitor-info";
@@ -79,12 +83,21 @@ export function ChatQueueSidebar({
 
   const previewFallback =
     queueTab === "pending"
-      ? "Pending form"
+      ? "Open distribution form to finish"
       : queueTab === "completed"
-        ? "Completed chat"
+        ? "Form complete"
         : queueTab === "spam"
           ? "Spam chat"
           : "No messages yet";
+
+  const emptyQueueMessage =
+    queueTab === "pending"
+      ? "No chats waiting on a distribution form"
+      : queueTab === "completed"
+        ? "No completed chats in this queue"
+        : queueTab === "spam"
+          ? "No spam chats in this queue"
+          : "No conversations in this queue";
 
   const endedTab = queueTab === "pending" || queueTab === "completed" || queueTab === "spam";
 
@@ -115,7 +128,7 @@ export function ChatQueueSidebar({
             sx={chatOpsInboxTabSx(queueTab === "pending")}
             onClick={() => onQueueTabChange("pending")}
           >
-            Pending · {pendingCount}
+            Form pending · {pendingCount}
           </Box>
           <Box
             component="button"
@@ -123,7 +136,7 @@ export function ChatQueueSidebar({
             sx={chatOpsInboxTabSx(queueTab === "completed")}
             onClick={() => onQueueTabChange("completed")}
           >
-            Done · {completedCount}
+            Complete · {completedCount}
           </Box>
           <Box
             component="button"
@@ -134,6 +147,15 @@ export function ChatQueueSidebar({
             Spam · {spamCount}
           </Box>
         </Box>
+        {queueTab === "pending" ? (
+          <Typography sx={{ ...chatOpsPaneSubtitleSx, mt: 1, lineHeight: 1.45 }}>
+            Chats closed — complete the distribution form to send the transcript.
+          </Typography>
+        ) : queueTab === "completed" ? (
+          <Typography sx={{ ...chatOpsPaneSubtitleSx, mt: 1, lineHeight: 1.45 }}>
+            Finished chats — form submitted or no distribution needed.
+          </Typography>
+        ) : null}
       </Box>
 
       <Box sx={chatOpsInboxSearchWrap}>
@@ -145,11 +167,11 @@ export function ChatQueueSidebar({
         />
       </Box>
 
-      <ScrollRegion sx={{ flex: 1, minHeight: 0, maxHeight: chatOpsQueueListMaxHeightPx }}>
+      <ScrollRegion sx={{ flex: 1, minHeight: 0 }}>
         {filteredConversations.length === 0 ? (
           <EmptyState sx={{ py: 6 }}>
             <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted }}>
-              {searchQuery.trim() ? "No results" : "No conversations in this queue"}
+              {searchQuery.trim() ? "No results" : emptyQueueMessage}
             </Typography>
           </EmptyState>
         ) : (
@@ -175,6 +197,8 @@ export function ChatQueueSidebar({
                 : undefined,
             );
             const preview = getConversationPreview(conversation, previewFallback);
+            const formStatusLabel = endedTab ? resolveQueueFormStatusLabel(conversation) : null;
+            const formActionHint = endedTab ? resolveQueueFormActionHint(conversation) : null;
             const transferLabel =
               queueTab === "active" &&
               conversation.lastTransferFrom &&
@@ -190,7 +214,9 @@ export function ChatQueueSidebar({
               ? liveLabel
                 ? `${liveLabel}: ${liveDraft}`
                 : liveDraft
-              : preview;
+              : formActionHint && preview === previewFallback
+                ? formActionHint
+                : preview;
             const isLiveTyping = Boolean(liveDraft);
 
             return (
@@ -247,6 +273,26 @@ export function ChatQueueSidebar({
                       }}
                     >
                       {subtitle}
+                    </Typography>
+                  ) : null}
+                  {formStatusLabel ? (
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        display: "block",
+                        fontSize: 10,
+                        fontWeight: 600,
+                        color:
+                          formStatusLabel === "Form pending"
+                            ? theme.app.dashboard.accentBlue
+                            : theme.palette.success.light,
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                        mb: 0.25,
+                      }}
+                    >
+                      {formStatusLabel}
                     </Typography>
                   ) : null}
                   {transferLabel ? (
