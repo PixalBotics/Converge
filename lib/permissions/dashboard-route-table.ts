@@ -186,7 +186,7 @@ export const ROUTE_RULES: readonly RouteRule[] = [
   },
   { permission: "page:ip-blocklist", href: "/dashboard/ip-block-list", iconKey: "ipBlocklist", prefixMatch: true },
   { permission: "page:licenses", href: "/dashboard/license-generate", iconKey: "licenses" },
-  { permission: "page:reports", href: "/dashboard/reports", iconKey: "reports" },
+  { permission: "page:reports", href: "/dashboard/reports", iconKey: "reports", prefixMatch: true },
   { permission: "page:billing", href: "/dashboard/billing", iconKey: "billing" },
   { permission: "page:settings", href: "/dashboard/settings", iconKey: "settings" },
   {
