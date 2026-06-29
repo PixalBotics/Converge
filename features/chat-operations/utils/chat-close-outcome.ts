@@ -32,26 +32,41 @@ export function isSpamCloseOutcome(
   return closeOutcome === CHAT_CLOSE_OUTCOMES.SPAM;
 }
 
+export function isMeaningfulClosedChat(row: {
+  isMeaningfulChat?: boolean;
+  distributionSubmitted?: boolean;
+  [key: string]: unknown;
+}): boolean {
+  return Boolean(row.isMeaningfulChat || row.distributionSubmitted);
+}
+
 export function resolveClosedChatBucket(row: {
   closeBucket?: string | null;
   closeOutcome?: string | null;
   requiresDistributionForm?: boolean;
+  requiresDistributionSetup?: boolean;
   distributionSubmitted?: boolean;
+  isMeaningfulChat?: boolean;
+  agentInvolved?: boolean;
   [key: string]: unknown;
 }): ClosedChatBucket {
-  if (row.closeBucket === CLOSED_CHAT_BUCKETS.PENDING) {
-    return CLOSED_CHAT_BUCKETS.PENDING;
+  if (isSpamCloseOutcome(row.closeOutcome)) {
+    return CLOSED_CHAT_BUCKETS.SPAM;
   }
-  if (row.closeBucket === CLOSED_CHAT_BUCKETS.COMPLETED) {
+  if (isMeaningfulClosedChat(row)) {
     return CLOSED_CHAT_BUCKETS.COMPLETED;
+  }
+  if (
+    row.agentInvolved ||
+    (row.requiresDistributionForm && !row.distributionSubmitted) ||
+    row.requiresDistributionSetup
+  ) {
+    return CLOSED_CHAT_BUCKETS.PENDING;
   }
   if (row.closeBucket === CLOSED_CHAT_BUCKETS.SPAM) {
     return CLOSED_CHAT_BUCKETS.SPAM;
   }
-  if (isSpamCloseOutcome(row.closeOutcome)) {
-    return CLOSED_CHAT_BUCKETS.SPAM;
-  }
-  if (row.requiresDistributionForm && !row.distributionSubmitted) {
+  if (row.closeBucket === CLOSED_CHAT_BUCKETS.PENDING) {
     return CLOSED_CHAT_BUCKETS.PENDING;
   }
   return CLOSED_CHAT_BUCKETS.COMPLETED;
@@ -66,30 +81,39 @@ export function conversationCloseFields(row: {
   closeBucket?: string | null;
   closeOutcome?: string | null;
   requiresDistributionForm?: boolean;
+  requiresDistributionSetup?: boolean;
   distributionSubmitted?: boolean;
+  isMeaningfulChat?: boolean;
+  agentInvolved?: boolean;
   [key: string]: unknown;
 }) {
   return {
     closeBucket: typeof row.closeBucket === "string" ? row.closeBucket : null,
     closeOutcome: typeof row.closeOutcome === "string" ? row.closeOutcome : null,
     requiresDistributionForm: Boolean(row.requiresDistributionForm),
+    requiresDistributionSetup: Boolean(row.requiresDistributionSetup),
     distributionSubmitted: Boolean(row.distributionSubmitted),
+    isMeaningfulChat: Boolean(row.isMeaningfulChat),
+    agentInvolved: Boolean(row.agentInvolved),
   };
 }
 
-/** Inbox queue row / chip — form pending vs form complete vs complete. */
+/** Inbox queue row / chip — form pending vs meaningful (form sent). */
 export function resolveQueueFormStatusLabel(row: {
   closeBucket?: string | null;
   closeOutcome?: string | null;
   requiresDistributionForm?: boolean;
+  requiresDistributionSetup?: boolean;
   distributionSubmitted?: boolean;
+  isMeaningfulChat?: boolean;
+  agentInvolved?: boolean;
   [key: string]: unknown;
 }): string | null {
   const fields = conversationCloseFields(row);
   const bucket = resolveClosedChatBucket(fields);
   if (bucket === CLOSED_CHAT_BUCKETS.PENDING) return "Form pending";
   if (bucket === CLOSED_CHAT_BUCKETS.COMPLETED) {
-    return fields.requiresDistributionForm ? "Form complete" : "Complete";
+    return isMeaningfulClosedChat(fields) ? "Meaningful chat" : "Closed";
   }
   return null;
 }
@@ -98,7 +122,10 @@ export function resolveQueueFormActionHint(row: {
   closeBucket?: string | null;
   closeOutcome?: string | null;
   requiresDistributionForm?: boolean;
+  requiresDistributionSetup?: boolean;
   distributionSubmitted?: boolean;
+  isMeaningfulChat?: boolean;
+  agentInvolved?: boolean;
   [key: string]: unknown;
 }): string | null {
   const fields = conversationCloseFields(row);
@@ -106,8 +133,8 @@ export function resolveQueueFormActionHint(row: {
   if (bucket === CLOSED_CHAT_BUCKETS.PENDING) {
     return "Open distribution form to finish";
   }
-  if (bucket === CLOSED_CHAT_BUCKETS.COMPLETED && fields.requiresDistributionForm) {
-    return "Distribution form submitted";
+  if (bucket === CLOSED_CHAT_BUCKETS.COMPLETED && isMeaningfulClosedChat(fields)) {
+    return "Distribution form sent";
   }
   return null;
 }

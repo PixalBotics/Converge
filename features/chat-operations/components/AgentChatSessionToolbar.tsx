@@ -92,7 +92,7 @@ export function AgentChatSessionToolbar({
             onClick={onBackToQueue}
             sx={{ minWidth: 0, height: 34, px: 1.5, fontSize: 12 }}
           >
-            Queue
+            Back
           </Button>
         ) : null}
 

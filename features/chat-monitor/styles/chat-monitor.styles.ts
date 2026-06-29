@@ -1,14 +1,16 @@
-import { alpha } from "@mui/material/styles";
 import type { SxProps, Theme } from "@mui/material/styles";
-import type { AppTheme } from "@/theme/theme";
 import {
   chatOpsAlertBannerSx,
+  chatOpsAgentTableWrapSx,
   chatOpsInboxHeaderSx,
   chatOpsInboxSearchWrap,
   chatOpsInboxTabSx,
   chatOpsInboxTabsRow,
   chatOpsInboxToolbarSx,
   chatOpsPageWrapper,
+  chatOpsPaneSurfaceSx,
+  chatOpsWorkstationChromeSx,
+  chatOpsWorkstationTopBarSx,
   chatOpsWorkspaceShell,
 } from "@/features/chat-operations/styles/chat-operations.styles";
 
@@ -20,55 +22,38 @@ export {
   chatOpsInboxTabsRow as chatMonitorInboxTabsRow,
   chatOpsInboxTabSx as chatMonitorInboxTabSx,
   chatOpsInboxSearchWrap as chatMonitorFilterWrap,
+  chatOpsWorkstationTopBarSx as chatMonitorWorkstationTopBarSx,
+  chatOpsAgentTableWrapSx as chatMonitorAgentTableWrapSx,
+  chatOpsWorkstationChromeSx as chatMonitorWorkstationChromeSx,
 };
-
-function dash(theme: Theme) {
-  return (theme as AppTheme).app.dashboard;
-}
-
 /** Monitor: inbox + thread + visitor details (matches agent workstation). */
-export const chatMonitorWorkspaceGrid: SxProps<Theme> = (theme) => {
-  const d = dash(theme);
-  const divider = alpha(d.cardBorder, 0.18);
-  const paneBg = alpha(d.sidebarBg, 0.65);
-  const threadBg = alpha(d.headerBg, 0.35);
-  return {
-    display: "grid",
-    gridTemplateColumns: {
-      xs: "1fr",
-      lg: "minmax(280px, 320px) minmax(0, 1fr) minmax(260px, 300px)",
-    },
-    flex: 1,
-    minHeight: 0,
-    overflow: "hidden",
-    "& > [data-monitor-pane]": {
-      minWidth: 0,
-      minHeight: 0,
-      display: "flex",
-      flexDirection: "column",
-      overflow: "hidden",
-    },
-    "& > [data-monitor-pane='inbox']": { background: paneBg },
-    "& > [data-monitor-pane='thread']": {
-      background: threadBg,
-      borderLeft: { lg: `1px solid ${divider}` },
-      borderRight: { lg: `1px solid ${divider}` },
-    },
-    "& > [data-monitor-pane='details']": {
-      background: paneBg,
-      display: { xs: "none", lg: "flex" },
-    },
-  };
-};
+export const chatMonitorWorkspaceGrid: SxProps<Theme> = (theme) => ({
+  display: "grid",
+  gridTemplateColumns: {
+    xs: "1fr",
+    lg: "minmax(0, 280px) minmax(0, 1fr) minmax(0, 272px)",
+  },
+  gridTemplateRows: "minmax(0, 1fr)",
+  gap: { xs: 0, lg: 1 },
+  flex: 1,
+  minHeight: 0,
+  minWidth: 0,
+  width: "100%",
+  height: "100%",
+  maxHeight: "100%",
+  alignItems: "stretch",
+  overflow: "hidden",
+  p: { xs: 0, lg: 1 },
+  boxSizing: "border-box",
+  "& > [data-monitor-pane='inbox']": chatOpsPaneSurfaceSx("inbox")(theme),
+  "& > [data-monitor-pane='thread']": chatOpsPaneSurfaceSx("thread")(theme),
+  "& > [data-monitor-pane='details']": {
+    ...chatOpsPaneSurfaceSx("details")(theme),
+    display: { xs: "none", lg: "flex" },
+    contain: "layout size",
+  },
+});
 
 export const chatMonitorReadOnlyBannerSx = chatOpsAlertBannerSx("info");
-
-/** Compact team-agent picker above the monitor grid. */
-export const chatMonitorAgentTableWrapSx: SxProps<Theme> = {
-  flexShrink: 0,
-  maxHeight: 220,
-  overflow: "auto",
-  minHeight: 0,
-};
 
 export { chatLiveWorkstationToolbarRowSx as chatMonitorToolbarRowSx } from "@/features/chat-shared/styles/chat-live.styles";

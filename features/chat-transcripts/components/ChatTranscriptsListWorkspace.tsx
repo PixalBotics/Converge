@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ForumOutlined from "@mui/icons-material/ForumOutlined";
 import Box from "@mui/material/Box";
-import Chip from "@mui/material/Chip";
 import { useRouter } from "next/navigation";
 import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
@@ -46,6 +45,7 @@ import {
   type TranscriptSearchSuggestion,
 } from "../types";
 import { ChatTranscriptsTableToolbar } from "./ChatTranscriptsTableToolbar";
+import { TranscriptStatusChip } from "./TranscriptStatusChip";
 
 function searchKindToField(kind: TranscriptSearchKind): TranscriptSearchField {
   return kind;
@@ -55,39 +55,6 @@ function formatDateTime(value?: string | null): string {
   if (!value) return "—";
   const d = new Date(value);
   return Number.isNaN(d.getTime()) ? "—" : d.toLocaleString();
-}
-
-function statusChipColor(
-  status: string,
-  theme: AppTheme,
-): { color: string; bgcolor: string; border: string } {
-  const s = status.toLowerCase();
-  if (s === "closed" || s === "completed") {
-    return {
-      color: theme.app.dashboard.textMuted,
-      bgcolor: "rgba(148, 163, 184, 0.12)",
-      border: "1px solid rgba(148, 163, 184, 0.28)",
-    };
-  }
-  if (s === "active" || s === "assigned") {
-    return {
-      color: theme.app.dashboard.accentGreenLight,
-      bgcolor: "rgba(34, 197, 94, 0.12)",
-      border: "1px solid rgba(34, 197, 94, 0.28)",
-    };
-  }
-  if (s === "waiting") {
-    return {
-      color: theme.app.dashboard.accentCyan,
-      bgcolor: "rgba(34, 211, 238, 0.12)",
-      border: "1px solid rgba(34, 211, 238, 0.28)",
-    };
-  }
-  return {
-    color: theme.palette.primary.light,
-    bgcolor: "rgba(88, 101, 242, 0.12)",
-    border: "1px solid rgba(88, 101, 242, 0.28)",
-  };
 }
 
 export function ChatTranscriptsListWorkspace() {
@@ -358,24 +325,9 @@ export function ChatTranscriptsListWorkspace() {
       {
         id: "status",
         label: "Status",
-        render: (_, row) => {
-          const status = String((row as unknown as TranscriptListItem).status ?? "");
-          const chip = statusChipColor(status, theme);
-          return (
-            <Chip
-              size="small"
-              label={status || "—"}
-              sx={{
-                height: 22,
-                fontSize: 11,
-                fontWeight: 600,
-                color: chip.color,
-                bgcolor: chip.bgcolor,
-                border: chip.border,
-              }}
-            />
-          );
-        },
+        render: (_, row) => (
+          <TranscriptStatusChip row={row as unknown as TranscriptListItem} />
+        ),
       },
       {
         id: "messageCount",

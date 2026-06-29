@@ -85,7 +85,7 @@ export function ChatQueueSidebar({
     queueTab === "pending"
       ? "Open distribution form to finish"
       : queueTab === "completed"
-        ? "Form complete"
+        ? "Meaningful chat"
         : queueTab === "spam"
           ? "Spam chat"
           : "No messages yet";
@@ -94,7 +94,7 @@ export function ChatQueueSidebar({
     queueTab === "pending"
       ? "No chats waiting on a distribution form"
       : queueTab === "completed"
-        ? "No completed chats in this queue"
+        ? "No meaningful chats in this queue"
         : queueTab === "spam"
           ? "No spam chats in this queue"
           : "No conversations in this queue";
@@ -136,7 +136,7 @@ export function ChatQueueSidebar({
             sx={chatOpsInboxTabSx(queueTab === "completed")}
             onClick={() => onQueueTabChange("completed")}
           >
-            Complete · {completedCount}
+            Meaningful · {completedCount}
           </Box>
           <Box
             component="button"
@@ -153,7 +153,7 @@ export function ChatQueueSidebar({
           </Typography>
         ) : queueTab === "completed" ? (
           <Typography sx={{ ...chatOpsPaneSubtitleSx, mt: 1, lineHeight: 1.45 }}>
-            Finished chats — form submitted or no distribution needed.
+            Chats where the distribution form was sent.
           </Typography>
         ) : null}
       </Box>
@@ -167,7 +167,7 @@ export function ChatQueueSidebar({
         />
       </Box>
 
-      <ScrollRegion sx={{ flex: 1, minHeight: 0 }}>
+      <ScrollRegion sx={{ flex: 1, minHeight: 0, py: 1 }}>
         {filteredConversations.length === 0 ? (
           <EmptyState sx={{ py: 6 }}>
             <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted }}>

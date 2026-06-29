@@ -32,8 +32,13 @@ export function ChatLivePageShell({
       ? mergeSx(chatOpsPageWrapper, chatLivePageStackSx)
       : mergeSx(chatLiveAdminPageInsetSx, chatLivePageStackSx);
 
+  const workstationLayoutSx =
+    variant === "workstation"
+      ? { flex: 1, minHeight: 0, height: "100%", overflow: "hidden" as const }
+      : undefined;
+
   return (
-    <Box sx={sx ? mergeSx(baseSx, sx) : baseSx}>
+    <Box sx={sx ? mergeSx(baseSx, workstationLayoutSx, sx) : mergeSx(baseSx, workstationLayoutSx)}>
       {children}
     </Box>
   );

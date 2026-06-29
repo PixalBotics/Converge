@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import MoreVert from "@mui/icons-material/MoreVert";
-import CloseOutlined from "@mui/icons-material/CloseOutlined";
+import ArrowBackOutlined from "@mui/icons-material/ArrowBackOutlined";
 import Box from "@mui/material/Box";
 import { alpha } from "@mui/material/styles";
 import IconButton from "@mui/material/IconButton";
@@ -31,7 +31,7 @@ import { ChatWhisperComposerStrip } from "./ChatWhisperComposerStrip";
 import { ChatComposer } from "./ChatComposer";
 import { ChatDistributionLinkBanner } from "./ChatDistributionLinkBanner";
 import { ChatMessageList, type VisitorProfileCaptureSelection } from "./ChatMessageList";
-import { chatOpsConversationMetaChipHeight } from "../styles/chat-operations.styles";
+import { chatOpsConversationMetaChipHeight, chatOpsBackButtonSx } from "../styles/chat-operations.styles";
 import type { VisitorProfileField } from "@/services/chat/visitor-profile.types";
 import {
   ChatHeaderMetaChip,
@@ -58,6 +58,8 @@ interface ChatConversationPanelProps {
   onStopTyping: () => void;
   onInsertCanned: (text: string) => void;
   onDismissConversation?: () => void;
+  /** Show back control in the transcript header (queue / list). */
+  showBackButton?: boolean;
   onMarkSpam?: () => void;
   canSend: boolean;
   aiMessages: AiChatMessage[];
@@ -111,6 +113,7 @@ export function ChatConversationPanel({
   onInsertCanned,
   onDismissConversation,
   onMarkSpam,
+  showBackButton = false,
   canSend,
   aiMessages,
   aiPrompt,
@@ -246,27 +249,35 @@ export function ChatConversationPanel({
         <PanelHeader
           sx={{
             display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: { xs: 1.5, sm: 2 },
-            py: 1.5,
-            px: 2,
+            flexDirection: "column",
+            gap: 1.25,
+            py: 1.35,
+            px: { xs: 1.5, sm: 2 },
           }}
         >
           <Box
             sx={{
               display: "flex",
-              alignItems: "flex-start",
-              gap: 1.5,
+              alignItems: "center",
+              gap: { xs: 1, sm: 1.25 },
               minWidth: 0,
-              flex: 1,
-              pr: { sm: 1 },
+              width: "100%",
             }}
           >
-            <QueueAvatar sx={{ width: 44, height: 44, fontSize: 14, flexShrink: 0 }}>
+            {showBackButton && onDismissConversation ? (
+              <IconButton
+                size="small"
+                aria-label="Back to conversations"
+                onClick={onDismissConversation}
+                sx={chatOpsBackButtonSx}
+              >
+                <ArrowBackOutlined sx={{ fontSize: 18 }} />
+              </IconButton>
+            ) : null}
+            <QueueAvatar sx={{ width: 42, height: 42, fontSize: 14, flexShrink: 0 }}>
               {visitorInfo.initials}
             </QueueAvatar>
-            <Box sx={{ minWidth: 0, display: "flex", flexDirection: "column", gap: 0.35 }}>
+            <Box sx={{ minWidth: 0, flex: 1, display: "flex", flexDirection: "column", gap: 0.3 }}>
               <Typography
                 fontWeight={700}
                 sx={{
@@ -309,29 +320,13 @@ export function ChatConversationPanel({
                   Transferred by {lastTransferFrom.label}
                 </Typography>
               ) : null}
-              <ChatTranscriptStatusChip
-                conversationMeta={conversationMeta}
-                readOnly={readOnly}
-                visitorTyping={visitorTyping}
-              />
             </Box>
-          </Box>
-          <Box
-            sx={{
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "flex-end",
-              gap: 0.75,
-              flexShrink: 0,
-              ml: { xs: 0, sm: 1.5 },
-            }}
-          >
             <Box
               sx={{
                 display: "flex",
                 alignItems: "center",
-                gap: 1,
-                flexWrap: "nowrap",
+                gap: 0.75,
+                flexShrink: 0,
               }}
             >
               {!readOnly ? (
@@ -343,20 +338,6 @@ export function ChatConversationPanel({
                     serviceChannel={serviceChannel}
                   />
                 </>
-              ) : null}
-              {onDismissConversation ? (
-                <IconButton
-                  size="small"
-                  aria-label="Close chat"
-                  onClick={onDismissConversation}
-                  sx={{
-                    color: theme.app.dashboard.iconMuted,
-                    flexShrink: 0,
-                    "&:hover": { color: theme.app.text.primary },
-                  }}
-                >
-                  <CloseOutlined sx={{ fontSize: 20 }} />
-                </IconButton>
               ) : null}
               {onMarkSpam ? (
                 <>
@@ -412,14 +393,23 @@ export function ChatConversationPanel({
                 </>
               ) : null}
             </Box>
-            <Box
-              sx={{
-                display: { xs: "none", sm: "flex" },
-                gap: 1,
-                flexWrap: "nowrap",
-                alignItems: "center",
-              }}
-            >
+          </Box>
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 1,
+              flexWrap: "wrap",
+              pl: showBackButton && onDismissConversation ? { xs: 0, sm: 0.5 } : 0,
+            }}
+          >
+            <ChatTranscriptStatusChip
+              conversationMeta={conversationMeta}
+              readOnly={readOnly}
+              visitorTyping={visitorTyping}
+            />
+            <Box sx={{ display: "flex", gap: 1, alignItems: "center", flexWrap: "wrap" }}>
               <ChatHeaderMetaChip>
                 <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, fontSize: 10 }}>
                   Session

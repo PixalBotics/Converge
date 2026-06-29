@@ -8,6 +8,9 @@ function dash(theme: Theme) {
   return (theme as AppTheme).app.dashboard;
 }
 
+/** Panel / card / queue row corners — keep sharp (3px max). */
+export const CHAT_OPS_BOX_RADIUS_PX = 3;
+
 /** Inbox workstation — full height inside main; no negative bleed (matches dashboard side gaps). */
 export const chatOpsPageWrapper: SxProps<Theme> = {
   width: "100%",
@@ -42,10 +45,41 @@ export const chatOpsWorkspaceShell: SxProps<Theme> = (theme) => {
     display: "flex",
     flexDirection: "column",
     overflow: "hidden",
-    borderRadius: { xs: 0, md: "9.32px" },
-    border: { xs: "none", md: `1px solid ${alpha(d.cardBorder, 0.35)}` },
+    borderRadius: { xs: 0, md: CHAT_OPS_BOX_RADIUS_PX },
+    border: { xs: "none", md: `1px solid ${alpha(d.cardBorder, 0.28)}` },
     ...dashboardCardSurfaceProps(theme, opacity),
-    boxShadow: d.cardGlassShadow ?? "inset 0 1px 0 rgba(255,255,255,0.06)",
+    boxShadow:
+      theme.palette.mode === "light"
+        ? `0 8px 32px ${alpha(d.accentIndigo, 0.06)}`
+        : (d.cardGlassShadow ?? "inset 0 1px 0 rgba(255,255,255,0.06)"),
+  };
+};
+
+/** Shared inner pane card — soft edges instead of hard grid dividers. */
+export const chatOpsPaneSurfaceSx = (
+  variant: "inbox" | "thread" | "details",
+): SxProps<Theme> => (theme) => {
+  const d = dash(theme);
+  const paneBg = alpha(d.sidebarBg, variant === "thread" ? 0.42 : 0.58);
+  const threadBg = alpha(d.headerBg, 0.5);
+  return {
+    minWidth: 0,
+    minHeight: 0,
+    height: "100%",
+    maxHeight: "100%",
+    display: "flex",
+    flexDirection: "column",
+    overflow: "hidden",
+    borderRadius: { xs: 0, lg: CHAT_OPS_BOX_RADIUS_PX },
+    border: {
+      xs: "none",
+      lg: `1px solid ${alpha(d.cardBorder, variant === "thread" ? 0.32 : 0.22)}`,
+    },
+    background: variant === "thread" ? threadBg : paneBg,
+    boxShadow:
+      variant === "thread"
+        ? { lg: `inset 0 1px 0 ${alpha(theme.palette.common.white, 0.04)}` }
+        : undefined,
   };
 };
 
@@ -56,12 +90,31 @@ export const chatOpsInboxToolbarSx: SxProps<Theme> = (theme) => {
     flexWrap: "wrap",
     alignItems: "center",
     justifyContent: "space-between",
-    gap: 1,
-    px: 2,
-    py: 1.5,
+    gap: 1.25,
+    px: { xs: 1.5, sm: 2 },
+    py: { xs: 1.25, sm: 1.5 },
     flexShrink: 0,
-    borderBottom: `1px solid ${alpha(d.cardBorder, 0.22)}`,
-    bgcolor: alpha(d.headerBg, 0.45),
+    borderBottom: `1px solid ${alpha(d.cardBorder, 0.16)}`,
+    bgcolor: alpha(d.headerBg, 0.32),
+  };
+};
+
+export const chatOpsBackButtonSx: SxProps<Theme> = (theme) => {
+  const d = dash(theme);
+  return {
+    flexShrink: 0,
+    width: 36,
+    height: 36,
+    borderRadius: CHAT_OPS_BOX_RADIUS_PX,
+    border: `1px solid ${alpha(d.cardBorder, 0.35)}`,
+    bgcolor: alpha(d.overlayLight, 0.35),
+    color: theme.app.dashboard.iconMuted,
+    transition: "background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease",
+    "&:hover": {
+      bgcolor: alpha(d.accentBlue, 0.1),
+      borderColor: alpha(d.accentBlue, 0.35),
+      color: (theme as AppTheme).app.text.primary,
+    },
   };
 };
 
@@ -125,15 +178,115 @@ export const chatOpsQueueListMaxHeightPx = Math.round(
   CHAT_OPS_QUEUE_VISIBLE_ROWS * CHAT_OPS_QUEUE_ROW_HEIGHT_PX,
 );
 
+/** Scrollable scope / team picker — only visible when hub panel is expanded. */
+export const chatOpsWorkstationChromeSx: SxProps<Theme> = {
+  display: "flex",
+  flexDirection: "column",
+  gap: 1.25,
+  minHeight: 0,
+};
+
+export const chatOpsWorkstationTopBarSx: SxProps<Theme> = (theme) => {
+  const d = dash(theme);
+  return {
+    display: "flex",
+    flexWrap: "wrap",
+    alignItems: "flex-end",
+    justifyContent: "space-between",
+    gap: 1,
+    px: { xs: 1.25, sm: 1.5 },
+    pt: { xs: 0.75, sm: 1 },
+    pb: 0.5,
+    flexShrink: 0,
+  };
+};
+
+export const chatOpsHubControlBarSx =
+  (expanded: boolean): SxProps<Theme> =>
+  (theme) => {
+    const d = dash(theme);
+    return {
+      display: "flex",
+      flexWrap: "wrap",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: 1,
+      px: { xs: 1.25, sm: 1.5 },
+      py: 1,
+      flexShrink: 0,
+      bgcolor: alpha(d.headerBg, expanded ? 0.38 : 0.22),
+      borderBottom: expanded
+        ? `1px solid ${alpha(d.cardBorder, 0.18)}`
+        : "none",
+      transition: "background-color 0.2s ease",
+    };
+  };
+
+export const chatOpsHubToggleButtonSx =
+  (expanded: boolean): SxProps<Theme> =>
+  (theme) => {
+    const d = dash(theme);
+    const accent = theme.palette.primary.main;
+    return {
+      height: 36,
+      minHeight: 36,
+      px: 1.5,
+      fontSize: 12,
+      fontWeight: 600,
+      borderRadius: CHAT_OPS_BOX_RADIUS_PX,
+      whiteSpace: "nowrap",
+      borderColor: expanded ? alpha(accent, 0.45) : alpha(d.cardBorder, 0.35),
+      bgcolor: expanded ? alpha(accent, 0.12) : alpha(d.overlayLight, 0.28),
+      color: (theme as AppTheme).app.text.primary,
+      "&:hover": {
+        borderColor: alpha(accent, 0.5),
+        bgcolor: alpha(accent, 0.16),
+      },
+    };
+  };
+
+export const chatOpsHubPanelBodySx: SxProps<Theme> = (theme) => {
+  const d = dash(theme);
+  return {
+    flexShrink: 0,
+    maxHeight: { xs: "min(52vh, 420px)", md: "min(44vh, 380px)" },
+    overflowY: "auto",
+    overflowX: "hidden",
+    display: "flex",
+    flexDirection: "column",
+    gap: 1.25,
+    px: { xs: 1.25, sm: 1.5 },
+    py: 1.25,
+    bgcolor: alpha(d.sidebarBg, 0.35),
+    borderBottom: `1px solid ${alpha(d.cardBorder, 0.2)}`,
+    scrollbarWidth: "thin",
+  };
+};
+
+export const chatOpsHubSummaryChipSx: SxProps<Theme> = (theme) => {
+  const d = dash(theme);
+  return {
+    height: 28,
+    maxWidth: "100%",
+    fontSize: 11,
+    fontWeight: 600,
+    borderRadius: CHAT_OPS_BOX_RADIUS_PX,
+    bgcolor: alpha(d.overlayLight, 0.45),
+    border: `1px solid ${alpha(d.cardBorder, 0.28)}`,
+    color: (theme as AppTheme).app.text.primary,
+    "& .MuiChip-label": { px: 0.75 },
+    "& .MuiChip-icon": { color: d.accentBlue, ml: 0.75 },
+  };
+};
+
 /** Chat Start focus — queue left + chat right (no visitor details column). */
 export const chatOpsWorkspaceFocusGridSx: SxProps<Theme> = (theme) => {
   const d = dash(theme);
-  const divider = alpha(d.cardBorder, 0.18);
-  const paneBg = alpha(d.sidebarBg, 0.65);
   return {
     display: "grid",
     gridTemplateColumns: "minmax(0, 300px) minmax(0, 1fr)",
     gridTemplateRows: "minmax(0, 1fr)",
+    gap: { xs: 0, lg: 1 },
     flex: 1,
     minHeight: 0,
     minWidth: 0,
@@ -142,23 +295,18 @@ export const chatOpsWorkspaceFocusGridSx: SxProps<Theme> = (theme) => {
     maxHeight: "100%",
     alignItems: "stretch",
     overflow: "hidden",
-    "& > [data-chat-pane]": {
-      minWidth: 0,
-      minHeight: 0,
-      height: "100%",
-      maxHeight: "100%",
-      display: "flex",
-      flexDirection: "column",
-      overflow: "hidden",
-    },
-    "& > [data-chat-pane='inbox']": {
-      background: paneBg,
-      borderRight: `1px solid ${divider}`,
-    },
-    "& > [data-chat-pane='thread']": {
-      background: alpha(d.headerBg, 0.35),
-    },
+    p: { xs: 0, lg: 1 },
+    boxSizing: "border-box",
+    "& > [data-chat-pane='inbox']": chatOpsPaneSurfaceSx("inbox")(theme),
+    "& > [data-chat-pane='thread']": chatOpsPaneSurfaceSx("thread")(theme),
   };
+};
+
+/** Agent table inside hub panel — scrolls within the capped hub body. */
+export const chatOpsAgentTableWrapSx: SxProps<Theme> = {
+  flexShrink: 0,
+  minHeight: 0,
+  overflow: "visible",
 };
 
 export const chatOpsWorkspaceShellFocusSx: SxProps<Theme> = {
@@ -168,50 +316,30 @@ export const chatOpsWorkspaceShellFocusSx: SxProps<Theme> = {
   maxWidth: "100%",
 };
 
-export const chatOpsWorkspaceGrid: SxProps<Theme> = (theme) => {
-  const d = dash(theme);
-  const divider = alpha(d.cardBorder, 0.18);
-  const paneBg = alpha(d.sidebarBg, 0.65);
-  return {
-    display: "grid",
-    gridTemplateColumns: {
-      xs: "1fr",
-      lg: "minmax(0, 300px) minmax(0, 1fr) minmax(0, 280px)",
-    },
-    gridTemplateRows: "minmax(0, 1fr)",
-    flex: 1,
-    minHeight: 0,
-    height: "100%",
-    maxHeight: "100%",
-    alignItems: "stretch",
-    overflow: "hidden",
-    "& > [data-chat-pane]": {
-      minWidth: 0,
-      minHeight: 0,
-      height: "100%",
-      maxHeight: "100%",
-      display: "flex",
-      flexDirection: "column",
-      overflow: "hidden",
-    },
-    "& > [data-chat-pane='inbox']": {
-      background: paneBg,
-    },
-    "& > [data-chat-pane='thread']": {
-      background: alpha(d.headerBg, 0.35),
-      borderLeft: { lg: `1px solid ${divider}` },
-      borderRight: { lg: `1px solid ${divider}` },
-    },
-    "& > [data-chat-pane='details']": {
-      background: paneBg,
-      display: { xs: "none", lg: "flex" },
-      height: "100%",
-      maxHeight: "100%",
-      overflow: "hidden",
-      contain: "layout size",
-    },
-  };
-};
+export const chatOpsWorkspaceGrid: SxProps<Theme> = (theme) => ({
+  display: "grid",
+  gridTemplateColumns: {
+    xs: "1fr",
+    lg: "minmax(0, 280px) minmax(0, 1fr) minmax(0, 272px)",
+  },
+  gridTemplateRows: "minmax(0, 1fr)",
+  gap: { xs: 0, lg: 1 },
+  flex: 1,
+  minHeight: 0,
+  height: "100%",
+  maxHeight: "100%",
+  alignItems: "stretch",
+  overflow: "hidden",
+  p: { xs: 0, lg: 1 },
+  boxSizing: "border-box",
+  "& > [data-chat-pane='inbox']": chatOpsPaneSurfaceSx("inbox")(theme),
+  "& > [data-chat-pane='thread']": chatOpsPaneSurfaceSx("thread")(theme),
+  "& > [data-chat-pane='details']": {
+    ...chatOpsPaneSurfaceSx("details")(theme),
+    display: { xs: "none", lg: "flex" },
+    contain: "layout size",
+  },
+});
 
 export const chatOpsToolbarRow: SxProps<Theme> = (theme) => ({
   display: "flex",
@@ -231,7 +359,7 @@ export const chatOpsInboxTabsRow: SxProps<Theme> = (theme) => {
     display: "flex",
     gap: 0.35,
     p: 0.4,
-    borderRadius: 10,
+    borderRadius: CHAT_OPS_BOX_RADIUS_PX,
     bgcolor: alpha(d.overlayLight, 0.22),
     border: `1px solid ${alpha(d.cardBorder, 0.22)}`,
     overflowX: "auto",
@@ -247,7 +375,7 @@ export const chatOpsInboxTabSx = (active: boolean): SxProps<Theme> => (theme) =>
   return {
     flex: "1 0 auto",
     border: "none",
-    borderRadius: 8,
+    borderRadius: CHAT_OPS_BOX_RADIUS_PX,
     py: 0.65,
     px: 0.85,
     cursor: "pointer",
@@ -273,20 +401,20 @@ export const chatOpsInboxTabSx = (active: boolean): SxProps<Theme> => (theme) =>
   };
 };
 
-export const chatOpsInboxSearchWrap: SxProps<Theme> = (theme) => ({
-  px: 2,
-  py: 1.25,
+export const chatOpsInboxHeaderSx: SxProps<Theme> = (theme) => ({
+  px: { xs: 1.5, sm: 2 },
+  pt: 1,
+  pb: 1.15,
   flexShrink: 0,
   borderBottom: `1px solid ${alpha(dash(theme).cardBorder, 0.12)}`,
-  "& > div": { width: "100%", minWidth: 0, maxWidth: "100%" },
 });
 
-export const chatOpsInboxHeaderSx: SxProps<Theme> = (theme) => ({
-  px: 2,
-  pt: 1.25,
-  pb: 1.25,
+export const chatOpsInboxSearchWrap: SxProps<Theme> = (theme) => ({
+  px: { xs: 1.5, sm: 2 },
+  py: 1,
   flexShrink: 0,
-  borderBottom: `1px solid ${alpha(dash(theme).cardBorder, 0.15)}`,
+  borderBottom: `1px solid ${alpha(dash(theme).cardBorder, 0.1)}`,
+  "& > div": { width: "100%", minWidth: 0, maxWidth: "100%" },
 });
 
 /** Status chip + agent pill on monitor/ops queue rows and transcript header. */

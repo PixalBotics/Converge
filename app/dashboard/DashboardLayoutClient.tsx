@@ -129,6 +129,7 @@ export default function DashboardLayoutClient({
   const chatWorkstation = isDashboardChatWorkstationPath(pathname);
   const aiTrainingStudio = isDashboardAiTrainingStudioPath(pathname);
   const immersiveWorkstation = chatWorkstation || aiTrainingStudio;
+  const immersiveLayoutLocked = immersiveWorkstation || agentInboxFocusMode;
 
   if (routeAccessBlocked) {
     return (
@@ -163,14 +164,24 @@ export default function DashboardLayoutClient({
           (theme as { appBackground?: string }).appBackground ?? mainBackgroundGradient,
         p: agentInboxFocusMode ? 0 : { xs: 0, md: 2 },
         gap: agentInboxFocusMode ? 0 : { xs: 0, md: 2 },
-        height: agentInboxFocusMode ? "100vh" : undefined,
-        overflow: agentInboxFocusMode ? "hidden" : undefined,
+        height: immersiveLayoutLocked ? "100vh" : undefined,
+        maxHeight: immersiveLayoutLocked ? "100vh" : undefined,
+        overflow: immersiveLayoutLocked ? "hidden" : undefined,
       }}
     >
       {!agentInboxFocusMode ? (
         <DashboardSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       ) : null}
-      <Box sx={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, minHeight: 0 }}>
+      <Box
+        sx={{
+          flex: 1,
+          display: "flex",
+          flexDirection: "column",
+          minWidth: 0,
+          minHeight: 0,
+          overflow: immersiveLayoutLocked ? "hidden" : undefined,
+        }}
+      >
         {!agentInboxFocusMode ? (
           <Box sx={{ flexShrink: 0 }}>
             <DashboardHeader onMenuClick={() => setSidebarOpen(true)} />
@@ -194,7 +205,21 @@ export default function DashboardLayoutClient({
             ] as SxProps<Theme>
           }
         >
-          <OperationalViewGate pathname={pathname}>{children}</OperationalViewGate>
+          <Box
+            sx={
+              immersiveWorkstation
+                ? {
+                    flex: 1,
+                    minHeight: 0,
+                    display: "flex",
+                    flexDirection: "column",
+                    overflow: "hidden",
+                  }
+                : undefined
+            }
+          >
+            <OperationalViewGate pathname={pathname}>{children}</OperationalViewGate>
+          </Box>
         </Box>
       </Box>
     </Box>
