@@ -37,6 +37,7 @@ import {
 import type { AgentVisitorPresentation } from "@/services/chat/chat.types";
 import { parseVisitorInfo } from "../utils/visitor-info";
 import { VisitorLocationMap } from "./VisitorLocationMap";
+import { CloseChatSection } from "./CloseChatSection";
 import { SupervisorToolsPanel } from "./SupervisorToolsPanel";
 import {
   ProfileMetaGridCell,
@@ -548,6 +549,17 @@ export function VisitorInfoPanel({
                   placeholder="For AI when websiteId is missing"
                   value={fallbackWebsiteId}
                   onChange={(e) => onFallbackWebsiteIdChange(e.target.value)}
+                />
+              </Box>
+            ) : null}
+
+            {onCloseChat && !closed ? (
+              <Box sx={{ px: 2, pb: 2, pt: 0.5 }}>
+                <CloseChatSection
+                  visitorName={displayName}
+                  conversationId={conversationId}
+                  disabled={closeDisabled}
+                  onCloseChat={onCloseChat}
                 />
               </Box>
             ) : null}

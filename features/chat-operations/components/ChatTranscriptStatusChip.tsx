@@ -36,8 +36,14 @@ export function resolveLiveStatusChipLabel(input: {
     distributionSubmitted: Boolean(input.conversationMeta?.distributionSubmitted),
   });
   if (bucket === CLOSED_CHAT_BUCKETS.SPAM) return "Spam";
-  if (bucket === CLOSED_CHAT_BUCKETS.PENDING) return "Pending form";
-  if (bucket === CLOSED_CHAT_BUCKETS.COMPLETED) return "Completed";
+  if (bucket === CLOSED_CHAT_BUCKETS.PENDING) return "Form pending";
+  if (bucket === CLOSED_CHAT_BUCKETS.COMPLETED) {
+    if (Boolean(input.conversationMeta?.isMeaningfulChat) ||
+        Boolean(input.conversationMeta?.distributionSubmitted)) {
+      return "Meaningful chat";
+    }
+    return "Closed";
+  }
   return "Closed";
 }
 

@@ -25,6 +25,8 @@ import ForumOutlined from "@mui/icons-material/ForumOutlined";
 import TrendingUpOutlined from "@mui/icons-material/TrendingUpOutlined";
 import TrendingDownOutlined from "@mui/icons-material/TrendingDownOutlined";
 import TrendingFlatOutlined from "@mui/icons-material/TrendingFlatOutlined";
+import BlockOutlined from "@mui/icons-material/BlockOutlined";
+import PendingActionsOutlined from "@mui/icons-material/PendingActionsOutlined";
 import { DashboardCard, Typography } from "@/components/common";
 import type { MonthlyChatSummaryResponse } from "@/api/reports/reports.types";
 import { formatMetricValue, formatTrendBadge } from "../utils/report-params";
@@ -136,8 +138,19 @@ function MetricCard({
   );
 }
 
+const SPAM_CATEGORY_LABELS: Record<string, string> = {
+  promotional: "Promotional / marketing",
+  bot: "Bot / automated",
+  abusive: "Abusive / harassment",
+  wrong_number: "Wrong person / wrong site",
+  no_intent: "No real inquiry",
+  duplicate: "Duplicate / repeat spam",
+  other: "Other",
+};
+
 export function MonthlySummaryView({ data }: { data: MonthlyChatSummaryResponse }) {
-  const { accountSummary, topMetrics, systemInformation, performance, topSources } = data;
+  const { accountSummary, topMetrics, systemInformation, performance, topSources, chatCloseOutcomes } =
+    data;
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
@@ -196,6 +209,72 @@ export function MonthlySummaryView({ data }: { data: MonthlyChatSummaryResponse 
             icon={<ComputerOutlined sx={{ fontSize: 18 }} />}
           />
         </Box>
+      </DashboardCard>
+
+      <DashboardCard sx={{ p: 2 }}>
+        <SectionHeader icon={<ForumOutlined fontSize="small" />} title="Close outcomes" />
+        <Typography
+          variant="caption"
+          sx={{ display: "block", color: "text.secondary", mb: 1.5, fontSize: 11 }}
+        >
+          How closed chats ended in this period — spam, completed, and other close types shown separately.
+        </Typography>
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", md: "repeat(3, 1fr)" },
+            gap: 1.5,
+          }}
+        >
+          <MetricCard
+            label="Meaningful (form sent)"
+            metric={chatCloseOutcomes.completed}
+            icon={<CheckCircleOutline sx={{ fontSize: 18 }} />}
+          />
+          <MetricCard
+            label="Spam"
+            metric={chatCloseOutcomes.spam}
+            icon={<BlockOutlined sx={{ fontSize: 18 }} />}
+          />
+          <MetricCard
+            label="Auto closed"
+            metric={chatCloseOutcomes.auto}
+            icon={<TimerOutlined sx={{ fontSize: 18 }} />}
+          />
+          <MetricCard
+            label="Supervisor closed"
+            metric={chatCloseOutcomes.supervisor}
+            icon={<GroupsOutlined sx={{ fontSize: 18 }} />}
+          />
+          <MetricCard
+            label="Unset / legacy"
+            metric={chatCloseOutcomes.unset}
+            icon={<PendingActionsOutlined sx={{ fontSize: 18 }} />}
+          />
+        </Box>
+        {Object.keys(chatCloseOutcomes.spamByCategory).length > 0 ? (
+          <Box sx={{ mt: 2 }}>
+            <Typography fontWeight={600} sx={{ fontSize: 13, mb: 1 }}>
+              Spam by category
+            </Typography>
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", md: "repeat(3, 1fr)" },
+                gap: 1.5,
+              }}
+            >
+              {Object.entries(chatCloseOutcomes.spamByCategory).map(([key, metric]) => (
+                <MetricCard
+                  key={key}
+                  label={SPAM_CATEGORY_LABELS[key] ?? key}
+                  metric={metric}
+                  icon={<BlockOutlined sx={{ fontSize: 18 }} />}
+                />
+              ))}
+            </Box>
+          </Box>
+        ) : null}
       </DashboardCard>
 
       <Box

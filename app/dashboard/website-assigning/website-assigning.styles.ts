@@ -119,7 +119,7 @@ export const websiteAssignmentSearchFieldWrapper: SxProps<Theme> = {
 export const websiteAssignmentTableIconBox: SxProps<Theme> = {
   width: 40,
   height: 40,
-  borderRadius: "12px",
+  borderRadius: 3,
   background: "radial-gradient(100% 100% at 50% 0%, #A855F7 0%, #312E81 100%)",
   display: "flex",
   alignItems: "center",
@@ -151,7 +151,7 @@ export const websiteAssignmentSectionIconSx: SxProps<Theme> = (theme) => {
   return {
     width: 44,
     height: 44,
-    borderRadius: "12px",
+    borderRadius: 3,
     flexShrink: 0,
     display: "flex",
     alignItems: "center",

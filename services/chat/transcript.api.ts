@@ -66,6 +66,15 @@ function normalizeListItem(raw: unknown): TranscriptListItem | null {
       typeof o.resolvedAgentLabel === "string" ? o.resolvedAgentLabel : null,
     department: o.department as TranscriptListItem["department"],
     pool: o.pool as TranscriptListItem["pool"],
+    transcriptStatus:
+      typeof o.transcriptStatus === "string" ? o.transcriptStatus : null,
+    closeBucket: typeof o.closeBucket === "string" ? o.closeBucket : null,
+    closeOutcome: typeof o.closeOutcome === "string" ? o.closeOutcome : null,
+    spamCategory: typeof o.spamCategory === "string" ? o.spamCategory : null,
+    requiresDistributionForm: Boolean(o.requiresDistributionForm),
+    requiresDistributionSetup: Boolean(o.requiresDistributionSetup),
+    distributionSubmitted: Boolean(o.distributionSubmitted),
+    isMeaningfulChat: Boolean(o.isMeaningfulChat),
   };
 }
 

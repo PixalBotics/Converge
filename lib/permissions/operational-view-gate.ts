@@ -100,6 +100,14 @@ const PREFIX_VIEW_RULES: readonly { prefix: string; anyOf: readonly string[] }[]
     anyOf: [OP.chat.monitorInvolvement, OP.chatWidget.view, OP.chatWidget.update],
   },
   {
+    prefix: "/dashboard/chat-internal-supervisors",
+    anyOf: [
+      OP.chat.monitorInternalSupervisor,
+      OP.chatWidget.view,
+      OP.chatWidget.update,
+    ],
+  },
+  {
     prefix: "/dashboard/ai-training/assistant",
     anyOf: [
       OP.aiAssistant.use,

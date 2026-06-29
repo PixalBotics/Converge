@@ -8,6 +8,7 @@ import type { Theme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import { Typography } from "@/components/common";
 import { dashboardCardFill, dashboardSolidSurface } from "./chat-semantic";
+import { CHAT_OPS_BOX_RADIUS_PX } from "./chat-operations.styles";
 function dash(theme: Theme) {
   return (theme as AppTheme).app.dashboard;
 }
@@ -33,10 +34,10 @@ export const PanelDividerColumn = styled(PanelColumn)({});
 export const PanelHeader = styled(Box)(({ theme }) => {
   const d = dash(theme);
   return {
-    padding: theme.spacing(1.5, 2),
-    borderBottom: `1px solid ${alpha(d.cardBorder, 0.28)}`,
+    padding: theme.spacing(1.35, 1.75),
+    borderBottom: `1px solid ${alpha(d.cardBorder, 0.16)}`,
     flexShrink: 0,
-    background: alpha(d.headerBg, 0.5),
+    background: alpha(d.headerBg, 0.28),
   };
 });
 
@@ -56,7 +57,7 @@ export const ProfileHeroCard = styled(Box)(({ theme }) => {
   return {
     margin: theme.spacing(1.25, 1.5, 1.5),
     padding: theme.spacing(1.5),
-    borderRadius: 10,
+    borderRadius: CHAT_OPS_BOX_RADIUS_PX,
     border: `1px solid ${alpha(accent, 0.22)}`,
     background: `linear-gradient(165deg, ${alpha(accent, 0.14)} 0%, ${alpha(d.overlayLight, 0.2)} 100%)`,
   };
@@ -66,33 +67,41 @@ export const QueueItemRow = styled(Box, {
   shouldForwardProp: (prop) => prop !== "active",
 })<{ active?: boolean }>(({ theme, active }) => {
   const d = dash(theme);
+  const accent = theme.palette.primary.main;
   return {
     position: "relative",
     display: "flex",
     alignItems: "center",
-    gap: theme.spacing(1.5),
-    margin: 0,
-    padding: theme.spacing(1.35, 2),
-    paddingLeft: theme.spacing(2.25),
-    borderRadius: 0,
+    gap: theme.spacing(1.25),
+    margin: theme.spacing(0.4, 1),
+    padding: theme.spacing(1.15, 1.2),
+    borderRadius: CHAT_OPS_BOX_RADIUS_PX,
     cursor: "pointer",
-    borderBottom: `1px solid ${alpha(d.cardBorder, 0.12)}`,
-    background: active ? d.navActiveBg : "transparent",
-    transition: "background-color 0.12s ease, border-color 0.12s ease",
+    border: `1px solid ${active ? alpha(accent, 0.32) : alpha(d.cardBorder, 0.14)}`,
+    background: active
+      ? `linear-gradient(135deg, ${alpha(accent, 0.14)} 0%, ${alpha(d.navActiveBg, 0.9)} 100%)`
+      : alpha(d.overlayLight, 0.14),
+    boxShadow: active ? `0 2px 12px ${alpha(accent, 0.1)}` : "none",
+    transition:
+      "background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, transform 0.12s ease",
     "&::before": active
       ? {
           content: '""',
           position: "absolute",
           left: 0,
-          top: "16%",
-          bottom: "16%",
+          top: "22%",
+          bottom: "22%",
           width: 3,
           borderRadius: "0 3px 3px 0",
           background: `linear-gradient(180deg, ${d.accentBlue} 0%, ${d.accentIndigo} 100%)`,
         }
       : { display: "none" },
     "&:hover": {
-      background: active ? d.navActiveBg : alpha(d.overlayLight, 0.55),
+      background: active
+        ? `linear-gradient(135deg, ${alpha(accent, 0.16)} 0%, ${alpha(d.navActiveBg, 0.95)} 100%)`
+        : alpha(d.overlayLight, 0.32),
+      borderColor: active ? alpha(accent, 0.4) : alpha(d.cardBorder, 0.28),
+      transform: active ? "none" : "translateY(-1px)",
     },
   };
 });
@@ -131,7 +140,7 @@ export const MessageThread = styled(Box)(({ theme }) => ({
   "&::-webkit-scrollbar": { width: 6 },
   "&::-webkit-scrollbar-thumb": {
     background: alpha(dash(theme).cardBorder, 0.55),
-    borderRadius: 8,
+    borderRadius: CHAT_OPS_BOX_RADIUS_PX,
   },
 }));
 
@@ -332,7 +341,7 @@ export const ComposerToolsPanel = styled(Box)(({ theme }) => {
     maxHeight: "min(52vh, 420px)",
     minHeight: 320,
     overflow: "hidden",
-    borderRadius: 12,
+    borderRadius: CHAT_OPS_BOX_RADIUS_PX,
     border: `1px solid ${alpha(d.cardBorder, 0.32)}`,
     background: panelFill,
     boxShadow: "inset 0 1px 0 rgba(255,255,255,0.05)",
@@ -383,7 +392,7 @@ export const ComposerInputShell = styled(Box)(({ theme }) => {
     display: "flex",
     alignItems: "flex-end",
     gap: theme.spacing(0.25),
-    borderRadius: 14,
+    borderRadius: CHAT_OPS_BOX_RADIUS_PX,
     border: `1px solid ${alpha(d.cardBorder, 0.45)}`,
     background: alpha(live(theme).messageBg, theme.palette.mode === "light" ? 0.9 : 0.55),
     padding: theme.spacing(0.75, 1.25),
@@ -436,7 +445,7 @@ export const DrawerTabButton = styled("button", {
     position: "relative",
     flex: 1,
     border: `1px solid ${alpha(d.cardBorder, active ? 0.55 : 0.3)}`,
-    borderRadius: 10,
+    borderRadius: CHAT_OPS_BOX_RADIUS_PX,
     cursor: "pointer",
     padding: theme.spacing(0.75, 1.1),
     fontFamily: "inherit",
@@ -497,7 +506,7 @@ export const AiAssistantIcon = styled(Box)(({ theme }) => {
   return {
     width: 32,
     height: 32,
-    borderRadius: 8,
+    borderRadius: CHAT_OPS_BOX_RADIUS_PX,
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
@@ -629,7 +638,7 @@ export const CannedReplyCard = styled(Box)(({ theme }) => {
     gap: theme.spacing(1),
     width: "100%",
     border: `1px solid ${alpha(d.cardBorder, 0.38)}`,
-    borderRadius: 10,
+    borderRadius: CHAT_OPS_BOX_RADIUS_PX,
     padding: theme.spacing(1, 1.25),
     background: alpha(d.overlayLight, 0.28),
     transition: "background-color 0.15s ease, border-color 0.15s ease",
@@ -647,7 +656,7 @@ export const CannedReplyRow = styled("button")(({ theme }) => {
     width: "100%",
     textAlign: "left",
     border: `1px solid ${alpha(d.cardBorder, 0.38)}`,
-    borderRadius: 10,
+    borderRadius: CHAT_OPS_BOX_RADIUS_PX,
     padding: theme.spacing(1, 1.25),
     cursor: "pointer",
     fontFamily: "inherit",
@@ -671,7 +680,7 @@ export const AiActionRow = styled("button")(({ theme }) => ({
   width: "100%",
   textAlign: "left",
   border: `1px solid ${alpha(dash(theme).cardBorder, 0.45)}`,
-  borderRadius: 8,
+  borderRadius: CHAT_OPS_BOX_RADIUS_PX,
   padding: theme.spacing(0.85, 1.1),
   marginBottom: theme.spacing(0.75),
   cursor: "pointer",
@@ -692,7 +701,7 @@ export const AiActionRow = styled("button")(({ theme }) => ({
 export const AiOutputBox = styled(Box)(({ theme }) => ({
   marginTop: theme.spacing(1),
   padding: theme.spacing(1.25),
-  borderRadius: 8,
+  borderRadius: CHAT_OPS_BOX_RADIUS_PX,
   minHeight: 72,
   maxHeight: 120,
   overflowY: "auto",
@@ -834,7 +843,7 @@ export const LocationMapFrame = styled(Box)(({ theme }) => ({
   position: "relative",
   width: "100%",
   height: 112,
-  borderRadius: 10,
+  borderRadius: CHAT_OPS_BOX_RADIUS_PX,
   overflow: "hidden",
   border: `1px solid ${alpha(dash(theme).cardBorder, 0.55)}`,
   background: alpha(dash(theme).overlayLight, 0.25),
@@ -894,7 +903,7 @@ export const JourneyStep = styled(Box)(({ theme }) => ({
 export const CloseChatPanel = styled(Box)(({ theme }) => ({
   marginTop: theme.spacing(0.5),
   padding: theme.spacing(1.75),
-  borderRadius: 10,
+  borderRadius: CHAT_OPS_BOX_RADIUS_PX,
   border: `1px solid ${alpha(theme.palette.error.main, 0.22)}`,
   background: `linear-gradient(165deg, ${alpha(theme.palette.error.main, 0.08)} 0%, ${alpha(dash(theme).overlayLight, 0.2)} 100%)`,
 }));
@@ -905,7 +914,7 @@ export const ChatHeaderMetaChip = styled(Box)(({ theme }) => ({
   justifyContent: "center",
   gap: 2,
   padding: theme.spacing(0.75, 1.15),
-  borderRadius: 8,
+  borderRadius: CHAT_OPS_BOX_RADIUS_PX,
   minWidth: 76,
   minHeight: 40,
   boxSizing: "border-box",

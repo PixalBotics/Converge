@@ -75,6 +75,15 @@ export interface TranscriptListItem {
   resolvedAgentLabel?: string | null;
   department?: { id: string; name: string; type?: string } | null;
   pool?: { id: string; name: string } | null;
+  /** Enriched close classification (transcript API). */
+  transcriptStatus?: string | null;
+  closeBucket?: string | null;
+  closeOutcome?: string | null;
+  spamCategory?: string | null;
+    requiresDistributionForm?: boolean;
+  requiresDistributionSetup?: boolean;
+  distributionSubmitted?: boolean;
+  isMeaningfulChat?: boolean;
 }
 
 export interface TranscriptListResponse {

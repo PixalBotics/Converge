@@ -95,7 +95,7 @@ const TRANSCRIPT_COLUMNS: DataTableColumn<TranscriptRow>[] = [
   { id: "userName", label: "Agent", render: (v) => (v ? String(v) : "—") },
   { id: "domainName", label: "Domain" },
   { id: "department", label: "Department", render: (v) => (v ? String(v) : "—") },
-  { id: "leadType", label: "Lead type" },
+  { id: "leadType", label: "Lead type", render: (v) => (v === "Billable" ? "Meaningful chat" : String(v)) },
   { id: "source", label: "Source", render: (_v, row) => row.source.label },
   {
     id: "chatTranscript",

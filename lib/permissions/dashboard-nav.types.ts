@@ -73,6 +73,7 @@ export type PagePermission =
   | "page:chat-close-policy"
   | "page:chat-canned"
   | "page:chat-involvement"
+  | "page:chat-internal-supervisors"
   | "page:chat-qa-roster"
   | "page:ai-assistant"
   | "page:ai-chatbot"

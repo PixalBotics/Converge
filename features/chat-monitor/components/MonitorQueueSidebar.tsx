@@ -141,7 +141,7 @@ export function MonitorQueueSidebar({
         />
       </Box>
 
-      <ScrollRegion sx={{ flex: 1 }}>
+      <ScrollRegion sx={{ flex: 1, minHeight: 0, py: 1 }}>
         {loading ? (
           <EmptyState sx={{ py: 6 }}>
             <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted }}>

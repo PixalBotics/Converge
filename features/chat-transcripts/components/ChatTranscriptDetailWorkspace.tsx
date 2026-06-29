@@ -5,7 +5,7 @@ import ArrowBackRounded from "@mui/icons-material/ArrowBackRounded";
 import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
 import { useRouter } from "next/navigation";
-import { alpha, useTheme } from "@mui/material/styles";
+import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import { useAuth } from "@/lib/auth";
 import { PermissionDeniedPanel } from "@/components/common";
@@ -22,6 +22,7 @@ import type { TranscriptListItem } from "@/services/chat/transcript.types";
 import { agentDisplayName } from "@/services/chat/monitor-normalizers";
 import { extractVisitorPresentation } from "@/services/chat/visitor-presentation";
 import { useChatTranscripts } from "../hooks/useChatTranscripts";
+import { TranscriptStatusChip } from "./TranscriptStatusChip";
 
 function toMonitorRow(
   item: TranscriptListItem | null,
@@ -161,6 +162,43 @@ export function ChatTranscriptDetailWorkspace({
       ? conv.resolvedAgentLabel.trim()
       : transcripts.selectedRow?.resolvedAgentLabel?.trim() || null;
 
+  const transcriptStatusRow = useMemo((): Pick<
+    TranscriptListItem,
+    | "transcriptStatus"
+    | "status"
+    | "closeBucket"
+    | "closeOutcome"
+    | "spamCategory"
+    | "requiresDistributionForm"
+    | "requiresDistributionSetup"
+    | "distributionSubmitted"
+    | "isMeaningfulChat"
+  > => {
+    const src = conv ?? transcripts.selectedRow;
+    const str = (key: keyof TranscriptListItem): string | null =>
+      typeof src?.[key] === "string" ? String(src[key]) : null;
+    return {
+      status: String(conv?.status ?? transcripts.selectedRow?.status ?? ""),
+      transcriptStatus:
+        str("transcriptStatus") ?? transcripts.selectedRow?.transcriptStatus ?? null,
+      closeBucket: str("closeBucket") ?? transcripts.selectedRow?.closeBucket ?? null,
+      closeOutcome: str("closeOutcome") ?? transcripts.selectedRow?.closeOutcome ?? null,
+      spamCategory: str("spamCategory") ?? transcripts.selectedRow?.spamCategory ?? null,
+      requiresDistributionForm: Boolean(
+        conv?.requiresDistributionForm ?? transcripts.selectedRow?.requiresDistributionForm,
+      ),
+      requiresDistributionSetup: Boolean(
+        conv?.requiresDistributionSetup ?? transcripts.selectedRow?.requiresDistributionSetup,
+      ),
+      distributionSubmitted: Boolean(
+        conv?.distributionSubmitted ?? transcripts.selectedRow?.distributionSubmitted,
+      ),
+      isMeaningfulChat: Boolean(
+        conv?.isMeaningfulChat ?? transcripts.selectedRow?.isMeaningfulChat,
+      ),
+    };
+  }, [conv, transcripts.selectedRow]);
+
   if (!permissionsSyncing && !hasPageAccess) {
     return (
       <PermissionDeniedPanel
@@ -225,15 +263,7 @@ export function ChatTranscriptDetailWorkspace({
                 sx={{ fontWeight: 600 }}
               />
             ) : null}
-            <Chip
-              size="small"
-              label={String(conv?.status ?? transcripts.selectedRow?.status ?? "—")}
-              sx={{
-                fontWeight: 600,
-                color: theme.app.dashboard.textMuted,
-                border: `1px solid ${alpha(theme.app.dashboard.cardBorder, 0.35)}`,
-              }}
-            />
+            <TranscriptStatusChip row={transcriptStatusRow} />
           </Box>
         </Box>
       </Box>

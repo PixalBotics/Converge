@@ -1200,26 +1200,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const mappedMeUser = mapMePayloadToUser(mePayload);
       const incoming = extractPermissionsByType(mePayload);
       const platformAdmin = resolvePlatformAdminFromAuthPayload(mePayload);
-      let restoredPermissions: PermissionsByType | undefined;
-      flushSync(() => {
-        restoredPermissions = incoming ?? undefined;
-        setPermissionsByType(restoredPermissions);
-        setUser(mappedMeUser ?? getUserFromAccessToken());
-        setIsPlatformAdmin(platformAdmin);
-      });
-      clearImpersonationSession();
-      setIsImpersonating(false);
-      accountThemeFromMeAppliedRef.current = false;
-      syncAccountThemeFromMePayload(mePayload, true);
+      const restoredPermissions = incoming ?? undefined;
       const actor = mappedMeUser ?? getUserFromAccessToken();
       const isDemoUser = actor?.email?.trim().toLowerCase() === "demo@gmail.com";
-      router.replace(
-        resolveDashboardLandingHref({
-          permissionsByType: restoredPermissions,
-          isPlatformAdmin: platformAdmin,
-          isDemoUser: Boolean(isDemoUser),
-        }),
-      );
+      const landingHref = resolveDashboardLandingHref({
+        permissionsByType: restoredPermissions,
+        isPlatformAdmin: platformAdmin,
+        isDemoUser: Boolean(isDemoUser),
+      });
+      // Defer React commits so token swap listeners finish before auth context updates.
+      await new Promise<void>((resolve) => {
+        queueMicrotask(() => {
+          setPermissionsByType(restoredPermissions);
+          setUser(actor);
+          setIsPlatformAdmin(platformAdmin);
+          setIsImpersonating(false);
+          clearImpersonationSession();
+          accountThemeFromMeAppliedRef.current = false;
+          syncAccountThemeFromMePayload(mePayload, true);
+          resolve();
+        });
+      });
+      queueMicrotask(() => {
+        router.replace(landingHref);
+      });
       return true;
     } catch {
       return false;

@@ -8,6 +8,11 @@ const WORKSTATION_EXCLUDED = ["/dashboard/chat-operations/distribution"] as cons
 
 const TRANSCRIPT_DETAIL_PREFIX = "/dashboard/chat-transcripts/";
 
+/** Main agent inbox queue — not distribution / wrap-up sub-routes. */
+export function isDashboardAgentInboxPath(pathname: string): boolean {
+  return pathname === "/dashboard/chat-operations";
+}
+
 export function isDashboardChatWorkstationPath(pathname: string): boolean {
   if (WORKSTATION_EXCLUDED.some((p) => pathname === p || pathname.startsWith(`${p}/`))) {
     return false;

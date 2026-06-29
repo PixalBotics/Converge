@@ -1,20 +1,21 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Box from "@mui/material/Box";
-import { useTheme } from "@mui/material/styles";
+import { alpha } from "@mui/material/styles";
 import { useRouter } from "next/navigation";
-import type { AppTheme } from "@/theme/theme";
 import { useAuth } from "@/lib/auth";
 import { setAgentChatFocusedConversation } from "@/lib/hooks/chat/agent-chat-focus-bus";
-import { PermissionDeniedPanel } from "@/components/common";
+import { PermissionDeniedPanel, Button, Typography } from "@/components/common";
 import {
   needsChatScopeFilters,
   useChatApiGates,
+  canSupervisorCloseChat,
 } from "@/lib/permissions";
 import { PAGE } from "@/lib/permissions/permission-constants";
 import { OP } from "@/lib/permissions/operational-keys";
-import { Button, DashboardCard, Typography } from "@/components/common";
+import { ChatOpsTeamHubSection } from "@/features/chat-operations/components/ChatOpsTeamHubSection";
+import { mergeSx } from "@/lib/mui/merge-sx";
 import {
   ChatLiveHubScopeCard,
   ChatLivePageShell,
@@ -38,9 +39,12 @@ import { MonitorAssignPanel } from "./MonitorAssignPanel";
 import { MonitorTranscriptPanel } from "./MonitorTranscriptPanel";
 import { extractVisitorPresentation } from "@/services/chat/visitor-presentation";
 import { agentDisplayName } from "@/services/chat/monitor-normalizers";
+import { supervisorCloseConversation } from "@/services/chat/supervisor.api";
+import { extractApiErrorMessageForToast, publishAppToast } from "@/lib/notify";
 import {
   chatMonitorAgentTableWrapSx,
-  chatMonitorToolbarRowSx,
+  chatMonitorWorkstationChromeSx,
+  chatMonitorWorkstationTopBarSx,
   chatMonitorWorkspaceGrid,
   chatMonitorWorkspaceShell,
 } from "../styles/chat-monitor.styles";
@@ -53,7 +57,6 @@ export function ChatMonitorWorkspace({
   initialConversationId?: string | null;
 }) {
   const router = useRouter();
-  const theme = useTheme() as AppTheme;
   const { user, hasOperational, hasPage, permissionsSyncing } = useAuth();
   const gates = useChatApiGates();
   const hasChatPage = hasPage(PAGE.CHAT_MONITOR) || hasPage(PAGE.CHAT);
@@ -73,6 +76,7 @@ export function ChatMonitorWorkspace({
   const [viewMode, setViewMode] = useState<MonitorViewMode>("team");
   const [teamAgent, setTeamAgent] = useState<ChatWebsiteAgentRow | null>(null);
   const [agentSearch, setAgentSearch] = useState("");
+  const [teamHubOpen, setTeamHubOpen] = useState(false);
 
   const monitor = useChatMonitor(initialConversationId, { apiEnabled: monitorApiEnabled });
 
@@ -178,7 +182,7 @@ export function ChatMonitorWorkspace({
     [monitor.filterOptions.statuses],
   );
 
-  const showMonitorPanels =
+  const showMonitorGrid =
     viewMode === "queue" ||
     Boolean(initialConversationId) ||
     (teamMode && Boolean(websiteId));
@@ -206,7 +210,7 @@ export function ChatMonitorWorkspace({
     return (
       <PermissionDeniedPanel
         title="No monitor scope"
-        description="Assign pool/department head roles, add yourself on Chat involvement (Involvement users), or grant chat:monitor:involvement / chat:bundle:involvement-supervisor."
+        description="Assign pool/department head roles, internal supervisors (Chat → Internal supervisors), involvement users, or grant chat monitor bundles."
       />
     );
   }
@@ -240,12 +244,10 @@ export function ChatMonitorWorkspace({
     setViewMode(mode);
     if (mode === "queue") {
       setTeamAgent(null);
+      setTeamHubOpen(false);
+      return;
     }
-  };
-
-  const handlePickTeamAgent = (row: ChatWebsiteAgentRow) => {
-    setTeamAgent(row);
-    monitor.clearSelection();
+    setTeamHubOpen(true);
   };
 
   useEffect(() => {
@@ -271,163 +273,237 @@ export function ChatMonitorWorkspace({
 
   const hasScopes = (monitor.capabilities?.scopes?.length ?? 0) > 0;
 
+  useEffect(() => {
+    if (!teamMode) {
+      setTeamHubOpen(false);
+      return;
+    }
+    if (!websiteId) {
+      setTeamHubOpen(true);
+    }
+  }, [teamMode, websiteId]);
+
+  const handleDismissConversation = useCallback(() => {
+    monitor.clearSelection();
+    router.replace("/dashboard/chat-monitor", { scroll: false });
+  }, [monitor.clearSelection, router]);
+
+  const handleCloseChat = useCallback(async () => {
+    const conversationId = monitor.selectedConversationId;
+    if (!conversationId || monitor.selectedRow?.status === "closed") return;
+    try {
+      await supervisorCloseConversation(conversationId, {
+        reason: "Closed from chat monitor",
+      });
+      monitor.refreshLists();
+      await monitor.refreshSelectedTranscript();
+      publishAppToast({ variant: "success", message: "Chat closed." });
+    } catch (err) {
+      publishAppToast({
+        variant: "error",
+        message: extractApiErrorMessageForToast(err) ?? "Could not close chat.",
+      });
+      throw err;
+    }
+  }, [monitor]);
+
+  const canCloseSelectedChat =
+    !monitorReadOnly &&
+    canSupervisorCloseChat(hasOperational) &&
+    monitor.selectedRow?.status !== "closed";
+
+  const handlePickTeamAgent = (row: ChatWebsiteAgentRow) => {
+    setTeamAgent(row);
+    monitor.clearSelection();
+    setTeamHubOpen(false);
+  };
+
   return (
     <ChatLivePageShell variant="workstation" sx={chatLiveAgentStackSx}>
       {hasScopes ? (
-        <Box sx={chatMonitorToolbarRowSx}>
-          <ChatLiveViewSwitch
-            options={[
-              { id: "team", label: "By website" },
-              { id: "queue", label: "All chats" },
-            ]}
-            value={viewMode}
-            onChange={(id) => handleViewModeChange(id as MonitorViewMode)}
-            ariaLabel="Monitor view"
-          />
-          <Box
-            sx={{
-              display: "flex",
-              flexWrap: "wrap",
-              alignItems: "center",
-              gap: 0.75,
-              ml: "auto",
-            }}
-          >
-            {showScopeFilters && !teamMode ? (
-              <ChatScopeFiltersToolbar
-                filters={scopeFilters.filters}
-                onPatch={scopeFilters.patchFilters}
-                onReset={scopeFilters.resetFilters}
-                canFilterByResellerId={scopeFilters.canFilterByResellerId}
-                resellerOptions={scopeFilters.resellerOptions}
-                parentCompanyOptions={scopeFilters.parentCompanyOptions}
-                childCompanyOptions={scopeFilters.childCompanyOptions}
-                websiteOptions={scopeFilters.websiteOptions}
-                showDepartment
-                showPool
-                showStatus
-                departmentOptions={departmentOptions}
-                poolOptions={poolOptions}
-                statusOptions={statusOptions}
-                title="Monitor filters"
-                hint="Narrows the monitor queue. Department, pool, and status sync to the server."
-              />
-            ) : null}
-            {showMonitorPanels ? (
-              <>
-                <Box sx={chatLiveQueueStatPillSx("active")}>Live {scopedLive.length}</Box>
-                <Box sx={chatLiveQueueStatPillSx("closed")}>Closed {scopedClosed.length}</Box>
-              </>
-            ) : null}
-          </Box>
-        </Box>
-      ) : null}
-
-      {monitor.capabilitiesLoading ? (
-        <Typography
-          variant="caption"
-          sx={{ color: "text.secondary", px: 1, flexShrink: 0, fontSize: 11 }}
-        >
-          Loading monitor scope…
-        </Typography>
-      ) : null}
-
-      {!monitor.capabilitiesLoading && !hasScopes ? (
-        <DashboardCard sx={{ p: 1.25, height: "auto", minHeight: 0, flexShrink: 0, mx: { xs: 0.5, md: 1 } }}>
-          <Typography variant="caption" sx={{ color: "warning.main" }}>
-            No monitor scope from the server yet. Assign pool/dept head, involvement users on Chat
-            involvement, or monitor permissions.
-          </Typography>
-        </DashboardCard>
-      ) : null}
-
-      {monitorReadOnly && showMonitorPanels ? (
-        <Typography
-          variant="caption"
-          sx={{ color: "text.secondary", px: 1, flexShrink: 0, fontSize: 11 }}
-        >
-          Read-only monitor — view chats only; whisper and take-over are disabled.
-        </Typography>
-      ) : null}
-
-      {!showMonitorPanels && teamMode && !websiteId ? (
-        <ChatLiveHubScopeCard
-          filters={scopeFilters.filters}
-          onPatch={(patch) => {
-            scopeFilters.patchFilters(patch);
-            if (patch.websiteId !== undefined) setTeamAgent(null);
-          }}
-          onReset={() => {
-            scopeFilters.resetFilters();
-            setTeamAgent(null);
-            setAgentSearch("");
-          }}
-          canFilterByResellerId={scopeFilters.canFilterByResellerId}
-          resellerOptions={scopeFilters.resellerOptions}
-          parentCompanyOptions={scopeFilters.parentCompanyOptions}
-          childCompanyOptions={scopeFilters.childCompanyOptions}
-          websiteOptions={scopeFilters.websiteOptions}
-          departmentOptions={departmentOptions}
-          poolOptions={poolOptions}
-          statusOptions={statusOptions}
-          agentSearch={agentSearch}
-          onAgentSearchChange={setAgentSearch}
-        />
-      ) : null}
-
-      {showMonitorPanels && teamMode && websiteId ? (
-        <Box
-          sx={{
-            flexShrink: 0,
-            display: "flex",
-            flexWrap: "wrap",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 1,
-            px: { xs: 0.5, md: 1 },
-            pb: 0.25,
-          }}
-        >
-          <Typography variant="body2" sx={{ color: "text.secondary", fontSize: 13 }}>
-            {websiteLabel ?? "Website"}
-            {teamAgent ? ` · ${teamAgent.displayName}` : " · all agents"}
-          </Typography>
-          <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
-            {teamAgent ? (
-              <Button type="button" variant="outlined" size="small" onClick={() => setTeamAgent(null)}>
-                Clear agent
-              </Button>
-            ) : null}
-            <Button
-              type="button"
-              variant="secondary"
-              size="small"
-              onClick={() => {
-                scopeFilters.patchFilters({ websiteId: "" });
-                setTeamAgent(null);
+        <Box sx={{ flexShrink: 0, minHeight: 0 }}>
+          <Box sx={chatMonitorWorkstationTopBarSx}>
+            <ChatLiveViewSwitch
+              options={[
+                { id: "team", label: "By website" },
+                { id: "queue", label: "All chats" },
+              ]}
+              value={viewMode}
+              onChange={(id) => handleViewModeChange(id as MonitorViewMode)}
+              ariaLabel="Monitor view"
+            />
+            <Box
+              sx={{
+                display: "flex",
+                flexWrap: "wrap",
+                alignItems: "center",
+                gap: 0.75,
+                ml: "auto",
               }}
             >
-              Change website
-            </Button>
+              {showScopeFilters && !teamMode ? (
+                <ChatScopeFiltersToolbar
+                  filters={scopeFilters.filters}
+                  onPatch={scopeFilters.patchFilters}
+                  onReset={scopeFilters.resetFilters}
+                  canFilterByResellerId={scopeFilters.canFilterByResellerId}
+                  resellerOptions={scopeFilters.resellerOptions}
+                  parentCompanyOptions={scopeFilters.parentCompanyOptions}
+                  childCompanyOptions={scopeFilters.childCompanyOptions}
+                  websiteOptions={scopeFilters.websiteOptions}
+                  showDepartment
+                  showPool
+                  showStatus
+                  departmentOptions={departmentOptions}
+                  poolOptions={poolOptions}
+                  statusOptions={statusOptions}
+                  title="Monitor filters"
+                  hint="Narrows the monitor queue. Department, pool, and status sync to the server."
+                />
+              ) : null}
+              {showMonitorGrid ? (
+                <>
+                  <Box sx={chatLiveQueueStatPillSx("active")}>Live {scopedLive.length}</Box>
+                  <Box sx={chatLiveQueueStatPillSx("closed")}>Closed {scopedClosed.length}</Box>
+                </>
+              ) : null}
+            </Box>
           </Box>
+
+          {teamMode ? (
+            <ChatOpsTeamHubSection
+              open={teamHubOpen}
+              onToggle={() => setTeamHubOpen((v) => !v)}
+              websiteLabel={websiteLabel}
+              websiteSelected={Boolean(websiteId)}
+              teamAgentName={teamAgent?.displayName ?? null}
+              agentCount={websiteId ? agentsQuery.rows.length : undefined}
+              onClearAgent={teamAgent ? () => setTeamAgent(null) : undefined}
+            >
+              <Box sx={chatMonitorWorkstationChromeSx}>
+                <ChatLiveHubScopeCard
+                  filters={scopeFilters.filters}
+                  onPatch={(patch) => {
+                    scopeFilters.patchFilters(patch);
+                    if (patch.websiteId !== undefined) setTeamAgent(null);
+                  }}
+                  onReset={() => {
+                    scopeFilters.resetFilters();
+                    setTeamAgent(null);
+                    setAgentSearch("");
+                  }}
+                  canFilterByResellerId={scopeFilters.canFilterByResellerId}
+                  resellerOptions={scopeFilters.resellerOptions}
+                  parentCompanyOptions={scopeFilters.parentCompanyOptions}
+                  childCompanyOptions={scopeFilters.childCompanyOptions}
+                  websiteOptions={scopeFilters.websiteOptions}
+                  departmentOptions={departmentOptions}
+                  poolOptions={poolOptions}
+                  statusOptions={statusOptions}
+                  agentSearch={agentSearch}
+                  onAgentSearchChange={setAgentSearch}
+                />
+                {websiteId ? (
+                  <Box sx={chatMonitorAgentTableWrapSx}>
+                    <ChatWebsiteAgentsTable
+                      rows={agentsQuery.rows}
+                      isLoading={agentsQuery.isLoading}
+                      isError={agentsQuery.isError}
+                      selectedAgentUserId={teamAgent?.userId}
+                      onSelectAgent={handlePickTeamAgent}
+                      websiteLabel={websiteLabel}
+                    />
+                  </Box>
+                ) : null}
+              </Box>
+            </ChatOpsTeamHubSection>
+          ) : null}
+
+          {monitor.capabilitiesLoading ? (
+            <Typography
+              variant="caption"
+              sx={{ color: "text.secondary", px: 1.5, flexShrink: 0, fontSize: 11, py: 0.5 }}
+            >
+              Loading monitor scope…
+            </Typography>
+          ) : null}
+
+          {!monitor.capabilitiesLoading && !hasScopes ? (
+            <Box
+              sx={(t) => ({
+                mx: { xs: 1.25, sm: 1.5 },
+                mb: 1,
+                p: 1.25,
+                borderRadius: 3,
+                flexShrink: 0,
+                border: `1px solid ${alpha(t.palette.warning.main, 0.35)}`,
+                bgcolor: alpha(t.palette.warning.main, 0.08),
+              })}
+            >
+              <Typography variant="caption" sx={{ color: "warning.main" }}>
+                No monitor scope from the server yet. Assign pool/dept head, involvement users on
+                Chat involvement, or monitor permissions.
+              </Typography>
+            </Box>
+          ) : null}
+
+          {monitorReadOnly && showMonitorGrid ? (
+            <Typography
+              variant="caption"
+              sx={{ color: "text.secondary", px: 1.5, flexShrink: 0, fontSize: 11, pb: 0.5 }}
+            >
+              Read-only monitor — view chats only; whisper and take-over are disabled.
+            </Typography>
+          ) : null}
         </Box>
       ) : null}
 
-      {showMonitorPanels && teamMode && websiteId ? (
-        <Box sx={{ ...chatMonitorAgentTableWrapSx, px: { xs: 0.5, md: 1 } }}>
-          <ChatWebsiteAgentsTable
-            rows={agentsQuery.rows}
-            isLoading={agentsQuery.isLoading}
-            isError={agentsQuery.isError}
-            selectedAgentUserId={teamAgent?.userId}
-            onSelectAgent={handlePickTeamAgent}
-            websiteLabel={websiteLabel}
-          />
-        </Box>
-      ) : null}
+      {showMonitorGrid ? (
+        <Box sx={mergeSx(chatMonitorWorkspaceShell, { flex: 1, minHeight: 0 })}>
+          {teamMode && teamAgent && !teamHubOpen ? (
+            <Box
+              sx={(t) => ({
+                flexShrink: 0,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 1,
+                flexWrap: "wrap",
+                px: { xs: 1.25, sm: 1.5 },
+                py: 0.85,
+                borderBottom: `1px solid ${alpha(t.app.dashboard.cardBorder, 0.16)}`,
+                bgcolor: alpha(t.app.dashboard.headerBg, 0.28),
+              })}
+            >
+              <Typography variant="body2" sx={{ fontSize: 13 }}>
+                Monitoring <strong>{teamAgent.displayName}</strong>
+                {teamAgent.email ? (
+                  <Box component="span" sx={{ color: "text.secondary", fontWeight: 400 }}>
+                    {" "}
+                    · {teamAgent.email}
+                  </Box>
+                ) : null}
+              </Typography>
+              <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
+                <Button type="button" variant="outlined" size="small" onClick={() => setTeamAgent(null)}>
+                  Clear agent
+                </Button>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="small"
+                  onClick={() => {
+                    scopeFilters.patchFilters({ websiteId: "" });
+                    setTeamAgent(null);
+                    setTeamHubOpen(true);
+                  }}
+                >
+                  Change website
+                </Button>
+              </Box>
+            </Box>
+          ) : null}
 
-      {showMonitorPanels ? (
-        <Box sx={chatMonitorWorkspaceShell}>
           {monitor.listsError ? (
             <Box sx={{ p: 2, display: "flex", alignItems: "center", gap: 2, flexShrink: 0 }}>
               <Typography color="error">Could not load monitor lists.</Typography>
@@ -436,6 +512,7 @@ export function ChatMonitorWorkspace({
               </Button>
             </Box>
           ) : null}
+
           <Box sx={chatMonitorWorkspaceGrid}>
             <Box data-monitor-pane="inbox">
               <MonitorQueueSidebar
@@ -468,6 +545,8 @@ export function ChatMonitorWorkspace({
                 monitorReadOnly={monitorReadOnly}
                 supervisorControlUserId={monitor.supervisorControlUserId}
                 visitorTyping={monitor.visitorTyping}
+                onDismissConversation={handleDismissConversation}
+                showBackButton={Boolean(monitor.selectedConversationId)}
                 onSupervisorAction={() => {
                   monitor.updateSupervisorControl(
                     monitor.supervisorControlUserId ?? null,
@@ -506,9 +585,16 @@ export function ChatMonitorWorkspace({
                 onSupervisorActivity={() => {
                   /* socket updates lists + transcript */
                 }}
+                onCloseChat={canCloseSelectedChat ? () => handleCloseChat() : undefined}
               />
               {monitor.selectedRow?.status !== "closed" ? (
-                <>
+                <Box
+                  sx={(t) => ({
+                    flexShrink: 0,
+                    borderTop: `1px solid ${alpha(t.app.dashboard.cardBorder, 0.16)}`,
+                    bgcolor: alpha(t.app.dashboard.headerBg, 0.2),
+                  })}
+                >
                   <MonitorAssignPanel
                     conversationId={monitor.selectedConversationId}
                     assignedAgentId={
@@ -545,18 +631,11 @@ export function ChatMonitorWorkspace({
                     }
                   }}
                 />
-                </>
+                </Box>
               ) : null}
             </Box>
           </Box>
         </Box>
-      ) : teamMode && !websiteId ? (
-        <Typography
-          variant="body2"
-          sx={{ color: "text.secondary", py: 1.5, fontSize: 14, px: { xs: 0.5, md: 1 } }}
-        >
-          Select a website in Scope above to load its chat queue.
-        </Typography>
       ) : null}
     </ChatLivePageShell>
   );

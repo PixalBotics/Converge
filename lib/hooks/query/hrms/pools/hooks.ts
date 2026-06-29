@@ -9,6 +9,7 @@ export type HrmsPoolsListParams = {
   departmentId?: string;
   resellerId?: string;
   parentCompanyId?: string;
+  departmentType?: "Internal" | "External";
   page?: number;
   limit?: number;
   all?: boolean;

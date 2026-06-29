@@ -34,7 +34,7 @@ export const REPORT_TYPE_LABELS: Record<ReportType, string> = Object.fromEntries
 
 export const LEAD_TYPE_OPTIONS = [
   { value: "", label: "All lead types" },
-  { value: "Billable", label: "Billable (meaningful)" },
+  { value: "Billable", label: "Meaningful chat" },
   { value: "Closed", label: "Closed (not meaningful)" },
 ] as const;
 

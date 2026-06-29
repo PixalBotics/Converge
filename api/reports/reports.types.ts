@@ -99,6 +99,14 @@ export type MonthlyChatSummaryResponse = {
     distributionWrapUpsSent: MetricWithTrend;
     qaAchievements: MetricWithTrend;
   };
+  chatCloseOutcomes: {
+    completed: MetricWithTrend;
+    spam: MetricWithTrend;
+    auto: MetricWithTrend;
+    supervisor: MetricWithTrend;
+    unset: MetricWithTrend;
+    spamByCategory: Record<string, MetricWithTrend>;
+  };
   topSources: {
     topTrafficSources: Array<{ source: string; value: number; percentage: number }>;
     topChatSources: Array<{ source: string; value: number; percentage: number }>;
