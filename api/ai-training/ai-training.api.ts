@@ -2,6 +2,7 @@ import { apiClient } from "../http/axios-instance";
 import { unwrapAiKnowledgeData } from "../ai-knowledge/unwrap";
 
 export type WebsiteAiBehavior = {
+  tone?: "PROFESSIONAL" | "FRIENDLY" | "SALES";
   confidenceThreshold: number | null;
   strictKbOnly: boolean;
   autoLearnFromVisitorPages: boolean;
@@ -12,6 +13,9 @@ export type WebsiteAiBehavior = {
   llmErrorMessage: string | null;
   escalationMessage: string | null;
   partialMatchMessage: string | null;
+  systemInstructions: string | null;
+  chatbotInstructions: string | null;
+  copilotInstructions: string | null;
 };
 
 export type AiTrainingTestContext = {

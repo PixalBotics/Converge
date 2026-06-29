@@ -6,7 +6,7 @@ import { HRMS, ORG } from "./permission-constants";
  *
  * - **Route / menu:** `useAuth().hasPage(PAGE.*)` + `lib/permissions/dashboard-access`.
  * - **Actions:** `hasAnyOperational(hasOperational, ORG.*)` or helpers below.
- * - **Org vs HRMS:** Departments/Pools use {@link ORG}; shifts/leave/attendance use {@link HRMS}.
+ * - **Org vs HRMS:** Departments/Pools use {@link ORG} (`hrms:*` org structure); shifts/leave/attendance use {@link HRMS}.
  */
 export const OP = {  accountSetup: {
     create: "account-setup:create",
@@ -45,11 +45,20 @@ export const OP = {  accountSetup: {
   aiAssistant: {
     trainingView: "ai-assistant:training:view",
     trainingManage: "ai-assistant:training:manage",
-    use: "ai-assistant:use",
+  },
+  aiCopilot: {
+    use: "ai-copilot:use",
+    /** @deprecated stored on old roles — expands to ai-copilot:use */
+    useLegacy: "ai-assistant:use",
+    setupView: "ai-copilot:setup:view",
+    setupManage: "ai-copilot:setup:manage",
   },
   aiChatbot: {
     trainingView: "ai-chatbot:training:view",
     trainingManage: "ai-chatbot:training:manage",
+  },
+  aiPlatform: {
+    manage: "ai-platform:manage",
   },
   client: { permissions: "client:permissions" },
   company: {

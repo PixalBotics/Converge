@@ -115,15 +115,60 @@ export function canWidgetSettingsFromArrays(perms: AuthPermissionArrays): boolea
   );
 }
 
-export function canAiAssistantFromArrays(perms: AuthPermissionArrays): boolean {
-  /** All inbox agents get copilot for now; revoke `ai-assistant:use` later per role if needed. */
-  if (canAgentChatFromArrays(perms)) {
-    return true;
-  }
+function hasCopilotUseOperational(perms: AuthPermissionArrays): boolean {
   return (
-    (canPermissionCode(PAGE.AI_ASSISTANT, perms) || hasLegacyChatModule(perms)) &&
-    (canPermissionCode(OP.aiAssistant.use, perms) ||
-      canPermissionCode(OP.aiAssistant.trainingView, perms))
+    canPermissionCode(OP.aiCopilot.use, perms) ||
+    canPermissionCode(OP.aiCopilot.useLegacy, perms)
+  );
+}
+
+/** Inbox AI copilot drawer — requires explicit use permission. */
+export function canUseCopilotInboxFromArrays(perms: AuthPermissionArrays): boolean {
+  return hasCopilotUseOperational(perms);
+}
+
+export function canUseCopilotInbox(
+  hasOperational: (permission: string) => boolean,
+): boolean {
+  return (
+    hasOperational(OP.aiCopilot.use) || hasOperational(OP.aiCopilot.useLegacy)
+  );
+}
+
+/** AI Assistant internal KB training screens. */
+export function canAiAssistantTrainingFromArrays(perms: AuthPermissionArrays): boolean {
+  return (
+    canPermissionCode(PAGE.AI_ASSISTANT, perms) &&
+    (canPermissionCode(OP.aiAssistant.trainingView, perms) ||
+      canPermissionCode(OP.aiAssistant.trainingManage, perms))
+  );
+}
+
+/** @deprecated use canAiAssistantTrainingFromArrays or canUseCopilotInboxFromArrays */
+export function canAiAssistantFromArrays(perms: AuthPermissionArrays): boolean {
+  return canAiAssistantTrainingFromArrays(perms) || canUseCopilotInboxFromArrays(perms);
+}
+
+/** AI Copilot setup page (per-website status table). */
+export function canCopilotSetupFromArrays(perms: AuthPermissionArrays): boolean {
+  return (
+    canPermissionCode(PAGE.AI_COPILOT, perms) &&
+    (canPermissionCode(OP.aiCopilot.setupView, perms) ||
+      canPermissionCode(OP.aiCopilot.setupManage, perms))
+  );
+}
+
+export function canManageCopilotSetupFromArrays(perms: AuthPermissionArrays): boolean {
+  return (
+    canPermissionCode(PAGE.AI_COPILOT, perms) &&
+    canPermissionCode(OP.aiCopilot.setupManage, perms)
+  );
+}
+
+export function canManagePlatformAiFromArrays(perms: AuthPermissionArrays): boolean {
+  return (
+    canPermissionCode(PAGE.AI_PLATFORM, perms) &&
+    canPermissionCode(OP.aiPlatform.manage, perms)
   );
 }
 
@@ -244,14 +289,11 @@ export function buildChatLiveNavItems(
   ) {
     items.push({ href: "/dashboard/chat-widget", label: "Widget" });
   }
-  if (
-    canAccessChatInbox(hasOperational, hasPage) ||
-    ((hasPage(PAGE.AI_ASSISTANT) || hasPage(PAGE.CHAT)) &&
-      (hasOperational(OP.aiAssistant.use) ||
-        hasOperational(OP.aiAssistant.trainingView) ||
-        hasOperational(OP.chat.access)))
-  ) {
+  if (canAiAssistantTrainingFromArrays(perms)) {
     items.push({ href: "/dashboard/ai-training/assistant", label: "AI Assistant" });
+  }
+  if (canCopilotSetupFromArrays(perms)) {
+    items.push({ href: "/dashboard/ai-training/copilot", label: "AI Copilot" });
   }
   if (
     (hasPage(PAGE.AI_CHATBOT) || hasPage(PAGE.CHAT_WIDGET)) &&

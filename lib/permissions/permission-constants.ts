@@ -28,32 +28,28 @@ export const PAGE = {
   PHONE_NUMBER_SETUP: "page:phone-number-setup",
   AI_ASSISTANT: "page:ai-assistant",
   AI_CHATBOT: "page:ai-chatbot",
+  AI_COPILOT: "page:ai-copilot",
+  AI_PLATFORM: "page:ai-platform",
   ROLES: "page:roles",
   WEBSITE_ASSIGNMENTS: "page:website-assignments",
   SETTINGS: "page:settings",
   OBSERVABILITY_LOGS: "page:observability:logs",
 } as const;
 
-/** Org / user-management structure (prefer `org:*`; keep `hrms:org:*` for backward compat). */
+/** Org structure operational codes (`hrms:*` namespace). */
 export const ORG = {
-  DEPT_MANAGE: [
-    "org:org:department:manage",
-    "hrms:org:department:manage",
-  ] as const,
-  DESIGNATION_MANAGE: [
-    "org:org:designation:manage",
-    "hrms:org:designation:manage",
-  ] as const,
-  POOL_MANAGE: ["org:org:pool:manage", "hrms:org:pool:manage"] as const,
-  ORG_MANAGE: ["org:org:manage", "hrms:org:manage"] as const,
-  STRUCTURE_VIEW: ["org:org:structure:view", "hrms:org:structure:view"] as const,
-  DEPT_VIEW: ["org:department:view", "hrms:department:view"] as const,
-  DESIGNATION_VIEW: ["org:designation:view", "hrms:designation:view"] as const,
-  POOL_VIEW: ["org:pool:view", "hrms:pool:view"] as const,
-  POOL_HEAD_VIEW: ["org:pool-head:view", "hrms:pool-head:view"] as const,
-  POOL_MEMBER_ADD: ["org:pool:member:add", "hrms:pool:member:add"] as const,
-  POOL_MEMBER_UPDATE: ["org:pool:member:update", "hrms:pool:member:update"] as const,
-  POOL_MEMBER_REMOVE: ["org:pool:member:remove", "hrms:pool:member:remove"] as const,
+  DEPT_MANAGE: ["hrms:org:department:manage"] as const,
+  DESIGNATION_MANAGE: ["hrms:org:designation:manage"] as const,
+  POOL_MANAGE: ["hrms:org:pool:manage"] as const,
+  ORG_MANAGE: ["hrms:org:manage"] as const,
+  STRUCTURE_VIEW: ["hrms:org:structure:view"] as const,
+  DEPT_VIEW: ["hrms:department:view"] as const,
+  DESIGNATION_VIEW: ["hrms:designation:view"] as const,
+  POOL_VIEW: ["hrms:pool:view"] as const,
+  POOL_HEAD_VIEW: ["hrms:pool-head:view"] as const,
+  POOL_MEMBER_ADD: ["hrms:pool:member:add"] as const,
+  POOL_MEMBER_UPDATE: ["hrms:pool:member:update"] as const,
+  POOL_MEMBER_REMOVE: ["hrms:pool:member:remove"] as const,
 } as const;
 
 /** HRMS workforce only (not org admin). */
