@@ -116,17 +116,35 @@ const AI_MANAGEMENT_GROUP: DashboardNavItem = {
   section: "activity",
   iconKey: "aiTraining",
   permission: null,
-  permissionsAny: [PAGE.AI_ASSISTANT, PAGE.AI_CHATBOT],
+  permissionsAny: [
+    PAGE.AI_ASSISTANT,
+    PAGE.AI_CHATBOT,
+    PAGE.AI_COPILOT,
+    PAGE.AI_PLATFORM,
+  ],
   prefixMatch: true,
   children: [
     chatNavItem(PAGE.AI_ASSISTANT, "/dashboard/ai-training/assistant", "AI Assistant", "aiTraining", [
-      OP.aiAssistant.use,
       OP.aiAssistant.trainingView,
-      OP.chat.access,
+      OP.aiAssistant.trainingManage,
     ]),
     chatNavItem(PAGE.AI_CHATBOT, "/dashboard/ai-training/chatbot", "AI Chatbot", "aiTraining", [
       OP.aiChatbot.trainingView,
+      OP.aiChatbot.trainingManage,
     ]),
+    chatNavItem(PAGE.AI_COPILOT, "/dashboard/ai-training/copilot", "AI Copilot", "aiTraining", [
+      OP.aiCopilot.setupView,
+      OP.aiCopilot.setupManage,
+    ]),
+    {
+      href: "/dashboard/ai-training/platform-keys",
+      label: "AI configuration",
+      section: "activity",
+      iconKey: "aiTraining",
+      permission: PAGE.AI_PLATFORM,
+      operationalAny: [OP.aiPlatform.manage],
+      prefixMatch: true,
+    },
   ],
 };
 
@@ -560,8 +578,13 @@ export const DASHBOARD_NAV_ITEMS: readonly DashboardNavItem[] = PAGE_PERMISSION_
   ) {
     return permission === "page:chat-inbox" ? [LIVE_CHAT_GROUP] : [];
   }
-  if (permission === "page:ai-assistant" || permission === "page:ai-chatbot") {
-    return permission === "page:ai-assistant" ? [AI_MANAGEMENT_GROUP] : [];
+  if (
+    permission === "page:ai-assistant" ||
+    permission === "page:ai-chatbot" ||
+    permission === "page:ai-copilot" ||
+    permission === "page:ai-platform"
+  ) {
+    return [AI_MANAGEMENT_GROUP];
   }
   if (COMMERCIAL_PAGE_PERMISSIONS.includes(permission)) {
     const first = firstCommercialPageInNavOrder();

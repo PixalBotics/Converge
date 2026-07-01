@@ -12,7 +12,7 @@ import { extractApiErrorMessageForToast } from "@/lib/notify/extract-api-message
 import { AiTrainingHowItWorks } from "./AiTrainingHowItWorks";
 import { AiTrainingPageShell } from "./AiTrainingPageShell";
 import { AiTrainingWebsitesOverview } from "./AiTrainingWebsitesOverview";
-import { aiTrainingAddHref, aiTrainingManageHref, aiTrainingTestStudioHref } from "./ai-training-routes";
+import { aiTrainingListHref, aiTrainingManageHref, aiTrainingSetupHref, aiTrainingTestStudioHref } from "./ai-training-routes";
 import type { AiTrainingKbVariant } from "./ai-training-kb.utils";
 import { useAiTrainingHierarchy } from "./use-ai-training-hierarchy";
 import { buildAiTrainingSessionScope } from "./ai-training-scope.util";
@@ -25,7 +25,7 @@ const VARIANT_COPY: Record<
   assistant: {
     title: "AI Assistant training",
     subtitle:
-      "Websites with knowledge for your agent copilot — site scrape, docs, and FAQs (not the public chatbot).",
+      "Websites with internal assistant knowledge — site scrape, docs, and FAQs (separate from visitor chatbot and inbox copilot).",
   },
   chatbot: {
     title: "AI Chatbot training",
@@ -127,7 +127,13 @@ export function AiTrainingKbPage({ variant }: { variant: AiTrainingKbVariant }) 
         onTestWebsite={(row) =>
           router.push(aiTrainingTestStudioHref(variant, row.websiteId))
         }
-        onAddTraining={() => router.push(aiTrainingAddHref(variant))}
+        onAddTraining={() =>
+          router.push(
+            isChatbot
+              ? aiTrainingSetupHref(undefined, "chatbot")
+              : aiTrainingListHref("assistant"),
+          )
+        }
       />
     </AiTrainingPageShell>
   );

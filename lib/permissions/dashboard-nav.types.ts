@@ -77,6 +77,8 @@ export type PagePermission =
   | "page:chat-qa-roster"
   | "page:ai-assistant"
   | "page:ai-chatbot"
+  | "page:ai-copilot"
+  | "page:ai-platform"
   | "page:clients"
   | "page:crm-integration"
   | "page:dashboard"

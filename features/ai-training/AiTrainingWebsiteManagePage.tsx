@@ -37,10 +37,12 @@ import { AiTrainingNonWebProcessingCard } from "./AiTrainingNonWebProcessingCard
 import { AiTrainingParallelScrapeToggle } from "./AiTrainingParallelScrapeToggle";
 import { AiTrainingScrapeStatusCard } from "./AiTrainingScrapeStatusCard";
 import { AiTrainingSourcesTable } from "./AiTrainingSourcesTable";
+import { WebsiteAiConfigModal } from "./WebsiteAiConfigModal";
+import { usePlatformLlmAccess } from "./hooks/usePlatformLlmAccess";
 import {
-  aiTrainingAddHref,
   aiTrainingListHref,
   aiTrainingTestStudioHref,
+  aiTrainingTrainHref,
 } from "./ai-training-routes";
 import {
   hostFromWebsiteUrl,
@@ -75,6 +77,8 @@ export function AiTrainingWebsiteManagePage({ variant }: { variant: AiTrainingKb
   const [rowBusyId, setRowBusyId] = useState<string | null>(null);
   const [previewSourceId, setPreviewSourceId] = useState<string | null>(null);
   const [synced, setSynced] = useState(false);
+  const [configModalOpen, setConfigModalOpen] = useState(false);
+  const { canManage: canManageAiConfig } = usePlatformLlmAccess();
 
   const chatbotTrainingWebsites = useAiChatbotTrainingWebsitesQuery(
     { limit: 500, trainedOnly: false, ...sessionScope },
@@ -254,7 +258,7 @@ export function AiTrainingWebsiteManagePage({ variant }: { variant: AiTrainingKb
       subtitle={
         isChatbot
           ? "Training content for the visitor chatbot on this website — each row is one import (sitemap, page, or FAQ set)."
-          : "Training content for the agent copilot on this website — each row is one scrape, document, or FAQ set."
+          : "Training content for AI Assistant on this website — internal knowledge for agents (separate from AI Copilot)."
       }
       icon={<HeaderIcon sx={{ color: theme.app.dashboard.accentBlue, fontSize: 28 }} />}
       backHref={listHref}
@@ -264,13 +268,22 @@ export function AiTrainingWebsiteManagePage({ variant }: { variant: AiTrainingKb
           {websiteId ? (
             <AiTrainingStudioHeaderTabs variant={variant} websiteId={websiteId} active="training" />
           ) : null}
+          {isChatbot ? (
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => setConfigModalOpen(true)}
+            >
+              Chatbot LLM
+            </Button>
+          ) : null}
           <Button
             type="button"
             variant="primary"
             sx={gradientPrimaryButtonSx}
-            onClick={() => router.push(aiTrainingAddHref(variant, websiteId))}
+            onClick={() => router.push(aiTrainingTrainHref(websiteId))}
           >
-            + Add more training
+            + Add training
           </Button>
         </>
       }
@@ -419,6 +432,16 @@ export function AiTrainingWebsiteManagePage({ variant }: { variant: AiTrainingKb
         </Stack>
       </DashboardCard>
       </Stack>
+
+      {websiteId && isChatbot ? (
+        <WebsiteAiConfigModal
+          open={configModalOpen}
+          websiteId={websiteId}
+          scope="chatbot"
+          canManage={canManageAiConfig}
+          onClose={() => setConfigModalOpen(false)}
+        />
+      ) : null}
     </AiTrainingPageShell>
   );
 }

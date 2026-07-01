@@ -56,9 +56,10 @@ export const chatOpsWorkspaceShell: SxProps<Theme> = (theme) => {
 };
 
 /** Shared inner pane card — soft edges instead of hard grid dividers. */
-export const chatOpsPaneSurfaceSx = (
+export function chatOpsPaneSurfaceStyles(
+  theme: Theme,
   variant: "inbox" | "thread" | "details",
-): SxProps<Theme> => (theme) => {
+) {
   const d = dash(theme);
   const paneBg = alpha(d.sidebarBg, variant === "thread" ? 0.42 : 0.58);
   const threadBg = alpha(d.headerBg, 0.5);
@@ -76,12 +77,19 @@ export const chatOpsPaneSurfaceSx = (
       lg: `1px solid ${alpha(d.cardBorder, variant === "thread" ? 0.32 : 0.22)}`,
     },
     background: variant === "thread" ? threadBg : paneBg,
-    boxShadow:
-      variant === "thread"
-        ? { lg: `inset 0 1px 0 ${alpha(theme.palette.common.white, 0.04)}` }
-        : undefined,
+    ...(variant === "thread"
+      ? {
+          boxShadow: {
+            lg: `inset 0 1px 0 ${alpha(theme.palette.common.white, 0.04)}`,
+          },
+        }
+      : {}),
   };
-};
+}
+
+export const chatOpsPaneSurfaceSx = (
+  variant: "inbox" | "thread" | "details",
+): SxProps<Theme> => (theme) => chatOpsPaneSurfaceStyles(theme, variant);
 
 export const chatOpsInboxToolbarSx: SxProps<Theme> = (theme) => {
   const d = dash(theme);
@@ -297,8 +305,8 @@ export const chatOpsWorkspaceFocusGridSx: SxProps<Theme> = (theme) => {
     overflow: "hidden",
     p: { xs: 0, lg: 1 },
     boxSizing: "border-box",
-    "& > [data-chat-pane='inbox']": chatOpsPaneSurfaceSx("inbox")(theme),
-    "& > [data-chat-pane='thread']": chatOpsPaneSurfaceSx("thread")(theme),
+    "& > [data-chat-pane='inbox']": chatOpsPaneSurfaceStyles(theme, "inbox"),
+    "& > [data-chat-pane='thread']": chatOpsPaneSurfaceStyles(theme, "thread"),
   };
 };
 
@@ -332,10 +340,10 @@ export const chatOpsWorkspaceGrid: SxProps<Theme> = (theme) => ({
   overflow: "hidden",
   p: { xs: 0, lg: 1 },
   boxSizing: "border-box",
-  "& > [data-chat-pane='inbox']": chatOpsPaneSurfaceSx("inbox")(theme),
-  "& > [data-chat-pane='thread']": chatOpsPaneSurfaceSx("thread")(theme),
+  "& > [data-chat-pane='inbox']": chatOpsPaneSurfaceStyles(theme, "inbox"),
+  "& > [data-chat-pane='thread']": chatOpsPaneSurfaceStyles(theme, "thread"),
   "& > [data-chat-pane='details']": {
-    ...chatOpsPaneSurfaceSx("details")(theme),
+    ...chatOpsPaneSurfaceStyles(theme, "details"),
     display: { xs: "none", lg: "flex" },
     contain: "layout size",
   },

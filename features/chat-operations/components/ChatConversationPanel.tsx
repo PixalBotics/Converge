@@ -86,6 +86,8 @@ interface ChatConversationPanelProps {
     selection: VisitorProfileCaptureSelection,
   ) => void | Promise<void>;
   profileCaptureBusy?: boolean;
+  agentInboxEnabled?: boolean;
+  copilotEnabled?: boolean;
 }
 
 function formatDuration(seconds: number): string {
@@ -135,6 +137,8 @@ export function ChatConversationPanel({
   profileCaptureEnabled = false,
   onCaptureField,
   profileCaptureBusy = false,
+  agentInboxEnabled = true,
+  copilotEnabled = true,
 }: ChatConversationPanelProps) {
   const theme = useTheme() as AppTheme;
   const visitorInfo = parseVisitorInfo(visitor, conversationMeta ?? undefined);
@@ -510,6 +514,8 @@ export function ChatConversationPanel({
         aiBusy={aiBusy}
         websiteRequiredDisabled={websiteRequiredDisabled}
         hasConversation={hasConversation}
+        agentInboxEnabled={agentInboxEnabled}
+        copilotEnabled={copilotEnabled}
       />
     </PanelColumn>
   );

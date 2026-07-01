@@ -952,6 +952,8 @@ export function ChatOperationsWorkspace() {
               onApplyAiToComposer={applyAiToComposer}
               aiBusy={aiBusy}
               websiteRequiredDisabled={!websiteIdEffective.trim()}
+              agentInboxEnabled={inboxAllowed}
+              copilotEnabled={gates.copilotUse}
               availabilityHint={
                 sendBlockedHint ??
                 (availabilityHint && websiteIdEffective ? availabilityHint : null)

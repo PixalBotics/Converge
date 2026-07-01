@@ -110,11 +110,17 @@ const PREFIX_VIEW_RULES: readonly { prefix: string; anyOf: readonly string[] }[]
   {
     prefix: "/dashboard/ai-training/assistant",
     anyOf: [
-      OP.aiAssistant.use,
       OP.aiAssistant.trainingView,
       OP.aiAssistant.trainingManage,
-      OP.chat.access,
     ],
+  },
+  {
+    prefix: "/dashboard/ai-training/copilot",
+    anyOf: [OP.aiCopilot.setupView, OP.aiCopilot.setupManage],
+  },
+  {
+    prefix: "/dashboard/ai-training/platform-keys",
+    anyOf: [OP.aiPlatform.manage],
   },
   {
     prefix: "/dashboard/ai-training/chatbot",
@@ -326,8 +332,10 @@ const PAGE_PERMISSION_TO_VIEW_ANY: Readonly<Record<string, readonly string[]>> =
   [PAGE.CHAT_CANNED]: [OP.chatWidget.view, OP.chatWidget.update],
   [PAGE.CHAT_INVOLVEMENT]: [OP.chat.monitorInvolvement, OP.chatWidget.view],
   [PAGE.CHAT_QA_ROSTER]: [OP.qa.chatAssign, OP.chatWidget.view],
-  [PAGE.AI_ASSISTANT]: [OP.aiAssistant.use, OP.aiAssistant.trainingView],
+  [PAGE.AI_ASSISTANT]: [OP.aiAssistant.trainingView],
   [PAGE.AI_CHATBOT]: [OP.aiChatbot.trainingView, OP.chatWidget.view],
+  [PAGE.AI_COPILOT]: [OP.aiCopilot.setupView],
+  [PAGE.AI_PLATFORM]: [OP.aiPlatform.manage],
   "page:clients": [OP.company.view, OP.company.list, OP.company.detail, OP.accountSetup.view],
   "page:account-setup": [OP.accountSetup.view, OP.company.view, OP.company.list, OP.company.detail],
   "page:resellers": [OP.accountSetup.view, OP.company.view, OP.company.list, OP.company.detail],
