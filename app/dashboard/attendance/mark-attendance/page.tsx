@@ -23,7 +23,7 @@ import {
   parseAttendanceDayState,
 } from "@/lib/utils/hrms/attendance-display";
 import { useAuth } from "@/lib/auth";
-import { OP } from "@/lib/permissions";
+import { OP, hasAttendanceSelfOperational } from "@/lib/permissions";
 import NextLink from "next/link";
 import {
   markAttendanceActionsSx,
@@ -48,13 +48,13 @@ function firstTodayRow(data: unknown): Record<string, unknown> | null {
 export default function MarkAttendancePage() {
   const { hasOperational } = useAuth();
   const canCheckIn =
-    hasOperational(OP.hrms.attendance.checkIn) || hasOperational(OP.hrms.attendance.self);
+    hasOperational(OP.hrms.attendance.checkIn) || hasAttendanceSelfOperational(hasOperational);
   const canCheckOut =
-    hasOperational(OP.hrms.attendance.checkOut) || hasOperational(OP.hrms.attendance.self);
+    hasOperational(OP.hrms.attendance.checkOut) || hasAttendanceSelfOperational(hasOperational);
   const canBreakIn =
-    hasOperational(OP.hrms.attendance.breakIn) || hasOperational(OP.hrms.attendance.self);
+    hasOperational(OP.hrms.attendance.breakIn) || hasAttendanceSelfOperational(hasOperational);
   const canBreakOut =
-    hasOperational(OP.hrms.attendance.breakOut) || hasOperational(OP.hrms.attendance.self);
+    hasOperational(OP.hrms.attendance.breakOut) || hasAttendanceSelfOperational(hasOperational);
   const [date] = useState(() => new Date().toISOString().slice(0, 10));
   const checkInMutation = useAttendanceCheckInMutation();
   const checkOutMutation = useAttendanceCheckOutMutation();

@@ -1,3 +1,5 @@
+import type { PAGE } from "./permission-constants";
+
 export type DashboardSidebarIconKey =
   | "accountSetup"
   | "billing"
@@ -52,7 +54,7 @@ export type DashboardNavItem = {
   permissionsAny?: string[];
   /**
    * Child row only: show when user has any listed operational permission (OR).
-   * Used for Chat Monitor under `page:chat` without a separate page key.
+   * When `permission` is also set, both page and operational gates apply.
    */
   operationalAny?: string[];
   /** Hide from sidebar unless the signed-in user is platform internal staff. */
@@ -61,48 +63,21 @@ export type DashboardNavItem = {
   children?: DashboardNavItem[];
 };
 
+type PageValue = (typeof PAGE)[keyof typeof PAGE];
+
 export type PagePermission =
+  | PageValue
   | "page:account-setup"
   | "page:billing"
-  | "page:chat"
-  | "page:chat-inbox"
-  | "page:chat-monitor"
-  | "page:chat-qa"
-  | "page:chat-reports"
-  | "page:chat-widget"
-  | "page:chat-close-policy"
-  | "page:chat-canned"
-  | "page:chat-involvement"
-  | "page:chat-internal-supervisors"
-  | "page:chat-qa-roster"
-  | "page:ai-assistant"
-  | "page:ai-chatbot"
-  | "page:ai-copilot"
-  | "page:ai-platform"
   | "page:clients"
   | "page:crm-integration"
-  | "page:dashboard"
-  | "page:departments"
-  | "page:designations"
   | "page:distribution-setup"
-  | "page:phone-number-setup"
-  | "page:hrms"
+  | "page:email-agent-feedback"
   | "page:ip-blocklist"
   | "page:licenses"
-  | "page:pool"
-  | "page:pools"
-  | "page:reports"
   | "page:resellers"
-  | "page:roles"
-  | "page:settings"
-  | "page:observability:logs"
-  | "page:shifts"
-  | "page:smtp-email"
-  | "page:email-template"
-  | "page:email-agent-feedback"
   | "page:social-media"
-  | "page:users"
-  | "page:website-assignments";
+  | "page:access";
 
 export type RouteRule = {
   permission: PagePermission;

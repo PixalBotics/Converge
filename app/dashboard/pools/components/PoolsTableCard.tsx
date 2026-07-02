@@ -60,7 +60,7 @@ export type PoolsTableCardProps = {
   canEdit?: boolean;
   /** When false, row delete is hidden (operational `hrms:pool:delete`). */
   canDelete?: boolean;
-  /** `page:hrms` + pool view / org pool manage (list members). */
+  /** `page:pool-members` + pool view / org pool manage (list members). */
   canViewMembers?: boolean;
   /** Pool-members page: highlight selected pool row. */
   selectedPoolId?: string | null;

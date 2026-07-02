@@ -143,16 +143,11 @@ export default function ApprovalLeavePage() {
 
 
 
-  const canPoolApprove = hasAnyOperational(h, [HRMS.LEAVE_APPROVE_POOL, HRMS.LEAVE_APPROVE]);
-
-  const canPoolReject = canPoolApprove || h("hrms:leave:reject:pool");
-
-  const canDeptApprove = hasAnyOperational(h, [HRMS.LEAVE_APPROVE_DEPT, HRMS.LEAVE_APPROVE]);
-
-  const canDeptReject = canDeptApprove || h("hrms:leave:reject:department");
-
-  const canTenantApprove = hasAnyOperational(h, [HRMS.LEAVE_APPROVE_TENANT, HRMS.LEAVE_APPROVE]);
-
+  const canPoolApprove = h(HRMS.LEAVE_APPROVE_POOL);
+  const canPoolReject = canPoolApprove;
+  const canDeptApprove = h(HRMS.LEAVE_APPROVE_DEPT);
+  const canDeptReject = canDeptApprove;
+  const canTenantApprove = h(HRMS.LEAVE_APPROVE_TENANT);
   const canTenantReject = canTenantApprove;
 
 

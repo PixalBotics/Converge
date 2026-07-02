@@ -814,7 +814,7 @@ export function PoolsPageView({ mode }: PoolsPageViewProps) {
 
       {isMembersHub && !canListPoolMembers ? (
         <Typography variant="body2" sx={{ mt: 2, color: theme.app.dashboard.textMuted }}>
-          You need page:hrms plus pool view (or org pool manage) to list members on this page.
+          You need page:pool-members plus pool view (or org pool manage) to list members on this page.
         </Typography>
       ) : null}
 

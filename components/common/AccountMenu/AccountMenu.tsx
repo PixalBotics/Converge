@@ -25,7 +25,7 @@ import {
   accountMenuRowSx,
 } from "./AccountMenu.styled";
 import { useAuth } from "@/lib/auth";
-import { OP } from "@/lib/permissions";
+import { OP, hasAttendanceSelfOperational } from "@/lib/permissions";
 import {
   useAttendanceBreakInMutation,
   useAttendanceBreakOutMutation,
@@ -70,17 +70,17 @@ export function AccountMenu({
 
   const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
   const canCheckIn =
-    hasOperational(OP.hrms.attendance.checkIn) || hasOperational(OP.hrms.attendance.self);
+    hasOperational(OP.hrms.attendance.checkIn) || hasAttendanceSelfOperational(hasOperational);
   const canCheckOut =
-    hasOperational(OP.hrms.attendance.checkOut) || hasOperational(OP.hrms.attendance.self);
+    hasOperational(OP.hrms.attendance.checkOut) || hasAttendanceSelfOperational(hasOperational);
   const canBreakIn =
-    hasOperational(OP.hrms.attendance.breakIn) || hasOperational(OP.hrms.attendance.self);
+    hasOperational(OP.hrms.attendance.breakIn) || hasAttendanceSelfOperational(hasOperational);
   const canBreakOut =
-    hasOperational(OP.hrms.attendance.breakOut) || hasOperational(OP.hrms.attendance.self);
+    hasOperational(OP.hrms.attendance.breakOut) || hasAttendanceSelfOperational(hasOperational);
   const canMeetingIn =
-    hasOperational(OP.hrms.attendance.meetingIn) || hasOperational(OP.hrms.attendance.self);
+    hasOperational(OP.hrms.attendance.meetingIn) || hasAttendanceSelfOperational(hasOperational);
   const canMeetingOut =
-    hasOperational(OP.hrms.attendance.meetingOut) || hasOperational(OP.hrms.attendance.self);
+    hasOperational(OP.hrms.attendance.meetingOut) || hasAttendanceSelfOperational(hasOperational);
 
   const todayAttendanceQuery = useAttendanceMeQuery(
     { from: today, to: today, page: 1, limit: 1 },
