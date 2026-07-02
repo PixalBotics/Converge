@@ -289,10 +289,18 @@ export function buildChatLiveNavItems(
   ) {
     items.push({ href: "/dashboard/chat-widget", label: "Widget" });
   }
-  if (canAiAssistantTrainingFromArrays(perms)) {
+  if (
+    hasPage(PAGE.AI_ASSISTANT) &&
+    (hasOperational(OP.aiAssistant.trainingView) ||
+      hasOperational(OP.aiAssistant.trainingManage))
+  ) {
     items.push({ href: "/dashboard/ai-training/assistant", label: "AI Assistant" });
   }
-  if (canCopilotSetupFromArrays(perms)) {
+  if (
+    hasPage(PAGE.AI_COPILOT) &&
+    (hasOperational(OP.aiCopilot.setupView) ||
+      hasOperational(OP.aiCopilot.setupManage))
+  ) {
     items.push({ href: "/dashboard/ai-training/copilot", label: "AI Copilot" });
   }
   if (
