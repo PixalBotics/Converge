@@ -54,8 +54,6 @@ function canViewApprovalInbox(input: ResolveApprovalInboxAccessInput): boolean {
     HRMS.LEAVE_APPROVE_POOL,
     HRMS.LEAVE_APPROVE_DEPT,
     HRMS.LEAVE_APPROVE_TENANT,
-    HRMS.LEAVE_APPROVE,
-    HRMS.LEAVE_VIEW,
   ]);
 }
 
@@ -105,15 +103,6 @@ export function resolveApprovalInboxAccess(input: ResolveApprovalInboxAccessInpu
       queue: "department",
       canUsePoolQueue: false,
       canUseDepartmentQueue: true,
-      canUseTenantQueue: false,
-    };
-  }
-
-  if (h(HRMS.LEAVE_APPROVE)) {
-    return {
-      queue: "pool",
-      canUsePoolQueue: true,
-      canUseDepartmentQueue: false,
       canUseTenantQueue: false,
     };
   }

@@ -26,8 +26,7 @@ import {
 export default function LeaveBalancePage() {
   const theme = useTheme() as AppTheme;
   const { hasOperational } = useAuth();
-  const showLeaveInsights =
-    hasOperational(OP.hrms.leave.selfView) || hasOperational(OP.hrms.leave.apply);
+  const showLeaveInsights = hasOperational(OP.hrms.leave.apply);
   const [quotaYear, setQuotaYear] = useState(() => new Date().getUTCFullYear());
 
   const quotaQuery = useLeaveQuotaSummaryQuery(

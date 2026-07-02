@@ -63,9 +63,7 @@ export function ChatTranscriptsListWorkspace() {
   const { hasOperational, hasPage, permissionsSyncing } = useAuth();
   const gates = useChatApiGates();
   const hasPageAccess =
-    hasPage(PAGE.CHAT_MONITOR) ||
-    hasPage(PAGE.CHAT_QA) ||
-    hasPage(PAGE.CHAT) ||
+    hasPage(PAGE.CHAT_TRANSCRIPTS) ||
     gates.monitor ||
     hasOperational(OP.qa.chatReview);
   const apiEnabled = gates.ready && hasPageAccess;

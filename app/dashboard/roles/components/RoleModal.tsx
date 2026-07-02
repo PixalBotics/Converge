@@ -841,7 +841,7 @@ export function RoleModal({ open, onClose, onSaved, editRole = null }: RoleModal
             <Box sx={{ mt: 1.5 }}>
               <InputField
                 label="Search permissions"
-                placeholder="Type to search (e.g. page:roles, chat:access)"
+                placeholder="Type to search (e.g. page:roles, chat:bundle:agent)"
                 value={permissionSearch}
                 onChange={(e) => setPermissionSearch((e.target as HTMLInputElement).value)}
                 disabled={isSaving}

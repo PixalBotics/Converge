@@ -1,4 +1,4 @@
-import { PAGE } from "./permission-constants";
+import { hasAnyHrmsPage, PAGE } from "./permission-constants";
 import { OP } from "./operational-keys";
 import { canViewWebsiteAssignments } from "./website-assignment-access";
 
@@ -14,7 +14,8 @@ export function canAccessCompanyScopeFilters(
     hasPage(PAGE.SHIFTS) ||
     hasPage(PAGE.WEBSITE_ASSIGNMENTS) ||
     hasPage(PAGE.POOL) ||
-    hasPage(PAGE.HRMS) ||
+    hasPage(PAGE.WEBSITE_DIRECTORY) ||
+    hasAnyHrmsPage(hasPage) ||
     hasPage("page:licenses") ||
     hasPage("page:account-setup") ||
     hasPage("page:resellers") ||
@@ -31,6 +32,7 @@ export function canViewWebsiteDirectory(
 ): boolean {
   return (
     hasPage("page:clients") ||
+    hasPage(PAGE.WEBSITE_DIRECTORY) ||
     canViewWebsiteAssignments(hasPage, hasOperational) ||
     hasOperational(OP.company.list) ||
     hasOperational(OP.company.view) ||

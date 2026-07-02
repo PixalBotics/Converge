@@ -193,7 +193,7 @@ export function ComposerDrawerTabs({
                         cannedQuery.error,
                         "Could not load canned replies.",
                       )}{" "}
-                      Ensure your role has chat:access, you are assigned to this website
+                      Ensure your role has chat:bundle:agent (or another inbox bundle), you are assigned to this website
                       (Primary/Secondary/Backup), and canned messages exist under Canned.
                     </Typography>
                   ) : null}

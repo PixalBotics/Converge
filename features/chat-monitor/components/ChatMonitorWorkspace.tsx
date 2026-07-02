@@ -59,7 +59,7 @@ export function ChatMonitorWorkspace({
   const router = useRouter();
   const { user, hasOperational, hasPage, permissionsSyncing } = useAuth();
   const gates = useChatApiGates();
-  const hasChatPage = hasPage(PAGE.CHAT_MONITOR) || hasPage(PAGE.CHAT);
+  const hasChatPage = hasPage(PAGE.CHAT_MONITOR);
   const hasMonitorPerm =
     gates.monitor ||
     hasOperational(OP.chat.monitorInvolvement) ||
@@ -195,7 +195,7 @@ export function ChatMonitorWorkspace({
     return (
       <PermissionDeniedPanel
         title="Chat monitor not available"
-        description="Requires page:chat."
+        description="Requires page:chat-monitor."
       />
     );
   }

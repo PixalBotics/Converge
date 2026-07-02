@@ -49,7 +49,7 @@ import { isAgentChatSessionAccepting } from "./agent-chat-session-bus";
 interface UseAgentChatParams {
   token: string;
   agentId?: string;
-  /** False when user lacks `page:chat` + `chat:access` — no agent APIs or socket. */
+  /** False when user lacks `page:chat-inbox` + chat bundle — no agent APIs or socket. */
   apiEnabled?: boolean;
 }
 

@@ -93,7 +93,7 @@ export function ChatReportsDashboard() {
     return (
       <PermissionDeniedPanel
         title="Chat reports not available"
-        description="Requires page:chat and chat:report:view from /auth/me."
+        description="Requires page:chat-reports and chat:report:view from /auth/me."
       />
     );
   }

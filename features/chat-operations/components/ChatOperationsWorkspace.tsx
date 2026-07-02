@@ -17,6 +17,7 @@ import {
   useChatApiGates,
 } from "@/lib/permissions";
 import { OP } from "@/lib/permissions/operational-keys";
+import { hasChatInboxOperationalFromChecker } from "@/lib/permissions/chat-inbox-operational";
 import { PAGE } from "@/lib/permissions/permission-constants";
 import { useAgentChat } from "@/lib/hooks/chat/useAgentChat";
 import { setAgentChatFocusedConversation } from "@/lib/hooks/chat/agent-chat-focus-bus";
@@ -625,8 +626,7 @@ export function ChatOperationsWorkspace() {
     }
     return (
       hasOperational(OP.chat.updateVisitorProfile) ||
-      hasOperational(OP.chat.access) ||
-      hasPage(PAGE.CHAT) ||
+      hasChatInboxOperationalFromChecker(hasOperational) ||
       hasPage(PAGE.CHAT_INBOX)
     );
   }, [

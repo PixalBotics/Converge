@@ -18,7 +18,7 @@ import { rolesCard, rolesFooterRow, rolesPageWrapper, rolesPaginationWrapper } f
 import { footerMutedText, pageWrapper } from "../../companies/overview.styles";
 import { useBodyScrollLock } from "@/lib/ui/useBodyScrollLock";
 import { useAuth } from "@/lib/auth";
-import { OP } from "@/lib/permissions";
+import { HRMS_LEAVE_APPROVE_ANY, hasAnyOperational, OP } from "@/lib/permissions";
 import {
   approveLeaveCardHeaderSx,
   approveLeaveFilterGridSx,
@@ -66,11 +66,7 @@ const PAGE_LIMIT = 10;
 export default function ApproveLeavePage() {
   const theme = useTheme() as AppTheme;
   const { hasOperational } = useAuth();
-  const canManageLeaveApprovals =
-    hasOperational(OP.hrms.leave.approve) ||
-    hasOperational(OP.hrms.leave.view) ||
-    hasOperational(OP.hrms.leave.approvePool) ||
-    hasOperational(OP.hrms.leave.approveDepartment);
+  const canManageLeaveApprovals = hasAnyOperational(hasOperational, HRMS_LEAVE_APPROVE_ANY);
   const [department, setDepartment] = useState("");
   const [status, setStatus] = useState("abc-group");
   const [page, setPage] = useState(1);

@@ -144,7 +144,7 @@ export function ResellerOwnMailPage() {
     return (
       <PermissionDeniedPanel
         title="Reseller mail"
-        description="You need page:smtp-email or smtp-email:view on your role (Reseller Admin with wide reseller scope)."
+        description="You need page:smtp-email-reseller or smtp-email:view on your role (Reseller Admin with wide reseller scope)."
       />
     );
   }
