@@ -13,7 +13,10 @@ import Divider from "@mui/material/Divider";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import LinearProgress from "@mui/material/LinearProgress";
 import Stack from "@mui/material/Stack";
+import TextField from "@mui/material/TextField";
+import { useTheme } from "@mui/material/styles";
 import { Button, DashboardCard, Typography } from "@/components/common";
+import { textFieldStyles } from "@/components/common/InputField/InputField.styles";
 import {
   useApplyWebsiteAiTrainingMutation,
   useWebsiteAiSetupQuery,
@@ -29,7 +32,15 @@ import {
 import { createEmptyFaqRow, countValidFaqRows, type FaqBuilderRow } from "./faq-builder.utils";
 import { useAiTrainingHierarchy } from "./use-ai-training-hierarchy";
 
+const CHAT_EXPORT_PLACEHOLDER = `visitor: Hi, I need help with my order
+agent: Sure! What is your order number?
+visitor: ORD-12345
+agent: Thanks — I see it shipped yesterday. Tracking link is in your email.`;
+
+const CHAT_EXPORT_MAX_CHARS = 500_000;
+
 export function AiTrainingWebsiteTrainPage() {
+  const theme = useTheme();
   const router = useRouter();
   const searchParams = useSearchParams();
   const websiteId = searchParams.get("websiteId")?.trim() ?? "";
@@ -68,7 +79,11 @@ export function AiTrainingWebsiteTrainPage() {
   const handleChatFile = async (file: File | null) => {
     if (!file) return;
     const text = await file.text();
-    setChatExportText(text.slice(0, 500_000));
+    setChatExportText(text.slice(0, CHAT_EXPORT_MAX_CHARS));
+  };
+
+  const handleChatTextChange = (value: string) => {
+    setChatExportText(value.slice(0, CHAT_EXPORT_MAX_CHARS));
   };
 
   const submitTraining = async () => {
@@ -137,26 +152,68 @@ export function AiTrainingWebsiteTrainPage() {
               <Typography fontWeight={700}>1. Chat upload</Typography>
             </Stack>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
-              Upload past visitor chats (.txt, .csv, .json).
+              Upload past visitor chats (.txt, .csv, .json) or paste a transcript below. Prefix
+              each line with <strong>visitor:</strong> (customer) or <strong>agent:</strong>{" "}
+              (live support).
             </Typography>
-            <Button
-              type="button"
-              variant="secondary"
-              component="label"
-              startIcon={<CloudUploadOutlined />}
+            <Stack direction="row" spacing={1} flexWrap="wrap" alignItems="center">
+              <Button
+                type="button"
+                variant="secondary"
+                component="label"
+                startIcon={<CloudUploadOutlined />}
+              >
+                Choose chat export file
+                <input
+                  type="file"
+                  hidden
+                  accept=".txt,.csv,.json"
+                  onChange={(e) => void handleChatFile(e.target.files?.[0] ?? null)}
+                />
+              </Button>
+              {hasChat ? (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="small"
+                  onClick={() => setChatExportText("")}
+                >
+                  Clear chat text
+                </Button>
+              ) : null}
+            </Stack>
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              sx={{ display: "block", mt: 2, mb: 0.75 }}
             >
-              Choose chat export file
-              <input
-                type="file"
-                hidden
-                accept=".txt,.csv,.json"
-                onChange={(e) => void handleChatFile(e.target.files?.[0] ?? null)}
-              />
-            </Button>
+              Or paste transcript
+            </Typography>
+            <TextField
+              value={chatExportText}
+              onChange={(e) => handleChatTextChange(e.target.value)}
+              placeholder={CHAT_EXPORT_PLACEHOLDER}
+              multiline
+              minRows={8}
+              fullWidth
+              sx={textFieldStyles(theme)}
+            />
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              sx={{ display: "block", mt: 0.75 }}
+            >
+              One message per line. Visitor aliases: user, customer, client. Agent aliases:
+              human, staff, support. JSON array with role and content is also supported.
+            </Typography>
             {hasChat ? (
-              <Alert severity="success" sx={{ mt: 1.5 }}>
-                Loaded {chatExportText.length.toLocaleString()} characters for chatbot training
-              </Alert>
+              <Typography
+                variant="caption"
+                color="success.main"
+                sx={{ display: "block", mt: 0.75 }}
+              >
+                {chatExportText.length.toLocaleString()} characters ready for chatbot training
+              </Typography>
             ) : null}
           </Box>
 

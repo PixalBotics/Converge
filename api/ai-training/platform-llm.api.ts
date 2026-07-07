@@ -3,12 +3,15 @@ import { unwrapAiKnowledgeData } from "../ai-knowledge/unwrap";
 
 export type PlatformLlmProvider = {
   id: string;
-  code: "GEMINI" | "OPENAI" | "GROQ";
+  code: "GEMINI" | "OPENAI" | "GROQ" | "ANTHROPIC";
   name: string;
   adapterKey: string;
   sortOrder: number;
+  supportsEmbedding: boolean;
   keyConfigured: boolean;
   keyId: string | null;
+  generationModel: string | null;
+  embeddingModel: string | null;
   lastTestedAt: string | null;
   lastTestStatus: string | null;
 };
@@ -62,8 +65,10 @@ export type PlatformAiOverview = {
 };
 
 export type UpsertPlatformLlmKeyPayload = {
-  providerCode: "GEMINI" | "OPENAI" | "GROQ";
-  apiKey: string;
+  providerCode: "GEMINI" | "OPENAI" | "GROQ" | "ANTHROPIC";
+  apiKey?: string;
+  generationModel: string;
+  embeddingModel?: string;
   baseUrl?: string;
 };
 

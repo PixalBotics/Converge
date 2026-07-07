@@ -75,18 +75,20 @@ export function PlatformLlmProviderCard({
       <Box sx={{ display: "flex", flexWrap: "wrap", gap: 2, mb: 2 }}>
         <Stat label="Profiles" value={String(providerProfiles.length)} />
         <Stat
+          label="Generation model"
+          value={provider.generationModel ?? "—"}
+        />
+        {meta.supportsEmbedding ? (
+          <Stat
+            label="Embedding model"
+            value={provider.embeddingModel ?? "—"}
+          />
+        ) : null}
+        <Stat
           label="Tokens used"
           value={usage ? formatTokenCount(usage.totalTokens) : "0"}
         />
         <Stat label="Requests" value={usage ? String(usage.requestCount) : "0"} />
-        <Stat
-          label="Per-request max"
-          value={
-            providerProfiles[0]
-              ? `${providerProfiles[0].maxOutputTokens} tok`
-              : "—"
-          }
-        />
       </Box>
 
       {providerProfiles.length > 0 ? (

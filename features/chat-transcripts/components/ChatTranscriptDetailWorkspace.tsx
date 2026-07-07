@@ -22,6 +22,8 @@ import type { TranscriptListItem } from "@/services/chat/transcript.types";
 import { agentDisplayName } from "@/services/chat/monitor-normalizers";
 import { extractVisitorPresentation } from "@/services/chat/visitor-presentation";
 import { useChatTranscripts } from "../hooks/useChatTranscripts";
+import type { TranscriptExportMeta } from "../utils/export-transcript";
+import { TranscriptDownloadMenu } from "./TranscriptDownloadMenu";
 import { TranscriptStatusChip } from "./TranscriptStatusChip";
 
 function toMonitorRow(
@@ -197,6 +199,42 @@ export function ChatTranscriptDetailWorkspace({
     };
   }, [conv, transcripts.selectedRow]);
 
+  const exportMeta = useMemo((): TranscriptExportMeta => {
+    const agentLabel = monitorRow?.agent
+      ? agentDisplayName(monitorRow.agent)
+      : resolvedAgentLabel ?? undefined;
+    return {
+      title: pageTitle,
+      conversationId,
+      agent: agentLabel,
+      website: readTenantName(conv, "website", transcripts.selectedRow) || undefined,
+      status:
+        transcriptStatusRow.transcriptStatus?.trim() ||
+        transcriptStatusRow.status ||
+        undefined,
+      startedAt:
+        monitorRow?.startedAt ??
+        (typeof conv?.startedAt === "string" ? conv.startedAt : undefined),
+      endedAt:
+        monitorRow?.endedAt ??
+        (typeof conv?.endedAt === "string" ? conv.endedAt : undefined) ??
+        undefined,
+      reseller: readTenantName(conv, "reseller", transcripts.selectedRow) || undefined,
+      parentCompany:
+        readTenantName(conv, "parentCompany", transcripts.selectedRow) || undefined,
+      childCompany: readTenantName(conv, "childCompany", transcripts.selectedRow) || undefined,
+    };
+  }, [
+    conv,
+    conversationId,
+    monitorRow,
+    pageTitle,
+    resolvedAgentLabel,
+    transcriptStatusRow.status,
+    transcriptStatusRow.transcriptStatus,
+    transcripts.selectedRow,
+  ]);
+
   if (!permissionsSyncing && !hasPageAccess) {
     return (
       <PermissionDeniedPanel
@@ -262,6 +300,11 @@ export function ChatTranscriptDetailWorkspace({
               />
             ) : null}
             <TranscriptStatusChip row={transcriptStatusRow} />
+            <TranscriptDownloadMenu
+              messages={transcripts.detail?.messages ?? []}
+              meta={exportMeta}
+              disabled={transcripts.detailLoading || Boolean(transcripts.detailError)}
+            />
           </Box>
         </Box>
       </Box>

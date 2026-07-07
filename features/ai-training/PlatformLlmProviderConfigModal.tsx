@@ -37,31 +37,65 @@ export function PlatformLlmProviderConfigModal({
 
   const [apiKey, setApiKey] = useState("");
   const [baseUrl, setBaseUrl] = useState(meta?.defaultBaseUrl ?? "");
+  const [generationModel, setGenerationModel] = useState("");
+  const [embeddingModel, setEmbeddingModel] = useState("");
   const mutation = useUpsertPlatformLlmKeyMutation();
 
   useEffect(() => {
-    if (!open || !code) return;
+    if (!open || !code || !provider) return;
     setApiKey("");
-    setBaseUrl(LLM_PROVIDER_META[code].defaultBaseUrl ?? "");
-  }, [open, code]);
+    setBaseUrl(
+      LLM_PROVIDER_META[code].defaultBaseUrl ?? "",
+    );
+    setGenerationModel(
+      provider.generationModel ?? LLM_PROVIDER_META[code].defaultGenerationModel,
+    );
+    setEmbeddingModel(
+      provider.embeddingModel ??
+        LLM_PROVIDER_META[code].defaultEmbeddingModel ??
+        "",
+    );
+  }, [open, code, provider]);
 
   const providerProfiles = useMemo(
     () => profiles.filter((p) => p.generationProvider.code === code),
     [profiles, code],
   );
 
+  const canSave =
+    canManage &&
+    generationModel.trim().length > 0 &&
+    (!meta?.supportsEmbedding || embeddingModel.trim().length > 0) &&
+    (provider?.keyConfigured || apiKey.trim().length > 0);
+
   const handleSave = async () => {
-    if (!provider || !canManage || !code) return;
+    if (!provider || !canManage || !code || !meta) return;
     const trimmedKey = apiKey.trim();
-    if (!trimmedKey) {
+    const trimmedGeneration = generationModel.trim();
+    const trimmedEmbedding = embeddingModel.trim();
+
+    if (!provider.keyConfigured && !trimmedKey) {
       publishAppToast({ variant: "error", message: "API key is required." });
       return;
     }
+    if (!trimmedGeneration) {
+      publishAppToast({ variant: "error", message: "Generation model is required." });
+      return;
+    }
+    if (meta.supportsEmbedding && !trimmedEmbedding) {
+      publishAppToast({ variant: "error", message: "Embedding model is required." });
+      return;
+    }
+
     try {
       await mutation.mutateAsync({
         providerCode: code,
-        apiKey: trimmedKey,
-        ...(meta?.supportsBaseUrl
+        generationModel: trimmedGeneration,
+        ...(trimmedKey ? { apiKey: trimmedKey } : {}),
+        ...(meta.supportsEmbedding
+          ? { embeddingModel: trimmedEmbedding }
+          : {}),
+        ...(meta.supportsBaseUrl
           ? {
               baseUrl:
                 baseUrl.trim() || meta.defaultBaseUrl || undefined,
@@ -70,7 +104,7 @@ export function PlatformLlmProviderConfigModal({
       });
       publishAppToast({
         variant: "success",
-        message: `${meta?.name ?? code} configuration saved.`,
+        message: `${meta.name} configuration saved.`,
       });
       onSaved?.();
       onClose();
@@ -94,7 +128,7 @@ export function PlatformLlmProviderConfigModal({
         if (canManage) void handleSave();
       }}
       primaryButtonLabel={mutation.isPending ? "Saving…" : "Save configuration"}
-      primaryButtonDisabled={mutation.isPending || !canManage || !apiKey.trim()}
+      primaryButtonDisabled={mutation.isPending || !canSave}
       maxWidth={560}
       fitContent
       showCancelButton
@@ -148,6 +182,33 @@ export function PlatformLlmProviderConfigModal({
         <Divider sx={{ borderColor: "rgba(255,255,255,0.08)" }} />
 
         <Typography variant="body2" fontWeight={700}>
+          Models
+        </Typography>
+        <Typography variant="caption" color="text.secondary">
+          Stored in the platform database. Changing models updates linked profiles automatically.
+        </Typography>
+
+        <InputField
+          label="Generation model"
+          value={generationModel}
+          onChange={(e) => setGenerationModel(e.target.value)}
+          placeholder={meta.defaultGenerationModel}
+          disabled={!canManage}
+        />
+
+        {meta.supportsEmbedding ? (
+          <InputField
+            label="Embedding model"
+            value={embeddingModel}
+            onChange={(e) => setEmbeddingModel(e.target.value)}
+            placeholder={meta.defaultEmbeddingModel}
+            disabled={!canManage}
+          />
+        ) : null}
+
+        <Divider sx={{ borderColor: "rgba(255,255,255,0.08)" }} />
+
+        <Typography variant="body2" fontWeight={700}>
           API credentials
         </Typography>
         <Typography variant="caption" color="text.secondary">
@@ -156,7 +217,7 @@ export function PlatformLlmProviderConfigModal({
 
         {provider.keyConfigured ? (
           <Typography variant="caption" color="text.secondary">
-            A key is already saved. Enter a new value only to replace it.
+            A key is already saved. Leave blank to keep the existing key and update models only.
           </Typography>
         ) : null}
 
@@ -165,7 +226,7 @@ export function PlatformLlmProviderConfigModal({
           type="password"
           value={apiKey}
           onChange={(e) => setApiKey(e.target.value)}
-          placeholder="Paste API key"
+          placeholder={provider.keyConfigured ? "Leave blank to keep current key" : "Paste API key"}
           disabled={!canManage}
           autoComplete="off"
         />
