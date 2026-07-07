@@ -37,6 +37,7 @@ interface ChatComposerProps {
   websiteRequiredDisabled?: boolean;
   hasConversation: boolean;
   agentInboxEnabled?: boolean;
+  copilotEnabled?: boolean;
 }
 
 export function ChatComposer({
@@ -58,6 +59,7 @@ export function ChatComposer({
   websiteRequiredDisabled = false,
   hasConversation,
   agentInboxEnabled = true,
+  copilotEnabled = true,
 }: ChatComposerProps) {
   const theme = useTheme() as AppTheme;
 
@@ -72,6 +74,16 @@ export function ChatComposer({
       <ComposerIdleBar>
         <Typography variant="small" sx={{ color: theme.app.dashboard.textMuted, fontSize: 13 }}>
           Select a conversation from the inbox to reply
+        </Typography>
+      </ComposerIdleBar>
+    );
+  }
+
+  if (disabled) {
+    return (
+      <ComposerIdleBar>
+        <Typography variant="small" sx={{ color: theme.app.dashboard.textMuted, fontSize: 13 }}>
+          Read-only transcript — new visitor messages may reopen this chat
         </Typography>
       </ComposerIdleBar>
     );
@@ -93,6 +105,7 @@ export function ChatComposer({
         websiteRequiredDisabled={websiteRequiredDisabled}
         hasConversation={hasConversation}
         agentInboxEnabled={agentInboxEnabled}
+        copilotEnabled={copilotEnabled}
       >
         <ComposerRow>
           <ComposerInputShell>

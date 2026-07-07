@@ -105,9 +105,17 @@ export function getVisibleDashboardNavItems(opts: {
         return true;
       }
       if (ch.internalOnly && !opts.isInternalUser) return false;
+      if (ch.permission && hasPagePermission(opts.pagePermissionSet, ch.permission)) {
+        if (isAgentInboxNavChild(ch) && !agentInboxNavVisible) return false;
+        return true;
+      }
+      if (ch.permissionsAny?.length) {
+        return ch.permissionsAny.some((p) => hasPagePermission(opts.pagePermissionSet, p));
+      }
       if (ch.operationalAny?.length) {
         const ops = opts.operationalPermissionSet;
         if (!ops?.size) return false;
+        if (ch.permission && !hasPagePermission(opts.pagePermissionSet, ch.permission)) return false;
         return ch.operationalAny.some((p) => ops.has(p));
       }
       if (!ch.permission) return true;

@@ -64,6 +64,8 @@ interface ComposerDrawerTabsProps {
   hasConversation: boolean;
   /** When false, skips GET /chat/canned-responses/agent */
   agentInboxEnabled?: boolean;
+  /** When false, hides the inbox AI copilot drawer tab. */
+  copilotEnabled?: boolean;
 }
 
 export function ComposerDrawerTabs({
@@ -81,6 +83,7 @@ export function ComposerDrawerTabs({
   websiteRequiredDisabled = false,
   hasConversation,
   agentInboxEnabled = true,
+  copilotEnabled = true,
 }: ComposerDrawerTabsProps) {
   const theme = useTheme() as AppTheme;
   const [openDrawer, setOpenDrawer] = useState<DrawerId | null>(null);
@@ -129,15 +132,17 @@ export function ComposerDrawerTabs({
             <QuickreplyOutlined sx={{ fontSize: 17 }} />
             Canned replies
           </DrawerTabButton>
-          <DrawerTabButton
-            type="button"
-            variant="ai"
-            active={openDrawer === "ai"}
-            onClick={() => toggleDrawer("ai")}
-          >
-            <AutoAwesome sx={{ fontSize: 17 }} />
-            {AGENT_COPILOT_TAB_LABEL}
-          </DrawerTabButton>
+          {copilotEnabled ? (
+            <DrawerTabButton
+              type="button"
+              variant="ai"
+              active={openDrawer === "ai"}
+              onClick={() => toggleDrawer("ai")}
+            >
+              <AutoAwesome sx={{ fontSize: 17 }} />
+              {AGENT_COPILOT_TAB_LABEL}
+            </DrawerTabButton>
+          ) : null}
         </DrawerTabBar>
 
         <Collapse in={openDrawer !== null} timeout={200} unmountOnExit>
@@ -188,7 +193,7 @@ export function ComposerDrawerTabs({
                         cannedQuery.error,
                         "Could not load canned replies.",
                       )}{" "}
-                      Ensure your role has chat:access, you are assigned to this website
+                      Ensure your role has chat:bundle:agent (or another inbox bundle), you are assigned to this website
                       (Primary/Secondary/Backup), and canned messages exist under Canned.
                     </Typography>
                   ) : null}

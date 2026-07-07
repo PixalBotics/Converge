@@ -38,37 +38,14 @@ export function mergePermissionsByType(
   return applyPageSlugAliases(out);
 }
 
-/** Backend may send `page:pool` or legacy `page:pools` — treat as equivalent. */
-const PAGE_SLUG_ALIASES: Record<string, string> = {
-  "page:pool": "page:pools",
-  "page:pools": "page:pool",
-};
-
-/**
- * Page keys for RBAC checks / sidebar filtering. Includes canonical slugs for known
- * backend aliases so `page:pool` and `page:pools` both satisfy `page:pools` routes.
- */
-export function toPermissionSet(perms: string[] | undefined): Set<string> {
-  const raw = (perms ?? []).map((p) => p.trim()).filter(Boolean);
-  const out = new Set<string>();
-  for (const p of raw) {
-    out.add(p);
-    const canonical = PAGE_SLUG_ALIASES[p];
-    if (canonical) out.add(canonical);
-  }
-  return out;
+function applyPageSlugAliases(perms: PermissionsByType): PermissionsByType {
+  return perms;
 }
 
-function applyPageSlugAliases(perms: PermissionsByType): PermissionsByType {
-  const page = perms[PERMISSION_BUCKET_PAGE];
-  if (!page?.length) return perms;
-  const mapped: string[] = [];
-  for (const p of page) {
-    mapped.push(p);
-    const alias = PAGE_SLUG_ALIASES[p];
-    if (alias) mapped.push(alias);
-  }
-  return { ...perms, [PERMISSION_BUCKET_PAGE]: [...new Set(mapped)] };
+/** Page keys for RBAC checks / sidebar filtering. */
+export function toPermissionSet(perms: string[] | undefined): Set<string> {
+  const raw = (perms ?? []).map((p) => p.trim()).filter(Boolean);
+  return new Set(raw);
 }
 
 /**
@@ -97,7 +74,7 @@ function normalizePermissionsRaw(raw: unknown): PermissionsByType | undefined {
 /**
  * Login payloads may list stored role grants under `breakdown.fromRole` while the top-level
  * `page` / `operational` arrays only contain bundle-expanded runtime codes. Merge effective
- * grants (sources minus deny overrides) so explicit page gates like `page:hrms` hydrate RBAC.
+ * grants (sources minus deny overrides) hydrate RBAC from role breakdown payloads.
  */
 function normalizeRoleGrantBreakdown(bd: Record<string, unknown>): PermissionsByType | undefined {
   const grants = [
@@ -371,11 +348,11 @@ export function hasPagePermission(pagePerms: Set<string>, required: string): boo
   return pagePerms.has(required);
 }
 
-/** Backend / legacy role payloads sometimes use alternate spellings for the same operational grant. */
+/** Backend / legacy role payloads sometimes use alternate spellings for operational grants. */
 const OPERATIONAL_PERMISSION_ALIASES: Record<string, string> = {
-  "chat.access": "chat:access",
-  chat_access: "chat:access",
-  CHAT_ACCESS: "chat:access",
+  "chat.access": "chat:bundle:agent",
+  chat_access: "chat:bundle:agent",
+  CHAT_ACCESS: "chat:bundle:agent",
   "chat-widget.view": "chat-widget:view",
   "chat-widget.update": "chat-widget:update",
 };

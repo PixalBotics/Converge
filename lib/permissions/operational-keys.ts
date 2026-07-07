@@ -1,12 +1,18 @@
 import { hasAnyOperational } from "./access-helpers";
-import { HRMS, ORG } from "./permission-constants";
+import { CHAT_INBOX_OPERATIONAL_ANY } from "./chat-inbox-operational";
+import {
+  HRMS,
+  HRMS_ATTENDANCE_SELF_ANY,
+  HRMS_SHIFT_ASSIGNMENT_ANY,
+  ORG,
+} from "./permission-constants";
 
 /**
  * Operational permission strings from the auth API (`data.permission.operational`).
  *
  * - **Route / menu:** `useAuth().hasPage(PAGE.*)` + `lib/permissions/dashboard-access`.
  * - **Actions:** `hasAnyOperational(hasOperational, ORG.*)` or helpers below.
- * - **Org vs HRMS:** Departments/Pools use {@link ORG}; shifts/leave/attendance use {@link HRMS}.
+ * - **Org vs HRMS:** Departments/Pools use {@link ORG} (`hrms:*` org structure); shifts/leave/attendance use {@link HRMS}.
  */
 export const OP = {  accountSetup: {
     create: "account-setup:create",
@@ -20,13 +26,15 @@ export const OP = {  accountSetup: {
     analyticsRead: "observability:analytics:read",
   },
   chat: {
-    access: "chat:access",
+    /** @deprecated retired — use {@link CHAT_INBOX_OPERATIONAL_ANY} / chat bundles */
+    inboxOperationalAny: CHAT_INBOX_OPERATIONAL_ANY,
     audit: "chat:audit",
     auditPlatform: "chat:audit:platform",
     monitorPool: "chat:monitor:pool",
     monitorDepartment: "chat:monitor:department",
     monitorParentCompany: "chat:monitor:parent-company",
     monitorInvolvement: "chat:monitor:involvement",
+    monitorInternalSupervisor: "chat:monitor:internal-supervisor",
     whisper: "chat:whisper",
     takeoverRequest: "chat:takeover:request",
     takeoverApprove: "chat:takeover:approve",
@@ -44,11 +52,20 @@ export const OP = {  accountSetup: {
   aiAssistant: {
     trainingView: "ai-assistant:training:view",
     trainingManage: "ai-assistant:training:manage",
-    use: "ai-assistant:use",
+  },
+  aiCopilot: {
+    use: "ai-copilot:use",
+    /** @deprecated stored on old roles — expands to ai-copilot:use */
+    useLegacy: "ai-assistant:use",
+    setupView: "ai-copilot:setup:view",
+    setupManage: "ai-copilot:setup:manage",
   },
   aiChatbot: {
     trainingView: "ai-chatbot:training:view",
     trainingManage: "ai-chatbot:training:manage",
+  },
+  aiPlatform: {
+    manage: "ai-platform:manage",
   },
   client: { permissions: "client:permissions" },
   company: {
@@ -86,11 +103,11 @@ export const OP = {  accountSetup: {
       breakOut: "hrms:attendance:breakout",
       meetingIn: "hrms:attendance:meetingin",
       meetingOut: "hrms:attendance:meetingout",
-      self: "hrms:attendance:self",
       selfView: "hrms:attendance:self:view",
       view: "hrms:attendance:view",
     },
     department: {
+      create: "hrms:department:create",
       delete: "hrms:department:delete",
       update: "hrms:department:update",
       view: "hrms:department:view",
@@ -109,21 +126,10 @@ export const OP = {  accountSetup: {
     },
     leave: {
       apply: "hrms:leave:apply",
-      approve: "hrms:leave:approve",
       approveDepartment: "hrms:leave:approve:department",
       approvePool: "hrms:leave:approve:pool",
-      rejectDepartment: "hrms:leave:reject:department",
-      rejectPool: "hrms:leave:reject:pool",
-      selfView: "hrms:leave:self:view",
+      approveTenant: "hrms:leave:approve:tenant",
       typeManage: "hrms:leave:type:manage",
-      view: "hrms:leave:view",
-    },
-    org: {
-      departmentManage: "hrms:org:department:manage",
-      designationManage: "hrms:org:designation:manage",
-      manage: "hrms:org:manage",
-      poolManage: "hrms:org:pool:manage",
-      structureView: "hrms:org:structure:view",
     },
     pool: {
       create: "hrms:pool:create",
@@ -146,13 +152,6 @@ export const OP = {  accountSetup: {
       update: "hrms:shift:update",
       view: "hrms:shift:view",
     },
-    shiftAssignment: {
-      create: "hrms:shift-assignment:create",
-      delete: "hrms:shift-assignment:delete",
-      update: "hrms:shift-assignment:update",
-      view: "hrms:shift-assignment:view",
-    },
-    team: { rosterView: "hrms:team:roster:view" },
     userShift: { assign: "hrms:user-shift:assign" },
   },
   ipBlocklist: {
@@ -218,26 +217,24 @@ export function canManagePoolHeads(hasOperational: (p: string) => boolean): bool
   return (
     hasOperational(OP.hrms.poolHead.create) ||
     hasOperational(OP.hrms.poolHead.update) ||
-    hasOperational(OP.hrms.userShift.assign) ||
-    hasOperational(OP.hrms.shiftAssignment.create)
+    hasOperational(OP.hrms.userShift.assign)
   );
 }
 
 export function canRemovePoolHead(hasOperational: (p: string) => boolean): boolean {
-  return hasOperational(OP.hrms.poolHead.delete) || hasOperational(OP.hrms.shiftAssignment.delete);
+  return hasOperational(OP.hrms.poolHead.delete);
 }
 
 export function canManageDepartmentHeads(hasOperational: (p: string) => boolean): boolean {
   return (
     hasOperational(OP.hrms.departmentHead.create) ||
     hasOperational(OP.hrms.departmentHead.update) ||
-    hasOperational(OP.hrms.userShift.assign) ||
-    hasOperational(OP.hrms.shiftAssignment.create)
+    hasOperational(OP.hrms.userShift.assign)
   );
 }
 
 export function canRemoveDepartmentHead(hasOperational: (p: string) => boolean): boolean {
-  return hasOperational(OP.hrms.departmentHead.delete) || hasOperational(OP.hrms.shiftAssignment.delete);
+  return hasOperational(OP.hrms.departmentHead.delete);
 }
 
 type H = (permission: string) => boolean;
@@ -359,5 +356,9 @@ export function canLeaveTypeManage(h: H): boolean {
 }
 
 export function canLeaveTypeView(h: H): boolean {
-  return h(OP.hrms.leave.typeManage) || h(OP.hrms.leave.view);
+  return h(OP.hrms.leave.typeManage) || h(OP.hrms.leave.apply);
+}
+
+export function hasAttendanceSelfOperational(h: H): boolean {
+  return HRMS_ATTENDANCE_SELF_ANY.some((code) => h(code));
 }

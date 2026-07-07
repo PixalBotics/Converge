@@ -53,7 +53,6 @@ export function AssignQaRosterWorkspace({ preset }: { preset?: QaAssignPreset | 
   const canView =
     hasPage(PAGE.CHAT_QA_ROSTER) ||
     hasPage(PAGE.CHAT_WIDGET) ||
-    hasPage(PAGE.CHAT) ||
     hasOperational(OP.qa.chatAssign);
 
   const [resellerId, setResellerId] = useState("");

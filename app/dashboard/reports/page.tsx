@@ -1,7 +1,7 @@
 "use client";
 
-import { DataNotFoundPlaceholder } from "@/components/common";
+import { GenerateReportsPage } from "@/features/reports/pages/GenerateReportsPage";
 
 export default function ReportsPage() {
-  return <DataNotFoundPlaceholder />;
+  return <GenerateReportsPage />;
 }

@@ -241,8 +241,8 @@ export function ChatMessageList({
           flex: "1 1 0",
           minHeight: 0,
           pl: { xs: 1.5, sm: 2 },
-          pr: "10px",
-          py: 2.5,
+          pr: { xs: 1.5, sm: 2 },
+          py: 2,
           gap: 0,
         }}
       >

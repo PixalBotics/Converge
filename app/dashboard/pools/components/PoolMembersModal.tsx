@@ -69,7 +69,7 @@ export function PoolMembersModal({ open, onClose, pool, canAdd, canMove, canRemo
               {pool.poolName}
             </Typography>
             <Typography variant="caption" sx={{ display: "block", mt: 0.75, color: theme.app.dashboard.textMuted }}>
-              Pool member APIs require page:hrms and the matching operational permission (add / update / remove).
+              Pool member APIs require page:pool-members and the matching operational permission (add / update / remove).
             </Typography>
           </Box>
           <IconButton

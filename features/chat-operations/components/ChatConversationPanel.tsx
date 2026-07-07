@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import MoreVert from "@mui/icons-material/MoreVert";
+import ArrowBackOutlined from "@mui/icons-material/ArrowBackOutlined";
 import Box from "@mui/material/Box";
 import { alpha } from "@mui/material/styles";
 import IconButton from "@mui/material/IconButton";
@@ -18,13 +19,19 @@ import type { AiChatMessage } from "../types/ai-chat";
 import { parseVisitorInfo } from "../utils/visitor-info";
 import type { ChatWhisperSocketPayload } from "@/services/chat/supervisor.types";
 import { ChatContextRail } from "./ChatContextRail";
+import { ChatTranscriptStatusChip } from "./ChatTranscriptStatusChip";
+import {
+  CLOSED_CHAT_BUCKETS,
+  resolveClosedChatBucket,
+} from "../utils/chat-close-outcome";
 import { GuestLinkHeaderAction } from "./GuestLinkHeaderAction";
 import { TransferChatHeaderAction } from "./TransferChatHeaderAction";
 import { inboxTranscriptDisplayForClosed } from "../utils/inbox-transcript-messages";
 import { ChatWhisperComposerStrip } from "./ChatWhisperComposerStrip";
 import { ChatComposer } from "./ChatComposer";
+import { ChatDistributionLinkBanner } from "./ChatDistributionLinkBanner";
 import { ChatMessageList, type VisitorProfileCaptureSelection } from "./ChatMessageList";
-import { chatOpsConversationMetaChipHeight } from "../styles/chat-operations.styles";
+import { chatOpsConversationMetaChipHeight, chatOpsBackButtonSx } from "../styles/chat-operations.styles";
 import type { VisitorProfileField } from "@/services/chat/visitor-profile.types";
 import {
   ChatHeaderMetaChip,
@@ -50,7 +57,10 @@ interface ChatConversationPanelProps {
   onTyping: (draft?: string) => void;
   onStopTyping: () => void;
   onInsertCanned: (text: string) => void;
-  onCloseChat?: () => void;
+  onDismissConversation?: () => void;
+  /** Show back control in the transcript header (queue / list). */
+  showBackButton?: boolean;
+  onMarkSpam?: () => void;
   canSend: boolean;
   aiMessages: AiChatMessage[];
   aiPrompt: string;
@@ -68,6 +78,7 @@ interface ChatConversationPanelProps {
   /** Fallback when post-close distribution link is not yet in transcript history. */
   distributionFormHref?: string | null;
   requiresDistributionForm?: boolean;
+  distributionSubmitted?: boolean;
   hasOperational?: (p: string) => boolean;
   profileCaptureEnabled?: boolean;
   onCaptureField?: (
@@ -75,6 +86,8 @@ interface ChatConversationPanelProps {
     selection: VisitorProfileCaptureSelection,
   ) => void | Promise<void>;
   profileCaptureBusy?: boolean;
+  agentInboxEnabled?: boolean;
+  copilotEnabled?: boolean;
 }
 
 function formatDuration(seconds: number): string {
@@ -100,7 +113,9 @@ export function ChatConversationPanel({
   onTyping,
   onStopTyping,
   onInsertCanned,
-  onCloseChat,
+  onDismissConversation,
+  onMarkSpam,
+  showBackButton = false,
   canSend,
   aiMessages,
   aiPrompt,
@@ -117,10 +132,13 @@ export function ChatConversationPanel({
   onDismissWhisper,
   distributionFormHref = null,
   requiresDistributionForm = false,
+  distributionSubmitted = false,
   hasOperational = () => false,
   profileCaptureEnabled = false,
   onCaptureField,
   profileCaptureBusy = false,
+  agentInboxEnabled = true,
+  copilotEnabled = true,
 }: ChatConversationPanelProps) {
   const theme = useTheme() as AppTheme;
   const visitorInfo = parseVisitorInfo(visitor, conversationMeta ?? undefined);
@@ -174,23 +192,42 @@ export function ChatConversationPanel({
   const hasConversation = Boolean(conversationId);
 
   const transcriptDisplay = useMemo(() => {
+    const closeBucket = conversationMeta
+      ? resolveClosedChatBucket({
+          closeBucket:
+            typeof conversationMeta.closeBucket === "string"
+              ? conversationMeta.closeBucket
+              : null,
+          closeOutcome:
+            typeof conversationMeta.closeOutcome === "string"
+              ? conversationMeta.closeOutcome
+              : null,
+          requiresDistributionForm: Boolean(conversationMeta.requiresDistributionForm),
+          distributionSubmitted: Boolean(conversationMeta.distributionSubmitted),
+        })
+      : null;
+
+    if (!readOnly) {
+      return { hidePostCloseForms: true };
+    }
+
+    if (
+      closeBucket === CLOSED_CHAT_BUCKETS.COMPLETED ||
+      closeBucket === CLOSED_CHAT_BUCKETS.SPAM
+    ) {
+      return { hidePostCloseForms: true };
+    }
+
     const fromMessages = inboxTranscriptDisplayForClosed(messages);
     if (fromMessages) return fromMessages;
-    if (
-      readOnly &&
-      requiresDistributionForm &&
-      distributionFormHref?.trim()
-    ) {
+    if (requiresDistributionForm && distributionFormHref?.trim()) {
       return {
         requiresDistributionForm: true,
         distributionFormHref: distributionFormHref.trim(),
       };
     }
-    if (!readOnly) {
-      return { hidePostCloseForms: true };
-    }
-    return undefined;
-  }, [messages, readOnly, requiresDistributionForm, distributionFormHref]);
+    return { hidePostCloseForms: true };
+  }, [conversationMeta, messages, readOnly, requiresDistributionForm, distributionFormHref]);
 
   const typingPreviews = useMemo(
     () =>
@@ -216,27 +253,35 @@ export function ChatConversationPanel({
         <PanelHeader
           sx={{
             display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: { xs: 1.5, sm: 2 },
-            py: 1.5,
-            px: 2,
+            flexDirection: "column",
+            gap: 1.25,
+            py: 1.35,
+            px: { xs: 1.5, sm: 2 },
           }}
         >
           <Box
             sx={{
               display: "flex",
-              alignItems: "flex-start",
-              gap: 1.5,
+              alignItems: "center",
+              gap: { xs: 1, sm: 1.25 },
               minWidth: 0,
-              flex: 1,
-              pr: { sm: 1 },
+              width: "100%",
             }}
           >
-            <QueueAvatar sx={{ width: 44, height: 44, fontSize: 14, flexShrink: 0 }}>
+            {showBackButton && onDismissConversation ? (
+              <IconButton
+                size="small"
+                aria-label="Back to conversations"
+                onClick={onDismissConversation}
+                sx={chatOpsBackButtonSx}
+              >
+                <ArrowBackOutlined sx={{ fontSize: 18 }} />
+              </IconButton>
+            ) : null}
+            <QueueAvatar sx={{ width: 42, height: 42, fontSize: 14, flexShrink: 0 }}>
               {visitorInfo.initials}
             </QueueAvatar>
-            <Box sx={{ minWidth: 0, display: "flex", flexDirection: "column", gap: 0.35 }}>
+            <Box sx={{ minWidth: 0, flex: 1, display: "flex", flexDirection: "column", gap: 0.3 }}>
               <Typography
                 fontWeight={700}
                 sx={{
@@ -279,66 +324,13 @@ export function ChatConversationPanel({
                   Transferred by {lastTransferFrom.label}
                 </Typography>
               ) : null}
-              <Box
-                component="span"
-                sx={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  alignSelf: "flex-start",
-                  gap: 0.5,
-                  mt: 0.15,
-                  height: chatOpsConversationMetaChipHeight,
-                  boxSizing: "border-box",
-                  px: 1,
-                  py: 0,
-                  borderRadius: 999,
-                  fontSize: 11,
-                  fontWeight: 600,
-                  color: readOnly
-                    ? theme.app.dashboard.textMuted
-                    : visitorTyping
-                      ? theme.app.dashboard.accentCyan
-                      : theme.palette.success.light,
-                  bgcolor: readOnly
-                    ? alpha(theme.app.dashboard.textMuted, 0.12)
-                    : visitorTyping
-                      ? alpha(theme.app.dashboard.accentCyan, 0.14)
-                      : alpha(theme.palette.success.main, 0.14),
-                }}
-              >
-                <Box
-                  component="span"
-                  sx={{
-                    width: 6,
-                    height: 6,
-                    borderRadius: "50%",
-                    bgcolor: readOnly
-                      ? theme.app.dashboard.textMuted
-                      : visitorTyping
-                        ? theme.app.dashboard.accentCyan
-                        : theme.palette.success.main,
-                  }}
-                />
-                {readOnly ? "Closed" : visitorTyping ? "Typing" : "Online"}
-              </Box>
             </Box>
-          </Box>
-          <Box
-            sx={{
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "flex-end",
-              gap: 0.75,
-              flexShrink: 0,
-              ml: { xs: 0, sm: 1.5 },
-            }}
-          >
             <Box
               sx={{
                 display: "flex",
                 alignItems: "center",
-                gap: 1,
-                flexWrap: "nowrap",
+                gap: 0.75,
+                flexShrink: 0,
               }}
             >
               {!readOnly ? (
@@ -351,13 +343,13 @@ export function ChatConversationPanel({
                   />
                 </>
               ) : null}
-              {onCloseChat ? (
+              {onMarkSpam ? (
                 <>
                   <Button
                     type="button"
                     variant="secondary"
                     size="compact"
-                    onClick={() => void onCloseChat()}
+                    onClick={() => onMarkSpam()}
                     sx={{
                       display: { xs: "none", md: "inline-flex" },
                       minWidth: 0,
@@ -365,9 +357,11 @@ export function ChatConversationPanel({
                       px: 1.5,
                       py: 0,
                       fontSize: 11,
+                      color: theme.palette.warning.light,
+                      borderColor: alpha(theme.palette.warning.main, 0.45),
                     }}
                   >
-                    Close chat
+                    Mark spam
                   </Button>
                   <IconButton
                     size="small"
@@ -393,24 +387,33 @@ export function ChatConversationPanel({
                     <MenuItem
                       onClick={() => {
                         setMenuAnchor(null);
-                        onCloseChat();
+                        onMarkSpam();
                       }}
-                      sx={{ color: theme.palette.error.light }}
+                      sx={{ color: theme.palette.warning.light }}
                     >
-                      Close conversation
+                      Mark as spam
                     </MenuItem>
                   </Menu>
                 </>
               ) : null}
             </Box>
-            <Box
-              sx={{
-                display: { xs: "none", sm: "flex" },
-                gap: 1,
-                flexWrap: "nowrap",
-                alignItems: "center",
-              }}
-            >
+          </Box>
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 1,
+              flexWrap: "wrap",
+              pl: showBackButton && onDismissConversation ? { xs: 0, sm: 0.5 } : 0,
+            }}
+          >
+            <ChatTranscriptStatusChip
+              conversationMeta={conversationMeta}
+              readOnly={readOnly}
+              visitorTyping={visitorTyping}
+            />
+            <Box sx={{ display: "flex", gap: 1, alignItems: "center", flexWrap: "wrap" }}>
               <ChatHeaderMetaChip>
                 <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, fontSize: 10 }}>
                   Session
@@ -432,6 +435,21 @@ export function ChatConversationPanel({
         </PanelHeader>
       ) : null}
 
+      {hasConversation &&
+      readOnly &&
+      requiresDistributionForm &&
+      distributionFormHref?.trim() ? (
+        <Box sx={{ flexShrink: 0, px: 2, pt: 1.25 }}>
+          <ChatDistributionLinkBanner
+            href={distributionFormHref.trim()}
+            submitted={distributionSubmitted}
+            hint="Chat closed. Open the distribution form to send the transcript to a department."
+            buttonLabel="Open distribution form"
+            submittedHint="Distribution form already submitted for this chat."
+          />
+        </Box>
+      ) : null}
+
       <Box
         sx={{
           flex: 1,
@@ -439,6 +457,7 @@ export function ChatConversationPanel({
           overflow: "hidden",
           display: "flex",
           flexDirection: "column",
+          bgcolor: (t) => alpha((t as AppTheme).app.dashboard.overlayLight, 0.2),
         }}
       >
         <ChatMessageList
@@ -458,11 +477,13 @@ export function ChatConversationPanel({
         />
       </Box>
 
-      <ChatContextRail
-        hasConversation={hasConversation}
-        readOnly={readOnly}
-        availabilityHint={availabilityHint}
-      />
+      {!readOnly ? (
+        <ChatContextRail
+          hasConversation={hasConversation}
+          readOnly={readOnly}
+          availabilityHint={availabilityHint}
+        />
+      ) : null}
 
       {activeWhisper && onApplyWhisperToComposer && onDismissWhisper && !readOnly ? (
         <ChatWhisperComposerStrip
@@ -493,6 +514,8 @@ export function ChatConversationPanel({
         aiBusy={aiBusy}
         websiteRequiredDisabled={websiteRequiredDisabled}
         hasConversation={hasConversation}
+        agentInboxEnabled={agentInboxEnabled}
+        copilotEnabled={copilotEnabled}
       />
     </PanelColumn>
   );

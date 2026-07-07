@@ -370,6 +370,13 @@ export class ChatSocketClient {
     return this.connection.emitWithAck("agent_close_chat", payload, timeoutMs);
   }
 
+  sendAgentMarkSpamWithAck(
+    payload: { conversationId: string; spamCategory: string; notes?: string },
+    timeoutMs?: number,
+  ): Promise<unknown> {
+    return this.connection.emitWithAck("agent_mark_spam_chat", payload, timeoutMs);
+  }
+
   sendAgentPickWaitingWithAck(
     payload: { conversationId: string },
     timeoutMs?: number,

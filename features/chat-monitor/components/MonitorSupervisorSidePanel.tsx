@@ -57,6 +57,12 @@ export function MonitorSupervisorSidePanel({
     assignedAgentId !== currentUserId &&
     !isControlling;
 
+  const isUnassignedChat = !assignedAgentId;
+  const takeoverLabel = isUnassignedChat ? "Take chat" : "Take over chat";
+  const takeoverSuccess = isUnassignedChat
+    ? "You are handling this chat."
+    : "You are controlling this chat.";
+
   const run = async (fn: () => Promise<void>, successMsg?: string) => {
     setBusy(true);
     try {
@@ -110,10 +116,10 @@ export function MonitorSupervisorSidePanel({
                 conversationId,
                 supervisorControlUserId: ctrl.supervisorControlUserId,
               });
-            }, "You are controlling this chat.")
+            }, takeoverSuccess)
           }
         >
-          Take over chat
+          {takeoverLabel}
         </Button>
       ) : (
         <Button

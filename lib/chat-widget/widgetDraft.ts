@@ -21,16 +21,14 @@ import {
   type LauncherIconPresetId,
 } from "./launcher-icon-presets";
 
-export type {
-  LauncherIconPresetId,
-  LauncherIconPresetIdNonEmpty,
-} from "./launcher-icon-presets";
+export type { LauncherIconPresetId };
+export type { LauncherIconPresetIdNonEmpty } from "./launcher-icon-presets";
+export type { WidgetLauncherStyleId };
 export { normalizeLauncherIconPreset };
 
 export type WidgetInstallChatMode = "AI_ONLY" | "AGENT_ONLY" | "HYBRID";
 
-export type { WidgetAiType } from "./widget-ai-type";
-export type { WidgetLauncherStyleId } from "./launcher-style";
+export type { WidgetAiType };
 
 export interface TextUsFormFieldDraft {
   key: string;
@@ -160,16 +158,13 @@ export interface WidgetDraft {
   proactiveSecondaryCtaKind?: "whatsapp" | "link" | "";
   /** When true, show agent reply snippet above launcher while widget is closed. */
   closedMessagePreviewEnabled?: boolean;
-  /** Subtle panel / teaser transitions on embed (default on). */
   motionEnabled?: boolean;
-  /** Step 2 PATCH `config.ui` */
   buttonLabel?: string;
   firstMessage?: string;
   messagePlaceholder?: string;
   backgroundColor?: string;
   popupEnabled?: boolean;
-  /** `theme.designJson.chat.colors` — embed UI tokens (step 2). */
-  chatBodyText?: string;
+ chatBodyText?: string;
   chatMutedText?: string;
   incomingMessageBg?: string;
   incomingMessageText?: string;

@@ -73,15 +73,23 @@ export function PoolModals({
   onConfirmDelete,
   isDeleting,
 }: PoolModalsProps) {
+  const isInternal = createDeptKind === "Internal";
+  const isExternal = createDeptKind === "External";
+
   const departmentTypeOptions: SelectOption[] = includeInternalDepartmentType
     ? [
         { value: "Internal", label: "Internal" },
         { value: "External", label: "External" },
       ]
     : [{ value: "External", label: "External" }];
+
   const createPoolDescription = includeInternalDepartmentType
-    ? "Internal: choose department, then enter the pool name. External: choose reseller and parent company, then department, then pool name."
+    ? isInternal
+      ? "Internal pool: enter the pool name only. No reseller, parent company, or department is required."
+      : "External pool: choose reseller and parent company, then department, then pool name."
     : "Choose reseller and parent company, then department, then pool name (external departments).";
+
+  const showTenantScopeFields = isExternal;
 
   return (
     <>
@@ -98,14 +106,14 @@ export function PoolModals({
         fitContent
       >
         <SelectField
-          label="Department type"
+          label="Pool type"
           value={createDeptKind}
           onChange={(v) => onCreateDeptKindChange(v as "Internal" | "External")}
           options={departmentTypeOptions}
           menuMaxRows={4}
         />
 
-        {createDeptKind === "External" ? (
+        {showTenantScopeFields ? (
           <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 1.5, mt: 1.5 }}>
             <SelectField
               label="Reseller"
@@ -120,21 +128,23 @@ export function PoolModals({
               onChange={onCreateParentCompanyIdChange}
               options={createParentCompanyOptions}
               menuMaxRows={8}
-              disabled={!createResellerId.trim()}
+              disabled={isExternal && !createResellerId.trim()}
             />
           </Box>
         ) : null}
 
-        <Box sx={{ mt: 1.5 }}>
-          <SelectField
-            label="Department"
-            value={createDepartmentId}
-            onChange={onCreateDepartmentIdChange}
-            options={createDepartmentOptions}
-            menuMaxRows={10}
-            disabled={createDeptKind === "External" && (!createResellerId.trim() || !createParentCompanyId.trim())}
-          />
-        </Box>
+        {isExternal ? (
+          <Box sx={{ mt: 1.5 }}>
+            <SelectField
+              label="Department"
+              value={createDepartmentId}
+              onChange={onCreateDepartmentIdChange}
+              options={createDepartmentOptions}
+              menuMaxRows={10}
+              disabled={!createResellerId.trim() || !createParentCompanyId.trim()}
+            />
+          </Box>
+        ) : null}
 
         <Box sx={{ mt: 1.5 }}>
           <InputField

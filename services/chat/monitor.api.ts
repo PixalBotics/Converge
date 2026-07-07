@@ -140,3 +140,37 @@ export async function fetchMonitorTranscript(
     },
   );
 }
+
+export type MonitorAssignTarget = {
+  userId: string;
+  name: string;
+  email: string | null;
+  label: string;
+  serviceChannel: string;
+};
+
+export async function fetchMonitorAssignTargets(conversationId: string): Promise<{
+  conversationId: string;
+  agents: MonitorAssignTarget[];
+}> {
+  const { data } = await apiClient.get<unknown>(
+    `/chat/monitor/conversations/${encodeURIComponent(conversationId)}/assign-targets`,
+  );
+  return unwrapChatHttpData(data);
+}
+
+export async function monitorAssignConversation(
+  conversationId: string,
+  toUserId: string,
+): Promise<{
+  conversationId: string;
+  assignKind: "dispatch" | "reassign";
+  toAgent: { id: string; label: string };
+  assignedRank?: string;
+}> {
+  const { data } = await apiClient.post<unknown>(
+    `/chat/monitor/conversations/${encodeURIComponent(conversationId)}/assign`,
+    { toUserId },
+  );
+  return unwrapChatHttpData(data);
+}

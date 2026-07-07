@@ -4,6 +4,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   closeConversation,
   getAgentConversationHistorySocket,
+  isConversationAlreadyClosedError,
+  markConversationSpam,
 } from "@/services/chat/agent-inbox.api";
 import { sendSupervisorControlMessage } from "@/services/chat/supervisor.api";
 import { fetchAgentWrapUp } from "@/services/chat/wrap-up.api";
@@ -47,7 +49,7 @@ import { isAgentChatSessionAccepting } from "./agent-chat-session-bus";
 interface UseAgentChatParams {
   token: string;
   agentId?: string;
-  /** False when user lacks `page:chat` + `chat:access` — no agent APIs or socket. */
+  /** False when user lacks `page:chat-inbox` + chat bundle — no agent APIs or socket. */
   apiEnabled?: boolean;
 }
 
@@ -73,6 +75,10 @@ export interface UseAgentChatReturn {
   clearSelection: () => void;
   sendMessage: (content: string, options?: { messageType?: string }) => Promise<void>;
   closeSelectedConversation: () => Promise<void>;
+  markSpamSelectedConversation: (input: {
+    spamCategory: string;
+    notes?: string;
+  }) => Promise<void>;
   emitTyping: (draft?: string) => void;
   emitStopTyping: () => void;
   pendingWrapUp: AgentWrapUpPayload | null;
@@ -992,22 +998,27 @@ export function useAgentChat(params: UseAgentChatParams): UseAgentChatReturn {
     if (!selectedConversationId || selectedIsClosed) return;
 
     const closingId = selectedConversationId;
-    let closed: Awaited<ReturnType<typeof closeConversation>>;
+    let closed: ChatCloseResponse;
     try {
       await socketClient.waitUntilConnected(10_000);
       if (socketClient.isConnected()) {
         const ack = await socketClient.sendAgentCloseChatWithAck({
           conversationId: closingId,
         });
-        closed =
-          ack && typeof ack === "object"
-            ? (unwrapSocketAckPayload(ack) as ChatCloseResponse)
-            : await closeConversation(closingId, params.token);
+        if (ack && typeof ack === "object") {
+          closed = unwrapSocketAckPayload(ack) as ChatCloseResponse;
+        } else {
+          closed = await closeConversation(closingId, params.token);
+        }
       } else {
         closed = await closeConversation(closingId, params.token);
       }
-    } catch {
-      closed = await closeConversation(closingId, params.token);
+    } catch (err) {
+      if (isConversationAlreadyClosedError(err)) {
+        closed = { conversationId: closingId, reassigned: null };
+      } else {
+        closed = await closeConversation(closingId, params.token);
+      }
     }
     setSelectedIsClosed(true);
     selectedIsClosedRef.current = true;
@@ -1043,6 +1054,65 @@ export function useAgentChat(params: UseAgentChatParams): UseAgentChatReturn {
     selectedConversationId,
     selectedIsClosed,
   ]);
+
+  const markSpamSelectedConversation = useCallback(
+    async (input: { spamCategory: string; notes?: string }) => {
+      if (!selectedConversationId || selectedIsClosed) return;
+
+      const closingId = selectedConversationId;
+      const body = {
+        spamCategory: input.spamCategory,
+        notes: input.notes?.trim() || undefined,
+      };
+      let closed: Awaited<ReturnType<typeof markConversationSpam>>;
+      try {
+        await socketClient.waitUntilConnected(10_000);
+        if (socketClient.isConnected()) {
+          const ack = await socketClient.sendAgentMarkSpamWithAck({
+            conversationId: closingId,
+            ...body,
+          });
+          closed =
+            ack && typeof ack === "object"
+              ? (unwrapSocketAckPayload(ack) as ChatCloseResponse)
+              : await markConversationSpam(closingId, body, params.token);
+        } else {
+          closed = await markConversationSpam(closingId, body, params.token);
+        }
+      } catch {
+        closed = await markConversationSpam(closingId, body, params.token);
+      }
+
+      setSelectedIsClosed(true);
+      selectedIsClosedRef.current = true;
+      setPendingWrapUp(null);
+
+      const nextId =
+        closed.reassigned && typeof closed.reassigned.conversationId === "string"
+          ? closed.reassigned.conversationId
+          : null;
+
+      if (nextId) {
+        await selectConversation(nextId, { readOnly: false });
+        return;
+      }
+
+      await reloadConversationHistory(closingId);
+      if (apiEnabled && params.token) {
+        void queues.refreshQueues();
+      }
+    },
+    [
+      apiEnabled,
+      params.token,
+      queues,
+      reloadConversationHistory,
+      selectConversation,
+      selectedConversationId,
+      selectedIsClosed,
+      socketClient,
+    ],
+  );
 
   const emitStopTyping = useCallback(() => {
     if (!selectedConversationId || selectedIsClosed) return;
@@ -1090,6 +1160,7 @@ export function useAgentChat(params: UseAgentChatParams): UseAgentChatReturn {
     clearSelection,
     sendMessage,
     closeSelectedConversation,
+    markSpamSelectedConversation,
     emitTyping,
     emitStopTyping,
     pendingWrapUp,

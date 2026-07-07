@@ -67,7 +67,7 @@ export function ChatQaWorkspace({
     return (
       <PermissionDeniedPanel
         title="QA inbox not available"
-        description="Requires page:chat and qa:chat:review (or related QA codes) from /auth/me."
+        description="Requires page:chat-qa and qa:chat:review (or related QA codes) from /auth/me."
       />
     );
   }

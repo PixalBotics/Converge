@@ -1,18 +1,17 @@
 "use client";
 
 import { useAuth } from "@/lib/auth";
+import { PAGE, SMTP_EMAIL_PAGE_PERMISSIONS } from "@/lib/permissions/permission-constants";
 import { OP } from "@/lib/permissions/operational-keys";
 
-const PAGE_SMTP_EMAIL = "page:smtp-email";
-
-/** Page + operational checks for SMTP / reseller mail screens (aligned with backend implications). */
+/** Page + operational checks for SMTP / reseller mail screens. */
 export function useSmtpEmailAccess() {
   const { hasOperational, hasPage, isPlatformAdmin } = useAuth();
 
+  const hasSmtpPage = SMTP_EMAIL_PAGE_PERMISSIONS.some((p) => hasPage(p));
+
   const canView =
-    isPlatformAdmin ||
-    hasOperational(OP.smtpEmail.view) ||
-    hasPage(PAGE_SMTP_EMAIL);
+    isPlatformAdmin || hasOperational(OP.smtpEmail.view) || hasSmtpPage;
 
   const canUpdate =
     isPlatformAdmin ||
@@ -25,5 +24,5 @@ export function useSmtpEmailAccess() {
   const canTest =
     isPlatformAdmin || hasOperational(OP.smtpEmail.test);
 
-  return { canView, canUpdate, canDelete, canTest };
+  return { canView, canUpdate, canDelete, canTest, hasResellerPage: hasPage(PAGE.SMTP_EMAIL_RESELLER) };
 }

@@ -3,7 +3,9 @@
 import { useCallback, useMemo, useState } from "react";
 import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
+import IconButton from "@mui/material/IconButton";
 import { alpha, useTheme } from "@mui/material/styles";
+import ArrowBackOutlined from "@mui/icons-material/ArrowBackOutlined";
 import type { AppTheme } from "@/theme/theme";
 import {
   getAccessToken,
@@ -12,7 +14,7 @@ import {
 } from "@/api";
 import type { AgentAiAction } from "@/api/ai/agent-suggest.api";
 import { buildAgentCopilotInput, agentAiActionNeedsWebsite } from "@/lib/ai/agent-copilot-input";
-import { Button, FormModal, InputField, Typography } from "@/components/common";
+import { Typography } from "@/components/common";
 import { ChatComposer } from "@/features/chat-operations/components/ChatComposer";
 import { GuestLinkHeaderAction } from "@/features/chat-operations/components/GuestLinkHeaderAction";
 import { ChatMessageList } from "@/features/chat-operations/components/ChatMessageList";
@@ -26,6 +28,7 @@ import {
 import { parseVisitorInfo } from "@/features/chat-operations/utils/visitor-info";
 import {
   chatOpsAgentAssignPillSx,
+  chatOpsBackButtonSx,
   chatOpsConversationMetaChipHeight,
   chatOpsStatusChipSx,
 } from "@/features/chat-operations/styles/chat-operations.styles";
@@ -44,9 +47,7 @@ import type { ChatMessage } from "@/services/chat/chat.types";
 import { getSharedAgentChatSocket } from "@/services/chat/sharedAgentChatSocket";
 import {
   sendSupervisorControlMessage,
-  supervisorCloseConversation,
 } from "@/services/chat/supervisor.api";
-import { canSupervisorCloseChat } from "@/lib/permissions/chat-access";
 import { extractApiErrorMessageForToast, publishAppToast } from "@/lib/notify";
 function needsWebsite(action: AgentAiAction): boolean {
   return agentAiActionNeedsWebsite(action);
@@ -67,6 +68,8 @@ interface MonitorTranscriptPanelProps {
   visitorTyping?: boolean;
   onSupervisorAction?: () => void;
   onMessageSent?: () => void;
+  onDismissConversation?: () => void;
+  showBackButton?: boolean;
 }
 
 export function MonitorTranscriptPanel({
@@ -83,6 +86,8 @@ export function MonitorTranscriptPanel({
   visitorTyping = false,
   onSupervisorAction,
   onMessageSent,
+  onDismissConversation,
+  showBackButton = false,
 }: MonitorTranscriptPanelProps) {
   const theme = useTheme() as AppTheme;
   const socketClient = useMemo(() => getSharedAgentChatSocket(), []);
@@ -109,14 +114,9 @@ export function MonitorTranscriptPanel({
   const [aiByConversation, setAiByConversation] = useState<
     Record<string, import("@/features/chat-operations/utils/conversation-scoped-state").ConversationAiState>
   >({});
-  const [closeDialogOpen, setCloseDialogOpen] = useState(false);
-  const [closeReason, setCloseReason] = useState("");
-  const [closeBusy, setCloseBusy] = useState(false);
 
   const composer = getConversationDraft(draftsByConversation, conversationId);
   const aiState = getConversationAiState(aiByConversation, conversationId);
-  const canClose =
-    !monitorReadOnly && canSupervisorCloseChat(hasOperational) && !isClosed;
 
   const transcriptDisplay = useMemo(
     () =>
@@ -300,25 +300,6 @@ export function MonitorTranscriptPanel({
     }
   }, [composer, conversationId, isControlling, onMessageSent]);
 
-  const confirmClose = useCallback(async () => {
-    if (!conversationId || !closeReason.trim()) return;
-    setCloseBusy(true);
-    try {
-      await supervisorCloseConversation(conversationId, { reason: closeReason.trim() });
-      setCloseReason("");
-      setCloseDialogOpen(false);
-      onSupervisorAction?.();
-      publishAppToast({ variant: "success", message: "Chat closed." });
-    } catch (err) {
-      publishAppToast({
-        variant: "error",
-        message: extractApiErrorMessageForToast(err) ?? "Could not close chat.",
-      });
-    } finally {
-      setCloseBusy(false);
-    }
-  }, [closeReason, conversationId, onSupervisorAction]);
-
   const isArchive = layout === "archive";
 
   return (
@@ -336,19 +317,36 @@ export function MonitorTranscriptPanel({
         <PanelHeader
           sx={{
             display: "flex",
-            alignItems: "flex-start",
-            justifyContent: "space-between",
-            gap: 2,
-            py: 1.5,
-            px: 2,
+            flexDirection: "column",
+            gap: 1,
+            py: 1.35,
+            px: { xs: 1.5, sm: 2 },
             flexShrink: 0,
           }}
         >
-          <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1.5, minWidth: 0, flex: 1 }}>
-            <QueueAvatar sx={{ width: 44, height: 44, fontSize: 14, flexShrink: 0 }}>
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: { xs: 1, sm: 1.25 },
+              minWidth: 0,
+              width: "100%",
+            }}
+          >
+            {showBackButton && onDismissConversation ? (
+              <IconButton
+                size="small"
+                aria-label="Back to monitor queue"
+                onClick={onDismissConversation}
+                sx={chatOpsBackButtonSx}
+              >
+                <ArrowBackOutlined sx={{ fontSize: 18 }} />
+              </IconButton>
+            ) : null}
+            <QueueAvatar sx={{ width: 42, height: 42, fontSize: 14, flexShrink: 0 }}>
               {visitorInfo.initials}
             </QueueAvatar>
-            <Box sx={{ minWidth: 0, pt: 0.15 }}>
+            <Box sx={{ minWidth: 0, flex: 1 }}>
               <Typography
                 fontWeight={700}
                 sx={{ fontSize: 15, lineHeight: 1.3, color: theme.app.text.primary }}
@@ -369,44 +367,15 @@ export function MonitorTranscriptPanel({
                   {subtitle}
                 </Typography>
               ) : null}
-              <Box
-                sx={{
-                  display: "flex",
-                  gap: 0.75,
-                  mt: 0.85,
-                  flexWrap: "wrap",
-                  alignItems: "center",
-                }}
-              >
-                <Chip
-                  label={conversation!.status}
-                  size="small"
-                  sx={{
-                    ...chatOpsStatusChipSx,
-                    textTransform: "capitalize",
-                  }}
-                />
-                <Box
-                  component="span"
-                  sx={mergeSx(chatOpsAgentAssignPillSx, {
-                    color: theme.app.text.primary,
-                    fontWeight: 600,
-                  })}
-                >
-                  {agentLabel}
-                </Box>
-              </Box>
             </Box>
-          </Box>
-          <Box
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              gap: 0.75,
-              flexShrink: 0,
-              alignSelf: "center",
-            }}
-          >
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                gap: 0.75,
+                flexShrink: 0,
+              }}
+            >
             {!isClosed ? (
               <Box
                 component="span"
@@ -455,23 +424,26 @@ export function MonitorTranscriptPanel({
                 serviceChannel={conversation?.serviceChannel ?? null}
               />
             ) : null}
-            {canClose ? (
-              <Button
-                type="button"
-                variant="secondary"
-                size="compact"
-                onClick={() => setCloseDialogOpen(true)}
-                sx={{
-                  minWidth: 0,
-                  height: chatOpsConversationMetaChipHeight,
-                  px: 1.25,
-                  py: 0,
-                  fontSize: 11,
-                }}
-              >
-                Close
-              </Button>
-            ) : null}
+            </Box>
+          </Box>
+          <Box sx={{ display: "flex", gap: 0.75, flexWrap: "wrap", alignItems: "center" }}>
+            <Chip
+              label={conversation!.status}
+              size="small"
+              sx={{
+                ...chatOpsStatusChipSx,
+                textTransform: "capitalize",
+              }}
+            />
+            <Box
+              component="span"
+              sx={mergeSx(chatOpsAgentAssignPillSx, {
+                color: theme.app.text.primary,
+                fontWeight: 600,
+              })}
+            >
+              {agentLabel}
+            </Box>
           </Box>
         </PanelHeader>
       ) : null}
@@ -516,35 +488,6 @@ export function MonitorTranscriptPanel({
           />
         </Box>
       ) : null}
-
-      {!isArchive && (
-      <FormModal
-        open={closeDialogOpen}
-        title="Close this chat?"
-        description={`End the live session with ${title}. A close reason is required.`}
-        onClose={() => {
-          if (closeBusy) return;
-          setCloseDialogOpen(false);
-          setCloseReason("");
-        }}
-        onSave={() => void confirmClose()}
-        primaryButtonLabel={closeBusy ? "Closing…" : "Confirm close"}
-        primaryButtonDisabled={closeBusy || !closeReason.trim()}
-        cancelButtonLabel="Cancel"
-        maxWidth={480}
-        fitContent
-      >
-        <InputField
-          label="Close reason"
-          value={closeReason}
-          onChange={(e) => setCloseReason(e.target.value)}
-          disabled={closeBusy}
-          multiline
-          minRows={3}
-          placeholder="Why is this chat being closed?"
-        />
-      </FormModal>
-      )}
 
       {!isArchive && isControlling ? (
         <Typography
