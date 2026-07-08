@@ -25,7 +25,7 @@ const INTERNAL_SCOPE_OPTIONS: ScopeOption<InternalAdminScope>[] = [
   },
   {
     value: "platform_admin",
-    title: "Platform admin",
+    title: "Platform Admin",
     subtitle: "All permissions",
     accent: "purple",
   },
@@ -40,13 +40,13 @@ const EXTERNAL_SCOPE_OPTIONS: ScopeOption<ExternalAdminScope>[] = [
   },
   {
     value: "parent_company",
-    title: "Company admin",
+    title: "Parent Company Admin",
     subtitle: "One parent company",
     accent: "blue",
   },
   {
     value: "wide_reseller",
-    title: "Reseller admin",
+    title: "Reseller Admin",
     subtitle: "All client companies",
     accent: "purple",
   },

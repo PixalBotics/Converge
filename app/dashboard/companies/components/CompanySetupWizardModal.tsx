@@ -55,6 +55,7 @@ import {
   stepperLabelChildDone,
   stepperLabelChildInactive,
   stepOneIncompleteHint,
+  formHintTextSx,
   sectionStack,
   sectionHeaderRow,
   sectionHeaderRowWebsiteFirst,
@@ -72,6 +73,10 @@ import {
   sessionMayPickInternalUserScope,
 } from "@/lib/auth";
 import { canCompaniesModuleAction } from "@/lib/permissions";
+import {
+  parseCompanySetupSubmitResult,
+  type CompanySetupSubmitResult,
+} from "@/lib/companies/parse-company-setup-submit";
 
 export type CompanySetupWizardCloseReason = "completed" | "dismissed";
 
@@ -79,11 +84,27 @@ export type CompanySetupWizardModalProps = {
   open: boolean;
   draftId: string | null;
   onClose: (reason: CompanySetupWizardCloseReason) => void;
+  /** Inline page mode (contract wizard) — no modal overlay. */
+  embedded?: boolean;
+  /** Hide the internal 2-step stepper when parent shows a master stepper. */
+  hideInternalStepper?: boolean;
+  /** When set, step 2 submit hands off to contract flow instead of closing. */
+  onContractOrgComplete?: (result: CompanySetupSubmitResult) => void;
+  /** Fired when internal wizard step changes (embedded mode). */
+  onWizardStepChange?: (step: 1 | 2) => void;
 };
 
 type SetupKind = "new_reseller" | "existing_reseller";
 
-export function CompanySetupWizardModal({ open, draftId, onClose }: CompanySetupWizardModalProps) {
+export function CompanySetupWizardModal({
+  open,
+  draftId,
+  onClose,
+  embedded = false,
+  hideInternalStepper = false,
+  onContractOrgComplete,
+  onWizardStepChange,
+}: CompanySetupWizardModalProps) {
   const theme = useTheme() as AppTheme;
   const { isPlatformAdmin, user: authUser, hasPage, hasOperational } = useAuth();
   const canSetupDraftMutate =
@@ -368,6 +389,11 @@ export function CompanySetupWizardModal({ open, draftId, onClose }: CompanySetup
     canSetupDraftMutate,
   ]);
 
+  useEffect(() => {
+    if (!embedded || !onWizardStepChange) return;
+    onWizardStepChange(modalStep);
+  }, [embedded, modalStep, onWizardStepChange]);
+
   const parentPayload = useMemo(
     () => ({
       name: parentCompanyName,
@@ -482,7 +508,19 @@ export function CompanySetupWizardModal({ open, draftId, onClose }: CompanySetup
           id: effectiveRunId,
           body: buildChildrenDraftPatchBody(draftChildRows),
         });
-        await submitDraftMutation.mutateAsync(effectiveRunId);
+        const submitRes = await submitDraftMutation.mutateAsync(effectiveRunId);
+        if (onContractOrgComplete) {
+          const parsed = parseCompanySetupSubmitResult(submitRes);
+          if (!parsed) {
+            publishAppToast({
+              variant: "error",
+              message: "Setup completed but contract handoff failed. Check Companies list.",
+            });
+            return;
+          }
+          onContractOrgComplete(parsed);
+          return;
+        }
         onClose("completed");
       } catch (err) {
         applyApiErrorsFromCatch(err);
@@ -579,80 +617,81 @@ export function CompanySetupWizardModal({ open, draftId, onClose }: CompanySetup
 
   if (!open) return null;
 
-  return (
-    <FormModal
-      open={open}
-      fieldsScrollRef={wizardFieldsScrollRef}
-      title={
-        modalStep === 1
-          ? isNarrowClientScope
-            ? "Add Child Companies"
-            : "Reseller / Parent Company"
-          : "Add Child Companies"
-      }
-      description={
-        modalStep === 1
-          ? isNarrowClientScope
-            ? "Child companies are added under your assigned parent company. Continue to enter branch details and points of contact."
-            : "Choose how this company sits in the hierarchy. Nothing is saved until you click Continue with a complete parent company name."
-          : "Add each child company and up to five points of contact. Your work is saved to the draft as you type. Use Save at the end to create everything."
-      }
-      onClose={handleClose}
-      onSave={handlePrimary}
-      primaryButtonLabel={
-        modalStep === 1
-          ? createDraftMutation.isPending || updateDraftMutation.isPending
-            ? "Saving draft…"
-            : "Continue"
-          : submitDraftMutation.isPending
-            ? "Saving…"
-            : "Save"
-      }
-      primaryButtonDisabled={
-        modalStep === 1
-          ? !isStepOneComplete ||
-            createDraftMutation.isPending ||
-            updateDraftMutation.isPending ||
-            !canSetupDraftMutate
-          : !isStepTwoComplete ||
-            !effectiveRunId ||
-            updateDraftMutation.isPending ||
-            submitDraftMutation.isPending ||
-            !canSetupDraftMutate ||
-            !canSubmitWizard
-      }
-      cancelButtonLabel="Cancel"
-    >
-      <Box sx={stepperOuter}>
-        <Box sx={stepperSegment}>
-          {modalStep >= 2 ? (
-            <CheckCircleIcon sx={stepperCheckIcon} />
-          ) : (
-            <Box sx={stepperNumberCircleActive}>1</Box>
-          )}
-          <Typography
-            variant="body2"
-            sx={modalStep >= 2 ? stepperLabelResellerDone : stepperLabelResellerActive}
-          >
-            Reseller / Parent Company
-          </Typography>
-        </Box>
-        <Box sx={stepperDivider} />
-        <Box sx={stepperSegment}>
-          {modalStep === 2 ? (
-            <CheckCircleIcon sx={stepperCheckIcon} />
-          ) : (
-            <Box sx={stepperNumberCircleInactive}>2</Box>
-          )}
-          <Typography
-            variant="body2"
-            sx={modalStep === 2 ? stepperLabelChildDone : stepperLabelChildInactive}
-          >
-            Child Company Setup
-          </Typography>
-        </Box>
-      </Box>
+  const wizardTitle =
+    modalStep === 1
+      ? isNarrowClientScope
+        ? "Add Child Companies"
+        : "Reseller / Parent Company"
+      : "Add Child Companies";
 
+  const wizardDescription =
+    modalStep === 1
+      ? isNarrowClientScope
+        ? "Child companies are added under your assigned parent company. Continue to enter branch details and points of contact."
+        : "Choose how this company sits in the hierarchy. Nothing is saved until you click Continue with a complete parent company name."
+      : onContractOrgComplete
+        ? "Add each child company, websites, and points of contact. Continue when ready to pick services and billing."
+        : "Add each child company and up to five points of contact. Your work is saved to the draft as you type. Use Save at the end to create everything.";
+
+  const primaryButtonLabel =
+    modalStep === 1
+      ? createDraftMutation.isPending || updateDraftMutation.isPending
+        ? "Saving draft…"
+        : "Continue"
+      : submitDraftMutation.isPending
+        ? "Saving…"
+        : onContractOrgComplete
+          ? "Continue to services"
+          : "Save";
+
+  const primaryButtonDisabled =
+    modalStep === 1
+      ? !isStepOneComplete ||
+        createDraftMutation.isPending ||
+        updateDraftMutation.isPending ||
+        !canSetupDraftMutate
+      : !isStepTwoComplete ||
+        !effectiveRunId ||
+        updateDraftMutation.isPending ||
+        submitDraftMutation.isPending ||
+        !canSetupDraftMutate ||
+        !canSubmitWizard;
+
+  const stepperBlock = hideInternalStepper ? null : (
+    <Box sx={stepperOuter}>
+      <Box sx={stepperSegment}>
+        {modalStep >= 2 ? (
+          <CheckCircleIcon sx={stepperCheckIcon} />
+        ) : (
+          <Box sx={stepperNumberCircleActive}>1</Box>
+        )}
+        <Typography
+          variant="body2"
+          sx={modalStep >= 2 ? stepperLabelResellerDone : stepperLabelResellerActive}
+        >
+          Reseller / Parent Company
+        </Typography>
+      </Box>
+      <Box sx={stepperDivider} />
+      <Box sx={stepperSegment}>
+        {modalStep === 2 ? (
+          <CheckCircleIcon sx={stepperCheckIcon} />
+        ) : (
+          <Box sx={stepperNumberCircleInactive}>2</Box>
+        )}
+        <Typography
+          variant="body2"
+          sx={modalStep === 2 ? stepperLabelChildDone : stepperLabelChildInactive}
+        >
+          Child Company Setup
+        </Typography>
+      </Box>
+    </Box>
+  );
+
+  const fieldsBlock = (
+    <>
+      {stepperBlock}
       {modalStep === 1 ? (
         <>
           {isNarrowClientScope ? (
@@ -671,7 +710,7 @@ export function CompanySetupWizardModal({ open, draftId, onClose }: CompanySetup
             aria-label="Reseller placement"
             sx={{
               display: "grid",
-              gridTemplateColumns: canCreateNewReseller ? { xs: "1fr", sm: "1fr 1fr" } : "1fr",
+              gridTemplateColumns: canCreateNewReseller ? { xs: "1fr", md: "1fr 1fr" } : "1fr",
               gap: 2,
               mb: 1.5,
             }}
@@ -682,13 +721,16 @@ export function CompanySetupWizardModal({ open, draftId, onClose }: CompanySetup
                   p: 2,
                   borderRadius: 2,
                   cursor: "pointer",
-                  transition: "background-color 160ms ease, box-shadow 160ms ease",
+                  minWidth: 0,
+                  transition: "background-color 160ms ease, border-color 160ms ease",
                   background:
                     setupKind === "new_reseller" ? theme.app.dashboard.navActiveBg : theme.app.dashboard.cardBg,
-                  boxShadow:
+                  border: `1px solid ${
                     setupKind === "new_reseller"
-                      ? `0 0 0 1px ${alpha(theme.app.dashboard.accentBlue, 0.45)}`
-                      : "none",
+                      ? alpha(theme.app.dashboard.accentBlue, 0.45)
+                      : theme.app.dashboard.cardBorder
+                  }`,
+                  boxShadow: "none",
                 }}
                 onClick={() => {
                   clearResellerParentFieldErrors();
@@ -696,7 +738,7 @@ export function CompanySetupWizardModal({ open, draftId, onClose }: CompanySetup
                   setResellerId("");
                 }}
               >
-                <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1.25 }}>
+                <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1.25, minWidth: 0 }}>
                   <Radio
                     name="company-setup-kind"
                     checked={setupKind === "new_reseller"}
@@ -729,13 +771,16 @@ export function CompanySetupWizardModal({ open, draftId, onClose }: CompanySetup
                         }}
                       />
                     }
-                    sx={{ p: 0.25, mt: 0.125 }}
+                    sx={{ p: 0.25, mt: 0.125, flexShrink: 0 }}
                   />
-                  <Box>
+                  <Box sx={{ minWidth: 0, flex: 1 }}>
                     <Typography variant="medium" color="white" sx={{ mb: 0.25 }}>
                       New reseller
                     </Typography>
-                    <Typography variant="small" sx={{ color: theme.app.dashboard.textMuted, lineHeight: 1.45 }}>
+                    <Typography
+                      variant="small"
+                      sx={{ color: theme.app.dashboard.textMuted, lineHeight: 1.45, ...formHintTextSx }}
+                    >
                       Parent company only — no reseller to pick from the list.
                     </Typography>
                   </Box>
@@ -747,22 +792,25 @@ export function CompanySetupWizardModal({ open, draftId, onClose }: CompanySetup
                 p: 2,
                 borderRadius: 2,
                 cursor: "pointer",
-                transition: "background-color 160ms ease, box-shadow 160ms ease",
+                minWidth: 0,
+                transition: "background-color 160ms ease, border-color 160ms ease",
                 background:
                   setupKind === "existing_reseller"
                     ? theme.app.dashboard.navActiveBg
                     : theme.app.dashboard.cardBg,
-                boxShadow:
+                border: `1px solid ${
                   setupKind === "existing_reseller"
-                    ? `0 0 0 1px ${alpha(theme.app.dashboard.accentBlue, 0.45)}`
-                    : "none",
+                    ? alpha(theme.app.dashboard.accentBlue, 0.45)
+                    : theme.app.dashboard.cardBorder
+                }`,
+                boxShadow: "none",
               }}
               onClick={() => {
                 clearResellerParentFieldErrors();
                 setSetupKind("existing_reseller");
               }}
             >
-              <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1.25 }}>
+              <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1.25, minWidth: 0 }}>
                 <Radio
                   name="company-setup-kind"
                   checked={setupKind === "existing_reseller"}
@@ -794,13 +842,16 @@ export function CompanySetupWizardModal({ open, draftId, onClose }: CompanySetup
                       }}
                     />
                   }
-                  sx={{ p: 0.25, mt: 0.125 }}
+                  sx={{ p: 0.25, mt: 0.125, flexShrink: 0 }}
                 />
-                <Box>
+                <Box sx={{ minWidth: 0, flex: 1 }}>
                   <Typography variant="medium" color="white" sx={{ mb: 0.25 }}>
                     Under existing reseller
                   </Typography>
-                  <Typography variant="small" sx={{ color: theme.app.dashboard.textMuted, lineHeight: 1.45 }}>
+                  <Typography
+                    variant="small"
+                    sx={{ color: theme.app.dashboard.textMuted, lineHeight: 1.45, ...formHintTextSx }}
+                  >
                     Choose reseller from the list, then the parent company.
                   </Typography>
                 </Box>
@@ -1076,6 +1127,47 @@ export function CompanySetupWizardModal({ open, draftId, onClose }: CompanySetup
           )}
         </>
       )}
+    </>
+  );
+
+  if (embedded) {
+    return (
+      <Box ref={wizardFieldsScrollRef}>
+        <Typography variant="regularLarge" fontWeight={700} sx={{ color: theme.app.text.primary, mb: 0.5 }}>
+          {wizardTitle}
+        </Typography>
+        <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, mb: 2, lineHeight: 1.6 }}>
+          {wizardDescription}
+        </Typography>
+        {fieldsBlock}
+        <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 1, mt: 2 }}>
+          <Button
+            variant="primary"
+            onClick={handlePrimary}
+            disabled={primaryButtonDisabled}
+          >
+            {primaryButtonLabel}
+          </Button>
+        </Box>
+      </Box>
+    );
+  }
+
+  return (
+    <FormModal
+      open={open}
+      maxWidth={720}
+      fitContent
+      fieldsScrollRef={wizardFieldsScrollRef}
+      title={wizardTitle}
+      description={wizardDescription}
+      onClose={handleClose}
+      onSave={handlePrimary}
+      primaryButtonLabel={primaryButtonLabel}
+      primaryButtonDisabled={primaryButtonDisabled}
+      cancelButtonLabel="Cancel"
+    >
+      {fieldsBlock}
     </FormModal>
   );
 }

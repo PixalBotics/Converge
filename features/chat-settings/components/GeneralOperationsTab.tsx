@@ -157,7 +157,7 @@ export function GeneralOperationsTab({
       <Section title="Chat assignment (HRMS)">
         <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, display: "block", mb: 1 }}>
           HRMS shift templates are for workforce coverage only — not live chat on/off. Configure
-          operating hours and topics under Website assignment → Service scheduling.
+          operating hours and topics under Website assignments → Service scheduling.
         </Typography>
         <FormControlLabel
           disabled={!canEdit}

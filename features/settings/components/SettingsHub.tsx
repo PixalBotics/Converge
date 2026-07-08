@@ -17,7 +17,8 @@ type SettingsCard = {
 
 export function SettingsHub() {
   const theme = useTheme() as AppTheme;
-  const { hasPage, isPlatformAdmin } = useAuth();
+  const { hasPage, isPlatformAdmin, user } = useAuth();
+  const isResellerAdmin = user?.wideResellerScope === true && !isPlatformAdmin;
 
   const cards: SettingsCard[] = [
     {
@@ -37,6 +38,18 @@ export function SettingsHub() {
       title: "System logs",
       description: "Platform audit and analytics events.",
       visible: isPlatformAdmin || hasPage(PAGE.OBSERVABILITY_LOGS),
+    },
+    {
+      href: "/dashboard/billing",
+      title: "Billing & invoices",
+      description: "Client invoices, website contracts, and subscription.",
+      visible: hasPage(PAGE.BILLING),
+    },
+    {
+      href: "/dashboard/billing/payments",
+      title: "Payment setup",
+      description: "Stripe keys, webhook, and checkout configuration.",
+      visible: isPlatformAdmin || isResellerAdmin,
     },
   ].filter((c) => c.visible);
 

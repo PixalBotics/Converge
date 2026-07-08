@@ -71,7 +71,7 @@ export function TextUsWizardLivePreview({
   buttonColor,
   buttonHoverColor,
   iconColor = "#ffffff",
-  buttonLabel = "Text us",
+  buttonLabel = "Text Us",
   launcherIconPreset = "phosphor-chat-circle",
   launcherIconEnabled = true,
   launcherStyle = "solid",
@@ -91,7 +91,7 @@ export function TextUsWizardLivePreview({
 }: TextUsWizardLivePreviewProps) {
   const theme = useTheme() as AppTheme;
   const btn = buttonColor.trim() || "#1E63D5";
-  const title = headerTitle.trim() || "Text us";
+  const title = headerTitle.trim() || "Text Us";
   const welcome = welcomeEnabled ? welcomeMessage.trim() : "";
   const previewWidth = Math.min(300, Math.max(232, Math.round(boxWidth * 0.78)));
   const previewHeight = Math.min(340, Math.max(200, Math.round(boxHeight * 0.58)));

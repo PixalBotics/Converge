@@ -840,9 +840,9 @@ export function extractRuntimeTextUsAppearance(
 
   const buttonColor = str(textUs.buttonColor, "#1E63D5");
   const buttonHover = str(textUs.buttonHoverColor, mixHex(buttonColor, "#000000", 88));
-  const headerTitle = str(textUs.headerTitle, "Text us");
+  const headerTitle = str(textUs.headerTitle, "Text Us");
   const welcomeMessage = str(textUs.welcomeMessage, "");
-  const buttonLabel = str(textUs.buttonLabel, "Text us");
+  const buttonLabel = str(textUs.buttonLabel, "Text Us");
   const position = normalizePosition(str(textUs.position, "right"));
   const verticalAnchor =
     str(textUs.verticalAnchor, "bottom").toLowerCase() === "top" ? "top" : "bottom";
@@ -990,7 +990,7 @@ export type LauncherFrameChromeOptions = {
 };
 
 export function estimatePillLauncherWidth(label: string, iconEnabled: boolean): number {
-  const text = label.trim() || "Text us";
+  const text = label.trim() || "Text Us";
   const charWidth = 8.5;
   const textWidth = Math.min(text.length * charWidth, 180);
   const iconPart = iconEnabled ? 26 + 12 : 0;

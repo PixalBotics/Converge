@@ -17,6 +17,8 @@ import type { AppTheme } from "@/theme/theme";
 import { createDashboardHeaderShellSx } from "./styles/shell.styles";
 import { dashboardFirstWord, dashboardRoleLabel, dashboardUserInitials } from "./dashboard-header.labels";
 import { NotificationsBellDrawer } from "@/components/notifications/NotificationsBellDrawer";
+import { SubscriptionCountdownChip } from "@/components/layout/dashboard/SubscriptionCountdownChip";
+import { DashboardHeaderCheckInButton } from "./DashboardHeaderCheckInButton";
 
 export default function DashboardHeader({ onMenuClick }: { onMenuClick?: () => void }) {
   const theme = useTheme() as AppTheme;
@@ -52,7 +54,7 @@ export default function DashboardHeader({ onMenuClick }: { onMenuClick?: () => v
             <MenuIcon />
           </IconButton>
         )}
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 0.25, flexShrink: 0, minWidth: 0 }}>
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 0.25, flex: 1, minWidth: 0 }}>
           <Typography variant="medium" sx={{ color: app.dashboard.textSubtleMuted, fontSize: { xs: 12, md: 14 } }}>
             Dashboard
           </Typography>
@@ -61,9 +63,10 @@ export default function DashboardHeader({ onMenuClick }: { onMenuClick?: () => v
             sx={{
               color: app.text.primary,
               fontSize: { xs: 14, sm: 16, md: 18 },
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
+              lineHeight: 1.35,
+              overflow: { xs: "visible", lg: "hidden" },
+              textOverflow: { xs: "clip", lg: "ellipsis" },
+              whiteSpace: { xs: "normal", lg: "nowrap" },
             }}
           >
             Welcome back, {welcomeName}
@@ -80,6 +83,8 @@ export default function DashboardHeader({ onMenuClick }: { onMenuClick?: () => v
             justifyContent: "flex-end",
           }}
         >
+          <SubscriptionCountdownChip />
+          <DashboardHeaderCheckInButton />
           <NotificationsBellDrawer />
           <Box
             sx={{
@@ -126,10 +131,10 @@ export default function DashboardHeader({ onMenuClick }: { onMenuClick?: () => v
                     overflow: "hidden",
                     textOverflow: "ellipsis",
                     whiteSpace: "nowrap",
-                    maxWidth: { sm: 120, md: 160 },
+                    maxWidth: { sm: 140, md: 200 },
                   }}
                 >
-                  {displayName.toUpperCase()}
+                  {displayName}
                 </Typography>
                 <Typography variant="medium" sx={{ color: app.dashboard.white60 }}>
                   {roleLabel}

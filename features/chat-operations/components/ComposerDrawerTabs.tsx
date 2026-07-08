@@ -305,7 +305,7 @@ export function ComposerDrawerTabs({
                       {aiBusy ? "Thinking…" : AGENT_COPILOT_SUBTITLE}
                     </Typography>
                   </Box>
-                  <IconButton size="small" aria-label="Close agent copilot" onClick={closeDrawer}>
+                  <IconButton size="small" aria-label="Close Agent Copilot" onClick={closeDrawer}>
                     <CloseRounded sx={{ fontSize: 18 }} />
                   </IconButton>
                 </ComposerToolsHeader>

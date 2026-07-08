@@ -1,7 +1,6 @@
 "use client";
 
 import Box from "@mui/material/Box";
-import type { SxProps, Theme } from "@mui/material/styles";
 import { useAuth } from "@/lib/auth/AuthContext";
 import SupervisorDashboardOverview from "./supervisor-dashboard/SupervisorDashboardOverview";
 import AgentDashboardOverview from "./agent-dashboard/AgentDashboardOverview";
@@ -31,19 +30,7 @@ export default function DashboardPage() {
   );
 
   return (
-    <Box
-      sx={
-        [
-          pageWrapper,
-          {
-            display: "flex",
-            flexDirection: "column",
-            gap: { xs: 1.5, sm: 2, md: 2.2 },
-            width: "100%",
-          },
-        ] as SxProps<Theme>
-      }
-    >
+    <Box sx={pageWrapper}>
       {overview}
     </Box>
   );

@@ -85,4 +85,6 @@ export type RouteRule = {
   prefixMatch?: boolean;
   iconKey: DashboardSidebarIconKey;
   label?: string;
+  /** Platform internal staff only — blocks reseller / external accounts on direct URL access. */
+  internalOnly?: boolean;
 };

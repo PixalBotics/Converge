@@ -200,7 +200,7 @@ export function AiTrainingSourceMethodPanel({
 
       {variant === "assistant" && category === "website" && registeredHost ? (
         <Alert severity="info" variant="outlined" sx={{ bgcolor: "transparent" }}>
-          Agent copilot scraping is limited to <strong>{registeredHost}</strong> — same as
+          Agent Copilot scraping is limited to <strong>{registeredHost}</strong> — same as
           chatbot, but stored separately for internal use only.
         </Alert>
       ) : null}

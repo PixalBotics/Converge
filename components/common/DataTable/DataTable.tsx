@@ -25,7 +25,7 @@ export function DataTable<T extends Record<string, unknown>>({
   actionColumn,
   isLoading = false,
   loadingRowCount = 8,
-  minWidth = 560,
+  minWidth = "100%",
   size = "small",
   tableSx,
   containerSx,
@@ -83,6 +83,8 @@ export function DataTable<T extends Record<string, unknown>>({
                     dataTableHeaderCell,
                     sizeCellSx,
                     col.align ? { textAlign: col.align } : null,
+                    col.width != null ? { width: col.width } : null,
+                    col.minWidth != null ? { minWidth: col.minWidth } : null,
                   ] as SxProps<Theme>
                 }
               >
@@ -215,6 +217,9 @@ export function DataTable<T extends Record<string, unknown>>({
                       col.cellVariant === "muted" ? dataTableCellMuted : dataTableCellDefault,
                       sizeCellSx,
                       col.align ? { textAlign: col.align } : null,
+                      col.width != null ? { width: col.width } : null,
+                      col.minWidth != null ? { minWidth: col.minWidth } : null,
+                      col.nowrap ? { whiteSpace: "nowrap" } : null,
                     ] as SxProps<Theme>
                   }
                 >

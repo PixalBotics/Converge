@@ -84,7 +84,7 @@ export function ChatSettingsWebsiteWorkspace({
 
   const saveSettingsBody = (body: Parameters<typeof saveSettings.mutate>[0]) => {
     saveSettings.mutate(body, {
-      onSuccess: () => publishAppToast({ message: "Settings saved", variant: "success" }),
+      onSuccess: () => publishAppToast({ message: "Settings saved.", variant: "success" }),
       onError: notifyError,
     });
   };
@@ -179,7 +179,7 @@ export function ChatSettingsWebsiteWorkspace({
               onCreate={(body) => {
                 createRoute.mutate(body, {
                   onSuccess: () =>
-                    publishAppToast({ message: "Route created", variant: "success" }),
+                    publishAppToast({ message: "Route created.", variant: "success" }),
                   onError: notifyError,
                 });
               }}
@@ -188,7 +188,7 @@ export function ChatSettingsWebsiteWorkspace({
                   { routeId, body },
                   {
                     onSuccess: () =>
-                      publishAppToast({ message: "Route updated", variant: "success" }),
+                      publishAppToast({ message: "Route updated.", variant: "success" }),
                     onError: notifyError,
                   },
                 );
@@ -196,7 +196,7 @@ export function ChatSettingsWebsiteWorkspace({
               onDelete={(routeId) => {
                 deleteRoute.mutate(routeId, {
                   onSuccess: () =>
-                    publishAppToast({ message: "Route deleted", variant: "success" }),
+                    publishAppToast({ message: "Route deleted.", variant: "success" }),
                   onError: notifyError,
                 });
               }}
@@ -230,7 +230,7 @@ export function ChatSettingsWebsiteWorkspace({
                   { items },
                   {
                     onSuccess: () =>
-                      publishAppToast({ message: "Department emails saved", variant: "success" }),
+                      publishAppToast({ message: "Department emails saved.", variant: "success" }),
                     onError: notifyError,
                   },
                 );

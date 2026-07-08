@@ -38,11 +38,19 @@ import { useWebsiteWidgetsQuery } from "@/lib/chat-widget/use-website-widgets-qu
 import type { WidgetDraft, WidgetKind } from "@/lib/chat-widget/widgetDraft";
 import { extractApiErrorMessageForToast } from "@/lib/notify/extract-api-message";
 import { publishAppToast } from "@/lib/notify";
+import { useAuth } from "@/lib/auth/AuthContext";
+import {
+  clampWidgetKind,
+  pickDefaultWidgetKind,
+  resolveAllowedWidgetKinds,
+} from "@/lib/chat-widget/widget-kind-entitlement";
 
 export default function WidgetEditTypePage() {
   const params = useParams();
   const router = useRouter();
   const theme = useTheme() as AppTheme;
+  const { hasPage } = useAuth();
+  const allowedWidgetKinds = useMemo(() => resolveAllowedWidgetKinds(hasPage), [hasPage]);
   const raw = params?.widgetKey;
   const widgetKey = decodeURIComponent(
     Array.isArray(raw) ? (raw[0] ?? "") : (raw ?? ""),
@@ -100,8 +108,9 @@ export default function WidgetEditTypePage() {
           (wid ? wid : "—");
         setWebsiteLabel(String(label));
         setWebsiteId(wid);
-        setSelectedType(wt);
-        selectedTypeRef.current = wt;
+        const clamped = clampWidgetKind(wt, allowedWidgetKinds) ?? pickDefaultWidgetKind(allowedWidgetKinds) ?? wt;
+        setSelectedType(clamped);
+        selectedTypeRef.current = clamped;
       } catch (e) {
         if (!cancelled) {
           setLoadError(extractApiErrorMessageForToast(e) ?? "Failed to load widget.");
@@ -113,11 +122,20 @@ export default function WidgetEditTypePage() {
     return () => {
       cancelled = true;
     };
-  }, [widgetKey]);
+  }, [widgetKey, allowedWidgetKinds]);
 
   useEffect(() => {
     selectedTypeRef.current = selectedType;
   }, [selectedType]);
+
+  useEffect(() => {
+    const next = clampWidgetKind(selectedType, allowedWidgetKinds);
+    if (!next || next === selectedType) return;
+    setSelectedType(next);
+    selectedTypeRef.current = next;
+  }, [allowedWidgetKinds, selectedType]);
+
+  const hasWidgetEntitlement = allowedWidgetKinds.length > 0;
 
   const siteWidgetsQuery = useWebsiteWidgetsQuery(websiteId, !loading && Boolean(websiteId));
   const conflicts = useMemo(
@@ -191,7 +209,7 @@ export default function WidgetEditTypePage() {
             type="button"
             variant="primary"
             sx={gradientPrimaryButtonSx}
-            disabled={loading || Boolean(loadError) || saving}
+            disabled={loading || Boolean(loadError) || saving || !hasWidgetEntitlement}
             onClick={handleNext}
           >
             {saving ? "Saving…" : "Continue to wizard"}
@@ -228,6 +246,7 @@ export default function WidgetEditTypePage() {
           selectedType={selectedType}
           onSelect={setSelectedType}
           disabled={loading}
+          allowedKinds={allowedWidgetKinds}
         />
       </Box>
 

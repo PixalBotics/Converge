@@ -89,7 +89,7 @@ export function AiAssistantDrawer({
         variant="caption"
         sx={{ color: theme.app.dashboard.textMuted, px: 2, py: 2, display: "block" }}
       >
-        Select a conversation to open the agent copilot
+        Select a conversation to open Agent Copilot.
       </Typography>
     );
   }

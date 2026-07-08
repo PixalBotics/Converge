@@ -309,7 +309,7 @@ export function ServiceScheduleTab({
     }
     saveScheduleMutation.mutate(buildScheduleSaveBody(draft), {
       onSuccess: () => {
-        publishAppToast({ message: "Service schedule saved", variant: "success" });
+        publishAppToast({ message: "Service schedule saved.", variant: "success" });
         afterSuccess?.();
       },
       onError: (e) =>

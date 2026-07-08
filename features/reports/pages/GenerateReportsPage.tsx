@@ -296,7 +296,7 @@ export function GenerateReportsPage() {
       <Box sx={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 1.5 }}>
         <Box>
           <Typography variant="h5" fontWeight={700}>
-            Generate Reports
+            Generate reports
           </Typography>
           <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted }}>
             Fetch analytics and operational reports by organization scope and period.

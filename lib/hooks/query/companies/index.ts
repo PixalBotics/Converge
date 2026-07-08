@@ -21,4 +21,9 @@ export {
   useClientPermissionsQuery,
   useReplaceClientPermissionsMutation,
 } from "./client-permissions";
+export {
+  useResellerServicesAccessQuery,
+  useClientServicesAccessQuery,
+  servicesAccessKeys,
+} from "./services-access";
 export { useScopedCompanyTreeQuery } from "./use-scoped-company-tree-query";

@@ -36,7 +36,7 @@ export function buildTextUsDesignJsonFromDraft(
     insetSidePx: clamp(draft.textUsInsetSidePx ?? 28, 0, 240),
     boxWidth: clamp(draft.textUsBoxWidth ?? 360, 280, 520),
     boxHeight: clamp(draft.textUsBoxHeight ?? 480, 320, 640),
-    headerTitle: draft.textUsHeaderTitle?.trim() || "Text us",
+    headerTitle: draft.textUsHeaderTitle?.trim() || "Text Us",
     welcomeMessage: draft.textUsWelcomeMessage?.trim() || "",
   };
 
@@ -119,7 +119,7 @@ export function textUsThemePreviewPayload(input: TextUsThemePreviewInput): Recor
     insetSidePx: input.insetSidePx,
     boxWidth: input.boxWidth,
     boxHeight: input.boxHeight,
-    headerTitle: input.headerTitle.trim() || "Text us",
+    headerTitle: input.headerTitle.trim() || "Text Us",
   };
   if (input.buttonHoverColor?.trim()) theme.buttonHoverColor = input.buttonHoverColor.trim();
   if (input.iconColor?.trim()) theme.iconColor = input.iconColor.trim();

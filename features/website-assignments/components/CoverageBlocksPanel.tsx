@@ -184,7 +184,7 @@ export function CoverageBlocksPanel({
         }),
       });
       setLegacyBaseline(legacyDraft);
-      publishAppToast({ message: "Team saved — same agents for full chat hours", variant: "success" });
+      publishAppToast({ message: "Team saved — same agents for full chat hours.", variant: "success" });
       onSaved?.();
     } catch (e) {
       publishAppToast({
@@ -200,7 +200,7 @@ export function CoverageBlocksPanel({
       await putBlocksMutation.mutateAsync(blocksToPutPayload(blocks));
       setBlocksBaseline(blocks);
       setUseBlocks(true);
-      publishAppToast({ message: "Duty periods saved", variant: "success" });
+      publishAppToast({ message: "Duty periods saved.", variant: "success" });
       onSaved?.();
     } catch (e) {
       publishAppToast({
@@ -217,7 +217,7 @@ export function CoverageBlocksPanel({
       setUseBlocks(false);
       setBlocks([]);
       setBlocksBaseline([]);
-      publishAppToast({ message: "Switched to one team for full chat hours", variant: "success" });
+      publishAppToast({ message: "Switched to one team for full chat hours.", variant: "success" });
       void coverageQuery.refetch();
       onSaved?.();
     } catch (e) {

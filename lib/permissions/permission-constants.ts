@@ -55,6 +55,7 @@ export const PAGE = {
   OBSERVABILITY_LOGS: "page:observability:logs",
   REPORTS: "page:reports",
   REPORTS_CONFIGURATION: "page:reports-configuration",
+  BILLING: "page:billing",
   SMTP_EMAIL_RESELLER: "page:smtp-email-reseller",
   SMTP_EMAIL_PLATFORM: "page:smtp-email-platform",
   SMTP_EMAIL_ASSIGNMENT: "page:smtp-email-assignment",
@@ -63,17 +64,47 @@ export const PAGE = {
   EMAIL_TEMPLATE_FORMS: "page:email-template-forms",
 } as const;
 
-/** All HRMS sidebar leaf `page:*` keys (parent menu auto-shows when any match). */
-export const HRMS_PAGE_PERMISSIONS = [
-  PAGE.HRMS_OVERVIEW,
+export const SHIFTS_PAGE_PERMISSIONS = [
+  PAGE.SHIFTS,
+  PAGE.SHIFTS_DEPARTMENT,
+  PAGE.SHIFTS_POOL,
+  PAGE.SHIFTS_USER,
+] as const;
+
+/** Full HRMS product (module ON) — parent sidebar gate. */
+export const HRMS_MODULE_PAGE_PERMISSIONS = [PAGE.HRMS_OVERVIEW] as const;
+
+/** Employee self-service pages — only under HRMS product when reseller bought `hrms`. */
+export const WORKFORCE_PAGE_PERMISSIONS = [
   PAGE.HRMS_ATTENDANCE_SELF,
-  PAGE.HRMS_ATTENDANCE_TEAM,
   PAGE.HRMS_ATTENDANCE_MARK,
-  PAGE.HRMS_LEAVE_TYPES,
   PAGE.HRMS_LEAVE_APPLY,
-  PAGE.HRMS_LEAVE_APPROVAL,
   PAGE.HRMS_LEAVE_BALANCE,
 ] as const;
+
+/** HRMS module leaf pages (admin + shifts; workforce pages listed separately). */
+export const HRMS_PAGE_PERMISSIONS = [
+  PAGE.HRMS_OVERVIEW,
+  PAGE.HRMS_ATTENDANCE_TEAM,
+  PAGE.HRMS_LEAVE_TYPES,
+  PAGE.HRMS_LEAVE_APPROVAL,
+  ...SHIFTS_PAGE_PERMISSIONS,
+] as const;
+
+/** All HRMS product `page:*` keys (nav + route gate when module is off). */
+export const HRMS_PRODUCT_PAGE_PERMISSIONS = [
+  ...WORKFORCE_PAGE_PERMISSIONS,
+  ...HRMS_PAGE_PERMISSIONS,
+] as const;
+
+const HRMS_PRODUCT_PAGE_PERMISSION_SET = new Set<string>(
+  HRMS_PRODUCT_PAGE_PERMISSIONS,
+);
+
+/** True when a nav item maps to the sellable HRMS product (not base org structure). */
+export function isHrmsProductPagePermission(permission: string): boolean {
+  return HRMS_PRODUCT_PAGE_PERMISSION_SET.has(permission);
+}
 
 export const USERS_PAGE_PERMISSIONS = [
   PAGE.USERS,
@@ -100,13 +131,6 @@ export const POOLS_PAGE_PERMISSIONS = [
   PAGE.POOL_HEADS,
 ] as const;
 
-export const SHIFTS_PAGE_PERMISSIONS = [
-  PAGE.SHIFTS,
-  PAGE.SHIFTS_DEPARTMENT,
-  PAGE.SHIFTS_POOL,
-  PAGE.SHIFTS_USER,
-] as const;
-
 export const LIVE_CHAT_PAGE_PERMISSIONS = [
   PAGE.CHAT_INBOX,
   PAGE.CHAT_MONITOR,
@@ -116,12 +140,16 @@ export const LIVE_CHAT_PAGE_PERMISSIONS = [
   PAGE.CHAT_QA_TEAM_REPORTS,
   PAGE.CHAT_REPORTS,
   PAGE.CHAT_WEBSITE_ANALYTICS,
-  PAGE.CHAT_WIDGET,
-  PAGE.PHONE_NUMBER_SETUP,
   PAGE.CHAT_CLOSE_POLICY,
   PAGE.CHAT_CANNED,
   PAGE.CHAT_INVOLVEMENT,
   PAGE.CHAT_INTERNAL_SUPERVISORS,
+] as const;
+
+/** Embeddable widget surfaces — separate sellable modules from live chat ops. */
+export const VISITOR_CHANNELS_PAGE_PERMISSIONS = [
+  PAGE.CHAT_WIDGET,
+  PAGE.PHONE_NUMBER_SETUP,
 ] as const;
 
 export const AI_PAGE_PERMISSIONS = [
@@ -277,5 +305,5 @@ export function flattenPermissionCodes(
 }
 
 export function hasAnyHrmsPage(hasPage: (code: string) => boolean): boolean {
-  return HRMS_PAGE_PERMISSIONS.some((p) => hasPage(p));
+  return HRMS_MODULE_PAGE_PERMISSIONS.some((p) => hasPage(p));
 }

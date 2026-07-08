@@ -13,6 +13,12 @@ export interface DataTableColumn<T = Record<string, unknown>> {
   cellVariant?: "default" | "muted";
   /** Header and body horizontal alignment */
   align?: "left" | "center" | "right";
+  /** Optional fixed column width */
+  width?: number | string;
+  /** Optional minimum column width */
+  minWidth?: number | string;
+  /** Keep cell content on one line */
+  nowrap?: boolean;
   /** Optional custom cell render: (value, row, index) => ReactNode */
   render?: (value: unknown, row: T, index: number) => React.ReactNode;
 }
@@ -41,7 +47,7 @@ export interface DataTableProps<T = Record<string, unknown>> {
     render: (row: T, index: number) => React.ReactNode;
   };
   /** Minimum table width (for horizontal scroll on small screens) */
-  minWidth?: number;
+  minWidth?: number | string;
   /** Table size */
   size?: "small" | "medium";
   /** Optional sx for Table root */

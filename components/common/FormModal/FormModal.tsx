@@ -18,6 +18,7 @@ import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.style
 import { iconGlyphSx, modalCloseIconButtonFilledSx, modalCloseIconButtonSx } from "@/lib/design-system";
 import { CloseCircleIcon } from "@/components/common/icons";
 import { IconSlot } from "@/components/common/IconSlot";
+import { thinScrollbarsSx } from "@/lib/ui/thinScrollbars";
 
 export interface FormModalFieldConfig {
   id: string;
@@ -69,7 +70,7 @@ export function FormModal({
   showCancelButton = true,
   primaryButtonVariant = "primary",
   primaryStartIcon,
-  maxWidth = 540,
+  maxWidth = 640,
   fitContent = false,
   closeButtonVariant = "outline",
   fieldsScrollRef,
@@ -123,11 +124,11 @@ export function FormModal({
             mb: 2.5,
           }}
         >
-          <Box>
+          <Box sx={{ minWidth: 0, pr: 1 }}>
             <Typography
               variant="mediumLarge"
               fontWeight={600}
-              sx={{ color: theme.app.text.primary }}
+              sx={{ color: theme.app.text.primary, lineHeight: 1.3 }}
             >
               {title}
             </Typography>
@@ -141,6 +142,9 @@ export function FormModal({
                       ? theme.app.text.secondary
                       : theme.app.dashboard.white80,
                   fontSize: 14,
+                  lineHeight: 1.5,
+                  whiteSpace: "normal",
+                  wordBreak: "break-word",
                 }}
               >
                 {description}
@@ -175,6 +179,7 @@ export function FormModal({
             gap: 2.5,
             mb: 3,
             overflowX: "hidden",
+            minWidth: 0,
             ...(fitContent
               ? {
                   flex: "none",
@@ -186,9 +191,12 @@ export function FormModal({
                   minHeight: 0,
                   overflowY: "auto",
                 }),
-            scrollbarWidth: "none",
-            msOverflowStyle: "none",
-            "&::-webkit-scrollbar": { display: "none" },
+            ...thinScrollbarsSx,
+            "& .MuiFormHelperText-root": {
+              whiteSpace: "normal",
+              wordBreak: "break-word",
+              overflowWrap: "anywhere",
+            },
           }}
         >
           {children}
