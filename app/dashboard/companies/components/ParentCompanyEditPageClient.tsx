@@ -36,7 +36,6 @@ import { extractApiErrorMessageForToast } from "@/lib/notify/extract-api-message
 import { publishAppToast } from "@/lib/notify";
 import { isRecord } from "@/lib/utils/core";
 import { useAuth } from "@/lib/auth";
-import { CompanyClientPermissionsPanel } from "@/features/companies/components/CompanyClientPermissionsPanel";
 import { canCompaniesModuleAction } from "@/lib/permissions";
 import { formatPhoneInputValue, PHONE_INPUT_PLACEHOLDER } from "@/lib/ui/format-phone-input";
 import { pageWrapper } from "../overview.styles";
@@ -474,6 +473,19 @@ export function ParentCompanyEditPageClient() {
           >
             View overview
           </Button>
+          {(hasPage("page:resellers") ||
+            hasPage("page:clients") ||
+            hasPage("page:account-setup")) &&
+          detail?.parentCompany.reseller?.id ? (
+            <Button
+              component={Link}
+              href={`/dashboard/companies/${encodeURIComponent(parentId)}/edit/reseller`}
+              variant="secondary"
+              size="small"
+            >
+              Reseller settings
+            </Button>
+          ) : null}
         </Box>
       </Box>
 
@@ -808,13 +820,6 @@ export function ParentCompanyEditPageClient() {
             </Box>
           ) : null}
         </Box>
-      ) : null}
-
-      {detail ? (
-        <CompanyClientPermissionsPanel
-          parentCompanyId={parentId}
-          parentCompanyName={detail.parentCompany.name ?? undefined}
-        />
       ) : null}
     </Box>
   );

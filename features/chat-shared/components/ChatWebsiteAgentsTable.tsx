@@ -151,7 +151,7 @@ export function ChatWebsiteAgentsTable({
           title: isError ? "Could not load agents" : "No agents on this website",
           description: isError
             ? "Check website assignment and monitor permissions."
-            : "Assign agents on Website assign, then pick them here to monitor or coach.",
+            : "Assign agents on Website assignments, then pick them here to monitor or coach.",
         }}
       />
     </Box>

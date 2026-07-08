@@ -100,12 +100,12 @@ export default function TextUsWidgetPage() {
   const [buttonHoverColor, setButtonHoverColor] = useState(
     defaultWidgetDraft.textUsButtonHoverColor ?? "#164EB0",
   );
-  const [buttonLabel, setButtonLabel] = useState(defaultWidgetDraft.textUsButtonLabel ?? "Text us");
+  const [buttonLabel, setButtonLabel] = useState(defaultWidgetDraft.textUsButtonLabel ?? "Text Us");
   const [iconColor, setIconColor] = useState(defaultWidgetDraft.textUsIconColor ?? "#FFFFFF");
   const [panelBackground, setPanelBackground] = useState(
     defaultWidgetDraft.textUsPanelBackground ?? "#f8fafc",
   );
-  const [headerTitle, setHeaderTitle] = useState(defaultWidgetDraft.textUsHeaderTitle ?? "Text us");
+  const [headerTitle, setHeaderTitle] = useState(defaultWidgetDraft.textUsHeaderTitle ?? "Text Us");
   const [welcomeMessage, setWelcomeMessage] = useState(
     defaultWidgetDraft.textUsWelcomeMessage ?? "Send us a message — we reply by SMS.",
   );
@@ -179,7 +179,7 @@ export default function TextUsWidgetPage() {
       boxHeight: parseBoxSizeString(boxHeight, 480, 320, 640),
       headerTitle,
       welcomeMessage: welcomeEnabled ? welcomeMessage : "",
-      buttonLabel: buttonLabel.trim() || "Text us",
+      buttonLabel: buttonLabel.trim() || "Text Us",
       headerLogoUrl: headerLogoDataUrl.startsWith("http") ? headerLogoDataUrl : undefined,
       motionEnabled,
       panelBackground,
@@ -244,7 +244,7 @@ export default function TextUsWidgetPage() {
           completed: false,
           textUsButtonColor: buttonColor,
           textUsButtonHoverColor: buttonHoverColor,
-          textUsButtonLabel: buttonLabel.trim() || "Text us",
+          textUsButtonLabel: buttonLabel.trim() || "Text Us",
           textUsIconColor: iconColor,
           textUsPanelBackground: panelBackground,
           textUsPosition: position,
@@ -451,7 +451,7 @@ export default function TextUsWidgetPage() {
               showCharCount
               helperText={
                 launcherIconEnabled
-                  ? "Shown on the floating pill next to the icon — e.g. Text us, SMS us."
+                  ? "Shown on the floating pill next to the icon — e.g. Text Us, SMS us."
                   : "Required when the icon is off — this is the only label visitors see."
               }
             />

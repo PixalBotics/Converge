@@ -137,7 +137,7 @@ export function QaRosterTab({
                     },
                     {
                       onSuccess: () =>
-                        publishAppToast({ message: "QA roster saved", variant: "success" }),
+                        publishAppToast({ message: "QA roster saved.", variant: "success" }),
                       onError: (e) =>
                         publishAppToast({
                           message: extractApiErrorMessageForToast(e, "Could not save QA roster"),

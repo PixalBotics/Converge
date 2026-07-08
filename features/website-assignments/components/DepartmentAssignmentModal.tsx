@@ -107,7 +107,7 @@ export function DepartmentAssignmentModal({
         setShiftCoverage(cov);
         onCoverage?.(cov);
       }
-      publishAppToast({ message: "Team assignments saved", variant: "success" });
+      publishAppToast({ message: "Team assignments saved.", variant: "success" });
       onClose();
     } catch (e) {
       publishAppToast({

@@ -133,7 +133,7 @@ export function AiTrainingWebsitesOverview({
           sx={{ ...gradientPrimaryButtonSx, flexShrink: 0 }}
           onClick={onAddTraining}
         >
-          + Add training
+          + Set up website AI
         </Button>
       </Box>
 

@@ -14,17 +14,17 @@ export function getAuthCardCopy(pathname: string): AuthCardCopy {
       return {
         heading: "Forgot Password",
         subheading:
-          "Don't worry, happens to all of us. Enter your email below to recover your password",
+          "Don't worry — it happens to all of us. Enter your email below to recover your password.",
       };
     case AUTH_PATHS.setPassword:
       return {
-        heading: "Set a password",
+        heading: "Set a Password",
         subheading:
           "Your previous password has been reset. Please set a new password for your account.",
       };
     case AUTH_PATHS.verifyCode:
       return {
-        heading: "Verify code",
+        heading: "Verify Code",
         subheading: "An authentication code has been sent to your email.",
       };
     default:

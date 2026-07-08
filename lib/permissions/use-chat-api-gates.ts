@@ -7,6 +7,7 @@ import {
   canChatReportsFromArrays,
   canMonitorFromArrays,
   canQaFromArrays,
+  canUseCopilotInboxFromArrays,
   canWidgetSettingsFromArrays,
 } from "./chat-access";
 
@@ -45,6 +46,8 @@ export function useChatApiGates() {
     const qa = ready && (rbacOff || canQaFromArrays(perms));
     const reports = ready && (rbacOff || canChatReportsFromArrays(perms));
     const widgetSettings = ready && (rbacOff || canWidgetSettingsFromArrays(perms));
+    const copilotUse =
+      ready && (rbacOff || canUseCopilotInboxFromArrays(perms));
 
     return {
       ready,
@@ -53,6 +56,7 @@ export function useChatApiGates() {
       qa,
       reports,
       widgetSettings,
+      copilotUse,
       perms,
     };
   }, [perms, permissionsSyncing, rbacOff, user?.isPoolHead]);

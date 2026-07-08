@@ -52,8 +52,7 @@ export default function ApplyLeavePage() {
   const theme = useTheme() as AppTheme;
   const { hasOperational } = useAuth();
   const canApplyLeave = hasOperational(OP.hrms.leave.apply);
-  const canSelfLeaveView = hasOperational(OP.hrms.leave.selfView);
-  const showLeaveInsights = canSelfLeaveView || canApplyLeave;
+  const showLeaveInsights = canApplyLeave;
   const [leaveType, setLeaveType] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
@@ -266,11 +265,7 @@ export default function ApplyLeavePage() {
             <Box component="span" sx={{ color: "white", fontWeight: 600 }}>
               {OP.hrms.leave.apply}
             </Box>{" "}
-            to submit, and{" "}
-            <Box component="span" sx={{ color: "white", fontWeight: 600 }}>
-              {OP.hrms.leave.selfView}
-            </Box>{" "}
-            to view your applications.
+            to submit and view your leave applications.
           </Typography>
         </DashboardCard>
       ) : null}

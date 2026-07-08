@@ -39,7 +39,7 @@ export function canAccessRoute(
 }
 
 export function hasPoolPage(hasPage: (code: string) => boolean): boolean {
-  return hasPage("page:pool") || hasPage("page:pools");
+  return hasPage("page:pool") || hasPage("page:pool-members") || hasPage("page:pool-heads");
 }
 
 export function hasDepartmentsPage(hasPage: (code: string) => boolean): boolean {

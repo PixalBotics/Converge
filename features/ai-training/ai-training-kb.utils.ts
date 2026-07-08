@@ -17,7 +17,7 @@ export const CHATBOT_WEBSITE_URL_HELPER =
   "Paste your homepage or any page on your registered domain. We find sitemap.xml (robots.txt), crawl same-site pages (up to the configured page limit), and index them — no sitemap link needed.";
 
 export const ASSISTANT_WEBSITE_URL_HELPER =
-  "Paste a page on your registered domain. We auto-find the sitemap, scrape the site, and index it for agent copilot — separate from visitor chatbot training.";
+  "Paste a page on your registered domain. We auto-find the sitemap, scrape the site, and index it for AI Assistant — separate from visitor chatbot and inbox copilot.";
 
 export const FAQ_PASTE_EXAMPLE_CHATBOT = `What is your return policy?
 Returns accepted within 14 days with receipt.
@@ -382,12 +382,12 @@ export function sourceCategoriesForVariant(
       id: "website",
       label: "Website scraping",
       description:
-        "Paste your website URL — we find the sitemap and scrape for agent copilot.",
+        "Paste your website URL — we find the sitemap and scrape for Agent Copilot.",
     },
     {
       id: "faq",
       label: "FAQs & policies",
-      description: "Text knowledge for agent copilot and internal AI.",
+      description: "Text knowledge for Agent Copilot and internal AI.",
     },
     {
       id: "documents",
@@ -462,7 +462,7 @@ export function sourceMethodCardsForCategory(
           "Each pair is embedded separately so the bot matches the right answer.",
           variant === "chatbot"
             ? "Stored for the public widget only — not mixed with assistant knowledge."
-            : "Stored for agent copilot / internal assistant scope.",
+            : "Stored for Agent Copilot / internal assistant scope.",
         ],
       },
     ];
@@ -575,7 +575,7 @@ export function sourceRefHelperText(
     case "FAQ":
       return variant === "chatbot"
         ? "Separate blocks per Q&A. Lines ending with ? start a question; Q:/A: and numbered lists also work."
-        : "One or more Q&A pairs for agent copilot — not shared with the visitor chatbot.";
+        : "One or more Q&A pairs for Agent Copilot — not shared with the visitor chatbot.";
     case "SOP":
       return "Paste the full procedure (minimum 20 characters).";
     case "URL":

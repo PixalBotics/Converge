@@ -32,7 +32,6 @@ export function ChatSettingsQaRosterWorkspace() {
   const canViewRoster =
     hasPage(PAGE.CHAT_QA_ROSTER) ||
     hasPage(PAGE.CHAT_WIDGET) ||
-    hasPage(PAGE.CHAT) ||
     hasOperational(OP.qa.chatAssign);
 
   const initialWebsiteId = searchParams.get("website")?.trim() ?? "";

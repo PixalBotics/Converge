@@ -103,6 +103,9 @@ export function InputField({
             lineHeight: 1.43,
             display: "block",
             marginTop: t.spacing(0.75),
+            whiteSpace: "normal",
+            wordBreak: "break-word",
+            overflowWrap: "anywhere",
             ...(error && hasHelperMessage ? { color: t.palette.error.main } : {}),
             ...(hideEmptyHelper
               ? { color: "transparent", userSelect: "none", pointerEvents: "none" as const }

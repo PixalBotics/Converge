@@ -15,7 +15,12 @@ export {
   getOperationalViewAnyOfForDashboardPath,
   userSatisfiesOperationalViewForDashboardPath,
 } from "./operational-view-gate";
-export { PAGE, ORG, HRMS, HRMS_LEAVE_APPROVE_ANY, HRMS_WORKFORCE_VIEW_ANY, flattenPermissionCodes } from "./permission-constants";
+export { PAGE, ORG, HRMS, HRMS_ATTENDANCE_SELF_ANY, HRMS_LEAVE_APPROVE_ANY, HRMS_SHIFT_ASSIGNMENT_ANY, HRMS_WORKFORCE_VIEW_ANY, flattenPermissionCodes } from "./permission-constants";
+export {
+  CHAT_INBOX_OPERATIONAL_ANY,
+  hasChatInboxOperational,
+  hasChatInboxOperationalFromChecker,
+} from "./chat-inbox-operational";
 export {
   hasAnyOperational,
   hasPagePermission,
@@ -48,6 +53,13 @@ export {
   canQaFromArrays,
   canChatReportsFromArrays,
   canWidgetSettingsFromArrays,
+  canUseCopilotInboxFromArrays,
+  canUseCopilotInbox,
+  canAiAssistantTrainingFromArrays,
+  canCopilotSetupFromArrays,
+  canManageCopilotSetupFromArrays,
+  canManagePlatformAiFromArrays,
+  canAiAssistantFromArrays,
   canMonitorRoute,
   canAccessChatInbox,
   canAccessChatInboxFromChecker,
@@ -90,4 +102,5 @@ export {
   canRoleAction,
   canLeaveTypeManage,
   canLeaveTypeView,
+  hasAttendanceSelfOperational,
 } from "./operational-keys";

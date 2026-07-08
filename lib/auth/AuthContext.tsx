@@ -207,7 +207,7 @@ function mapApiUserToUser(user: ApiUser): User | null {
     wr === "true" ||
     wr === 1 ||
     wr === "1" ||
-    (parseApiUserType(user) === "External" && roleName === "Reseller Admin");
+    roleName === "Reseller Admin";
   const parentCompanyId =
     (typeof user.parentCompanyId === "string" && user.parentCompanyId.trim()) ||
     (typeof user.parent_company_id === "string" && user.parent_company_id.trim()) ||
@@ -268,8 +268,7 @@ function getUserFromAccessToken(): User | null {
       ? payload.parentCompanyId.trim()
       : undefined;
   const wideFromJwt = payload.wideResellerScope === true;
-  const wideFromRole =
-    payload.userType === "External" && firstRole?.trim() === "Reseller Admin";
+  const wideFromRole = firstRole?.trim() === "Reseller Admin";
   return {
     id: payload.userId,
     email: payload.email,

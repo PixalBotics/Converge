@@ -9,11 +9,12 @@ import { useAuth } from "@/lib/auth";
 import { sessionExpiredLoginHref } from "@/lib/auth/session-expired-login";
 import { PERMISSION_BUCKET_PAGE, toPermissionSet } from "@/lib/auth/permissions-model";
 import { canAccessDashboardPath, getFirstAccessibleDashboardPath } from "@/lib/permissions";
-import { DashboardSidebar, DashboardHeader, OperationalViewGate, ImpersonationBanner } from "@/components/layout/dashboard";
+import { DashboardSidebar, DashboardHeader, OperationalViewGate, ImpersonationBanner, SubscriptionCountdownBanner } from "@/components/layout/dashboard";
 import { AgentDashboardProviders } from "@/components/notifications/AgentDashboardProviders";
 import {
   dashboardChatWorkstationMainSx,
   dashboardMainGlassSx,
+  dashboardMainScrollSx,
   dashboardMainTextSx,
 } from "./dashboard.styles";
 import { isDashboardChatWorkstationPath } from "@/features/chat-shared/utils/chat-workstation-path";
@@ -75,6 +76,7 @@ export default function DashboardLayoutClient({
       rbacEnabled,
       pagePermissionSet,
       isPlatformAdmin,
+      isInternalUser: user?.userType === "Internal",
     });
     if (canAccess) {
       setRouteAccessBlocked(false);
@@ -157,16 +159,30 @@ export default function DashboardLayoutClient({
     <Box
       sx={{
         display: "flex",
-        minHeight: "100vh",
         boxSizing: "border-box",
         bgcolor: "transparent",
         background: (theme) =>
           (theme as { appBackground?: string }).appBackground ?? mainBackgroundGradient,
-        p: agentInboxFocusMode ? 0 : { xs: 0, md: 2 },
-        gap: agentInboxFocusMode ? 0 : { xs: 0, md: 2 },
-        height: immersiveLayoutLocked ? "100vh" : undefined,
-        maxHeight: immersiveLayoutLocked ? "100vh" : undefined,
-        overflow: immersiveLayoutLocked ? "hidden" : undefined,
+        width: "100%",
+        maxWidth: "100vw",
+        minWidth: 0,
+        ...(immersiveLayoutLocked
+          ? {
+              minHeight: "100vh",
+              height: "100vh",
+              maxHeight: "100vh",
+              overflow: "hidden",
+              p: 0,
+              gap: 0,
+            }
+          : {
+              minHeight: "100vh",
+              height: "100vh",
+              maxHeight: "100vh",
+              overflow: "hidden",
+              p: { xs: 0, md: 2 },
+              gap: { xs: 0, md: 2 },
+            }),
       }}
     >
       {!agentInboxFocusMode ? (
@@ -179,13 +195,14 @@ export default function DashboardLayoutClient({
           flexDirection: "column",
           minWidth: 0,
           minHeight: 0,
-          overflow: immersiveLayoutLocked ? "hidden" : undefined,
+          overflow: "hidden",
         }}
       >
         {!agentInboxFocusMode ? (
-          <Box sx={{ flexShrink: 0 }}>
+          <Box sx={{ flexShrink: 0, position: "relative", zIndex: 2, isolation: "isolate" }}>
             <DashboardHeader onMenuClick={() => setSidebarOpen(true)} />
             <ImpersonationBanner />
+            <SubscriptionCountdownBanner />
           </Box>
         ) : null}
         <Box
@@ -196,12 +213,24 @@ export default function DashboardLayoutClient({
                 ? dashboardChatWorkstationMainSx
                 : {
                     flex: 1,
+                    minWidth: 0,
+                    minHeight: 0,
+                    width: "100%",
                     overflow: "auto",
+                    overflowX: "hidden",
+                    overscrollBehavior: "contain",
                     boxSizing: "border-box",
+                    position: "relative",
+                    zIndex: 1,
                   },
-              agentInboxFocusMode ? { mt: 0, height: "100%" } : { mt: aiTrainingStudio ? 0 : "10px" },
+              agentInboxFocusMode
+                ? { mt: 0, height: "100%" }
+                : immersiveWorkstation
+                  ? null
+                  : { pt: { xs: 1.5, md: 2 } },
               dashboardMainTextSx,
               agentInboxFocusMode ? {} : dashboardMainGlassSx,
+              agentInboxFocusMode || immersiveWorkstation ? {} : dashboardMainScrollSx,
             ] as SxProps<Theme>
           }
         >
@@ -215,7 +244,11 @@ export default function DashboardLayoutClient({
                     flexDirection: "column",
                     overflow: "hidden",
                   }
-                : undefined
+                : {
+                    width: "100%",
+                    minWidth: 0,
+                    boxSizing: "border-box",
+                  }
             }
           >
             <OperationalViewGate pathname={pathname}>{children}</OperationalViewGate>

@@ -40,6 +40,66 @@ import {
   type RoleRow,
 } from "../utils";
 
+const VIEW_PERMISSION_DEPENDENCY_RULES: ReadonlyArray<{
+  required: string;
+  triggers: readonly string[];
+}> = [
+  {
+    required: "company:view",
+    triggers: ["page:clients", "company:create", "company:update", "company:delete", "company:manage"],
+  },
+  {
+    required: "user:view",
+    triggers: ["page:users", "user:create", "user:update", "user:delete", "user:assign", "user:login-as"],
+  },
+  {
+    required: "website-assignment:view",
+    triggers: [
+      "page:website-assignments",
+      "website-assignment:create",
+      "website-assignment:update",
+      "website-assignment:delete",
+      "website:assign",
+    ],
+  },
+  {
+    required: "report:view",
+    triggers: ["page:reports", "page:reports-configuration", "page:billing"],
+  },
+  {
+    required: "chat:report:view",
+    triggers: ["page:chat-reports", "page:chat-website-analytics", "page:chat-qa-team-reports"],
+  },
+  {
+    required: "chat:settings:view",
+    triggers: ["chat:settings:manage", "page:chat-close-policy"],
+  },
+  {
+    required: "smtp-email:view",
+    triggers: [
+      "page:smtp-email-reseller",
+      "page:smtp-email-platform",
+      "page:smtp-email-assignment",
+      "smtp-email:create",
+      "smtp-email:update",
+      "smtp-email:delete",
+      "smtp-email:test",
+    ],
+  },
+  {
+    required: "email-template:view",
+    triggers: [
+      "page:email-template-design",
+      "page:email-template-platform",
+      "page:email-template-forms",
+      "email-template:create",
+      "email-template:update",
+      "email-template:delete",
+      "email-template:publish",
+    ],
+  },
+];
+
 export type RoleModalProps = {
   open: boolean;
   onClose: () => void;
@@ -52,6 +112,17 @@ function normalizeGroupTitle(title: string): "operational" | "page" | "other" {
   if (t.includes("PAGE")) return "page";
   if (t.includes("OPERATIONAL")) return "operational";
   return "other";
+}
+
+function resolveMissingViewDependencies(selectedCodes: Iterable<string>): string[] {
+  const selected = new Set(selectedCodes);
+  const missing = new Set<string>();
+  for (const rule of VIEW_PERMISSION_DEPENDENCY_RULES) {
+    const triggered = rule.triggers.some((code) => selected.has(code));
+    if (!triggered) continue;
+    if (!selected.has(rule.required)) missing.add(rule.required);
+  }
+  return [...missing].sort((a, b) => a.localeCompare(b));
 }
 
 /** Build PUT /roles/:id/permissions body from current editor state. */
@@ -313,6 +384,15 @@ export function RoleModal({ open, onClose, onSaved, editRole = null }: RoleModal
 
   type SelectionSets = { operational: Set<string>; pages: Set<string> };
 
+  const selectedCodesForValidation = useMemo(
+    () => [...checkedOperational, ...checkedPages],
+    [checkedOperational, checkedPages],
+  );
+  const missingViewDependencies = useMemo(
+    () => resolveMissingViewDependencies(selectedCodesForValidation),
+    [selectedCodesForValidation],
+  );
+
   const resolveSelectionSets = useCallback(
     (
       preview: PermissionExpandPreview,
@@ -535,6 +615,35 @@ export function RoleModal({ open, onClose, onSaved, editRole = null }: RoleModal
     void refreshExpandPreview(Array.from(new Set(nextStored)).sort(), selectionSets);
   };
 
+  const handleAddMissingViewDependencies = () => {
+    if (missingViewDependencies.length === 0) return;
+    const nextOperational = new Set(checkedOperational);
+    const nextPages = new Set(checkedPages);
+    const nextStored = [...storedGrants];
+    const missingSet = new Set(missingViewDependencies);
+    const nextDenied = deniedGrants.filter((grant) => !missingSet.has(grant));
+
+    for (const code of missingViewDependencies) {
+      const isPage = code.startsWith("page:");
+      const pureImplied = isPureImpliedGrant(code);
+      if (isPage) nextPages.add(code);
+      else nextOperational.add(code);
+      if (!pureImplied && !nextStored.includes(code)) {
+        nextStored.push(code);
+      }
+    }
+
+    const selectionSets: SelectionSets = {
+      operational: nextOperational,
+      pages: nextPages,
+    };
+    setCheckedOperational(nextOperational);
+    setCheckedPages(nextPages);
+    setStoredGrants(Array.from(new Set(nextStored)).sort());
+    setDeniedGrants(Array.from(new Set(nextDenied)).sort());
+    void refreshExpandPreview(Array.from(new Set(nextStored)).sort(), selectionSets);
+  };
+
   const handleSectionSelectAll = (items: PermissionOption[], selectAll: boolean) => {
     const toggleableCodes = items
       .filter((perm) => !equivalentGrants.has(perm.code) && !isChatBundleCode(perm.code))
@@ -618,6 +727,14 @@ export function RoleModal({ open, onClose, onSaved, editRole = null }: RoleModal
 
     if (permissionsBody.permissionNames.length === 0) {
       publishAppToast({ variant: "error", message: "Please select at least one permission." });
+      return;
+    }
+
+    if (missingViewDependencies.length > 0) {
+      publishAppToast({
+        variant: "error",
+        message: `Please also select required view permission(s): ${missingViewDependencies.join(", ")}`,
+      });
       return;
     }
 
@@ -750,7 +867,12 @@ export function RoleModal({ open, onClose, onSaved, editRole = null }: RoleModal
       onClose={onClose}
       onSave={() => void handleSave()}
       primaryButtonLabel={isEdit ? "Save changes" : "Create role"}
-      primaryButtonDisabled={isSaving || isLoading || Boolean(detailError)}
+      primaryButtonDisabled={
+        isSaving ||
+        isLoading ||
+        Boolean(detailError) ||
+        missingViewDependencies.length > 0
+      }
       cancelButtonLabel="Cancel"
       maxWidth={780}
       fitContent
@@ -841,12 +963,50 @@ export function RoleModal({ open, onClose, onSaved, editRole = null }: RoleModal
             <Box sx={{ mt: 1.5 }}>
               <InputField
                 label="Search permissions"
-                placeholder="Type to search (e.g. page:roles, chat:access)"
+                placeholder="Type to search (e.g. page:roles, chat:bundle:agent)"
                 value={permissionSearch}
                 onChange={(e) => setPermissionSearch((e.target as HTMLInputElement).value)}
                 disabled={isSaving}
               />
             </Box>
+
+            {missingViewDependencies.length > 0 ? (
+              <Box
+                sx={{
+                  mt: 1.25,
+                  p: 1.25,
+                  borderRadius: 1.5,
+                  border: `1px solid ${alpha(theme.palette.warning.main, 0.5)}`,
+                  bgcolor: alpha(theme.palette.warning.main, 0.1),
+                }}
+              >
+                <Typography variant="body2" sx={{ fontWeight: 700, color: theme.palette.warning.light }}>
+                  Missing required view permission(s)
+                </Typography>
+                <Typography variant="caption" sx={{ display: "block", mt: 0.35, color: theme.app.dashboard.white95 }}>
+                  Please also select: {missingViewDependencies.join(", ")}
+                </Typography>
+                <Box
+                  component="button"
+                  type="button"
+                  onClick={handleAddMissingViewDependencies}
+                  sx={{
+                    mt: 0.9,
+                    px: 1.1,
+                    py: 0.5,
+                    borderRadius: 1,
+                    border: `1px solid ${alpha(theme.palette.warning.light, 0.65)}`,
+                    bgcolor: alpha(theme.palette.warning.main, 0.15),
+                    color: theme.palette.warning.light,
+                    fontSize: 12,
+                    fontWeight: 700,
+                    cursor: "pointer",
+                  }}
+                >
+                  Add required view permissions
+                </Box>
+              </Box>
+            ) : null}
 
             <Box
               sx={{

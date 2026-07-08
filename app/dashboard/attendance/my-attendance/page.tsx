@@ -18,7 +18,7 @@ import { isRecord, unwrapApiData } from "@/lib/utils/core";
 import { formatAttendanceStatus, formatBreakSummary, mapAttendanceEnrichedColumns } from "@/lib/utils/hrms/attendance-display";
 import { EmptyAttendanceState } from "../components/EmptyAttendanceState";
 import { useAuth } from "@/lib/auth";
-import { OP } from "@/lib/permissions";
+import { OP, hasAttendanceSelfOperational } from "@/lib/permissions";
 import {
   attendanceCardTitleSx,
   attendanceDateButtonSx,
@@ -69,14 +69,14 @@ export default function MyAttendancePage() {
   const { hasOperational } = useAuth();
   const canViewSelfAttendance =
     hasOperational(OP.hrms.attendance.selfView) ||
-    hasOperational(OP.hrms.attendance.self) ||
+    hasAttendanceSelfOperational(hasOperational) ||
     hasOperational(OP.hrms.attendance.view);
   const canMarkAttendance =
     hasOperational(OP.hrms.attendance.checkIn) ||
     hasOperational(OP.hrms.attendance.checkOut) ||
     hasOperational(OP.hrms.attendance.breakIn) ||
     hasOperational(OP.hrms.attendance.breakOut) ||
-    hasOperational(OP.hrms.attendance.self);
+    hasAttendanceSelfOperational(hasOperational);
   const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
   const startOfMonth = useMemo(() => `${today.slice(0, 7)}-01`, [today]);
   const [from, setFrom] = useState(startOfMonth);
@@ -308,11 +308,7 @@ export default function MyAttendancePage() {
             <Box component="span" sx={{ color: "white", fontWeight: 600 }}>
               {OP.hrms.attendance.selfView}
             </Box>{" "}
-            or{" "}
-            <Box component="span" sx={{ color: "white", fontWeight: 600 }}>
-              {OP.hrms.attendance.self}
-            </Box>
-            .
+            or any self check-in / check-out permission.
           </Typography>
         ) : attendanceQuery.isPending ? (
           <DataTable<AttendanceRow>

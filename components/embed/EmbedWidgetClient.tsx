@@ -947,7 +947,7 @@ function FloatingChatEmbed({
                         sx={{ ...embedLabelTextSx(appearance), mb: 1 }}
                       >
                         {extractRuntimeTextUsAppearance(configRecord).chatBox.headerTitle ||
-                          "Text us"}
+                          "Text Us"}
                       </Typography>
                       {textUsBelow}
                     </Box>

@@ -36,11 +36,28 @@ function flattenPermissionNamesByType(v: unknown): string[] {
   return out;
 }
 
-function extractUserOverrides(payload: unknown): { allowed: string[]; denied: string[] } {
+function extractUserOverrides(payload: unknown): {
+  directAllowed: string[];
+  directDenied: string[];
+  effectiveAllowed: string[];
+} {
   const data = unwrapApiData(payload);
   const obj = isRecord(data) ? (data as Record<string, unknown>) : null;
-  const allowedByType = flattenPermissionNamesByType(obj?.["allowedPermissionNamesByType"]);
-  const deniedByType = flattenPermissionNamesByType(obj?.["deniedPermissionNamesByType"]);
+  const effectiveAllowedByType = flattenPermissionNamesByType(
+    obj?.["effectiveAllowedPermissionNamesByType"],
+  );
+  const directAllowedByType = flattenPermissionNamesByType(
+    obj?.["directAllowedPermissionNamesByType"],
+  );
+  const directDeniedByType = flattenPermissionNamesByType(
+    obj?.["directDeniedPermissionNamesByType"],
+  );
+  const legacyAllowedByType = flattenPermissionNamesByType(
+    obj?.["allowedPermissionNamesByType"],
+  );
+  const legacyDeniedByType = flattenPermissionNamesByType(
+    obj?.["deniedPermissionNamesByType"],
+  );
   const permissionNames =
     asStringArray(obj?.["permissionNames"]) ||
     asStringArray(obj?.["permissions"]) ||
@@ -54,9 +71,31 @@ function extractUserOverrides(payload: unknown): { allowed: string[]; denied: st
     asStringArray(obj?.["deniedPermissions"]) ||
     asStringArray(obj?.["denied"]);
   return {
-    // Prefer new API shape (`*ByType`) but keep backward compatibility with legacy fields.
-    allowed: Array.from(new Set([...allowedByType, ...permissionNames, ...allowed])).sort(),
-    denied: Array.from(new Set([...deniedByType, ...denied])).sort(),
+    // Prefer explicit direct fields; fallback to legacy fields when unavailable.
+    directAllowed: Array.from(
+      new Set(
+        (directAllowedByType.length > 0 ? directAllowedByType : allowed).filter(
+          Boolean,
+        ),
+      ),
+    ).sort(),
+    directDenied: Array.from(
+      new Set(
+        (directDeniedByType.length > 0 ? directDeniedByType : [...legacyDeniedByType, ...denied]).filter(
+          Boolean,
+        ),
+      ),
+    ).sort(),
+    effectiveAllowed: Array.from(
+      new Set(
+        [
+          ...(effectiveAllowedByType.length > 0
+            ? effectiveAllowedByType
+            : legacyAllowedByType),
+          ...permissionNames,
+        ].filter(Boolean),
+      ),
+    ).sort(),
   };
 }
 
@@ -80,6 +119,10 @@ export function UserPermissionsModal({ open, onClose, initialUserId, onSaved }: 
   const [userId, setUserId] = useState("");
   const [permissionSearch, setPermissionSearch] = useState("");
   const [allowedMap, setAllowedMap] = useState<Record<string, boolean>>({});
+  const [directDenied, setDirectDenied] = useState<string[]>([]);
+  const [effectiveAllowedSet, setEffectiveAllowedSet] = useState<Set<string>>(
+    new Set(),
+  );
 
   const hydratedRef = useRef<string | null>(null);
 
@@ -188,6 +231,8 @@ export function UserPermissionsModal({ open, onClose, initialUserId, onSaved }: 
     setUserId(initialUserId?.trim() ?? "");
     setPermissionSearch("");
     setAllowedMap({});
+    setDirectDenied([]);
+    setEffectiveAllowedSet(new Set());
   }, [open, initialUserId]);
 
   useEffect(() => {
@@ -206,7 +251,8 @@ export function UserPermissionsModal({ open, onClose, initialUserId, onSaved }: 
     if (!userPermissionsQuery.isSuccess) return;
     if (!permissionGroups.length || !allCodes.length) return;
 
-    const { allowed } = extractUserOverrides(userPermissionsQuery.data);
+    const { directAllowed, directDenied: loadedDenied, effectiveAllowed } =
+      extractUserOverrides(userPermissionsQuery.data);
 
     // Backend may return either permission codes or human labels; map both to catalog codes.
     const lookup = new Map<string, string>();
@@ -221,9 +267,18 @@ export function UserPermissionsModal({ open, onClose, initialUserId, onSaved }: 
       if (!lookup.has(k)) lookup.set(k, code);
     }
 
-    const mappedAllowed = allowed
-      .map((c) => lookup.get(c.toLowerCase()) ?? c)
-      .filter((c) => typeof c === "string" && c.trim().length > 0);
+    const mapCodes = (input: string[]) =>
+      input
+        .map((c) => lookup.get(c.toLowerCase()) ?? c)
+        .filter((c) => typeof c === "string" && c.trim().length > 0);
+
+    const mappedAllowed = mapCodes(directAllowed);
+    const mappedDenied = mapCodes(loadedDenied);
+    const mappedEffective = mapCodes(effectiveAllowed);
+
+    setDirectDenied(Array.from(new Set(mappedDenied)).sort());
+    setEffectiveAllowedSet(new Set(mappedEffective));
+
     setAllowedMap((prev) => {
       const next: Record<string, boolean> = { ...prev };
       // Reset to false first so switching users doesn't leak previous selections.
@@ -242,6 +297,10 @@ export function UserPermissionsModal({ open, onClose, initialUserId, onSaved }: 
 
   const selectedAllowed = useMemo(() => allCodes.filter((c) => allowedMap[c]), [allCodes, allowedMap]);
   const canEditPermissions = Boolean(userId.trim());
+  const effectiveAllowedCount = useMemo(
+    () => allCodes.filter((c) => effectiveAllowedSet.has(c)).length,
+    [allCodes, effectiveAllowedSet],
+  );
 
   const canSave = Boolean(userId.trim()) && !isSaving;
 
@@ -263,14 +322,13 @@ export function UserPermissionsModal({ open, onClose, initialUserId, onSaved }: 
     }
 
     const allowedPermissionNames = selectedAllowed;
-    const deniedPermissionNames = allCodes.filter((c) => !allowedMap[c]);
-    const permissionNames = Array.from(new Set([...allowedPermissionNames, ...deniedPermissionNames])).sort();
+    // Do NOT auto-deny unchecked permissions; keep explicit direct DENY overrides only.
+    const deniedPermissionNames = directDenied;
 
     replaceMutation.mutate(
       {
         id,
         body: {
-          permissionNames,
           allowedPermissionNames,
           deniedPermissionNames,
         },
@@ -460,7 +518,7 @@ export function UserPermissionsModal({ open, onClose, initialUserId, onSaved }: 
               }}
             >
               <Typography variant="caption" sx={{ color: theme.app.dashboard.white95 }}>
-                Allowed: {selectedAllowed.length}
+                Direct allow: {selectedAllowed.length}
               </Typography>
             </Box>
             <Box
@@ -473,7 +531,7 @@ export function UserPermissionsModal({ open, onClose, initialUserId, onSaved }: 
               }}
             >
               <Typography variant="caption" sx={{ color: theme.app.dashboard.white95 }}>
-                Disallowed: {Math.max(0, allCodes.length - selectedAllowed.length)}
+                Effective allow: {effectiveAllowedCount}
               </Typography>
             </Box>
           </Box>
@@ -511,7 +569,8 @@ export function UserPermissionsModal({ open, onClose, initialUserId, onSaved }: 
                   }}
                 >
                   <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, lineHeight: 1.5 }}>
-                    Select a user above to load their current permissions, then check/uncheck to allow/disallow.
+                    Select a user above to load current permissions. Checked items are direct user ALLOW overrides;
+                    unchecked items inherit from role/department/designation unless explicitly denied.
                   </Typography>
                 </Box>
               ) : null}

@@ -76,7 +76,7 @@ describe("computeEmbedHostFrameSize", () => {
 
   it("sizes Text Us pill launcher wider than the chat FAB", () => {
     const appearance = mockAppearance();
-    appearance.launcher.buttonLabel = "Text us";
+    appearance.launcher.buttonLabel = "Text Us";
     const size = computeEmbedHostFrameSize(false, appearance, undefined, "textUs");
     expect(size.width).toBeGreaterThan(EMBED_LAUNCHER_SIZE_PX);
     expect(size.height).toBeGreaterThan(56);
@@ -123,7 +123,7 @@ describe("computeEmbedHostFrameSize", () => {
 
   it("sizes Text Us open iframe to panel only (launcher hidden)", () => {
     const appearance = mockAppearance();
-    appearance.launcher.buttonLabel = "Text us";
+    appearance.launcher.buttonLabel = "Text Us";
     const panelH = computeEmbedOpenPanelMaxHeightPx(appearance, "textUs", 900);
     const size = computeEmbedHostFrameSize(true, appearance, undefined, "textUs");
     expect(size.height).toBeLessThan(panelH + 80);

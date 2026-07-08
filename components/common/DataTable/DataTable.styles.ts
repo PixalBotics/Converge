@@ -1,27 +1,33 @@
 import type { SxProps, Theme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
+import { mergeSx } from "@/lib/mui/merge-sx";
+import { thinScrollbarsSx } from "@/lib/ui/thinScrollbars";
 
-/** TableContainer: scroll enabled, scrollbar hidden (webkit + Firefox/IE) */
-export const dataTableContainer: SxProps<Theme> = {
+const dataTableContainerBase: SxProps<Theme> = {
+  width: "100%",
+  maxWidth: "100%",
+  minWidth: 0,
   overflowX: "auto",
-  overflowY: "auto",
   boxShadow: "none",
   WebkitOverflowScrolling: "touch",
-  scrollbarWidth: "none",
-  msOverflowStyle: "none",
-  "&::-webkit-scrollbar": { display: "none" },
 };
+
+/** Themed thin scrollbar when a table region scrolls. */
+const dataTableScrollbarSx: SxProps<Theme> = thinScrollbarsSx;
+
+/** TableContainer: scroll enabled; wide tables stay inside the card/page column. */
+export const dataTableContainer: SxProps<Theme> = mergeSx(
+  dataTableContainerBase,
+  { overflowY: "auto" },
+  dataTableScrollbarSx,
+);
 
 /** No vertical scroll region — parent (e.g. `FormModal` with `fitContent`) scrolls; wide tables still pan horizontally. */
-export const dataTableContainerHorizontalOnly: SxProps<Theme> = {
-  overflowX: "auto",
-  overflowY: "visible",
-  boxShadow: "none",
-  WebkitOverflowScrolling: "touch",
-  scrollbarWidth: "none",
-  msOverflowStyle: "none",
-  "&::-webkit-scrollbar": { display: "none" },
-};
+export const dataTableContainerHorizontalOnly: SxProps<Theme> = mergeSx(
+  dataTableContainerBase,
+  { overflowY: "visible" },
+  dataTableScrollbarSx,
+);
 
 export const dataTableRoot: SxProps<Theme> = (theme) => {
   const app = (theme as AppTheme).app;
@@ -36,7 +42,7 @@ export const dataTableRoot: SxProps<Theme> = (theme) => {
       textAlign: "left",
       verticalAlign: "middle",
       padding: "10px 16px",
-      whiteSpace: "nowrap",
+      whiteSpace: "normal",
     },
   };
 };

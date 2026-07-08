@@ -1,6 +1,7 @@
 import type { SxProps, Theme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import { mainBackgroundGradient } from "@/theme/theme";
+import { dashboardShellHeaderShadow } from "@/lib/ui/dashboardShellShadow";
 
 /** Bordered circular hits (settings / notifications) — fixed box + no padding so glyph centers in the ring. */
 export function dashboardHeaderCircleIconButtonSx(app: AppTheme["app"]): SxProps<Theme> {
@@ -38,12 +39,14 @@ export function createDashboardHeaderShellSx(theme: AppTheme): SxProps<Theme> {
     gap: { xs: 1, sm: 1.5, md: 3 },
     position: "relative",
     boxSizing: "border-box",
-    overflow: "hidden",
+    minWidth: 0,
     borderRadius: { xs: 0, md: app.dashboard.shellRadius },
     border: { xs: "none", md: `1px solid ${app.dashboard.shellBorder}` },
-    mb: { xs: 0, md: 2 },
+    mb: 0,
+    flexShrink: 0,
+    zIndex: 2,
     boxShadow: {
-      md: "0 8px 32px rgba(0, 0, 0, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.06)",
+      md: (t) => dashboardShellHeaderShadow(t),
     },
     background: (t) => {
       const a = (t as AppTheme).app;
@@ -61,14 +64,5 @@ export function createDashboardHeaderShellSx(theme: AppTheme): SxProps<Theme> {
       app.dashboard.headerBackdropBlur && app.dashboard.headerBackdropBlur !== "none"
         ? app.dashboard.headerBackdropBlur
         : undefined,
-    "&::after": {
-      content: '""',
-      position: "absolute",
-      left: 0,
-      right: 0,
-      bottom: 0,
-      height: "1px",
-      backgroundColor: app.dashboard.shellBorder,
-    },
-  };
+  } as SxProps<Theme>;
 }

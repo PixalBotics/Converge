@@ -4,7 +4,7 @@ export const typographyVariants = {
     fontWeight: 400,
     fontStyle: "normal",
     fontSize: 14,
-    lineHeight: "100%",
+    lineHeight: 1.45,
     letterSpacing: "0.3px",
   },
   mediumLarge: {
@@ -12,7 +12,7 @@ export const typographyVariants = {
     fontWeight: 500,
     fontStyle: "normal",
     fontSize: 20,
-    lineHeight: "120%",
+    lineHeight: 1.3,
     letterSpacing: "0.2px",
   },
   small: {
@@ -20,7 +20,7 @@ export const typographyVariants = {
     fontWeight: 400,
     fontStyle: "normal",
     fontSize: 12,
-    lineHeight: "100%",
+    lineHeight: 1.45,
     letterSpacing: "0.3px",
   },
   boldLarge: {
@@ -28,7 +28,7 @@ export const typographyVariants = {
     fontWeight: 700,
     fontStyle: "normal",
     fontSize: 23.26,
-    lineHeight: "100%",
+    lineHeight: 1.25,
     letterSpacing: "0.3px",
   },
   regularLarge: {
@@ -36,8 +36,8 @@ export const typographyVariants = {
     fontWeight: 400,
     fontStyle: "normal",
     fontSize: 22,
-    lineHeight: "100%",
-    letterSpacing: "1%",
+    lineHeight: 1.25,
+    letterSpacing: "0.01em",
     verticalAlign: "middle",
   },
   medium16: {
@@ -45,7 +45,7 @@ export const typographyVariants = {
     fontWeight: 500,
     fontStyle: "normal",
     fontSize: 16,
-    lineHeight: "100%",
+    lineHeight: 1.4,
     letterSpacing: "0.3px",
   },
 } as const;

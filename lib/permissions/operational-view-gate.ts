@@ -1,17 +1,18 @@
 import { PAGE_PERMISSION_DASHBOARD } from "@/lib/auth/permissions-model";
 import { getDashboardPathPageRequirements } from "./dashboard-access";
 import { hasAnyOperational } from "./access-helpers";
-import { HRMS, HRMS_LEAVE_APPROVE_ANY, HRMS_WORKFORCE_VIEW_ANY, ORG, PAGE } from "./permission-constants";
+import { HRMS, HRMS_ATTENDANCE_SELF_ANY, HRMS_LEAVE_APPROVE_ANY, HRMS_SHIFT_ASSIGNMENT_ANY, HRMS_WORKFORCE_VIEW_ANY, ORG, PAGE } from "./permission-constants";
+import { CHAT_INBOX_OPERATIONAL_ANY } from "./chat-inbox-operational";
 import { OP } from "./operational-keys";
 
 /**
  * Longest-prefix wins. Any one operational string grants “view” for that screen.
- * Org routes use {@link ORG}; workforce HRMS uses {@link HRMS}. `page:chat` does not imply org.
+ * Org routes use {@link ORG}; workforce HRMS uses granular `page:hrms-*` keys.
  */
 const PREFIX_VIEW_RULES: readonly { prefix: string; anyOf: readonly string[] }[] = [
   {
     prefix: "/dashboard/chat-operations",
-    anyOf: [OP.chat.access],
+    anyOf: [...CHAT_INBOX_OPERATIONAL_ANY],
   },
   {
     prefix: "/dashboard/chat-monitor",
@@ -110,11 +111,17 @@ const PREFIX_VIEW_RULES: readonly { prefix: string; anyOf: readonly string[] }[]
   {
     prefix: "/dashboard/ai-training/assistant",
     anyOf: [
-      OP.aiAssistant.use,
       OP.aiAssistant.trainingView,
       OP.aiAssistant.trainingManage,
-      OP.chat.access,
     ],
+  },
+  {
+    prefix: "/dashboard/ai-training/copilot",
+    anyOf: [OP.aiCopilot.setupView, OP.aiCopilot.setupManage],
+  },
+  {
+    prefix: "/dashboard/ai-training/platform-keys",
+    anyOf: [OP.aiPlatform.manage],
   },
   {
     prefix: "/dashboard/ai-training/chatbot",
@@ -171,61 +178,45 @@ const PREFIX_VIEW_RULES: readonly { prefix: string; anyOf: readonly string[] }[]
     prefix: "/dashboard/hrms/department-heads",
     anyOf: [...ORG.DEPT_VIEW, ...ORG.DEPT_MANAGE, ...ORG.ORG_MANAGE],
   },
-  { prefix: "/dashboard/leave/leave-type", anyOf: [HRMS.LEAVE_TYPE_MANAGE, HRMS.LEAVE_VIEW, OP.hrms.leave.typeManage] },
+  { prefix: "/dashboard/leave/leave-type", anyOf: [HRMS.LEAVE_TYPE_MANAGE, OP.hrms.leave.typeManage] },
   {
     prefix: "/dashboard/leave/approve-leave",
-    anyOf: [...HRMS_LEAVE_APPROVE_ANY, OP.hrms.leave.approve, OP.hrms.leave.approveDepartment, OP.hrms.leave.approvePool],
+    anyOf: [...HRMS_LEAVE_APPROVE_ANY, OP.hrms.leave.approveDepartment, OP.hrms.leave.approvePool, OP.hrms.leave.approveTenant],
   },
   {
     prefix: "/dashboard/leave/approval-inbox",
-    anyOf: [...HRMS_LEAVE_APPROVE_ANY, OP.hrms.leave.approve, OP.hrms.leave.approveDepartment, OP.hrms.leave.approvePool],
+    anyOf: [...HRMS_LEAVE_APPROVE_ANY, OP.hrms.leave.approveDepartment, OP.hrms.leave.approvePool, OP.hrms.leave.approveTenant],
   },
   {
     prefix: "/dashboard/leave/apply-leave",
-    anyOf: [HRMS.LEAVE_APPLY, HRMS.LEAVE_SELF_VIEW, HRMS.LEAVE_VIEW, OP.hrms.leave.apply],
+    anyOf: [HRMS.LEAVE_APPLY, OP.hrms.leave.apply],
   },
   {
     prefix: "/dashboard/leave/leave-balance",
-    anyOf: [HRMS.LEAVE_SELF_VIEW, HRMS.LEAVE_VIEW, OP.hrms.leave.selfView],
+    anyOf: [HRMS.LEAVE_APPLY, OP.hrms.leave.apply],
   },
   {
     prefix: "/dashboard/leave",
     anyOf: [
-      HRMS.LEAVE_VIEW,
-      HRMS.LEAVE_SELF_VIEW,
       HRMS.LEAVE_APPLY,
       HRMS.LEAVE_TYPE_MANAGE,
       ...HRMS_LEAVE_APPROVE_ANY,
-      OP.hrms.leave.view,
+      OP.hrms.leave.apply,
+      OP.hrms.leave.typeManage,
     ],
   },
   {
     prefix: "/dashboard/attendance/mark-attendance",
-    anyOf: [
-      HRMS.ATTENDANCE_VIEW,
-      HRMS.ATTENDANCE_SELF,
-      HRMS.ATTENDANCE_SELF_VIEW,
-      HRMS.ATTENDANCE_CHECKIN,
-      HRMS.ATTENDANCE_CHECKOUT,
-      OP.hrms.attendance.view,
-      OP.hrms.attendance.self,
-    ],
+    anyOf: [...HRMS_ATTENDANCE_SELF_ANY, HRMS.ATTENDANCE_VIEW, OP.hrms.attendance.view],
   },
   { prefix: "/dashboard/attendance/team-attendance", anyOf: [HRMS.ATTENDANCE_VIEW, OP.hrms.attendance.view] },
   {
     prefix: "/dashboard/attendance/my-attendance",
-    anyOf: [HRMS.ATTENDANCE_SELF_VIEW, HRMS.ATTENDANCE_VIEW, OP.hrms.attendance.selfView],
+    anyOf: [...HRMS_ATTENDANCE_SELF_ANY, HRMS.ATTENDANCE_VIEW, OP.hrms.attendance.selfView],
   },
   {
     prefix: "/dashboard/attendance",
-    anyOf: [
-      HRMS.ATTENDANCE_VIEW,
-      HRMS.ATTENDANCE_SELF_VIEW,
-      HRMS.ATTENDANCE_SELF,
-      HRMS.ATTENDANCE_CHECKIN,
-      HRMS.ATTENDANCE_CHECKOUT,
-      OP.hrms.attendance.view,
-    ],
+    anyOf: [...HRMS_ATTENDANCE_SELF_ANY, HRMS.ATTENDANCE_VIEW, OP.hrms.attendance.view],
   },
   {
     prefix: "/dashboard/hrms",
@@ -233,20 +224,14 @@ const PREFIX_VIEW_RULES: readonly { prefix: string; anyOf: readonly string[] }[]
   },
   {
     prefix: "/dashboard/shifts/user-shift",
-    anyOf: [
-      HRMS.USER_SHIFT_ASSIGN,
-      HRMS.TEAM_ROSTER_VIEW,
-      HRMS.SHIFT_VIEW,
-      OP.hrms.userShift.assign,
-      OP.hrms.shift.view,
-    ],
+    anyOf: [...HRMS_SHIFT_ASSIGNMENT_ANY, OP.hrms.userShift.assign, OP.hrms.shift.view],
   },
   {
     prefix: "/dashboard/shifts/department-shift",
-    anyOf: [HRMS.SHIFT_VIEW, OP.hrms.shift.view, OP.hrms.shiftAssignment.view],
+    anyOf: [...HRMS_SHIFT_ASSIGNMENT_ANY, OP.hrms.shift.view],
   },
   { prefix: "/dashboard/shifts/pool-shift", anyOf: [HRMS.SHIFT_VIEW, OP.hrms.shift.view] },
-  { prefix: "/dashboard/shifts", anyOf: [HRMS.SHIFT_VIEW, OP.hrms.shift.view, OP.hrms.shiftAssignment.view] },
+  { prefix: "/dashboard/shifts", anyOf: [...HRMS_SHIFT_ASSIGNMENT_ANY, OP.hrms.shift.view] },
   {
     prefix: "/dashboard/phone-number-setup",
     anyOf: [
@@ -304,8 +289,17 @@ const PREFIX_VIEW_RULES: readonly { prefix: string; anyOf: readonly string[] }[]
 ].sort((a, b) => b.prefix.length - a.prefix.length);
 
 const PAGE_PERMISSION_TO_VIEW_ANY: Readonly<Record<string, readonly string[]>> = {
-  [PAGE.CHAT]: [OP.chat.access],
-  [PAGE.CHAT_INBOX]: [OP.chat.access],
+  [PAGE.CHAT_INBOX]: [...CHAT_INBOX_OPERATIONAL_ANY],
+  [PAGE.CHAT_TRANSCRIPTS]: [
+    OP.chat.audit,
+    OP.chat.auditPlatform,
+    OP.chat.monitorPool,
+    OP.chat.monitorDepartment,
+    OP.chat.monitorParentCompany,
+    OP.qa.chatReview,
+  ],
+  [PAGE.CHAT_QA_TEAM_REPORTS]: [OP.chat.reportView],
+  [PAGE.CHAT_WEBSITE_ANALYTICS]: [OP.chat.reportView],
   [PAGE.CHAT_MONITOR]: [
     OP.chat.audit,
     OP.chat.auditPlatform,
@@ -326,8 +320,10 @@ const PAGE_PERMISSION_TO_VIEW_ANY: Readonly<Record<string, readonly string[]>> =
   [PAGE.CHAT_CANNED]: [OP.chatWidget.view, OP.chatWidget.update],
   [PAGE.CHAT_INVOLVEMENT]: [OP.chat.monitorInvolvement, OP.chatWidget.view],
   [PAGE.CHAT_QA_ROSTER]: [OP.qa.chatAssign, OP.chatWidget.view],
-  [PAGE.AI_ASSISTANT]: [OP.aiAssistant.use, OP.aiAssistant.trainingView],
+  [PAGE.AI_ASSISTANT]: [OP.aiAssistant.trainingView],
   [PAGE.AI_CHATBOT]: [OP.aiChatbot.trainingView, OP.chatWidget.view],
+  [PAGE.AI_COPILOT]: [OP.aiCopilot.setupView],
+  [PAGE.AI_PLATFORM]: [OP.aiPlatform.manage],
   "page:clients": [OP.company.view, OP.company.list, OP.company.detail, OP.accountSetup.view],
   "page:account-setup": [OP.accountSetup.view, OP.company.view, OP.company.list, OP.company.detail],
   "page:resellers": [OP.accountSetup.view, OP.company.view, OP.company.list, OP.company.detail],
@@ -339,6 +335,45 @@ const PAGE_PERMISSION_TO_VIEW_ANY: Readonly<Record<string, readonly string[]>> =
     OP.company.list,
     OP.company.view,
   ],
+  [PAGE.WEBSITE_DIRECTORY]: [OP.company.view, OP.company.list, OP.websiteAssignment.view],
+  [PAGE.WEBSITE_SERVICE_SCHEDULING]: [OP.websiteAssignment.view, OP.website.assign],
+  [PAGE.WEBSITE_INQUIRE_TOPICS]: [OP.websiteAssignment.view, OP.website.assign],
+  [PAGE.USERS_PERMISSIONS]: [OP.user.view, OP.client.permissions],
+  [PAGE.USERS_POC_LIST]: [OP.user.view, OP.company.list],
+  [PAGE.DEPARTMENT_HEADS]: [...ORG.DEPT_VIEW, ...ORG.DEPT_MANAGE, ...ORG.ORG_MANAGE],
+  [PAGE.POOL_MEMBERS]: [
+    ...ORG.POOL_VIEW,
+    ...ORG.POOL_MANAGE,
+    ...ORG.POOL_MEMBER_ADD,
+    ...ORG.POOL_MEMBER_UPDATE,
+    ...ORG.POOL_MEMBER_REMOVE,
+  ],
+  [PAGE.POOL_HEADS]: [...ORG.POOL_HEAD_VIEW, ...ORG.POOL_MANAGE, ...ORG.POOL_VIEW],
+  [PAGE.HRMS_OVERVIEW]: [...HRMS_WORKFORCE_VIEW_ANY, OP.company.list, OP.company.view],
+  [PAGE.HRMS_ATTENDANCE_SELF]: [...HRMS_ATTENDANCE_SELF_ANY, HRMS.ATTENDANCE_VIEW, OP.hrms.attendance.selfView],
+  [PAGE.HRMS_ATTENDANCE_TEAM]: [HRMS.ATTENDANCE_VIEW, OP.hrms.attendance.view],
+  [PAGE.HRMS_ATTENDANCE_MARK]: [...HRMS_ATTENDANCE_SELF_ANY, HRMS.ATTENDANCE_VIEW, OP.hrms.attendance.view],
+  [PAGE.HRMS_LEAVE_TYPES]: [HRMS.LEAVE_TYPE_MANAGE, OP.hrms.leave.typeManage],
+  [PAGE.HRMS_LEAVE_APPLY]: [HRMS.LEAVE_APPLY, OP.hrms.leave.apply],
+  [PAGE.HRMS_LEAVE_APPROVAL]: [
+    ...HRMS_LEAVE_APPROVE_ANY,
+    OP.hrms.leave.approveDepartment,
+    OP.hrms.leave.approvePool,
+    OP.hrms.leave.approveTenant,
+  ],
+  [PAGE.HRMS_LEAVE_BALANCE]: [HRMS.LEAVE_APPLY, OP.hrms.leave.apply],
+  [PAGE.SHIFTS_DEPARTMENT]: [...HRMS_SHIFT_ASSIGNMENT_ANY, OP.hrms.shift.view],
+  [PAGE.SHIFTS_POOL]: [HRMS.SHIFT_VIEW, OP.hrms.shift.view],
+  [PAGE.SHIFTS_USER]: [...HRMS_SHIFT_ASSIGNMENT_ANY, OP.hrms.userShift.assign, OP.hrms.shift.view],
+  [PAGE.REPORTS_CONFIGURATION]: [OP.report.view],
+  [PAGE.SETTINGS_PROFILE]: [],
+  [PAGE.SETTINGS_SECURITY]: [],
+  [PAGE.SMTP_EMAIL_RESELLER]: [OP.smtpEmail.view],
+  [PAGE.SMTP_EMAIL_PLATFORM]: [OP.smtpEmail.view],
+  [PAGE.SMTP_EMAIL_ASSIGNMENT]: [OP.smtpEmail.view],
+  [PAGE.EMAIL_TEMPLATE_DESIGN]: [OP.emailTemplate.view],
+  [PAGE.EMAIL_TEMPLATE_PLATFORM]: [OP.emailTemplate.view],
+  [PAGE.EMAIL_TEMPLATE_FORMS]: [OP.emailTemplate.view],
   [PAGE.DEPARTMENTS]: [
     ...ORG.DEPT_VIEW,
     ...ORG.DEPT_MANAGE,
@@ -354,14 +389,6 @@ const PAGE_PERMISSION_TO_VIEW_ANY: Readonly<Record<string, readonly string[]>> =
     OP.company.list,
     OP.company.view,
   ],
-  "page:pools": [
-    ...ORG.POOL_VIEW,
-    ...ORG.POOL_MANAGE,
-    ...ORG.ORG_MANAGE,
-    OP.company.list,
-    OP.company.view,
-  ],
-  [PAGE.HRMS]: [...HRMS_WORKFORCE_VIEW_ANY, OP.company.list, OP.company.view],
   [PAGE.SHIFTS]: [HRMS.SHIFT_VIEW, OP.hrms.shift.view, OP.company.list, OP.company.view],
   "page:crm-integration": [OP.crmIntegration.view],
   "page:distribution-setup": [OP.distributionSetup.view],
@@ -377,8 +404,6 @@ const PAGE_PERMISSION_TO_VIEW_ANY: Readonly<Record<string, readonly string[]>> =
   ],
   "page:reports": [OP.report.view],
   "page:billing": [OP.billing.view],
-  "page:smtp-email": [OP.smtpEmail.view],
-  "page:email-template": [OP.emailTemplate.view],
   "page:email-agent-feedback": [OP.agentFeedback.view],
   "page:social-media": [OP.socialMedia.view],
   "page:settings": [],

@@ -55,7 +55,6 @@ export function QaRosterWorkspace() {
   const canViewRoster =
     hasPage(PAGE.CHAT_QA_ROSTER) ||
     hasPage(PAGE.CHAT_WIDGET) ||
-    hasPage(PAGE.CHAT) ||
     hasOperational(OP.qa.chatAssign);
 
   const canEdit =

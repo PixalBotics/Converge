@@ -17,8 +17,10 @@ export const dashboardCardStyles: SxProps<Theme> = (theme) => {
     WebkitBackdropFilter: resolvedBlur,
     borderRadius: "9.32px",
     position: "relative",
-    height: "100%",
-    overflow: "hidden",
+    height: "auto",
+    minHeight: 0,
+    minWidth: 0,
+    overflow: "clip",
     isolation: "isolate",
     boxShadow: "none",
     "& > *": {

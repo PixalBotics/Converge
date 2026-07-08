@@ -226,7 +226,7 @@ function ChatMiniPreview({ chat, compact }: { chat: JsonRecord; compact?: boolea
 function TextUsMiniPreview({ textUs, compact }: { textUs: JsonRecord; compact?: boolean }) {
   const theme = useTheme() as AppTheme;
   const btn = String(textUs.buttonColor ?? "#da9b2f");
-  const headerTitle = String(textUs.headerTitle ?? "Text us");
+  const headerTitle = String(textUs.headerTitle ?? "Text Us");
   const welcome = String(textUs.welcomeMessage ?? "");
   const position = String(textUs.position ?? "center").toLowerCase();
 

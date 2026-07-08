@@ -15,7 +15,7 @@ const COPY: Record<
       "Each add creates a content item. The system reads it and stores searchable pieces.",
       "When a visitor chats on the widget, the bot answers from those pieces for that website only.",
     ],
-    note: "Training content is separate from AI Assistant (agent copilot) knowledge.",
+    note: "Training content is separate from AI Assistant (Agent Copilot) knowledge.",
   },
   assistant: {
     steps: [

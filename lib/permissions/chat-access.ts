@@ -1,10 +1,14 @@
 import { PAGE } from "./permission-constants";
 import {
   canAccessRoute,
-  canPermissionCode,
   type AuthPermissionArrays,
   type PermissionChecker,
 } from "./access-helpers";
+import {
+  CHAT_INBOX_OPERATIONAL_ANY,
+  hasChatInboxOperational,
+  hasChatInboxOperationalFromChecker,
+} from "./chat-inbox-operational";
 import { OP } from "./operational-keys";
 
 const CHAT_MONITOR_OPERATIONAL = [
@@ -21,46 +25,24 @@ const CHAT_INBOX_SCOPE_FILTER_OPERATIONAL = [...CHAT_MONITOR_OPERATIONAL] as con
 
 export type ChatLiveNavItem = { href: string; label: string };
 
-function hasLegacyChatModule(perms: AuthPermissionArrays): boolean {
-  return canPermissionCode(PAGE.CHAT, perms);
-}
-
-function hasChatOpsPage(
-  perms: AuthPermissionArrays,
-  page: string,
-): boolean {
-  return canPermissionCode(page, perms) || hasLegacyChatModule(perms);
-}
-
-function hasChatConfigPage(
-  perms: AuthPermissionArrays,
-  page: string,
-): boolean {
-  return (
-    canPermissionCode(page, perms) ||
-    canPermissionCode(PAGE.CHAT_WIDGET, perms)
-  );
-}
-
 export type AgentInboxEligibilityOptions = {
   /** Pool heads use a plain agent queue for transferred chats — not monitor scope filters. */
   isPoolHead?: boolean;
 };
-
-function hasAgentInboxAccessOperational(perms: AuthPermissionArrays): boolean {
-  const code = OP.chat.access;
-  if (perms.isPlatformAdmin) {
-    return perms.page.includes(code) || perms.operational.includes(code);
-  }
-  return canPermissionCode(code, perms);
-}
 
 function hasMonitorParentCompanyScope(perms: AuthPermissionArrays): boolean {
   const code = OP.chat.monitorParentCompany;
   if (perms.isPlatformAdmin) {
     return perms.page.includes(code) || perms.operational.includes(code);
   }
-  return canPermissionCode(code, perms);
+  return perms.page.includes(code) || perms.operational.includes(code);
+}
+
+function canPermissionCode(code: string, perms: AuthPermissionArrays): boolean {
+  if (perms.isPlatformAdmin) return true;
+  const c = code.trim();
+  if (!c) return false;
+  return perms.page.includes(c) || perms.operational.includes(c);
 }
 
 /**
@@ -71,8 +53,8 @@ export function canAgentChatFromArrays(
   perms: AuthPermissionArrays,
   options?: AgentInboxEligibilityOptions,
 ): boolean {
-  if (!hasChatOpsPage(perms, PAGE.CHAT_INBOX)) return false;
-  if (!hasAgentInboxAccessOperational(perms)) return false;
+  if (!perms.page.includes(PAGE.CHAT_INBOX)) return false;
+  if (!hasChatInboxOperational(perms.operational)) return false;
   if (options?.isPoolHead) return true;
   if (perms.isPlatformAdmin && canMonitorFromArrays(perms)) return false;
   if (hasMonitorParentCompanyScope(perms)) return false;
@@ -80,12 +62,12 @@ export function canAgentChatFromArrays(
 }
 
 export function canMonitorFromArrays(perms: AuthPermissionArrays): boolean {
-  if (!hasChatOpsPage(perms, PAGE.CHAT_MONITOR)) return false;
+  if (!perms.page.includes(PAGE.CHAT_MONITOR)) return false;
   return CHAT_MONITOR_OPERATIONAL.some((code) => canPermissionCode(code, perms));
 }
 
 export function canQaFromArrays(perms: AuthPermissionArrays): boolean {
-  if (!hasChatOpsPage(perms, PAGE.CHAT_QA)) return false;
+  if (!perms.page.includes(PAGE.CHAT_QA)) return false;
   return (
     canPermissionCode(OP.qa.chatReview, perms) ||
     canPermissionCode(OP.qa.chatReviewMessage, perms) ||
@@ -95,17 +77,17 @@ export function canQaFromArrays(perms: AuthPermissionArrays): boolean {
 
 export function canChatReportsFromArrays(perms: AuthPermissionArrays): boolean {
   return (
-    hasChatOpsPage(perms, PAGE.CHAT_REPORTS) &&
+    perms.page.includes(PAGE.CHAT_REPORTS) &&
     canPermissionCode(OP.chat.reportView, perms)
   );
 }
 
 export function canWidgetSettingsFromArrays(perms: AuthPermissionArrays): boolean {
   if (
-    !hasChatConfigPage(perms, PAGE.CHAT_CLOSE_POLICY) &&
-    !hasChatConfigPage(perms, PAGE.CHAT_CANNED) &&
-    !hasChatConfigPage(perms, PAGE.CHAT_INVOLVEMENT) &&
-    !hasChatConfigPage(perms, PAGE.CHAT_WIDGET)
+    !perms.page.includes(PAGE.CHAT_CLOSE_POLICY) &&
+    !perms.page.includes(PAGE.CHAT_CANNED) &&
+    !perms.page.includes(PAGE.CHAT_INVOLVEMENT) &&
+    !perms.page.includes(PAGE.CHAT_WIDGET)
   ) {
     return false;
   }
@@ -115,22 +97,66 @@ export function canWidgetSettingsFromArrays(perms: AuthPermissionArrays): boolea
   );
 }
 
-export function canAiAssistantFromArrays(perms: AuthPermissionArrays): boolean {
-  /** All inbox agents get copilot for now; revoke `ai-assistant:use` later per role if needed. */
-  if (canAgentChatFromArrays(perms)) {
-    return true;
-  }
+function hasCopilotUseOperational(perms: AuthPermissionArrays): boolean {
   return (
-    (canPermissionCode(PAGE.AI_ASSISTANT, perms) || hasLegacyChatModule(perms)) &&
-    (canPermissionCode(OP.aiAssistant.use, perms) ||
-      canPermissionCode(OP.aiAssistant.trainingView, perms))
+    canPermissionCode(OP.aiCopilot.use, perms) ||
+    canPermissionCode(OP.aiCopilot.useLegacy, perms)
+  );
+}
+
+/** Inbox AI copilot drawer — requires explicit use permission. */
+export function canUseCopilotInboxFromArrays(perms: AuthPermissionArrays): boolean {
+  return hasCopilotUseOperational(perms);
+}
+
+export function canUseCopilotInbox(
+  hasOperational: (permission: string) => boolean,
+): boolean {
+  return (
+    hasOperational(OP.aiCopilot.use) || hasOperational(OP.aiCopilot.useLegacy)
+  );
+}
+
+/** AI Assistant internal KB training screens. */
+export function canAiAssistantTrainingFromArrays(perms: AuthPermissionArrays): boolean {
+  return (
+    perms.page.includes(PAGE.AI_ASSISTANT) &&
+    (canPermissionCode(OP.aiAssistant.trainingView, perms) ||
+      canPermissionCode(OP.aiAssistant.trainingManage, perms))
+  );
+}
+
+/** @deprecated use canAiAssistantTrainingFromArrays or canUseCopilotInboxFromArrays */
+export function canAiAssistantFromArrays(perms: AuthPermissionArrays): boolean {
+  return canAiAssistantTrainingFromArrays(perms) || canUseCopilotInboxFromArrays(perms);
+}
+
+/** AI Copilot setup page (per-website status table). */
+export function canCopilotSetupFromArrays(perms: AuthPermissionArrays): boolean {
+  return (
+    perms.page.includes(PAGE.AI_COPILOT) &&
+    (canPermissionCode(OP.aiCopilot.setupView, perms) ||
+      canPermissionCode(OP.aiCopilot.setupManage, perms))
+  );
+}
+
+export function canManageCopilotSetupFromArrays(perms: AuthPermissionArrays): boolean {
+  return (
+    perms.page.includes(PAGE.AI_COPILOT) &&
+    canPermissionCode(OP.aiCopilot.setupManage, perms)
+  );
+}
+
+export function canManagePlatformAiFromArrays(perms: AuthPermissionArrays): boolean {
+  return (
+    perms.page.includes(PAGE.AI_PLATFORM) &&
+    canPermissionCode(OP.aiPlatform.manage, perms)
   );
 }
 
 export function canAiChatbotFromArrays(perms: AuthPermissionArrays): boolean {
   return (
-    (canPermissionCode(PAGE.AI_CHATBOT, perms) ||
-      canPermissionCode(PAGE.CHAT_WIDGET, perms)) &&
+    (perms.page.includes(PAGE.AI_CHATBOT) || perms.page.includes(PAGE.CHAT_WIDGET)) &&
     (canPermissionCode(OP.aiChatbot.trainingView, perms) ||
       canPermissionCode(OP.chatWidget.view, perms) ||
       canPermissionCode(OP.chatWidget.update, perms))
@@ -138,24 +164,20 @@ export function canAiChatbotFromArrays(perms: AuthPermissionArrays): boolean {
 }
 
 /**
- * Agent inbox: `page:chat-inbox` AND expanded `chat:access` from `/auth/me` only.
+ * Agent inbox: `page:chat-inbox` AND a chat bundle / granular inbox op from `/auth/me`.
  */
 export function canAccessChatInbox(
   hasOperational: (permission: string) => boolean,
   hasPage?: (pagePermission: string) => boolean,
 ): boolean {
-  if (
-    !hasPage?.(PAGE.CHAT_INBOX) &&
-    !hasPage?.(PAGE.CHAT)
-  ) {
+  if (!hasPage?.(PAGE.CHAT_INBOX)) {
     return false;
   }
-  return hasOperational(OP.chat.access);
+  return hasChatInboxOperationalFromChecker(hasOperational);
 }
 
 export function canAccessChatInboxFromChecker(perms: PermissionChecker): boolean {
-  return canAccessRoute(perms, PAGE.CHAT_INBOX, [OP.chat.access]) ||
-    canAccessRoute(perms, PAGE.CHAT, [OP.chat.access]);
+  return canAccessRoute(perms, PAGE.CHAT_INBOX, CHAT_INBOX_OPERATIONAL_ANY);
 }
 
 export function canAccessChatMonitor(hasOperational: (permission: string) => boolean): boolean {
@@ -166,16 +188,11 @@ export function canMonitorRoute(
   hasPage: (page: string) => boolean,
   hasOperational: (permission: string) => boolean,
 ): boolean {
-  return (
-    (hasPage(PAGE.CHAT_MONITOR) || hasPage(PAGE.CHAT)) &&
-    canAccessChatMonitor(hasOperational)
-  );
+  return hasPage(PAGE.CHAT_MONITOR) && canAccessChatMonitor(hasOperational);
 }
 
 /**
  * Agent inbox: no org filters for plain agents or pool heads (personal queue only).
- * Department head / platform monitor / reseller bucket (when allowed) on supervisor inbox views.
- * QA / reports / settings pages pass their own `apiEnabled` to `useChatScopeFilters`.
  */
 export function needsChatScopeFilters(
   hasOperational: (permission: string) => boolean,
@@ -187,12 +204,20 @@ export function needsChatScopeFilters(
   return CHAT_INBOX_SCOPE_FILTER_OPERATIONAL.some((p) => hasOperational(p));
 }
 
-/** Sidebar / route gate for `/dashboard/chat-operations`. */
+/** Sidebar / route gate for `/dashboard/chat-operations` — page permission drives nav visibility. */
 export function canShowAgentInboxNav(
   perms: AuthPermissionArrays,
   options?: AgentInboxEligibilityOptions,
 ): boolean {
-  return canAgentChatFromArrays(perms, options);
+  if (!perms.page.includes(PAGE.CHAT_INBOX)) return false;
+  if (options?.isPoolHead) return true;
+  if (perms.isPlatformAdmin && canMonitorFromArrays(perms) && !hasChatInboxOperational(perms.operational)) {
+    return false;
+  }
+  if (hasMonitorParentCompanyScope(perms) && !hasChatInboxOperational(perms.operational)) {
+    return false;
+  }
+  return true;
 }
 
 export function buildChatLiveNavItems(
@@ -206,16 +231,10 @@ export function buildChatLiveNavItems(
   if (canMonitorRoute(hasPage, hasOperational)) {
     items.push({ href: "/dashboard/chat-monitor", label: "Monitor" });
   }
-  if (
-    (hasPage(PAGE.CHAT_QA) || hasPage(PAGE.CHAT)) &&
-    canAccessChatQa(hasOperational)
-  ) {
+  if (hasPage(PAGE.CHAT_QA) && canAccessChatQa(hasOperational)) {
     items.push({ href: "/dashboard/qa/inbox", label: "QA inbox" });
   }
-  if (
-    (hasPage(PAGE.CHAT_REPORTS) || hasPage(PAGE.CHAT)) &&
-    canViewChatReports(hasOperational)
-  ) {
+  if (hasPage(PAGE.CHAT_REPORTS) && canViewChatReports(hasOperational)) {
     items.push({ href: "/dashboard/chat-reports", label: "Reports" });
   }
   if (
@@ -230,7 +249,7 @@ export function buildChatLiveNavItems(
     items.push({ href: "/dashboard/chat-canned", label: "Canned" });
   }
   if (
-    (hasPage(PAGE.CHAT_QA_ROSTER) || hasPage(PAGE.CHAT_WIDGET) || hasPage(PAGE.CHAT)) &&
+    (hasPage(PAGE.CHAT_QA_ROSTER) || hasPage(PAGE.CHAT_WIDGET)) &&
     (hasOperational(OP.qa.chatAssign) ||
       hasOperational(OP.chatWidget.view) ||
       hasOperational(OP.chatWidget.update))
@@ -239,19 +258,23 @@ export function buildChatLiveNavItems(
     items.push({ href: "/dashboard/qa/roster", label: "QA roster" });
   }
   if (
-    (hasPage(PAGE.CHAT_WIDGET) || hasPage(PAGE.CHAT)) &&
+    hasPage(PAGE.CHAT_WIDGET) &&
     (hasOperational(OP.chatWidget.view) || hasOperational(OP.chatWidget.update))
   ) {
     items.push({ href: "/dashboard/chat-widget", label: "Widget" });
   }
   if (
-    canAccessChatInbox(hasOperational, hasPage) ||
-    ((hasPage(PAGE.AI_ASSISTANT) || hasPage(PAGE.CHAT)) &&
-      (hasOperational(OP.aiAssistant.use) ||
-        hasOperational(OP.aiAssistant.trainingView) ||
-        hasOperational(OP.chat.access)))
+    hasPage(PAGE.AI_ASSISTANT) &&
+    (hasOperational(OP.aiAssistant.trainingView) ||
+      hasOperational(OP.aiAssistant.trainingManage))
   ) {
     items.push({ href: "/dashboard/ai-training/assistant", label: "AI Assistant" });
+  }
+  if (
+    hasPage(PAGE.AI_COPILOT) &&
+    (hasOperational(OP.aiCopilot.setupView) || hasOperational(OP.aiCopilot.setupManage))
+  ) {
+    items.push({ href: "/dashboard/ai-training/copilot", label: "AI Copilot" });
   }
   if (
     (hasPage(PAGE.AI_CHATBOT) || hasPage(PAGE.CHAT_WIDGET)) &&
@@ -287,7 +310,6 @@ export function canViewChatReports(hasOperational: (permission: string) => boole
   return hasOperational(OP.chat.reportView);
 }
 
-/** Pool / department / external monitor leads — scoped team QA quality page. */
 export function canAccessQaTeamReports(
   hasOperational: (permission: string) => boolean,
   isPlatformAdmin = false,
@@ -314,7 +336,9 @@ export function canAssignQaReview(hasOperational: (permission: string) => boolea
 }
 
 export function canSendGuestLink(hasOperational: (permission: string) => boolean): boolean {
-  return hasOperational(OP.chat.guestLinkSend) || hasOperational(OP.chat.access);
+  return (
+    hasOperational(OP.chat.guestLinkSend) || hasChatInboxOperationalFromChecker(hasOperational)
+  );
 }
 
 export function canSupervisorCloseChat(hasOperational: (permission: string) => boolean): boolean {
@@ -334,7 +358,6 @@ export function canUseSupervisorTools(hasOperational: (permission: string) => bo
   );
 }
 
-/** Platform-wide audit — not for tenant QA bundle. */
 export function canPlatformChatAudit(hasOperational: (permission: string) => boolean): boolean {
   return hasOperational(OP.chat.auditPlatform);
 }

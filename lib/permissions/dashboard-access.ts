@@ -6,18 +6,44 @@ import {
   toPermissionSet,
   type PermissionsByType,
 } from "@/lib/auth/permissions-model";
-import type { DashboardNavItem, DashboardNavSection } from "./dashboard-nav.types";
+import type { DashboardNavItem, DashboardNavSection, RouteRule } from "./dashboard-nav.types";
 import {
   getFirstDashboardPathSegment,
   PAGE_PERMISSION_ORDER,
   requiredPagePermissionFromDashboardSegment,
   ROUTE_RULES,
 } from "./dashboard-route-table";
+
+function getMatchingRouteRules(pathname: string): RouteRule[] {
+  const matches = ROUTE_RULES.filter((rule) =>
+    isNavPathSelected(pathname, rule.href, rule.prefixMatch),
+  );
+  if (matches.length === 0) return [];
+  const maxLen = Math.max(...matches.map((m) => m.href.length));
+  return matches.filter((m) => m.href.length === maxLen);
+}
 import { ALWAYS_VISIBLE_NAV_ITEMS, DASHBOARD_NAV_ITEMS } from "./dashboard-nav-tree";
 import { canShowAgentInboxNav } from "./chat-access";
-import { PAGE } from "./permission-constants";
+import { HRMS_MODULE_PAGE_PERMISSIONS, isHrmsProductPagePermission, PAGE } from "./permission-constants";
 
 const AGENT_INBOX_NAV_HREF = "/dashboard/chat-operations";
+
+function resellerHasHrmsProduct(pagePermissionSet: Set<string>): boolean {
+  return HRMS_MODULE_PAGE_PERMISSIONS.some((p) => hasPagePermission(pagePermissionSet, p));
+}
+
+function navItemTouchesHrmsProduct(item: DashboardNavItem): boolean {
+  if (item.permission && isHrmsProductPagePermission(item.permission)) return true;
+  return (item.permissionsAny ?? []).some((p) => isHrmsProductPagePermission(p));
+}
+
+function hrmsProductNavAllowed(
+  item: DashboardNavItem,
+  pagePermissionSet: Set<string>,
+): boolean {
+  if (!navItemTouchesHrmsProduct(item)) return true;
+  return resellerHasHrmsProduct(pagePermissionSet);
+}
 
 function isAgentInboxNavChild(item: DashboardNavItem): boolean {
   return (
@@ -68,6 +94,7 @@ export function getVisibleDashboardNavItems(opts: {
       if (item.internalOnly && !opts.isInternalUser) return false;
       return true;
     }
+    if (!hrmsProductNavAllowed(item, opts.pagePermissionSet)) return false;
     if (item.internalOnly && !opts.isInternalUser) return false;
     if (item.children?.length) {
       const any = item.permissionsAny;
@@ -99,15 +126,24 @@ export function getVisibleDashboardNavItems(opts: {
   const withFilteredChildren = permissionDriven.map((item) => {
     if (!item.children?.length) return item;
     const children = item.children.filter((ch) => {
+      if (!hrmsProductNavAllowed(ch, opts.pagePermissionSet)) return false;
       if (isAgentInboxNavChild(ch) && !agentInboxNavVisible) return false;
       if (!rbacFiltersNav) {
         if (ch.internalOnly && !opts.isInternalUser) return false;
         return true;
       }
       if (ch.internalOnly && !opts.isInternalUser) return false;
+      if (ch.permission && hasPagePermission(opts.pagePermissionSet, ch.permission)) {
+        if (isAgentInboxNavChild(ch) && !agentInboxNavVisible) return false;
+        return true;
+      }
+      if (ch.permissionsAny?.length) {
+        return ch.permissionsAny.some((p) => hasPagePermission(opts.pagePermissionSet, p));
+      }
       if (ch.operationalAny?.length) {
         const ops = opts.operationalPermissionSet;
         if (!ops?.size) return false;
+        if (ch.permission && !hasPagePermission(opts.pagePermissionSet, ch.permission)) return false;
         return ch.operationalAny.some((p) => ops.has(p));
       }
       if (!ch.permission) return true;
@@ -199,11 +235,19 @@ export function canAccessDashboardPath(opts: {
   pagePermissionSet: Set<string>;
   /** Matches `useAuth().hasPage` — full dashboard routes without enumerating `page:*` in the token. */
   isPlatformAdmin?: boolean;
+  /** Platform internal staff (`userType === "Internal"`). Required for `internalOnly` routes. */
+  isInternalUser?: boolean;
 }): boolean {
   if (!opts.rbacEnabled) return true;
   if (opts.isPlatformAdmin) return true;
+  const matchedRules = getMatchingRouteRules(opts.pathname);
+  if (matchedRules.some((rule) => rule.internalOnly) && !opts.isInternalUser) {
+    return false;
+  }
   const reqs = getDashboardPathPageRequirements(opts.pathname);
   if (!reqs?.length) return true;
+  const hrmsProductRoute = reqs.some((r) => isHrmsProductPagePermission(r));
+  if (hrmsProductRoute && !resellerHasHrmsProduct(opts.pagePermissionSet)) return false;
   return reqs.some((r) => hasPagePermission(opts.pagePermissionSet, r));
 }
 

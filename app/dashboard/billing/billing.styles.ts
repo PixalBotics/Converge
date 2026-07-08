@@ -1,6 +1,8 @@
+import { alpha } from "@mui/material/styles";
 import type { SxProps, Theme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
-import { cardPadding, pageWrapper } from "../dashboard.styles";
+import { dashboardCardStyles } from "@/components/common/DashboardCard/dashboard-card.styles";
+import { cardPadding, cardPaddingAutoHeight, pageWrapper } from "../dashboard.styles";
 
 export const billingPageWrapper: SxProps<Theme> = {
   ...pageWrapper,
@@ -245,4 +247,96 @@ export const billingCreateInvoiceButtonSx: SxProps<Theme> = {
   minWidth: 150,
   whiteSpace: "nowrap",
   flex: { xs: "1 1 auto", sm: "0 0 auto" },
+};
+
+export const billingOverviewCardSx = ((theme: Theme) => {
+  const app = (theme as AppTheme).app;
+  const isLight = theme.palette.mode === "light";
+  const accent = app.dashboard.accentBlue;
+  const purple = app.dashboard.accentPurple;
+  const base =
+    typeof dashboardCardStyles === "function" ? dashboardCardStyles(theme) : dashboardCardStyles;
+  const gradient = isLight
+    ? `radial-gradient(120% 140% at 100% 0%, ${alpha(accent, 0.12)} 0%, transparent 55%), radial-gradient(80% 100% at 0% 100%, ${alpha(purple, 0.1)} 0%, transparent 50%)`
+    : `radial-gradient(120% 140% at 100% 0%, ${alpha(accent, 0.2)} 0%, transparent 55%), radial-gradient(80% 100% at 0% 100%, ${alpha(purple, 0.16)} 0%, transparent 50%)`;
+  return {
+    ...base,
+    borderRadius: "16px",
+    p: { xs: 2, md: 2.5 },
+    height: "auto",
+    backgroundImage: gradient,
+  };
+}) as SxProps<Theme>;
+
+export const billingOverviewNavSx: SxProps<Theme> = {
+  display: "grid",
+  gridTemplateColumns: { xs: "1fr", md: "repeat(3, minmax(0, 1fr))" },
+  gap: 1.5,
+};
+
+export const billingOverviewActionCardSx: SxProps<Theme> = (theme) => {
+  const app = (theme as AppTheme).app;
+  return {
+    display: "flex",
+    flexDirection: "column",
+    gap: 1.25,
+    p: 1.75,
+    borderRadius: "14px",
+    border: `1px solid ${app.dashboard.cardBorder}`,
+    bgcolor: app.dashboard.overlayLight,
+    height: "100%",
+  };
+};
+
+export const billingOverviewActionTitleSx: SxProps<Theme> = (theme) => ({
+  color: (theme as AppTheme).app.text.primary,
+  fontWeight: 700,
+  fontSize: 15,
+});
+
+export const billingOverviewActionDescSx: SxProps<Theme> = (theme) => ({
+  color: (theme as AppTheme).app.dashboard.textMuted,
+  fontSize: 13,
+  lineHeight: 1.5,
+  flex: 1,
+});
+
+export const billingInvoicesCardSx: SxProps<Theme> = {
+  ...cardPaddingAutoHeight,
+  display: "flex",
+  flexDirection: "column",
+  gap: 0,
+  height: "auto",
+  flex: "0 0 auto",
+  alignSelf: "flex-start",
+  width: "100%",
+};
+
+export const billingInvoicesCardHeaderSx: SxProps<Theme> = {
+  display: "flex",
+  flexWrap: "wrap",
+  alignItems: "flex-end",
+  justifyContent: "space-between",
+  gap: 1.5,
+  mb: 1.5,
+};
+
+export const billingInvoicesTableSx: SxProps<Theme> = {
+  tableLayout: "auto",
+  "& th, & td": {
+    fontSize: 14,
+    px: { xs: 1, sm: 1.5 },
+    py: 1.25,
+    verticalAlign: "middle",
+    lineHeight: 1.45,
+  },
+  "& th": {
+    fontSize: 13,
+    fontWeight: 700,
+    whiteSpace: "nowrap",
+  },
+  "& td": {
+    whiteSpace: "normal",
+    wordBreak: "break-word",
+  },
 };

@@ -1,5 +1,6 @@
 import type { SxProps, Theme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
+import { thinScrollbarsSx } from "@/lib/ui/thinScrollbars";
 
 /** Main dashboard content text defaults; use with `sx={[layout..., dashboardMainTextSx]}`. */
 export const dashboardMainTextSx: SxProps<Theme> = (theme) => ({
@@ -24,6 +25,9 @@ export const dashboardChatWorkstationMainSx: SxProps<Theme> = {
   // px: { xs: 0, sm: 0.5, md: 1 },
 };
 
+/** Primary dashboard content scroll — thin themed scrollbar, no nested OS chrome. */
+export const dashboardMainScrollSx: SxProps<Theme> = thinScrollbarsSx;
+
 /** Frosted main column when `mainBackdropBlur` is set on the theme. */
 export const dashboardMainGlassSx: SxProps<Theme> = (theme) => {
   const app = (theme as AppTheme).app;
@@ -36,9 +40,20 @@ export const dashboardMainGlassSx: SxProps<Theme> = (theme) => {
   };
 };
 
-export const pageWrapper: SxProps<Theme> = {
+/** Centered page column — prevents horizontal bleed on ultra-wide viewports. */
+export const dashboardPageShell: SxProps<Theme> = {
+  width: "100%",
   maxWidth: 1600,
-  // mx: "auto",
+  mx: "auto",
+  minWidth: 0,
+  boxSizing: "border-box",
+};
+
+export const pageWrapper: SxProps<Theme> = {
+  ...dashboardPageShell,
+  display: "flex",
+  flexDirection: "column",
+  gap: { xs: 1.5, sm: 2, md: 2.2 },
 };
 
 export const overviewHeader: SxProps<Theme> = {
