@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Box from "@mui/material/Box";
 import Drawer from "@mui/material/Drawer";
@@ -144,7 +145,14 @@ export default function DashboardSidebar({ open = false, onClose }: { open?: boo
     <Box sx={mergeSx(sidebarInnerSx(railCollapsed), { position: "relative" })}>
       <Box sx={mergeSx(headerBoxSx, railCollapsed ? collapsedHeaderBoxSx : undefined)}>
         {!railCollapsed ? (
-          <Box component="img" src={logoSvg} alt="Interchanges" sx={logoImgSx} />
+          <Box
+            component={Link}
+            href="/dashboard"
+            aria-label="Go to dashboard"
+            sx={{ display: "inline-flex", lineHeight: 0 }}
+          >
+            <Box component="img" src={logoSvg} alt="Interchanges" sx={logoImgSx} />
+          </Box>
         ) : null}
         {isDesktop ? (
           <IconButton

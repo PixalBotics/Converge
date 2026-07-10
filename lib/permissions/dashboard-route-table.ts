@@ -14,7 +14,6 @@ export const ROUTE_RULES: readonly RouteRule[] = [
   { permission: PAGE.DASHBOARD, href: "/dashboard/qa-dashboard", iconKey: "dashboard", prefixMatch: true },
   { permission: PAGE.DASHBOARD, href: "/dashboard/ai-management", iconKey: "dashboard", prefixMatch: true },
 
-  { permission: PAGE.HRMS_OVERVIEW, href: "/dashboard/hrms", iconKey: "hrms", prefixMatch: false },
   { permission: PAGE.HRMS_ATTENDANCE_SELF, href: "/dashboard/attendance/my-attendance", iconKey: "reports" },
   { permission: PAGE.HRMS_ATTENDANCE_TEAM, href: "/dashboard/attendance/team-attendance", iconKey: "reports" },
   { permission: PAGE.HRMS_ATTENDANCE_MARK, href: "/dashboard/attendance/mark-attendance", iconKey: "reports" },

@@ -13,6 +13,7 @@ import {
   pickAssignedChatBundle,
   type ChatBundleCode,
 } from "@/lib/permissions/chat-bundles";
+import { isDashboardWidgetPermission } from "@/lib/permissions/dashboard-widget-permissions";
 import { extractApiErrorMessageForToast, publishAppToast } from "@/lib/notify";
 import {
   fetchPermissionExpandPreview,
@@ -296,8 +297,9 @@ export function RoleModal({ open, onClose, onSaved, editRole = null }: RoleModal
     [permissionsCatalogQuery.data],
   );
 
-  const { catalogOperational, catalogPage } = useMemo(() => {
+  const { catalogOperational, catalogPage, catalogDashboardWidgets } = useMemo(() => {
     const operational: PermissionOption[] = [];
+    const dashboardWidgets: PermissionOption[] = [];
     const page: PermissionOption[] = [];
     const seen = new Set<string>();
 
@@ -307,20 +309,26 @@ export function RoleModal({ open, onClose, onSaved, editRole = null }: RoleModal
         if (isChatBundleCode(perm.code) || seen.has(perm.code)) continue;
         seen.add(perm.code);
         const isPageCode = perm.code.startsWith("page:") || bucket === "page";
-        if (isPageCode) page.push(perm);
-        else operational.push(perm);
+        if (isPageCode) {
+          page.push(perm);
+        } else if (isDashboardWidgetPermission(perm.code)) {
+          dashboardWidgets.push(perm);
+        } else {
+          operational.push(perm);
+        }
       }
     }
 
     operational.sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: "base" }));
+    dashboardWidgets.sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: "base" }));
     page.sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: "base" }));
-    return { catalogOperational: operational, catalogPage: page };
+    return { catalogOperational: operational, catalogPage: page, catalogDashboardWidgets: dashboardWidgets };
   }, [permissionGroups]);
 
   const mapPermissionCodesToCatalog = useCallback(
     (codes: string[]) => {
       const lookup = new Map<string, string>();
-      for (const perm of [...catalogOperational, ...catalogPage]) {
+      for (const perm of [...catalogOperational, ...catalogDashboardWidgets, ...catalogPage]) {
         lookup.set(perm.code.toLowerCase(), perm.code);
         lookup.set(perm.label.toLowerCase(), perm.code);
       }
@@ -328,7 +336,7 @@ export function RoleModal({ open, onClose, onSaved, editRole = null }: RoleModal
         .map((code) => lookup.get(code.toLowerCase()) ?? code)
         .filter((code) => code.length > 0);
     },
-    [catalogOperational, catalogPage],
+    [catalogOperational, catalogDashboardWidgets, catalogPage],
   );
 
   const filterCatalog = useCallback(
@@ -343,6 +351,10 @@ export function RoleModal({ open, onClose, onSaved, editRole = null }: RoleModal
     [permissionSearch],
   );
 
+  const filteredDashboardWidgets = useMemo(
+    () => filterCatalog(catalogDashboardWidgets),
+    [catalogDashboardWidgets, filterCatalog],
+  );
   const filteredOperational = useMemo(
     () => filterCatalog(catalogOperational),
     [catalogOperational, filterCatalog],
@@ -506,7 +518,7 @@ export function RoleModal({ open, onClose, onSaved, editRole = null }: RoleModal
   useEffect(() => {
     if (!open || !isEdit) return;
     if (hydratedPermsForRoleIdRef.current === editId) return;
-    if (!catalogOperational.length && !catalogPage.length) return;
+    if (!catalogOperational.length && !catalogDashboardWidgets.length && !catalogPage.length) return;
 
     const sourcePayload = rolePermissionsQuery.isSuccess
       ? rolePermissionsQuery.data
@@ -553,6 +565,7 @@ export function RoleModal({ open, onClose, onSaved, editRole = null }: RoleModal
     roleDetailQuery.isSuccess,
     roleDetailQuery.data,
     catalogOperational.length,
+    catalogDashboardWidgets.length,
     catalogPage.length,
     mapPermissionCodesToCatalog,
     refreshExpandPreview,
@@ -1016,6 +1029,9 @@ export function RoleModal({ open, onClose, onSaved, editRole = null }: RoleModal
                 gap: 1.5,
               }}
             >
+              <Box sx={{ gridColumn: { xs: "1", md: "1 / -1" } }}>
+                {renderSection("Dashboard widgets", filteredDashboardWidgets, checkedOperational)}
+              </Box>
               {renderSection("Operational permissions", filteredOperational, checkedOperational)}
               {renderSection("Page permissions", filteredPage, checkedPages)}
             </Box>

@@ -44,6 +44,8 @@ export type ResellerBillingContractView = {
 
   aiToolsMonthly: number;
 
+  modulesFeeMonthly: number;
+
   extraCharges: number;
 
   currency: string;
@@ -204,6 +206,8 @@ export type UpsertResellerBillingContractBody = {
 
   aiToolsMonthly?: number;
 
+  modulesFeeMonthly?: number;
+
   extraCharges?: number;
 
   currency?: string;
@@ -261,6 +265,8 @@ export type BillingPreviewParams = {
   platformFeeMonthly?: number;
 
   aiToolsMonthly?: number;
+
+  modulesFeeMonthly?: number;
 
   extraCharges?: number;
 

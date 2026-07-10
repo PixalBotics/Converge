@@ -65,6 +65,7 @@ export type {
 } from "./website-assignments";
 export { platformKeys } from "./platform";
 export { useGeneratePlatformLicenseKeyMutation, usePlatformLicenseKeysQuery, useSendPlatformLicenseKeyMutation } from "./platform";
+export { dashboardKeys, usePlatformOverviewQuery } from "./dashboard";
 export { platformThemeKeys, usePlatformThemeMeQuery, useUpdatePlatformThemeMutation } from "./platform-theme";
 export * from "./ai-knowledge";
 export * from "./hrms";

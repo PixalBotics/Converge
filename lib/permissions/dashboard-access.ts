@@ -301,38 +301,22 @@ export function getFirstAccessibleDashboardPath(opts: {
   return null;
 }
 
-export function resolvePostAuthDashboardHref(opts: {
+export function resolvePostAuthDashboardHref(_opts: {
   rbacEnabled: boolean;
   permissionsSyncing: boolean;
   pagePermissionSet: Set<string>;
   isPlatformAdmin: boolean;
   isDemoUser: boolean;
 }): string {
-  if (!opts.rbacEnabled || opts.permissionsSyncing) return DASHBOARD_ROOT_PATH;
-  return (
-    getFirstAccessibleDashboardPath({
-      rbacEnabled: true,
-      pagePermissionSet: opts.pagePermissionSet,
-      isDemoUser: opts.isDemoUser,
-      isPlatformAdmin: opts.isPlatformAdmin,
-    }) ?? DASHBOARD_ROOT_PATH
-  );
+  return DASHBOARD_ROOT_PATH;
 }
 
-export function resolveDashboardLandingHref(opts: {
+export function resolveDashboardLandingHref(_opts: {
   permissionsByType: PermissionsByType | undefined;
   isPlatformAdmin: boolean;
   isDemoUser: boolean;
 }): string {
-  const rbacEnabled = isRbacActive(opts.permissionsByType);
-  const pagePermissionSet = toPermissionSet(opts.permissionsByType?.[PERMISSION_BUCKET_PAGE]);
-  return resolvePostAuthDashboardHref({
-    rbacEnabled,
-    permissionsSyncing: false,
-    pagePermissionSet,
-    isPlatformAdmin: opts.isPlatformAdmin,
-    isDemoUser: opts.isDemoUser,
-  });
+  return DASHBOARD_ROOT_PATH;
 }
 
 /** Backward-compatible helper name used by older auth exports. */

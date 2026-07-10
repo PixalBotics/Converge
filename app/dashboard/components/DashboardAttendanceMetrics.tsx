@@ -7,6 +7,7 @@ import LogoutOutlined from "@mui/icons-material/LogoutOutlined";
 import type { AppTheme } from "@/theme/theme";
 import { MetricCard } from "@/components/common";
 import { useAuth } from "@/lib/auth";
+import { DASHBOARD_WIDGET } from "@/lib/permissions/dashboard-widget-permissions";
 import { OP, hasAttendanceSelfOperational } from "@/lib/permissions";
 import { useTodayAttendanceRow } from "@/lib/hooks/query";
 import { attendanceMetricsGrid } from "./dashboard-attendance-metrics.styles";
@@ -23,10 +24,14 @@ export function DashboardAttendanceMetrics() {
   const theme = useTheme() as AppTheme;
   const { hasOperational } = useAuth();
 
-  const canView =
+  const canViewWidget = hasOperational(DASHBOARD_WIDGET.ATTENDANCE_SELF);
+
+  const canFetchData =
     hasOperational(OP.hrms.attendance.selfView) ||
     hasAttendanceSelfOperational(hasOperational) ||
     hasOperational(OP.hrms.attendance.view);
+
+  const canView = canViewWidget && canFetchData;
 
   const { headerTimes, dayState, isLoading } = useTodayAttendanceRow({ enabled: canView });
 

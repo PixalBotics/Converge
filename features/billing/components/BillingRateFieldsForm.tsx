@@ -6,7 +6,6 @@ import type { AppTheme } from "@/theme/theme";
 import { InputField, SelectField, Typography } from "@/components/common";
 import {
   BILLING_CURRENCY_OPTIONS,
-  type BillingEnabledService,
   type BillingRateFieldsValues,
 } from "@/lib/billing/billing-rate-fields";
 import { contractsPeriodBannerSx } from "@/features/billing/website-contracts.styles";
@@ -14,8 +13,6 @@ import { contractsPeriodBannerSx } from "@/features/billing/website-contracts.st
 type Props = {
   values: BillingRateFieldsValues;
   onChange: (patch: Partial<BillingRateFieldsValues>) => void;
-  onModulePriceChange: (code: string, value: string) => void;
-  enabledServices: BillingEnabledService[];
   displayCurrency?: string;
   disabled?: boolean;
   showBillingMode?: boolean;
@@ -28,14 +25,11 @@ type Props = {
   showInvoiceEmails?: boolean;
   invoiceEmails?: string;
   onInvoiceEmailsChange?: (value: string) => void;
-  servicesLoading?: boolean;
 };
 
 export function BillingRateFieldsForm({
   values,
   onChange,
-  onModulePriceChange,
-  enabledServices,
   displayCurrency,
   disabled = false,
   showBillingMode = true,
@@ -48,7 +42,6 @@ export function BillingRateFieldsForm({
   showInvoiceEmails = false,
   invoiceEmails = "",
   onInvoiceEmailsChange,
-  servicesLoading = false,
 }: Props) {
   const theme = useTheme() as AppTheme;
   const currencyLabel = displayCurrency ?? values.currency;
@@ -169,58 +162,14 @@ export function BillingRateFieldsForm({
           onChange={(e) => onChange({ aiToolsFee: e.target.value })}
           disabled={disabled}
         />
+        <InputField
+          label={`Software package / site (${currencyLabel})`}
+          value={values.modulesFee}
+          onChange={(e) => onChange({ modulesFee: e.target.value })}
+          placeholder="0.00"
+          disabled={disabled}
+        />
       </Box>
-
-      <Typography variant="body2" fontWeight={700} sx={{ color: theme.app.text.primary, mb: 1 }}>
-        Software fee (enabled services)
-      </Typography>
-      {servicesLoading ? (
-        <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted }}>
-          Loading services…
-        </Typography>
-      ) : enabledServices.length > 0 ? (
-        <Box sx={{ display: "grid", gap: 1, mb: 2 }}>
-          {enabledServices.map((s) => (
-            <Box
-              key={s.code}
-              sx={{
-                display: "grid",
-                gridTemplateColumns: { xs: "1fr", sm: "1fr 140px" },
-                gap: 1,
-                alignItems: "end",
-              }}
-            >
-              <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, py: 1 }}>
-                {s.name}
-              </Typography>
-              {disabled ? (
-                <Typography variant="caption" sx={{ color: theme.app.text.primary, py: 1 }}>
-                  {s.monthlyPrice != null
-                    ? `${currencyLabel} ${Number(s.monthlyPrice).toFixed(2)}/${s.code === "hrms" ? "parent/mo" : "mo"}`
-                    : "Rate not set"}
-                </Typography>
-              ) : (
-                <InputField
-                  label={s.code === "hrms" ? "Software fee / parent company" : "Software fee / site"}
-                  value={values.clientModulePrices[s.code] ?? ""}
-                  onChange={(e) => onModulePriceChange(s.code, e.target.value)}
-                  placeholder="0.00"
-                />
-              )}
-            </Box>
-          ))}
-        </Box>
-      ) : (
-        <Box sx={{ mb: 2, maxWidth: 320 }}>
-          <InputField
-            label="Software package / site"
-            value={values.clientModulePrices._combined ?? ""}
-            onChange={(e) => onModulePriceChange("_combined", e.target.value)}
-            placeholder="0.00"
-            disabled={disabled}
-          />
-        </Box>
-      )}
 
       {showInvoiceEmails ? (
         <InputField

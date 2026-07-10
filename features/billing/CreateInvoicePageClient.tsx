@@ -24,7 +24,7 @@ import {
 } from "@/lib/hooks/query/billing/billing";
 import {
   defaultBillingRateFields,
-  sumModulePrices,
+  resolveModulesFeeMonthly,
   type BillingRateFieldsValues,
 } from "@/lib/billing/billing-rate-fields";
 import {
@@ -32,7 +32,6 @@ import {
   invoiceEmailsFromProfile,
   mergeContractProfileRates,
 } from "@/lib/billing/merge-billing-rate-values";
-import { useResellerEnabledServices } from "@/lib/hooks/query/billing/use-reseller-enabled-services";
 import { publishAppToast } from "@/lib/notify";
 import { extractApiErrorMessageForToast } from "@/lib/notify/extract-api-message";
 import { useAuth } from "@/lib/auth";
@@ -81,8 +80,6 @@ export function CreateInvoicePageClient() {
   });
   const createMutation = useCreateInvoiceMutation();
   const saveRatesMutation = usePutWebsiteBillingProfileMutation();
-  const { enabledServices, clientModulePricesByCode, isLoading: servicesLoading } =
-    useResellerEnabledServices(activeResellerId, { enabled: Boolean(activeResellerId) });
 
   const websiteOptions = useMemo(() => {
     const items = (profilesQuery.data?.data ?? []).filter(
@@ -110,26 +107,24 @@ export function CreateInvoicePageClient() {
   useEffect(() => {
     if (!activeResellerId) return;
     if (!contract && !selectedProfile) return;
-    setRateValues(
-      mergeContractProfileRates(contract, selectedProfile, enabledServices, clientModulePricesByCode),
-    );
+    setRateValues(mergeContractProfileRates(contract, selectedProfile));
     setInvoiceEmails(invoiceEmailsFromProfile(selectedProfile, contract));
-  }, [activeResellerId, contract, selectedProfile, enabledServices, clientModulePricesByCode]);
+  }, [activeResellerId, contract, selectedProfile]);
 
-  const modulesFeeMonthly = useMemo(() => {
-    const { sum, anyTyped } = sumModulePrices(enabledServices, rateValues.clientModulePrices);
-    if (anyTyped) return sum;
-    const combined = rateValues.clientModulePrices._combined?.trim();
-    if (combined) return Number(combined) || 0;
-    return Number(selectedProfile?.modulesFeeMonthly) || 0;
-  }, [enabledServices, rateValues.clientModulePrices, selectedProfile?.modulesFeeMonthly]);
+  const modulesFeeMonthly = useMemo(
+    () =>
+      resolveModulesFeeMonthly(
+        rateValues.modulesFee,
+        selectedProfile?.modulesFeeMonthly,
+        contract?.modulesFeeMonthly,
+      ),
+    [rateValues.modulesFee, selectedProfile?.modulesFeeMonthly, contract?.modulesFeeMonthly],
+  );
 
   const modulesFeeOverride = useMemo(() => {
-    const { anyTyped } = sumModulePrices(enabledServices, rateValues.clientModulePrices);
-    const combined = rateValues.clientModulePrices._combined?.trim();
-    if (anyTyped || combined) return modulesFeeMonthly;
+    if (rateValues.modulesFee.trim()) return modulesFeeMonthly;
     return undefined;
-  }, [enabledServices, rateValues.clientModulePrices, modulesFeeMonthly]);
+  }, [rateValues.modulesFee, modulesFeeMonthly]);
 
   const monthlyChatsPerSite = rateValues.monthlyChats.trim()
     ? Number(rateValues.monthlyChats) || 0
@@ -337,15 +332,7 @@ export function CreateInvoicePageClient() {
         <BillingRateFieldsForm
           values={rateValues}
           onChange={(patch) => setRateValues((prev) => ({ ...prev, ...patch }))}
-          onModulePriceChange={(code, value) =>
-            setRateValues((prev) => ({
-              ...prev,
-              clientModulePrices: { ...prev.clientModulePrices, [code]: value },
-            }))
-          }
-          enabledServices={enabledServices}
           displayCurrency={displayCurrency}
-          servicesLoading={servicesLoading}
           showPeriodBanner
           periodLabel={periodLabel}
           periodStart={periodStart}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Box from "@mui/material/Box";
 import Avatar from "@mui/material/Avatar";
 import IconButton from "@mui/material/IconButton";
@@ -17,7 +17,6 @@ import {
 } from "@/components/common";
 import type { DataTableColumn } from "@/components/common";
 import { MetricCard } from "@/components/common";
-import { DashboardAttendanceMetrics } from "../components/DashboardAttendanceMetrics";
 import {
   AccessTime as AccessTimeIcon,
   MoreHoriz as MoreHorizIcon,
@@ -26,6 +25,10 @@ import {
   Star as StarIcon,
 } from "@mui/icons-material";
 import { userIconPath } from "@/assets";
+import { useChatQa } from "@/features/chat-qa/hooks/useChatQa";
+import { qaUserLabel } from "@/features/chat-qa/utils/qa-labels";
+import { formatScore } from "@/features/chat-reports/utils/format-metric";
+import type { QaQueueRow } from "@/services/chat/qa.types";
 import {
   pageRoot,
   headerRow,
@@ -44,8 +47,20 @@ import {
   queuePriorityPill,
   paginationRow,
 } from "./QaDashboardOverview.styles";
+import {
+  elapsedDurationLabel,
+  formatDashboardCount,
+  formatTodayHeader,
+  isTodayUtc,
+  paginateRows,
+  shortConversationId,
+} from "../components/dashboard-chat.utils";
+import { useDashboardChatReports } from "../components/use-dashboard-chat-data";
+
+const PAGE_SIZE = 10;
 
 type QueueRow = {
+  id: string;
   chatId: string;
   agent: string;
   department: string;
@@ -53,36 +68,74 @@ type QueueRow = {
   priority: "High" | "Medium";
 };
 
-const PENDING_REVIEWS: QueueRow[] = [
-  { chatId: "#29401", agent: "Alex Satrio", department: "Support", duration: "1m 06s", priority: "High" },
-  { chatId: "#29402", agent: "Jerome Bell", department: "Support", duration: "8m 10s", priority: "High" },
-  { chatId: "#29403", agent: "Brooklyn Simmons", department: "Support", duration: "21m 00s", priority: "High" },
-  { chatId: "#29404", agent: "Guy Hawkins", department: "Support", duration: "12m 11s", priority: "High" },
-  { chatId: "#29405", agent: "Wade Warren", department: "Support", duration: "17m 08s", priority: "High" },
-  { chatId: "#29406", agent: "Leslie Alexander", department: "Support", duration: "45m 18s", priority: "High" },
-  { chatId: "#29407", agent: "Darlene Robertson", department: "Support", duration: "8m 10s", priority: "High" },
-  { chatId: "#29408", agent: "Kristin Watson", department: "Support", duration: "1m 08s", priority: "High" },
-  { chatId: "#29409", agent: "Cody Fisher", department: "Support", duration: "21m 00s", priority: "High" },
-  { chatId: "#29410", agent: "Courtney Henry", department: "Support", duration: "8m 10s", priority: "High" },
-];
+function mapQueueRow(row: QaQueueRow): QueueRow {
+  const waitMinutes = row.createdAt
+    ? Math.floor((Date.now() - new Date(row.createdAt).getTime()) / 60_000)
+    : 0;
+  return {
+    id: row.id,
+    chatId: shortConversationId(row.conversationId),
+    agent: qaUserLabel(row.conversation?.agent),
+    department:
+      row.pool?.name ??
+      row.conversation?.pool?.name ??
+      row.conversation?.routingKey?.trim() ??
+      row.conversation?.website?.name?.trim() ??
+      "—",
+    duration: elapsedDurationLabel(row.createdAt),
+    priority: waitMinutes >= 30 ? "High" : "Medium",
+  };
+}
 
-export default function QaDashboardOverview() {
+export default function QaDashboardOverview({ embedded = false }: { embedded?: boolean }) {
   const theme = useTheme() as AppTheme;
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
-  const pageCount = 2;
+  const qa = useChatQa(null, { apiEnabled: true });
+  const reports = useDashboardChatReports("Last 30 Days");
 
-  const rows = useMemo(() => {
+  useEffect(() => {
+    qa.setStatusTab("all");
+  }, [qa.setStatusTab]);
+
+  const pendingSource = useMemo(
+    () => qa.queue.filter((row) => row.status === "pending"),
+    [qa.queue],
+  );
+
+  const pendingRows = useMemo(() => pendingSource.map(mapQueueRow), [pendingSource]);
+
+  const reviewedToday = useMemo(
+    () =>
+      qa.queue.filter((row) => row.status === "completed" && isTodayUtc(row.completedAt)).length,
+    [qa.queue],
+  );
+
+  const filteredRows = useMemo(() => {
     const query = search.trim().toLowerCase();
-    if (!query) return PENDING_REVIEWS;
-    return PENDING_REVIEWS.filter((row) =>
-      row.chatId.toLowerCase().includes(query) ||
-      row.agent.toLowerCase().includes(query) ||
-      row.department.toLowerCase().includes(query) ||
-      row.duration.toLowerCase().includes(query) ||
-      row.priority.toLowerCase().includes(query),
+    if (!query) return pendingRows;
+    return pendingRows.filter(
+      (row) =>
+        row.chatId.toLowerCase().includes(query) ||
+        row.agent.toLowerCase().includes(query) ||
+        row.department.toLowerCase().includes(query) ||
+        row.duration.toLowerCase().includes(query) ||
+        row.priority.toLowerCase().includes(query),
     );
-  }, [search]);
+  }, [pendingRows, search]);
+
+  const pagination = useMemo(
+    () => paginateRows(filteredRows, page, PAGE_SIZE),
+    [filteredRows, page],
+  );
+
+  useEffect(() => {
+    if (page > pagination.pageCount) setPage(pagination.pageCount);
+  }, [page, pagination.pageCount]);
+
+  const avgScore =
+    reports.overview?.qa.avgOverallScore ?? reports.overview?.summary.avgQaScore ?? null;
+  const metricsLoading = qa.queueLoading || reports.loading;
 
   const columns = useMemo<DataTableColumn<QueueRow>[]>(
     () => [
@@ -135,39 +188,42 @@ export default function QaDashboardOverview() {
 
   return (
     <Box sx={pageRoot}>
-      <Box sx={headerRow}>
-        <Typography variant="regularLarge" fontWeight={700} color="white">
-          QA dashboard
-        </Typography>
+      <Box sx={[headerRow, embedded ? { justifyContent: "flex-end", mb: 2 } : undefined]}>
+        {!embedded ? (
+          <Typography variant="regularLarge" fontWeight={700} color="white">
+            QA dashboard
+          </Typography>
+        ) : null}
         <Box sx={headerActions}>
-          <ButtonOutline text="12 Pending Reviews" dotColor="#FACC15" />
-          <ButtonOutline text="Today, Oct 24" />
+          <ButtonOutline
+            text={`${formatDashboardCount(qa.statusCounts.pending, qa.queueLoading)} Pending Reviews`}
+            dotColor="#FACC15"
+          />
+          <ButtonOutline text={`Today, ${formatTodayHeader()}`} />
         </Box>
       </Box>
-
-      <DashboardAttendanceMetrics />
 
       <Box sx={metricsGrid}>
         <MetricCard
           title="Chats Pending Review"
-          value="12"
-          subtitle="8 Awaiting QA"
+          value={formatDashboardCount(qa.statusCounts.pending, metricsLoading)}
+          subtitle={`${formatDashboardCount(qa.statusCounts.in_progress, metricsLoading)} in progress`}
           icon={<ChatBubbleOutlineIcon sx={{ fontSize: 20 }} />}
           iconBgColor={theme.app.dashboard.accentBlue}
           valueColor="#7DD3FC"
         />
         <MetricCard
           title="Reviewed Today"
-          value="21"
-          subtitle="8 Completed"
+          value={formatDashboardCount(reviewedToday, qa.queueLoading)}
+          subtitle={`${formatDashboardCount(qa.statusCounts.completed, metricsLoading)} completed in queue`}
           icon={<CheckCircleOutlineIcon sx={{ fontSize: 20 }} />}
           iconBgColor={theme.app.dashboard.accentOrange}
           valueColor="#A5B4FC"
         />
         <MetricCard
           title="Avg Quality Score"
-          value="8.7 / 10.0"
-          subtitle="8 Chats open"
+          value={metricsLoading ? "…" : formatScore(avgScore)}
+          subtitle={`${formatDashboardCount(reports.overview?.qa.pending, metricsLoading)} pending in reports`}
           icon={<StarIcon sx={{ fontSize: 20 }} />}
           iconBgColor="#EC4899"
           valueColor="#60A5FA"
@@ -186,26 +242,42 @@ export default function QaDashboardOverview() {
           </Box>
         </Box>
 
-        <DataTable<QueueRow>
-          columns={columns}
-          rows={rows}
-          getRowId={(row) => `${row.chatId}-${row.agent}`}
-          minWidth={940}
-          actionColumn={{
-            label: "Action",
-            render: () => (
-              <IconButton size="small" sx={dataTableActionButton}>
-                <MoreHorizIcon fontSize="small" />
-              </IconButton>
-            ),
-          }}
-        />
+        {qa.queueLoading ? (
+          <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, py: 2 }}>
+            Loading QA queue…
+          </Typography>
+        ) : pagination.rows.length === 0 ? (
+          <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, py: 2 }}>
+            No pending reviews in your queue.
+          </Typography>
+        ) : (
+          <DataTable<QueueRow>
+            columns={columns}
+            rows={pagination.rows}
+            getRowId={(row) => row.id}
+            minWidth={940}
+            actionColumn={{
+              label: "Action",
+              render: () => (
+                <IconButton size="small" sx={dataTableActionButton}>
+                  <MoreHorizIcon fontSize="small" />
+                </IconButton>
+              ),
+            }}
+          />
+        )}
 
         <Box sx={paginationRow}>
           <Typography variant="medium" sx={{ color: theme.app.dashboard.textMuted }}>
-            Showing data 1 to {rows.length} of 256K entries
+            Showing {pagination.rows.length === 0 ? 0 : (pagination.safePage - 1) * PAGE_SIZE + 1} to{" "}
+            {(pagination.safePage - 1) * PAGE_SIZE + pagination.rows.length} of{" "}
+            {pagination.total} entries
           </Typography>
-          <TablePagination page={page} pageCount={pageCount} onPageChange={setPage} />
+          <TablePagination
+            page={pagination.safePage}
+            pageCount={pagination.pageCount}
+            onPageChange={setPage}
+          />
         </Box>
       </DashboardCard>
     </Box>

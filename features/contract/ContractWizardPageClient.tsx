@@ -1,11 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Box from "@mui/material/Box";
 import Check from "@mui/icons-material/Check";
 import { useTheme } from "@mui/material/styles";
-import { useQuery } from "@tanstack/react-query";
 import type { AppTheme } from "@/theme/theme";
 import { Button, DashboardCard, InputField, SelectField, Typography } from "@/components/common";
 import { CompanySetupWizardModal } from "@/app/dashboard/companies/components/CompanySetupWizardModal";
@@ -32,7 +31,6 @@ import { contractFooterRow } from "@/features/contract/contract-wizard.styles";
 import { useAuth } from "@/lib/auth";
 import { canCompaniesModuleAction } from "@/lib/permissions";
 import type { CompanySetupSubmitResult } from "@/lib/companies/parse-company-setup-submit";
-import { getResellerModules, getResellerModulesCatalog, putResellerClientModulePrices } from "@/api/companies/reseller-modules.api";
 import { usePutAgencyBillingContractMutation } from "@/lib/hooks/query/billing/billing";
 import {
   defaultBillingRateFields,
@@ -56,6 +54,7 @@ const DEFAULT_BILLING: BillingRateFieldsValues = {
   freeChats: "50",
   platformFee: "60",
   aiToolsFee: "90",
+  modulesFee: "0",
 };
 
 export function ContractWizardPageClient() {
@@ -78,42 +77,6 @@ export function ContractWizardPageClient() {
   const activeResellerId = orgResult?.resellerId ?? "";
   const progressPct = (contractStep / STEPS.length) * 100;
 
-  const modulesCatalogQuery = useQuery({
-    queryKey: ["reseller-modules-catalog"],
-    queryFn: getResellerModulesCatalog,
-    enabled: contractStep >= 4 && Boolean(activeResellerId),
-  });
-
-  const resellerModulesQuery = useQuery({
-    queryKey: ["reseller-modules", activeResellerId],
-    queryFn: () => getResellerModules(activeResellerId),
-    enabled: contractStep >= 4 && Boolean(activeResellerId),
-  });
-
-  const enabledServices = useMemo(() => {
-    const catalog = modulesCatalogQuery.data?.data.modules ?? [];
-    const enabled = new Set(resellerModulesQuery.data?.data.moduleCodes ?? []);
-    return catalog.filter((m) => enabled.has(m.code)).map((m) => ({ code: m.code, name: m.name }));
-  }, [modulesCatalogQuery.data?.data.modules, resellerModulesQuery.data?.data.moduleCodes]);
-
-  useEffect(() => {
-    const data = resellerModulesQuery.data?.data;
-    if (!data || contractStep < 4) return;
-    setBilling((prev) => {
-      const nextPrices = { ...prev.clientModulePrices };
-      let changed = false;
-      for (const code of data.moduleCodes ?? []) {
-        if (nextPrices[code] !== undefined && nextPrices[code] !== "") continue;
-        const value = data.clientModulePricesByCode?.[code];
-        if (typeof value === "number") {
-          nextPrices[code] = String(value);
-          changed = true;
-        }
-      }
-      return changed ? { ...prev, clientModulePrices: nextPrices } : prev;
-    });
-  }, [resellerModulesQuery.data?.data, contractStep]);
-
   const handleOrgComplete = useCallback((result: CompanySetupSubmitResult) => {
     setOrgResult(result);
     setContractStep(3);
@@ -131,40 +94,17 @@ export function ContractWizardPageClient() {
     setBilling((prev) => ({ ...prev, ...patch }));
   }, []);
 
-  const handleModulePriceChange = useCallback((code: string, value: string) => {
-    setBilling((prev) => ({
-      ...prev,
-      clientModulePrices: { ...prev.clientModulePrices, [code]: value },
-    }));
-  }, []);
-
   const validateBillingRates = useCallback((): boolean => {
-    for (const service of enabledServices) {
-      const raw = billing.clientModulePrices[service.code]?.trim() ?? "";
-      if (!raw) {
-        publishAppToast({ message: `Set client rate for ${service.name}.`, variant: "error" });
-        return false;
-      }
-      const value = Number(raw);
-      if (!Number.isFinite(value) || value < 0) {
-        publishAppToast({ message: `Invalid client rate for ${service.name}.`, variant: "error" });
-        return false;
-      }
+    const value = Number(billing.modulesFee);
+    if (!billing.modulesFee.trim() || !Number.isFinite(value) || value < 0) {
+      publishAppToast({ message: "Set the software package fee per site.", variant: "error" });
+      return false;
     }
     return true;
-  }, [billing.clientModulePrices, enabledServices]);
+  }, [billing.modulesFee]);
 
   const saveBillingContract = useCallback(async () => {
     if (!activeResellerId) return false;
-    const parsedClientPrices: Record<string, number> = {};
-    for (const service of enabledServices) {
-      const raw = billing.clientModulePrices[service.code]?.trim() ?? "";
-      const value = Number(raw);
-      parsedClientPrices[service.code] = value;
-    }
-    if (Object.keys(parsedClientPrices).length > 0) {
-      await putResellerClientModulePrices(activeResellerId, parsedClientPrices);
-    }
     await putContractMutation.mutateAsync({
       resellerId: activeResellerId,
       currency: billing.currency.trim().toUpperCase(),
@@ -174,6 +114,7 @@ export function ContractWizardPageClient() {
       monthlyChatsPerSite: billing.monthlyChats.trim() ? Number(billing.monthlyChats) || 0 : undefined,
       platformFeeMonthly: Number(billing.platformFee) || 0,
       aiToolsMonthly: Number(billing.aiToolsFee) || 0,
+      modulesFeeMonthly: Number(billing.modulesFee) || 0,
       invoiceToEmails: agencyEmails.trim() || undefined,
       clientBillingMode: billing.clientBillingMode,
       clientTrialDays: billing.clientBillingMode === "trial" ? Number(billing.clientTrialDays) || 14 : undefined,
@@ -183,7 +124,6 @@ export function ContractWizardPageClient() {
     activeResellerId,
     agencyEmails,
     billing,
-    enabledServices,
     putContractMutation,
   ]);
 
@@ -364,9 +304,6 @@ export function ContractWizardPageClient() {
             <BillingRateFieldsForm
               values={billing}
               onChange={handleBillingChange}
-              onModulePriceChange={handleModulePriceChange}
-              enabledServices={enabledServices}
-              servicesLoading={modulesCatalogQuery.isLoading || resellerModulesQuery.isLoading}
               showBillingMode={false}
               showInvoiceEmails
               invoiceEmails={agencyEmails}

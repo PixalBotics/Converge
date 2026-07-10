@@ -14,7 +14,6 @@ import {
 } from "@/components/common";
 import type { DataTableColumn } from "@/components/common";
 import { MetricCard } from "@/components/common";
-import { DashboardAttendanceMetrics } from "../components/DashboardAttendanceMetrics";
 import {
   Person as PersonIcon,
   AttachMoney as AttachMoneyIcon,
@@ -79,28 +78,24 @@ import {
   statusCell,
 } from "./SupervisorDashboardOverview.styles";
 import { WebsiteTrafficSummarySection } from "@/features/chat-shared/components/WebsiteTrafficSummarySection";
-
-const DATE_RANGE_OPTIONS = ["Last 7 Days", "Last 30 Days", "Last 90 Days"];
-
-const AGENT_ROWS = [
-  { name: "Sarah Jenkins", status: "Online", statusColor: "#22C55E", activeChats: 3, avgResponse: "45s" },
-  { name: "Mike Ross", status: "Busy", statusColor: "#F97316", activeChats: 2, avgResponse: "1m 08s" },
-  { name: "Emily Chen", status: "Online", statusColor: "#22C55E", activeChats: 1, avgResponse: "-" },
-  { name: "David Kim", status: "Offline", statusColor: "#EF4444", activeChats: 0, avgResponse: "2m 09s" },
-  { name: "Alex Morgan", status: "Online", statusColor: "#22C55E", activeChats: 2, avgResponse: "58s" },
-  { name: "Jordan Lee", status: "Busy", statusColor: "#F97316", activeChats: 4, avgResponse: "1m 22s" },
-];
-
-const LIVE_CHATS = [
-  { customer: "Kristin", customerId: "2847", agent: "Sarah J.", messages: 8, duration: "4m 12s", status: "Active", statusColor: "#22C55E" },
-  { customer: "Robert", customerId: "2848", agent: "Mike R.", messages: 5, duration: "2m 45s", status: "Busy", statusColor: "#F97316" },
-  { customer: "Amanda", customerId: "2849", agent: "Emily C.", messages: 12, duration: "6m 00s", status: "Active", statusColor: "#22C55E" },
-  { customer: "James", customerId: "2850", agent: "David K.", messages: 3, duration: "1m 30s", status: "Waiting", statusColor: "#EF4444" },
-  { customer: "Lisa", customerId: "2851", agent: "Alex M.", messages: 7, duration: "3m 55s", status: "Active", statusColor: "#22C55E" },
-  { customer: "Chris", customerId: "2852", agent: "Jordan L.", messages: 9, duration: "5m 18s", status: "Busy", statusColor: "#F97316" },
-];
+import { formatDurationSeconds, formatScore } from "@/features/chat-reports/utils/format-metric";
+import {
+  conversationVisitorName,
+  DASHBOARD_DATE_RANGE_OPTIONS,
+  elapsedDurationLabel,
+  formatDashboardCount,
+  lastMessagePreview,
+  monitorAgentDisplayName,
+  shortConversationId,
+} from "../components/dashboard-chat.utils";
+import {
+  agentDirectoryStatus,
+  useDashboardChatReports,
+  useDashboardMonitorSnapshot,
+} from "../components/use-dashboard-chat-data";
 
 type AgentRow = {
+  id: string;
   name: string;
   status: string;
   statusColor: string;
@@ -135,9 +130,83 @@ function ActiveChatBars({ count, theme }: { count: number; theme: AppTheme }) {
   );
 }
 
-export default function SupervisorDashboardOverview() {
+export default function SupervisorDashboardOverview({ embedded = false }: { embedded?: boolean }) {
   const theme = useTheme() as AppTheme;
   const [dateRangeValue, setDateRangeValue] = useState("Last 30 Days");
+  const reports = useDashboardChatReports(dateRangeValue);
+  const monitor = useDashboardMonitorSnapshot();
+
+  const metricsLoading = reports.loading || monitor.loading;
+  const responseByAgent = useMemo(
+    () =>
+      new Map(
+        (reports.overview?.byAgent ?? []).map((bucket) => [
+          bucket.key,
+          bucket.avgFirstResponseSeconds,
+        ]),
+      ),
+    [reports.overview?.byAgent],
+  );
+
+  const agentRows = useMemo<AgentRow[]>(() => {
+    return monitor.roster.slice(0, 8).map((agent) => {
+      const status = agentDirectoryStatus(agent);
+      return {
+        id: agent.userId,
+        name: agent.displayName,
+        status: status.status,
+        statusColor: status.statusColor,
+        activeChats: agent.liveCount,
+        avgResponse: formatDurationSeconds(responseByAgent.get(agent.userId) ?? null),
+      };
+    });
+  }, [monitor.roster, responseByAgent]);
+
+  const liveChats = useMemo(
+    () =>
+      monitor.liveList.slice(0, 6).map((chat) => {
+        const status = (chat.status ?? "active").replace(/_/g, " ");
+        const normalized = status.toLowerCase();
+        const statusColor =
+          normalized === "waiting"
+            ? "#EF4444"
+            : normalized === "assigned" || normalized === "active"
+              ? "#22C55E"
+              : "#F97316";
+        return {
+          id: chat.id,
+          customer: conversationVisitorName(chat),
+          customerId: shortConversationId(chat.id).replace("#", ""),
+          agent: monitorAgentDisplayName(chat.agent),
+          messages: "—",
+          duration: elapsedDurationLabel(chat.startedAt),
+          status: status.charAt(0).toUpperCase() + status.slice(1),
+          statusColor,
+          message: lastMessagePreview(chat),
+        };
+      }),
+    [monitor.liveList],
+  );
+
+  const avgPerAgent =
+    monitor.agentsOnline > 0
+      ? (monitor.inProgress / monitor.agentsOnline).toFixed(1)
+      : "0";
+
+  const qaSummary = reports.qaQuality?.summary;
+  const excellentCount = useMemo(
+    () =>
+      (reports.qaQuality?.byAgent ?? []).reduce(
+        (sum, row) => sum + (row.avgScore != null && row.avgScore >= 8 ? row.reviewCount : 0),
+        0,
+      ),
+    [reports.qaQuality?.byAgent],
+  );
+  const poorCount = useMemo(
+    () =>
+      (reports.qaQuality?.byAgent ?? []).reduce((sum, row) => sum + row.lowScoreCount, 0),
+    [reports.qaQuality?.byAgent],
+  );
 
   const agentColumns = useMemo<DataTableColumn<AgentRow>[]>(
     () => [
@@ -179,14 +248,16 @@ export default function SupervisorDashboardOverview() {
 
   return (
     <Box sx={pageWrapper}>
-      <Box sx={overviewHeader}>
-        <Typography variant="regularLarge" fontWeight={700} color="white">
-          supervisor dashboard
-        </Typography>
+      <Box sx={[overviewHeader, embedded ? { justifyContent: "flex-end", mb: 2 } : undefined]}>
+        {!embedded ? (
+          <Typography variant="regularLarge" fontWeight={700} color="white">
+            supervisor dashboard
+          </Typography>
+        ) : null}
         <Box sx={overviewHeaderDropdownWrap}>
           <Dropdown
             id="date-range-hr-admin"
-            options={DATE_RANGE_OPTIONS}
+            options={[...DASHBOARD_DATE_RANGE_OPTIONS]}
             value={dateRangeValue}
             onChange={setDateRangeValue}
             buttonSx={last30DaysButton}
@@ -195,47 +266,45 @@ export default function SupervisorDashboardOverview() {
         </Box>
       </Box>
 
-      <DashboardAttendanceMetrics />
-
       <WebsiteTrafficSummarySection dateRangeLabel={dateRangeValue} />
 
       <Box sx={grid4}>
         <MetricCard
           title="Agents Online"
-          value="23,0989"
-          subtitle="7 Out of 35 total agents"
+          value={formatDashboardCount(monitor.agentsOnline, metricsLoading)}
+          subtitle={`${formatDashboardCount(monitor.agentsTotal, metricsLoading)} total agents`}
           icon={<BarChartIcon sx={{ fontSize: 22 }} />}
           iconBgColor={theme.app.dashboard.accentBlue}
           valueColor={theme.app.dashboard.accentCyan}
-          showTrendArrow={true}
+          showTrendArrow={false}
         />
         <MetricCard
           title="Chats in Progress"
-          value="89"
-          subtitle="7 Average 2.3 per agent"
+          value={formatDashboardCount(monitor.inProgress, metricsLoading)}
+          subtitle={`Average ${avgPerAgent} per online agent`}
           icon={<BarChartIcon sx={{ fontSize: 22 }} />}
           iconBgColor={theme.app.dashboard.accentPurple}
           valueColor={theme.app.dashboard.accentCyan}
-          showTrendArrow={true}
+          showTrendArrow={false}
         />
         <MetricCard
           title="Chats Waiting"
-          value="1m 24s"
-          subtitle="7 Longest wait: 3m 12s"
+          value={formatDashboardCount(monitor.waitingChats, metricsLoading)}
+          subtitle={`Longest wait ${metricsLoading ? "…" : formatDurationSeconds(monitor.longestWaitSeconds)}`}
           icon={<BarChartIcon sx={{ fontSize: 22 }} />}
           iconBgColor={theme.app.dashboard.accentPurple}
           valueColor={theme.app.dashboard.accentCyan}
-          showTrendArrow={true}
+          showTrendArrow={false}
         />
         <MetricCard
           title="Escalated Chats"
-          value="4 Critical"
-          subtitle="7 Requires immediate attention"
+          value={formatDashboardCount(monitor.escalated, metricsLoading)}
+          subtitle="Supervisor takeover active"
           icon={<BarChartIcon sx={{ fontSize: 22 }} />}
           iconBgColor={theme.app.dashboard.accentRed}
           valueColor={theme.app.dashboard.accentRedLight}
           subtitleColor={theme.app.dashboard.accentRedLight}
-          showTrendArrow={true}
+          showTrendArrow={false}
         />
       </Box>
 
@@ -251,10 +320,21 @@ export default function SupervisorDashboardOverview() {
               </Typography>
             </Box>
           </Box>
-          <DataTable<AgentRow> columns={agentColumns} rows={AGENT_ROWS} size="small" />
+          {agentRows.length === 0 ? (
+            <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, py: 2 }}>
+              No agent roster data available.
+            </Typography>
+          ) : (
+            <DataTable<AgentRow>
+              columns={agentColumns}
+              rows={agentRows}
+              getRowId={(row) => row.id}
+              size="small"
+            />
+          )}
           <Box sx={viewAllAgentWrap}>
-            <Box component="a" href="#" sx={getViewAllAgentLink(theme)}>
-              View All Agent (23)
+            <Box component="a" href="/dashboard/chat-monitor" sx={getViewAllAgentLink(theme)}>
+              View All Agent ({formatDashboardCount(monitor.agentsTotal, monitor.loading)})
               <ArrowForwardIcon sx={{ fontSize: 16 }} />
             </Box>
           </Box>
@@ -290,14 +370,14 @@ export default function SupervisorDashboardOverview() {
                     </svg>
                   </Box>
                   <Typography variant="caption" color="rgba(255,255,255,0.6)">
-                    Last 24 Hours
+                    Selected report range
                   </Typography>
                 </Box>
               </Box>
               <Box sx={ratingValueBox}>
                 <StarIcon sx={starIconYellow} />
                 <Typography variant="h6" fontWeight={700} sx={getRatingValuePurple(theme)}>
-                  4.9
+                  {metricsLoading ? "…" : formatScore(qaSummary?.avgQaScore ?? reports.overview?.qa.avgOverallScore)}
                 </Typography>
               </Box>
             </Box>
@@ -309,7 +389,7 @@ export default function SupervisorDashboardOverview() {
                 Excellent
               </Typography>
               <Typography variant="h5" fontWeight={700} sx={getRatingNumberBlue(theme)}>
-                156
+                {formatDashboardCount(excellentCount, metricsLoading)}
               </Typography>
               <Box sx={trendRow}>
                 <Box component="span" sx={{ display: "inline-flex", alignItems: "center" }}>
@@ -334,7 +414,7 @@ export default function SupervisorDashboardOverview() {
                 Poor
               </Typography>
               <Typography variant="h5" fontWeight={700} sx={getRatingNumberBlue(theme)}>
-                156
+                {formatDashboardCount(poorCount, metricsLoading)}
               </Typography>
               <Box sx={trendRow}>
                 <Box component="span" sx={{ display: "inline-flex", alignItems: "center" }}>
@@ -378,13 +458,23 @@ export default function SupervisorDashboardOverview() {
               Live Chat Monitor
             </Typography>
           </Box>
-          <Button variant="outlined" sx={getMonitorAllButton(theme)}>
+          <Button
+            variant="outlined"
+            sx={getMonitorAllButton(theme)}
+            href="/dashboard/chat-monitor"
+            component="a"
+          >
             Monitor All
           </Button>
         </Box>
         <Box sx={liveChatGrid}>
-          {LIVE_CHATS.map((chat, idx) => (
-            <Box key={idx} sx={getLiveChatCard(theme)}>
+          {liveChats.length === 0 ? (
+            <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, py: 2 }}>
+              No live chats to monitor right now.
+            </Typography>
+          ) : (
+            liveChats.map((chat) => (
+              <Box key={chat.id} sx={getLiveChatCard(theme)}>
               <Box sx={liveChatTopRow}>
                 <Box sx={liveChatCustomerBlock}>
                   <Avatar sx={getLiveChatAvatar(theme)}>
@@ -421,9 +511,7 @@ export default function SupervisorDashboardOverview() {
               </Box>
               <Box sx={getLiveChatMessageBlock(theme)}>
                 <Typography variant="caption" sx={getLiveChatMessageText(theme)}>
-                  Can you help me upgrade my subscription plan to Pro? Can you help me
-                  upgrade my subscription plan to Pro? help me upgrade my subscription
-                  plan to Pro?
+                  {chat.message}
                 </Typography>
               </Box>
               <Box sx={getLiveChatBottomRow(theme)}>
@@ -447,13 +535,14 @@ export default function SupervisorDashboardOverview() {
                     </Typography>
                   </Box>
                 </Box>
-                <Box component="a" href="#" sx={getQuickViewLink(theme)}>
+                <Box component="a" href={`/dashboard/chat-monitor?conversationId=${chat.id}`} sx={getQuickViewLink(theme)}>
                   Quick View
                   <ArrowForwardIcon sx={{ fontSize: 14 }} />
                 </Box>
               </Box>
             </Box>
-          ))}
+            ))
+          )}
         </Box>
       </DashboardCard>
     </Box>

@@ -1,2 +1,2 @@
-/** HRMS overview dashboard — layout `SxProps` for `app/dashboard/hrms/page.tsx`. */
+/** HRMS dashboard section styles — shared by main dashboard HRMS widgets. */
 export * from "./hrms.styles";

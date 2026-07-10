@@ -2,8 +2,7 @@ import type { ResellerBillingContractView } from "@/api/billing/agency-billing-c
 import type { WebsiteBillingProfileView } from "@/api/billing/website-billing-profile.api";
 import {
   defaultBillingRateFields,
-  modulePricesForLineDraft,
-  type BillingEnabledService,
+  resolveModulesFeeMonthly,
   type BillingRateFieldsValues,
 } from "@/lib/billing/billing-rate-fields";
 
@@ -20,23 +19,14 @@ export function formatBillingPeriodLabel(start: string, end: string) {
 export function mergeContractProfileRates(
   contract: ResellerBillingContractView | undefined,
   profile: WebsiteBillingProfileView | undefined,
-  enabledServices: BillingEnabledService[],
-  clientModulePricesByCode: Record<string, number>,
 ): BillingRateFieldsValues {
   const base = defaultBillingRateFields(profile?.currency ?? contract?.currency ?? "USD");
   const status = profile?.status?.trim().toLowerCase() ?? "";
-
-  const clientModulePrices =
-    enabledServices.length > 0
-      ? modulePricesForLineDraft(
-          profile?.modulesFeeMonthly ?? 0,
-          enabledServices,
-          clientModulePricesByCode,
-          profile?.modulesFeeMonthly,
-        )
-      : profile?.modulesFeeMonthly != null
-        ? { _combined: String(profile.modulesFeeMonthly) }
-        : {};
+  const modulesFee = resolveModulesFeeMonthly(
+    "",
+    profile?.modulesFeeMonthly,
+    contract?.modulesFeeMonthly,
+  );
 
   return {
     ...base,
@@ -56,7 +46,7 @@ export function mergeContractProfileRates(
           : "",
     platformFee: String(profile?.platformFeeMonthly ?? contract?.platformFeeMonthly ?? 0),
     aiToolsFee: String(profile?.aiToolsMonthly ?? contract?.aiToolsMonthly ?? 0),
-    clientModulePrices,
+    modulesFee: modulesFee > 0 ? String(modulesFee) : "",
   };
 }
 

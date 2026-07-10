@@ -24,9 +24,7 @@ import {
 } from "@/lib/hooks/query/billing/billing";
 import { PARENT_BILLING_MODE_AGENCY } from "@/lib/billing/parent-billing-mode";
 import type { ParentBillingPreview } from "@/api/billing/agency-billing-contract.api";
-import { putResellerClientModulePrices } from "@/api/companies/reseller-modules.api";
-import { sumModulePrices, modulePricesFromReseller, type BillingRateFieldsValues } from "@/lib/billing/billing-rate-fields";
-import { useResellerEnabledServices } from "@/lib/hooks/query/billing/use-reseller-enabled-services";
+import type { BillingRateFieldsValues } from "@/lib/billing/billing-rate-fields";
 import { BillingRateFieldsForm } from "@/features/billing/components/BillingRateFieldsForm";
 import { pickItemsArray, toIdNameOption } from "@/app/dashboard/user-page/components/add-user-modal.utils";
 import { publishAppToast } from "@/lib/notify";
@@ -82,7 +80,7 @@ export function WebsiteContractsPageClient() {
   const [clientTrialDays, setClientTrialDays] = useState("14");
   const [parentLimits, setParentLimits] = useState<Record<string, string>>({});
   const [parentEmails, setParentEmails] = useState<Record<string, string>>({});
-  const [clientModulePrices, setClientModulePrices] = useState<Record<string, string>>({});
+  const [modulesFee, setModulesFee] = useState("");
 
   const activeResellerId = pickedResellerId.trim();
   const periodLabel = formatPeriodLabel(periodStart, periodEnd);
@@ -97,10 +95,6 @@ export function WebsiteContractsPageClient() {
   const contractQuery = useAgencyBillingContractQuery(activeResellerId, {
     enabled: canManage && Boolean(activeResellerId),
   });
-  const { enabledServices, isLoading: servicesLoading, clientModulePricesByCode, refetch: refetchResellerModules } =
-    useResellerEnabledServices(activeResellerId, {
-      enabled: canManage && Boolean(activeResellerId),
-    });
 
   useEffect(() => {
     const c = contractQuery.data?.data;
@@ -117,28 +111,14 @@ export function WebsiteContractsPageClient() {
     setAgencyEmails(c.invoiceToEmails ?? "");
     setClientBillingMode(c.clientBillingMode === "live" ? "live" : "trial");
     setClientTrialDays(String(c.clientTrialDays ?? 14));
+    setModulesFee(c.modulesFeeMonthly != null ? String(c.modulesFeeMonthly) : "");
   }, [contractQuery.data?.data]);
-
-  useEffect(() => {
-    if (!enabledServices.length) return;
-    setClientModulePrices(
-      modulePricesFromReseller(
-        enabledServices.map((s) => s.code),
-        clientModulePricesByCode,
-      ),
-    );
-  }, [enabledServices, clientModulePricesByCode]);
 
   const previewQueryEnabled = canManage && Boolean(activeResellerId);
 
   const putContractMutation = usePutAgencyBillingContractMutation();
   const putParentMutation = usePutParentCompanyBillingProfileMutation();
   const createInvoiceMutation = useCreateParentInvoiceMutation();
-
-  const liveModulesFeeMonthly = useMemo(
-    () => sumModulePrices(enabledServices, clientModulePrices),
-    [enabledServices, clientModulePrices],
-  );
 
   const previewParams = useMemo(
     () => ({
@@ -151,7 +131,7 @@ export function WebsiteContractsPageClient() {
       platformFeeMonthly: Number(platformFee) || 0,
       aiToolsMonthly: Number(aiToolsFee) || 0,
       extraCharges: isPlatformAdmin ? Number(extraCharges) || 0 : 0,
-      modulesFeeMonthly: liveModulesFeeMonthly.anyTyped ? liveModulesFeeMonthly.sum : undefined,
+      modulesFeeMonthly: modulesFee.trim() ? Number(modulesFee) || 0 : undefined,
     }),
     [
       activeResellerId,
@@ -164,7 +144,7 @@ export function WebsiteContractsPageClient() {
       aiToolsFee,
       extraCharges,
       isPlatformAdmin,
-      liveModulesFeeMonthly,
+      modulesFee,
     ],
   );
 
@@ -186,7 +166,7 @@ export function WebsiteContractsPageClient() {
       monthlyChats,
       platformFee,
       aiToolsFee,
-      clientModulePrices,
+      modulesFee,
     }),
     [
       currency,
@@ -198,7 +178,7 @@ export function WebsiteContractsPageClient() {
       monthlyChats,
       platformFee,
       aiToolsFee,
-      clientModulePrices,
+      modulesFee,
     ],
   );
 
@@ -212,7 +192,7 @@ export function WebsiteContractsPageClient() {
     if (patch.monthlyChats !== undefined) setMonthlyChats(patch.monthlyChats);
     if (patch.platformFee !== undefined) setPlatformFee(patch.platformFee);
     if (patch.aiToolsFee !== undefined) setAiToolsFee(patch.aiToolsFee);
-    if (patch.clientModulePrices !== undefined) setClientModulePrices(patch.clientModulePrices);
+    if (patch.modulesFee !== undefined) setModulesFee(patch.modulesFee);
   };
 
   const websiteStatusSummary = useMemo(() => {
@@ -265,23 +245,6 @@ export function WebsiteContractsPageClient() {
   const handleSaveClientBilling = async () => {
     if (!activeResellerId || !canEditClientBilling) return;
     try {
-      const parsedClientPrices: Record<string, number> = {};
-      for (const service of enabledServices) {
-        const raw = clientModulePrices[service.code]?.trim() ?? "";
-        if (!raw) {
-          publishAppToast({ message: `Set client rate for ${service.name}.`, variant: "error" });
-          return;
-        }
-        const value = Number(raw);
-        if (!Number.isFinite(value) || value < 0) {
-          publishAppToast({ message: `Invalid client rate for ${service.name}.`, variant: "error" });
-          return;
-        }
-        parsedClientPrices[service.code] = value;
-      }
-      if (Object.keys(parsedClientPrices).length > 0) {
-        await putResellerClientModulePrices(activeResellerId, parsedClientPrices);
-      }
       await putContractMutation.mutateAsync({
         resellerId: activeResellerId,
         currency: currency.trim().toUpperCase(),
@@ -291,6 +254,7 @@ export function WebsiteContractsPageClient() {
         monthlyChatsPerSite: monthlyChats.trim() ? Number(monthlyChats) || 0 : undefined,
         platformFeeMonthly: Number(platformFee) || 0,
         aiToolsMonthly: Number(aiToolsFee) || 0,
+        modulesFeeMonthly: Number(modulesFee) || 0,
         invoiceToEmails: agencyEmails.trim() || undefined,
         clientBillingMode,
         clientTrialDays: clientBillingMode === "trial" ? Number(clientTrialDays) || 14 : undefined,
@@ -302,7 +266,6 @@ export function WebsiteContractsPageClient() {
             : "Client billing saved. All client websites set to Live billing.",
         variant: "success",
       });
-      void refetchResellerModules();
       void previewQuery.refetch();
     } catch (err) {
       publishAppToast({
@@ -443,10 +406,6 @@ export function WebsiteContractsPageClient() {
             <BillingRateFieldsForm
               values={rateFormValues}
               onChange={handleRateFormChange}
-              onModulePriceChange={(code, value) =>
-                setClientModulePrices((prev) => ({ ...prev, [code]: value }))
-              }
-              enabledServices={enabledServices}
               displayCurrency={displayCurrency}
               disabled={!canEditClientBilling}
               showPeriodBanner
@@ -458,7 +417,6 @@ export function WebsiteContractsPageClient() {
               showInvoiceEmails
               invoiceEmails={agencyEmails}
               onInvoiceEmailsChange={(v) => setAgencyEmails(v)}
-              servicesLoading={servicesLoading}
             />
             {canEditClientBilling ? (
               <Button
