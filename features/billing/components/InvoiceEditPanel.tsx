@@ -11,9 +11,7 @@ import { PerWebsiteBillingSetupCard } from "@/features/billing/components/PerWeb
 import {
   computeDraftLineTotals,
   defaultBillingRateFields,
-  modulePricesForLineDraft,
   roundMoney,
-  type BillingEnabledService,
   type BillingRateFieldsValues,
 } from "@/lib/billing/billing-rate-fields";
 import { invoiceEmailsFromProfile } from "@/lib/billing/merge-billing-rate-values";
@@ -21,7 +19,6 @@ import {
   useAgencyBillingContractQuery,
   useWebsiteBillingProfilesQuery,
 } from "@/lib/hooks/query/billing/billing";
-import { useResellerEnabledServices } from "@/lib/hooks/query/billing/use-reseller-enabled-services";
 
 type LineDraft = BillingRateFieldsValues & {
   id: string;
@@ -48,8 +45,7 @@ function money(currency: string, amount: number) {
 function lineToDraft(
   item: InvoiceLineItemView,
   profile: WebsiteBillingProfileView | undefined,
-  enabledServices: BillingEnabledService[],
-  clientModulePricesByCode: Record<string, number>,
+  contractModulesFee: number | undefined,
   invoiceEmails: string,
 ): LineDraft {
   const freeChatsIncluded = Math.max(0, item.billableChats - item.chargeableChats);
@@ -81,11 +77,10 @@ function lineToDraft(
           : "",
     platformFee: String(item.platformFee ?? profile?.platformFeeMonthly ?? 0),
     aiToolsFee: String(item.aiToolsFee ?? profile?.aiToolsMonthly ?? 0),
-    clientModulePrices: modulePricesForLineDraft(
-      item.modulesFee,
-      enabledServices,
-      clientModulePricesByCode,
-      profile?.modulesFeeMonthly,
+    modulesFee: String(
+      item.modulesFee > 0
+        ? item.modulesFee
+        : profile?.modulesFeeMonthly ?? contractModulesFee ?? 0,
     ),
   };
 }
@@ -152,8 +147,6 @@ export function InvoiceEditPanel({ invoice, saving, onSave, onCancel }: Props) {
     { enabled: Boolean(resellerId) },
   );
   const contractQuery = useAgencyBillingContractQuery(resellerId, { enabled: Boolean(resellerId) });
-  const { enabledServices, clientModulePricesByCode, isLoading: servicesLoading } =
-    useResellerEnabledServices(resellerId, { enabled: Boolean(resellerId) });
 
   const profileByWebsiteId = useMemo(() => {
     const map = new Map<string, WebsiteBillingProfileView>();
@@ -173,14 +166,14 @@ export function InvoiceEditPanel({ invoice, saving, onSave, onCancel }: Props) {
       (invoice.lineItems ?? []).map((item) => {
         const profile = profileByWebsiteId.get(item.websiteId);
         const emails = invoiceEmailsFromProfile(profile, contract);
-        return lineToDraft(item, profile, enabledServices, clientModulePricesByCode, emails);
+        return lineToDraft(item, profile, contract?.modulesFeeMonthly, emails);
       }),
     );
-  }, [invoice.id, profileByWebsiteId, enabledServices, clientModulePricesByCode, contract]);
+  }, [invoice.id, profileByWebsiteId, contract]);
 
   const lineComputations = useMemo(
-    () => lines.map((line) => computeDraftLineTotals(line, enabledServices)),
-    [lines, enabledServices],
+    () => lines.map((line) => computeDraftLineTotals(line)),
+    [lines],
   );
 
   const subtotal = useMemo(
@@ -273,13 +266,6 @@ export function InvoiceEditPanel({ invoice, saving, onSave, onCancel }: Props) {
                 selectedProfile={profile ?? undefined}
                 rateValues={line}
                 onRateChange={(patch) => updateLine(index, patch)}
-                onModulePriceChange={(code, value) =>
-                  updateLine(index, {
-                    clientModulePrices: { ...line.clientModulePrices, [code]: value },
-                  })
-                }
-                enabledServices={enabledServices}
-                servicesLoading={servicesLoading}
                 periodStart={periodStart}
                 periodEnd={periodEnd}
                 periodReadOnly

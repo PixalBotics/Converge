@@ -6,6 +6,7 @@ import Box from "@mui/material/Box";
 import Avatar from "@mui/material/Avatar";
 import IconButton from "@mui/material/IconButton";
 import { useTheme } from "@mui/material/styles";
+import { useQuery } from "@tanstack/react-query";
 import type { AppTheme } from "@/theme/theme";
 import {
   Typography,
@@ -18,9 +19,12 @@ import {
 } from "@/components/common";
 import type { DataTableColumn } from "@/components/common";
 import { MetricCard } from "@/components/common";
-import { DashboardAttendanceMetrics } from "../components/DashboardAttendanceMetrics";
+import { fetchAuditLogs } from "@/api/observability/observability-logs.api";
+import type { AuditLogListItem } from "@/api/observability/observability-logs.types";
+import type { DashboardTrend } from "@/api/dashboard";
 import { ChatsByDepartmentIcon } from "@/components/common/icons";
 import { userIconPath } from "@/assets";
+import { usePlatformOverviewQuery } from "@/lib/hooks/query";
 import {
   Chat as ChatIcon,
   Business as BusinessIcon,
@@ -36,6 +40,8 @@ import {
 } from "@mui/icons-material";
 import {
   pageWrapper,
+  dashboardEmbeddedOverviewRoot,
+  embeddedOverviewToolbar,
   overviewHeader,
   last30DaysButton,
   grid3,
@@ -90,79 +96,145 @@ const DepartmentPieChart = dynamic(
   { ssr: false, loading: () => <Box sx={chartLoadingBox280} /> },
 );
 
-const DATE_RANGE_OPTIONS = ["Last 7 Days", "Last 30 Days", "Last 90 Days"];
+const DATE_RANGE_OPTIONS = ["Last 7 Days", "Last 30 Days", "Last 90 Days"] as const;
+const DATE_RANGE_DAYS: Record<(typeof DATE_RANGE_OPTIONS)[number], number> = {
+  "Last 7 Days": 7,
+  "Last 30 Days": 30,
+  "Last 90 Days": 90,
+};
 
-const revenueData = [
-  { day: 1, value: 142, value2: 158 },
-  { day: 2, value: 168, value2: 152 },
-  { day: 3, value: 155, value2: 165 },
-  { day: 4, value: 178, value2: 148 },
-  { day: 5, value: 192, value2: 172 },
-  { day: 6, value: 185, value2: 188 },
-  { day: 7, value: 198, value2: 178 },
-  { day: 8, value: 212, value2: 195 },
-  { day: 9, value: 205, value2: 202 },
-  { day: 10, value: 218, value2: 192 },
-  { day: 11, value: 228, value2: 208 },
-  { day: 12, value: 222, value2: 215 },
-  { day: 13, value: 238, value2: 205 },
-  { day: 14, value: 245, value2: 225 },
-  { day: 15, value: 252, value2: 232 },
-  { day: 16, value: 248, value2: 242 },
-  { day: 17, value: 255, value2: 238 },
-  { day: 18, value: 248, value2: 248 },
-  { day: 19, value: 242, value2: 252 },
-  { day: 20, value: 235, value2: 245 },
-  { day: 21, value: 228, value2: 238 },
-  { day: 22, value: 232, value2: 232 },
-  { day: 23, value: 225, value2: 228 },
-  { day: 24, value: 218, value2: 222 },
-  { day: 25, value: 235, value2: 238 },
-  { day: 26, value: 242, value2: 245 },
-  { day: 27, value: 248, value2: 252 },
-  { day: 28, value: 255, value2: 248 },
-  { day: 29, value: 252, value2: 255 },
-  { day: 30, value: 258, value2: 248 },
+export type PlatformDashboardBlock =
+  | "primary-metrics"
+  | "user-metrics"
+  | "revenue"
+  | "chat-charts"
+  | "status-metrics"
+  | "activity-log";
+
+const ALL_PLATFORM_BLOCKS: readonly PlatformDashboardBlock[] = [
+  "primary-metrics",
+  "user-metrics",
+  "revenue",
+  "chat-charts",
+  "status-metrics",
+  "activity-log",
 ];
 
-const chatAnalyticsData = [
-  { name: "Mon", value: 185000, fill: "first" as const },
-  { name: "Tue", value: 160000, fill: "second" as const },
-  { name: "Wed", value: 180000, fill: "first" as const },
-  { name: "Thu", value: 225000, fill: "second" as const },
-  { name: "Fri", value: 270000, fill: "second" as const },
-  { name: "Sat", value: 280000, fill: "first" as const },
-  { name: "Sun", value: 170000, fill: "second" as const },
-];
-
-const departmentData = [
-  { name: "Support", value: 15, color: "#F97316" },
-  { name: "Billing", value: 25, color: "#3B82F6" },
-  { name: "Sales", value: 20, color: "#EC4899" },
-  { name: "Marketing", value: 35, color: "#6366F1" },
-];
-
-const activityLog = [
-  { activityType: "New User Created", user: "Counterparty", module: "Organization", date: "02.02.26", time: "11:42 AM" },
-  { activityType: "Rule updated", user: "Admin", module: "AI", date: "02.02.26", time: "10:15 AM" },
-  { activityType: "Department Created", user: "Counterparty", module: "Organization", date: "01.02.26", time: "04:20 PM" },
-  { activityType: "Amount Received", user: "Finance", module: "Billing", date: "01.02.26", time: "02:30 PM" },
-];
-
-interface ActivityLogRow extends Record<string, unknown> {
+type ActivityLogRow = {
   activityType: string;
   user: string;
   module: string;
   date: string;
   time: string;
   userImage?: string;
+};
+
+function formatCount(value: number | undefined, loading: boolean): string {
+  if (loading) return "…";
+  return new Intl.NumberFormat().format(value ?? 0);
 }
 
-export default function SupperDashboardOverview() {
+function formatCurrency(
+  value: number | undefined,
+  currency: string,
+  loading: boolean,
+): string {
+  if (loading) return "…";
+  try {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency,
+      maximumFractionDigits: 2,
+    }).format(value ?? 0);
+  } catch {
+    return `${currency} ${(value ?? 0).toFixed(2)}`;
+  }
+}
+
+function trendSubtitle(trend: DashboardTrend | undefined, loading: boolean): string {
+  if (loading) return "Loading…";
+  if (!trend) return "No comparison data";
+  const pct = trend.changePercent;
+  if (pct == null) {
+    return trend.previous === 0 && trend.current > 0
+      ? "New activity vs prior period"
+      : "No change from prior period";
+  }
+  const sign = pct > 0 ? "+" : "";
+  return `${sign}${pct}% vs prior period`;
+}
+
+function mapAuditRow(item: AuditLogListItem): ActivityLogRow {
+  const created = new Date(item.createdAt);
+  const actorName = item.actor
+    ? [item.actor.firstName, item.actor.lastName].filter(Boolean).join(" ").trim() ||
+      item.actor.email
+    : "System";
+  const moduleLabel = item.website?.name ?? item.website?.url ?? "Platform";
+  return {
+    activityType: item.eventType.replace(/[._]/g, " "),
+    user: actorName,
+    module: moduleLabel,
+    date: new Intl.DateTimeFormat(undefined, {
+      day: "2-digit",
+      month: "2-digit",
+      year: "2-digit",
+    }).format(created),
+    time: new Intl.DateTimeFormat(undefined, {
+      hour: "numeric",
+      minute: "2-digit",
+    }).format(created),
+  };
+}
+
+export default function SupperDashboardOverview({
+  embedded = false,
+  blocks,
+}: {
+  embedded?: boolean;
+  blocks?: readonly PlatformDashboardBlock[];
+}) {
   const theme = useTheme() as AppTheme;
-  const [dateRangeValue, setDateRangeValue] = useState("Last 30 Days");
+  const activeBlocks = blocks ?? ALL_PLATFORM_BLOCKS;
+  const showBlock = (block: PlatformDashboardBlock) => activeBlocks.includes(block);
+  const showDateHeader =
+    showBlock("primary-metrics") ||
+    showBlock("user-metrics") ||
+    showBlock("revenue") ||
+    showBlock("chat-charts") ||
+    showBlock("status-metrics");
+  const [dateRangeValue, setDateRangeValue] =
+    useState<(typeof DATE_RANGE_OPTIONS)[number]>("Last 30 Days");
+  const [revenueGranularity, setRevenueGranularity] = useState<
+    "weekly" | "monthly" | "today"
+  >("monthly");
+  const [chatAnalyticsWindow, setChatAnalyticsWindow] = useState<
+    "7days" | "monthly"
+  >("7days");
   const [activityPage, setActivityPage] = useState(1);
-  const activityPageCount = 2;
+
+  const days = DATE_RANGE_DAYS[dateRangeValue];
+  const overviewQuery = usePlatformOverviewQuery({
+    days,
+    revenueGranularity,
+    chatAnalyticsWindow,
+  });
+  const auditLogsQuery = useQuery({
+    queryKey: ["dashboard", "activity-log", activityPage],
+    queryFn: () => fetchAuditLogs({ page: activityPage, limit: 10 }),
+    staleTime: 60_000,
+  });
+
+  const loading = overviewQuery.isLoading;
+  const data = overviewQuery.data;
+  const metrics = data?.metrics;
+  const currency = data?.currency ?? "USD";
+
+  const activityRows = useMemo(
+    () => (auditLogsQuery.data?.items ?? []).map(mapAuditRow),
+    [auditLogsQuery.data?.items],
+  );
+  const activityPageCount = auditLogsQuery.data?.totalPages ?? 1;
 
   const activityColumns = useMemo<DataTableColumn<ActivityLogRow>[]>(
     () => [
@@ -172,11 +244,10 @@ export default function SupperDashboardOverview() {
         label: "User",
         render: (_, row) => {
           const name = String(row.user ?? "");
-          const hasImage = typeof (row as { userImage?: string }).userImage === "string";
-          const userImage = (row as { userImage?: string }).userImage;
+          const hasImage = typeof row.userImage === "string";
           return (
             <Box sx={tableUserCellBox}>
-              <Avatar src={hasImage ? userImage : userIconPath} sx={tableAvatar}>
+              <Avatar src={hasImage ? row.userImage : userIconPath} sx={tableAvatar}>
                 {!hasImage && <PersonIcon sx={tableAvatarIcon} />}
               </Avatar>
               <Typography component="span" variant="body2" color="white" fontWeight={500}>
@@ -193,89 +264,115 @@ export default function SupperDashboardOverview() {
     [],
   );
 
+  const departmentChartData =
+    data?.chatsByDepartment.length
+      ? data.chatsByDepartment
+      : [{ name: "No data", value: 1, color: "rgba(255,255,255,0.2)" }];
+
   return (
-    <Box sx={pageWrapper}>
-      <Box sx={overviewHeader}>
-        <Typography variant="regularLarge" fontWeight={700} color="white">
-          Dashboard
-        </Typography>
+    <Box sx={embedded ? dashboardEmbeddedOverviewRoot : pageWrapper}>
+      {showDateHeader ? (
+      <Box sx={embedded ? embeddedOverviewToolbar : overviewHeader}>
+        {!embedded ? (
+          <Typography variant="regularLarge" fontWeight={700} color="white">
+            Dashboard
+          </Typography>
+        ) : null}
         <Box sx={overviewHeaderDropdownWrap}>
           <Dropdown
             id="date-range-menu"
-            options={DATE_RANGE_OPTIONS}
+            options={[...DATE_RANGE_OPTIONS]}
             value={dateRangeValue}
-            onChange={setDateRangeValue}
+            onChange={(value) =>
+              setDateRangeValue(value as (typeof DATE_RANGE_OPTIONS)[number])
+            }
             buttonSx={last30DaysButton}
             endIcon="▾"
           />
         </Box>
       </Box>
+      ) : null}
 
-      <DashboardAttendanceMetrics />
-
+      {showBlock("primary-metrics") ? (
       <Box sx={grid3}>
         <MetricCard
           title="Today Total Chats"
-          value="0989"
-          subtitle="10% increase from last month"
+          value={formatCount(metrics?.todayTotalChats.current, loading)}
+          subtitle={trendSubtitle(metrics?.todayTotalChats, loading)}
           icon={<ChatIcon sx={iconSize22} />}
           iconBgColor={theme.app.dashboard.accentBlue}
+          showTrendArrow={!loading && (metrics?.todayTotalChats.changePercent ?? 0) > 0}
         />
         <MetricCard
           title="Total Companies"
-          value="123"
-          subtitle="10% increase from last month"
+          value={formatCount(metrics?.totalCompanies.current, loading)}
+          subtitle={trendSubtitle(metrics?.totalCompanies, loading)}
           icon={<BusinessIcon sx={iconSize22} />}
           iconBgColor={theme.app.dashboard.accentOrange}
+          showTrendArrow={!loading && (metrics?.totalCompanies.changePercent ?? 0) > 0}
         />
         <MetricCard
           title="Total Active Websites"
-          value="32"
-          subtitle="10% increase from last month"
+          value={formatCount(metrics?.totalActiveWebsites.current, loading)}
+          subtitle={trendSubtitle(metrics?.totalActiveWebsites, loading)}
           icon={<PublicIcon sx={iconSize22} />}
           iconBgColor={theme.app.dashboard.accentBlue}
+          showTrendArrow={
+            !loading && (metrics?.totalActiveWebsites.changePercent ?? 0) > 0
+          }
         />
       </Box>
+      ) : null}
 
+      {showBlock("user-metrics") ? (
       <Box sx={grid3}>
         <MetricCard
           title="Total Active Users"
-          value="1,243,412"
-          subtitle="10% increase from last month"
+          value={formatCount(metrics?.totalActiveUsers.current, loading)}
+          subtitle={trendSubtitle(metrics?.totalActiveUsers, loading)}
           icon={<PeopleIcon sx={iconSize22} />}
           iconBgColor="#A855F7"
+          showTrendArrow={!loading && (metrics?.totalActiveUsers.changePercent ?? 0) > 0}
         />
         <MetricCard
           title="Live Chat"
-          value="122"
-          subtitle="10% increase from last month"
+          value={formatCount(metrics?.liveChats.current, loading)}
+          subtitle={trendSubtitle(metrics?.liveChats, loading)}
           icon={<HeadsetIcon sx={iconSize22} />}
           iconBgColor={theme.app.dashboard.accentPink}
+          showTrendArrow={!loading && (metrics?.liveChats.changePercent ?? 0) > 0}
         />
         <MetricCard
-          title="Today Total Chats"
-          value="1234"
-          subtitle="10% increase from last month"
+          title="Today Closed Chats"
+          value={formatCount(metrics?.todayClosedChats.current, loading)}
+          subtitle={trendSubtitle(metrics?.todayClosedChats, loading)}
           icon={<ChatIcon sx={iconSize22} />}
           iconBgColor={theme.app.dashboard.accentBlue}
+          showTrendArrow={
+            !loading && (metrics?.todayClosedChats.changePercent ?? 0) > 0
+          }
         />
       </Box>
+      ) : null}
 
+      {showBlock("revenue") ? (
       <Box sx={grid3Lg}>
         <Box sx={revenueCardsColumn}>
           <MetricCard
             title="Monthly Revenue"
-            value="$34,008,327"
-            subtitle="10% increase from last month"
+            value={formatCurrency(metrics?.monthlyRevenue.current, currency, loading)}
+            subtitle={trendSubtitle(metrics?.monthlyRevenue, loading)}
             icon={<AttachMoneyIcon sx={iconSize22} />}
             iconBgColor={theme.app.dashboard.accentPink}
+            showTrendArrow={!loading && (metrics?.monthlyRevenue.changePercent ?? 0) > 0}
           />
           <MetricCard
             title="Today Revenue"
-            value="$323,971.32"
-            subtitle="10% increase from last month"
+            value={formatCurrency(metrics?.todayRevenue.current, currency, loading)}
+            subtitle={trendSubtitle(metrics?.todayRevenue, loading)}
             icon={<AttachMoneyIcon sx={iconSize22} />}
             iconBgColor={theme.app.dashboard.accentBlue}
+            showTrendArrow={!loading && (metrics?.todayRevenue.changePercent ?? 0) > 0}
           />
         </Box>
         <DashboardCard sx={cardPadding}>
@@ -294,17 +391,21 @@ export default function SupperDashboardOverview() {
                 { value: "monthly", label: "Monthly" },
                 { value: "today", label: "Today's" },
               ]}
-              value="monthly"
-              onChange={() => {}}
+              value={revenueGranularity}
+              onChange={(value) =>
+                setRevenueGranularity(value as "weekly" | "monthly" | "today")
+              }
               variant="default"
             />
           </Box>
           <Box sx={chartBox220}>
-            <RevenueLineChart data={revenueData} />
+            <RevenueLineChart data={data?.revenueChart ?? []} />
           </Box>
         </DashboardCard>
       </Box>
+      ) : null}
 
+      {showBlock("chat-charts") ? (
       <Box sx={grid2Lg}>
         <DashboardCard sx={dashboardChartRowCard}>
           <Box sx={revenueHeaderRow}>
@@ -321,14 +422,16 @@ export default function SupperDashboardOverview() {
                 { value: "monthly", label: "Monthly" },
                 { value: "7days", label: "last 7 Days" },
               ]}
-              value="7days"
-              onChange={() => {}}
+              value={chatAnalyticsWindow}
+              onChange={(value) =>
+                setChatAnalyticsWindow(value as "7days" | "monthly")
+              }
               variant="default"
             />
           </Box>
           <Box sx={chartFlexFill}>
             <Box sx={chartBox260}>
-              <ChatAnalyticsBarChart data={chatAnalyticsData} />
+              <ChatAnalyticsBarChart data={data?.chatAnalytics ?? []} />
             </Box>
           </Box>
         </DashboardCard>
@@ -341,24 +444,31 @@ export default function SupperDashboardOverview() {
           </Box>
           <Box sx={chartFlexFill}>
             <Box sx={chartBox280}>
-              <DepartmentPieChart data={departmentData} />
+              <DepartmentPieChart data={departmentChartData} />
             </Box>
           </Box>
         </DashboardCard>
       </Box>
+      ) : null}
 
+      {showBlock("status-metrics") ? (
       <Box sx={grid4}>
         <MetricCard
           title="Agents Online"
-          value="123/870"
-          subtitle="10% increase from last month"
+          value={
+            loading
+              ? "…"
+              : `${metrics?.agentsOnline ?? 0}/${metrics?.agentsTotal ?? 0}`
+          }
+          subtitle="Agents accepting chats right now"
           icon={<PersonIcon sx={iconSize22} />}
           iconBgColor={theme.app.dashboard.accentBlue}
+          showTrendArrow={false}
         />
         <MetricCard
-          title="License Expiring"
-          value="07"
-          subtitle="License Expired"
+          title="License Missing"
+          value={formatCount(metrics?.licensesMissing, loading)}
+          subtitle="Parent companies without a license key"
           icon={<WarningIcon sx={iconSize22} />}
           iconBgColor={theme.app.dashboard.accentRed}
           subtitleColor={theme.app.dashboard.accentRed}
@@ -366,20 +476,36 @@ export default function SupperDashboardOverview() {
         />
         <MetricCard
           title="Reached PA"
-          value="$323,971.32"
-          subtitle="10% increase from last month"
+          value={formatCurrency(
+            metrics?.platformFeesReceived.current,
+            currency,
+            loading,
+          )}
+          subtitle={trendSubtitle(metrics?.platformFeesReceived, loading)}
           icon={<AttachMoneyIcon sx={iconSize22} />}
           iconBgColor={theme.app.dashboard.accentBlue}
+          showTrendArrow={
+            !loading && (metrics?.platformFeesReceived.changePercent ?? 0) > 0
+          }
         />
         <MetricCard
           title="System Status"
-          value="Operational"
-          subtitle="No Issues"
+          value={
+            loading
+              ? "…"
+              : metrics?.systemStatus === "operational"
+                ? "Operational"
+                : "Degraded"
+          }
+          subtitle={metrics?.systemStatusDetail ?? "Checking services"}
           icon={<CheckCircleIcon sx={iconSize22} />}
           iconBgColor={theme.app.dashboard.accentBlue}
+          showTrendArrow={false}
         />
       </Box>
+      ) : null}
 
+      {showBlock("activity-log") ? (
       <DashboardCard sx={cardPaddingAutoHeight}>
         <Box sx={revenueTitleRowMb2}>
           <Box sx={chatAnalyticsIconBox}>
@@ -391,8 +517,8 @@ export default function SupperDashboardOverview() {
         </Box>
         <DataTable<ActivityLogRow>
           columns={activityColumns}
-          rows={activityLog}
-          getRowId={(row) => `${row.activityType}-${row.date}-${row.time}`}
+          rows={activityRows}
+          getRowId={(row) => `${row.activityType}-${row.date}-${row.time}-${row.user}`}
           actionColumn={{
             label: "Action",
             render: () => (
@@ -417,6 +543,7 @@ export default function SupperDashboardOverview() {
           />
         </Box>
       </DashboardCard>
+      ) : null}
     </Box>
   );
 }

@@ -9,7 +9,6 @@ import { BillingRateFieldsForm } from "@/features/billing/components/BillingRate
 import { InvoiceItemizedTable } from "@/features/billing/components/InvoiceItemizedTable";
 import { WebsiteBillingStatusBadge } from "@/features/billing/components/WebsiteBillingStatusBadge";
 import {
-  type BillingEnabledService,
   type BillingRateFieldsValues,
 } from "@/lib/billing/billing-rate-fields";
 import { formatBillingPeriodLabel } from "@/lib/billing/merge-billing-rate-values";
@@ -27,9 +26,6 @@ type Props = {
   selectedProfile?: WebsiteBillingProfileView | null;
   rateValues: BillingRateFieldsValues;
   onRateChange: (patch: Partial<BillingRateFieldsValues>) => void;
-  onModulePriceChange: (code: string, value: string) => void;
-  enabledServices: BillingEnabledService[];
-  servicesLoading?: boolean;
   periodStart: string;
   periodEnd: string;
   onPeriodStartChange?: (value: string) => void;
@@ -62,9 +58,6 @@ export function PerWebsiteBillingSetupCard({
   selectedProfile,
   rateValues,
   onRateChange,
-  onModulePriceChange,
-  enabledServices,
-  servicesLoading = false,
   periodStart,
   periodEnd,
   onPeriodStartChange,
@@ -135,10 +128,7 @@ export function PerWebsiteBillingSetupCard({
           <BillingRateFieldsForm
             values={rateValues}
             onChange={onRateChange}
-            onModulePriceChange={onModulePriceChange}
-            enabledServices={enabledServices}
             displayCurrency={rateValues.currency}
-            servicesLoading={servicesLoading}
             showPeriodBanner
             periodLabel={periodLabel}
             periodStart={periodStart}

@@ -219,10 +219,6 @@ const PREFIX_VIEW_RULES: readonly { prefix: string; anyOf: readonly string[] }[]
     anyOf: [...HRMS_ATTENDANCE_SELF_ANY, HRMS.ATTENDANCE_VIEW, OP.hrms.attendance.view],
   },
   {
-    prefix: "/dashboard/hrms",
-    anyOf: [...HRMS_WORKFORCE_VIEW_ANY],
-  },
-  {
     prefix: "/dashboard/shifts/user-shift",
     anyOf: [...HRMS_SHIFT_ASSIGNMENT_ANY, OP.hrms.userShift.assign, OP.hrms.shift.view],
   },

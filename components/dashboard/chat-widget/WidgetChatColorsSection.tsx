@@ -33,10 +33,48 @@ function ColorFieldRow({
   );
 }
 
+export function WidgetMessageBubbleColorFields({
+  colors,
+  onChange,
+}: {
+  colors: WidgetChatColorsDraft;
+  onChange: (next: WidgetChatColorsDraft) => void;
+}) {
+  const theme = useTheme() as AppTheme;
+  const group = WIDGET_CHAT_COLOR_FIELD_GROUPS.find((g) => g.title === "Chat messages");
+  if (!group) return null;
+
+  const setField = (key: WidgetChatColorsDraftKey, hex: string) => {
+    onChange({ ...colors, [key]: hex });
+  };
+
+  return (
+    <Box>
+      <Typography variant="body2" sx={{ color: theme.app.text.primary, fontWeight: 600, mb: 0.5 }}>
+        Message bubble colors
+      </Typography>
+      <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, display: "block", mb: 1, lineHeight: 1.45 }}>
+        Greeting, incoming, and outgoing bubbles in the live preview.
+      </Typography>
+      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 1 }}>
+        {group.fields.map((f) => (
+          <ColorFieldRow
+            key={f.key}
+            label={f.label}
+            value={colors[f.key]}
+            onChange={(hex) => setField(f.key, hex)}
+          />
+        ))}
+      </Box>
+    </Box>
+  );
+}
+
 export function WidgetChatColorsSection({
   colors,
   onChange,
   brandScalars,
+  excludeGroupTitles = [],
 }: {
   colors: WidgetChatColorsDraft;
   onChange: (next: WidgetChatColorsDraft) => void;
@@ -48,6 +86,7 @@ export function WidgetChatColorsSection({
     themeSecondaryColor: string;
     backgroundColor: string;
   };
+  excludeGroupTitles?: string[];
 }) {
   const theme = useTheme() as AppTheme;
   const [open, setOpen] = useState(true);
@@ -107,7 +146,9 @@ export function WidgetChatColorsSection({
             bgcolor: "rgba(6, 12, 54, 0.25)",
           }}
         >
-          {WIDGET_CHAT_COLOR_FIELD_GROUPS.map((group) => (
+          {WIDGET_CHAT_COLOR_FIELD_GROUPS.filter(
+            (group) => !excludeGroupTitles.includes(group.title),
+          ).map((group) => (
             <Box key={group.title}>
               <Typography variant="medium16" sx={{ color: theme.app.text.primary, fontWeight: 600, mb: 0.5 }}>
                 {group.title}

@@ -201,14 +201,14 @@ export function AiTrainingWebsitesTable({
 
   const actionColumn = useMemo(
     () => ({
-      label: "Action",
+      label: "Actions",
       render: (row: WebsiteRow) => (
         <Box sx={{ display: "flex", gap: 0.75 }} onClick={(e) => e.stopPropagation()}>
+          <Button type="button" variant="primary" size="small" onClick={() => onSelectWebsite(row)}>
+            Manage
+          </Button>
           <Button type="button" variant="secondary" size="small" onClick={() => onTestWebsite(row)}>
             Test
-          </Button>
-          <Button type="button" variant="secondary" size="small" onClick={() => onSelectWebsite(row)}>
-            Open
           </Button>
         </Box>
       ),
@@ -272,7 +272,7 @@ export function AiTrainingWebsitesTable({
         minWidth={showCompanyColumns ? 1100 : 900}
         emptyState={{
           title: `No ${scopeLabel.toLowerCase()} training yet`,
-          description: "Use + Add training to import a sitemap, page, FAQs, or documents.",
+          description: "Click + Add training to import a sitemap, page, FAQs, or documents for a website.",
         }}
       />
     </Box>

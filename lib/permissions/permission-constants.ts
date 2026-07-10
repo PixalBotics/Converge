@@ -3,6 +3,9 @@
  * Backend expands implied codes on `/auth/me` — UI mirrors page AND (operational OR).
  */
 
+/** Default for every authenticated user — org-scope filter picker APIs only. */
+export const SCOPE_FILTER_READ = "scope:filter:read" as const;
+
 export const PAGE = {
   DASHBOARD: "page:dashboard",
   USERS: "page:users",

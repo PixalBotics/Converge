@@ -30,7 +30,6 @@ export type ResellerModulesState = {
   moduleCodes: string[];
   permissionNames: string[];
   modulePricesByCode?: Record<string, number>;
-  clientModulePricesByCode?: Record<string, number>;
 };
 
 export async function getResellerModulesCatalog() {
@@ -67,19 +66,6 @@ export async function putResellerModulePrices(
     data: ResellerModulesState;
   }>(`/companies/resellers/${encodeURIComponent(resellerId)}/modules/prices`, {
     modulePricesByCode,
-  });
-  return data;
-}
-
-export async function putResellerClientModulePrices(
-  resellerId: string,
-  clientModulePricesByCode: Record<string, number>,
-) {
-  const { data } = await apiClient.put<{
-    success: boolean;
-    data: ResellerModulesState;
-  }>(`/companies/resellers/${encodeURIComponent(resellerId)}/modules/client-prices`, {
-    clientModulePricesByCode,
   });
   return data;
 }

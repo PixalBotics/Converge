@@ -203,3 +203,15 @@ export function extractRoleNameFromDetail(payload: unknown): string {
   return name;
 }
 
+export function extractRoleDashboardWidgetOrder(payload: unknown): string[] {
+  const root = asRecord(payload);
+  const data = asRecord(root?.data);
+  const source = data ?? root;
+  const raw =
+    source?.dashboardWidgetOrder ??
+    source?.dashboard_widget_order ??
+    null;
+  if (!Array.isArray(raw)) return [];
+  return raw.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
+}
+

@@ -30,8 +30,12 @@ export type WebsiteAssignmentScopeFilterState = {
 };
 
 export function useWebsiteAssignmentScopeFilters(): WebsiteAssignmentScopeFilterState {
-  const { hasPage, hasOperational } = useAuth();
-  const canLoadScopeFilters = canAccessCompanyScopeFilters(hasPage, hasOperational);
+  const { hasPage, hasOperational, rbacEnabled } = useAuth();
+  const canLoadScopeFilters = canAccessCompanyScopeFilters(
+    hasPage,
+    hasOperational,
+    !rbacEnabled,
+  );
   const { canFilterByResellerId, sessionResellerId } = useResellerListScope();
   const [filterResellerId, setFilterResellerId] = useState("");
   const [filterParentCompanyId, setFilterParentCompanyId] = useState("");

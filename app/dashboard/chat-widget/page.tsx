@@ -373,8 +373,13 @@ export default function ChatWidgetPage() {
       iconColor: widgetDraft.textUsIconColor ?? "#FFFFFF",
       buttonLabel: widgetDraft.textUsButtonLabel ?? "Text Us",
       headerTitle: widgetDraft.textUsHeaderTitle ?? "Text Us",
+      headerTitleEnabled: widgetDraft.textUsHeaderTitleEnabled !== false,
       welcomeMessage: widgetDraft.textUsWelcomeMessage?.trim() ?? "",
       headerLogoDataUrl: widgetDraft.textUsHeaderLogoDataUrl?.trim() ?? "",
+      headerLogoHeightPx: widgetDraft.textUsHeaderLogoHeightPx ?? 28,
+      headerLogoMaxWidthPx: widgetDraft.textUsHeaderLogoMaxWidthPx ?? 96,
+      headerAlign: widgetDraft.textUsHeaderAlign ?? "left",
+      glowColor: widgetDraft.textUsGlowColor?.trim() || undefined,
       panelBackground: widgetDraft.textUsPanelBackground ?? "#f8fafc",
       launcherIconPreset: widgetDraft.textUsLauncherIconPreset ?? "phosphor-chat-circle",
       launcherIconEnabled: widgetDraft.textUsLauncherIconEnabled !== false,
@@ -930,24 +935,47 @@ export default function ChatWidgetPage() {
                       bgcolor: textUsLauncherLayout.buttonColor,
                       color: textUsLauncherLayout.iconColor,
                       display: "flex",
-                      alignItems: "flex-start",
+                      alignItems: "center",
                       justifyContent: "space-between",
                       gap: 1,
                     }}
                   >
-                    <Box sx={{ minWidth: 0, display: "flex", alignItems: "center", gap: 1 }}>
+                    <Box
+                      sx={{
+                        flex: 1,
+                        minWidth: 0,
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 1,
+                        justifyContent:
+                          textUsLauncherLayout.headerAlign === "center"
+                            ? "center"
+                            : textUsLauncherLayout.headerAlign === "right"
+                              ? "flex-end"
+                              : "flex-start",
+                      }}
+                    >
                       {textUsLauncherLayout.headerLogoDataUrl ? (
                         <Box
                           component="img"
                           src={textUsLauncherLayout.headerLogoDataUrl}
                           alt=""
-                          sx={{ height: 24, width: "auto", maxWidth: 80, objectFit: "contain", flexShrink: 0 }}
+                          sx={{
+                            height: textUsLauncherLayout.headerLogoHeightPx ?? 28,
+                            width: "auto",
+                            maxWidth: textUsLauncherLayout.headerLogoMaxWidthPx ?? 96,
+                            objectFit: "contain",
+                            flexShrink: 0,
+                          }}
                         />
                       ) : null}
-                      <Box sx={{ minWidth: 0 }}>
-                        <Typography variant="mediumLarge" sx={{ color: "inherit" }}>
-                          {textUsLauncherLayout.headerTitle}
-                        </Typography>
+                      <Box sx={{ minWidth: 0, textAlign: textUsLauncherLayout.headerAlign ?? "left" }}>
+                        {textUsLauncherLayout.headerTitleEnabled !== false &&
+                        textUsLauncherLayout.headerTitle?.trim() ? (
+                          <Typography variant="mediumLarge" sx={{ color: "inherit" }}>
+                            {textUsLauncherLayout.headerTitle}
+                          </Typography>
+                        ) : null}
                         {textUsLauncherLayout.welcomeMessage ? (
                           <Typography variant="body2" sx={{ color: "inherit", opacity: 0.92 }}>
                             {textUsLauncherLayout.welcomeMessage}
@@ -1051,6 +1079,7 @@ export default function ChatWidgetPage() {
                   iconPreset={textUsLauncherLayout.launcherIconPreset}
                   iconEnabled={textUsLauncherLayout.launcherIconEnabled}
                   launcherStyle={textUsLauncherLayout.launcherStyle}
+                  glowColor={textUsLauncherLayout.glowColor}
                   buttonLabel={textUsLauncherLayout.buttonLabel}
                   ariaLabelPrefix={textPreviewOpen ? "Close" : "Open"}
                   onClick={() => setTextPreviewOpen((prev) => !prev)}

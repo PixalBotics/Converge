@@ -16,6 +16,7 @@ import {
   aiTrainingPageHeaderSx,
 } from "./ai-training-ui.styles";
 import { Button, Typography } from "@/components/common";
+import { AiTrainingSubNav } from "./AiTrainingSubNav";
 
 export function AiTrainingPageShell({
   title,
@@ -24,6 +25,7 @@ export function AiTrainingPageShell({
   backHref,
   backLabel = "Back",
   actions,
+  showSubNav = true,
   children,
 }: {
   title: string;
@@ -32,6 +34,7 @@ export function AiTrainingPageShell({
   backHref?: string;
   backLabel?: string;
   actions?: ReactNode;
+  showSubNav?: boolean;
   children: ReactNode;
 }) {
   const theme = useTheme() as AppTheme;
@@ -67,6 +70,7 @@ export function AiTrainingPageShell({
         </Box>
         {actions ? <Box sx={aiTrainingPageHeaderActionsSx}>{actions}</Box> : null}
       </Box>
+      {showSubNav ? <AiTrainingSubNav /> : null}
       <Stack spacing={2.5} sx={{ maxWidth: 1200, mx: "auto", width: "100%" }}>
         {children}
       </Stack>

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useAuth, useResellerListScope } from "@/lib/auth";
-import { needsChatScopeFilters } from "@/lib/permissions/chat-access";
+import { canUseScopeFilterApis } from "@/lib/permissions/company-scope-filter-access";
 import {
   buildWebsitesInScopeParams,
   useCompaniesSetupResellersQuery,
@@ -29,7 +29,7 @@ function asRecord(value: unknown): Record<string, unknown> | null {
 export type UseChatScopeFiltersOptions = {
   /**
    * When false, skips reseller / company tree / website-assignments APIs.
-   * Default: derived from /auth/me via {@link needsChatScopeFilters} (agents = false).
+   * Default: {@link canUseScopeFilterApis} (`scope:filter:read` for every authenticated user).
    */
   apiEnabled?: boolean;
 };
@@ -38,10 +38,14 @@ export function useChatScopeFilters(
   initial?: Partial<ChatScopeFilterState>,
   options?: UseChatScopeFiltersOptions,
 ) {
-  const { hasOperational } = useAuth();
+  const { hasOperational, rbacEnabled } = useAuth();
   const { canFilterByResellerId, sessionResellerId } = useResellerListScope();
+  const rbacOff = !rbacEnabled;
+  const filterApisByPermission = canUseScopeFilterApis(hasOperational, rbacOff);
   const scopeApiEnabled =
-    options?.apiEnabled ?? needsChatScopeFilters(hasOperational, canFilterByResellerId);
+    options?.apiEnabled !== undefined
+      ? options.apiEnabled && filterApisByPermission
+      : filterApisByPermission;
 
   const [filters, setFilters] = useState<ChatScopeFilterState>(() => ({
     ...emptyChatScopeFilters(),

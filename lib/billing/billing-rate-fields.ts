@@ -16,13 +16,12 @@ export type BillingRateFieldsValues = {
   monthlyChats: string;
   platformFee: string;
   aiToolsFee: string;
-  clientModulePrices: Record<string, string>;
+  modulesFee: string;
 };
 
 export type BillingEnabledService = {
   code: string;
   name: string;
-  monthlyPrice?: number | null;
 };
 
 export function defaultBillingRateFields(currency = "USD"): BillingRateFieldsValues {
@@ -36,33 +35,8 @@ export function defaultBillingRateFields(currency = "USD"): BillingRateFieldsVal
     monthlyChats: "",
     platformFee: "0",
     aiToolsFee: "0",
-    clientModulePrices: {},
+    modulesFee: "0",
   };
-}
-
-export function sumModulePrices(
-  enabledServices: BillingEnabledService[],
-  clientModulePrices: Record<string, string>,
-): { sum: number; anyTyped: boolean } {
-  let sum = 0;
-  let anyTyped = false;
-  for (const service of enabledServices) {
-    const raw = clientModulePrices[service.code]?.trim() ?? "";
-    const fallback =
-      service.monthlyPrice != null && Number.isFinite(service.monthlyPrice)
-        ? service.monthlyPrice
-        : 0;
-    const value = raw ? Number(raw) : fallback;
-    if (!Number.isFinite(value) || value < 0) continue;
-    if (raw || fallback > 0) anyTyped = true;
-    sum += value;
-  }
-  const combinedRaw = clientModulePrices._combined?.trim() ?? "";
-  if (enabledServices.length === 0 && combinedRaw) {
-    anyTyped = true;
-    sum += Number(combinedRaw) || 0;
-  }
-  return { sum: roundMoney(sum), anyTyped };
 }
 
 export function calcChatCharges(
@@ -78,59 +52,31 @@ export function roundMoney(value: number): number {
   return Math.round(value * 100) / 100;
 }
 
-export function modulePricesFromReseller(
-  moduleCodes: string[],
-  clientModulePricesByCode: Record<string, number> | undefined,
-): Record<string, string> {
-  const next: Record<string, string> = {};
-  for (const code of moduleCodes) {
-    const value = clientModulePricesByCode?.[code];
-    next[code] = typeof value === "number" ? String(value) : "";
-  }
-  return next;
-}
-
-export function modulePricesForLineDraft(
-  modulesFeeOnLine: number,
-  enabledServices: BillingEnabledService[],
-  clientModulePricesByCode: Record<string, number>,
+export function resolveModulesFeeMonthly(
+  typedModulesFee: string,
   profileModulesFee?: number | null,
-): Record<string, string> {
-  if (enabledServices.length === 0) {
-    const combined = modulesFeeOnLine > 0 ? modulesFeeOnLine : profileModulesFee ?? 0;
-    return combined > 0 ? { _combined: String(combined) } : {};
+  contractModulesFee?: number | null,
+): number {
+  const raw = typedModulesFee.trim();
+  if (raw) {
+    const value = Number(raw);
+    if (Number.isFinite(value) && value >= 0) return value;
   }
-
-  const result: Record<string, string> = {};
-  let assigned = 0;
-
-  for (const service of enabledServices) {
-    const fromReseller = clientModulePricesByCode[service.code];
-    if (typeof fromReseller === "number" && fromReseller > 0) {
-      result[service.code] = String(fromReseller);
-      assigned += fromReseller;
-      continue;
-    }
-    if (service.monthlyPrice != null && service.monthlyPrice > 0) {
-      result[service.code] = String(service.monthlyPrice);
-      assigned += service.monthlyPrice;
-      continue;
-    }
-    result[service.code] = "";
+  if (
+    profileModulesFee != null &&
+    Number.isFinite(profileModulesFee) &&
+    profileModulesFee >= 0
+  ) {
+    return profileModulesFee;
   }
-
-  const fallbackFee =
-    modulesFeeOnLine > 0 ? modulesFeeOnLine : profileModulesFee != null && profileModulesFee > 0 ? profileModulesFee : 0;
-
-  if (assigned === 0 && fallbackFee > 0) {
-    const primary =
-      enabledServices.find((service) => service.code !== "hrms") ?? enabledServices[0];
-    if (primary) {
-      result[primary.code] = String(roundMoney(fallbackFee));
-    }
+  if (
+    contractModulesFee != null &&
+    Number.isFinite(contractModulesFee) &&
+    contractModulesFee >= 0
+  ) {
+    return contractModulesFee;
   }
-
-  return result;
+  return 0;
 }
 
 export type DraftLineComputed = {
@@ -156,15 +102,13 @@ export function computeDraftLineTotals(
     | "monthlyChats"
     | "platformFee"
     | "aiToolsFee"
-    | "clientModulePrices"
+    | "modulesFee"
   > & {
     billableChats: number;
     extraCharges: string;
   },
-  enabledServices: BillingEnabledService[],
 ): DraftLineComputed {
-  const { sum, anyTyped } = sumModulePrices(enabledServices, draft.clientModulePrices);
-  const modulesFee = anyTyped ? sum : Number(draft.clientModulePrices._combined) || 0;
+  const modulesFee = Number(draft.modulesFee) || 0;
   const platformFee = Number(draft.platformFee) || 0;
   const aiToolsFee = Number(draft.aiToolsFee) || 0;
   const extraCharges = Number(draft.extraCharges) || 0;

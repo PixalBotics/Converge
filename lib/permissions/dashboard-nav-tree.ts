@@ -115,7 +115,7 @@ const WIDGET_GROUP: DashboardNavItem = {
 };
 
 const AI_MANAGEMENT_GROUP: DashboardNavItem = {
-  href: "/dashboard/ai-training/assistant",
+  href: "/dashboard/ai-training",
   label: "AI Management",
   section: "activity",
   iconKey: "aiTraining",
@@ -178,7 +178,7 @@ const POOLS_GROUP: DashboardNavItem = {
 };
 
 const HRMS_GROUP: DashboardNavItem = {
-  href: "/dashboard/hrms",
+  href: "/dashboard/attendance/my-attendance",
   label: "HRMS",
   section: "activity",
   iconKey: "hrms",
@@ -186,7 +186,6 @@ const HRMS_GROUP: DashboardNavItem = {
   permissionsAny: [...HRMS_MODULE_PAGE_PERMISSIONS],
   prefixMatch: true,
   children: [
-    leafNavItem(PAGE.HRMS_OVERVIEW, "/dashboard/hrms", "Overview", "hrms", { prefixMatch: false }),
     leafNavItem(PAGE.HRMS_ATTENDANCE_SELF, "/dashboard/attendance/my-attendance", "My attendance", "reports", {
       prefixMatch: false,
     }),

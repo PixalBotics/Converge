@@ -7,7 +7,7 @@ import WarningAmberOutlined from "@mui/icons-material/WarningAmberOutlined";
 import CheckCircleOutline from "@mui/icons-material/CheckCircleOutline";
 import Box from "@mui/material/Box";
 import Alert from "@mui/material/Alert";
-import { Button } from "@/components/common";
+import { Button, DashboardCard } from "@/components/common";
 import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import type { KbTrainingWebsiteSummary } from "@/api/ai-knowledge/types";
@@ -15,7 +15,7 @@ import { Typography } from "@/components/common";
 import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.styles";
 import { AiTrainingWebsitesTable } from "./AiTrainingWebsitesTable";
 import {
-  aiTrainingOverviewCardSx,
+  aiTrainingMainCardSx,
   aiTrainingStatCardSx,
   aiTrainingStatGridSx,
 } from "./ai-training-ui.styles";
@@ -115,16 +115,16 @@ export function AiTrainingWebsitesOverview({
   }, [items]);
 
   return (
-    <Box sx={aiTrainingOverviewCardSx}>
+    <DashboardCard sx={aiTrainingMainCardSx}>
       <Box sx={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 1.5, mb: 2 }}>
         <Box>
           <Typography variant="mediumLarge" color="white" fontWeight={700}>
-            Trained websites
+            Your websites
           </Typography>
           <Typography variant="small" sx={{ color: theme.app.dashboard.textMuted, mt: 0.5, maxWidth: 560 }}>
             {filtersActive
-              ? "Filtered list — clear filters to see every trained website."
-              : "All websites that have training data. Open a row to see content items, or add new training."}
+              ? "Showing filtered results. Clear filters to see all websites."
+              : "Select a website to manage training content, or add training for a new site."}
           </Typography>
         </Box>
         <Button
@@ -133,7 +133,7 @@ export function AiTrainingWebsitesOverview({
           sx={{ ...gradientPrimaryButtonSx, flexShrink: 0 }}
           onClick={onAddTraining}
         >
-          + Set up website AI
+          + Add training
         </Button>
       </Box>
 
@@ -154,7 +154,7 @@ export function AiTrainingWebsitesOverview({
         <StatCard
           label="Searchable pieces"
           value={stats.chunkCount}
-          accent="#a78bfa"
+          accent={theme.app.dashboard.accentViolet}
           icon={<LanguageOutlined />}
         />
         <StatCard
@@ -192,8 +192,8 @@ export function AiTrainingWebsitesOverview({
       />
 
       <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, display: "block", mt: 1.5 }}>
-        Click a row to open <strong>{scopeLabel} training detail</strong> for that website.
+        Click a row to manage <strong>{scopeLabel.toLowerCase()}</strong> training for that website.
       </Typography>
-    </Box>
+    </DashboardCard>
   );
 }

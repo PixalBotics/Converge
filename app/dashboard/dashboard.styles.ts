@@ -1,4 +1,5 @@
 import type { SxProps, Theme } from "@mui/material/styles";
+import { alpha } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import { thinScrollbarsSx } from "@/lib/ui/thinScrollbars";
 
@@ -54,6 +55,97 @@ export const pageWrapper: SxProps<Theme> = {
   display: "flex",
   flexDirection: "column",
   gap: { xs: 1.5, sm: 2, md: 2.2 },
+};
+
+/** Home `/dashboard` vertical rhythm between header and widget stack. */
+export const dashboardHomeStack: SxProps<Theme> = {
+  display: "flex",
+  flexDirection: "column",
+  gap: { xs: 2, sm: 2.5, md: 3 },
+  width: "100%",
+  minWidth: 0,
+};
+
+/** Embedded overview blocks on the home dashboard (no nested page shell). */
+export const dashboardEmbeddedOverviewRoot: SxProps<Theme> = {
+  display: "flex",
+  flexDirection: "column",
+  gap: { xs: 1.5, sm: 2 },
+  width: "100%",
+  minWidth: 0,
+  "& > *": { mb: 0 },
+};
+
+/** Compact filter row for embedded dashboard widgets. */
+export const embeddedOverviewToolbar: SxProps<Theme> = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "flex-end",
+  flexWrap: "wrap",
+  gap: 1,
+  width: "100%",
+  minWidth: 0,
+};
+
+export const dashboardPageHero: SxProps<Theme> = (theme) => {
+  const app = (theme as AppTheme).app;
+  return {
+    display: "flex",
+    alignItems: { xs: "flex-start", sm: "center" },
+    justifyContent: "space-between",
+    gap: 1.5,
+    pb: { xs: 1.25, sm: 1.5 },
+    mb: { xs: 0.5, sm: 1 },
+    borderBottom: `1px solid ${app.dashboard.cardBorder}`,
+  };
+};
+
+export const dashboardWidgetSection: SxProps<Theme> = (theme) => {
+  const app = (theme as AppTheme).app;
+  return {
+    width: "100%",
+    minWidth: 0,
+    borderRadius: "12px",
+    border: `1px solid ${app.dashboard.cardBorder}`,
+    background: app.dashboard.glassGradient,
+    backdropFilter: "blur(12px)",
+    WebkitBackdropFilter: "blur(12px)",
+    boxShadow: app.dashboard.glassShadow,
+    overflow: "hidden",
+  };
+};
+
+export const dashboardWidgetSectionHeader: SxProps<Theme> = (theme) => {
+  const app = (theme as AppTheme).app;
+  return {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 1.5,
+    flexWrap: "wrap",
+    px: { xs: 1.5, sm: 2, md: 2.25 },
+    py: { xs: 1.15, sm: 1.35 },
+    borderBottom: `1px solid ${app.dashboard.cardBorder}`,
+    background: app.dashboard.overlayLight,
+  };
+};
+
+export const dashboardWidgetSectionBody: SxProps<Theme> = {
+  p: { xs: 1.5, sm: 2, md: 2.25 },
+  display: "flex",
+  flexDirection: "column",
+  gap: { xs: 1.5, sm: 2 },
+  width: "100%",
+  minWidth: 0,
+  boxSizing: "border-box",
+};
+
+export const dashboardPersonalStack: SxProps<Theme> = {
+  display: "flex",
+  flexDirection: "column",
+  gap: { xs: 1.5, sm: 2 },
+  width: "100%",
+  minWidth: 0,
 };
 
 export const overviewHeader: SxProps<Theme> = {

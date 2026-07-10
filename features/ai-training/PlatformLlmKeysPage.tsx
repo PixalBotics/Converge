@@ -24,7 +24,8 @@ import {
   usePlatformAiOverviewQuery,
   usePlatformLlmProvidersQuery,
 } from "@/lib/hooks/query/ai-training/platform-llm-hooks";
-import { aiTrainingListHref, aiTrainingSetupHref } from "./ai-training-routes";
+import { aiTrainingHubHref, aiTrainingSetupHref } from "./ai-training-routes";
+import { AI_CONFIG_PRODUCT } from "@/lib/ai/ai-role-copy";
 import { formatTokenCount } from "./ai-config.utils";
 import { LLM_PROVIDER_ORDER } from "./platform-llm-provider.meta";
 
@@ -165,11 +166,11 @@ export function PlatformLlmKeysPage() {
 
   return (
     <AiTrainingPageShell
-      title="AI platform configuration"
-      subtitle="Each LLM provider is configured independently — Gemini, OpenAI, and Groq each have their own credentials and usage."
+      title={AI_CONFIG_PRODUCT.title}
+      subtitle={AI_CONFIG_PRODUCT.description}
       icon={<KeyOutlined sx={{ fontSize: 28, color: "primary.main" }} />}
-      backHref={aiTrainingListHref("assistant")}
-      backLabel="Back to AI Management"
+      backHref={aiTrainingHubHref()}
+      backLabel="Back to overview"
     >
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
         <DashboardCard sx={integrationsMainCardSx}>

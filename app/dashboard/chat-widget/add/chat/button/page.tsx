@@ -551,6 +551,7 @@ export default function ChatWidgetButtonDesignPage() {
         checklistRefreshKey={checklistRefreshKey}
         preview={
           <WidgetLauncherLivePreview
+            buttonOnly
             buttonShape={buttonShape}
             buttonPosition={buttonPosition}
             insetBottomPx={previewBottomPx}
@@ -582,65 +583,8 @@ export default function ChatWidgetButtonDesignPage() {
         }
       >
         <WidgetWizardStepGuide step="button" />
-        <SchedulingSectionCard title="Launcher shape & position" subtitle="Floating button geometry and screen placement.">
+        <SchedulingSectionCard title="Colors & launcher style" subtitle="Button, hover, and icon colors plus surface style (solid, gradient, glass, glow).">
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
-      <Box>
-      <Typography variant="mediumLarge" sx={{ color: theme.app.text.primary, mb: 1 }}>Button Shape</Typography>
-      <Box sx={{ display: "flex", gap: 1.5, flexWrap: "wrap" }}>
-        <IconButton
-          type="button"
-          aria-label="Circle button shape"
-          onClick={() => setButtonShape("circle")}
-          sx={{
-            width: 44,
-            height: 44,
-            borderRadius: "50%",
-            bgcolor: buttonShape === "circle" ? theme.app.dashboard.accentBlue : theme.app.dashboard.overlayLight,
-          }}
-        >
-          <Box
-            aria-hidden
-            sx={{
-              width: 20,
-              height: 20,
-              borderRadius: "50%",
-              bgcolor: theme.app.text.primary,
-            }}
-          />
-        </IconButton>
-        <IconButton
-          type="button"
-          aria-label="Rounded button shape"
-          onClick={() => setButtonShape("rounded")}
-          sx={{
-            width: 44,
-            height: 44,
-            borderRadius: 2,
-            bgcolor: buttonShape === "rounded" ? theme.app.dashboard.accentBlue : theme.app.dashboard.overlayLight,
-          }}
-        >
-          <Box aria-hidden sx={{ width: 24, height: 18, borderRadius: "6px", bgcolor: theme.app.text.primary }} />
-        </IconButton>
-        <IconButton
-          type="button"
-          aria-label="Square button shape"
-          onClick={() => setButtonShape("square")}
-          sx={{
-            width: 44,
-            height: 44,
-            borderRadius: 1,
-            bgcolor: buttonShape === "square" ? theme.app.dashboard.accentBlue : theme.app.dashboard.overlayLight,
-          }}
-        >
-          <Box aria-hidden sx={{ width: 20, height: 20, borderRadius: "4px", bgcolor: theme.app.text.primary }} />
-        </IconButton>
-      </Box>
-
-      <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, mt: 0.75 }}>
-        {buttonShape === "circle" ? "Circle" : buttonShape === "rounded" ? "Rounded" : "Square"}
-      </Typography>
-      </Box>
-
       <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 2 }}>
         <WidgetColorPickerField
           label="Button color"
@@ -728,6 +672,170 @@ export default function ChatWidgetButtonDesignPage() {
             );
           })}
         </Box>
+      </Box>
+      </Box>
+        </SchedulingSectionCard>
+
+        <SchedulingSectionCard title="Icon & label" subtitle="Launcher icon, button text, and what visitors see on the floating chip.">
+      <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
+      <WidgetWizardToggleRow
+        label="Launcher icon"
+        description="Turn off to show only your button text (no glyph)."
+        checked={launcherIconEnabled}
+        onChange={setLauncherIconEnabled}
+      />
+
+      {launcherIconEnabled ? (
+      <Box>
+      <Typography variant="mediumLarge" sx={{ color: theme.app.text.primary, mb: 0.5 }}>
+        Default launcher icon
+      </Typography>
+      <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, mb: 1.25 }}>
+       Upload your own file below to override.
+      </Typography>
+      <WidgetLauncherIconPicker
+        buttonColor={selectedButtonColor || "#2AA9E0"}
+        hoverColor={selectedHoverColor || "#1C8DC2"}
+        iconColor={selectedIconColor || "#FFFFFF"}
+        launcherIconPreset={launcherIconPreset}
+        iconDataUrl={iconDataUrl}
+        onSelectDefault={() => {
+          setLauncherIconPreset("");
+          setIconDataUrl("");
+          setIconFileName("");
+        }}
+        onSelectPreset={(id) => {
+          setLauncherIconPreset(id);
+          setIconDataUrl("");
+          setIconFileName("");
+        }}
+      />
+
+      <Box
+        role="button"
+        tabIndex={0}
+        onClick={() => iconUploadRef.current?.click()}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            iconUploadRef.current?.click();
+          }
+        }}
+        sx={{
+          border: `1px dashed ${theme.app.dashboard.accentBlue}`,
+          borderRadius: 1.5,
+          py: 2,
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          bgcolor: "rgba(6, 12, 54, 0.4)",
+          gap: 0.75,
+          cursor: "pointer",
+        }}
+      >
+        <CloudUploadOutlined sx={{ color: theme.app.dashboard.accentBlue }} />
+        <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted }}>
+          Upload SVG icon or icon
+        </Typography>
+        <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted }}>
+          {iconFileName || "Max 10 MB files are allowed"}
+        </Typography>
+      </Box>
+      <Box component="input" ref={iconUploadRef} type="file" accept=".svg,.png,.jpg,.jpeg,.webp" onChange={handleIconUpload} sx={{ display: "none" }} />
+      </Box>
+      ) : null}
+
+      <WidgetWizardToggleRow
+        label="Button label"
+        description="Turn off to hide text on the launcher — visitors see the icon and shape only."
+        checked={launcherLabelEnabled}
+        onChange={setLauncherLabelEnabled}
+      />
+
+      {launcherLabelEnabled ? (
+      <Box>
+      <Typography variant="mediumLarge" sx={{ color: theme.app.text.primary, mb: 0.5 }}>
+        Launcher button text
+      </Typography>
+      <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, mb: 1.25 }}>
+        {launcherIconEnabled
+          ? "Shown on the floating pill next to the icon."
+          : "Required when the icon is off — this is the only label visitors see."}
+      </Typography>
+      <WidgetTextField
+        label="Button label"
+        value={buttonLabel}
+        onChange={setButtonLabel}
+        maxLength={FIELD_MAX.shortLabel}
+        placeholder="Chat with us"
+      />
+      </Box>
+      ) : (
+        <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted }}>
+          Label hidden — visitors see the launcher icon only (your chosen shape is kept).
+        </Typography>
+      )}
+      </Box>
+        </SchedulingSectionCard>
+
+        <SchedulingSectionCard title="Launcher shape & position" subtitle="Floating button geometry and screen placement.">
+      <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
+      <Box>
+      <Typography variant="mediumLarge" sx={{ color: theme.app.text.primary, mb: 1 }}>Button Shape</Typography>
+      <Box sx={{ display: "flex", gap: 1.5, flexWrap: "wrap" }}>
+        <IconButton
+          type="button"
+          aria-label="Circle button shape"
+          onClick={() => setButtonShape("circle")}
+          sx={{
+            width: 44,
+            height: 44,
+            borderRadius: "50%",
+            bgcolor: buttonShape === "circle" ? theme.app.dashboard.accentBlue : theme.app.dashboard.overlayLight,
+          }}
+        >
+          <Box
+            aria-hidden
+            sx={{
+              width: 20,
+              height: 20,
+              borderRadius: "50%",
+              bgcolor: theme.app.text.primary,
+            }}
+          />
+        </IconButton>
+        <IconButton
+          type="button"
+          aria-label="Rounded button shape"
+          onClick={() => setButtonShape("rounded")}
+          sx={{
+            width: 44,
+            height: 44,
+            borderRadius: 2,
+            bgcolor: buttonShape === "rounded" ? theme.app.dashboard.accentBlue : theme.app.dashboard.overlayLight,
+          }}
+        >
+          <Box aria-hidden sx={{ width: 24, height: 18, borderRadius: "6px", bgcolor: theme.app.text.primary }} />
+        </IconButton>
+        <IconButton
+          type="button"
+          aria-label="Square button shape"
+          onClick={() => setButtonShape("square")}
+          sx={{
+            width: 44,
+            height: 44,
+            borderRadius: 1,
+            bgcolor: buttonShape === "square" ? theme.app.dashboard.accentBlue : theme.app.dashboard.overlayLight,
+          }}
+        >
+          <Box aria-hidden sx={{ width: 20, height: 20, borderRadius: "4px", bgcolor: theme.app.text.primary }} />
+        </IconButton>
+      </Box>
+
+      <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, mt: 0.75 }}>
+        {buttonShape === "circle" ? "Circle" : buttonShape === "rounded" ? "Rounded" : "Square"}
+      </Typography>
       </Box>
 
       <SchedulingSectionCard
@@ -839,105 +947,6 @@ export default function ChatWidgetButtonDesignPage() {
           Unread badge style is configured on the Notifications step. Preview shows the current badge setting.
         </Typography>
       </SchedulingSectionCard>
-
-      <WidgetWizardToggleRow
-        label="Button label"
-        description="Turn off to hide text on the launcher — visitors see the icon and shape only."
-        checked={launcherLabelEnabled}
-        onChange={setLauncherLabelEnabled}
-      />
-
-      {launcherLabelEnabled ? (
-      <Box>
-      <Typography variant="mediumLarge" sx={{ color: theme.app.text.primary, mb: 0.5 }}>
-        Launcher button text
-      </Typography>
-      <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, mb: 1.25 }}>
-        {launcherIconEnabled
-          ? "Shown on the floating pill next to the icon."
-          : "Required when the icon is off — this is the only label visitors see."}
-      </Typography>
-      <WidgetTextField
-        label="Button label"
-        value={buttonLabel}
-        onChange={setButtonLabel}
-        maxLength={FIELD_MAX.shortLabel}
-        placeholder="Chat with us"
-      />
-      </Box>
-      ) : (
-        <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted }}>
-          Label hidden — visitors see the launcher icon only (your chosen shape is kept).
-        </Typography>
-      )}
-
-      <WidgetWizardToggleRow
-        label="Launcher icon"
-        description="Turn off to show only your button text (no glyph)."
-        checked={launcherIconEnabled}
-        onChange={setLauncherIconEnabled}
-      />
-
-      {launcherIconEnabled ? (
-      <Box>
-      <Typography variant="mediumLarge" sx={{ color: theme.app.text.primary, mb: 0.5 }}>
-        Default launcher icon
-      </Typography>
-      <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, mb: 1.25 }}>
-       Upload your own file below to override.
-      </Typography>
-      <WidgetLauncherIconPicker
-        buttonColor={selectedButtonColor || "#2AA9E0"}
-        hoverColor={selectedHoverColor || "#1C8DC2"}
-        iconColor={selectedIconColor || "#FFFFFF"}
-        launcherIconPreset={launcherIconPreset}
-        iconDataUrl={iconDataUrl}
-        onSelectDefault={() => {
-          setLauncherIconPreset("");
-          setIconDataUrl("");
-          setIconFileName("");
-        }}
-        onSelectPreset={(id) => {
-          setLauncherIconPreset(id);
-          setIconDataUrl("");
-          setIconFileName("");
-        }}
-      />
-
-      <Box
-        role="button"
-        tabIndex={0}
-        onClick={() => iconUploadRef.current?.click()}
-        onKeyDown={(event) => {
-          if (event.key === "Enter" || event.key === " ") {
-            event.preventDefault();
-            iconUploadRef.current?.click();
-          }
-        }}
-        sx={{
-          border: `1px dashed ${theme.app.dashboard.accentBlue}`,
-          borderRadius: 1.5,
-          py: 2,
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          bgcolor: "rgba(6, 12, 54, 0.4)",
-          gap: 0.75,
-          cursor: "pointer",
-        }}
-      >
-        <CloudUploadOutlined sx={{ color: theme.app.dashboard.accentBlue }} />
-        <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted }}>
-          Upload SVG icon or icon
-        </Typography>
-        <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted }}>
-          {iconFileName || "Max 10 MB files are allowed"}
-        </Typography>
-      </Box>
-      <Box component="input" ref={iconUploadRef} type="file" accept=".svg,.png,.jpg,.jpeg,.webp" onChange={handleIconUpload} sx={{ display: "none" }} />
-      </Box>
-      ) : null}
 
       <SelectField
         label="Button Position"

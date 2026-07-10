@@ -46,6 +46,9 @@ export function WidgetLauncherLivePreview({
   accent,
   density,
   launcherStyle = "solid",
+  buttonOnly = false,
+  showAccentDensityPreview = true,
+  forceIncomingAlertPreview = false,
 }: {
   buttonShape: "circle" | "rounded" | "square";
   buttonPosition: "left" | "center" | "right";
@@ -71,17 +74,25 @@ export function WidgetLauncherLivePreview({
   incomingPreviewAgentUrl?: string;
   incomingPreviewAgentPreset?: string;
   launcherBadgeMode?: "count" | "dot" | "none";
-  accent: string;
-  density: string;
+  accent?: string;
+  density?: string;
   launcherStyle?: WidgetLauncherStyleId;
+  /** Button design step — launcher FAB only, no chat panel or teaser overlays. */
+  buttonOnly?: boolean;
+  showAccentDensityPreview?: boolean;
+  forceIncomingAlertPreview?: boolean;
 }) {
   const theme = useTheme() as AppTheme;
   const fabColor = buttonColor || "#2563eb";
+  const showTeaser = !buttonOnly && !forceIncomingAlertPreview && proactiveTeaserActive;
   const showIncomingPreviewDemo =
-    closedMessagePreviewEnabled && !proactiveTeaserActive && Boolean(incomingPreviewSampleText.trim());
+    !buttonOnly &&
+    closedMessagePreviewEnabled &&
+    (forceIncomingAlertPreview || !proactiveTeaserActive) &&
+    Boolean(incomingPreviewSampleText.trim());
   const siteMinHeight = Math.max(
-    148,
-    insetBottomPx + LAUNCHER_PX + 24 + (proactiveTeaserActive || showIncomingPreviewDemo ? 72 : 0),
+    buttonOnly ? 120 : 148,
+    insetBottomPx + LAUNCHER_PX + 24 + (showTeaser || showIncomingPreviewDemo ? 72 : 0),
   );
   const badgeVisible = launcherBadgeMode !== "none";
 
@@ -96,20 +107,20 @@ export function WidgetLauncherLivePreview({
             transform: `translateX(calc(-50% + ${insetSidePx}px))`,
           };
 
-  return (
-    <Stack spacing={1.5}>
-      <Box>
-        <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, display: "block", mb: 0.75 }}>
-          Launcher on your website
-        </Typography>
+  const launcherPreview = (
+    <Box>
+      <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, display: "block", mb: 0.75 }}>
+        {buttonOnly ? "Launcher button" : "Launcher on your website"}
+      </Typography>
         <Box
           sx={{
             position: "relative",
             minHeight: siteMinHeight,
             borderRadius: 2,
             border: `1px solid ${theme.app.dashboard.cardBorder}`,
-            overflow: "hidden",
+            overflow: buttonOnly ? "visible" : "hidden",
             background: `linear-gradient(180deg, #eef2f7 0%, #e2e8f0 100%)`,
+            ...(buttonOnly ? { pb: 2, pr: 2 } : {}),
           }}
         >
           <Box
@@ -140,7 +151,7 @@ export function WidgetLauncherLivePreview({
               ...fabPosition,
             }}
           >
-            {proactiveTeaserActive ? (
+            {showTeaser ? (
               <WidgetProactiveTeaserBubble
                 text={proactiveTeaser}
                 avatarUrl={proactiveTeaserAvatarUrl}
@@ -223,20 +234,30 @@ export function WidgetLauncherLivePreview({
           </Badge>
           </Box>
         </Box>
-      </Box>
+    </Box>
+  );
 
-      <Box>
-        <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, display: "block", mb: 0.75 }}>
-          Chat panel — accent &amp; spacing
-        </Typography>
-        <WidgetAccentDensityPreview
-          accent={accent}
-          density={density}
-          launcherColor={fabColor}
-          headerTextColor="#ffffff"
-          embedded
-        />
-      </Box>
+  if (buttonOnly) {
+    return launcherPreview;
+  }
+
+  return (
+    <Stack spacing={1.5}>
+      {launcherPreview}
+      {showAccentDensityPreview && accent && density ? (
+        <Box>
+          <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, display: "block", mb: 0.75 }}>
+            Chat panel — accent &amp; spacing
+          </Typography>
+          <WidgetAccentDensityPreview
+            accent={accent}
+            density={density}
+            launcherColor={fabColor}
+            headerTextColor="#ffffff"
+            embedded
+          />
+        </Box>
+      ) : null}
     </Stack>
   );
 }

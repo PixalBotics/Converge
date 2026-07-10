@@ -3,7 +3,9 @@
 import { useMemo, useState } from "react";
 import AutoStories from "@mui/icons-material/AutoStories";
 import SmartToyOutlined from "@mui/icons-material/SmartToyOutlined";
+import { useTheme } from "@mui/material/styles";
 import { useRouter } from "next/navigation";
+import type { AppTheme } from "@/theme/theme";
 import {
   useAiAssistantKbTrainingWebsitesQuery,
   useAiChatbotTrainingWebsitesQuery,
@@ -12,7 +14,8 @@ import { extractApiErrorMessageForToast } from "@/lib/notify/extract-api-message
 import { AiTrainingHowItWorks } from "./AiTrainingHowItWorks";
 import { AiTrainingPageShell } from "./AiTrainingPageShell";
 import { AiTrainingWebsitesOverview } from "./AiTrainingWebsitesOverview";
-import { aiTrainingListHref, aiTrainingManageHref, aiTrainingSetupHref, aiTrainingTestStudioHref } from "./ai-training-routes";
+import { AI_ASSISTANT_PRODUCT, AI_CHATBOT_PRODUCT } from "@/lib/ai/ai-role-copy";
+import { aiTrainingAddHref, aiTrainingManageHref, aiTrainingSetupHref, aiTrainingTestStudioHref } from "./ai-training-routes";
 import type { AiTrainingKbVariant } from "./ai-training-kb.utils";
 import { useAiTrainingHierarchy } from "./use-ai-training-hierarchy";
 import { buildAiTrainingSessionScope } from "./ai-training-scope.util";
@@ -23,18 +26,18 @@ const VARIANT_COPY: Record<
   { title: string; subtitle: string }
 > = {
   assistant: {
-    title: "AI Assistant training",
-    subtitle:
-      "Websites with internal assistant knowledge — site scrape, docs, and FAQs (separate from visitor chatbot and inbox copilot).",
+    title: AI_ASSISTANT_PRODUCT.title,
+    subtitle: AI_ASSISTANT_PRODUCT.description,
   },
   chatbot: {
-    title: "AI Chatbot training",
-    subtitle: "Websites trained for the visitor widget — sitemap, pages, and FAQs.",
+    title: AI_CHATBOT_PRODUCT.title,
+    subtitle: AI_CHATBOT_PRODUCT.description,
   },
 };
 
 export function AiTrainingKbPage({ variant }: { variant: AiTrainingKbVariant }) {
   const router = useRouter();
+  const theme = useTheme() as AppTheme;
   const copy = VARIANT_COPY[variant];
   const HeaderIcon = variant === "chatbot" ? SmartToyOutlined : AutoStories;
   const isChatbot = variant === "chatbot";
@@ -97,7 +100,7 @@ export function AiTrainingKbPage({ variant }: { variant: AiTrainingKbVariant }) 
     <AiTrainingPageShell
       title={copy.title}
       subtitle={copy.subtitle}
-      icon={<HeaderIcon sx={{ color: "primary.main", fontSize: 28 }} />}
+      icon={<HeaderIcon sx={{ color: theme.app.dashboard.accentBlue, fontSize: 28 }} />}
     >
       <AiTrainingHowItWorks variant={variant} />
 
@@ -131,7 +134,7 @@ export function AiTrainingKbPage({ variant }: { variant: AiTrainingKbVariant }) 
           router.push(
             isChatbot
               ? aiTrainingSetupHref(undefined, "chatbot")
-              : aiTrainingListHref("assistant"),
+              : aiTrainingAddHref("assistant"),
           )
         }
       />

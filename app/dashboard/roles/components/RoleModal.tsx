@@ -13,6 +13,15 @@ import {
   pickAssignedChatBundle,
   type ChatBundleCode,
 } from "@/lib/permissions/chat-bundles";
+import { isDashboardWidgetPermission } from "@/lib/permissions/dashboard-widget-permissions";
+import {
+  appendDashboardWidgetToOrder,
+  inferDashboardWidgetOrderFromPermissionNames,
+  mergeDashboardWidgetOrderForSelection,
+  normalizeDashboardWidgetOrder,
+  removeDashboardWidgetFromOrder,
+} from "@/lib/permissions/dashboard-widget-layout";
+import { DashboardWidgetOrderEditor } from "./DashboardWidgetOrderEditor";
 import { extractApiErrorMessageForToast, publishAppToast } from "@/lib/notify";
 import {
   fetchPermissionExpandPreview,
@@ -31,6 +40,7 @@ import {
   buildSelectedPermissionSets,
   extractPermissionsCatalogGroups,
   extractRoleNameFromDetail,
+  extractRoleDashboardWidgetOrder,
   extractRoleDeniedPermissionNames,
   extractRoleEffectiveByType,
   extractRoleStoredPermissionNames,
@@ -39,66 +49,10 @@ import {
   type PermissionGroup,
   type RoleRow,
 } from "../utils";
-
-const VIEW_PERMISSION_DEPENDENCY_RULES: ReadonlyArray<{
-  required: string;
-  triggers: readonly string[];
-}> = [
-  {
-    required: "company:view",
-    triggers: ["page:clients", "company:create", "company:update", "company:delete", "company:manage"],
-  },
-  {
-    required: "user:view",
-    triggers: ["page:users", "user:create", "user:update", "user:delete", "user:assign", "user:login-as"],
-  },
-  {
-    required: "website-assignment:view",
-    triggers: [
-      "page:website-assignments",
-      "website-assignment:create",
-      "website-assignment:update",
-      "website-assignment:delete",
-      "website:assign",
-    ],
-  },
-  {
-    required: "report:view",
-    triggers: ["page:reports", "page:reports-configuration", "page:billing"],
-  },
-  {
-    required: "chat:report:view",
-    triggers: ["page:chat-reports", "page:chat-website-analytics", "page:chat-qa-team-reports"],
-  },
-  {
-    required: "chat:settings:view",
-    triggers: ["chat:settings:manage", "page:chat-close-policy"],
-  },
-  {
-    required: "smtp-email:view",
-    triggers: [
-      "page:smtp-email-reseller",
-      "page:smtp-email-platform",
-      "page:smtp-email-assignment",
-      "smtp-email:create",
-      "smtp-email:update",
-      "smtp-email:delete",
-      "smtp-email:test",
-    ],
-  },
-  {
-    required: "email-template:view",
-    triggers: [
-      "page:email-template-design",
-      "page:email-template-platform",
-      "page:email-template-forms",
-      "email-template:create",
-      "email-template:update",
-      "email-template:delete",
-      "email-template:publish",
-    ],
-  },
-];
+import {
+  ensureRequiredViewPermissions,
+  resolveMissingViewDependencies,
+} from "@/lib/permissions/view-permission-dependencies";
 
 export type RoleModalProps = {
   open: boolean;
@@ -112,17 +66,6 @@ function normalizeGroupTitle(title: string): "operational" | "page" | "other" {
   if (t.includes("PAGE")) return "page";
   if (t.includes("OPERATIONAL")) return "operational";
   return "other";
-}
-
-function resolveMissingViewDependencies(selectedCodes: Iterable<string>): string[] {
-  const selected = new Set(selectedCodes);
-  const missing = new Set<string>();
-  for (const rule of VIEW_PERMISSION_DEPENDENCY_RULES) {
-    const triggered = rule.triggers.some((code) => selected.has(code));
-    if (!triggered) continue;
-    if (!selected.has(rule.required)) missing.add(rule.required);
-  }
-  return [...missing].sort((a, b) => a.localeCompare(b));
 }
 
 /** Build PUT /roles/:id/permissions body from current editor state. */
@@ -258,6 +201,7 @@ export function RoleModal({ open, onClose, onSaved, editRole = null }: RoleModal
   const [chatBundle, setChatBundle] = useState<ChatBundleCode | null>(null);
   /** DB snapshot on load — only used for "Saved on this role" hint, not draft edits. */
   const [persistedStoredGrants, setPersistedStoredGrants] = useState<string[]>([]);
+  const [dashboardWidgetOrder, setDashboardWidgetOrder] = useState<string[]>([]);
 
   const hydratedKeyRef = useRef<string | null>(null);
   const hydratedPermsForRoleIdRef = useRef<string | null>(null);
@@ -296,8 +240,9 @@ export function RoleModal({ open, onClose, onSaved, editRole = null }: RoleModal
     [permissionsCatalogQuery.data],
   );
 
-  const { catalogOperational, catalogPage } = useMemo(() => {
+  const { catalogOperational, catalogPage, catalogDashboardWidgets } = useMemo(() => {
     const operational: PermissionOption[] = [];
+    const dashboardWidgets: PermissionOption[] = [];
     const page: PermissionOption[] = [];
     const seen = new Set<string>();
 
@@ -307,20 +252,26 @@ export function RoleModal({ open, onClose, onSaved, editRole = null }: RoleModal
         if (isChatBundleCode(perm.code) || seen.has(perm.code)) continue;
         seen.add(perm.code);
         const isPageCode = perm.code.startsWith("page:") || bucket === "page";
-        if (isPageCode) page.push(perm);
-        else operational.push(perm);
+        if (isPageCode) {
+          page.push(perm);
+        } else if (isDashboardWidgetPermission(perm.code)) {
+          dashboardWidgets.push(perm);
+        } else {
+          operational.push(perm);
+        }
       }
     }
 
     operational.sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: "base" }));
+    dashboardWidgets.sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: "base" }));
     page.sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: "base" }));
-    return { catalogOperational: operational, catalogPage: page };
+    return { catalogOperational: operational, catalogPage: page, catalogDashboardWidgets: dashboardWidgets };
   }, [permissionGroups]);
 
   const mapPermissionCodesToCatalog = useCallback(
     (codes: string[]) => {
       const lookup = new Map<string, string>();
-      for (const perm of [...catalogOperational, ...catalogPage]) {
+      for (const perm of [...catalogOperational, ...catalogDashboardWidgets, ...catalogPage]) {
         lookup.set(perm.code.toLowerCase(), perm.code);
         lookup.set(perm.label.toLowerCase(), perm.code);
       }
@@ -328,7 +279,7 @@ export function RoleModal({ open, onClose, onSaved, editRole = null }: RoleModal
         .map((code) => lookup.get(code.toLowerCase()) ?? code)
         .filter((code) => code.length > 0);
     },
-    [catalogOperational, catalogPage],
+    [catalogOperational, catalogDashboardWidgets, catalogPage],
   );
 
   const filterCatalog = useCallback(
@@ -343,6 +294,10 @@ export function RoleModal({ open, onClose, onSaved, editRole = null }: RoleModal
     [permissionSearch],
   );
 
+  const filteredDashboardWidgets = useMemo(
+    () => filterCatalog(catalogDashboardWidgets),
+    [catalogDashboardWidgets, filterCatalog],
+  );
   const filteredOperational = useMemo(
     () => filterCatalog(catalogOperational),
     [catalogOperational, filterCatalog],
@@ -350,6 +305,20 @@ export function RoleModal({ open, onClose, onSaved, editRole = null }: RoleModal
   const filteredPage = useMemo(
     () => filterCatalog(catalogPage),
     [catalogPage, filterCatalog],
+  );
+
+  const selectedDashboardWidgetCodes = useMemo(
+    () => [...checkedOperational].filter(isDashboardWidgetPermission),
+    [checkedOperational],
+  );
+
+  const visibleDashboardWidgetOrder = useMemo(
+    () =>
+      mergeDashboardWidgetOrderForSelection(
+        dashboardWidgetOrder,
+        selectedDashboardWidgetCodes,
+      ),
+    [dashboardWidgetOrder, selectedDashboardWidgetCodes],
   );
 
   const draftAllowSet = useMemo(() => new Set(storedGrants), [storedGrants]);
@@ -429,6 +398,19 @@ export function RoleModal({ open, onClose, onSaved, editRole = null }: RoleModal
       setEquivalentGrants(new Set(mapPermissionCodesToCatalog(preview.equivalentPermissionNames)));
       setDeniedGrants(mapPermissionCodesToCatalog(preview.deniedPermissionNames));
       setChatBundle(pickAssignedChatBundle(nextStored));
+
+      const widgetCodes = [...selection.operational].filter(isDashboardWidgetPermission);
+      if (widgetCodes.length > 0) {
+        setDashboardWidgetOrder((prev) => {
+          const inferred = inferDashboardWidgetOrderFromPermissionNames([
+            ...selection.operational,
+            ...selection.pages,
+            ...preview.impliedPermissionNames,
+          ]);
+          const baseOrder = prev.length > 0 ? prev : inferred;
+          return mergeDashboardWidgetOrderForSelection(baseOrder, widgetCodes);
+        });
+      }
     },
     [mapPermissionCodesToCatalog],
   );
@@ -501,12 +483,13 @@ export function RoleModal({ open, onClose, onSaved, editRole = null }: RoleModal
     hydratedPermsForRoleIdRef.current = null;
     expansionWarningShownRef.current = false;
     setPersistedStoredGrants([]);
+    setDashboardWidgetOrder([]);
   }, [open, isEdit, editId, editRole]);
 
   useEffect(() => {
     if (!open || !isEdit) return;
     if (hydratedPermsForRoleIdRef.current === editId) return;
-    if (!catalogOperational.length && !catalogPage.length) return;
+    if (!catalogOperational.length && !catalogDashboardWidgets.length && !catalogPage.length) return;
 
     const sourcePayload = rolePermissionsQuery.isSuccess
       ? rolePermissionsQuery.data
@@ -543,6 +526,14 @@ export function RoleModal({ open, onClose, onSaved, editRole = null }: RoleModal
     setCheckedPages(selectionSets.pages);
     hydratedPermsForRoleIdRef.current = editId;
 
+    if (roleDetailQuery.isSuccess && roleDetailQuery.data) {
+      setDashboardWidgetOrder(
+        normalizeDashboardWidgetOrder(
+          extractRoleDashboardWidgetOrder(roleDetailQuery.data),
+        ),
+      );
+    }
+
     void refreshExpandPreview(stored, selectionSets);
   }, [
     open,
@@ -553,6 +544,7 @@ export function RoleModal({ open, onClose, onSaved, editRole = null }: RoleModal
     roleDetailQuery.isSuccess,
     roleDetailQuery.data,
     catalogOperational.length,
+    catalogDashboardWidgets.length,
     catalogPage.length,
     mapPermissionCodesToCatalog,
     refreshExpandPreview,
@@ -612,6 +604,13 @@ export function RoleModal({ open, onClose, onSaved, editRole = null }: RoleModal
     setCheckedPages(nextPages);
     setStoredGrants(Array.from(new Set(nextStored)).sort());
     setDeniedGrants(Array.from(new Set(nextDenied)).sort());
+    if (isDashboardWidgetPermission(code)) {
+      setDashboardWidgetOrder((prev) =>
+        checked
+          ? appendDashboardWidgetToOrder(prev, code)
+          : removeDashboardWidgetFromOrder(prev, code),
+      );
+    }
     void refreshExpandPreview(Array.from(new Set(nextStored)).sort(), selectionSets);
   };
 
@@ -724,26 +723,37 @@ export function RoleModal({ open, onClose, onSaved, editRole = null }: RoleModal
       checkedPages,
       impliedGrants,
     });
+    const widgetOrder = mergeDashboardWidgetOrderForSelection(
+      dashboardWidgetOrder,
+      selectedDashboardWidgetCodes,
+    );
 
     if (permissionsBody.permissionNames.length === 0) {
       publishAppToast({ variant: "error", message: "Please select at least one permission." });
       return;
     }
 
-    if (missingViewDependencies.length > 0) {
-      publishAppToast({
-        variant: "error",
-        message: `Please also select required view permission(s): ${missingViewDependencies.join(", ")}`,
-      });
-      return;
-    }
+    const ensuredPermissions = ensureRequiredViewPermissions(permissionsBody.permissionNames);
+    const savePermissionsBody = {
+      ...permissionsBody,
+      permissionNames: ensuredPermissions.permissionNames,
+    };
 
     setIsSavingRole(true);
     try {
+      if (ensuredPermissions.added.length > 0) {
+        publishAppToast({
+          variant: "success",
+          message: `Added required view permission(s): ${ensuredPermissions.added.join(", ")}`,
+        });
+      }
       if (!isEdit) {
-        await createRole({ name, ...permissionsBody });
+        await createRole({ name, ...savePermissionsBody, dashboardWidgetOrder: widgetOrder });
       } else {
-        await replaceRolePermissions(editId, permissionsBody);
+        await replaceRolePermissions(editId, {
+          ...savePermissionsBody,
+          dashboardWidgetOrder: widgetOrder,
+        });
         const serverName =
           extractRoleNameFromDetail(roleDetailQuery.data) ?? editRole?.name ?? "";
         if (serverName.trim() !== name) {
@@ -1016,6 +1026,42 @@ export function RoleModal({ open, onClose, onSaved, editRole = null }: RoleModal
                 gap: 1.5,
               }}
             >
+              <Box sx={{ gridColumn: { xs: "1", md: "1 / -1" } }}>
+                <Box
+                  sx={{
+                    p: 1.5,
+                    borderRadius: 1.5,
+                    minWidth: 0,
+                    background: theme.app.dashboard.glassGradient,
+                    backdropFilter: "blur(10px)",
+                    WebkitBackdropFilter: "blur(10px)",
+                    boxShadow: theme.app.dashboard.glassShadow,
+                    border: `1px solid ${theme.app.dashboard.cardBorder}`,
+                  }}
+                >
+                  <Typography
+                    variant="body2"
+                    fontWeight={800}
+                    sx={{ color: theme.app.text.primary, mb: 0.5, fontSize: 13 }}
+                  >
+                    Dashboard layout (top → bottom)
+                  </Typography>
+                  <Typography
+                    variant="caption"
+                    sx={{ display: "block", mb: 1.1, color: theme.app.dashboard.textMuted }}
+                  >
+                    Cards on `/dashboard` appear in this order for users with this role.
+                  </Typography>
+                  <DashboardWidgetOrderEditor
+                    order={visibleDashboardWidgetOrder}
+                    disabled={isSaving}
+                    onChange={setDashboardWidgetOrder}
+                  />
+                </Box>
+              </Box>
+              <Box sx={{ gridColumn: { xs: "1", md: "1 / -1" } }}>
+                {renderSection("Dashboard widgets", filteredDashboardWidgets, checkedOperational)}
+              </Box>
               {renderSection("Operational permissions", filteredOperational, checkedOperational)}
               {renderSection("Page permissions", filteredPage, checkedPages)}
             </Box>

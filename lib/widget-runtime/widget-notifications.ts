@@ -1,16 +1,40 @@
 import type { RuntimeChatAppearance } from "./widget-runtime-appearance";
 
-export type WidgetSoundId = "soft" | "chime" | "ping" | "none";
+export type WidgetSoundId = "soft" | "chime" | "ping" | "bell" | "pop" | "ding" | "none";
 
 export type WidgetLauncherBadgeMode = "count" | "dot" | "none";
 
+export const WIDGET_NOTIFICATION_SOUND_OPTIONS: {
+  id: Exclude<WidgetSoundId, "none">;
+  label: string;
+  description: string;
+}[] = [
+  { id: "chime", label: "Chime", description: "Bright mid tone" },
+  { id: "soft", label: "Soft", description: "Gentle low tone" },
+  { id: "ping", label: "Ping", description: "Quick high ping" },
+  { id: "bell", label: "Bell", description: "Two-note doorbell" },
+  { id: "pop", label: "Pop", description: "Short punchy pop" },
+  { id: "ding", label: "Ding", description: "Clear high ding" },
+];
+
+type ToneStep = { frequency: number; durationMs: number; gain: number; delayMs?: number };
+
 const SOUND_PROFILES: Record<
-  Exclude<WidgetSoundId, "none">,
+  Exclude<WidgetSoundId, "none" | "bell">,
   { frequency: number; durationMs: number; gain: number }
 > = {
-  soft: { frequency: 520, durationMs: 160, gain: 0.12 },
-  chime: { frequency: 880, durationMs: 140, gain: 0.14 },
-  ping: { frequency: 1240, durationMs: 110, gain: 0.13 },
+  soft: { frequency: 520, durationMs: 180, gain: 0.42 },
+  chime: { frequency: 880, durationMs: 165, gain: 0.5 },
+  ping: { frequency: 1240, durationMs: 130, gain: 0.48 },
+  pop: { frequency: 420, durationMs: 90, gain: 0.55 },
+  ding: { frequency: 1318, durationMs: 240, gain: 0.46 },
+};
+
+const SOUND_SEQUENCES: Partial<Record<WidgetSoundId, ToneStep[]>> = {
+  bell: [
+    { frequency: 523, durationMs: 150, gain: 0.46 },
+    { frequency: 784, durationMs: 200, gain: 0.44, delayMs: 95 },
+  ],
 };
 
 let sharedAudioContext: AudioContext | null = null;
@@ -51,8 +75,35 @@ export function normalizeWidgetSoundId(raw: unknown): WidgetSoundId {
   const id = String(raw ?? "")
     .trim()
     .toLowerCase();
-  if (id === "soft" || id === "chime" || id === "ping" || id === "none") return id;
+  if (
+    id === "soft" ||
+    id === "chime" ||
+    id === "ping" ||
+    id === "bell" ||
+    id === "pop" ||
+    id === "ding" ||
+    id === "none"
+  ) {
+    return id;
+  }
   return "chime";
+}
+
+function playToneStep(ctx: AudioContext, step: ToneStep, startOffsetMs = 0): void {
+  const t0 = ctx.currentTime + startOffsetMs / 1000;
+  const durationSec = step.durationMs / 1000;
+  const peak = Math.min(0.72, step.gain);
+  const o = ctx.createOscillator();
+  const g = ctx.createGain();
+  o.type = step.frequency >= 1000 ? "sine" : "triangle";
+  o.connect(g);
+  g.connect(ctx.destination);
+  o.frequency.value = step.frequency;
+  g.gain.setValueAtTime(0, t0);
+  g.gain.linearRampToValueAtTime(peak, t0 + 0.008);
+  g.gain.exponentialRampToValueAtTime(0.001, t0 + durationSec);
+  o.start(t0);
+  o.stop(t0 + durationSec + 0.05);
 }
 
 export function normalizeLauncherBadgeMode(raw: unknown): WidgetLauncherBadgeMode {
@@ -82,20 +133,20 @@ export function playWidgetSound(soundId: WidgetSoundId): void {
     const ctx = getSharedAudioContext();
     if (!ctx) return;
     const run = () => {
-      const profile = SOUND_PROFILES[soundId];
-      const t0 = ctx.currentTime;
-      const durationSec = profile.durationMs / 1000;
-      const o = ctx.createOscillator();
-      const g = ctx.createGain();
-      o.type = "sine";
-      o.connect(g);
-      g.connect(ctx.destination);
-      o.frequency.value = profile.frequency;
-      g.gain.setValueAtTime(0.0001, t0);
-      g.gain.exponentialRampToValueAtTime(profile.gain, t0 + 0.012);
-      g.gain.exponentialRampToValueAtTime(0.0001, t0 + durationSec);
-      o.start(t0);
-      o.stop(t0 + durationSec + 0.03);
+      const sequence = SOUND_SEQUENCES[soundId];
+      if (sequence?.length) {
+        let offset = 0;
+        for (const step of sequence) {
+          const delay = step.delayMs ?? 0;
+          offset += delay;
+          playToneStep(ctx, step, offset);
+          offset += step.durationMs;
+        }
+        return;
+      }
+      const profile = SOUND_PROFILES[soundId as Exclude<WidgetSoundId, "none" | "bell">];
+      if (!profile) return;
+      playToneStep(ctx, profile);
     };
     if (ctx.state === "suspended") {
       void ctx.resume().then(run).catch(() => undefined);

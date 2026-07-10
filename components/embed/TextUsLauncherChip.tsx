@@ -2,7 +2,6 @@
 
 import CloseRounded from "@mui/icons-material/CloseRounded";
 import Box from "@mui/material/Box";
-import { alpha } from "@mui/material/styles";
 import { Typography } from "@/components/common";
 import { LauncherPresetIcon } from "@/lib/chat-widget/launcherIcons";
 import type { LauncherIconPresetId } from "@/lib/chat-widget/launcher-icon-presets";
@@ -20,6 +19,7 @@ export type TextUsLauncherChipProps = {
   iconDataUrl?: string;
   iconEnabled?: boolean;
   launcherStyle?: WidgetLauncherStyleId | string;
+  glowColor?: string;
   buttonLabel?: string;
   buttonShape?: "circle" | "rounded" | "square";
   open?: boolean;
@@ -40,6 +40,7 @@ export function TextUsLauncherChip({
   iconDataUrl = "",
   iconEnabled = true,
   launcherStyle = "solid",
+  glowColor,
   buttonLabel,
   buttonShape = "circle",
   open = false,
@@ -65,6 +66,7 @@ export function TextUsLauncherChip({
     iconColor,
     shape: fabShape,
     sizePx: fabSize,
+    glowColor,
   });
 
   const content = open ? (
@@ -112,6 +114,8 @@ export function TextUsLauncherChip({
     ? `Close ${widgetName}`
     : label || `Open ${widgetName === "widget" ? "chat" : widgetName}`;
 
+  const interactive = Boolean(onClick) || size === "preview";
+
   return (
     <Box
       component={onClick ? "button" : "div"}
@@ -119,37 +123,26 @@ export function TextUsLauncherChip({
       onClick={onClick}
       aria-label={a11yLabel}
       sx={{
-        ...surface,
+        ...(surface as object),
         display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
-        flexShrink: 0,
-        cursor: onClick ? "pointer" : "default",
-        border: "none",
-        boxShadow: `0 8px 28px ${alpha("#020617", 0.22)}`,
-        transition: "transform 0.18s ease, box-shadow 0.18s ease",
-        ...(pill
-          ? {
-              gap: 0.75,
-              width: "auto",
-              minWidth: fabSize,
-              height: fabSize,
-              px: size === "preview" ? 1.5 : 2,
-              borderRadius: "999px",
-            }
-          : {
-              borderRadius: launcherShapeRadius(buttonShape),
-            }),
-        "&:hover": onClick
-          ? size === "embed"
+          alignItems: "center",
+          justifyContent: "center",
+          flexShrink: 0,
+          cursor: interactive ? "pointer" : "default",
+          border: "none",
+          transition: "transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease",
+          ...(pill
             ? {
-                boxShadow: `0 12px 32px ${alpha("#020617", 0.28)}`,
+                gap: 0.75,
+                width: "auto",
+                minWidth: fabSize,
+                height: fabSize,
+                px: size === "preview" ? 1.5 : 2,
+                borderRadius: "999px",
               }
             : {
-                transform: "translateY(-2px)",
-                boxShadow: `0 12px 32px ${alpha("#020617", 0.28)}`,
-              }
-          : undefined,
+                borderRadius: launcherShapeRadius(buttonShape),
+              }),
       }}
     >
       {content}

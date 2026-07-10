@@ -27,11 +27,18 @@ import { useAiTrainingHierarchy } from "./use-ai-training-hierarchy";
 import { buildAiTrainingSessionScope } from "./ai-training-scope.util";
 import { useAuth } from "@/lib/auth";
 import {
+  AGENT_COPILOT_TITLE,
+  AI_COPILOT_PRODUCT,
+  AI_PRODUCT_RELATIONSHIP_NOTE,
+} from "@/lib/ai/ai-role-copy";
+import {
   aiTrainingCopilotHref,
   aiTrainingListHref,
+  aiTrainingManageHref,
   aiTrainingSetupHref,
 } from "./ai-training-routes";
-import { aiTrainingOverviewCardSx, aiTrainingStatGridSx, aiTrainingStatCardSx } from "./ai-training-ui.styles";
+import { aiTrainingMainCardSx, aiTrainingRelationshipBannerSx, aiTrainingStatCardSx, aiTrainingStatGridSx } from "./ai-training-ui.styles";
+import InfoOutlined from "@mui/icons-material/InfoOutlined";
 
 export function AiTrainingCopilotPage() {
   const router = useRouter();
@@ -127,11 +134,18 @@ export function AiTrainingCopilotPage() {
 
   return (
     <AiTrainingPageShell
-      title="AI Copilot"
-      subtitle="See which websites have inbox copilot configured. Copilot is separate from AI Assistant training."
+      title={AGENT_COPILOT_TITLE}
+      subtitle={AI_COPILOT_PRODUCT.description}
       icon={<SupportAgentOutlined sx={{ color: "primary.main", fontSize: 28 }} />}
     >
-      <Box sx={aiTrainingOverviewCardSx}>
+      <DashboardCard sx={aiTrainingRelationshipBannerSx}>
+        <InfoOutlined sx={{ color: theme.app.dashboard.accentBlue, fontSize: 20, mt: 0.25, flexShrink: 0 }} />
+        <Typography variant="small" sx={{ color: theme.app.dashboard.textMuted, lineHeight: 1.5 }}>
+          {AI_PRODUCT_RELATIONSHIP_NOTE}
+        </Typography>
+      </DashboardCard>
+
+      <DashboardCard sx={aiTrainingMainCardSx}>
         <Box
           sx={{
             display: "flex",
@@ -144,11 +158,10 @@ export function AiTrainingCopilotPage() {
         >
           <Box>
             <Typography variant="mediumLarge" color="white" fontWeight={700}>
-              Copilot by website
+              Websites
             </Typography>
             <Typography variant="small" sx={{ color: theme.app.dashboard.textMuted, mt: 0.5, maxWidth: 560 }}>
-              When chatbot LLM and assistant knowledge are both set, copilot is ready automatically.
-              Otherwise configure a dedicated copilot profile per site.
+              Select a website to see copilot readiness. Copilot is ready when assistant knowledge and chatbot LLM are both configured.
             </Typography>
           </Box>
         </Box>
@@ -156,7 +169,7 @@ export function AiTrainingCopilotPage() {
         <Box sx={aiTrainingStatGridSx}>
           <StatCard label="Websites" value={stats.total} accent={theme.app.dashboard.accentBlue} />
           <StatCard label="Copilot ready" value={stats.ready} accent={theme.palette.success.light} />
-          <StatCard label="Inherited" value={stats.inherited} accent="#a78bfa" />
+          <StatCard label="Inherited" value={stats.inherited} accent={theme.app.dashboard.accentViolet} />
           <StatCard label="Needs setup" value={stats.needsSetup} accent={theme.palette.warning.light} />
         </Box>
 
@@ -191,7 +204,7 @@ export function AiTrainingCopilotPage() {
             hierarchy.onResellerChange(hierarchy.sessionResellerId ?? "");
           }}
         />
-      </Box>
+      </DashboardCard>
 
       {websiteId && setupQuery.isLoading ? (
         <LinearProgress sx={{ mt: 2, borderRadius: 1 }} />
@@ -221,8 +234,8 @@ export function AiTrainingCopilotPage() {
             <StatusRow
               label="AI Assistant knowledge"
               ok={status.assistantConfigured}
-              actionLabel="Open assistant training"
-              onAction={() => router.push(aiTrainingListHref("assistant"))}
+              actionLabel="Train assistant"
+              onAction={() => router.push(aiTrainingManageHref("assistant", websiteId))}
             />
             <StatusRow
               label="Dedicated copilot profile"
