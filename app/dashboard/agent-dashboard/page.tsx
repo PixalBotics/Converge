@@ -1,3 +1,7 @@
 "use client";
 
-export { default } from "./AgentDashboardOverview";
+import AgentDashboardOverview from "./AgentDashboardOverview";
+
+export default function AgentDashboardPage() {
+  return <AgentDashboardOverview />;
+}

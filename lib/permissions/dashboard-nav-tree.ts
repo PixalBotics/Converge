@@ -4,14 +4,14 @@ import {
   AI_PAGE_PERMISSIONS,
   DEPARTMENTS_PAGE_PERMISSIONS,
   EMAIL_PAGE_PERMISSIONS,
-  HRMS_PAGE_PERMISSIONS,
+  HRMS_MODULE_PAGE_PERMISSIONS,
   LIVE_CHAT_PAGE_PERMISSIONS,
   PAGE,
   POOLS_PAGE_PERMISSIONS,
   REPORTS_PAGE_PERMISSIONS,
   SETTINGS_PAGE_PERMISSIONS,
-  SHIFTS_PAGE_PERMISSIONS,
   USERS_PAGE_PERMISSIONS,
+  VISITOR_CHANNELS_PAGE_PERMISSIONS,
   WEBSITE_PAGE_PERMISSIONS,
 } from "./permission-constants";
 import {
@@ -86,10 +86,6 @@ const LIVE_CHAT_GROUP: DashboardNavItem = {
     leafNavItem(PAGE.CHAT_WEBSITE_ANALYTICS, "/dashboard/website-analytics", "Website analytics", "reports", {
       operationalAny: [OP.chat.reportView],
     }),
-    leafNavItem(PAGE.CHAT_WIDGET, "/dashboard/chat-widget", "Widget", "chatWidget"),
-    leafNavItem(PAGE.PHONE_NUMBER_SETUP, "/dashboard/phone-number-setup", "Phone / Text Us", "chatWidget", {
-      operationalAny: [OP.phoneNumberSetup.view],
-    }),
     leafNavItem(PAGE.CHAT_CLOSE_POLICY, "/dashboard/chat-settings", "Settings", "chatWidget"),
     leafNavItem(PAGE.CHAT_CANNED, "/dashboard/chat-canned", "Canned messages", "chatWidget"),
     leafNavItem(PAGE.CHAT_INVOLVEMENT, "/dashboard/chat-involvement", "Involvement", "chatWidget"),
@@ -102,8 +98,24 @@ const LIVE_CHAT_GROUP: DashboardNavItem = {
   ],
 };
 
+const WIDGET_GROUP: DashboardNavItem = {
+  href: "/dashboard/chat-widget",
+  label: "Widget",
+  section: "activity",
+  iconKey: "chatWidget",
+  permission: null,
+  permissionsAny: [...VISITOR_CHANNELS_PAGE_PERMISSIONS],
+  prefixMatch: true,
+  children: [
+    leafNavItem(PAGE.CHAT_WIDGET, "/dashboard/chat-widget", "Chat widget", "chatWidget"),
+    leafNavItem(PAGE.PHONE_NUMBER_SETUP, "/dashboard/phone-number-setup", "Text Us", "chatWidget", {
+      operationalAny: [OP.phoneNumberSetup.view],
+    }),
+  ],
+};
+
 const AI_MANAGEMENT_GROUP: DashboardNavItem = {
-  href: "/dashboard/ai-training/assistant",
+  href: "/dashboard/ai-training",
   label: "AI Management",
   section: "activity",
   iconKey: "aiTraining",
@@ -120,7 +132,7 @@ const AI_MANAGEMENT_GROUP: DashboardNavItem = {
     leafNavItem(PAGE.AI_COPILOT, "/dashboard/ai-training/copilot", "AI Copilot", "aiTraining", {
       operationalAny: [OP.aiCopilot.setupView, OP.aiCopilot.setupManage],
     }),
-    leafNavItem(PAGE.AI_PLATFORM, "/dashboard/ai-training/platform-keys", "AI configuration", "aiTraining", {
+    leafNavItem(PAGE.AI_PLATFORM, "/dashboard/ai-training/platform-keys", "AI Configuration", "aiTraining", {
       operationalAny: [OP.aiPlatform.manage],
     }),
   ],
@@ -129,7 +141,7 @@ const AI_MANAGEMENT_GROUP: DashboardNavItem = {
 export const ALWAYS_VISIBLE_NAV_ITEMS: readonly DashboardNavItem[] = [
   {
     href: "/dashboard/theme",
-    label: "theme",
+    label: "Theme",
     section: "footer",
     iconKey: "theme",
     permission: null,
@@ -165,15 +177,38 @@ const POOLS_GROUP: DashboardNavItem = {
   ],
 };
 
-const SHIFTS_GROUP: DashboardNavItem = {
-  href: "/dashboard/shifts",
-  label: "Shifts",
+const HRMS_GROUP: DashboardNavItem = {
+  href: "/dashboard/attendance/my-attendance",
+  label: "HRMS",
   section: "activity",
-  iconKey: "shifts",
+  iconKey: "hrms",
   permission: null,
-  permissionsAny: [...SHIFTS_PAGE_PERMISSIONS],
+  permissionsAny: [...HRMS_MODULE_PAGE_PERMISSIONS],
   prefixMatch: true,
   children: [
+    leafNavItem(PAGE.HRMS_ATTENDANCE_SELF, "/dashboard/attendance/my-attendance", "My attendance", "reports", {
+      prefixMatch: false,
+    }),
+    leafNavItem(PAGE.HRMS_ATTENDANCE_MARK, "/dashboard/attendance/mark-attendance", "Mark attendance", "reports", {
+      prefixMatch: false,
+    }),
+    leafNavItem(PAGE.HRMS_LEAVE_APPLY, "/dashboard/leave/apply-leave", "Apply leave", "leave", { prefixMatch: false }),
+    leafNavItem(PAGE.HRMS_LEAVE_BALANCE, "/dashboard/leave/leave-balance", "Leave balance", "leave", {
+      prefixMatch: false,
+    }),
+    leafNavItem(PAGE.HRMS_ATTENDANCE_TEAM, "/dashboard/attendance/team-attendance", "Attendance", "reports", {
+      prefixMatch: false,
+      operationalAny: [OP.hrms.attendance.view],
+    }),
+    leafNavItem(PAGE.HRMS_LEAVE_TYPES, "/dashboard/leave/leave-type", "Leave type", "leave", { prefixMatch: false }),
+    leafNavItem(PAGE.HRMS_LEAVE_APPROVAL, "/dashboard/leave/approval-inbox", "Approval inbox", "leave", {
+      prefixMatch: false,
+      operationalAny: [
+        OP.hrms.leave.approvePool,
+        OP.hrms.leave.approveDepartment,
+        OP.hrms.leave.approveTenant,
+      ],
+    }),
     { ...toNavItem(PAGE.SHIFTS)!, label: "Shift list", prefixMatch: false },
     leafNavItem(PAGE.SHIFTS_DEPARTMENT, "/dashboard/shifts/department-shift", "Department shift", "shifts", {
       prefixMatch: false,
@@ -193,7 +228,7 @@ const WEBSITE_GROUP: DashboardNavItem = {
   children: [
     {
       ...toNavItem(PAGE.WEBSITE_ASSIGNMENTS)!,
-      label: "Website assign",
+      label: "Website assignments",
       prefixMatch: true,
       pathExcludes: ["/service-schedules", "/service-scheduling", "/inquire-topics", "/dashboard/websites"],
     },
@@ -250,42 +285,26 @@ const COMMERCIAL_ACCOUNT_GROUP: DashboardNavItem = {
       permissionsAny: [...COMMERCIAL_PAGE_PERMISSIONS],
       prefixMatch: true,
     },
-  ],
-};
-
-const HRMS_GROUP: DashboardNavItem = {
-  href: "/dashboard/hrms",
-  label: "HRMS",
-  section: "activity",
-  iconKey: "hrms",
-  permission: null,
-  permissionsAny: [...HRMS_PAGE_PERMISSIONS],
-  prefixMatch: true,
-  children: [
-    leafNavItem(PAGE.HRMS_OVERVIEW, "/dashboard/hrms", "Overview", "hrms", { prefixMatch: false }),
-    leafNavItem(PAGE.HRMS_ATTENDANCE_SELF, "/dashboard/attendance/my-attendance", "My attendance", "reports", {
-      prefixMatch: false,
-    }),
-    leafNavItem(PAGE.HRMS_ATTENDANCE_TEAM, "/dashboard/attendance/team-attendance", "Attendance", "reports", {
-      prefixMatch: false,
-      operationalAny: [OP.hrms.attendance.view],
-    }),
-    leafNavItem(PAGE.HRMS_ATTENDANCE_MARK, "/dashboard/attendance/mark-attendance", "Mark attendance", "reports", {
-      prefixMatch: false,
-    }),
-    leafNavItem(PAGE.HRMS_LEAVE_TYPES, "/dashboard/leave/leave-type", "Leave type", "leave", { prefixMatch: false }),
-    leafNavItem(PAGE.HRMS_LEAVE_APPLY, "/dashboard/leave/apply-leave", "Apply leave", "leave", { prefixMatch: false }),
-    leafNavItem(PAGE.HRMS_LEAVE_APPROVAL, "/dashboard/leave/approval-inbox", "Approval inbox", "leave", {
-      prefixMatch: false,
-      operationalAny: [
-        OP.hrms.leave.approvePool,
-        OP.hrms.leave.approveDepartment,
-        OP.hrms.leave.approveTenant,
-      ],
-    }),
-    leafNavItem(PAGE.HRMS_LEAVE_BALANCE, "/dashboard/leave/leave-balance", "Leave balance", "leave", {
-      prefixMatch: false,
-    }),
+    {
+      href: "/dashboard/services",
+      label: "Services",
+      section: "activity",
+      iconKey: "resellers",
+      permission: null,
+      permissionsAny: ["page:account-setup"],
+      prefixMatch: true,
+      internalOnly: true,
+    },
+    {
+      href: "/dashboard/contract",
+      label: "New contract",
+      section: "activity",
+      iconKey: "resellers",
+      permission: null,
+      permissionsAny: ["page:account-setup"],
+      prefixMatch: true,
+      internalOnly: true,
+    },
   ],
 };
 
@@ -299,11 +318,11 @@ const REPORTS_GROUP: DashboardNavItem = {
   prefixMatch: true,
   operationalAny: [OP.report.view],
   children: [
-    leafNavItem(PAGE.REPORTS, "/dashboard/reports", "Generate Reports", "reports", {
+    leafNavItem(PAGE.REPORTS, "/dashboard/reports", "Generate reports", "reports", {
       prefixMatch: false,
       operationalAny: [OP.report.view],
     }),
-    leafNavItem(PAGE.REPORTS_CONFIGURATION, "/dashboard/reports/configuration", "Reports Configuration", "reports", {
+    leafNavItem(PAGE.REPORTS_CONFIGURATION, "/dashboard/reports/configuration", "Reports configuration", "reports", {
       operationalAny: [OP.report.view],
     }),
   ],
@@ -358,12 +377,13 @@ const EMAIL_GROUP: DashboardNavItem = {
 
 export const DASHBOARD_NAV_ITEMS: readonly DashboardNavItem[] = PAGE_PERMISSION_ORDER.flatMap((permission) => {
   if (permission === PAGE.HRMS_OVERVIEW) return [HRMS_GROUP];
+  if (permission === PAGE.HRMS_ATTENDANCE_SELF) return [];
   if (permission === PAGE.DEPARTMENTS) return [DEPARTMENTS_GROUP];
   if (permission === PAGE.POOL) return [POOLS_GROUP];
   if (permission === PAGE.WEBSITE_ASSIGNMENTS) return [WEBSITE_GROUP];
   if (permission === PAGE.USERS) return [USERS_GROUP];
-  if (permission === PAGE.SHIFTS) return [SHIFTS_GROUP];
   if (permission === PAGE.CHAT_INBOX) return [LIVE_CHAT_GROUP];
+  if (permission === PAGE.CHAT_WIDGET) return [WIDGET_GROUP];
   if (permission === PAGE.AI_ASSISTANT) return [AI_MANAGEMENT_GROUP];
   if (COMMERCIAL_PAGE_PERMISSIONS.includes(permission)) {
     const first = firstCommercialPageInNavOrder();

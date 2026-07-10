@@ -41,7 +41,13 @@ export function useWizardLauncherChrome(
       ...d,
       ...launcherChrome,
       buttonLabel:
-        overrides?.buttonLabel !== undefined ? overrides.buttonLabel.trim() : d.buttonLabel,
+        d.launcherLabelEnabled === false
+          ? d.buttonLabel
+          : overrides?.buttonLabel !== undefined
+            ? overrides.buttonLabel.trim()
+            : d.buttonLabel,
+      launcherLabelEnabled: d.launcherLabelEnabled,
+      launcherIconEnabled: d.launcherIconEnabled,
       buttonColor: launcherChrome.buttonColor,
       buttonHoverColor: launcherChrome.buttonHoverColor,
       themePrimaryColor:

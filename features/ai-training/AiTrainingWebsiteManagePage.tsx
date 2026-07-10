@@ -40,9 +40,9 @@ import { AiTrainingSourcesTable } from "./AiTrainingSourcesTable";
 import { WebsiteAiConfigModal } from "./WebsiteAiConfigModal";
 import { usePlatformLlmAccess } from "./hooks/usePlatformLlmAccess";
 import {
+  aiTrainingAddHref,
   aiTrainingListHref,
   aiTrainingTestStudioHref,
-  aiTrainingTrainHref,
 } from "./ai-training-routes";
 import {
   hostFromWebsiteUrl,
@@ -55,6 +55,8 @@ import {
 import { useAiTrainingHierarchy } from "./use-ai-training-hierarchy";
 import { buildAiTrainingSessionScope } from "./ai-training-scope.util";
 import { useAuth } from "@/lib/auth";
+import { AI_ASSISTANT_PRODUCT, AI_CHATBOT_PRODUCT } from "@/lib/ai/ai-role-copy";
+import { aiTrainingQuickActionsSx } from "./ai-training-ui.styles";
 
 const LIST_LIMIT = 20;
 
@@ -257,12 +259,12 @@ export function AiTrainingWebsiteManagePage({ variant }: { variant: AiTrainingKb
       title={siteName}
       subtitle={
         isChatbot
-          ? "Training content for the visitor chatbot on this website — each row is one import (sitemap, page, or FAQ set)."
-          : "Training content for AI Assistant on this website — internal knowledge for agents (separate from AI Copilot)."
+          ? AI_CHATBOT_PRODUCT.description
+          : AI_ASSISTANT_PRODUCT.description
       }
       icon={<HeaderIcon sx={{ color: theme.app.dashboard.accentBlue, fontSize: 28 }} />}
       backHref={listHref}
-      backLabel="All trained websites"
+      backLabel={`Back to ${isChatbot ? "chatbot" : "assistant"} list`}
       actions={
         <>
           {websiteId ? (
@@ -281,9 +283,9 @@ export function AiTrainingWebsiteManagePage({ variant }: { variant: AiTrainingKb
             type="button"
             variant="primary"
             sx={gradientPrimaryButtonSx}
-            onClick={() => router.push(aiTrainingTrainHref(websiteId))}
+            onClick={() => router.push(aiTrainingAddHref(variant, websiteId))}
           >
-            + Add training
+            + Add content
           </Button>
         </>
       }
@@ -305,23 +307,28 @@ export function AiTrainingWebsiteManagePage({ variant }: { variant: AiTrainingKb
 
       <Stack spacing={2}>
       {websiteId ? (
-        <DashboardCard sx={{ p: 2.5, border: `1px solid ${theme.palette.primary.main}`, bgcolor: "rgba(59,130,246,0.06)" }}>
-          <Typography variant="mediumLarge" color="white" fontWeight={600} sx={{ mb: 0.5 }}>
-            Test on real training data
-          </Typography>
-          <Typography variant="small" sx={{ color: theme.app.dashboard.textMuted, mb: 2, maxWidth: 640 }}>
-            Open the automation studio — CRM-style flow on the left, settings in the rail, and a preview
-            bot that answers from this website&apos;s indexed content.
-          </Typography>
+        <Box sx={aiTrainingQuickActionsSx}>
           <Button
             type="button"
             variant="primary"
             sx={gradientPrimaryButtonSx}
+            onClick={() => router.push(aiTrainingAddHref(variant, websiteId))}
+          >
+            + Add content
+          </Button>
+          <Button
+            type="button"
+            variant="secondary"
             onClick={() => router.push(aiTrainingTestStudioHref(variant, websiteId))}
           >
-            Open automation studio
+            Test {isChatbot ? "chatbot" : "assistant"}
           </Button>
-        </DashboardCard>
+          {isChatbot ? (
+            <Button type="button" variant="secondary" onClick={() => setConfigModalOpen(true)}>
+              Chatbot LLM settings
+            </Button>
+          ) : null}
+        </Box>
       ) : null}
 
       {registeredHost ? (
@@ -333,12 +340,11 @@ export function AiTrainingWebsiteManagePage({ variant }: { variant: AiTrainingKb
 
       <DashboardCard sx={{ p: 2.5 }}>
         <Typography variant="mediumLarge" color="white" fontWeight={600} sx={{ mb: 0.5 }}>
-          Training content items
+          Training content
         </Typography>
         <Typography variant="small" sx={{ color: theme.app.dashboard.textMuted, mb: 2, maxWidth: 640 }}>
-          Each item is something you added (sitemap, page, FAQ, PDF, etc.).{" "}
-          <strong>Training…</strong> runs in the background; <strong>Indexed</strong> means the AI can use it.
-          Click a row to preview searchable pieces.
+          Each row is something you added — a sitemap, page, FAQ, or document.{" "}
+          <strong>Processing</strong> means we&apos;re still reading it; <strong>Indexed</strong> means the AI can use it.
         </Typography>
         <AiTrainingSourcesTable
           variant={variant}

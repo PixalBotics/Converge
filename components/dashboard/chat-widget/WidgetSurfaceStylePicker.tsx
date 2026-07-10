@@ -13,12 +13,16 @@ export function WidgetSurfaceStylePicker({
   label,
   value,
   onChange,
+  excludeStyles = [],
 }: {
   label: string;
   value: WidgetLauncherStyleId;
   onChange: (style: WidgetLauncherStyleId) => void;
+  excludeStyles?: WidgetLauncherStyleId[];
 }) {
   const theme = useTheme() as AppTheme;
+  const options = WIDGET_LAUNCHER_STYLE_OPTIONS.filter((opt) => !excludeStyles.includes(opt.id));
+  const columnCount = Math.max(1, Math.min(4, options.length));
 
   return (
     <Box>
@@ -28,11 +32,14 @@ export function WidgetSurfaceStylePicker({
       <Box
         sx={{
           display: "grid",
-          gridTemplateColumns: { xs: "1fr 1fr", sm: "repeat(4, 1fr)" },
+          gridTemplateColumns: {
+            xs: columnCount >= 2 ? "1fr 1fr" : "1fr",
+            sm: `repeat(${columnCount}, 1fr)`,
+          },
           gap: 1,
         }}
       >
-        {WIDGET_LAUNCHER_STYLE_OPTIONS.map((opt) => {
+        {options.map((opt) => {
           const selected = value === opt.id;
           return (
             <Button

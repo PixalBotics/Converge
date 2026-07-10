@@ -21,6 +21,7 @@ import { WidgetFlowShell } from "@/features/chat-widget";
 import { WebsiteWidgetConflictAlert } from "@/components/dashboard/chat-widget/WebsiteWidgetConflictAlert";
 import { WidgetTypeSelectionCards } from "@/components/dashboard/chat-widget/WidgetTypeSelectionCards";
 import { useResellerListScope } from "@/lib/auth";
+import { useAuth } from "@/lib/auth/AuthContext";
 import { websiteAssignmentItemToSelectOption } from "@/lib/websites/format-website-select-label";
 import {
   buildWebsitesInScopeParams,
@@ -41,6 +42,11 @@ import {
 import { loadInquiryTopicsFromScheduling } from "@/lib/chat-widget/hydrate-widget-inquiry-from-scheduling";
 import type { WidgetDraft } from "@/lib/chat-widget/widgetDraft";
 import { findConflictingWebsiteWidgets, wizardEntryPathForKind } from "@/lib/chat-widget/widget-type-conflicts";
+import {
+  clampWidgetKind,
+  pickDefaultWidgetKind,
+  resolveAllowedWidgetKinds,
+} from "@/lib/chat-widget/widget-kind-entitlement";
 import { useWebsiteWidgetsQuery } from "@/lib/chat-widget/use-website-widgets-query";
 import { extractApiErrorMessageForToast } from "@/lib/notify/extract-api-message";
 import { publishAppToast } from "@/lib/notify";
@@ -51,6 +57,8 @@ export default function WidgetTypeSelectionPage() {
   const router = useRouter();
   const theme = useTheme() as AppTheme;
   const { canFilterByResellerId, sessionResellerId } = useResellerListScope();
+  const { hasPage } = useAuth();
+  const allowedWidgetKinds = useMemo(() => resolveAllowedWidgetKinds(hasPage), [hasPage]);
   const [selectedType, setSelectedType] = useState<WidgetType>("chat");
   /** Same as `selectedType`, updated synchronously on card click so Next never reads stale state. */
   const selectedTypeRef = useRef<WidgetType>("chat");
@@ -79,15 +87,27 @@ export default function WidgetTypeSelectionPage() {
     if (d.tenantChildCompanyId) setChildCompanyId(d.tenantChildCompanyId);
     if (d.websiteId) setWebsiteId(d.websiteId);
     if (d.type === "chat" || d.type === "text" || d.type === "both") {
-      setSelectedType(d.type);
-      selectedTypeRef.current = d.type;
+      const clamped = clampWidgetKind(d.type, allowedWidgetKinds) ?? pickDefaultWidgetKind(allowedWidgetKinds);
+      if (clamped) {
+        setSelectedType(clamped);
+        selectedTypeRef.current = clamped;
+      }
     }
     setHydratedFromDraft(true);
-  }, [canFilterByResellerId, sessionResellerId]);
+  }, [canFilterByResellerId, sessionResellerId, allowedWidgetKinds]);
 
   useEffect(() => {
     selectedTypeRef.current = selectedType;
   }, [selectedType]);
+
+  useEffect(() => {
+    const next = clampWidgetKind(selectedType, allowedWidgetKinds);
+    if (!next || next === selectedType) return;
+    setSelectedType(next);
+    selectedTypeRef.current = next;
+  }, [allowedWidgetKinds, selectedType]);
+
+  const hasWidgetEntitlement = allowedWidgetKinds.length > 0;
 
   const resellersQuery = useCompaniesSetupResellersQuery({
     enabled: hydratedFromDraft && canFilterByResellerId,
@@ -245,6 +265,7 @@ export default function WidgetTypeSelectionPage() {
 
   const canContinue =
     hydratedFromDraft &&
+    hasWidgetEntitlement &&
     hierarchyReady &&
     Boolean(websiteId) &&
     hasWebsiteChoices &&
@@ -473,6 +494,7 @@ export default function WidgetTypeSelectionPage() {
           setSelectedType(kind);
           selectedTypeRef.current = kind;
         }}
+        allowedKinds={allowedWidgetKinds}
       />
 
       <Dialog open={conflictDialogOpen} onClose={() => !creatingDraft && setConflictDialogOpen(false)} maxWidth="sm" fullWidth>

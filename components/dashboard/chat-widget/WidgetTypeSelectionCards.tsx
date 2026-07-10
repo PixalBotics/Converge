@@ -46,16 +46,41 @@ export function WidgetTypeSelectionCards({
   selectedType,
   onSelect,
   disabled,
+  allowedKinds,
 }: {
   selectedType: WidgetKind;
   onSelect: (kind: WidgetKind) => void;
   disabled?: boolean;
+  /** When set, only these widget types are shown (from reseller `chat_widget` / `text_us` modules). */
+  allowedKinds?: readonly WidgetKind[];
 }) {
   const theme = useTheme() as AppTheme;
 
+  const visibleItems = allowedKinds?.length
+    ? CARD_ITEMS.filter((item) => allowedKinds.includes(item.id))
+    : CARD_ITEMS;
+
+  if (visibleItems.length === 0) {
+    return (
+      <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted }}>
+        No widget products are enabled for this reseller. Turn on Chat Widget and/or Text Us under
+        Services.
+      </Typography>
+    );
+  }
+
   return (
-    <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr 1fr" }, gap: 1.25 }}>
-      {CARD_ITEMS.map((item) => {
+    <Box
+      sx={{
+        display: "grid",
+        gridTemplateColumns: {
+          xs: "1fr",
+          md: visibleItems.length === 1 ? "1fr" : visibleItems.length === 2 ? "1fr 1fr" : "1fr 1fr 1fr",
+        },
+        gap: 1.25,
+      }}
+    >
+      {visibleItems.map((item) => {
         const active = selectedType === item.id;
         return (
           <Box

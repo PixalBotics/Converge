@@ -19,6 +19,12 @@ export function normalizeLauncherStyle(value: unknown): WidgetLauncherStyleId {
   return "solid";
 }
 
+/** Panel shell — glow is not offered in the wizard; keep legacy configs on solid. */
+export function normalizePanelSurfaceStyle(value: unknown): WidgetLauncherStyleId {
+  const style = normalizeLauncherStyle(value);
+  return style === "glow" ? "solid" : style;
+}
+
 function launcherShapeRadius(shape: string): string {
   if (shape === "square") return "10px";
   if (shape === "rounded") return "16px";
@@ -35,10 +41,13 @@ export function resolveLauncherFabSurfaceSx(params: {
   iconColor: string;
   shape: string;
   sizePx: number;
+  glowColor?: string;
 }): SxProps<Theme> {
   const radius = launcherShapeRadius(params.shape);
   const base = params.buttonColor || "#1E63D5";
   const hover = params.buttonHoverColor || base;
+  const glow = params.glowColor?.trim() || base;
+  const glowHover = params.glowColor?.trim() ? glow : hover;
   const icon = params.iconColor || "#ffffff";
   const hoverDistinct = hover.trim().toLowerCase() !== base.trim().toLowerCase();
   const hoverLift = {
@@ -98,11 +107,11 @@ export function resolveLauncherFabSurfaceSx(params: {
       ...sizeBlock,
       bgcolor: `${base} !important`,
       border: "none",
-      boxShadow: `0 0 0 1px rgba(255,255,255,0.2), 0 0 22px ${base}88, 0 8px 20px rgba(15, 23, 42, 0.2)`,
+      boxShadow: `0 0 0 1px rgba(255,255,255,0.2), 0 0 22px ${glow}88, 0 8px 20px rgba(15, 23, 42, 0.2)`,
       "&:hover": {
         bgcolor: `${hover} !important`,
         color: `${icon} !important`,
-        boxShadow: `0 0 0 1px rgba(255,255,255,0.28), 0 0 28px ${hover}aa, 0 10px 24px rgba(15, 23, 42, 0.24)`,
+        boxShadow: `0 0 0 1px rgba(255,255,255,0.28), 0 0 28px ${glowHover}aa, 0 10px 24px rgba(15, 23, 42, 0.24)`,
         ...hoverLift,
       },
     };
@@ -135,10 +144,12 @@ export function resolveWidgetPanelSurfaceSx(params: {
   buttonHoverColor: string;
   panelBackground: string;
   borderRadiusPx: number;
+  glowColor?: string;
 }): SxProps<Theme> {
   const radius = Math.max(12, params.borderRadiusPx);
   const base = params.buttonColor || "#1E63D5";
   const hover = params.buttonHoverColor || base;
+  const glow = params.glowColor?.trim() || base;
   const panelBg = params.panelBackground || "#f8fafc";
 
   if (params.style === "glass") {
@@ -166,8 +177,8 @@ export function resolveWidgetPanelSurfaceSx(params: {
     return {
       borderRadius: `${radius}px`,
       bgcolor: panelBg,
-      border: `1px solid ${base}55`,
-      boxShadow: `0 0 0 1px ${base}20, 0 14px 36px ${base}30`,
+      border: `1px solid ${glow}55`,
+      boxShadow: `0 0 0 1px ${glow}20, 0 14px 36px ${glow}30`,
     };
   }
 
@@ -250,10 +261,15 @@ export function resolveBubbleSurfaceSx(params: {
     return {
       bgcolor: `${baseBg} !important`,
       color: `${params.baseText} !important`,
-      border: `1px solid ${primary}44 !important`,
-      boxShadow: `0 0 0 1px ${primary}18, 0 2px 10px ${primary}28`,
+      border: `1px solid ${primary}55 !important`,
+      boxShadow: `0 0 0 1px ${primary}22, 0 0 14px ${primary}44, 0 2px 10px ${primary}30`,
     };
   }
 
-  return {};
+  return {
+    bgcolor: `${baseBg} !important`,
+    color: `${params.baseText} !important`,
+    border: `1px solid ${primary}22 !important`,
+    boxShadow: `0 2px 6px ${primary}14`,
+  };
 }

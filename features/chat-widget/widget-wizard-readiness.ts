@@ -22,8 +22,7 @@ export function buildWidgetWizardChecklist(draft: WidgetDraft): WidgetWizardChec
     .filter(Boolean);
   const domainsText = (draft.allowedDomainsText ?? "").trim();
   const teaserResolved = resolveProactiveTeaser(draft);
-  const panelGreeting = (draft.greetingMessage ?? "").trim();
-  const chatWelcome = (draft.firstMessage ?? "").trim();
+  const greeting = (draft.greetingMessage ?? draft.firstMessage ?? "").trim();
 
   const isTextUs = draft.type === "text" || draft.type === "both";
 
@@ -57,26 +56,10 @@ export function buildWidgetWizardChecklist(draft: WidgetDraft): WidgetWizardChec
       ok: !isProactiveTeaserFeatureOn(draft) || teaserResolved.active,
     },
     {
-      id: "panelGreeting",
-      label: "Panel greeting",
-      detail:
-        draft.panelGreetingEnabled === false
-          ? "Off (skip Continue step)"
-          : panelGreeting
-            ? "Continue step copy set"
-            : "Add on Chat box step",
-      ok: draft.panelGreetingEnabled === false || Boolean(panelGreeting),
-    },
-    {
-      id: "chatWelcome",
-      label: "Chat welcome",
-      detail:
-        draft.chatWelcomeEnabled === false
-          ? "Off (no first bubble)"
-          : chatWelcome
-            ? "First chat bubble set"
-            : "Add on Chat box step",
-      ok: draft.chatWelcomeEnabled === false || Boolean(chatWelcome),
+      id: "greeting",
+      label: "Greeting message",
+      detail: greeting ? greeting.slice(0, 48) : "Add on Chat box step",
+      ok: Boolean(greeting),
     },
     {
       id: "inquiry",
@@ -138,7 +121,10 @@ export function buildWidgetWizardChecklist(draft: WidgetDraft): WidgetWizardChec
       detail: draft.textUsButtonColor?.trim()
         ? `${draft.textUsHeaderTitle ?? "Title"} · ${draft.textUsButtonColor}`
         : "Set on Text Us step",
-      ok: Boolean(draft.textUsButtonColor?.trim() && draft.textUsHeaderTitle?.trim()),
+      ok: Boolean(
+        draft.textUsButtonColor?.trim() &&
+          (draft.textUsHeaderTitleEnabled === false || draft.textUsHeaderTitle?.trim()),
+      ),
     });
   }
 
@@ -147,6 +133,6 @@ export function buildWidgetWizardChecklist(draft: WidgetDraft): WidgetWizardChec
 
 export function widgetWizardReadyToPublish(draft: WidgetDraft): boolean {
   const items = buildWidgetWizardChecklist(draft);
-  const required = ["website", "draft", "mode", "panelGreeting", "chatWelcome"];
+  const required = ["website", "draft", "mode", "greeting"];
   return required.every((id) => items.find((i) => i.id === id)?.ok);
 }

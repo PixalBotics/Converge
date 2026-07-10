@@ -6,6 +6,7 @@ import type { LauncherIconPresetId } from "@/lib/chat-widget/widgetDraft";
 import { normalizeLauncherIconPreset } from "@/lib/chat-widget/launcher-icon-presets";
 import {
   normalizeLauncherStyle,
+  normalizePanelSurfaceStyle,
   type WidgetLauncherStyleId,
 } from "@/lib/chat-widget/launcher-style";
 import {
@@ -92,12 +93,16 @@ export interface RuntimeLauncherAppearance {
   buttonHoverColor: string;
   iconColor: string;
   style: WidgetLauncherStyleId;
+  /** Optional glow halo color when `style` is glow. */
+  glowColor?: string;
 }
 
 export interface RuntimeChatBoxAppearance {
   headerTitle: string;
   headerLogoUrl: string;
-  headerAlign: "left" | "center";
+  headerLogoHeightPx: number;
+  headerLogoMaxWidthPx?: number;
+  headerAlign: "left" | "center" | "right";
   headerBg: string;
   headerTextColor: string;
   greetingMessage: string;
@@ -121,11 +126,15 @@ export interface RuntimeBannerAppearance {
   imageUrl: string;
   videoUrl: string;
   mediaType: string;
+  heightPx: number;
+  ctaLabel: string;
+  ctaHref: string;
 }
 
 export interface RuntimeVideoWelcomeAppearance {
   enabled: boolean;
   url: string;
+  heightPx: number;
 }
 
 /** Greeting bubble shown before the pre-chat form in the embed widget. */
@@ -134,9 +143,9 @@ export function resolveEmbedGreetingMessage(
   fallbackWelcome?: string,
 ): string {
   return (
+    appearance.chatBox.greetingMessage.trim() ||
     appearance.panelGreetingMessage.trim() ||
     appearance.welcomeMessage.trim() ||
-    appearance.chatBox.greetingMessage.trim() ||
     (fallbackWelcome ?? "").trim()
   );
 }
@@ -169,6 +178,9 @@ export interface RuntimeChatAppearance {
   bodyTextColor: string;
   mutedTextColor: string;
   borderRadiusPx: number;
+  /** Message bubble corner radius — separate from panel `borderRadiusPx`. */
+  bubbleBorderRadiusPx: number;
+  bubbleStyle: string;
   form: RuntimeFormAppearance;
   formEnabled: boolean;
   offlineForm: RuntimeFormAppearance;
@@ -264,7 +276,10 @@ function normalizePosition(raw: string): RuntimeLauncherAppearance["position"] {
 }
 
 function normalizeHeaderAlign(raw: string): RuntimeChatBoxAppearance["headerAlign"] {
-  return raw.toLowerCase() === "left" ? "left" : "center";
+  const s = raw.toLowerCase();
+  if (s === "left") return "left";
+  if (s === "right") return "right";
+  return "center";
 }
 
 function normalizeIconPreset(raw: string): LauncherIconPresetId {
@@ -364,6 +379,7 @@ export function extractRuntimeChatAppearance(
   const accentPalette = resolveAccentPalette(designAccent);
   const densityTokens = resolveDensityTokens(designDensity);
   const djUi = dj && isObj(dj.ui) ? dj.ui : null;
+  const djBehavior = dj && isObj(dj.behavior) ? dj.behavior : null;
   const chat = dj && isObj(dj.chat) ? dj.chat : null;
   const launcher = chat && isObj(chat.launcher) ? chat.launcher : null;
   const chatPanel = chat && isObj(chat.panel) ? chat.panel : null;
@@ -424,14 +440,16 @@ export function extractRuntimeChatAppearance(
   const bodyTextColor = resolvedColors.bodyText;
   const mutedTextColor = resolvedColors.mutedText;
 
+  const rawGreetingMessage = strFirst(
+    configRecord.greetingMessage,
+    chatBox?.greetingMessage,
+    ui?.greetingMessage,
+    behavior?.welcomeMessage,
+    "How can we help?",
+  );
+
   const panelGreetingMessage = resolvePanelGreetingCopy(
-    strFirst(
-      configRecord.greetingMessage,
-      chatBox?.greetingMessage,
-      ui?.greetingMessage,
-      behavior?.welcomeMessage,
-      "How can we help?",
-    ),
+    rawGreetingMessage,
     { ...ui, ...djUi, panelGreetingEnabled: ui?.panelGreetingEnabled },
   );
 
@@ -443,6 +461,11 @@ export function extractRuntimeChatAppearance(
   );
 
   const borderRadiusPx = resolvedColors.borderRadiusPx;
+  const bubbleBorderRadiusPx = Math.max(
+    0,
+    numFirst(djBehavior?.bubbleBorderRadiusPx, behavior?.bubbleBorderRadiusPx) ?? borderRadiusPx,
+  );
+  const bubbleStyle = strFirst(theme?.bubbleStyle, designTokens?.bubbleStyle, "rounded");
 
   const agentTalkToAgentEnabled = runtimeBoolFirst(
     true,
@@ -515,6 +538,8 @@ export function extractRuntimeChatAppearance(
     bodyTextColor,
     mutedTextColor,
     borderRadiusPx,
+    bubbleBorderRadiusPx,
+    bubbleStyle,
     formEnabled: isPrechatFormEnabled(configRecord),
     talkToAgentTriggerText: strFirst(
       response?.talkToAgentTriggerText,
@@ -662,12 +687,49 @@ export function extractRuntimeChatAppearance(
         configRecord.bannerVideoUrl,
       ),
       mediaType: strFirst(chatBox?.bannerMediaType, ui?.bannerMediaType, configRecord.bannerMediaType, "image"),
+      heightPx: (() => {
+        const raw = numFirst(
+          djBehavior?.bannerHeightPx,
+          behavior?.bannerHeightPx,
+          chatBox?.bannerHeightPx,
+          ui?.bannerHeightPx,
+          configRecord.bannerHeightPx,
+        );
+        if (raw === undefined || raw <= 0) return 0;
+        return clampInt(raw, 0, 48, 200);
+      })(),
+      ctaLabel: strFirst(
+        djBehavior?.bannerCtaLabel,
+        behavior?.bannerCtaLabel,
+        chatBox?.bannerCtaLabel,
+        ui?.bannerCtaLabel,
+        configRecord.bannerCtaLabel,
+      ),
+      ctaHref: strFirst(
+        djBehavior?.bannerCtaHref,
+        behavior?.bannerCtaHref,
+        chatBox?.bannerCtaHref,
+        ui?.bannerCtaHref,
+        configRecord.bannerCtaHref,
+      ),
     },
     videoWelcome: {
       enabled:
         behavior?.videoWelcomeOn === true ||
         configRecord.videoWelcomeOn === true,
       url: strFirst(behavior?.videoWelcomeUrl, configRecord.videoWelcomeUrl),
+      heightPx: clampInt(
+        numFirst(
+          djBehavior?.videoWelcomeHeightPx,
+          behavior?.videoWelcomeHeightPx,
+          chatBox?.videoWelcomeHeightPx,
+          ui?.videoWelcomeHeightPx,
+          configRecord.videoWelcomeHeightPx,
+        ),
+        160,
+        80,
+        320,
+      ),
     },
     launcher: (() => {
       const teaser = resolveProactiveTeaser({ ...djUi, ...ui });
@@ -727,6 +789,28 @@ export function extractRuntimeChatAppearance(
         configRecord.headerLogoUrl,
         expPanel?.headerLogoUrl,
       ),
+      headerLogoHeightPx: clampInt(
+        numFirst(
+          djBehavior?.headerLogoHeightPx,
+          behavior?.headerLogoHeightPx,
+          chatBox?.headerLogoHeightPx,
+          ui?.headerLogoHeightPx,
+        ),
+        28,
+        16,
+        64,
+      ),
+      headerLogoMaxWidthPx: clampInt(
+        numFirst(
+          djBehavior?.headerLogoMaxWidthPx,
+          behavior?.headerLogoMaxWidthPx,
+          chatBox?.headerLogoMaxWidthPx,
+          ui?.headerLogoMaxWidthPx,
+        ),
+        96,
+        48,
+        200,
+      ),
       headerAlign: normalizeHeaderAlign(
         strFirst(
           chatBox?.headerAlign,
@@ -738,7 +822,7 @@ export function extractRuntimeChatAppearance(
       ),
       headerBg: resolvedColors.headerBackground,
       headerTextColor,
-      greetingMessage: panelGreetingMessage,
+      greetingMessage: rawGreetingMessage.trim(),
       sendPlaceholder: strFirst(
         chatBox?.sendPlaceholder,
         ui?.sendPlaceholder,
@@ -758,7 +842,7 @@ export function extractRuntimeChatAppearance(
       ),
       fontFamily: resolvedColors.fontFamily,
     },
-    panelSurfaceStyle: normalizeLauncherStyle(
+    panelSurfaceStyle: normalizePanelSurfaceStyle(
       strFirst(
         ui?.panelSurfaceStyle,
         djUi?.panelSurfaceStyle,
@@ -840,9 +924,14 @@ export function extractRuntimeTextUsAppearance(
 
   const buttonColor = str(textUs.buttonColor, "#1E63D5");
   const buttonHover = str(textUs.buttonHoverColor, mixHex(buttonColor, "#000000", 88));
-  const headerTitle = str(textUs.headerTitle, "Text us");
+  const headerTitle =
+    textUs.headerTitleEnabled === false
+      ? ""
+      : typeof textUs.headerTitle === "string"
+        ? textUs.headerTitle.trim() || "Text Us"
+        : str(textUs.headerTitle, "Text Us");
   const welcomeMessage = str(textUs.welcomeMessage, "");
-  const buttonLabel = str(textUs.buttonLabel, "Text us");
+  const buttonLabel = str(textUs.buttonLabel, "Text Us");
   const position = normalizePosition(str(textUs.position, "right"));
   const verticalAnchor =
     str(textUs.verticalAnchor, "bottom").toLowerCase() === "top" ? "top" : "bottom";
@@ -852,6 +941,9 @@ export function extractRuntimeTextUsAppearance(
   const boxWidth = clampInt(textUs.boxWidth, base.chatBox.boxWidth, 280, 520);
   const boxHeight = clampInt(textUs.boxHeight, base.chatBox.boxHeight, 320, 640);
   const headerLogoUrl = str(textUs.headerLogoUrl, "");
+  const headerLogoHeightPx = clampInt(textUs.headerLogoHeightPx, 28, 16, 64);
+  const headerLogoMaxWidthPx = clampInt(textUs.headerLogoMaxWidthPx, 96, 48, 200);
+  const headerAlign = normalizeHeaderAlign(str(textUs.headerAlign, "left"));
   const iconColor = str(textUs.iconColor, pickReadableText(buttonColor, "#ffffff", "#0f172a", "#ffffff"));
   const headerTextColor = pickReadableText(buttonColor, "#ffffff", "#0f172a", "#ffffff");
   const panelBackground = str(textUs.panelBackground, base.chatBox.backgroundColor);
@@ -868,6 +960,7 @@ export function extractRuntimeTextUsAppearance(
   const launcherStyle = normalizeLauncherStyle(
     str(textUsLauncher?.style, base.launcher.style),
   );
+  const launcherGlowColor = str(textUsLauncher?.glowColor, "");
 
   const designAccent = normalizeDesignAccent(
     typeof textUs.accent === "string"
@@ -930,15 +1023,18 @@ export function extractRuntimeTextUsAppearance(
       iconPreset,
       iconEnabled: launcherIconEnabled,
       style: launcherStyle,
+      glowColor: launcherGlowColor || undefined,
       buttonLabel,
     },
     chatBox: {
       ...base.chatBox,
       headerTitle,
       headerLogoUrl,
+      headerLogoHeightPx,
+      headerLogoMaxWidthPx,
       headerBg: buttonColor,
       headerTextColor,
-      headerAlign: "left",
+      headerAlign,
       greetingMessage: welcomeMessage || headerTitle,
       backgroundColor: panelBackground,
       boxWidth,
@@ -990,7 +1086,7 @@ export type LauncherFrameChromeOptions = {
 };
 
 export function estimatePillLauncherWidth(label: string, iconEnabled: boolean): number {
-  const text = label.trim() || "Text us";
+  const text = label.trim() || "Text Us";
   const charWidth = 8.5;
   const textWidth = Math.min(text.length * charWidth, 180);
   const iconPart = iconEnabled ? 26 + 12 : 0;

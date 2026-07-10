@@ -27,9 +27,10 @@ import {
   useChatWidgetWizardEdit,
   withChatEditQuery,
 } from "@/lib/chat-widget/chat-wizard-edit";
+import { WidgetNotificationAlertPreview } from "@/components/dashboard/chat-widget/WidgetNotificationAlertPreview";
 import { WidgetBehaviorLivePreview } from "@/components/dashboard/chat-widget/WidgetBehaviorLivePreview";
+import { WidgetSoundStylePicker } from "@/components/dashboard/chat-widget/WidgetSoundStylePicker";
 import { WidgetWizardPageLayout } from "@/features/chat-widget/components/WidgetWizardPageLayout";
-import { WidgetWizardSiteChromePreview } from "@/features/chat-widget/components/WidgetWizardSiteChromePreview";
 import { WidgetWizardToggleRow } from "@/features/chat-widget/components/WidgetWizardToggleRow";
 import { SchedulingSectionCard } from "@/features/website-assignments/components/ServiceSchedulingSections";
 import { readWidgetChatColorsFromDraft } from "@/lib/chat-widget/widget-colors-draft";
@@ -65,6 +66,7 @@ import {
 import {
   normalizeLauncherBadgeMode,
   normalizeWidgetSoundId,
+  type WidgetSoundId,
 } from "@/lib/widget-runtime/widget-notifications";
 import { useWizardLauncherChrome } from "@/lib/chat-widget/use-wizard-launcher-preview";
 import { resolveWizardLauncherPreview } from "@/lib/chat-widget/widget-wizard-save-trace";
@@ -108,9 +110,9 @@ export default function ChatWidgetNotificationsPage() {
     d0.autoOpenOnReturnVisit ?? false,
   );
   const [autoOpenDelayStr, setAutoOpenDelayStr] = useState(String(d0.autoOpenDelaySeconds ?? 10));
-  const [notificationSoundId, setNotificationSoundId] = useState<
-    "soft" | "chime" | "ping" | "none"
-  >(d0.notificationSoundId ?? "chime");
+  const [notificationSoundId, setNotificationSoundId] = useState<WidgetSoundId>(
+    d0.notificationSoundId ?? "chime",
+  );
   const [launcherBadgeMode, setLauncherBadgeMode] = useState<"count" | "dot" | "none">(
     d0.launcherBadgeMode ?? "count",
   );
@@ -394,6 +396,17 @@ export default function ChatWidgetNotificationsPage() {
 
   useWizardStepFlush(flushStepToDraft);
 
+  const alertPreviewDraft = useMemo(() => {
+    void checklistRefreshKey;
+    const base = chromeDraft;
+    return {
+      ...base,
+      launcherBadgeMode,
+      fallbackNotificationText: fallbackText.trim() || defaultWidgetDraft.fallbackNotificationText,
+      closedMessagePreviewEnabled: true,
+    };
+  }, [chromeDraft, launcherBadgeMode, fallbackText, checklistRefreshKey]);
+
   const behaviorPreviewModel = useMemo(() => {
     const draft = draftReady
       ? readChatWizardDraft(resolveEditWidgetKeyForNavigation(editWidgetKey) || undefined)
@@ -417,6 +430,8 @@ export default function ChatWidgetNotificationsPage() {
       consentText: consentText.trim(),
       inquiryOn: inquiryOn && inquiryOptions.some(isWidgetInquiryOptionConfigured),
       inquiryOptions: inquiryOptions.map((o) => o.label).filter(Boolean),
+      inquiryRequired: inquiryOn ? inquiryRequired : false,
+      inquirySkipLabel: inquirySkipLabel.trim(),
       talkToAgentEnabled: responseTalkToAgentEnabled,
       talkToAgentTriggerText: responseTalkToAgentTriggerText.trim(),
       greetingMessage: (draft.greetingMessage ?? defaultWidgetDraft.greetingMessage) || "",
@@ -428,6 +443,14 @@ export default function ChatWidgetNotificationsPage() {
         "",
       headerTitle: draft.headerTitle ?? "",
       offlineMessage: responseOfflineMessage.trim(),
+      offlineFormEnabled,
+      offlineFormTitle: offlineFormTitle.trim(),
+      offlineFormSubtitle: offlineFormSubtitle.trim(),
+      offlineFormSubmitLabel: offlineFormSubmitLabel.trim(),
+      offlinePrechatNameEnabled,
+      offlinePrechatEmailEnabled,
+      offlinePrechatPhoneEnabled,
+      offlinePrechatMessageEnabled,
     };
   }, [
     draftReady,
@@ -443,11 +466,21 @@ export default function ChatWidgetNotificationsPage() {
     prechatMessageEnabled,
     consentRequired,
     consentText,
+    inquiryOn,
+    inquiryRequired,
+    inquirySkipLabel,
+    inquiryOptions,
     responseTalkToAgentEnabled,
     responseTalkToAgentTriggerText,
     responseOfflineMessage,
-    inquiryOn,
-    inquiryOptions,
+    offlineFormEnabled,
+    offlineFormTitle,
+    offlineFormSubtitle,
+    offlineFormSubmitLabel,
+    offlinePrechatNameEnabled,
+    offlinePrechatEmailEnabled,
+    offlinePrechatPhoneEnabled,
+    offlinePrechatMessageEnabled,
   ]);
 
   const handleSaveAndNext = () => {
@@ -671,9 +704,21 @@ export default function ChatWidgetNotificationsPage() {
         showChecklist={false}
         checklistRefreshKey={checklistRefreshKey}
         preview={
-          <Stack spacing={2.5}>
-            <WidgetWizardSiteChromePreview draft={chromeDraft} />
-            <WidgetBehaviorLivePreview model={behaviorPreviewModel} />
+          <Stack spacing={3}>
+            <WidgetNotificationAlertPreview
+              draft={alertPreviewDraft}
+              browserNotification={browserNotification}
+              soundNotification={soundNotification}
+              notificationSoundId={
+                soundNotification ? notificationSoundId : "none"
+              }
+              launcherBadgeMode={launcherBadgeMode}
+              fallbackText={fallbackText}
+            />
+            <WidgetBehaviorLivePreview
+              model={behaviorPreviewModel}
+              subtitle="Visitor pre-chat form with inquiry topic pills, offline form, and chat handoff — updates as you edit below."
+            />
           </Stack>
         }
       >
@@ -694,19 +739,9 @@ export default function ChatWidgetNotificationsPage() {
               onChange={setSoundNotification}
             />
             {soundNotification ? (
-              <SelectField
-                label="Sound style"
-                value={notificationSoundId}
-                onChange={(v) =>
-                  setNotificationSoundId(v as "soft" | "chime" | "ping" | "none")
-                }
-                options={[
-                  { label: "Chime", value: "chime" },
-                  { label: "Soft", value: "soft" },
-                  { label: "Ping", value: "ping" },
-                ]}
-                searchable={false}
-                menuMaxRows={4}
+              <WidgetSoundStylePicker
+                value={notificationSoundId === "none" ? "chime" : notificationSoundId}
+                onChange={setNotificationSoundId}
               />
             ) : null}
             <SelectField

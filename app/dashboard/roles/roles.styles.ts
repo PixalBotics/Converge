@@ -1,9 +1,10 @@
 import type { SxProps, Theme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
+import { dashboardPageShell } from "../dashboard.styles";
 
+/** @deprecated Prefer `pageWrapper` from dashboard/overview styles; kept for existing `sx` arrays. */
 export const rolesPageWrapper: SxProps<Theme> = {
-  maxWidth: 1600,
-  mx: "auto",
+  ...dashboardPageShell,
 };
 
 export const rolesHeader: SxProps<Theme> = {

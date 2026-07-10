@@ -72,7 +72,7 @@ export function InquireTopicsTab({
     }
     saveTopicsMutation.mutate(buildVisitorTopicsSaveBody(topics), {
       onSuccess: () => {
-        publishAppToast({ message: "Inquire topics saved", variant: "success" });
+        publishAppToast({ message: "Inquire topics saved.", variant: "success" });
         onSaved?.();
       },
       onError: (e) =>

@@ -20,7 +20,7 @@ export const OP = {  accountSetup: {
     update: "account-setup:update",
     view: "account-setup:view",
   },
-  billing: { view: "billing:view" },
+  billing: { view: "billing:view", edit: "billing:edit" },
   observability: {
     auditRead: "observability:audit:read",
     analyticsRead: "observability:analytics:read",

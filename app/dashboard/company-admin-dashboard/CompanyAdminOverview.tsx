@@ -17,12 +17,10 @@ import {
 import type { AppTheme } from "@/theme/theme";
 import { userIconPath } from "@/assets";
 import { MetricCard } from "@/components/common";
-import { DashboardAttendanceMetrics } from "../components/DashboardAttendanceMetrics";
 import {
   DashboardCard,
   DataTable,
   Dropdown,
-  SegmentedControl,
   Typography,
 } from "@/components/common";
 import type { DataTableColumn } from "@/components/common";
@@ -66,6 +64,8 @@ import {
   overviewHeader,
   overviewHeaderDropdownWrap,
   pageWrapper,
+  dashboardEmbeddedOverviewRoot,
+  embeddedOverviewToolbar,
   revenueHeaderRow,
   revenueTitleRow,
   revenueTitleRowMb2,
@@ -93,98 +93,81 @@ const ChatVolumeChart = dynamic(
   { ssr: false, loading: () => <Box sx={chartLoadingBox} /> },
 );
 
-const DATE_RANGE_OPTIONS = ["Last 7 Days", "Last 30 Days", "Last 90 Days"];
-
-const departmentPerformanceBarData = [
-  { name: "Sales", value: 40, fill: "first" as const },
-  { name: "Supports", value: 30, fill: "second" as const },
-  { name: "Billing", value: 40, fill: "first" as const },
-  { name: "Tech", value: 60, fill: "second" as const },
-  { name: "Retention", value: 75, fill: "first" as const },
-  { name: "Tech", value: 50, fill: "second" as const },
-  { name: "Sales", value: 35, fill: "first" as const },
-];
-
-const chatVolumeLineData = [
-  { day: 1, value: 80 },
-  { day: 2, value: 120 },
-  { day: 3, value: 95 },
-  { day: 4, value: 160 },
-  { day: 5, value: 140 },
-  { day: 6, value: 180 },
-  { day: 7, value: 100 },
-];
-
-const agentPerformanceRows = [
-  {
-    agentName: "Sarah Jenkins",
-    activeChats: 2,
-    closedToday: 10982,
-    avgRating: 4.5,
-    avgResponse: "45s",
-  },
-  {
-    agentName: "Mike Ross",
-    activeChats: 0,
-    closedToday: 82,
-    avgRating: 5.0,
-    avgResponse: "1m 12s",
-  },
-  {
-    agentName: "Emily Chen",
-    activeChats: 7,
-    closedToday: 982,
-    avgRating: 4.2,
-    avgResponse: "58s",
-  },
-  {
-    agentName: "David Kim",
-    activeChats: 2,
-    closedToday: 2,
-    avgRating: 4.9,
-    avgResponse: "1m 05s",
-  },
-  {
-    agentName: "Sarah Jenkins",
-    activeChats: 4,
-    closedToday: 1231,
-    avgRating: 3.9,
-    avgResponse: "18s",
-  },
-  {
-    agentName: "Mike Ross",
-    activeChats: 7,
-    closedToday: 0,
-    avgRating: 5.0,
-    avgResponse: "2m 05s",
-  },
-];
-
-const liveOverviewChats = [
-  {
-    name: "Courtney Henry",
-    message: "I need help with my subscription upgrade...",
-    time: "2m ago",
-  },
-  {
-    name: "Robert Fox",
-    message: "Is there a discount for annual plans?",
-    time: "1m ago",
-  },
-  { name: "John Smith", message: "Connecting to agent...", time: "12m ago" },
-];
+import { formatDurationSeconds, formatScore } from "@/features/chat-reports/utils/format-metric";
+import { formatRelativeQueueTime } from "@/features/chat-operations/utils/format-message-time";
+import {
+  chartYMax,
+  conversationVisitorName,
+  DASHBOARD_DATE_RANGE_OPTIONS,
+  departmentBarChartData,
+  formatDashboardCount,
+  lastMessagePreview,
+  routingVolumeLineData,
+} from "../components/dashboard-chat.utils";
+import {
+  useDashboardChatReports,
+  useDashboardMonitorSnapshot,
+} from "../components/use-dashboard-chat-data";
 
 interface AgentPerformanceRow extends Record<string, unknown> {
   agentName: string;
   activeChats: number;
   closedToday: number;
-  avgRating: number;
+  avgRating: string;
   avgResponse: string;
 }
 
-export default function CompanyAdminOverview() {
+export default function CompanyAdminOverview({ embedded = false }: { embedded?: boolean }) {
   const theme = useTheme() as AppTheme;
   const [dateRangeValue, setDateRangeValue] = useState("Last 30 Days");
+  const reports = useDashboardChatReports(dateRangeValue);
+  const monitor = useDashboardMonitorSnapshot();
+
+  const summary = reports.overview?.summary;
+  const metricsLoading = reports.loading || monitor.loading;
+
+  const departmentPerformanceBarData = useMemo(
+    () => departmentBarChartData(reports.overview?.byDepartment ?? []),
+    [reports.overview?.byDepartment],
+  );
+
+  const chatVolumeLineData = useMemo(
+    () => routingVolumeLineData(reports.overview?.byRoutingKey ?? []),
+    [reports.overview?.byRoutingKey],
+  );
+
+  const liveCountByAgent = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const chat of monitor.liveList) {
+      if (!chat.agentId) continue;
+      const status = (chat.status ?? "").toLowerCase();
+      if (status === "active" || status === "assigned") {
+        map.set(chat.agentId, (map.get(chat.agentId) ?? 0) + 1);
+      }
+    }
+    return map;
+  }, [monitor.liveList]);
+
+  const agentPerformanceRows = useMemo<AgentPerformanceRow[]>(() => {
+    return (reports.overview?.byAgent ?? []).slice(0, 8).map((bucket) => ({
+      agentName: bucket.label,
+      activeChats: liveCountByAgent.get(bucket.key) ?? 0,
+      closedToday: bucket.closedCount,
+      avgRating: formatScore(bucket.avgCsatScore ?? bucket.avgQaScore),
+      avgResponse: formatDurationSeconds(bucket.avgFirstResponseSeconds),
+    }));
+  }, [liveCountByAgent, reports.overview?.byAgent]);
+
+  const liveOverviewChats = useMemo(
+    () =>
+      monitor.liveList.slice(0, 5).map((chat) => ({
+        id: chat.id,
+        name: conversationVisitorName(chat),
+        message: lastMessagePreview(chat),
+        time: formatRelativeQueueTime(chat.startedAt),
+      })),
+    [monitor.liveList],
+  );
 
   const agentPerformanceColumns = useMemo<DataTableColumn<AgentPerformanceRow>[]>(
     () => [
@@ -230,15 +213,17 @@ export default function CompanyAdminOverview() {
   );
 
   return (
-    <Box sx={pageWrapper}>
-      <Box sx={overviewHeader}>
-        <Typography variant="regularLarge" fontWeight={700} color="white">
-          Company Admin dashboard
-        </Typography>
+    <Box sx={embedded ? dashboardEmbeddedOverviewRoot : pageWrapper}>
+      <Box sx={embedded ? embeddedOverviewToolbar : overviewHeader}>
+        {!embedded ? (
+          <Typography variant="regularLarge" fontWeight={700} color="white">
+            Company Admin dashboard
+          </Typography>
+        ) : null}
         <Box sx={overviewHeaderDropdownWrap}>
           <Dropdown
             id="date-range-menu-employee"
-            options={DATE_RANGE_OPTIONS}
+            options={[...DASHBOARD_DATE_RANGE_OPTIONS]}
             value={dateRangeValue}
             onChange={setDateRangeValue}
             buttonSx={last30DaysButton}
@@ -247,13 +232,12 @@ export default function CompanyAdminOverview() {
         </Box>
       </Box>
 
-      <DashboardAttendanceMetrics />
 
       <Box sx={grid4}>
         <MetricCard
           title="Active Agents"
-          value="23,0989"
-          subtitle="Across 8 child companies"
+          value={formatDashboardCount(monitor.agentsOnline, metricsLoading)}
+          subtitle={`${formatDashboardCount(monitor.agentsTotal, metricsLoading)} agents in roster`}
           icon={<BarChartIcon sx={iconSize22} />}
           iconBgColor={theme.app.dashboard.accentBlue}
           valueColor={theme.app.dashboard.accentBlue}
@@ -262,8 +246,8 @@ export default function CompanyAdminOverview() {
         />
         <MetricCard
           title="Active Chats"
-          value="89"
-          subtitle="Peak time currently"
+          value={formatDashboardCount(monitor.inProgress, metricsLoading)}
+          subtitle={`${formatDashboardCount(monitor.waitingChats, metricsLoading)} waiting`}
           icon={<BarChartIcon sx={iconSize22} />}
           iconBgColor={theme.app.dashboard.accentOrange}
           valueColor={theme.app.dashboard.accentOrange}
@@ -271,8 +255,8 @@ export default function CompanyAdminOverview() {
         />
         <MetricCard
           title="Avg Response Time"
-          value="1m 24s"
-          subtitle="Improved from last week"
+          value={metricsLoading ? "…" : formatDurationSeconds(summary?.avgFirstResponseSeconds)}
+          subtitle={`Handle ${metricsLoading ? "…" : formatDurationSeconds(summary?.avgHandleSeconds)}`}
           icon={<BarChartIcon sx={iconSize22} />}
           iconBgColor={theme.app.dashboard.accentPurple}
           valueColor={theme.app.dashboard.accentPurple}
@@ -280,8 +264,8 @@ export default function CompanyAdminOverview() {
         />
         <MetricCard
           title="QA Average Rating"
-          value="4.8/5.0"
-          subtitle="52% increase from last month"
+          value={metricsLoading ? "…" : formatScore(summary?.avgQaScore ?? reports.overview?.qa.avgOverallScore)}
+          subtitle={`${formatDashboardCount(reports.overview?.qa.completed, metricsLoading)} QA reviews completed`}
           icon={<BarChartIcon sx={iconSize22} />}
           iconBgColor={theme.app.dashboard.accentPink}
           valueColor={theme.app.dashboard.accentPink}
@@ -300,25 +284,22 @@ export default function CompanyAdminOverview() {
                 Department Performance
               </Typography>
             </Box>
-            <SegmentedControl
-              options={[
-                { value: "monthly", label: "Monthly" },
-                { value: "weekly", label: "Weekly" },
-              ]}
-              value="monthly"
-              onChange={() => {}}
-              variant="default"
-            />
           </Box>
           <Box sx={chartFlexFill}>
             <Box sx={chartBoxDepartmentPerformance}>
-              <ChatAnalyticsBarChart
-                data={departmentPerformanceBarData}
-                height={320}
-                yDomain={[0, 80]}
-                yTickFormatter={(v) => String(v)}
-                tooltipFormatter={(v) => String(v)}
-              />
+              {departmentPerformanceBarData.length === 0 ? (
+                <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, py: 4 }}>
+                  No department data for this range.
+                </Typography>
+              ) : (
+                <ChatAnalyticsBarChart
+                  data={departmentPerformanceBarData}
+                  height={320}
+                  yDomain={[0, chartYMax(departmentPerformanceBarData.map((d) => d.value))]}
+                  yTickFormatter={(v) => String(v)}
+                  tooltipFormatter={(v) => String(v)}
+                />
+              )}
             </Box>
           </Box>
         </DashboardCard>
@@ -335,13 +316,19 @@ export default function CompanyAdminOverview() {
           </Box>
           <Box sx={chartFlexFill}>
             <Box sx={chartBox220}>
-              <ChatVolumeChart
-                data={chatVolumeLineData}
-                height={220}
-                yDomain={[50, 200]}
-                yTickFormatter={(v) => String(v)}
-                tooltipFormatter={(v) => String(v)}
-              />
+              {chatVolumeLineData.length === 0 ? (
+                <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, py: 4 }}>
+                  No chat volume data for this range.
+                </Typography>
+              ) : (
+                <ChatVolumeChart
+                  data={chatVolumeLineData}
+                  height={220}
+                  yDomain={[0, chartYMax(chatVolumeLineData.map((d) => d.value))]}
+                  yTickFormatter={(v) => String(v)}
+                  tooltipFormatter={(v) => String(v)}
+                />
+              )}
             </Box>
             <Box sx={chatVolumeSummaryWrapper}>
               <DashboardCard sx={chatVolumeSummaryPanel}>
@@ -356,7 +343,7 @@ export default function CompanyAdminOverview() {
                     Total Chats
                   </Typography>
                   <Typography variant="medium16" color="white">
-                    23,545
+                    {formatDashboardCount(summary?.conversationCount, metricsLoading)}
                   </Typography>
                 </Box>
                 <Box sx={chatVolumeSummaryDivider} />
@@ -371,7 +358,7 @@ export default function CompanyAdminOverview() {
                     Resolved
                   </Typography>
                   <Typography variant="medium16" sx={chatVolumeResolvedColor}>
-                    2,401
+                    {formatDashboardCount(summary?.closedCount, metricsLoading)}
                   </Typography>
                 </Box>
               </DashboardCard>
@@ -391,12 +378,18 @@ export default function CompanyAdminOverview() {
             </Typography>
           </Box>
           <Box sx={agentPerformanceTableWrap}>
-            <DataTable<AgentPerformanceRow>
-              columns={agentPerformanceColumns}
-              rows={agentPerformanceRows}
-              getRowId={(row, idx) => `agent-${row.agentName}-${idx}`}
-              minWidth={560}
-            />
+            {agentPerformanceRows.length === 0 ? (
+              <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, py: 2 }}>
+                No agent performance data for this range.
+              </Typography>
+            ) : (
+              <DataTable<AgentPerformanceRow>
+                columns={agentPerformanceColumns}
+                rows={agentPerformanceRows}
+                getRowId={(row, idx) => `agent-${row.agentName}-${idx}`}
+                minWidth={560}
+              />
+            )}
           </Box>
         </DashboardCard>
         <DashboardCard sx={cardLiveOverview}>
@@ -425,14 +418,18 @@ export default function CompanyAdminOverview() {
               </Typography>
               <Box sx={waitingQueueCountRow}>
                 <Typography component="span" variant="mediumLarge">
-                  12
+                  {formatDashboardCount(monitor.waitingChats, monitor.loading)}
                 </Typography>
                 <Typography component="span" variant="mediumLarge">
                   Chats
                 </Typography>
               </Box>
             </Box>
-            <IconButton size="small" sx={liveOverviewRefreshButton}>
+            <IconButton
+              size="small"
+              sx={liveOverviewRefreshButton}
+              onClick={() => void reports.refresh()}
+            >
               <RefreshIcon fontSize="small" />
             </IconButton>
           </DashboardCard>
@@ -440,8 +437,13 @@ export default function CompanyAdminOverview() {
             Currently Active (Recent)
           </Typography>
           <Box sx={liveOverviewChatList}>
-            {liveOverviewChats.map((chat, idx) => (
-              <Box key={`${chat.name}-${idx}`} sx={liveOverviewChatRow}>
+            {liveOverviewChats.length === 0 ? (
+              <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, py: 2 }}>
+                No live chats right now.
+              </Typography>
+            ) : (
+              liveOverviewChats.map((chat) => (
+                <Box key={chat.id} sx={liveOverviewChatRow}>
                 <Avatar sx={liveOverviewAvatar}>
                   <PersonIcon sx={liveOverviewAvatarIcon} />
                 </Avatar>
@@ -470,7 +472,8 @@ export default function CompanyAdminOverview() {
                   {chat.time}
                 </Typography>
               </Box>
-            ))}
+              ))
+            )}
           </Box>
         </DashboardCard>
       </Box>

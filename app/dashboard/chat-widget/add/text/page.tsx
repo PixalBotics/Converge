@@ -12,7 +12,7 @@ import { gradientPrimaryButtonSx } from "@/components/common/Button/Button.style
 import { WidgetFlowShell } from "@/features/chat-widget";
 import { WidgetWizardPageLayout } from "@/features/chat-widget/components/WidgetWizardPageLayout";
 import { WidgetWizardToggleRow } from "@/features/chat-widget/components/WidgetWizardToggleRow";
-import { WidgetTextField } from "@/features/chat-widget/components/WidgetFormFields";
+import { WidgetTextField, WidgetNumericField } from "@/features/chat-widget/components/WidgetFormFields";
 import { SchedulingSectionCard } from "@/features/website-assignments/components/ServiceSchedulingSections";
 import { WidgetColorPickerField } from "@/components/dashboard/chat-widget/WidgetColorPickerField";
 import { WidgetLauncherIconPicker } from "@/components/dashboard/chat-widget/WidgetLauncherIconPicker";
@@ -100,17 +100,30 @@ export default function TextUsWidgetPage() {
   const [buttonHoverColor, setButtonHoverColor] = useState(
     defaultWidgetDraft.textUsButtonHoverColor ?? "#164EB0",
   );
-  const [buttonLabel, setButtonLabel] = useState(defaultWidgetDraft.textUsButtonLabel ?? "Text us");
+  const [buttonLabel, setButtonLabel] = useState(defaultWidgetDraft.textUsButtonLabel ?? "Text Us");
   const [iconColor, setIconColor] = useState(defaultWidgetDraft.textUsIconColor ?? "#FFFFFF");
   const [panelBackground, setPanelBackground] = useState(
     defaultWidgetDraft.textUsPanelBackground ?? "#f8fafc",
   );
-  const [headerTitle, setHeaderTitle] = useState(defaultWidgetDraft.textUsHeaderTitle ?? "Text us");
+  const [headerTitle, setHeaderTitle] = useState(defaultWidgetDraft.textUsHeaderTitle ?? "Text Us");
+  const [headerTitleEnabled, setHeaderTitleEnabled] = useState(
+    defaultWidgetDraft.textUsHeaderTitleEnabled !== false,
+  );
   const [welcomeMessage, setWelcomeMessage] = useState(
     defaultWidgetDraft.textUsWelcomeMessage ?? "Send us a message — we reply by SMS.",
   );
   const [headerLogoDataUrl, setHeaderLogoDataUrl] = useState("");
   const [headerLogoFileName, setHeaderLogoFileName] = useState("");
+  const [headerLogoHeightPx, setHeaderLogoHeightPx] = useState(
+    String(defaultWidgetDraft.textUsHeaderLogoHeightPx ?? 28),
+  );
+  const [headerLogoMaxWidthPx, setHeaderLogoMaxWidthPx] = useState(
+    String(defaultWidgetDraft.textUsHeaderLogoMaxWidthPx ?? 96),
+  );
+  const [headerAlign, setHeaderAlign] = useState<"left" | "center" | "right">(
+    defaultWidgetDraft.textUsHeaderAlign ?? "left",
+  );
+  const [glowColor, setGlowColor] = useState(defaultWidgetDraft.textUsGlowColor ?? "");
   const [motionEnabled, setMotionEnabled] = useState(defaultWidgetDraft.textUsMotionEnabled !== false);
   const [launcherIconPreset, setLauncherIconPreset] = useState<LauncherIconPresetId>(
     defaultWidgetDraft.textUsLauncherIconPreset ?? "phosphor-chat-circle",
@@ -146,6 +159,7 @@ export default function TextUsWidgetPage() {
     if (d.textUsIconColor) setIconColor(d.textUsIconColor);
     if (d.textUsPanelBackground) setPanelBackground(d.textUsPanelBackground);
     if (d.textUsHeaderTitle) setHeaderTitle(d.textUsHeaderTitle);
+    if (d.textUsHeaderTitleEnabled != null) setHeaderTitleEnabled(d.textUsHeaderTitleEnabled !== false);
     if (d.textUsWelcomeMessage !== undefined) {
       setWelcomeMessage(d.textUsWelcomeMessage);
       setWelcomeEnabled(Boolean(d.textUsWelcomeMessage?.trim()));
@@ -154,6 +168,16 @@ export default function TextUsWidgetPage() {
       setHeaderLogoDataUrl(d.textUsHeaderLogoDataUrl);
       setHeaderLogoFileName("Uploaded logo");
     }
+    if (d.textUsHeaderLogoHeightPx != null) {
+      setHeaderLogoHeightPx(String(d.textUsHeaderLogoHeightPx));
+    }
+    if (d.textUsHeaderLogoMaxWidthPx != null) {
+      setHeaderLogoMaxWidthPx(String(d.textUsHeaderLogoMaxWidthPx));
+    }
+    if (d.textUsHeaderAlign) {
+      setHeaderAlign(d.textUsHeaderAlign);
+    }
+    if (d.textUsGlowColor) setGlowColor(d.textUsGlowColor);
     if (d.textUsMotionEnabled != null) setMotionEnabled(d.textUsMotionEnabled);
     if (d.textUsLauncherIconPreset) setLauncherIconPreset(d.textUsLauncherIconPreset);
     if (d.textUsLauncherIconEnabled != null) setLauncherIconEnabled(d.textUsLauncherIconEnabled);
@@ -177,15 +201,20 @@ export default function TextUsWidgetPage() {
       insetSidePx: parseInsetPxString(insetSidePx, 28),
       boxWidth: parseBoxSizeString(boxWidth, 360, 280, 520),
       boxHeight: parseBoxSizeString(boxHeight, 480, 320, 640),
-      headerTitle,
+      headerTitle: headerTitleEnabled ? headerTitle : "",
+      headerTitleEnabled,
       welcomeMessage: welcomeEnabled ? welcomeMessage : "",
-      buttonLabel: buttonLabel.trim() || "Text us",
+      buttonLabel: buttonLabel.trim() || "Text Us",
       headerLogoUrl: headerLogoDataUrl.startsWith("http") ? headerLogoDataUrl : undefined,
+      headerLogoHeightPx: parseBoxSizeString(headerLogoHeightPx, 28, 16, 64),
+      headerLogoMaxWidthPx: parseBoxSizeString(headerLogoMaxWidthPx, 96, 48, 200),
+      headerAlign,
       motionEnabled,
       panelBackground,
       launcherIconPreset,
       launcherIconEnabled,
       launcherStyle,
+      launcherGlowColor: glowColor.trim() || undefined,
       accent,
       density,
     }),
@@ -202,9 +231,14 @@ export default function TextUsWidgetPage() {
       boxWidth,
       boxHeight,
       headerTitle,
+      headerTitleEnabled,
       welcomeEnabled,
       welcomeMessage,
       headerLogoDataUrl,
+      headerLogoHeightPx,
+      headerLogoMaxWidthPx,
+      headerAlign,
+      glowColor,
       motionEnabled,
       panelBackground,
       launcherIconPreset,
@@ -244,7 +278,7 @@ export default function TextUsWidgetPage() {
           completed: false,
           textUsButtonColor: buttonColor,
           textUsButtonHoverColor: buttonHoverColor,
-          textUsButtonLabel: buttonLabel.trim() || "Text us",
+          textUsButtonLabel: buttonLabel.trim() || "Text Us",
           textUsIconColor: iconColor,
           textUsPanelBackground: panelBackground,
           textUsPosition: position,
@@ -254,9 +288,14 @@ export default function TextUsWidgetPage() {
           textUsInsetSidePx: parseInsetPxString(insetSidePx, 28),
           textUsBoxWidth: parseBoxSizeString(boxWidth, 360, 280, 520),
           textUsBoxHeight: parseBoxSizeString(boxHeight, 480, 320, 640),
-          textUsHeaderTitle: headerTitle,
+          textUsHeaderTitle: headerTitleEnabled ? headerTitle.trim() : "",
+          textUsHeaderTitleEnabled: headerTitleEnabled,
           textUsWelcomeMessage: welcomeEnabled ? welcomeMessage.trim() : "",
           textUsHeaderLogoDataUrl: headerLogoDataUrl,
+          textUsHeaderLogoHeightPx: parseBoxSizeString(headerLogoHeightPx, 28, 16, 64),
+          textUsHeaderLogoMaxWidthPx: parseBoxSizeString(headerLogoMaxWidthPx, 96, 48, 200),
+          textUsHeaderAlign: headerAlign,
+          textUsGlowColor: glowColor.trim(),
           textUsMotionEnabled: motionEnabled,
           textUsLauncherIconPreset: launcherIconPreset,
           textUsLauncherIconEnabled: launcherIconEnabled,
@@ -348,7 +387,12 @@ export default function TextUsWidgetPage() {
               boxWidth={parseBoxSizeString(boxWidth, 360, 280, 520)}
               boxHeight={parseBoxSizeString(boxHeight, 480, 320, 640)}
               headerTitle={headerTitle}
+              headerTitleEnabled={headerTitleEnabled}
               headerLogoDataUrl={headerLogoDataUrl || undefined}
+              headerLogoHeightPx={parseBoxSizeString(headerLogoHeightPx, 28, 16, 64)}
+              headerLogoMaxWidthPx={parseBoxSizeString(headerLogoMaxWidthPx, 96, 48, 200)}
+              headerAlign={headerAlign}
+              glowColor={glowColor.trim() || undefined}
               welcomeMessage={welcomeMessage}
               welcomeEnabled={welcomeEnabled}
               fields={previewFields}
@@ -451,7 +495,7 @@ export default function TextUsWidgetPage() {
               showCharCount
               helperText={
                 launcherIconEnabled
-                  ? "Shown on the floating pill next to the icon — e.g. Text us, SMS us."
+                  ? "Shown on the floating pill next to the icon — e.g. Text Us, SMS us."
                   : "Required when the icon is off — this is the only label visitors see."
               }
             />
@@ -522,27 +566,61 @@ export default function TextUsWidgetPage() {
                 </Typography>
               </Box>
               {headerLogoDataUrl ? (
-                <Box sx={{ mt: 1, display: "flex", alignItems: "center", gap: 1 }}>
-                  <Box
-                    component="img"
-                    src={headerLogoDataUrl}
-                    alt=""
-                    sx={{ height: 32, maxWidth: 120, objectFit: "contain" }}
-                  />
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    size="small"
-                    onClick={() => {
-                      setHeaderLogoDataUrl("");
-                      setHeaderLogoFileName("");
-                      if (logoUploadRef.current) logoUploadRef.current.value = "";
-                    }}
-                  >
-                    Remove
-                  </Button>
+                <Box sx={{ mt: 1, display: "flex", flexDirection: "column", gap: 1 }}>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                    <Box
+                      component="img"
+                      src={headerLogoDataUrl}
+                      alt=""
+                      sx={{
+                        height: parseBoxSizeString(headerLogoHeightPx, 28, 16, 64),
+                        maxWidth: parseBoxSizeString(headerLogoMaxWidthPx, 96, 48, 200),
+                        objectFit: "contain",
+                      }}
+                    />
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="small"
+                      onClick={() => {
+                        setHeaderLogoDataUrl("");
+                        setHeaderLogoFileName("");
+                        if (logoUploadRef.current) logoUploadRef.current.value = "";
+                      }}
+                    >
+                      Remove
+                    </Button>
+                  </Box>
+                  <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 2 }}>
+                    <WidgetNumericField
+                      label="Logo height (px)"
+                      name="text-us-logo-height"
+                      value={headerLogoHeightPx}
+                      onChange={setHeaderLogoHeightPx}
+                      min={16}
+                      max={64}
+                    />
+                    <WidgetNumericField
+                      label="Logo max width (px)"
+                      name="text-us-logo-max-width"
+                      value={headerLogoMaxWidthPx}
+                      onChange={setHeaderLogoMaxWidthPx}
+                      min={48}
+                      max={200}
+                    />
+                  </Box>
                 </Box>
               ) : null}
+              <SelectField
+                label="Header logo alignment"
+                value={headerAlign}
+                onChange={(v) => setHeaderAlign(v === "center" || v === "right" ? v : "left")}
+                options={[
+                  { label: "Left", value: "left" },
+                  { label: "Center", value: "center" },
+                  { label: "Right", value: "right" },
+                ]}
+              />
               <Box
                 component="input"
                 ref={logoUploadRef}
@@ -557,6 +635,21 @@ export default function TextUsWidgetPage() {
                 sx={{ display: "none" }}
               />
             </Box>
+
+            {launcherStyle === "glow" ? (
+              <Box>
+                <WidgetColorPickerField
+                  label="Glow color"
+                  value={glowColor}
+                  onChange={setGlowColor}
+                  fallback={buttonColor}
+                  optional
+                />
+                <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, display: "block", mt: 0.75 }}>
+                  Halo around launcher and panel. Leave empty to use button color.
+                </Typography>
+              </Box>
+            ) : null}
 
             <WidgetWizardToggleRow
               label="Panel animations"
@@ -628,33 +721,45 @@ export default function TextUsWidgetPage() {
 
         <SchedulingSectionCard
           title="Panel content"
-          subtitle="Header title and optional welcome line."
+          subtitle="Optional header title and welcome line — use your logo alone when the title is off."
         >
           <WidgetWizardToggleRow
-            label="Welcome message"
-            checked={welcomeEnabled}
-            onChange={setWelcomeEnabled}
+            label="Header title"
+            description="Turn off to hide text and show only your uploaded logo in the header bar."
+            checked={headerTitleEnabled}
+            onChange={setHeaderTitleEnabled}
           />
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 2, pt: 1 }}>
+          {headerTitleEnabled ? (
             <WidgetTextField
-              label="Header title"
+              label="Header title text"
               name="text-us-header"
               value={headerTitle}
               onChange={setHeaderTitle}
               maxLength={FIELD_MAX.title}
               showCharCount
+              placeholder="e.g. Text Us, Contact us, Get support"
             />
-            {welcomeEnabled ? (
-              <WidgetTextField
-                label="Welcome message"
-                name="text-us-welcome"
-                value={welcomeMessage}
-                onChange={setWelcomeMessage}
-                maxLength={FIELD_MAX.message}
-                showCharCount
-              />
-            ) : null}
-          </Box>
+          ) : (
+            <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, display: "block" }}>
+              Title hidden — upload a logo under Branding &amp; launcher for a logo-only header, or leave the bar
+              with your brand color only.
+            </Typography>
+          )}
+          <WidgetWizardToggleRow
+            label="Welcome message"
+            checked={welcomeEnabled}
+            onChange={setWelcomeEnabled}
+          />
+          {welcomeEnabled ? (
+            <WidgetTextField
+              label="Welcome message"
+              name="text-us-welcome"
+              value={welcomeMessage}
+              onChange={setWelcomeMessage}
+              maxLength={FIELD_MAX.message}
+              showCharCount
+            />
+          ) : null}
         </SchedulingSectionCard>
 
         <SchedulingSectionCard

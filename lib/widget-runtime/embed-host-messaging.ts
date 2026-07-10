@@ -55,7 +55,7 @@ function estimateClosedLauncherContentSize(
   if (isPill) {
     return {
       width: estimatePillLauncherWidth(
-        label || (surface === "textUs" ? "Text us" : "Chat"),
+        label || (surface === "textUs" ? "Text Us" : "Chat"),
         launcher.iconEnabled !== false,
       ),
       height: TEXT_US_EMBED_LAUNCHER_HEIGHT_PX,

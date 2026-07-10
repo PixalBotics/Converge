@@ -81,6 +81,8 @@ export interface WidgetDraft {
   headerTitleAlign: "Center" | "Left";
   /** Header bar logo (data URL until upload). */
   headerLogoDataUrl?: string;
+  /** Header logo height in px (embed + preview). */
+  headerLogoHeightPx?: number;
   /** Chat panel shell style — independent of launcher FAB style. */
   panelSurfaceStyle?: WidgetLauncherStyleId;
   /** Message bubble surface style (solid, gradient, glass, glow). */
@@ -100,6 +102,10 @@ export interface WidgetDraft {
   bannerOn: boolean;
   bannerTitle: string;
   bannerDescription: string;
+  /** Promo banner media height in px; `0` = auto (natural aspect ratio). */
+  bannerHeightPx?: number;
+  bannerCtaLabel?: string;
+  bannerCtaHref?: string;
   bannerDataUrl: string;
   bannerMediaType: "image" | "video";
   boxWidth: number;
@@ -117,8 +123,16 @@ export interface WidgetDraft {
   textUsBoxWidth?: number;
   textUsBoxHeight?: number;
   textUsHeaderTitle?: string;
+  /** When false, panel header shows logo only (no title text). */
+  textUsHeaderTitleEnabled?: boolean;
   textUsWelcomeMessage?: string;
   textUsHeaderLogoDataUrl?: string;
+  textUsHeaderLogoHeightPx?: number;
+  textUsHeaderLogoMaxWidthPx?: number;
+  /** Header logo + title alignment inside the panel bar. */
+  textUsHeaderAlign?: "left" | "center" | "right";
+  /** Glow halo color when `textUsLauncherStyle` is glow — defaults to button color. */
+  textUsGlowColor?: string;
   textUsLauncherIconPreset?: LauncherIconPresetId;
   /** When false, floating launcher shows button text only (no glyph). */
   textUsLauncherIconEnabled?: boolean;
@@ -134,7 +148,10 @@ export interface WidgetDraft {
   themeSecondaryColor?: string;
   themeFontFamily?: string;
   themeBubbleStyle?: string;
+  /** Panel shell corner radius (PATCH `config.theme.borderRadiusPx`). */
   themeBorderRadiusPx?: number;
+  /** Message bubble corner radius (`theme.designJson.behavior.bubbleBorderRadiusPx`). */
+  bubbleBorderRadiusPx?: number;
   themeWelcomeFontSizePx?: number;
   themeBodyFontSizePx?: number;
   themeInputFontSizePx?: number;
@@ -194,6 +211,8 @@ export interface WidgetDraft {
   videoWelcomeOn?: boolean;
   /** YouTube/Vimeo or direct MP4 link (saved in config; embed player pending). */
   videoWelcomeUrl?: string;
+  /** Video welcome embed height in px. */
+  videoWelcomeHeightPx?: number;
   /** When false, inquiry topic pills are hidden (step 2 toggle). */
   inquiryOn?: boolean;
   /** When true, visitor must pick a topic pill (default false = skip allowed). */
@@ -207,7 +226,7 @@ export interface WidgetDraft {
   autoOpenDelaySeconds?: number;
   /** When false, auto-open runs only on first visit (per browser). */
   autoOpenOnReturnVisit?: boolean;
-  notificationSoundId?: "soft" | "chime" | "ping" | "none";
+  notificationSoundId?: "soft" | "chime" | "ping" | "bell" | "pop" | "ding" | "none";
   launcherBadgeMode?: "count" | "dot" | "none";
   fileUploadEnabled?: boolean;
   emojiEnabled?: boolean;
@@ -274,6 +293,7 @@ export const defaultWidgetDraft: WidgetDraft = {
   launcherStyle: "solid",
   headerTitleAlign: "Center",
   headerLogoDataUrl: "",
+  headerLogoHeightPx: 28,
   panelSurfaceStyle: "solid",
   bubbleSurfaceStyle: "solid",
   agentAvatarEnabled: true,
@@ -284,18 +304,21 @@ export const defaultWidgetDraft: WidgetDraft = {
   visitorAvatarPreset: "phosphor-user-circle",
   headerTitle: "",
   textColor: "#FFFFFF",
-  greetingMessage: "Hi there — tap Continue when you are ready to chat.",
+  greetingMessage: "Hi! How can we help today?",
   sendPlaceholder: "Type your message…",
   bannerOn: true,
   bannerTitle: "",
   bannerDescription: "",
+  bannerHeightPx: 0,
+  bannerCtaLabel: "",
+  bannerCtaHref: "",
   bannerDataUrl: "",
   bannerMediaType: "image",
   boxWidth: 350,
   boxHeight: 430,
   textUsButtonColor: "#1E63D5",
   textUsButtonHoverColor: "#164EB0",
-  textUsButtonLabel: "Text us",
+  textUsButtonLabel: "Text Us",
   textUsIconColor: "#FFFFFF",
   textUsPosition: "right",
   textUsVerticalAnchor: "bottom",
@@ -304,9 +327,14 @@ export const defaultWidgetDraft: WidgetDraft = {
   textUsInsetSidePx: 28,
   textUsBoxWidth: 360,
   textUsBoxHeight: 480,
-  textUsHeaderTitle: "Text us",
+  textUsHeaderTitle: "Text Us",
+  textUsHeaderTitleEnabled: true,
   textUsWelcomeMessage: "Send us a message — we reply by SMS.",
   textUsHeaderLogoDataUrl: "",
+  textUsHeaderLogoHeightPx: 28,
+  textUsHeaderLogoMaxWidthPx: 96,
+  textUsHeaderAlign: "left",
+  textUsGlowColor: "",
   textUsLauncherIconPreset: "phosphor-chat-circle",
   textUsLauncherIconEnabled: true,
   textUsLauncherStyle: "solid",
@@ -319,6 +347,7 @@ export const defaultWidgetDraft: WidgetDraft = {
   themeFontFamily: "Inter, system-ui, sans-serif",
   themeBubbleStyle: "rounded",
   themeBorderRadiusPx: 12,
+  bubbleBorderRadiusPx: 12,
   themeWelcomeFontSizePx: 18,
   themeBodyFontSizePx: 14,
   themeInputFontSizePx: 14,
@@ -332,15 +361,15 @@ export const defaultWidgetDraft: WidgetDraft = {
   proactiveTeaser: "Any questions? Let us know!",
   proactiveTeaserAvatarEnabled: false,
   proactiveTeaserAvatarDataUrl: "",
-  panelGreetingEnabled: true,
-  chatWelcomeEnabled: true,
+  panelGreetingEnabled: false,
+  chatWelcomeEnabled: false,
   proactiveSecondaryCtaEnabled: false,
   proactiveSecondaryCtaLabel: "Contact us on WhatsApp",
   proactiveSecondaryCtaHref: "https://wa.me/",
   proactiveSecondaryCtaKind: "whatsapp",
   closedMessagePreviewEnabled: true,
   motionEnabled: true,
-  firstMessage: "Hi! How can we help today?",
+  firstMessage: "",
   messagePlaceholder: "Write here…",
   backgroundColor: "#f8fafc",
   popupEnabled: false,
@@ -351,6 +380,7 @@ export const defaultWidgetDraft: WidgetDraft = {
   fallbackNotificationText: "You have a new message from support.",
   videoWelcomeOn: false,
   videoWelcomeUrl: "",
+  videoWelcomeHeightPx: 160,
   welcomeMessageBehavior: "Thanks for reaching out.",
   autoOpenEnabled: false,
   autoOpenDelaySeconds: 10,

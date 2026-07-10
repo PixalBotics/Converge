@@ -149,7 +149,7 @@ export function WebsiteInquireTopicsWorkspace({ websiteId }: { websiteId: string
       {saveSuccess ? (
         <DashboardCard sx={websiteAssignmentModernCardSx}>
           <Typography variant="mediumLarge" fontWeight={700} sx={{ mb: 1 }}>
-            Inquire topics saved
+            Inquire topics saved.
           </Typography>
           <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted, mb: 2 }}>
             {title} topics are saved. Continue to agent roster when service hours are also configured.

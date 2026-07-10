@@ -13,7 +13,7 @@ import {
   normalizeAgentAvatarPreset,
   normalizeVisitorAvatarPreset,
 } from "./chat-avatar-presets";
-import { normalizeLauncherStyle } from "./launcher-style";
+import { normalizeLauncherStyle, normalizePanelSurfaceStyle } from "./launcher-style";
 import { normalizeWidgetInquiryOptions } from "./widget-inquiry.types";
 import { mapApiChatColorsToDraft, widgetChatColorsDraftToPatch } from "./widget-colors-draft";
 import { parseAiTypeFromConfigRoot } from "./widget-ai-type";
@@ -213,6 +213,10 @@ export function mapAdminWidgetResponseToWidgetDraft(
     themeBubbleStyle: pickStr(theme ?? {}, ["bubbleStyle", "bubble_style"]) || defaultWidgetDraft.themeBubbleStyle,
     themeBorderRadiusPx:
       pickNum(theme ?? {}, ["borderRadiusPx", "border_radius_px"]) ?? defaultWidgetDraft.themeBorderRadiusPx,
+    bubbleBorderRadiusPx:
+      pickNum(behavior ?? {}, ["bubbleBorderRadiusPx"]) ??
+      pickNum(theme ?? {}, ["borderRadiusPx", "border_radius_px"]) ??
+      defaultWidgetDraft.bubbleBorderRadiusPx,
     themeWelcomeFontSizePx:
       pickNum(theme ?? {}, ["welcomeFontSizePx", "welcome_font_size_px"]) ??
       defaultWidgetDraft.themeWelcomeFontSizePx,
@@ -281,7 +285,7 @@ export function mapAdminWidgetResponseToWidgetDraft(
       pickStr(chatBox ?? ui ?? {}, ["headerLogoUrl", "header_logo_url"]) ||
       defaultWidgetDraft.headerLogoDataUrl ||
       "",
-    panelSurfaceStyle: normalizeLauncherStyle(
+    panelSurfaceStyle: normalizePanelSurfaceStyle(
       pickStr(chatBox ?? ui ?? {}, ["panelSurfaceStyle"]) ||
         pickStr(chat && isRecord(chat.panel) ? chat.panel : {}, ["surfaceStyle"]),
     ),
@@ -371,6 +375,16 @@ export function mapAdminWidgetResponseToWidgetDraft(
       pickStr(chatBox ?? ui ?? {}, ["bannerVideoUrl", "banner_video_url"]) ||
       pickStr(chatBox ?? ui ?? {}, ["bannerImageUrl", "banner_image_url"]) ||
       defaultWidgetDraft.bannerDataUrl,
+    bannerHeightPx:
+      pickNum(behavior ?? {}, ["bannerHeightPx"]) ?? defaultWidgetDraft.bannerHeightPx,
+    bannerCtaLabel:
+      pickStr(behavior ?? {}, ["bannerCtaLabel"]) || defaultWidgetDraft.bannerCtaLabel,
+    bannerCtaHref:
+      pickStr(behavior ?? {}, ["bannerCtaHref"]) || defaultWidgetDraft.bannerCtaHref,
+    headerLogoHeightPx:
+      pickNum(behavior ?? {}, ["headerLogoHeightPx"]) ?? defaultWidgetDraft.headerLogoHeightPx,
+    videoWelcomeHeightPx:
+      pickNum(behavior ?? {}, ["videoWelcomeHeightPx"]) ?? defaultWidgetDraft.videoWelcomeHeightPx,
     boxWidth: pickNum(chatBox ?? ui ?? {}, ["boxWidth", "width"]) ?? defaultWidgetDraft.boxWidth,
     boxHeight: pickNum(chatBox ?? ui ?? {}, ["boxHeight", "height"]) ?? defaultWidgetDraft.boxHeight,
     buttonLabel:

@@ -41,6 +41,10 @@ export function WidgetWizardSiteChromePreview({ draft }: { draft: WidgetDraft })
         iconColor={draft.iconColor}
         iconDataUrl={draft.iconDataUrl}
         launcherIconPreset={draft.launcherIconPreset}
+        launcherIconEnabled={draft.launcherIconEnabled !== false}
+        launcherLabelEnabled={draft.launcherLabelEnabled !== false}
+        buttonLabel={draft.buttonLabel ?? ""}
+        launcherStyle={draft.launcherStyle ?? "solid"}
         proactiveTeaser={teaser.text}
         proactiveTeaserActive={teaser.active}
         proactiveTeaserAvatarUrl={teaser.avatarUrl}
@@ -55,7 +59,6 @@ export function WidgetWizardSiteChromePreview({ draft }: { draft: WidgetDraft })
         incomingPreviewAgentUrl={agentAvatarUrl}
         incomingPreviewAgentPreset={normalizeAgentAvatarPreset(draft.agentAvatarPreset)}
         launcherBadgeMode={draft.launcherBadgeMode ?? "count"}
-        launcherStyle={draft.launcherStyle ?? "solid"}
         accent={draft.themeDesignJsonAccent ?? "blue"}
         density={draft.themeDesignJsonDensity ?? "comfortable"}
       />

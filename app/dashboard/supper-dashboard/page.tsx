@@ -1,3 +1,7 @@
 "use client";
 
-export { default } from "./SupperDashboardOverview";
+import SupperDashboardOverview from "./SupperDashboardOverview";
+
+export default function SupperDashboardPage() {
+  return <SupperDashboardOverview />;
+}

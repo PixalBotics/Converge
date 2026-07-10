@@ -12,6 +12,7 @@ export * from "./roles";
 export * from "./hrms";
 export * from "./website-assignments";
 export * from "./platform";
+export * from "./dashboard";
 export * from "./platform-theme";
 export * from "./ai/agent-suggest.api";
 export * from "./kb/kb.api";

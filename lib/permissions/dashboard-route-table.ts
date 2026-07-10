@@ -14,7 +14,6 @@ export const ROUTE_RULES: readonly RouteRule[] = [
   { permission: PAGE.DASHBOARD, href: "/dashboard/qa-dashboard", iconKey: "dashboard", prefixMatch: true },
   { permission: PAGE.DASHBOARD, href: "/dashboard/ai-management", iconKey: "dashboard", prefixMatch: true },
 
-  { permission: PAGE.HRMS_OVERVIEW, href: "/dashboard/hrms", iconKey: "hrms", prefixMatch: false },
   { permission: PAGE.HRMS_ATTENDANCE_SELF, href: "/dashboard/attendance/my-attendance", iconKey: "reports" },
   { permission: PAGE.HRMS_ATTENDANCE_TEAM, href: "/dashboard/attendance/team-attendance", iconKey: "reports" },
   { permission: PAGE.HRMS_ATTENDANCE_MARK, href: "/dashboard/attendance/mark-attendance", iconKey: "reports" },
@@ -27,7 +26,7 @@ export const ROUTE_RULES: readonly RouteRule[] = [
     permission: "page:account-setup",
     href: "/dashboard/companies",
     iconKey: "resellers",
-    label: "Reseller-Management",
+    label: "Reseller management",
     prefixMatch: true,
   },
   {
@@ -49,6 +48,22 @@ export const ROUTE_RULES: readonly RouteRule[] = [
     iconKey: "resellers",
     label: "Resellers",
     prefixMatch: true,
+  },
+  {
+    permission: "page:account-setup",
+    href: "/dashboard/services",
+    iconKey: "resellers",
+    label: "Services",
+    prefixMatch: true,
+    internalOnly: true,
+  },
+  {
+    permission: "page:account-setup",
+    href: "/dashboard/contract",
+    iconKey: "resellers",
+    label: "New contract",
+    prefixMatch: true,
+    internalOnly: true,
   },
 
   { permission: PAGE.USERS, href: "/dashboard/user-page", iconKey: "users", prefixMatch: false },
@@ -193,7 +208,7 @@ export const ROUTE_RULES: readonly RouteRule[] = [
     permission: PAGE.PHONE_NUMBER_SETUP,
     href: "/dashboard/phone-number-setup",
     iconKey: "chatWidget",
-    label: "Phone / Text Us",
+    label: "Text Us",
     prefixMatch: true,
   },
 
@@ -222,7 +237,7 @@ export const ROUTE_RULES: readonly RouteRule[] = [
     permission: PAGE.AI_PLATFORM,
     href: "/dashboard/ai-training/platform-keys",
     iconKey: "aiTraining",
-    label: "AI configuration",
+    label: "AI Configuration",
     prefixMatch: true,
   },
 
@@ -334,8 +349,9 @@ export const PAGE_PERMISSION_ORDER: readonly PagePermission[] = [
   PAGE.ROLES,
   PAGE.DEPARTMENTS,
   PAGE.POOL,
-  PAGE.SHIFTS,
+  PAGE.HRMS_ATTENDANCE_SELF,
   PAGE.CHAT_INBOX,
+  PAGE.CHAT_WIDGET,
   PAGE.AI_ASSISTANT,
   "page:crm-integration",
   "page:distribution-setup",

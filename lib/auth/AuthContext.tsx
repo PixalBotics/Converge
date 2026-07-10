@@ -79,6 +79,7 @@ import {
 } from "./token-cross-tab-sync";
 import { extractResellerIdFromMePayload } from "./extract-reseller-id";
 import { resolveDashboardLandingHref } from "@/lib/permissions";
+import { extractDashboardWidgetOrderFromMePayload } from "@/lib/permissions/dashboard-widget-layout";
 import { useAppearance } from "@/lib/theme/appearance-context";
 import { registerAfterTokenSessionSync } from "./after-token-session-sync";
 import { registerSessionHydrationRetry } from "./session-hydration-retry";
@@ -207,7 +208,7 @@ function mapApiUserToUser(user: ApiUser): User | null {
     wr === "true" ||
     wr === 1 ||
     wr === "1" ||
-    (parseApiUserType(user) === "External" && roleName === "Reseller Admin");
+    roleName === "Reseller Admin";
   const parentCompanyId =
     (typeof user.parentCompanyId === "string" && user.parentCompanyId.trim()) ||
     (typeof user.parent_company_id === "string" && user.parent_company_id.trim()) ||
@@ -268,8 +269,7 @@ function getUserFromAccessToken(): User | null {
       ? payload.parentCompanyId.trim()
       : undefined;
   const wideFromJwt = payload.wideResellerScope === true;
-  const wideFromRole =
-    payload.userType === "External" && firstRole?.trim() === "Reseller Admin";
+  const wideFromRole = firstRole?.trim() === "Reseller Admin";
   return {
     id: payload.userId,
     email: payload.email,
@@ -333,6 +333,8 @@ interface AuthContextValue {
   pagePermissions: readonly string[];
   /** Expanded OPERATIONAL bucket from `/auth/me`. */
   operationalPermissions: readonly string[];
+  /** Role-specific dashboard widget order from `/auth/me` (`user.role.dashboardWidgetOrder`). */
+  dashboardWidgetOrder: readonly string[];
   /** `page` OR `operational` — mirrors backend expanded effective permissions. */
   can: (code: string) => boolean;
   isImpersonating: boolean;
@@ -363,6 +365,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [permissionsSyncing, setPermissionsSyncing] = useState(false);
   const [permissionsByType, setPermissionsByType] = useState<PermissionsByType | undefined>(undefined);
+  const [dashboardWidgetOrder, setDashboardWidgetOrder] = useState<readonly string[]>([]);
   const [isPlatformAdmin, setIsPlatformAdmin] = useState(false);
   const [isImpersonating, setIsImpersonating] = useState(false);
   const [authGate, setAuthGate] = useState<AuthGateState>("loading");
@@ -395,6 +398,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (isAuthSessionTerminated()) {
       setUser(null);
       setPermissionsByType(undefined);
+      setDashboardWidgetOrder([]);
       setIsPlatformAdmin(false);
       setIsImpersonating(false);
       setAuthGate("ready");
@@ -417,6 +421,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const preparePublicAuthRoute = useCallback(() => {
     setUser(null);
     setPermissionsByType(undefined);
+    setDashboardWidgetOrder([]);
     setIsPlatformAdmin(false);
     setIsImpersonating(false);
     setAuthGate("ready");
@@ -427,6 +432,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     clearClientAuthStorage();
     setUser(null);
     setPermissionsByType(undefined);
+    setDashboardWidgetOrder([]);
     setIsPlatformAdmin(false);
     setIsImpersonating(false);
     setAuthGate("ready");
@@ -602,8 +608,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const platformAdmin = resolvePlatformAdminFromAuthPayload(mePayload, {
           impersonating,
         });
+        const widgetOrder = extractDashboardWidgetOrderFromMePayload(mePayload);
         flushSync(() => {
           setPermissionsByType(mergedPermissions ?? undefined);
+          setDashboardWidgetOrder(widgetOrder);
           setUser(
             mappedMeUser ??
               (impersonating ? resolveUserForImpersonation() : getUserFromAccessToken()),
@@ -698,6 +706,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     registerAuthSessionTeardown(async ({ reason }) => {
       setUser(null);
       setPermissionsByType(undefined);
+      setDashboardWidgetOrder([]);
       setPermissionsSyncing(false);
       setIsPlatformAdmin(false);
       setIsImpersonating(false);
@@ -782,6 +791,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!access && !refresh) {
         setUser(null);
         setPermissionsByType(undefined);
+      setDashboardWidgetOrder([]);
         setIsPlatformAdmin(false);
         setIsImpersonating(false);
         setAuthGate("ready");
@@ -854,6 +864,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (session.status === "anonymous") {
         setUser(null);
         setPermissionsByType(undefined);
+      setDashboardWidgetOrder([]);
         setIsPlatformAdmin(false);
         setIsImpersonating(false);
         setAuthGate("ready");
@@ -1152,6 +1163,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     resetAuthSessionTerminatedFlag();
     setUser(null);
     setPermissionsByType(undefined);
+    setDashboardWidgetOrder([]);
     setPermissionsSyncing(false);
     setIsPlatformAdmin(false);
     setIsImpersonating(false);
@@ -1246,6 +1258,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       hasOperational,
       pagePermissions,
       operationalPermissions,
+      dashboardWidgetOrder,
       can,
       isImpersonating,
       revertImpersonation,
@@ -1265,6 +1278,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       hasOperational,
       pagePermissions,
       operationalPermissions,
+      dashboardWidgetOrder,
       can,
       isImpersonating,
       revertImpersonation,

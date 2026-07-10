@@ -1,15 +1,21 @@
 import { alpha } from "@mui/material/styles";
 import type { SxProps, Theme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
+import { dashboardPageShell } from "../dashboard.styles";
 
-/** Chevron bar: left inward notch, right outward point, 15px depth */
-export const STEPPER_CLIP =
-  "polygon(15px 0, calc(100% - 15px) 0, 100% 50%, calc(100% - 15px) 100%, 15px 100%, 0 50%)";
+/** Readable multi-line helper / validation copy inside modals and forms. */
+export const formHintTextSx: SxProps<Theme> = {
+  whiteSpace: "normal",
+  wordBreak: "break-word",
+  overflowWrap: "anywhere",
+  lineHeight: 1.5,
+};
 
 export const pageWrapper: SxProps<Theme> = {
+  ...dashboardPageShell,
   display: "flex",
   flexDirection: "column",
-  gap: 2.4,
+  gap: { xs: 1.5, sm: 2, md: 2.4 },
 };
 
 export const pageHeaderRow: SxProps<Theme> = {
@@ -111,13 +117,14 @@ export const stepperOuter: SxProps<Theme> = (theme) => {
   return {
     position: "relative",
     width: "100%",
-    minHeight: "71.5px",
-    clipPath: STEPPER_CLIP,
+    minHeight: { xs: "auto", sm: "71.5px" },
+    borderRadius: 2,
     background: alpha(app.dashboard.pillBg, 0.92),
     display: "flex",
     alignItems: "stretch",
     boxSizing: "border-box",
-    filter: `drop-shadow(0 0 0.5px ${app.dashboard.cardBorder})`,
+    border: `1px solid ${app.dashboard.cardBorder}`,
+    overflow: "hidden",
   };
 };
 
@@ -129,7 +136,7 @@ export const stepperSegment: SxProps<Theme> = {
   justifyContent: "center",
   gap: 1.25,
   py: 1.5,
-  px: 1,
+  px: { xs: 1.25, sm: 1.5 },
 };
 
 export const stepperDivider: SxProps<Theme> = (theme) => ({
@@ -181,37 +188,46 @@ export const stepperLabelResellerDone: SxProps<Theme> = (theme) => ({
   color: (theme as AppTheme).app.dashboard.white95,
   fontSize: 14,
   fontWeight: 500,
-  lineHeight: 1.2,
+  lineHeight: 1.35,
   textAlign: "center",
+  whiteSpace: "normal",
+  wordBreak: "break-word",
 });
 
 export const stepperLabelResellerActive: SxProps<Theme> = (theme) => ({
   color: (theme as AppTheme).app.dashboard.accentBlue,
   fontSize: 14,
   fontWeight: 500,
-  lineHeight: 1.2,
+  lineHeight: 1.35,
   textAlign: "center",
+  whiteSpace: "normal",
+  wordBreak: "break-word",
 });
 
 export const stepperLabelChildDone: SxProps<Theme> = (theme) => ({
   color: (theme as AppTheme).app.dashboard.white95,
   fontSize: 14,
   fontWeight: 500,
-  lineHeight: 1.2,
+  lineHeight: 1.35,
   textAlign: "center",
+  whiteSpace: "normal",
+  wordBreak: "break-word",
 });
 
 export const stepperLabelChildInactive: SxProps<Theme> = (theme) => ({
   color: (theme as AppTheme).app.dashboard.textMuted,
   fontSize: 14,
   fontWeight: 500,
-  lineHeight: 1.2,
+  lineHeight: 1.35,
   textAlign: "center",
+  whiteSpace: "normal",
+  wordBreak: "break-word",
 });
 
 export const stepOneIncompleteHint: SxProps<Theme> = {
   color: "rgba(248,113,113,0.95)",
-  mt: -0.5,
+  mt: 0.5,
+  ...formHintTextSx,
 };
 
 export const sectionStack: SxProps<Theme> = {

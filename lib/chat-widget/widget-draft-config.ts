@@ -30,14 +30,20 @@ export function buildConfigRecordFromWidgetDraft(draft: WidgetDraft): Record<str
   const bannerUrl =
     bannerRaw.startsWith("http") || bannerRaw.startsWith("data:") ? bannerRaw : "";
 
+  const visibleButtonLabel =
+    draft.launcherLabelEnabled === false
+      ? ""
+      : typeof draft.buttonLabel === "string"
+        ? draft.buttonLabel.trim()
+        : def.buttonLabel;
+
   return {
     mode: draft.chatMode ?? "HYBRID",
     chatMode: draft.chatMode ?? "HYBRID",
     greetingMessage: draft.greetingMessage ?? def.greetingMessage,
-    welcomeMessage: draft.firstMessage ?? def.firstMessage,
+    welcomeMessage: draft.greetingMessage ?? draft.firstMessage ?? def.greetingMessage,
     offlineMessage: draft.responseOfflineMessage ?? def.responseOfflineMessage,
-    ctaButtonText:
-      typeof draft.buttonLabel === "string" ? draft.buttonLabel.trim() : def.buttonLabel,
+    ctaButtonText: visibleButtonLabel,
     ui: {
       proactiveTeaser: draft.proactiveTeaser ?? def.proactiveTeaser,
       proactiveTeaserAvatarUrl:
@@ -49,8 +55,9 @@ export function buildConfigRecordFromWidgetDraft(draft: WidgetDraft): Record<str
       proactiveSecondaryCtaLabel: draft.proactiveSecondaryCtaLabel,
       proactiveSecondaryCtaHref: draft.proactiveSecondaryCtaHref,
       proactiveSecondaryCtaKind: draft.proactiveSecondaryCtaKind,
-      buttonLabel:
-        typeof draft.buttonLabel === "string" ? draft.buttonLabel.trim() : def.buttonLabel,
+      buttonLabel: visibleButtonLabel,
+      launcherLabelEnabled: draft.launcherLabelEnabled !== false,
+      launcherIconEnabled: draft.launcherIconEnabled !== false,
       buttonShape: draft.buttonShape,
       buttonPosition: draft.buttonPosition,
       launcherInsetBottomPx: draft.launcherInsetBottomPx,
@@ -61,7 +68,7 @@ export function buildConfigRecordFromWidgetDraft(draft: WidgetDraft): Record<str
       headerTitle: draft.headerTitle,
       headerTitleAlign: (draft.headerTitleAlign ?? "Center").toLowerCase(),
       greetingMessage: draft.greetingMessage,
-      firstMessage: draft.firstMessage,
+      firstMessage: "",
       sendPlaceholder: draft.sendPlaceholder,
       messagePlaceholder: draft.messagePlaceholder,
       backgroundColor: draft.backgroundColor,
@@ -75,8 +82,8 @@ export function buildConfigRecordFromWidgetDraft(draft: WidgetDraft): Record<str
         draft.bannerOn && draft.bannerMediaType !== "video" ? bannerUrl || undefined : undefined,
       bannerVideoUrl:
         draft.bannerOn && draft.bannerMediaType === "video" ? bannerUrl || undefined : undefined,
-      panelGreetingEnabled: draft.panelGreetingEnabled !== false,
-      chatWelcomeEnabled: draft.chatWelcomeEnabled !== false,
+      panelGreetingEnabled: false,
+      chatWelcomeEnabled: false,
     },
     theme: {
       name: draft.themeName,

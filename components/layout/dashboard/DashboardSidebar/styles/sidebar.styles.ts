@@ -1,5 +1,6 @@
 import { alpha, getLuminance, lighten } from "@mui/material/styles";
 import type { SxProps, Theme } from "@mui/material/styles";
+import { dashboardShellElevatedShadow } from "@/lib/ui/dashboardShellShadow";
 import type { AppTheme } from "@/theme/theme";
 import { typographyVariants } from "@/components/common/Typography/typography.styles";
 
@@ -79,6 +80,7 @@ export const navItemSx: SxProps<Theme> = (theme) => {
     pl: "calc(12px)",
     borderRadius: "10px",
     boxSizing: "border-box",
+    minWidth: 0,
     whiteSpace: "nowrap",
     display: "flex",
     alignItems: "center",
@@ -98,14 +100,18 @@ export const navItemSx: SxProps<Theme> = (theme) => {
       marginBottom: 0,
       display: "flex",
       alignItems: "center",
+      minWidth: 0,
+      overflow: "hidden",
     },
     "& .MuiListItemText-primary": {
       color: alpha(textPrimary, mode === "dark" ? 0.9 : 0.87),
       margin: 0,
       padding: 0,
       lineHeight: 1.4,
-      display: "inline-flex",
-      alignItems: "center",
+      display: "block",
+      overflow: "hidden",
+      textOverflow: "ellipsis",
+      whiteSpace: "nowrap",
     },
 
     "&:hover:not(.Mui-selected)": {
@@ -130,8 +136,10 @@ export const navItemSx: SxProps<Theme> = (theme) => {
       "& .MuiListItemText-primary": {
         fontWeight: 600,
         color: textPrimary,
-        display: "inline-flex",
-        alignItems: "center",
+        display: "block",
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+        whiteSpace: "nowrap",
         lineHeight: 1.4,
         margin: 0,
         padding: 0,
@@ -321,17 +329,16 @@ export const desktopWrapperSx = (collapsed = false): SxProps<Theme> => (theme) =
   return {
     width: getSidebarWidth(collapsed),
     transition: "width 0.2s ease",
-    height: { xs: "100vh", md: "calc(100vh - 32px)" },
-    position: "sticky",
-    top: { xs: 0, md: 16 },
+    height: "100%",
+    alignSelf: "stretch",
     flexShrink: 0,
-    alignSelf: { xs: "stretch", md: "flex-start" },
+    position: "relative",
     borderRadius: { xs: 0, md: app.dashboard.shellRadius },
     border: { xs: "none", md: `1px solid ${app.dashboard.shellBorder}` },
     overflow: "hidden",
     boxSizing: "border-box",
     boxShadow: {
-      md: "0 8px 32px rgba(0, 0, 0, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.06)",
+      md: (t) => dashboardShellElevatedShadow(t),
     },
   };
 };

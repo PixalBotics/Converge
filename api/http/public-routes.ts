@@ -25,6 +25,12 @@ export function isWidgetVisitorRoute(config: InternalAxiosRequestConfig): boolea
   return false;
 }
 
+/** Public invoice pay links — no dashboard session required. */
+export function isPublicBillingRoute(config: InternalAxiosRequestConfig): boolean {
+  const path = pathFromConfig(config);
+  return path.startsWith("/public/billing");
+}
+
 export function isPublicAuthRoute(config: InternalAxiosRequestConfig): boolean {
   const method = (config.method ?? "get").toLowerCase();
   const path = pathFromConfig(config);
@@ -34,6 +40,10 @@ export function isPublicAuthRoute(config: InternalAxiosRequestConfig): boolean {
   }
 
   if (isWidgetVisitorRoute(config)) {
+    return true;
+  }
+
+  if (isPublicBillingRoute(config)) {
     return true;
   }
 

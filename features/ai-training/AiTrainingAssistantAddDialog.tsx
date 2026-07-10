@@ -59,14 +59,14 @@ export function AiTrainingAssistantAddDialog({
   return (
     <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
       <DialogTitle sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", pr: 1, fontWeight: 700 }}>
-        Add AI assistant training
+        Add AI Assistant training
         <IconButton onClick={onClose} size="small" aria-label="Close">
           <Close />
         </IconButton>
       </DialogTitle>
       <DialogContent dividers>
         <Typography variant="body2" sx={{ color: "text.secondary", mb: 2 }}>
-          FAQs, website scrape, PDF, Word, Excel, or SOP text for agent copilot — separate from visitor chatbot.
+          FAQs, website scrape, PDF, Word, Excel, or SOP text for Agent Copilot — separate from visitor chatbot.
         </Typography>
 
         <Box sx={aiTrainingFilterGridSx}>

@@ -132,8 +132,8 @@ describe("configRecordFromEnvelope", () => {
       themeDesignJson: {
         textUs: {
           buttonColor: "#1E63D5",
-          buttonLabel: "Text us",
-          headerTitle: "Text us",
+          buttonLabel: "Text Us",
+          headerTitle: "Text Us",
         },
       },
       textUsFormConfig: {
@@ -141,7 +141,7 @@ describe("configRecordFromEnvelope", () => {
       },
     });
     const dj = (cfg.theme as Record<string, unknown>).designJson as Record<string, unknown>;
-    expect(dj.textUs).toMatchObject({ buttonLabel: "Text us" });
+    expect(dj.textUs).toMatchObject({ buttonLabel: "Text Us" });
     expect(cfg.textUsFormConfig).toEqual({
       fields: [{ key: "phone", label: "Phone", type: "phone", required: true }],
     });
@@ -152,9 +152,9 @@ describe("mergeDesignJsonWithExperienceSnapshot", () => {
   it("keeps textUs block from snapshot", () => {
     const merged = mergeDesignJsonWithExperienceSnapshot(
       { chat: { colors: { primary: "#000" } } },
-      { textUs: { buttonLabel: "Text us" }, accent: "blue" },
+      { textUs: { buttonLabel: "Text Us" }, accent: "blue" },
     );
-    expect(merged.textUs).toEqual({ buttonLabel: "Text us" });
+    expect(merged.textUs).toEqual({ buttonLabel: "Text Us" });
     expect(merged.accent).toBe("blue");
   });
 });

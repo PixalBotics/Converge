@@ -10,7 +10,11 @@ import {
 /** Server component: `<html>` / `<body>` + global shell styles; providers live in `AppRootProviders`. */
 export function RootLayoutShell({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html
+      lang="en"
+      suppressHydrationWarning
+      style={{ maxWidth: "100vw", overflowX: "hidden" }}
+    >
       {/* App Router root layout: font preconnect/stylesheet belong in <head>. */}
       {/* eslint-disable-next-line @next/next/no-head-element */}
       <head>
@@ -32,6 +36,9 @@ export function RootLayoutShell({ children }: { children: ReactNode }) {
           fontFamily: rootFontFamilyCss(),
           background: mainBackgroundGradient,
           minHeight: "100vh",
+          margin: 0,
+          maxWidth: "100vw",
+          overflowX: "hidden",
         }}
       >
         <AppRootProviders>{children}</AppRootProviders>
