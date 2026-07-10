@@ -8,7 +8,9 @@ export function syncResponseCopyFromChatBox(draft: WidgetDraft): Partial<WidgetD
     responseGreetingMessage:
       draft.greetingMessage?.trim() || def.responseGreetingMessage,
     responseWelcomeMessage:
-      draft.firstMessage?.trim() || def.responseWelcomeMessage,
+      draft.greetingMessage?.trim() ||
+      draft.firstMessage?.trim() ||
+      def.responseWelcomeMessage,
     responseSendPlaceholder:
       draft.sendPlaceholder?.trim() ||
       draft.messagePlaceholder?.trim() ||
@@ -16,6 +18,7 @@ export function syncResponseCopyFromChatBox(draft: WidgetDraft): Partial<WidgetD
     responseAiPromptHint:
       draft.responseAiPromptHint?.trim() || def.responseAiPromptHint,
     welcomeMessageBehavior:
+      draft.greetingMessage?.trim() ||
       draft.firstMessage?.trim() ||
       draft.welcomeMessageBehavior?.trim() ||
       def.welcomeMessageBehavior,

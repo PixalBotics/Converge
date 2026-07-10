@@ -130,7 +130,7 @@ export function ChatOperationsWorkspace() {
     isPoolHead: user?.isPoolHead === true,
   });
   const accessToken = useAccessToken() ?? "";
-  const scopeFilters = useChatScopeFilters(undefined, { apiEnabled: showScopeFilters });
+  const scopeFilters = useChatScopeFilters(undefined);
   const conversationIdFromUrl = searchParams.get("conversationId")?.trim() ?? "";
 
   useEffect(() => {

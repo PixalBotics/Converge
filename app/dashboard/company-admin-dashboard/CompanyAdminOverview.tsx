@@ -64,6 +64,8 @@ import {
   overviewHeader,
   overviewHeaderDropdownWrap,
   pageWrapper,
+  dashboardEmbeddedOverviewRoot,
+  embeddedOverviewToolbar,
   revenueHeaderRow,
   revenueTitleRow,
   revenueTitleRowMb2,
@@ -211,8 +213,8 @@ export default function CompanyAdminOverview({ embedded = false }: { embedded?: 
   );
 
   return (
-    <Box sx={pageWrapper}>
-      <Box sx={[overviewHeader, embedded ? { justifyContent: "flex-end", mb: 2 } : undefined]}>
+    <Box sx={embedded ? dashboardEmbeddedOverviewRoot : pageWrapper}>
+      <Box sx={embedded ? embeddedOverviewToolbar : overviewHeader}>
         {!embedded ? (
           <Typography variant="regularLarge" fontWeight={700} color="white">
             Company Admin dashboard

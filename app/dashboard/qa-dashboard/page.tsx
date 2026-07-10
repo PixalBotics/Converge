@@ -1,3 +1,7 @@
 "use client";
 
-export { default } from "./QaDashboardOverview";
+import QaDashboardOverview from "./QaDashboardOverview";
+
+export default function QaDashboardPage() {
+  return <QaDashboardOverview />;
+}

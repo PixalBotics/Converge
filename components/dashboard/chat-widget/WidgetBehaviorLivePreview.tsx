@@ -15,7 +15,7 @@ import { Button, Typography } from "@/components/common";
 import type { WidgetChatColorsDraft } from "@/lib/chat-widget/widget-colors-draft";
 import type { WidgetInstallChatMode } from "@/lib/chat-widget/widgetDraft";
 
-export type BehaviorPreviewTab = "form" | "chat";
+export type BehaviorPreviewTab = "form" | "chat" | "offline";
 
 export interface BehaviorLivePreviewModel {
   chatMode: WidgetInstallChatMode;
@@ -35,6 +35,8 @@ export interface BehaviorLivePreviewModel {
   consentText: string;
   inquiryOn: boolean;
   inquiryOptions: string[];
+  inquiryRequired?: boolean;
+  inquirySkipLabel?: string;
   talkToAgentEnabled: boolean;
   talkToAgentTriggerText: string;
   greetingMessage: string;
@@ -42,6 +44,14 @@ export interface BehaviorLivePreviewModel {
   sendPlaceholder: string;
   headerTitle: string;
   offlineMessage: string;
+  offlineFormEnabled?: boolean;
+  offlineFormTitle?: string;
+  offlineFormSubtitle?: string;
+  offlineFormSubmitLabel?: string;
+  offlinePrechatNameEnabled?: boolean;
+  offlinePrechatEmailEnabled?: boolean;
+  offlinePrechatPhoneEnabled?: boolean;
+  offlinePrechatMessageEnabled?: boolean;
 }
 
 function MockField({ label, colors }: { label: string; colors: WidgetChatColorsDraft }) {
@@ -97,26 +107,52 @@ function VisitorFormPreview({ model }: { model: BehaviorLivePreviewModel }) {
         </Typography>
       ) : null}
       {inquiryList.length ? (
-        <Stack direction="row" flexWrap="wrap" gap={0.75} sx={{ mt: 0.25 }}>
-          {inquiryList.map((opt, i) => (
-            <Box
-              key={opt}
-              component="span"
-              sx={{
-                px: 1.1,
-                py: 0.45,
-                borderRadius: 2,
-                fontSize: 11,
-                fontWeight: 600,
-                border: `1px solid ${i === 0 ? c.inquiryPillSelectedBg ?? model.buttonColor : c.inquiryPillBorder}`,
-                bgcolor: i === 0 ? c.inquiryPillSelectedBg ?? model.buttonColor : c.inquiryPillBg,
-                color: i === 0 ? c.inquiryPillSelectedText ?? "#fff" : c.inquiryPillText,
-              }}
-            >
-              {opt}
-            </Box>
-          ))}
+        <Stack spacing={0.75}>
+          <Typography variant="caption" sx={{ color: c.chatMutedText, fontSize: 11, fontWeight: 600 }}>
+            Inquiry topics
+          </Typography>
+          <Stack direction="row" flexWrap="wrap" gap={0.75}>
+            {inquiryList.map((opt, i) => (
+              <Box
+                key={opt}
+                component="span"
+                sx={{
+                  px: 1.1,
+                  py: 0.45,
+                  borderRadius: 2,
+                  fontSize: 11,
+                  fontWeight: 600,
+                  border: `1px solid ${i === 0 ? c.inquiryPillSelectedBg ?? model.buttonColor : c.inquiryPillBorder}`,
+                  bgcolor: i === 0 ? c.inquiryPillSelectedBg ?? model.buttonColor : c.inquiryPillBg,
+                  color: i === 0 ? c.inquiryPillSelectedText ?? "#fff" : c.inquiryPillText,
+                }}
+              >
+                {opt}
+              </Box>
+            ))}
+            {!model.inquiryRequired && model.inquirySkipLabel?.trim() ? (
+              <Box
+                component="span"
+                sx={{
+                  px: 1.1,
+                  py: 0.45,
+                  borderRadius: 2,
+                  fontSize: 11,
+                  fontWeight: 600,
+                  border: `1px dashed ${c.inquiryPillBorder}`,
+                  bgcolor: "transparent",
+                  color: c.inquiryPillText,
+                }}
+              >
+                {model.inquirySkipLabel.trim()}
+              </Box>
+            ) : null}
+          </Stack>
         </Stack>
+      ) : model.inquiryOn ? (
+        <Typography variant="caption" sx={{ color: c.chatMutedText, fontStyle: "italic" }}>
+          Inquiry topics enabled — add at least one topic label.
+        </Typography>
       ) : null}
       {model.prechatNameEnabled ? <MockField label="Name" colors={c} /> : null}
       {model.prechatEmailEnabled ? <MockField label="Email" colors={c} /> : null}
@@ -145,6 +181,57 @@ function VisitorFormPreview({ model }: { model: BehaviorLivePreviewModel }) {
           </Typography>
         </Box>
       ) : null}
+    </Stack>
+  );
+}
+
+function OfflineFormPreview({ model }: { model: BehaviorLivePreviewModel }) {
+  const c = model.colors;
+
+  if (!model.offlineFormEnabled) {
+    return (
+      <Box sx={{ p: 2, textAlign: "center" }}>
+        <Typography variant="body2" sx={{ color: c.chatMutedText }}>
+          Offline form disabled — visitors only see the offline message.
+        </Typography>
+      </Box>
+    );
+  }
+
+  return (
+    <Stack spacing={1} sx={{ p: 1.25 }}>
+      <Typography variant="subtitle2" sx={{ color: c.chatBodyText, fontWeight: 700, fontSize: 14 }}>
+        {model.offlineFormTitle || "Leave us a message"}
+      </Typography>
+      {model.offlineFormSubtitle?.trim() ? (
+        <Typography variant="caption" sx={{ color: c.chatMutedText, display: "block", mt: -0.5 }}>
+          {model.offlineFormSubtitle}
+        </Typography>
+      ) : null}
+      {model.offlineMessage.trim() ? (
+        <Typography variant="caption" sx={{ color: c.chatMutedText, display: "block" }}>
+          {model.offlineMessage}
+        </Typography>
+      ) : null}
+      {model.offlinePrechatNameEnabled ? <MockField label="Name" colors={c} /> : null}
+      {model.offlinePrechatEmailEnabled ? <MockField label="Email" colors={c} /> : null}
+      {model.offlinePrechatPhoneEnabled ? <MockField label="Phone" colors={c} /> : null}
+      {model.offlinePrechatMessageEnabled ? <MockField label="Message" colors={c} /> : null}
+      <Button
+        type="button"
+        variant="primary"
+        tabIndex={-1}
+        sx={{
+          mt: 0.5,
+          bgcolor: model.buttonColor,
+          color: c.outgoingMessageText,
+          textTransform: "none",
+          fontWeight: 700,
+          "&:hover": { bgcolor: model.buttonColor },
+        }}
+      >
+        {model.offlineFormSubmitLabel || "Send message"}
+      </Button>
     </Stack>
   );
 }
@@ -282,18 +369,25 @@ function ChatWithTalkToAgentPreview({ model }: { model: BehaviorLivePreviewModel
   );
 }
 
-export function WidgetBehaviorLivePreview({ model }: { model: BehaviorLivePreviewModel }) {
+export function WidgetBehaviorLivePreview({
+  model,
+  subtitle = 'Visitor form (info collection) then chat with one "Talk to agent" button in Hybrid mode.',
+}: {
+  model: BehaviorLivePreviewModel;
+  subtitle?: string;
+}) {
   const theme = useTheme() as AppTheme;
   const [tab, setTab] = useState<BehaviorPreviewTab>("form");
   const c = model.colors;
+  const showOfflineTab = model.offlineFormEnabled !== false;
 
   return (
     <Box>
       <Typography variant="mediumLarge" sx={{ color: theme.app.text.primary, mb: 1 }}>
-        Live preview
+        Forms &amp; chat preview
       </Typography>
       <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, display: "block", mb: 1 }}>
-        Visitor form (info collection) then chat with one &quot;Talk to agent&quot; button in Hybrid mode.
+        {subtitle}
       </Typography>
       <ToggleButtonGroup
         exclusive
@@ -307,6 +401,11 @@ export function WidgetBehaviorLivePreview({ model }: { model: BehaviorLivePrevie
         <ToggleButton value="form" sx={{ textTransform: "none", fontSize: 12 }}>
           Visitor form
         </ToggleButton>
+        {showOfflineTab ? (
+          <ToggleButton value="offline" sx={{ textTransform: "none", fontSize: 12 }}>
+            Offline form
+          </ToggleButton>
+        ) : null}
         <ToggleButton value="chat" sx={{ textTransform: "none", fontSize: 12 }}>
           Chat
         </ToggleButton>
@@ -333,9 +432,15 @@ export function WidgetBehaviorLivePreview({ model }: { model: BehaviorLivePrevie
             flexDirection: "column",
           }}
         >
-          {tab === "form" ? <VisitorFormPreview model={model} /> : <ChatWithTalkToAgentPreview model={model} />}
+          {tab === "form" ? (
+            <VisitorFormPreview model={model} />
+          ) : tab === "offline" ? (
+            <OfflineFormPreview model={model} />
+          ) : (
+            <ChatWithTalkToAgentPreview model={model} />
+          )}
         </Box>
-        {model.offlineMessage.trim() ? (
+        {tab !== "offline" && model.offlineMessage.trim() ? (
           <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, mt: 1, display: "block", textAlign: "center" }}>
             When offline: {model.offlineMessage}
           </Typography>

@@ -48,6 +48,7 @@ import {
   statusDot,
   ratingStarsWrap,
 } from "./AgentDashboardOverview.styles";
+import { dashboardEmbeddedOverviewRoot, embeddedOverviewToolbar } from "../dashboard.styles";
 import {
   conversationVisitorName,
   conversationWebsiteLabel,
@@ -221,8 +222,8 @@ export default function AgentDashboardOverview({ embedded = false }: { embedded?
   );
 
   return (
-    <Box sx={pageRoot}>
-      <Box sx={[headerRow, embedded ? { justifyContent: "flex-end", mb: 2 } : undefined]}>
+    <Box sx={embedded ? dashboardEmbeddedOverviewRoot : pageRoot}>
+      <Box sx={embedded ? embeddedOverviewToolbar : headerRow}>
         {!embedded ? (
           <Typography variant="regularLarge" fontWeight={700} color="white">
             Agent dashboard

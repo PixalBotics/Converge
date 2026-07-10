@@ -77,21 +77,36 @@ export function WidgetChatAvatarBubble({
   if (url && !imageFailed) {
     return (
       <Box
-        component="img"
-        src={url}
-        alt=""
-        onError={() => setImageFailed(true)}
         sx={{
           width: size,
           height: size,
           borderRadius: "50%",
-          objectFit: "cover",
           flexShrink: 0,
-          border: "1px solid rgba(15, 23, 42, 0.12)",
+          overflow: "hidden",
+          bgcolor: `${accentColor}14`,
+          border: `1px solid ${accentColor}44`,
           boxShadow: "0 1px 2px rgba(15, 23, 42, 0.08)",
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
           ...sx,
         }}
-      />
+      >
+        <Box
+          component="img"
+          src={url}
+          alt=""
+          onError={() => setImageFailed(true)}
+          sx={{
+            maxWidth: "88%",
+            maxHeight: "88%",
+            width: "auto",
+            height: "auto",
+            objectFit: "contain",
+            display: "block",
+          }}
+        />
+      </Box>
     );
   }
   const resolvedPreset =

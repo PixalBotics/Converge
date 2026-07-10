@@ -40,6 +40,8 @@ import {
 } from "@mui/icons-material";
 import {
   pageWrapper,
+  dashboardEmbeddedOverviewRoot,
+  embeddedOverviewToolbar,
   overviewHeader,
   last30DaysButton,
   grid3,
@@ -100,6 +102,23 @@ const DATE_RANGE_DAYS: Record<(typeof DATE_RANGE_OPTIONS)[number], number> = {
   "Last 30 Days": 30,
   "Last 90 Days": 90,
 };
+
+export type PlatformDashboardBlock =
+  | "primary-metrics"
+  | "user-metrics"
+  | "revenue"
+  | "chat-charts"
+  | "status-metrics"
+  | "activity-log";
+
+const ALL_PLATFORM_BLOCKS: readonly PlatformDashboardBlock[] = [
+  "primary-metrics",
+  "user-metrics",
+  "revenue",
+  "chat-charts",
+  "status-metrics",
+  "activity-log",
+];
 
 type ActivityLogRow = {
   activityType: string;
@@ -168,8 +187,22 @@ function mapAuditRow(item: AuditLogListItem): ActivityLogRow {
   };
 }
 
-export default function SupperDashboardOverview({ embedded = false }: { embedded?: boolean }) {
+export default function SupperDashboardOverview({
+  embedded = false,
+  blocks,
+}: {
+  embedded?: boolean;
+  blocks?: readonly PlatformDashboardBlock[];
+}) {
   const theme = useTheme() as AppTheme;
+  const activeBlocks = blocks ?? ALL_PLATFORM_BLOCKS;
+  const showBlock = (block: PlatformDashboardBlock) => activeBlocks.includes(block);
+  const showDateHeader =
+    showBlock("primary-metrics") ||
+    showBlock("user-metrics") ||
+    showBlock("revenue") ||
+    showBlock("chat-charts") ||
+    showBlock("status-metrics");
   const [dateRangeValue, setDateRangeValue] =
     useState<(typeof DATE_RANGE_OPTIONS)[number]>("Last 30 Days");
   const [revenueGranularity, setRevenueGranularity] = useState<
@@ -237,8 +270,9 @@ export default function SupperDashboardOverview({ embedded = false }: { embedded
       : [{ name: "No data", value: 1, color: "rgba(255,255,255,0.2)" }];
 
   return (
-    <Box sx={pageWrapper}>
-      <Box sx={[overviewHeader, embedded ? { justifyContent: "flex-end", mb: 2 } : undefined]}>
+    <Box sx={embedded ? dashboardEmbeddedOverviewRoot : pageWrapper}>
+      {showDateHeader ? (
+      <Box sx={embedded ? embeddedOverviewToolbar : overviewHeader}>
         {!embedded ? (
           <Typography variant="regularLarge" fontWeight={700} color="white">
             Dashboard
@@ -257,7 +291,9 @@ export default function SupperDashboardOverview({ embedded = false }: { embedded
           />
         </Box>
       </Box>
+      ) : null}
 
+      {showBlock("primary-metrics") ? (
       <Box sx={grid3}>
         <MetricCard
           title="Today Total Chats"
@@ -286,7 +322,9 @@ export default function SupperDashboardOverview({ embedded = false }: { embedded
           }
         />
       </Box>
+      ) : null}
 
+      {showBlock("user-metrics") ? (
       <Box sx={grid3}>
         <MetricCard
           title="Total Active Users"
@@ -315,7 +353,9 @@ export default function SupperDashboardOverview({ embedded = false }: { embedded
           }
         />
       </Box>
+      ) : null}
 
+      {showBlock("revenue") ? (
       <Box sx={grid3Lg}>
         <Box sx={revenueCardsColumn}>
           <MetricCard
@@ -363,7 +403,9 @@ export default function SupperDashboardOverview({ embedded = false }: { embedded
           </Box>
         </DashboardCard>
       </Box>
+      ) : null}
 
+      {showBlock("chat-charts") ? (
       <Box sx={grid2Lg}>
         <DashboardCard sx={dashboardChartRowCard}>
           <Box sx={revenueHeaderRow}>
@@ -407,7 +449,9 @@ export default function SupperDashboardOverview({ embedded = false }: { embedded
           </Box>
         </DashboardCard>
       </Box>
+      ) : null}
 
+      {showBlock("status-metrics") ? (
       <Box sx={grid4}>
         <MetricCard
           title="Agents Online"
@@ -459,7 +503,9 @@ export default function SupperDashboardOverview({ embedded = false }: { embedded
           showTrendArrow={false}
         />
       </Box>
+      ) : null}
 
+      {showBlock("activity-log") ? (
       <DashboardCard sx={cardPaddingAutoHeight}>
         <Box sx={revenueTitleRowMb2}>
           <Box sx={chatAnalyticsIconBox}>
@@ -497,6 +543,7 @@ export default function SupperDashboardOverview({ embedded = false }: { embedded
           />
         </Box>
       </DashboardCard>
+      ) : null}
     </Box>
   );
 }

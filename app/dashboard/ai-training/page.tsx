@@ -1,5 +1,5 @@
-import { redirect } from "next/navigation";
+import { AiTrainingHubPage } from "@/features/ai-training/AiTrainingHubPage";
 
 export default function AiTrainingIndexPage() {
-  redirect("/dashboard/ai-training/assistant");
+  return <AiTrainingHubPage />;
 }

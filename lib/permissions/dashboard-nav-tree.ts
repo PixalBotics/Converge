@@ -115,7 +115,7 @@ const WIDGET_GROUP: DashboardNavItem = {
 };
 
 const AI_MANAGEMENT_GROUP: DashboardNavItem = {
-  href: "/dashboard/ai-training/assistant",
+  href: "/dashboard/ai-training",
   label: "AI Management",
   section: "activity",
   iconKey: "aiTraining",

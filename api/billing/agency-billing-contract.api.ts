@@ -270,9 +270,6 @@ export type BillingPreviewParams = {
 
   extraCharges?: number;
 
-  /** Live sum of software fees typed in UI (preview override). */
-  modulesFeeMonthly?: number;
-
 };
 
 

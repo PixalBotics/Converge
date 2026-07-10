@@ -21,7 +21,8 @@ export function AiTrainingStudioHeaderTabs({
 }) {
   const router = useRouter();
   const isChatbot = variant === "chatbot";
-  const testLabel = isChatbot ? "Chatbot test" : "Assistant test";
+  const testLabel = "Test";
+  const trainingLabel = "Content";
 
   return (
     <ToggleButtonGroup
@@ -35,6 +36,10 @@ export function AiTrainingStudioHeaderTabs({
       }}
       sx={aiTrainingStudioToggleGroupSx}
     >
+      <ToggleButton value="training">
+        <MenuBookOutlined sx={{ fontSize: 16 }} />
+        {trainingLabel}
+      </ToggleButton>
       <ToggleButton value="test">
         {isChatbot ? (
           <SmartToyOutlined sx={{ fontSize: 16 }} />
@@ -42,10 +47,6 @@ export function AiTrainingStudioHeaderTabs({
           <AutoStories sx={{ fontSize: 16 }} />
         )}
         {testLabel}
-      </ToggleButton>
-      <ToggleButton value="training">
-        <MenuBookOutlined sx={{ fontSize: 16 }} />
-        Training
       </ToggleButton>
     </ToggleButtonGroup>
   );

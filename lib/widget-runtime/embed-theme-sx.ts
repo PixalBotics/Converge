@@ -24,6 +24,28 @@ export function embedChatBubbleMaxWidth(): string {
   return `calc(100% - ${EMBED_CHAT_AVATAR_COLUMN_PX}px)`;
 }
 
+function resolveEmbedBubbleRadiusPx(appearance: RuntimeChatAppearance): number {
+  return Math.max(0, appearance.bubbleBorderRadiusPx ?? appearance.borderRadiusPx);
+}
+
+function resolveEmbedBubbleCornerRadius(
+  role: "greeting" | "assistant" | "visitor",
+  appearance: RuntimeChatAppearance,
+): string {
+  const style = (appearance.bubbleStyle ?? "rounded").toLowerCase();
+  const borderRadiusPx = resolveEmbedBubbleRadiusPx(appearance);
+  const radius =
+    style === "pill"
+      ? Math.max(18, borderRadiusPx + 6)
+      : style === "square"
+        ? Math.max(4, Math.min(8, borderRadiusPx))
+        : Math.max(10, borderRadiusPx);
+  const tail = style === "pill" ? radius : style === "square" ? 4 : 4;
+  if (role === "greeting") return `${radius}px`;
+  if (role === "visitor") return `${radius}px ${radius}px ${tail}px ${radius}px`;
+  return `${radius}px ${radius}px ${radius}px ${tail}px`;
+}
+
 /** Keep left/right transcript gutters even when only the agent avatar is enabled. */
 export function shouldMirrorEmbedChatAvatarColumn(
   appearance: RuntimeChatAppearance,
@@ -186,7 +208,7 @@ export function embedIncomingPreviewBubbleSx(
     px: 1.5,
     py: 1.25,
     cursor: "pointer",
-    borderRadius: `${Math.max(10, appearance.borderRadiusPx)}px`,
+    borderRadius: resolveEmbedBubbleCornerRadius("assistant", appearance),
     bgcolor: c.incomingBubbleBg,
     color: c.incomingBubbleText,
     fontSize: c.bodyFontSizePx ?? 13,
@@ -267,6 +289,7 @@ export function embedPanelPaperSx(appearance: RuntimeChatAppearance): SxProps<Th
       buttonHoverColor: appearance.launcher.buttonHoverColor,
       panelBackground: c.panelBackground,
       borderRadiusPx: appearance.borderRadiusPx,
+      glowColor: appearance.launcher.glowColor,
     }),
     color: c.bodyText,
     fontFamily: c.fontFamily,
@@ -461,17 +484,16 @@ export function embedChatBubbleInnerSx(
 ): SxProps<Theme> {
   const c = appearance.colors;
   const accent = appearance.accentPalette;
-  const radius = Math.max(10, appearance.borderRadiusPx);
-  const bubbleShape =
-    appearance.borderRadiusPx >= 20 ? "pill" : appearance.borderRadiusPx <= 6 ? "square" : "rounded";
-  const tailRadius = bubbleShape === "pill" ? radius : bubbleShape === "square" ? 4 : 4;
+  const borderRadius = resolveEmbedBubbleCornerRadius(role, appearance);
   const base = {
     px: 1.5,
     py: 1.05,
     fontFamily: c.fontFamily,
     fontSize: c.bodyFontSizePx,
     lineHeight: 1.55,
-    wordBreak: "break-word" as const,
+    whiteSpace: "pre-wrap" as const,
+    overflowWrap: "break-word" as const,
+    wordBreak: "normal" as const,
     border: `1px solid ${accent.border}40`,
     boxShadow: `0 2px 6px ${accent.main}16`,
   };
@@ -497,7 +519,7 @@ export function embedChatBubbleInnerSx(
   if (role === "visitor") {
     return {
       ...base,
-      borderRadius: `${radius}px ${radius}px ${tailRadius}px ${radius}px`,
+      borderRadius,
       bgcolor: `${c.outgoingBubbleBg} !important`,
       color: `${c.outgoingBubbleText} !important`,
       borderColor: `${c.outgoingBubbleBg}55`,
@@ -507,7 +529,7 @@ export function embedChatBubbleInnerSx(
   if (role === "greeting") {
     return {
       ...base,
-      borderRadius: `${radius}px`,
+      borderRadius,
       bgcolor: `${c.greetingBubbleBg} !important`,
       color: `${c.greetingBubbleText} !important`,
       borderColor: `${accent.border}44`,
@@ -517,7 +539,7 @@ export function embedChatBubbleInnerSx(
   }
   return {
     ...base,
-    borderRadius: `${radius}px ${radius}px ${radius}px ${tailRadius}px`,
+    borderRadius,
     bgcolor: `${c.incomingBubbleBg} !important`,
     color: `${c.incomingBubbleText} !important`,
     borderColor: `${accent.border}40`,

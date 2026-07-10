@@ -77,7 +77,9 @@ import {
   activeChatBarsLabel,
   statusCell,
 } from "./SupervisorDashboardOverview.styles";
+import { dashboardEmbeddedOverviewRoot, embeddedOverviewToolbar } from "../dashboard.styles";
 import { WebsiteTrafficSummarySection } from "@/features/chat-shared/components/WebsiteTrafficSummarySection";
+import { SupervisorDashboardBlockLayout } from "./SupervisorDashboardBlockLayout";
 import { formatDurationSeconds, formatScore } from "@/features/chat-reports/utils/format-metric";
 import {
   conversationVisitorName,
@@ -247,8 +249,8 @@ export default function SupervisorDashboardOverview({ embedded = false }: { embe
   );
 
   return (
-    <Box sx={pageWrapper}>
-      <Box sx={[overviewHeader, embedded ? { justifyContent: "flex-end", mb: 2 } : undefined]}>
+    <Box sx={embedded ? dashboardEmbeddedOverviewRoot : pageWrapper}>
+      <Box sx={embedded ? embeddedOverviewToolbar : overviewHeader}>
         {!embedded ? (
           <Typography variant="regularLarge" fontWeight={700} color="white">
             supervisor dashboard
@@ -266,9 +268,9 @@ export default function SupervisorDashboardOverview({ embedded = false }: { embe
         </Box>
       </Box>
 
-      <WebsiteTrafficSummarySection dateRangeLabel={dateRangeValue} />
-
-      <Box sx={grid4}>
+      <SupervisorDashboardBlockLayout
+        liveMetrics={
+          <Box sx={grid4}>
         <MetricCard
           title="Agents Online"
           value={formatDashboardCount(monitor.agentsOnline, metricsLoading)}
@@ -307,7 +309,8 @@ export default function SupervisorDashboardOverview({ embedded = false }: { embe
           showTrendArrow={false}
         />
       </Box>
-
+        }
+        agentLiveQa={
       <Box sx={gridAgentLiveOverviewHr}>
         <DashboardCard sx={cardAgentPerformance}>
           <Box sx={agentLiveHeaderRow}>
@@ -447,7 +450,8 @@ export default function SupervisorDashboardOverview({ embedded = false }: { embe
           </Button>
         </DashboardCard>
       </Box>
-
+        }
+        liveChatMonitor={
       <DashboardCard sx={cardPadding}>
         <Box sx={liveMonitorHeaderRow}>
           <Box sx={revenueTitleRow}>
@@ -545,6 +549,11 @@ export default function SupervisorDashboardOverview({ embedded = false }: { embe
           )}
         </Box>
       </DashboardCard>
+        }
+        websiteTraffic={
+          <WebsiteTrafficSummarySection dateRangeLabel={dateRangeValue} />
+        }
+      />
     </Box>
   );
 }

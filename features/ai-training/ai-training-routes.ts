@@ -8,6 +8,11 @@ const BASE: Record<AiTrainingKbVariant, string> = {
 };
 
 const COPILOT_BASE = "/dashboard/ai-training/copilot";
+const HUB = "/dashboard/ai-training";
+
+export function aiTrainingHubHref(): string {
+  return HUB;
+}
 
 export function aiTrainingSetupHref(
   websiteId?: string,

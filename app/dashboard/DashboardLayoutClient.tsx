@@ -21,6 +21,7 @@ import { isDashboardChatWorkstationPath } from "@/features/chat-shared/utils/cha
 import { isDashboardAiTrainingStudioPath } from "@/features/ai-training/ai-training-studio-path";
 import { useAgentInboxFocusMode } from "@/lib/hooks/chat/useAgentInboxFocusMode";
 import { mainBackgroundGradient } from "@/theme/theme";
+import { DashboardModuleVisitRecorder } from "./components/DashboardModuleVisitRecorder";
 
 export default function DashboardLayoutClient({
   children,
@@ -156,6 +157,7 @@ export default function DashboardLayoutClient({
 
   return (
     <AgentDashboardProviders>
+    <DashboardModuleVisitRecorder />
     <Box
       sx={{
         display: "flex",

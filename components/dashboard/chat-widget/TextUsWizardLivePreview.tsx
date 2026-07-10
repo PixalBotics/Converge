@@ -7,7 +7,7 @@ import type { AppTheme } from "@/theme/theme";
 import { Typography } from "@/components/common";
 import { TextUsLauncherChip } from "@/components/embed/TextUsLauncherChip";
 import type { LauncherIconPresetId } from "@/lib/chat-widget/launcher-icon-presets";
-import type { WidgetLauncherStyleId } from "@/lib/chat-widget/launcher-style";
+import { resolveWidgetPanelSurfaceSx, type WidgetLauncherStyleId } from "@/lib/chat-widget/launcher-style";
 import type { TextUsFormFieldDraft } from "@/lib/chat-widget/widgetDraft";
 
 export type TextUsWizardLivePreviewProps = {
@@ -27,7 +27,12 @@ export type TextUsWizardLivePreviewProps = {
   boxWidth: number;
   boxHeight: number;
   headerTitle: string;
+  headerTitleEnabled?: boolean;
   headerLogoDataUrl?: string;
+  headerLogoHeightPx?: number;
+  headerLogoMaxWidthPx?: number;
+  headerAlign?: "left" | "center" | "right";
+  glowColor?: string;
   welcomeMessage: string;
   welcomeEnabled: boolean;
   fields: TextUsFormFieldDraft[];
@@ -84,19 +89,37 @@ export function TextUsWizardLivePreview({
   boxWidth,
   boxHeight,
   headerTitle,
+  headerTitleEnabled = true,
   headerLogoDataUrl,
+  headerLogoHeightPx = 28,
+  headerLogoMaxWidthPx = 96,
+  headerAlign = "left",
+  glowColor,
   welcomeMessage,
   welcomeEnabled,
   fields,
 }: TextUsWizardLivePreviewProps) {
   const theme = useTheme() as AppTheme;
   const btn = buttonColor.trim() || "#1E63D5";
-  const title = headerTitle.trim() || "Text Us";
+  const title = headerTitle.trim();
+  const showHeaderTitle = headerTitleEnabled !== false && Boolean(title);
   const welcome = welcomeEnabled ? welcomeMessage.trim() : "";
   const previewWidth = Math.min(300, Math.max(232, Math.round(boxWidth * 0.78)));
   const previewHeight = Math.min(340, Math.max(200, Math.round(boxHeight * 0.58)));
   const corner = cornerPosition(position, verticalAnchor, insetBottomPx, insetTopPx, insetSidePx);
   const stackDirection = verticalAnchor === "bottom" ? "column-reverse" : "column";
+  const logoHeight = Math.min(64, Math.max(16, headerLogoHeightPx));
+  const logoMaxWidth = Math.min(200, Math.max(48, headerLogoMaxWidthPx));
+  const headerJustify =
+    headerAlign === "center" ? "center" : headerAlign === "right" ? "flex-end" : "flex-start";
+  const panelSurface = resolveWidgetPanelSurfaceSx({
+    style: (launcherStyle as WidgetLauncherStyleId) || "solid",
+    buttonColor: btn,
+    buttonHoverColor: buttonHoverColor || btn,
+    panelBackground,
+    borderRadiusPx: 12,
+    glowColor,
+  });
 
   return (
     <Box
@@ -154,6 +177,7 @@ export function TextUsWizardLivePreview({
           iconPreset={launcherIconPreset}
           iconEnabled={launcherIconEnabled}
           launcherStyle={launcherStyle}
+          glowColor={glowColor}
           buttonLabel={buttonLabel}
         />
 
@@ -161,13 +185,10 @@ export function TextUsWizardLivePreview({
           sx={{
             width: previewWidth,
             height: previewHeight,
-            borderRadius: 2,
             overflow: "hidden",
-            boxShadow: `0 16px 48px ${alpha("#0f172a", 0.22)}`,
-            bgcolor: panelBackground,
-            border: `1px solid ${alpha("#000", 0.06)}`,
             display: "flex",
             flexDirection: "column",
+            ...panelSurface,
           }}
         >
           <Box
@@ -178,6 +199,7 @@ export function TextUsWizardLivePreview({
               color: "#fff",
               display: "flex",
               alignItems: "center",
+              justifyContent: headerJustify,
               gap: 1,
               minHeight: 44,
             }}
@@ -187,15 +209,28 @@ export function TextUsWizardLivePreview({
                 component="img"
                 src={headerLogoDataUrl}
                 alt=""
-                sx={{ height: 24, width: "auto", maxWidth: 80, objectFit: "contain" }}
+                sx={{
+                  height: logoHeight,
+                  width: "auto",
+                  maxWidth: logoMaxWidth,
+                  objectFit: "contain",
+                }}
               />
             ) : null}
-            <Typography
-              variant="mediumLarge"
-              sx={{ color: "inherit", fontWeight: 700, minWidth: 0, fontSize: 14 }}
-            >
-              {title}
-            </Typography>
+            {showHeaderTitle ? (
+              <Typography
+                variant="mediumLarge"
+                sx={{
+                  color: "inherit",
+                  fontWeight: 700,
+                  minWidth: 0,
+                  fontSize: 14,
+                  textAlign: headerAlign,
+                }}
+              >
+                {title}
+              </Typography>
+            ) : null}
           </Box>
 
           <Box

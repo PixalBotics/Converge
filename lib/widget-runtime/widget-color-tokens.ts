@@ -307,7 +307,7 @@ export function resolveWidgetColorTokens(input: ResolveWidgetColorTokensInput): 
   );
 
   const borderRadiusPx = Math.min(
-    24,
+    20,
     Math.max(0, num(theme?.borderRadiusPx, num(designTheme?.borderRadiusPx, 12))),
   );
   const inputFontSizePx = num(theme?.inputFontSizePx, 14);

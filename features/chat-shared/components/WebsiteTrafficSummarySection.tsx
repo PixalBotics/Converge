@@ -10,7 +10,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
 import { DashboardCard, MetricCard, Typography } from "@/components/common";
-import { ChatScopeFiltersPanel } from "@/features/chat-shared/components/ChatScopeFiltersPanel";
+import { ChatScopeFiltersToolbar } from "@/features/chat-shared/components/ChatScopeFiltersToolbar";
 import { useChatScopeFilters } from "@/features/chat-shared/hooks/useChatScopeFilters";
 import { fetchWebsiteLeadsSummary } from "@/services/chat/website-analytics.api";
 import { cardPadding, grid4 } from "@/app/dashboard/supervisor-dashboard/SupervisorDashboardOverview.styles";
@@ -40,7 +40,7 @@ export function WebsiteTrafficSummarySection({
   dateRangeLabel,
 }: WebsiteTrafficSummarySectionProps) {
   const theme = useTheme() as AppTheme;
-  const scope = useChatScopeFilters(undefined, { apiEnabled: true });
+  const scope = useChatScopeFilters(undefined);
   const websiteId = scope.filters.websiteId.trim();
   const range = useMemo(() => resolveDateRange(dateRangeLabel), [dateRangeLabel]);
 
@@ -62,21 +62,22 @@ export function WebsiteTrafficSummarySection({
 
   return (
     <DashboardCard sx={{ ...cardPadding, mb: 2.5 }}>
-      <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1.5 }}>
-        <LanguageOutlined sx={{ fontSize: 20, color: theme.app.dashboard.accentCyan }} />
-        <Typography variant="subtitle1" fontWeight={600} color="white">
-          Website traffic & chats
-        </Typography>
-      </Box>
-      <Typography
-        variant="caption"
-        sx={{ display: "block", mb: 1.5, color: theme.app.dashboard.textMuted }}
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 1,
+          mb: 1.5,
+        }}
       >
-        Live analytics via socket (REST fallback). Select a website to load totals for{" "}
-        {dateRangeLabel.toLowerCase()}.
-      </Typography>
-      <Box sx={{ mb: 2 }}>
-        <ChatScopeFiltersPanel
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1, minWidth: 0 }}>
+          <LanguageOutlined sx={{ fontSize: 20, color: theme.app.dashboard.accentCyan }} />
+          <Typography variant="subtitle1" fontWeight={600} color="white">
+            Website traffic & chats
+          </Typography>
+        </Box>
+        <ChatScopeFiltersToolbar
           filters={scope.filters}
           onPatch={scope.patchFilters}
           onReset={scope.resetFilters}
@@ -85,12 +86,20 @@ export function WebsiteTrafficSummarySection({
           parentCompanyOptions={scope.parentCompanyOptions}
           childCompanyOptions={scope.childCompanyOptions}
           websiteOptions={scope.websiteOptions}
-          compact
+          title="Website traffic filters"
+          hint={`Select a website to load totals for ${dateRangeLabel.toLowerCase()}.`}
         />
       </Box>
+      <Typography
+        variant="caption"
+        sx={{ display: "block", mb: 2, color: theme.app.dashboard.textMuted }}
+      >
+        Live analytics via socket (REST fallback). Use Filter to choose reseller, company, and
+        website scope.
+      </Typography>
       {!websiteId ? (
         <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted }}>
-          Choose a website above to view visitor and chat metrics.
+          Choose a website in Filter to view visitor and chat metrics.
         </Typography>
       ) : summaryQuery.isLoading ? (
         <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted }}>

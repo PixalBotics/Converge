@@ -111,8 +111,8 @@ export function DashboardMyLeave() {
   const loading = quotaQuery.isLoading || myLeavesQuery.isLoading;
 
   return (
-    <Box sx={{ mt: 2 }}>
-      <Box sx={grid3}>
+    <Box>
+      <Box sx={{ ...grid3, mb: 0 }}>
         <MetricCard
           title="Leave balance"
           value={

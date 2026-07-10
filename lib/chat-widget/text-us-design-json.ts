@@ -21,6 +21,12 @@ function clamp(n: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, n));
 }
 
+function normalizeTextUsHeaderAlign(raw: unknown): "left" | "center" | "right" {
+  const s = String(raw ?? "").toLowerCase();
+  if (s === "center" || s === "right") return s;
+  return "left";
+}
+
 /** Build `theme.designJson.textUs` from wizard draft. */
 export function buildTextUsDesignJsonFromDraft(
   draft: WidgetDraft,
@@ -36,9 +42,18 @@ export function buildTextUsDesignJsonFromDraft(
     insetSidePx: clamp(draft.textUsInsetSidePx ?? 28, 0, 240),
     boxWidth: clamp(draft.textUsBoxWidth ?? 360, 280, 520),
     boxHeight: clamp(draft.textUsBoxHeight ?? 480, 320, 640),
-    headerTitle: draft.textUsHeaderTitle?.trim() || "Text Us",
+    headerTitle:
+      draft.textUsHeaderTitleEnabled === false
+        ? ""
+        : draft.textUsHeaderTitle?.trim() || "Text Us",
     welcomeMessage: draft.textUsWelcomeMessage?.trim() || "",
   };
+
+  if (draft.textUsHeaderTitleEnabled === false) {
+    textUs.headerTitleEnabled = false;
+  } else if (draft.textUsHeaderTitleEnabled === true) {
+    textUs.headerTitleEnabled = true;
+  }
 
   const buttonLabel = draft.textUsButtonLabel?.trim();
   if (buttonLabel) textUs.buttonLabel = buttonLabel;
@@ -62,6 +77,11 @@ export function buildTextUsDesignJsonFromDraft(
       : "");
   if (logoUrl) textUs.headerLogoUrl = logoUrl;
 
+  const logoHeight = draft.textUsHeaderLogoHeightPx ?? 28;
+  textUs.headerLogoHeightPx = clamp(logoHeight, 16, 64);
+  textUs.headerLogoMaxWidthPx = clamp(draft.textUsHeaderLogoMaxWidthPx ?? 96, 48, 200);
+  textUs.headerAlign = normalizeTextUsHeaderAlign(draft.textUsHeaderAlign);
+
   const launcher: Record<string, unknown> = {};
   if (draft.textUsLauncherIconEnabled === false) {
     launcher.iconEnabled = false;
@@ -74,6 +94,8 @@ export function buildTextUsDesignJsonFromDraft(
   if (draft.textUsLauncherStyle?.trim()) {
     launcher.style = draft.textUsLauncherStyle.trim();
   }
+  const glowColor = draft.textUsGlowColor?.trim();
+  if (glowColor) launcher.glowColor = glowColor;
   if (Object.keys(launcher).length > 0) textUs.launcher = launcher;
 
   const accent = draft.textUsAccent?.trim() || draft.themeDesignJsonAccent?.trim();
@@ -97,14 +119,19 @@ export type TextUsThemePreviewInput = {
   boxWidth: number;
   boxHeight: number;
   headerTitle: string;
+  headerTitleEnabled?: boolean;
   welcomeMessage: string;
   buttonLabel?: string;
   headerLogoUrl?: string;
+  headerLogoHeightPx?: number;
+  headerLogoMaxWidthPx?: number;
+  headerAlign?: string;
   motionEnabled?: boolean;
   panelBackground?: string;
   launcherIconPreset?: string;
   launcherIconEnabled?: boolean;
   launcherStyle?: string;
+  launcherGlowColor?: string;
   accent?: string;
   density?: string;
 };
@@ -119,21 +146,27 @@ export function textUsThemePreviewPayload(input: TextUsThemePreviewInput): Recor
     insetSidePx: input.insetSidePx,
     boxWidth: input.boxWidth,
     boxHeight: input.boxHeight,
-    headerTitle: input.headerTitle.trim() || "Text Us",
+    headerTitle: input.headerTitleEnabled === false ? "" : input.headerTitle.trim() || "Text Us",
   };
+  if (input.headerTitleEnabled === false) theme.headerTitleEnabled = false;
+  else if (input.headerTitleEnabled === true) theme.headerTitleEnabled = true;
   if (input.buttonHoverColor?.trim()) theme.buttonHoverColor = input.buttonHoverColor.trim();
   if (input.iconColor?.trim()) theme.iconColor = input.iconColor.trim();
   const welcome = input.welcomeMessage.trim();
   if (welcome) theme.welcomeMessage = welcome;
   if (input.buttonLabel?.trim()) theme.buttonLabel = input.buttonLabel.trim();
   if (input.headerLogoUrl?.trim()) theme.headerLogoUrl = input.headerLogoUrl.trim();
+  if (input.headerLogoHeightPx != null) theme.headerLogoHeightPx = input.headerLogoHeightPx;
+  if (input.headerLogoMaxWidthPx != null) theme.headerLogoMaxWidthPx = input.headerLogoMaxWidthPx;
+  if (input.headerAlign?.trim()) theme.headerAlign = normalizeTextUsHeaderAlign(input.headerAlign);
   if (input.motionEnabled === false) theme.motionEnabled = false;
   if (input.panelBackground?.trim()) theme.panelBackground = input.panelBackground.trim();
-  if (input.launcherIconPreset?.trim() || input.launcherStyle?.trim() || input.launcherIconEnabled === false) {
+  if (input.launcherIconPreset?.trim() || input.launcherStyle?.trim() || input.launcherIconEnabled === false || input.launcherGlowColor?.trim()) {
     theme.launcher = {
       ...(input.launcherIconEnabled === false ? { iconEnabled: false } : { iconEnabled: true }),
       ...(input.launcherIconPreset?.trim() ? { iconPreset: input.launcherIconPreset.trim() } : {}),
       ...(input.launcherStyle?.trim() ? { style: input.launcherStyle.trim() } : {}),
+      ...(input.launcherGlowColor?.trim() ? { glowColor: input.launcherGlowColor.trim() } : {}),
     };
   }
   if (input.accent?.trim()) theme.accent = input.accent.trim();

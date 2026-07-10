@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
-import CloudUploadOutlined from "@mui/icons-material/CloudUploadOutlined";
 import Box from "@mui/material/Box";
+import Stack from "@mui/material/Stack";
 import Switch from "@mui/material/Switch";
 import { useTheme } from "@mui/material/styles";
 import type { AppTheme } from "@/theme/theme";
@@ -29,8 +29,9 @@ import {
   withChatEditQuery,
 } from "@/lib/chat-widget/chat-wizard-edit";
 import { WidgetChatBoxLivePreview } from "@/components/dashboard/chat-widget/WidgetChatBoxLivePreview";
+import { WidgetLauncherLivePreview } from "@/components/dashboard/chat-widget/WidgetLauncherLivePreview";
 import { WidgetColorPickerField } from "@/components/dashboard/chat-widget/WidgetColorPickerField";
-import { WidgetChatColorsSection } from "@/components/dashboard/chat-widget/WidgetChatColorsSection";
+import { WidgetChatColorsSection, WidgetMessageBubbleColorFields } from "@/components/dashboard/chat-widget/WidgetChatColorsSection";
 import {
   readWidgetChatColorsFromDraft,
   widgetChatColorsDraftToPatch,
@@ -59,8 +60,7 @@ import {
   isWidgetInquiryOptionConfigured,
 } from "@/lib/chat-widget/visitor-topics.mapper";
 import { normalizeWidgetInquiryOptions } from "@/lib/chat-widget/widget-inquiry.types";
-import { WidgetWizardSiteChromePreview } from "@/features/chat-widget/components/WidgetWizardSiteChromePreview";
-import Stack from "@mui/material/Stack";
+import { WIDGET_GOOGLE_FONT_OPTIONS } from "@/lib/chat-widget/widget-google-fonts";
 import {
   DESIGN_ACCENT_SELECT_OPTIONS,
   DESIGN_DENSITY_SELECT_OPTIONS,
@@ -72,6 +72,7 @@ import {
 import { useWizardStepFlush } from "@/lib/chat-widget/widget-wizard-step-flush";
 import { WidgetSurfaceStylePicker } from "@/components/dashboard/chat-widget/WidgetSurfaceStylePicker";
 import { WidgetChatAvatarField } from "@/components/dashboard/chat-widget/WidgetChatAvatarField";
+import { WidgetMediaUploadPreview } from "@/components/dashboard/chat-widget/WidgetMediaUploadPreview";
 import {
   normalizeAgentAvatarPreset,
   normalizeVisitorAvatarPreset,
@@ -80,6 +81,7 @@ import {
 } from "@/lib/chat-widget/chat-avatar-presets";
 import {
   normalizeLauncherStyle,
+  normalizePanelSurfaceStyle,
   type WidgetLauncherStyleId,
 } from "@/lib/chat-widget/launcher-style";
 
@@ -88,6 +90,18 @@ function clampNum(raw: string, min: number, max: number, fallback: number): numb
   if (!Number.isFinite(n)) return fallback;
   return Math.min(max, Math.max(min, n));
 }
+
+function parseNonNegativeInt(raw: string, fallback: number): number {
+  const n = Number.parseInt(raw.trim(), 10);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.max(0, n);
+}
+
+const compactGridFieldSx = {
+  "& .MuiFormHelperText-root": { display: "none", minHeight: 0, margin: 0 },
+  "& .MuiOutlinedInput-root": { minHeight: 40 },
+  "& .MuiInputBase-input": { py: 1 },
+} as const;
 
 export default function ChatWidgetBoxDesignPage() {
   const { recordSave } = useWidgetWizardSaveTrace();
@@ -99,6 +113,14 @@ export default function ChatWidgetBoxDesignPage() {
   const [bannerTitle, setBannerTitle] = useState(defaultWidgetDraft.bannerTitle ?? "");
   const [bannerDescription, setBannerDescription] = useState(
     defaultWidgetDraft.bannerDescription ?? "",
+  );
+  const [bannerCtaLabel, setBannerCtaLabel] = useState(defaultWidgetDraft.bannerCtaLabel ?? "");
+  const [bannerCtaHref, setBannerCtaHref] = useState(defaultWidgetDraft.bannerCtaHref ?? "");
+  const [headerLogoHeightPx, setHeaderLogoHeightPx] = useState(
+    String(defaultWidgetDraft.headerLogoHeightPx ?? 28),
+  );
+  const [videoWelcomeHeightPx, setVideoWelcomeHeightPx] = useState(
+    String(defaultWidgetDraft.videoWelcomeHeightPx ?? 160),
   );
   const [headerBrandColor, setHeaderBrandColor] = useState(
     defaultWidgetDraft.buttonColor ?? "#1E63D5",
@@ -118,6 +140,9 @@ export default function ChatWidgetBoxDesignPage() {
   );
   const [themeBorderRadiusPxStr, setThemeBorderRadiusPxStr] = useState(
     String(defaultWidgetDraft.themeBorderRadiusPx ?? 12),
+  );
+  const [bubbleBorderRadiusPxStr, setBubbleBorderRadiusPxStr] = useState(
+    String(defaultWidgetDraft.bubbleBorderRadiusPx ?? defaultWidgetDraft.themeBorderRadiusPx ?? 12),
   );
   const [themeWelcomeFontStr, setThemeWelcomeFontStr] = useState(
     String(defaultWidgetDraft.themeWelcomeFontSizePx ?? 18),
@@ -151,12 +176,6 @@ export default function ChatWidgetBoxDesignPage() {
   const [panelHeaderTitle, setPanelHeaderTitle] = useState(
     defaultWidgetDraft.headerTitle ?? "",
   );
-  const [panelGreetingEnabled, setPanelGreetingEnabled] = useState(
-    defaultWidgetDraft.panelGreetingEnabled ?? true,
-  );
-  const [chatWelcomeEnabled, setChatWelcomeEnabled] = useState(
-    defaultWidgetDraft.chatWelcomeEnabled ?? true,
-  );
   const [greetingMessage, setGreetingMessage] = useState(
     defaultWidgetDraft.greetingMessage ?? "",
   );
@@ -166,9 +185,6 @@ export default function ChatWidgetBoxDesignPage() {
   const [boxWidth, setBoxWidth] = useState("350");
   const [boxHeight, setBoxHeight] = useState("430");
   const [buttonLabel, setButtonLabel] = useState(defaultWidgetDraft.buttonLabel ?? "Chat with us");
-  const [firstMessage, setFirstMessage] = useState(
-    defaultWidgetDraft.firstMessage ?? "Hi! How can we help today?",
-  );
   const [backgroundColor, setBackgroundColor] = useState(
     defaultWidgetDraft.backgroundColor ?? "#f8fafc",
   );
@@ -190,7 +206,7 @@ export default function ChatWidgetBoxDesignPage() {
     chatMode: defaultWidgetDraft.chatMode ?? "HYBRID",
   });
   const [panelSurfaceStyle, setPanelSurfaceStyle] = useState<WidgetLauncherStyleId>(
-    defaultWidgetDraft.panelSurfaceStyle ?? "solid",
+    normalizePanelSurfaceStyle(defaultWidgetDraft.panelSurfaceStyle ?? "solid"),
   );
   const [bubbleSurfaceStyle, setBubbleSurfaceStyle] = useState<WidgetLauncherStyleId>(
     defaultWidgetDraft.bubbleSurfaceStyle ?? "solid",
@@ -209,12 +225,8 @@ export default function ChatWidgetBoxDesignPage() {
   const [visitorAvatarPreset, setVisitorAvatarPreset] = useState<VisitorAvatarPresetId>(
     normalizeVisitorAvatarPreset(defaultWidgetDraft.visitorAvatarPreset),
   );
-  const [agentAvatarFileName, setAgentAvatarFileName] = useState("");
-  const [visitorAvatarFileName, setVisitorAvatarFileName] = useState("");
   const bannerUploadRef = useRef<HTMLInputElement | null>(null);
   const headerLogoUploadRef = useRef<HTMLInputElement | null>(null);
-  const agentAvatarUploadRef = useRef<HTMLInputElement | null>(null);
-  const visitorAvatarUploadRef = useRef<HTMLInputElement | null>(null);
   const [saving, setSaving] = useState(false);
   const [checklistRefreshKey, setChecklistRefreshKey] = useState(0);
 
@@ -233,6 +245,10 @@ export default function ChatWidgetBoxDesignPage() {
     setBannerOn(Boolean(d.bannerOn));
     setBannerTitle(d.bannerTitle ?? "");
     setBannerDescription(d.bannerDescription ?? "");
+    setBannerCtaLabel(d.bannerCtaLabel ?? "");
+    setBannerCtaHref(d.bannerCtaHref ?? "");
+    setHeaderLogoHeightPx(String(d.headerLogoHeightPx ?? defaultWidgetDraft.headerLogoHeightPx ?? 28));
+    setVideoWelcomeHeightPx(String(d.videoWelcomeHeightPx ?? defaultWidgetDraft.videoWelcomeHeightPx ?? 160));
     setHeaderBrandColor(
       d.themePrimaryColor?.trim() || d.buttonColor?.trim() || "#1ed760",
     );
@@ -244,9 +260,10 @@ export default function ChatWidgetBoxDesignPage() {
     setHeaderLogoFileName(d.headerLogoDataUrl ? "Uploaded logo" : "");
     setBannerMediaType(d.bannerMediaType === "video" ? "video" : "image");
     setPanelHeaderTitle(d.headerTitle ?? "");
-    setPanelGreetingEnabled(d.panelGreetingEnabled !== false);
-    setChatWelcomeEnabled(d.chatWelcomeEnabled !== false);
-    setGreetingMessage(d.greetingMessage ?? defaultWidgetDraft.greetingMessage);
+    setGreetingMessage(
+      (d.greetingMessage ?? d.firstMessage ?? defaultWidgetDraft.greetingMessage ?? "").trim() ||
+        defaultWidgetDraft.greetingMessage,
+    );
     setSendPlaceholder(
       d.sendPlaceholder ??
         d.messagePlaceholder ??
@@ -257,7 +274,6 @@ export default function ChatWidgetBoxDesignPage() {
     setButtonLabel(
       typeof d.buttonLabel === "string" ? d.buttonLabel : (defaultWidgetDraft.buttonLabel ?? ""),
     );
-    setFirstMessage(d.firstMessage ?? "Hi! How can we help today?");
     setBackgroundColor(d.backgroundColor ?? "#f8fafc");
     setChatColors(readWidgetChatColorsFromDraft(d));
     setVideoWelcomeOn(d.videoWelcomeOn ?? false);
@@ -266,6 +282,15 @@ export default function ChatWidgetBoxDesignPage() {
     setThemeFontFamily(d.themeFontFamily ?? defaultWidgetDraft.themeFontFamily ?? "");
     setThemeBubbleStyle(d.themeBubbleStyle ?? defaultWidgetDraft.themeBubbleStyle ?? "rounded");
     setThemeBorderRadiusPxStr(String(d.themeBorderRadiusPx ?? defaultWidgetDraft.themeBorderRadiusPx ?? 12));
+    setBubbleBorderRadiusPxStr(
+      String(
+        d.bubbleBorderRadiusPx ??
+          d.themeBorderRadiusPx ??
+          defaultWidgetDraft.bubbleBorderRadiusPx ??
+          defaultWidgetDraft.themeBorderRadiusPx ??
+          12,
+      ),
+    );
     setThemeWelcomeFontStr(String(d.themeWelcomeFontSizePx ?? defaultWidgetDraft.themeWelcomeFontSizePx ?? 18));
     setThemeBodyFontStr(String(d.themeBodyFontSizePx ?? defaultWidgetDraft.themeBodyFontSizePx ?? 14));
     setThemeInputFontStr(String(d.themeInputFontSizePx ?? defaultWidgetDraft.themeInputFontSizePx ?? 14));
@@ -274,7 +299,7 @@ export default function ChatWidgetBoxDesignPage() {
     setThemeLineHeightStr(String(d.themeLineHeightPx ?? defaultWidgetDraft.themeLineHeightPx ?? 22));
     setThemeDesignJsonAccent(d.themeDesignJsonAccent ?? defaultWidgetDraft.themeDesignJsonAccent ?? "blue");
     setThemeDesignJsonDensity(d.themeDesignJsonDensity ?? defaultWidgetDraft.themeDesignJsonDensity ?? "comfortable");
-    setPanelSurfaceStyle(normalizeLauncherStyle(d.panelSurfaceStyle));
+    setPanelSurfaceStyle(normalizePanelSurfaceStyle(d.panelSurfaceStyle));
     setBubbleSurfaceStyle(normalizeLauncherStyle(d.bubbleSurfaceStyle));
     setAgentAvatarEnabled(d.agentAvatarEnabled !== false);
     setVisitorAvatarEnabled(d.visitorAvatarEnabled === true);
@@ -282,8 +307,6 @@ export default function ChatWidgetBoxDesignPage() {
     setVisitorAvatarDataUrl(d.visitorAvatarDataUrl || "");
     setAgentAvatarPreset(normalizeAgentAvatarPreset(d.agentAvatarPreset));
     setVisitorAvatarPreset(normalizeVisitorAvatarPreset(d.visitorAvatarPreset));
-    setAgentAvatarFileName(d.agentAvatarDataUrl ? "Uploaded avatar" : "");
-    setVisitorAvatarFileName(d.visitorAvatarDataUrl ? "Uploaded avatar" : "");
     setPreviewForm({
       formEnabled: d.formEnabled ?? def.formEnabled ?? true,
       formTitle: d.formTitle ?? def.formTitle ?? "",
@@ -306,6 +329,10 @@ export default function ChatWidgetBoxDesignPage() {
     bannerOn,
     bannerTitle,
     bannerDescription,
+    bannerCtaLabel,
+    bannerCtaHref,
+    headerLogoHeightPx,
+    videoWelcomeHeightPx,
     headerBrandColor,
     themeSecondaryColor,
     textColor,
@@ -315,6 +342,7 @@ export default function ChatWidgetBoxDesignPage() {
     themeFontFamily,
     themeBubbleStyle,
     themeBorderRadiusPxStr,
+    bubbleBorderRadiusPxStr,
     themeWelcomeFontStr,
     themeBodyFontStr,
     themeInputFontStr,
@@ -327,14 +355,11 @@ export default function ChatWidgetBoxDesignPage() {
     bannerMediaType,
     headerLogoDataUrl,
     panelHeaderTitle,
-    panelGreetingEnabled,
-    chatWelcomeEnabled,
     greetingMessage,
     sendPlaceholder,
     boxWidth,
     boxHeight,
     buttonLabel,
-    firstMessage,
     backgroundColor,
     chatColors,
     previewForm,
@@ -354,6 +379,10 @@ export default function ChatWidgetBoxDesignPage() {
     bannerOn,
     bannerTitle,
     bannerDescription,
+    bannerCtaLabel,
+    bannerCtaHref,
+    headerLogoHeightPx,
+    videoWelcomeHeightPx,
     headerBrandColor,
     themeSecondaryColor,
     textColor,
@@ -363,6 +392,7 @@ export default function ChatWidgetBoxDesignPage() {
     themeFontFamily,
     themeBubbleStyle,
     themeBorderRadiusPxStr,
+    bubbleBorderRadiusPxStr,
     themeWelcomeFontStr,
     themeBodyFontStr,
     themeInputFontStr,
@@ -375,14 +405,11 @@ export default function ChatWidgetBoxDesignPage() {
     bannerMediaType,
     headerLogoDataUrl,
     panelHeaderTitle,
-    panelGreetingEnabled,
-    chatWelcomeEnabled,
     greetingMessage,
     sendPlaceholder,
     boxWidth,
     boxHeight,
     buttonLabel,
-    firstMessage,
     backgroundColor,
     chatColors,
     previewForm,
@@ -409,7 +436,8 @@ export default function ChatWidgetBoxDesignPage() {
       themeName: s.themeName.trim() || defaultWidgetDraft.themeName,
       themeFontFamily: s.themeFontFamily.trim() || defaultWidgetDraft.themeFontFamily,
       themeBubbleStyle: s.themeBubbleStyle.trim() || defaultWidgetDraft.themeBubbleStyle,
-      themeBorderRadiusPx: clampNum(s.themeBorderRadiusPxStr, 0, 48, 12),
+      themeBorderRadiusPx: clampNum(s.themeBorderRadiusPxStr, 0, 20, 12),
+      bubbleBorderRadiusPx: parseNonNegativeInt(s.bubbleBorderRadiusPxStr, 12),
       themeWelcomeFontSizePx: clampNum(s.themeWelcomeFontStr, 10, 32, 18),
       themeBodyFontSizePx: clampNum(s.themeBodyFontStr, 10, 28, 14),
       themeInputFontSizePx: clampNum(s.themeInputFontStr, 10, 28, 14),
@@ -427,26 +455,31 @@ export default function ChatWidgetBoxDesignPage() {
       ...syncResponseCopyFromChatBox({
         ...prev,
         greetingMessage: s.greetingMessage,
-        firstMessage: s.firstMessage,
+        firstMessage: "",
         sendPlaceholder: s.sendPlaceholder,
         messagePlaceholder: s.sendPlaceholder,
       }),
       themePrimaryColor: s.headerBrandColor.trim() || prev.themePrimaryColor || prev.buttonColor,
       textColor: s.textColor || prev.textColor || "#FFFFFF",
-      panelGreetingEnabled: s.panelGreetingEnabled,
-      chatWelcomeEnabled: s.chatWelcomeEnabled,
-      greetingMessage: s.greetingMessage,
+      panelGreetingEnabled: false,
+      chatWelcomeEnabled: false,
+      greetingMessage: s.greetingMessage.trim(),
       sendPlaceholder: s.sendPlaceholder,
       messagePlaceholder: s.sendPlaceholder.trim(),
       bannerOn: s.bannerOn,
       bannerTitle: s.bannerTitle.trim(),
       bannerDescription: s.bannerDescription.trim(),
+      bannerHeightPx: 0,
+      bannerCtaLabel: s.bannerCtaLabel.trim(),
+      bannerCtaHref: s.bannerCtaHref.trim(),
+      headerLogoHeightPx: clampNum(s.headerLogoHeightPx, 16, 64, 28),
+      videoWelcomeHeightPx: clampNum(s.videoWelcomeHeightPx, 80, 320, 160),
       bannerDataUrl: s.bannerDataUrl,
       bannerMediaType: s.bannerMediaType,
       boxWidth: safeWidth,
       boxHeight: safeHeight,
       buttonLabel: s.buttonLabel.trim(),
-      firstMessage: s.firstMessage.trim(),
+      firstMessage: "",
       backgroundColor: s.backgroundColor.trim() || prev.backgroundColor || "#f8fafc",
       formEnabled: s.previewForm.formEnabled,
       formTitle: s.previewForm.formTitle,
@@ -490,26 +523,6 @@ export default function ChatWidgetBoxDesignPage() {
     const reader = new FileReader();
     reader.onload = () =>
       setHeaderLogoDataUrl(typeof reader.result === "string" ? reader.result : "");
-    reader.readAsDataURL(file);
-  };
-
-  const handleAvatarUpload = (
-    event: ChangeEvent<HTMLInputElement>,
-    role: "agent" | "visitor",
-  ) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      const dataUrl = typeof reader.result === "string" ? reader.result : "";
-      if (role === "agent") {
-        setAgentAvatarFileName(file.name);
-        setAgentAvatarDataUrl(dataUrl);
-      } else {
-        setVisitorAvatarFileName(file.name);
-        setVisitorAvatarDataUrl(dataUrl);
-      }
-    };
     reader.readAsDataURL(file);
   };
 
@@ -569,7 +582,8 @@ export default function ChatWidgetBoxDesignPage() {
           themeName: themeName.trim() || defaultWidgetDraft.themeName,
           themeFontFamily: themeFontFamily.trim() || defaultWidgetDraft.themeFontFamily,
           themeBubbleStyle: themeBubbleStyle.trim() || defaultWidgetDraft.themeBubbleStyle,
-          themeBorderRadiusPx: clampNum(themeBorderRadiusPxStr, 0, 48, 12),
+          themeBorderRadiusPx: clampNum(themeBorderRadiusPxStr, 0, 20, 12),
+          bubbleBorderRadiusPx: parseNonNegativeInt(bubbleBorderRadiusPxStr, 12),
           themeWelcomeFontSizePx: clampNum(themeWelcomeFontStr, 10, 32, 18),
           themeBodyFontSizePx: clampNum(themeBodyFontStr, 10, 28, 14),
           themeInputFontSizePx: clampNum(themeInputFontStr, 10, 28, 14),
@@ -587,27 +601,32 @@ export default function ChatWidgetBoxDesignPage() {
           ...syncResponseCopyFromChatBox({
             ...prev,
             greetingMessage,
-            firstMessage,
+            firstMessage: "",
             sendPlaceholder,
             messagePlaceholder: sendPlaceholder,
           }),
           themePrimaryColor:
             headerBrandColor.trim() || prev.themePrimaryColor || prev.buttonColor,
           textColor: textColor || prev.textColor || "#FFFFFF",
-          panelGreetingEnabled,
-          chatWelcomeEnabled,
-          greetingMessage,
+          panelGreetingEnabled: false,
+          chatWelcomeEnabled: false,
+          greetingMessage: greetingMessage.trim(),
           sendPlaceholder,
           messagePlaceholder: sendPlaceholder.trim(),
           bannerOn,
           bannerTitle: bannerTitle.trim(),
           bannerDescription: bannerDescription.trim(),
+          bannerHeightPx: 0,
+          bannerCtaLabel: bannerCtaLabel.trim(),
+          bannerCtaHref: bannerCtaHref.trim(),
+          headerLogoHeightPx: clampNum(headerLogoHeightPx, 16, 64, 28),
+          videoWelcomeHeightPx: clampNum(videoWelcomeHeightPx, 80, 320, 160),
           bannerDataUrl,
           bannerMediaType,
           boxWidth: safeWidth,
           boxHeight: safeHeight,
           buttonLabel: buttonLabel.trim(),
-          firstMessage: firstMessage.trim(),
+          firstMessage: "",
           backgroundColor: backgroundColor.trim() || prev.backgroundColor || "#f8fafc",
           inquiryOn: prev.inquiryOn ?? false,
           inquiryOptions: prev.inquiryOptions ?? [],
@@ -690,17 +709,23 @@ export default function ChatWidgetBoxDesignPage() {
     return {
       headerTitle: panelHeaderTitle.trim(),
       headerLogoDataUrl,
+      headerLogoHeightPx: clampNum(headerLogoHeightPx, 16, 64, 28),
       headerAlign: headerTitleAlign,
       buttonColor: headerBrandColor || "#1ed760",
+      buttonHoverColor: chromeDraft.buttonHoverColor || headerBrandColor || "#1ed760",
       textColor: textColor || "#ffffff",
       backgroundColor: backgroundColor.trim() || "#f8fafc",
       bannerOn,
       bannerTitle,
-      bannerDescription,
       bannerDataUrl,
       bannerMediaType,
-      greetingMessage: panelGreetingEnabled ? greetingMessage : "",
-      firstMessage: chatWelcomeEnabled ? firstMessage : "",
+      bannerHeightPx: 0,
+      bannerCtaLabel,
+      bannerCtaHref,
+      videoWelcomeOn,
+      videoWelcomeUrl,
+      videoWelcomeHeightPx: clampNum(videoWelcomeHeightPx, 80, 320, 160),
+      greetingMessage: greetingMessage.trim(),
       sendPlaceholder,
       messagePlaceholder: sendPlaceholder,
       boxWidth: Number.isFinite(parsedPreviewWidth) ? parsedPreviewWidth : 350,
@@ -731,6 +756,17 @@ export default function ChatWidgetBoxDesignPage() {
       visitorAvatarDataUrl,
       agentAvatarPreset,
       visitorAvatarPreset,
+      themeFontFamily: themeFontFamily.trim() || defaultWidgetDraft.themeFontFamily,
+      themeBubbleStyle,
+      themeBorderRadiusPx: clampNum(themeBorderRadiusPxStr, 0, 20, 12),
+      bubbleBorderRadiusPx: parseNonNegativeInt(bubbleBorderRadiusPxStr, 12),
+      themeWelcomeFontSizePx: clampNum(themeWelcomeFontStr, 10, 32, 18),
+      themeBodyFontSizePx: clampNum(themeBodyFontStr, 10, 28, 14),
+      themeInputFontSizePx: clampNum(themeInputFontStr, 10, 28, 14),
+      themeCtaFontSizePx: clampNum(themeCtaFontStr, 10, 28, 15),
+      themeLineHeightPx: clampNum(themeLineHeightStr, 14, 40, 22),
+      themeDesignJsonAccent,
+      themeDesignJsonDensity,
     };
   }, [
       panelHeaderTitle,
@@ -738,19 +774,22 @@ export default function ChatWidgetBoxDesignPage() {
       editWidgetKey,
       checklistRefreshKey,
       headerLogoDataUrl,
+      headerLogoHeightPx,
       headerTitleAlign,
       headerBrandColor,
+      chromeDraft.buttonHoverColor,
       textColor,
       backgroundColor,
       bannerOn,
       bannerTitle,
-      bannerDescription,
+      bannerCtaLabel,
+      bannerCtaHref,
       bannerDataUrl,
       bannerMediaType,
-      panelGreetingEnabled,
+      videoWelcomeOn,
+      videoWelcomeUrl,
+      videoWelcomeHeightPx,
       greetingMessage,
-      chatWelcomeEnabled,
-      firstMessage,
       sendPlaceholder,
       parsedPreviewWidth,
       parsedPreviewHeight,
@@ -764,6 +803,17 @@ export default function ChatWidgetBoxDesignPage() {
       visitorAvatarDataUrl,
       agentAvatarPreset,
       visitorAvatarPreset,
+      themeFontFamily,
+      themeBubbleStyle,
+      themeBorderRadiusPxStr,
+      bubbleBorderRadiusPxStr,
+      themeWelcomeFontStr,
+      themeBodyFontStr,
+      themeInputFontStr,
+      themeCtaFontStr,
+      themeLineHeightStr,
+      themeDesignJsonAccent,
+      themeDesignJsonDensity,
     ],
   );
 
@@ -799,8 +849,24 @@ export default function ChatWidgetBoxDesignPage() {
         showChecklist={false}
         checklistRefreshKey={checklistRefreshKey}
         preview={
-          <Stack spacing={2.5}>
-            <WidgetWizardSiteChromePreview draft={chromeDraft} />
+          <Stack spacing={2}>
+            <WidgetLauncherLivePreview
+              buttonOnly
+              buttonShape={chromeDraft.buttonShape}
+              buttonPosition={chromeDraft.buttonPosition === "left" ? "left" : "right"}
+              insetBottomPx={chromeDraft.launcherInsetBottomPx}
+              insetSidePx={chromeDraft.launcherInsetSidePx}
+              buttonColor={chromeDraft.buttonColor}
+              hoverColor={chromeDraft.buttonHoverColor}
+              iconColor={chromeDraft.iconColor}
+              iconDataUrl={chromeDraft.iconDataUrl}
+              launcherIconPreset={chromeDraft.launcherIconPreset}
+              launcherIconEnabled={chromeDraft.launcherIconEnabled !== false}
+              launcherLabelEnabled={chromeDraft.launcherLabelEnabled !== false}
+              buttonLabel={chromeDraft.buttonLabel ?? ""}
+              launcherStyle={chromeDraft.launcherStyle ?? "solid"}
+              launcherBadgeMode={chromeDraft.launcherBadgeMode ?? "count"}
+            />
             <WidgetChatBoxLivePreview model={livePreviewModel} />
           </Stack>
         }
@@ -853,52 +919,24 @@ export default function ChatWidgetBoxDesignPage() {
         <Typography variant="body2" sx={{ color: theme.app.text.primary, fontWeight: 600, mb: 0.75 }}>
           Header logo (optional)
         </Typography>
-        <Box
-          role="button"
-          tabIndex={0}
-          onClick={() => headerLogoUploadRef.current?.click()}
-          onKeyDown={(event) => {
-            if (event.key === "Enter" || event.key === " ") {
-              event.preventDefault();
-              headerLogoUploadRef.current?.click();
-            }
-          }}
-          sx={{
-            border: `1px dashed ${theme.app.dashboard.accentBlue}`,
-            borderRadius: 1.5,
-            py: 1.5,
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            bgcolor: "rgba(6, 12, 54, 0.4)",
-            gap: 0.5,
-            cursor: "pointer",
-          }}
-        >
-          <CloudUploadOutlined sx={{ color: theme.app.dashboard.accentBlue, fontSize: 20 }} />
-          <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted }}>
-            Click to upload logo
-          </Typography>
-          <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted }}>
-            {headerLogoFileName || "PNG or SVG, max 10 MB"}
-          </Typography>
-        </Box>
-        {headerLogoDataUrl ? (
-          <Button
-            type="button"
-            variant="secondary"
-            size="small"
-            sx={{ mt: 1 }}
-            onClick={() => {
-              setHeaderLogoDataUrl("");
-              setHeaderLogoFileName("");
-              if (headerLogoUploadRef.current) headerLogoUploadRef.current.value = "";
-            }}
-          >
-            Remove logo
-          </Button>
-        ) : null}
+        <WidgetMediaUploadPreview
+          uploadLabel="Click to upload logo"
+          fileName={headerLogoFileName}
+          previewUrl={headerLogoDataUrl}
+          mediaType="image"
+          previewHeightPx={clampNum(headerLogoHeightPx, 16, 64, 28) + 24}
+          onPick={() => headerLogoUploadRef.current?.click()}
+          onClear={
+            headerLogoDataUrl
+              ? () => {
+                  setHeaderLogoDataUrl("");
+                  setHeaderLogoFileName("");
+                  if (headerLogoUploadRef.current) headerLogoUploadRef.current.value = "";
+                }
+              : undefined
+          }
+          clearLabel="Remove logo"
+        />
       </Box>
       <Box
         component="input"
@@ -907,6 +945,14 @@ export default function ChatWidgetBoxDesignPage() {
         accept=".png,.jpg,.jpeg,.webp,.svg"
         onChange={handleHeaderLogoUpload}
         sx={{ display: "none" }}
+      />
+      <WidgetNumericField
+        label="Header logo height (px)"
+        name="header-logo-height"
+        value={headerLogoHeightPx}
+        onChange={setHeaderLogoHeightPx}
+        min={16}
+        max={64}
       />
 
       <Box sx={chatBoxSwitchRowSx}>
@@ -924,47 +970,41 @@ export default function ChatWidgetBoxDesignPage() {
             value={bannerTitle}
             onChange={setBannerTitle}
             maxLength={FIELD_MAX.title}
-            placeholder="Shown only when you type a title"
+            placeholder="Shown above the banner media"
           />
           <WidgetTextField
-            label="Banner description (optional)"
-            name="banner-description"
-            value={bannerDescription}
-            onChange={setBannerDescription}
-            maxLength={FIELD_MAX.message}
-            placeholder="Shown only when you type a description"
+            label="Banner CTA label"
+            name="banner-cta-label"
+            value={bannerCtaLabel}
+            onChange={setBannerCtaLabel}
+            maxLength={FIELD_MAX.shortLabel}
+            placeholder="Shop now"
           />
-          <Box
-            role="button"
-            tabIndex={0}
-            onClick={() => bannerUploadRef.current?.click()}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" || event.key === " ") {
-                event.preventDefault();
-                bannerUploadRef.current?.click();
-              }
-            }}
-            sx={{
-              border: `1px dashed ${theme.app.dashboard.accentBlue}`,
-              borderRadius: 1.5,
-              py: 2,
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-              bgcolor: "rgba(6, 12, 54, 0.4)",
-              gap: 0.75,
-              cursor: "pointer",
-            }}
-          >
-            <CloudUploadOutlined sx={{ color: theme.app.dashboard.accentBlue }} />
-            <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted }}>
-              Click to upload banner
-            </Typography>
-            <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted }}>
-              {bannerFileName || "Max 10 MB files are allowed"}
-            </Typography>
-          </Box>
+          <WidgetUrlField
+            label="Banner CTA link"
+            name="banner-cta-href"
+            value={bannerCtaHref}
+            onChange={setBannerCtaHref}
+            placeholder="https://yoursite.com/promo"
+            helperText="Clickable button under the banner in the live widget."
+          />
+          <WidgetMediaUploadPreview
+            uploadLabel="Click to upload banner image or video"
+            fileName={bannerFileName}
+            previewUrl={bannerDataUrl}
+            mediaType={bannerMediaType}
+            onPick={() => bannerUploadRef.current?.click()}
+            onClear={
+              bannerDataUrl
+                ? () => {
+                    setBannerDataUrl("");
+                    setBannerFileName("");
+                    if (bannerUploadRef.current) bannerUploadRef.current.value = "";
+                  }
+                : undefined
+            }
+            clearLabel="Remove banner"
+          />
         </Box>
       ) : null}
       <Box component="input" ref={bannerUploadRef} type="file" accept=".png,.jpg,.jpeg,.webp,.gif,.mp4,.webm,.ogg,.mov" onChange={handleBannerUpload} sx={{ display: "none" }} />
@@ -976,6 +1016,7 @@ export default function ChatWidgetBoxDesignPage() {
         onChange={setVideoWelcomeOn}
       />
       {videoWelcomeOn ? (
+        <>
         <WidgetUrlField
           label="Video URL (YouTube / Vimeo)"
           name="video-welcome-url"
@@ -984,25 +1025,81 @@ export default function ChatWidgetBoxDesignPage() {
           videoEmbed
           helperText="Shown at the top of the panel before chat starts."
         />
+        {videoWelcomeUrl.trim() ? (
+          <Box
+            sx={{
+              borderRadius: 1.5,
+              overflow: "hidden",
+              border: `1px solid ${theme.app.dashboard.cardBorder}`,
+              height: clampNum(videoWelcomeHeightPx, 80, 320, 160),
+              bgcolor: "#000",
+            }}
+          >
+            <Box
+              component="iframe"
+              src={videoWelcomeUrl.trim()}
+              title="Video welcome preview"
+              sx={{ width: "100%", height: "100%", border: 0, display: "block" }}
+            />
+          </Box>
+        ) : null}
+        <WidgetNumericField
+          label="Video welcome height (px)"
+          name="video-welcome-height"
+          value={videoWelcomeHeightPx}
+          onChange={setVideoWelcomeHeightPx}
+          min={80}
+          max={320}
+        />
+        </>
       ) : null}
       </Box>
         </SchedulingSectionCard>
 
         <SchedulingSectionCard
           title="Panel & bubble style"
-          subtitle="Glass, gradient, glow, or solid — independent of the launcher button on step 1."
+          subtitle="Bubble surface, shape, colors, and avatars — updates the live preview instantly."
         >
           <Box sx={chatBoxFormStackSx}>
             <WidgetSurfaceStylePicker
               label="Panel style"
               value={panelSurfaceStyle}
               onChange={setPanelSurfaceStyle}
+              excludeStyles={["glow"]}
+            />
+            <WidgetNumericField
+              label="Panel corner radius (px)"
+              name="panel-radius"
+              value={themeBorderRadiusPxStr}
+              onChange={setThemeBorderRadiusPxStr}
+              min={0}
+              max={20}
             />
             <WidgetSurfaceStylePicker
-              label="Message bubble style"
+              label="Message bubble surface"
               value={bubbleSurfaceStyle}
               onChange={setBubbleSurfaceStyle}
             />
+            <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 1.5 }}>
+              <SelectField
+                label="Bubble shape"
+                value={themeBubbleStyle}
+                onChange={setThemeBubbleStyle}
+                options={[
+                  { label: "Rounded", value: "rounded" },
+                  { label: "Square", value: "square" },
+                  { label: "Pill", value: "pill" },
+                ]}
+              />
+              <InputField
+                label="Bubble corner radius (px)"
+                name="bubble-radius"
+                value={bubbleBorderRadiusPxStr}
+                onChange={(e) => setBubbleBorderRadiusPxStr(e.target.value)}
+                inputProps={{ inputMode: "numeric" }}
+              />
+            </Box>
+            <WidgetMessageBubbleColorFields colors={chatColors} onChange={setChatColors} />
             <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 2 }}>
               <WidgetChatAvatarField
                 title="Agent avatar"
@@ -1010,20 +1107,12 @@ export default function ChatWidgetBoxDesignPage() {
                 variant="agent"
                 enabled={agentAvatarEnabled}
                 onEnabledChange={setAgentAvatarEnabled}
-                fileName={agentAvatarFileName}
                 dataUrl={agentAvatarDataUrl}
                 preset={agentAvatarPreset}
                 accentColor={headerBrandColor}
-                uploadRef={agentAvatarUploadRef}
-                onUpload={(e) => handleAvatarUpload(e, "agent")}
                 onSelectPreset={(id) => {
                   setAgentAvatarPreset(id as AgentAvatarPresetId);
                   setAgentAvatarDataUrl("");
-                  setAgentAvatarFileName("");
-                }}
-                onClear={() => {
-                  setAgentAvatarDataUrl("");
-                  setAgentAvatarFileName("");
                 }}
               />
               <WidgetChatAvatarField
@@ -1032,20 +1121,12 @@ export default function ChatWidgetBoxDesignPage() {
                 variant="visitor"
                 enabled={visitorAvatarEnabled}
                 onEnabledChange={setVisitorAvatarEnabled}
-                fileName={visitorAvatarFileName}
                 dataUrl={visitorAvatarDataUrl}
                 preset={visitorAvatarPreset}
                 accentColor={headerBrandColor}
-                uploadRef={visitorAvatarUploadRef}
-                onUpload={(e) => handleAvatarUpload(e, "visitor")}
                 onSelectPreset={(id) => {
                   setVisitorAvatarPreset(id as VisitorAvatarPresetId);
                   setVisitorAvatarDataUrl("");
-                  setVisitorAvatarFileName("");
-                }}
-                onClear={() => {
-                  setVisitorAvatarDataUrl("");
-                  setVisitorAvatarFileName("");
                 }}
               />
             </Box>
@@ -1054,52 +1135,32 @@ export default function ChatWidgetBoxDesignPage() {
 
         <SchedulingSectionCard
           title="Message flow"
-          subtitle="What visitors see after they open the widget — in order."
+          subtitle="What visitors see when they open the chat panel."
         >
       <Box sx={chatBoxFormStackSx}>
+      {chromeDraft.launcherLabelEnabled !== false ? (
       <WidgetTextField
         label="Floating button label"
         name="button-label"
         value={buttonLabel}
         onChange={setButtonLabel}
         maxLength={FIELD_MAX.shortLabel}
-        helperText="Optional short label on the closed launcher (edit shape on Button step)."
+        helperText="Short label on the closed launcher. Turn off on the Button step to hide text."
       />
-      <Typography variant="caption" sx={{ color: theme.app.dashboard.textMuted, display: "block", mb: -0.5 }}>
-        1 → Invitation bubble is on the Button step (while widget is closed).
-      </Typography>
-      <WidgetWizardToggleRow
-        label="2 → Panel greeting (Continue screen)"
-        description="Full-screen intro inside the open panel before chat or the form."
-        checked={panelGreetingEnabled}
-        onChange={setPanelGreetingEnabled}
+      ) : (
+        <Typography variant="body2" sx={{ color: theme.app.dashboard.textMuted }}>
+          Launcher label is hidden (icon-only). Turn on &quot;Button label&quot; on the Button step to
+          show text on the floating chip.
+        </Typography>
+      )}
+      <WidgetTextField
+        label="Greeting message"
+        name="greeting-message"
+        value={greetingMessage}
+        onChange={setGreetingMessage}
+        maxLength={FIELD_MAX.message}
+        helperText="First bubble when the panel opens. Visitors type and send to start chatting."
       />
-      {panelGreetingEnabled ? (
-        <WidgetTextField
-          label="Panel greeting text"
-          name="greeting-message"
-          value={greetingMessage}
-          onChange={setGreetingMessage}
-          maxLength={FIELD_MAX.message}
-          helperText="Shown on the Continue step."
-        />
-      ) : null}
-      <WidgetWizardToggleRow
-        label="3 → First chat bubble"
-        description="First agent/AI line in the transcript after pre-chat."
-        checked={chatWelcomeEnabled}
-        onChange={setChatWelcomeEnabled}
-      />
-      {chatWelcomeEnabled ? (
-        <WidgetTextField
-          label="First chat message"
-          name="first-message"
-          value={firstMessage}
-          onChange={setFirstMessage}
-          maxLength={FIELD_MAX.message}
-          helperText="First bubble once the visitor is in the conversation."
-        />
-      ) : null}
       <WidgetTextField
         label="Message box placeholder"
         name="send-placeholder"
@@ -1122,6 +1183,7 @@ export default function ChatWidgetBoxDesignPage() {
       <WidgetChatColorsSection
         colors={chatColors}
         onChange={setChatColors}
+        excludeGroupTitles={["Chat messages"]}
         brandScalars={{
           buttonColor: chromeDraft.buttonColor || "#1E63D5",
           buttonHoverColor: chromeDraft.buttonHoverColor || chromeDraft.buttonColor || "#164EB0",
@@ -1157,38 +1219,32 @@ export default function ChatWidgetBoxDesignPage() {
         </SchedulingSectionCard>
 
         <SchedulingSectionCard title="Brand theme" subtitle="Fonts, spacing, and density for the open panel.">
-      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 1.5 }}>
-        <InputField label="Theme name" name="theme-name" value={themeName} onChange={(e) => setThemeName(e.target.value)} />
+      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 1.5, alignItems: "start" }}>
+        <InputField
+          label="Theme name"
+          name="theme-name"
+          value={themeName}
+          onChange={(e) => setThemeName(e.target.value)}
+          dense
+          sx={compactGridFieldSx}
+        />
         <WidgetColorPickerField
           label="Secondary color"
           value={themeSecondaryColor}
           onChange={setThemeSecondaryColor}
           fallback="#64748b"
         />
-        <InputField
-          label="Font family"
-          name="theme-font"
-          value={themeFontFamily}
-          onChange={(e) => setThemeFontFamily(e.target.value)}
-          sx={{ gridColumn: { sm: "1 / -1" } }}
-        />
+        <Box sx={{ gridColumn: { sm: "1 / -1" } }}>
         <SelectField
-          label="Bubble style"
-          value={themeBubbleStyle}
-          onChange={setThemeBubbleStyle}
-          options={[
-            { label: "Rounded", value: "rounded" },
-            { label: "Square", value: "square" },
-            { label: "Pill", value: "pill" },
-          ]}
+          label="Font family"
+          value={
+            WIDGET_GOOGLE_FONT_OPTIONS.find((f) => f.value === themeFontFamily)?.value ??
+            WIDGET_GOOGLE_FONT_OPTIONS[0].value
+          }
+          onChange={setThemeFontFamily}
+          options={WIDGET_GOOGLE_FONT_OPTIONS}
         />
-        <InputField
-          label="Border radius (px)"
-          name="theme-radius"
-          value={themeBorderRadiusPxStr}
-          onChange={(e) => setThemeBorderRadiusPxStr(e.target.value)}
-          inputProps={{ inputMode: "numeric" }}
-        />
+        </Box>
         <InputField
           label="Welcome font size (px)"
           name="theme-welcome-font"

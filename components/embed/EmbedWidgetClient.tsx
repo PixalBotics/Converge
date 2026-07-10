@@ -344,8 +344,6 @@ export function EmbedWidgetClient({
   );
 }
 
-const WELCOME_ACK_STORAGE_PREFIX = "converge.embed.welcomeAck.";
-
 /** Launcher placeholder while config/session loads. */
 function EmbedLoadingLauncher() {
   const loadingAppearance = useMemo(
@@ -388,24 +386,7 @@ function EmbedLoadingLauncher() {
   );
 }
 
-function readWelcomeAcknowledged(widgetKey: string): boolean {
-  if (typeof window === "undefined") return false;
-  try {
-    return sessionStorage.getItem(`${WELCOME_ACK_STORAGE_PREFIX}${widgetKey}`) === "1";
-  } catch {
-    return false;
-  }
-}
-
-function writeWelcomeAcknowledged(widgetKey: string) {
-  try {
-    sessionStorage.setItem(`${WELCOME_ACK_STORAGE_PREFIX}${widgetKey}`, "1");
-  } catch {
-    /* ignore */
-  }
-}
-
-/** Bottom-right launcher: greeting → pre-chat form → live chat */
+/** Bottom-right launcher: pre-chat form → live chat */
 function FloatingChatEmbed({
   widgetKey,
   welcomeText,
@@ -456,19 +437,6 @@ function FloatingChatEmbed({
     (appearance.inquiryEnabled ?? (appearance.inquiryOptions?.length ?? 0) > 0) &&
     (appearance.inquiryOptions?.length ?? 0) > 0;
   const needsPrechatGate = formEnabledForGate || inquiryAllowedForMode;
-  const greetingMessage = useMemo(
-    () => resolveEmbedGreetingMessage(appearance, welcomeText),
-    [appearance, welcomeText],
-  );
-  /** Launcher-only greeting step when there is no pre-chat form / inquiry gate (welcome lives in the form otherwise). */
-  const hasGreetingStep = !needsPrechatGate && greetingMessage.length > 0;
-  const [greetingAck, setGreetingAck] = useState(
-    () => !hasGreetingStep || readWelcomeAcknowledged(widgetKey),
-  );
-
-  useEffect(() => {
-    setGreetingAck(!hasGreetingStep || readWelcomeAcknowledged(widgetKey));
-  }, [widgetKey, hasGreetingStep]);
 
   useEffect(() => {
     launcherOpenRef.current = launcherOpen;
@@ -517,12 +485,6 @@ function FloatingChatEmbed({
   }, [launcherOpen, websiteId, siteKey, parentPageUrl, sessionToken, skipAnalytics, widgetKey]);
 
   useEffect(() => {
-    if (!greetingAck) {
-      setPanelHeaderStatus(null);
-    }
-  }, [greetingAck]);
-
-  useEffect(() => {
     requestWidgetNotificationPermission();
   }, []);
 
@@ -531,6 +493,7 @@ function FloatingChatEmbed({
     if (appearance.launcherBadgeMode === "none") return;
     if (
       appearance.launcher.proactiveTeaserActive ||
+      appearance.chatBox.greetingMessage.trim() ||
       appearance.firstMessage.trim()
     ) {
       setUnreadCount((c) => (c > 0 ? c : 1));
@@ -538,6 +501,7 @@ function FloatingChatEmbed({
   }, [
     sandboxPreviewAlerts,
     appearance.launcherBadgeMode,
+    appearance.chatBox.greetingMessage,
     appearance.firstMessage,
     appearance.launcher.proactiveTeaserActive,
   ]);
@@ -547,6 +511,7 @@ function FloatingChatEmbed({
     if (appearance.closedMessagePreviewEnabled === false) return;
     if (appearance.launcher.proactiveTeaserActive) return;
     const sample =
+      appearance.chatBox.greetingMessage.trim() ||
       appearance.firstMessage.trim() ||
       appearance.fallbackNotificationText.trim();
     if (!sample) return;
@@ -555,6 +520,7 @@ function FloatingChatEmbed({
     sandboxPreviewAlerts,
     appearance.closedMessagePreviewEnabled,
     appearance.launcher.proactiveTeaserActive,
+    appearance.chatBox.greetingMessage,
     appearance.firstMessage,
     appearance.fallbackNotificationText,
   ]);
@@ -659,11 +625,6 @@ function FloatingChatEmbed({
     [appearance, storeClosedMessagePreview],
   );
 
-  const acknowledgeGreeting = () => {
-    setGreetingAck(true);
-    writeWelcomeAcknowledged(widgetKey);
-  };
-
   const { launcher, chatBox } = appearance;
 
   const showClosedMessagePreview =
@@ -697,7 +658,6 @@ function FloatingChatEmbed({
         stackedLauncherCount,
       }, hostSurface);
     }
-    setGreetingAck(!hasGreetingStep || readWelcomeAcknowledged(widgetKey));
     markWidgetReturnVisit(widgetKey);
   };
 
@@ -756,7 +716,7 @@ function FloatingChatEmbed({
           maxWidth: `calc(100vw - ${sidePad}px)`,
         }}
       >
-        {(launcherOpen || greetingAck) ? (
+        {launcherOpen ? (
           <Paper
             elevation={0}
             sx={{
@@ -821,7 +781,7 @@ function FloatingChatEmbed({
                     src={chatBox.headerLogoUrl}
                     alt=""
                     sx={{
-                      height: EMBED_HEADER_LOGO_HEIGHT_PX,
+                      height: chatBox.headerLogoHeightPx ?? EMBED_HEADER_LOGO_HEIGHT_PX,
                       width: "auto",
                       maxWidth: EMBED_HEADER_LOGO_MAX_WIDTH_PX,
                       objectFit: "contain",
@@ -877,83 +837,64 @@ function FloatingChatEmbed({
                 overflow: "hidden",
                 display: "flex",
                 flexDirection: "column",
-                p: greetingAck ? 0 : appearance.densityTokens.panelPaddingPx / 8,
+                p: 0,
                 ...embedPanelBodyBackgroundSx(appearance),
               }}
             >
-              {!greetingAck ? (
-                <Stack spacing={2} sx={{ pt: 0.5, px: 1.5 }}>
-                  <EmbedChatMediaBubbles appearance={appearance} />
-                  <EmbedChatBubble appearance={appearance} role="greeting">
-                    {greetingMessage}
-                  </EmbedChatBubble>
-                  <EmbedActionButton
-                    type="button"
-                    appearance={appearance}
-                    fullWidth
-                    onClick={acknowledgeGreeting}
-                  >
-                    Continue
-                  </EmbedActionButton>
-                </Stack>
-              ) : (
+              <Box
+                sx={{
+                  display: "flex",
+                  flexDirection: "column",
+                  flex: 1,
+                  minHeight: 0,
+                  overflow: "hidden",
+                }}
+              >
                 <Box
                   sx={{
-                    display: "flex",
-                    flexDirection: "column",
                     flex: 1,
                     minHeight: 0,
                     overflow: "hidden",
+                    display: "flex",
+                    flexDirection: "column",
                   }}
                 >
+                  <WidgetChatPanel
+                    embedded
+                    greetingAlreadyShown={needsPrechatGate}
+                    widgetKey={widgetKey}
+                    websiteId={websiteId}
+                    parentPageUrl={parentPageUrl}
+                    mode={mode}
+                    sessionToken={sessionToken}
+                    configRecord={configRecord}
+                    appearance={appearance}
+                    embedEnv={embedEnv}
+                    onIncomingWhileClosed={handleIncomingAlert}
+                    onSyncClosedMessagePreview={storeClosedMessagePreview}
+                    onHeaderStatusChange={setPanelHeaderStatus}
+                  />
+                </Box>
+                {textUsBelow ? (
                   <Box
                     sx={{
-                      flex: 1,
-                      minHeight: 0,
-                      overflow: "hidden",
-                      display: "flex",
-                      flexDirection: "column",
+                      px: `${Math.max(10, appearance.densityTokens.panelPaddingPx * 0.65)}px`,
+                      pb: 1.5,
+                      pt: 0.5,
+                      borderTop: `1px solid ${appearance.colors.inputBorder}`,
                     }}
                   >
-                    <WidgetChatPanel
-                      embedded
-                      greetingAlreadyShown={
-                        needsPrechatGate || (hasGreetingStep && greetingAck)
-                      }
-                      widgetKey={widgetKey}
-                      websiteId={websiteId}
-                      parentPageUrl={parentPageUrl}
-                      mode={mode}
-                      sessionToken={sessionToken}
-                      configRecord={configRecord}
-                      appearance={appearance}
-                      embedEnv={embedEnv}
-                      onIncomingWhileClosed={handleIncomingAlert}
-                      onSyncClosedMessagePreview={storeClosedMessagePreview}
-                      onHeaderStatusChange={setPanelHeaderStatus}
-                    />
-                  </Box>
-                  {textUsBelow ? (
-                    <Box
-                      sx={{
-                        px: `${Math.max(10, appearance.densityTokens.panelPaddingPx * 0.65)}px`,
-                        pb: 1.5,
-                        pt: 0.5,
-                        borderTop: `1px solid ${appearance.colors.inputBorder}`,
-                      }}
+                    <Typography
+                      variant="subtitle2"
+                      sx={{ ...embedLabelTextSx(appearance), mb: 1 }}
                     >
-                      <Typography
-                        variant="subtitle2"
-                        sx={{ ...embedLabelTextSx(appearance), mb: 1 }}
-                      >
-                        {extractRuntimeTextUsAppearance(configRecord).chatBox.headerTitle ||
-                          "Text Us"}
-                      </Typography>
-                      {textUsBelow}
-                    </Box>
-                  ) : null}
-                </Box>
-              )}
+                      {extractRuntimeTextUsAppearance(configRecord).chatBox.headerTitle ||
+                        "Text Us"}
+                    </Typography>
+                    {textUsBelow}
+                  </Box>
+                ) : null}
+              </Box>
             </Box>
           </Paper>
         ) : null}
@@ -1017,6 +958,7 @@ function FloatingChatEmbed({
             iconDataUrl={launcher.iconUrl}
             iconEnabled={launcher.iconEnabled !== false}
             launcherStyle={launcher.style}
+            glowColor={launcher.glowColor}
             buttonLabel={launcher.buttonLabel}
             buttonShape={
               launcher.shape === "square" || launcher.shape === "rounded"
@@ -1061,23 +1003,8 @@ function FloatingTextUsEmbed({
     appearance,
     appearance.panelGreetingMessage,
   );
-  const hasGreetingStep = greetingMessage.length > 0;
 
   const [launcherOpen, setLauncherOpen] = useState(false);
-  const [greetingAck, setGreetingAck] = useState(
-    () => !hasGreetingStep || readWelcomeAcknowledged(`${widgetKey}:textUs`),
-  );
-
-  useEffect(() => {
-    setGreetingAck(
-      !hasGreetingStep || readWelcomeAcknowledged(`${widgetKey}:textUs`),
-    );
-  }, [widgetKey, hasGreetingStep]);
-
-  const acknowledgeGreeting = () => {
-    setGreetingAck(true);
-    writeWelcomeAcknowledged(`${widgetKey}:textUs`);
-  };
 
   const panelAlign =
     launcher.position === "left"
@@ -1101,9 +1028,6 @@ function FloatingTextUsEmbed({
     if (!suppressHostResize) {
       postEmbedHostResize(false, appearance, undefined, hostSurface);
     }
-    setGreetingAck(
-      !hasGreetingStep || readWelcomeAcknowledged(`${widgetKey}:textUs`),
-    );
   };
 
   const openLauncher = () => {
@@ -1172,7 +1096,7 @@ function FloatingTextUsEmbed({
             minHeight: 0,
           }}
         >
-          {launcherOpen || greetingAck ? (
+          {launcherOpen ? (
             <Paper
               elevation={0}
               sx={{
@@ -1214,7 +1138,25 @@ function FloatingTextUsEmbed({
                   direction="row"
                   alignItems="center"
                   spacing={0.75}
-                  sx={{ flex: 1, minWidth: 0, justifyContent: "flex-start", mr: "auto" }}
+                  sx={{
+                    ...(chatBox.headerAlign === "center"
+                      ? {
+                          position: "absolute",
+                          left: "50%",
+                          top: "50%",
+                          transform: "translate(-50%, -50%)",
+                          maxWidth: "calc(100% - 88px)",
+                          justifyContent: "center",
+                          pointerEvents: "none",
+                        }
+                      : {
+                          flex: 1,
+                          minWidth: 0,
+                          justifyContent:
+                            chatBox.headerAlign === "right" ? "flex-end" : "flex-start",
+                          mr: "auto",
+                        }),
+                  }}
                 >
                   {chatBox.headerLogoUrl ? (
                     <Box
@@ -1222,11 +1164,13 @@ function FloatingTextUsEmbed({
                       src={chatBox.headerLogoUrl}
                       alt=""
                       sx={{
-                        height: EMBED_HEADER_LOGO_HEIGHT_PX,
+                        height: chatBox.headerLogoHeightPx ?? EMBED_HEADER_LOGO_HEIGHT_PX,
                         width: "auto",
-                        maxWidth: EMBED_HEADER_LOGO_MAX_WIDTH_PX,
+                        maxWidth:
+                          chatBox.headerLogoMaxWidthPx ?? EMBED_HEADER_LOGO_MAX_WIDTH_PX,
                         objectFit: "contain",
                         flexShrink: 0,
+                        pointerEvents: "auto",
                       }}
                     />
                   ) : null}
@@ -1237,10 +1181,12 @@ function FloatingTextUsEmbed({
                       sx={{
                         letterSpacing: 0.02,
                         minWidth: 0,
+                        textAlign: chatBox.headerAlign,
                         color: "inherit",
                         overflow: "hidden",
                         textOverflow: "ellipsis",
                         whiteSpace: "nowrap",
+                        pointerEvents: "auto",
                       }}
                     >
                       {chatBox.headerTitle.trim()}
@@ -1265,56 +1211,37 @@ function FloatingTextUsEmbed({
                   overflow: "hidden",
                   display: "flex",
                   flexDirection: "column",
-                  p: greetingAck ? 0 : appearance.densityTokens.panelPaddingPx / 8,
+                  p: 0,
                   ...embedPanelBodyBackgroundSx(appearance),
                 }}
               >
-                {!greetingAck ? (
-                  <Stack spacing={2} sx={{ pt: 0.5, px: 1.5 }}>
-                    <EmbedChatBubble appearance={appearance} role="greeting">
-                      {greetingMessage}
-                    </EmbedChatBubble>
-                    <Typography variant="body2" sx={embedMutedTextSx(appearance)}>
-                      Continue to open the form and send us a message.
-                    </Typography>
-                    <EmbedActionButton
-                      type="button"
-                      appearance={appearance}
-                      fullWidth
-                      onClick={acknowledgeGreeting}
-                    >
-                      Continue
-                    </EmbedActionButton>
-                  </Stack>
-                ) : (
-                  <Box
-                    sx={{
-                      flex: 1,
-                      minHeight: 0,
-                      overflowY: "auto",
-                      px: `${Math.max(10, appearance.densityTokens.panelPaddingPx * 0.65)}px`,
-                      py: 1.25,
-                      ...embedPanelBodyBackgroundSx(appearance),
-                    }}
-                  >
-                    {appearance.welcomeMessage.trim() ? (
-                      <Box sx={{ mb: 1.25 }}>
-                        <EmbedChatBubble appearance={appearance} role="greeting">
-                          {appearance.welcomeMessage.trim()}
-                        </EmbedChatBubble>
-                      </Box>
-                    ) : null}
-                    <WidgetTextUsPanel
-                      embedded
-                      websiteId={websiteId}
-                      parentPageUrl={parentPageUrl}
-                      sessionToken={sessionToken}
-                      widgetKey={widgetKey}
-                      textUsFormConfig={textUsFormConfig}
-                      appearance={appearance}
-                    />
-                  </Box>
-                )}
+                <Box
+                  sx={{
+                    flex: 1,
+                    minHeight: 0,
+                    overflowY: "auto",
+                    px: `${Math.max(10, appearance.densityTokens.panelPaddingPx * 0.65)}px`,
+                    py: 1.25,
+                    ...embedPanelBodyBackgroundSx(appearance),
+                  }}
+                >
+                  {greetingMessage.trim() ? (
+                    <Box sx={{ mb: 1.25 }}>
+                      <EmbedChatBubble appearance={appearance} role="greeting">
+                        {greetingMessage}
+                      </EmbedChatBubble>
+                    </Box>
+                  ) : null}
+                  <WidgetTextUsPanel
+                    embedded
+                    websiteId={websiteId}
+                    parentPageUrl={parentPageUrl}
+                    sessionToken={sessionToken}
+                    widgetKey={widgetKey}
+                    textUsFormConfig={textUsFormConfig}
+                    appearance={appearance}
+                  />
+                </Box>
               </Box>
             </Paper>
           ) : null}
@@ -1329,6 +1256,7 @@ function FloatingTextUsEmbed({
               iconPreset={launcher.iconPreset}
               iconEnabled={launcher.iconEnabled !== false}
               launcherStyle={launcher.style}
+              glowColor={launcher.glowColor}
               buttonLabel={launcher.buttonLabel}
               onClick={toggleLauncher}
             />
@@ -2471,7 +2399,6 @@ function WidgetChatPanel({
     const panelWelcome = appearance
       ? resolveEmbedGreetingMessage(appearance).trim()
       : "";
-    const chatWelcome = appearance?.firstMessage?.trim() ?? "";
     const showPrechatForm = formEnabled;
 
     return (
@@ -2494,11 +2421,6 @@ function WidgetChatPanel({
           {appearance && panelWelcome ? (
             <EmbedChatBubble appearance={appearance} role="greeting">
               {panelWelcome}
-            </EmbedChatBubble>
-          ) : null}
-          {appearance && chatWelcome && chatWelcome !== panelWelcome ? (
-            <EmbedChatBubble appearance={appearance} role="assistant">
-              {chatWelcome}
             </EmbedChatBubble>
           ) : null}
 
@@ -2759,13 +2681,6 @@ function WidgetChatPanel({
         !greetingAlreadyShown ? (
           <EmbedChatBubble appearance={appearance} role="greeting">
             {appearance.chatBox.greetingMessage}
-          </EmbedChatBubble>
-        ) : null}
-        {!mergeDisplayMessages.length &&
-        appearance?.firstMessage?.trim() &&
-        !greetingAlreadyShown ? (
-          <EmbedChatBubble appearance={appearance} role="assistant">
-            {appearance.firstMessage}
           </EmbedChatBubble>
         ) : null}
         {mergeDisplayMessages.map((m) => (

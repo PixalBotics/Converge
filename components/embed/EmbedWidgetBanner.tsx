@@ -1,9 +1,11 @@
 "use client";
 
 import Box from "@mui/material/Box";
+import OpenInNewRounded from "@mui/icons-material/OpenInNewRounded";
 import { Typography } from "@/components/common";
 import type { RuntimeBannerAppearance, RuntimeChatAppearance } from "@/lib/widget-runtime/widget-runtime-appearance";
 import { embedBodyTextSx, embedMutedTextSx } from "@/lib/widget-runtime/embed-theme-sx";
+import { resolveBannerMediaSx } from "@/lib/chat-widget/banner-media-height";
 
 export function EmbedWidgetBanner({
   banner,
@@ -23,9 +25,16 @@ export function EmbedWidgetBanner({
   const hasMedia = Boolean(
     (banner.mediaType === "video" && banner.videoUrl) || banner.imageUrl,
   );
-  if (!hasMedia && !banner.title?.trim() && !banner.description?.trim()) {
+  const hasCta = Boolean(banner.ctaLabel?.trim() && banner.ctaHref?.trim());
+  if (!hasMedia && !banner.title?.trim() && !hasCta) {
     return null;
   }
+
+  const mediaHeight = banner.heightPx > 0 ? banner.heightPx : 0;
+  const mediaSx = resolveBannerMediaSx(mediaHeight, {
+    compact,
+    bgcolor: banner.mediaType === "video" ? "#000" : undefined,
+  });
 
   return (
     <Box
@@ -45,37 +54,49 @@ export function EmbedWidgetBanner({
           controls
           playsInline
           muted
-          sx={{
-            width: "100%",
-            maxHeight: compact ? 100 : 160,
-            display: "block",
-            bgcolor: "#000",
-          }}
+          sx={mediaSx}
         />
       ) : banner.imageUrl ? (
         <Box
           component="img"
           src={banner.imageUrl}
           alt={banner.title || "Promotional banner"}
-          sx={{
-            width: "100%",
-            maxHeight: compact ? 72 : 120,
-            objectFit: "cover",
-            display: "block",
-          }}
+          sx={mediaSx}
         />
       ) : null}
-      {(banner.title?.trim() || banner.description?.trim()) && (
-        <Box sx={{ px: 1.25, py: 1 }}>
+      {(banner.title?.trim() || hasCta) && (
+        <Box sx={{ px: 1.25, py: 1, display: "flex", flexDirection: "column", gap: 0.75 }}>
           {banner.title?.trim() ? (
             <Typography variant="subtitle2" sx={{ ...embedBodyTextSx(appearance), fontWeight: 700 }}>
               {banner.title.trim()}
             </Typography>
           ) : null}
-          {banner.description?.trim() ? (
-            <Typography variant="body2" sx={embedMutedTextSx(appearance)}>
-              {banner.description.trim()}
-            </Typography>
+          {hasCta ? (
+            <Box
+              component="a"
+              href={banner.ctaHref.trim()}
+              target="_blank"
+              rel="noopener noreferrer"
+              sx={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 0.5,
+                alignSelf: "flex-start",
+                px: 1.25,
+                py: 0.55,
+                borderRadius: `${Math.max(6, appearance.borderRadiusPx - 2)}px`,
+                bgcolor: appearance.colors.primary,
+                color: "#fff",
+                fontWeight: 700,
+                fontSize: appearance.colors.bodyFontSizePx,
+                fontFamily: appearance.colors.fontFamily,
+                textDecoration: "none",
+                "&:hover": { opacity: 0.92 },
+              }}
+            >
+              {banner.ctaLabel.trim()}
+              <OpenInNewRounded sx={{ fontSize: 16 }} />
+            </Box>
           ) : null}
         </Box>
       )}

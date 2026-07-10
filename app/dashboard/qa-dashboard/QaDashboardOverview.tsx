@@ -47,6 +47,7 @@ import {
   queuePriorityPill,
   paginationRow,
 } from "./QaDashboardOverview.styles";
+import { dashboardEmbeddedOverviewRoot, embeddedOverviewToolbar } from "../dashboard.styles";
 import {
   elapsedDurationLabel,
   formatDashboardCount,
@@ -187,8 +188,8 @@ export default function QaDashboardOverview({ embedded = false }: { embedded?: b
   );
 
   return (
-    <Box sx={pageRoot}>
-      <Box sx={[headerRow, embedded ? { justifyContent: "flex-end", mb: 2 } : undefined]}>
+    <Box sx={embedded ? dashboardEmbeddedOverviewRoot : pageRoot}>
+      <Box sx={embedded ? embeddedOverviewToolbar : headerRow}>
         {!embedded ? (
           <Typography variant="regularLarge" fontWeight={700} color="white">
             QA dashboard

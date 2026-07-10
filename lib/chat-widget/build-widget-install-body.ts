@@ -24,7 +24,7 @@ import {
   normalizeAgentAvatarPreset,
   normalizeVisitorAvatarPreset,
 } from "./chat-avatar-presets";
-import { normalizeLauncherStyle } from "./launcher-style";
+import { normalizeLauncherStyle, normalizePanelSurfaceStyle } from "./launcher-style";
 
 export interface WidgetInstallationAssetUrls {
   buttonIconPublicUrl?: string;
@@ -59,6 +59,7 @@ function sanitizeWidgetPatchConfig(config: JsonRecord): JsonRecord {
 /**
  * Whitelisted `theme.designJson.chat.chatBox` only (backend rejects headerAlign,
  * greetingMessage, bannerMediaType — those live on `config.ui` via buildChatShellUiFromDraft).
+ * Banner CTA / height / logo size live on `theme.designJson.behavior`.
  */
 /** `theme.designJson.chat.launcher` — synced with `config.ui` on save. */
 function buildLauncherDesignJsonFromDraft(
@@ -114,6 +115,19 @@ function buildChatBoxPayloadFromDraft(
   if (urls.headerLogoPublicUrl) chatBox.headerLogoUrl = urls.headerLogoPublicUrl;
 
   return chatBox;
+}
+
+/** Extra chat panel fields allowed under `theme.designJson.behavior` (not `ui` / `chatBox`). */
+function buildChatPanelDesignJsonBehaviorFromDraft(draft: WidgetDraft): JsonRecord {
+  const patch: JsonRecord = {
+    bannerHeightPx: draft.bannerHeightPx && draft.bannerHeightPx > 0 ? draft.bannerHeightPx : 0,
+    bannerCtaLabel: draft.bannerCtaLabel?.trim() ?? "",
+    bannerCtaHref: draft.bannerCtaHref?.trim() ?? "",
+    headerLogoHeightPx: draft.headerLogoHeightPx ?? 28,
+    videoWelcomeHeightPx: draft.videoWelcomeHeightPx ?? 160,
+    bubbleBorderRadiusPx: draft.bubbleBorderRadiusPx ?? draft.themeBorderRadiusPx ?? 12,
+  };
+  return patch;
 }
 
 function resolvePanelBackground(draft: WidgetDraft): string {
@@ -196,7 +210,7 @@ export function buildDesignJsonPatchFromDraft(
     const urls = mergeDraftAssetUrls(draft, assetUrls);
     chat.chatBox = buildChatBoxPayloadFromDraft(draft, assetUrls);
     chat.panel = {
-      surfaceStyle: normalizeLauncherStyle(draft.panelSurfaceStyle),
+      surfaceStyle: normalizePanelSurfaceStyle(draft.panelSurfaceStyle),
     };
     chat.bubbles = {
       surfaceStyle: normalizeLauncherStyle(draft.bubbleSurfaceStyle),
@@ -219,6 +233,9 @@ export function buildDesignJsonPatchFromDraft(
     theme: buildDesignJsonThemeTokensFromDraft(draft),
     ui: { backgroundColor: panel },
   };
+  if (scope === "chat_surface" || scope === "full") {
+    patch.behavior = buildChatPanelDesignJsonBehaviorFromDraft(draft);
+  }
   const accent = draft.themeDesignJsonAccent?.trim();
   const density = draft.themeDesignJsonDensity?.trim();
   if (accent) patch.accent = accent;
@@ -337,7 +354,7 @@ function buildChatSurfaceDesignJsonUiFromDraft(
   const avatarUrls = resolveChatAvatarPublicUrls(draft, assetUrls);
   return {
     backgroundColor: backgroundColor ?? resolvePanelBackground(draft),
-    panelSurfaceStyle: normalizeLauncherStyle(draft.panelSurfaceStyle),
+    panelSurfaceStyle: normalizePanelSurfaceStyle(draft.panelSurfaceStyle),
     bubbleSurfaceStyle: normalizeLauncherStyle(draft.bubbleSurfaceStyle),
     agentAvatarEnabled: draft.agentAvatarEnabled !== false,
     visitorAvatarEnabled: draft.visitorAvatarEnabled !== false,
@@ -405,10 +422,10 @@ export function buildChatPanelUiFromDraft(
     headerTitle: draft.headerTitle?.trim() ?? "",
     headerTitleAlign: headerAlign,
     header: { align: headerAlign, companyName: draft.headerTitle },
-    firstMessage: draft.firstMessage ?? def.firstMessage,
+    firstMessage: "",
     greetingMessage: draft.greetingMessage,
-    panelGreetingEnabled: draft.panelGreetingEnabled !== false,
-    chatWelcomeEnabled: draft.chatWelcomeEnabled !== false,
+    panelGreetingEnabled: false,
+    chatWelcomeEnabled: false,
     sendPlaceholder: draft.sendPlaceholder,
     messagePlaceholder: draft.messagePlaceholder ?? def.messagePlaceholder,
     bannerOn: draft.bannerOn,
@@ -427,7 +444,7 @@ export function buildChatPanelUiFromDraft(
   if (urls.bannerImagePublicUrl) ui.bannerImageUrl = urls.bannerImagePublicUrl;
   if (urls.bannerVideoPublicUrl) ui.bannerVideoUrl = urls.bannerVideoPublicUrl;
   if (urls.headerLogoPublicUrl) ui.headerLogoUrl = urls.headerLogoPublicUrl;
-  ui.panelSurfaceStyle = normalizeLauncherStyle(draft.panelSurfaceStyle);
+  ui.panelSurfaceStyle = normalizePanelSurfaceStyle(draft.panelSurfaceStyle);
   ui.bubbleSurfaceStyle = normalizeLauncherStyle(draft.bubbleSurfaceStyle);
   ui.agentAvatarEnabled = draft.agentAvatarEnabled !== false;
   ui.visitorAvatarEnabled = draft.visitorAvatarEnabled !== false;
@@ -454,10 +471,10 @@ export function buildChatShellUiFromDraft(
     headerTitle: draft.headerTitle?.trim() ?? "",
     headerTitleAlign: headerAlign,
     header: { align: headerAlign, companyName: draft.headerTitle },
-    firstMessage: draft.firstMessage ?? def.firstMessage,
+    firstMessage: "",
     greetingMessage: draft.greetingMessage,
-    panelGreetingEnabled: draft.panelGreetingEnabled !== false,
-    chatWelcomeEnabled: draft.chatWelcomeEnabled !== false,
+    panelGreetingEnabled: false,
+    chatWelcomeEnabled: false,
     sendPlaceholder: draft.sendPlaceholder,
     messagePlaceholder: draft.messagePlaceholder ?? def.messagePlaceholder,
     bannerOn: draft.bannerOn,
@@ -476,7 +493,7 @@ export function buildChatShellUiFromDraft(
   if (urls.bannerImagePublicUrl) ui.bannerImageUrl = urls.bannerImagePublicUrl;
   if (urls.bannerVideoPublicUrl) ui.bannerVideoUrl = urls.bannerVideoPublicUrl;
   if (urls.headerLogoPublicUrl) ui.headerLogoUrl = urls.headerLogoPublicUrl;
-  ui.panelSurfaceStyle = normalizeLauncherStyle(draft.panelSurfaceStyle);
+  ui.panelSurfaceStyle = normalizePanelSurfaceStyle(draft.panelSurfaceStyle);
   ui.bubbleSurfaceStyle = normalizeLauncherStyle(draft.bubbleSurfaceStyle);
   ui.agentAvatarEnabled = draft.agentAvatarEnabled !== false;
   ui.visitorAvatarEnabled = draft.visitorAvatarEnabled !== false;

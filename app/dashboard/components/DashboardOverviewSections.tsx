@@ -4,6 +4,10 @@ import type { ReactNode } from "react";
 import Box from "@mui/material/Box";
 import { Typography } from "@/components/common";
 import { useDashboardWidgets } from "@/lib/permissions/use-dashboard-widgets";
+import {
+  DASHBOARD_OVERVIEW_SECTION_ORDER,
+  type DashboardOverviewSectionKey,
+} from "../config/dashboard-layout.config";
 import AgentDashboardOverview from "../agent-dashboard/AgentDashboardOverview";
 import CompanyAdminOverview from "../company-admin-dashboard/CompanyAdminOverview";
 import QaDashboardOverview from "../qa-dashboard/QaDashboardOverview";
@@ -22,23 +26,28 @@ function DashboardWelcomeFallback() {
 export function DashboardOverviewSections() {
   const widgets = useDashboardWidgets();
 
-  const sections: { key: string; node: ReactNode }[] = [];
+  const sectionNodes: Partial<Record<DashboardOverviewSectionKey, ReactNode>> = {};
 
   if (widgets.platformOverview) {
-    sections.push({ key: "platform", node: <SupperDashboardOverview embedded /> });
+    sectionNodes.platform = <SupperDashboardOverview embedded />;
   }
   if (widgets.chatSupervisor) {
-    sections.push({ key: "supervisor", node: <SupervisorDashboardOverview embedded /> });
+    sectionNodes.supervisor = <SupervisorDashboardOverview embedded />;
   }
   if (widgets.chatCompany) {
-    sections.push({ key: "company", node: <CompanyAdminOverview embedded /> });
+    sectionNodes.company = <CompanyAdminOverview embedded />;
   }
   if (widgets.chatQa) {
-    sections.push({ key: "qa", node: <QaDashboardOverview embedded /> });
+    sectionNodes.qa = <QaDashboardOverview embedded />;
   }
   if (widgets.chatAgent) {
-    sections.push({ key: "agent", node: <AgentDashboardOverview embedded /> });
+    sectionNodes.agent = <AgentDashboardOverview embedded />;
   }
+
+  const sections = DASHBOARD_OVERVIEW_SECTION_ORDER.flatMap((key) => {
+    const node = sectionNodes[key];
+    return node ? [{ key, node }] : [];
+  });
 
   if (sections.length === 0) {
     return <DashboardWelcomeFallback />;

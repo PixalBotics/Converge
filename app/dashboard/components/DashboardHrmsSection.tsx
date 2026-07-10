@@ -72,11 +72,22 @@ import {
   type HrmsDateRangeLabel,
 } from "./dashboard-hrms.utils";
 
-export function DashboardHrmsSection() {
+export type DashboardHrmsWidgetScope = "all" | "attendance" | "leave";
+
+export function DashboardHrmsSection({
+  widgetScope = "all",
+}: {
+  widgetScope?: DashboardHrmsWidgetScope;
+}) {
   const theme = useTheme() as AppTheme;
   const { hasOperational: h, user, isPlatformAdmin } = useAuth();
   const widgets = useDashboardWidgets();
-  const canViewSection = widgets.hrmsAttendance || widgets.hrmsLeave;
+  const canViewSection =
+    widgetScope === "attendance"
+      ? widgets.hrmsAttendance
+      : widgetScope === "leave"
+        ? widgets.hrmsLeave
+        : widgets.hrmsAttendance || widgets.hrmsLeave;
 
   const [dateRange, setDateRange] = useState<HrmsDateRangeLabel>("Last 30 Days");
   const [poolFilter, setPoolFilter] = useState("");
@@ -349,14 +360,18 @@ export function DashboardHrmsSection() {
   if (!canViewSection) return null;
 
   const showPoolFilter = canViewTeamAttendance && poolOptions.length > 0;
-  const showAttendanceBlock = widgets.hrmsAttendance && canViewAnyAttendance;
+  const showAttendanceBlock =
+    (widgetScope === "all" || widgetScope === "attendance") &&
+    widgets.hrmsAttendance &&
+    canViewAnyAttendance;
   const showLeaveBlock =
+    (widgetScope === "all" || widgetScope === "leave") &&
     widgets.hrmsLeave &&
     Boolean(approvalQueue) &&
     hasAnyOperational(h, HRMS_LEAVE_APPROVE_ANY);
 
   return (
-    <Box sx={{ mt: 3 }}>
+    <Box sx={widgetScope === "all" ? { mt: 3 } : undefined}>
       {(showPoolFilter || showAttendanceBlock || showLeaveBlock) && (
         <Box
           sx={{

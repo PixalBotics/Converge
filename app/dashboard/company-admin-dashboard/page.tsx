@@ -1,3 +1,7 @@
 "use client";
 
-export { default } from "./CompanyAdminOverview";
+import CompanyAdminOverview from "./CompanyAdminOverview";
+
+export default function CompanyAdminDashboardPage() {
+  return <CompanyAdminOverview />;
+}
